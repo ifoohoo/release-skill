@@ -108,7 +108,7 @@
 | 查询插件状态 | observe | 检查插件是否可被发现 |
 | 验证安装性 | verify | 在全新环境中安装并验证插件可调用 |
 
-支持目标：Claude Code plugin marketplace、Codex plugin manifest/marketplace、Kimi Code（人工 attestation 闭环）。
+支持目标：Claude Code plugin marketplace、Codex plugin manifest/marketplace、Kimi Code（人工 attestation 闭环）、CodeBuddy/WorkBuddy marketplace（当前范围：仅由 build-adapters 生成自包含分发适配器 `adapters/workbuddy/`（清单 `.codebuddy-plugin/plugin.json`，组件位于插件根，技能以 `${CODEBUDDY_PLUGIN_ROOT}` 渲染），安装为手动步骤；自动化 preflight/execute/observe/verify 安装闭环尚未接入，接入前不得在未冻结清单的情况下声明支持）。
 
 ### 2.4 安装载荷校验契约（declared-manifest-v1）
 

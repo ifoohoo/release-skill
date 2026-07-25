@@ -2,7 +2,7 @@
 
 [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.2.0 -->
+<!-- release-skill:release-version: 0.2.1 -->
 ## Prerequisites
 
 - Node.js 22.0.0 or later
@@ -68,7 +68,7 @@ as a version-pinned **manual** install plus trusted observation/attestation:
    default branch), confirm the trust prompt, then reload:
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.0
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.1
    /plugins reload
    ```
 
@@ -83,10 +83,10 @@ as a version-pinned **manual** install plus trusted observation/attestation:
 {
   "consumer": "kimi",
   "plugin": "release-skill",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "entrySkill": "release-help",
   "repo": "ifoohoo/release-skill",
-  "ref": "release-skill-v0.2.0",
+  "ref": "release-skill-v0.2.1",
   "installPath": "<kimiCodeHome>/plugins/managed/release-skill",
   "planDigest": "<64-hex frozen plan digest>",
   "payloadDigest": "<64-hex frozen snapshot payload digest>",
@@ -105,6 +105,26 @@ Installing into the ordinary `~/.kimi-code` is **not** acceptable proof: the
 attested `installPath` must resolve inside the requirement's isolated
 `KIMI_CODE_HOME` managed root, otherwise verification fails closed and the Kimi
 unit never reaches `VERIFIED`.
+
+## Install as a CodeBuddy/WorkBuddy plugin
+
+The package also ships a generated, self-contained CodeBuddy/WorkBuddy adapter
+at `adapters/workbuddy/`, next to `adapters/claude/`, `adapters/codex/`, and
+`adapters/kimi/`. Its manifest lives at `.codebuddy-plugin/plugin.json` (the
+components — `skills/`, `bin/`, `schemas/`, `native/` — sit at the plugin
+root, per the CodeBuddy plugin reference), and its skills resolve the CLI
+entry via `${CODEBUDDY_PLUGIN_ROOT}`, which CodeBuddy expands inline like
+Claude Code expands `${CLAUDE_PLUGIN_ROOT}`.
+
+CodeBuddy/WorkBuddy installation is a **manual** step today: the automated
+marketplace install checkpoint (`publish`/`verify`) does not cover CodeBuddy
+yet. To use the adapter, point CodeBuddy at the generated plugin directory —
+for a single session run CodeBuddy with `--plugin-dir <path>/adapters/workbuddy`,
+or add the directory as a marketplace source you control
+(`codebuddy plugin marketplace add <source>`) and install from it
+(`codebuddy plugin install release-skill@<marketplace>`, or the interactive
+`/plugin` manager). The installed copy lands in CodeBuddy's versioned plugin
+cache; the adapter never references files outside its own directory.
 
 ## Development Install (Local Checkout)
 

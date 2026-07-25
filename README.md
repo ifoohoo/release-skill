@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.2.0 -->
+<!-- release-skill:release-version: 0.2.1 -->
 Release preparation for Claude Code, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -11,25 +11,20 @@ reviewed artifacts first and publishes those same artifacts later; it does not
 regenerate a README or re-pack the live workspace at the last step.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.2.0** (2026-07-25)
+**0.2.1** (2026-07-25)
 
-v0.2.0 is a hardening release that improves publish reliability, digest reproducibility, version management, and platform registry data-driven architecture. Nine hardening tasks are completed: observe retry backoff, digest decoupling with planVersion 2, declared-manifest payload contract, single-source versioning, real CLI contract tests, incremental hook caching, tiered parallel checkpoint execution, observe-before-execute idempotent skip, and platform registry data-driven architecture. The npm package name (`release-skill`), publishing identity (`publisher: mzdbxqh`), public repository (`ifoohoo/release-skill`), and corporate maintainer remain unchanged.
+v0.2.1 adds a fourth platform adapter — workbuddy (CodeBuddy/WorkBuddy plugin) — using a build-only distribution model. The build-adapters generator and platform registry now register workbuddy alongside claude, codex, and kimi, producing a self-contained adapter directory at `adapters/workbuddy/` with a `.codebuddy-plugin/plugin.json` manifest, bundled CLI entry, native prebuilds, schemas, and skills. The sync-public-files and sync-version scripts cover the new manifest, and the adapter-contract standard documents build-only distribution. README and INSTALL (en + zh-CN) register the CodeBuddy installation entry. Installation is manual — the automated marketplace install checkpoint does not cover CodeBuddy yet.
 
 **Added**
 
-- **Observe retry backoff (`observeWithRetry`)**: post-execute observe in publish/reconcile now uses bounded exponential backoff for transient failures. Transient classification is propagating — retries only on transient errors (network timeouts, 5xx); CONFLICTING errors are never retried. Marketplace retry window is clamped to action `timeoutMs`. This resolves intermittent PARTIAL failures caused by transient observe timeouts on real networks.
-- **Digest decoupling with planVersion 2**: plan fields split into binding layer (frozen artifacts, actions, versions, config) vs record layer (baseline, createdAt, status). Frozen commit timestamp derived from `headCommit` for reproducible digests. Approval no longer invalidated by tree/workspace digest drift (v2 plans); baseline check demoted to evidence warning. v1 legacy behavior preserved byte-for-byte (golden-value tested).
-- **Declared-manifest payload contract for marketplace installs**: replace whole-tree byte equality with declared-manifest comparison. Authority entries must exist and match byte-for-byte in the install dir; host-added files are recorded (`extraInstalledPaths`, capped) instead of failing. Legacy plans without `payloadContract` keep exact whole-tree semantics. `consumerTransportExclusions` deprecated (legacy path only).
-- **Single-source versioning with `sync-version` script**: `package.json` version is now the sole handwritten source. New `sync-version.mjs` propagates it to plugin manifests, marketplace.json, README boundary lines, and INSTALL docs (idempotent, `--check` mode, defensive whitelist). `smokeExpectedJson.version` is injected at runtime from `targetVersion`, ending the bump-invalidates-plan loop. docs hook now runs `check-docs-drift.mjs` (render check + sync-version check). Hardcoded version literals in tests replaced with dynamic reads.
-- **Real CLI contract tests for claude/codex/kimi adapters**: isolated-HOME contract tests asserting adapter assumptions against real CLI protocol shapes (`list --json` output forms, subcommand existence), gated by `RELEASE_SKILL_LIVE_CLI=1` with skip-not-fail semantics. Static contract locks in 'kimi has no scriptable install' to prevent fabricated CLI commands from regressing silently.
-- **Incremental hook caching for prepare**: hooks can declare `cacheable`+`cacheInputs`; results cached under `.release-skill/cache/hooks/<name>/<key>.json` keyed by hook config and input content hashes. Failures never cached; hits skip execution but not authorization gates; `--no-hook-cache` escape hatch. Cache dir registered in baseline control-plane exclusions and gitignore. test/typecheck hooks cached in this project: second prepare drops to ~2s with test hook served from cache.
-- **Tiered parallel checkpoint execution for publish**: publish checkpoints grouped into hard-coded `TIER_TABLE` layers. Layers run sequentially, actions within a layer run concurrently with `allSettled` semantics (no fail-fast, successes preserved). State persistence moves to per-layer snapshots keeping the appendRunState hash chain intact; crash recovery verified via SIGKILL-mid-tier integration test. Evidence appends serialized through a mutex chain with sequence starting at 1 and tier info in `details.tier`.
-- **Observe-before-execute idempotent skip**: publish each checkpoint execute now has a single read-only pre-observe. Four-way classification: CONSISTENT→SKIPPED / MISSING→execute / CONFLICTING→FAILED / not observable→execute. Two-layer preflight shares `classifyPreObservation` single source (global Safety Gate 10 arbitration). SKIPPED downstream adaptation: layer folding recognizes success, three `every` checks expanded to SUCCEEDED||SKIPPED, `buildPersistedState` maps skipped, TOCTOU as usual.
-- **Platform registry data-driven architecture**: new `src/platforms/registry.mjs` with `PLATFORMS`/`getPlatform`/`assertRegistry` module self-validation. Three platforms complete description (§3.4 matrix full dimensions) + pure strategy functions. Golden tests 12 cases solidify three platforms execute/observe/list current behavior. `src/producers/build-adapters.mjs` PLATFORMS now derived from registry; `scripts/build-adapters.mjs` duplicate platform table removed for single-source. `build:adapters:check` byte-zero diff (zero behavior change strong evidence).
+- **WorkBuddy/CodeBuddy build-only distribution adapter**: new fourth platform adapter `workbuddy` registered in the platform registry and build-adapters generator. The generated self-contained adapter directory (`adapters/workbuddy/`) ships a `.codebuddy-plugin/plugin.json` manifest, a bundled CLI entry (`bin/release-skill.bundle.mjs`), native safe-write prebuilds, JSON schemas, and the full skill set. Skills resolve the CLI entry via `${CODEBUDDY_PLUGIN_ROOT}`, which CodeBuddy expands inline.
+- **Build-only distribution model in adapter-contract standard**: both the parent `standards/06-adapter-contract.md` and the public `references/06-adapter-contract.md` now document the build-only distribution scope — the adapter is generated and self-contained, installation is manual, and the automated preflight/execute/observe/verify marketplace checkpoint is not yet wired for CodeBuddy.
+- **sync-public-files and sync-version coverage for `.codebuddy-plugin`**: the `sync-public-files.mjs` script now validates the `.codebuddy-plugin/plugin.json` manifest as a public asset, and `sync-version.mjs` propagates the package version into it. The build-adapters generator produces workbuddy artifacts alongside the existing three platforms.
+- **README and INSTALL registration (en + zh-CN)**: all four public documents (README.md, README.zh-CN.md, INSTALL.md, INSTALL.zh-CN.md) now list the CodeBuddy/WorkBuddy adapter, its manual installation path, and the scope limitation that the automated marketplace install checkpoint does not yet cover CodeBuddy.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.2.0 is the current release (v0.1.9 previously held
+> **Current boundary:** v0.2.1 is the current release (v0.1.9 previously held
 > published status before the codex migrated-command-skills fix was added).
 > v0.1.1 completed a real production release to GitHub and npm — the first
 > production-verified milestone — followed by
@@ -899,6 +894,11 @@ Successful reconcile returns `PUBLISHED`, not `VERIFIED`; only the fresh
   Code (no scriptable install API) it emits a version-pinned manual install
   requirement and proves the entry Skill and payload digest only from a trusted
   attestation bound to the frozen plan digest;
+- ships a generated, self-contained CodeBuddy/WorkBuddy adapter
+  (`adapters/workbuddy/`, manifest `.codebuddy-plugin/plugin.json`, skills
+  rendered with `${CODEBUDDY_PLUGIN_ROOT}`) alongside the Claude/Codex/Kimi
+  adapters; CodeBuddy installation is manual — the automated marketplace
+  install checkpoint does not cover CodeBuddy yet;
 - distinguishes `PUBLISHED` (writes completed) from `VERIFIED` (remote and
   consumer installation evidence completed);
 - stops subsequent checkpoints on failure and writes a separate run record
@@ -984,6 +984,8 @@ npm publish may never be hooks/gates; they remain controlled plan actions.
 - no overwrite of branches/tags/releases or npm unpublish; create-only refs use
   `--force-with-lease=<ref>:` solely as an atomic compare-and-set assertion that
   the ref is absent, while existing branches use an ordinary non-force push;
+- no automated CodeBuddy/WorkBuddy marketplace install checkpoint — the
+  generated `adapters/workbuddy/` distribution adapter is installed manually;
 - no promise of Windows or broad multi-platform native write support;
 - no hidden commit, push, tag, release, or package publication.
 

@@ -1,5 +1,19 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.2.1 locale=en baseline=sha256:7d616df824b1d28f9939ef181d6a5d5928d3e0f0455974bebb356c742992ac81 -->
+## [0.2.1] - 2026-07-25
+
+v0.2.1 adds a fourth platform adapter — workbuddy (CodeBuddy/WorkBuddy plugin) — using a build-only distribution model. The build-adapters generator and platform registry now register workbuddy alongside claude, codex, and kimi, producing a self-contained adapter directory at `adapters/workbuddy/` with a `.codebuddy-plugin/plugin.json` manifest, bundled CLI entry, native prebuilds, schemas, and skills. The sync-public-files and sync-version scripts cover the new manifest, and the adapter-contract standard documents build-only distribution. README and INSTALL (en + zh-CN) register the CodeBuddy installation entry. Installation is manual — the automated marketplace install checkpoint does not cover CodeBuddy yet.
+
+### Added
+
+- **WorkBuddy/CodeBuddy build-only distribution adapter**: new fourth platform adapter `workbuddy` registered in the platform registry and build-adapters generator. The generated self-contained adapter directory (`adapters/workbuddy/`) ships a `.codebuddy-plugin/plugin.json` manifest, a bundled CLI entry (`bin/release-skill.bundle.mjs`), native safe-write prebuilds, JSON schemas, and the full skill set. Skills resolve the CLI entry via `${CODEBUDDY_PLUGIN_ROOT}`, which CodeBuddy expands inline.
+- **Build-only distribution model in adapter-contract standard**: both the parent `standards/06-adapter-contract.md` and the public `references/06-adapter-contract.md` now document the build-only distribution scope — the adapter is generated and self-contained, installation is manual, and the automated preflight/execute/observe/verify marketplace checkpoint is not yet wired for CodeBuddy.
+- **sync-public-files and sync-version coverage for `.codebuddy-plugin`**: the `sync-public-files.mjs` script now validates the `.codebuddy-plugin/plugin.json` manifest as a public asset, and `sync-version.mjs` propagates the package version into it. The build-adapters generator produces workbuddy artifacts alongside the existing three platforms.
+- **README and INSTALL registration (en + zh-CN)**: all four public documents (README.md, README.zh-CN.md, INSTALL.md, INSTALL.zh-CN.md) now list the CodeBuddy/WorkBuddy adapter, its manual installation path, and the scope limitation that the automated marketplace install checkpoint does not yet cover CodeBuddy.
+<!-- release-skill:changelog:end version=0.2.1 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.2.0 locale=en baseline=sha256:cc9236e620cdb2d9eef6fede00c54095bf0cc0ccdfeb9c1e584f063ff3af7e23 -->
 ## [0.2.0] - 2026-07-25
 

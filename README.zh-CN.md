@@ -2,31 +2,26 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.2.0 -->
+<!-- release-skill:release-version: 0.2.1 -->
 面向 Claude Code、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它先冻结并供人工审阅，再从同一份冻结产物发布，不会在最后一步重新生成 README、重新打包当前工作区或覆盖人工内容。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.2.0** (2026-07-25)
+**0.2.1** (2026-07-25)
 
-v0.2.0 是一个硬化发布，提升发布可靠性、摘要可复现性、版本管理和平台注册表数据驱动架构。完成九个硬化任务：暂态重试退避、摘要解耦 planVersion 2、声明式清单载荷契约、版本单源、真实 CLI 契约测试、增量 hooks 缓存、分层并行检查点执行、observe-before-execute 幂等跳过、平台注册表数据化。npm 包名（`release-skill`）、发布身份（`publisher: mzdbxqh`）、公开仓库（`ifoohoo/release-skill`）与公司维护主体保持不变。
+v0.2.1 新增第四个平台适配器 workbuddy（CodeBuddy/WorkBuddy 插件），采用 build-only 分发模式。build-adapters 生成器与平台注册表现在将 workbuddy 与 claude、codex、kimi 并列登记，在 `adapters/workbuddy/` 产出包含 `.codebuddy-plugin/plugin.json` 清单、打包 CLI 入口、native 预编译、JSON schemas 与全套技能的自包含适配器目录。sync-public-files 与 sync-version 脚本覆盖新清单，适配器契约标准补充 build-only 分发说明。README 与 INSTALL（中英四份）登记 CodeBuddy 安装入口。安装为手动步骤——自动化 marketplace 安装检查点尚未覆盖 CodeBuddy。
 
 **新增**
 
-- **暂态重试退避（`observeWithRetry`）**：publish/reconcile 的 execute 后 observe 现在对暂态失败使用有界指数退避。暂态分类具有传播性——仅对暂态错误（网络超时、5xx）重试；CONFLICTING 错误永不重试。市场重试窗口钳制到动作 `timeoutMs`。这解决了真实网络上因暂态 observe 超时导致的间歇性 PARTIAL 失败。
-- **摘要解耦 planVersion 2**：计划字段拆分为绑定层（冻结制品、动作、版本、配置）与记录层（基线、创建时间、状态）。冻结提交时间戳从 `headCommit` 派生，确保摘要可复现。审批不再因树/工作区摘要漂移而失效（v2 计划）；基线检查降级为证据警告。v1 遗留行为逐字节保留（黄金值测试）。
-- **声明式清单载荷契约**：用声明式清单比较替换整树字节相等性。权威条目必须存在且在安装目录中逐字节匹配；主机添加的文件记录（`extraInstalledPaths`，有上限）而非失败。缺少 `payloadContract` 的遗留计划保持精确整树语义。`consumerTransportExclusions` 已弃用（仅遗留路径）。
-- **版本单源 `sync-version` 脚本**：`package.json` 版本现在是唯一手写来源。新的 `sync-version.mjs` 将其传播到插件清单、marketplace.json、README 边界行和 INSTALL 文档（幂等、`--check` 模式、防御性白名单）。`smokeExpectedJson.version` 在运行时从 `targetVersion` 注入，结束 bump-invalidates-plan 循环。docs 钩子现在运行 `check-docs-drift.mjs`（render 检查 + sync-version 检查）。测试中的硬编码版本字面量替换为动态读取。
-- **真实 CLI 契约测试**：隔离 HOME 的契约测试，针对真实 CLI 协议形状（`list --json` 输出形式、子命令存在性）断言适配器假设，由 `RELEASE_SKILL_LIVE_CLI=1` 门控，skip-not-fail 语义。静态契约锁定 'kimi 无脚本化安装'，防止伪造的 CLI 命令静默回归。
-- **增量 hooks 缓存**：hooks 可声明 `cacheable`+`cacheInputs`；结果缓存在 `.release-skill/cache/hooks/<name>/<key>.json`，按 hook 配置和输入内容哈希键控。失败永不缓存；命中跳过执行但不跳过授权门；`--no-hook-cache` 逃生舱。缓存目录注册到基线控制面排除和 gitignore。本项目的 test/typecheck hooks 已缓存：第二次 prepare 降至约 2 秒（test hook 从缓存服务）。
-- **分层并行检查点执行**：publish 检查点分组为硬编码 `TIER_TABLE` 层。层顺序执行，层内动作并发执行，`allSettled` 语义（不快速失败，成功保留）。状态持久化移至每层快照，保持 appendRunState 哈希链完整；通过 SIGKILL-层中集成测试验证崩溃恢复。证据追加通过互斥链序列化，序列从 1 开始，`details.tier` 包含层信息。
-- **observe-before-execute 幂等跳过**：publish 每个检查点 execute 前增加单发只读 pre-observe。四分类：CONSISTENT→SKIPPED / MISSING→execute / CONFLICTING→FAILED / 不可观察→execute。两层 preflight 共用 `classifyPreObservation` 单源（全局 Safety Gate 10 占用仲裁）。SKIPPED 下游适配：层折叠认成功、三处 `every` 扩展为 SUCCEEDED||SKIPPED、`buildPersistedState` 映射 skipped、TOCTOU 照常。
-- **平台注册表数据驱动架构**：新增 `src/platforms/registry.mjs`，包含 `PLATFORMS`/`getPlatform`/`assertRegistry` 模块自校验。三平台完整描述（§3.4 矩阵全维度）+ 纯策略函数。黄金测试 12 用例固化三平台 execute/observe/list 现状行为。`src/producers/build-adapters.mjs` PLATFORMS 改从注册表派生；`scripts/build-adapters.mjs` 重复平台表删除同源导入。`build:adapters:check` 逐字节零 diff（行为零变化强证据）。
+- **WorkBuddy/CodeBuddy build-only 分发适配器**：新增第四个平台适配器 `workbuddy`，在平台注册表和 build-adapters 生成器中登记。生成的自包含适配器目录（`adapters/workbuddy/`）附带 `.codebuddy-plugin/plugin.json` 清单、打包 CLI 入口（`bin/release-skill.bundle.mjs`）、native safe-write 预编译、JSON schemas 与全套技能。技能通过 `${CODEBUDDY_PLUGIN_ROOT}` 解析 CLI 入口，CodeBuddy 会内联展开该变量。
+- **适配器契约标准补充 build-only 分发模型**：父级 `standards/06-adapter-contract.md` 与公开 `references/06-adapter-contract.md` 均补充 build-only 分发范围说明——适配器由生成器产出且自包含，安装为手动步骤，CodeBuddy 的自动化 preflight/execute/observe/verify marketplace 检查点尚未接入。
+- **sync-public-files 与 sync-version 覆盖 `.codebuddy-plugin`**：`sync-public-files.mjs` 脚本现在将 `.codebuddy-plugin/plugin.json` 清单作为公开资产校验，`sync-version.mjs` 将包版本同步到该清单。build-adapters 生成器将 workbuddy 产物与既有三平台并列生成。
+- **README 与 INSTALL 登记（中英四份）**：四份公开文档（README.md、README.zh-CN.md、INSTALL.md、INSTALL.zh-CN.md）均列出 CodeBuddy/WorkBuddy 适配器、其手动安装路径以及自动化 marketplace 安装检查点尚未覆盖 CodeBuddy 的范围限制。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.2.0 是当前发布版本（v0.1.9 曾处于已发布、待独立验证状态）。
+> **当前边界：** v0.2.1 是当前发布版本（v0.1.9 曾处于已发布、待独立验证状态）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；“当前发布版本”与“首次生产验证里程碑”
@@ -600,6 +595,7 @@ reconcile 成功只返回 `PUBLISHED`，不会返回 `VERIFIED`；只有全新�
 - 用计划摘要、有效期和显式 action allowlist 绑定人工批准；
 - 从冻结 Git object 和 npm tarball 发布，并核对远端 commit/tree/tag/integrity；
 - 从冻结 Git ref 安装配置的 Claude/Codex 插件，证明入口 Skill 和安装载荷摘要；对 Kimi Code（无可脚本化安装接口）产出版本钉死的手动安装要求，仅依据绑定到冻结计划摘要的可信证明来确认入口 Skill 和载荷摘要；
+- 随 Claude/Codex/Kimi 适配器一并提供生成的自包含 CodeBuddy/WorkBuddy 适配器（`adapters/workbuddy/`，清单 `.codebuddy-plugin/plugin.json`，技能以 `${CODEBUDDY_PLUGIN_ROOT}` 渲染）；CodeBuddy 安装为手动步骤——自动化 marketplace 安装检查点尚未覆盖 CodeBuddy；
 - 明确区分 `PUBLISHED`（外写完成）与 `VERIFIED`（远端和消费者安装证据完成）；
 - 中途失败停止后续动作，记录独立 run；不修改冻结 plan，不自动撤销已成功动作。
 
@@ -651,6 +647,7 @@ push、tag、默认分支修改、GitHub Release 和 npm publish 不能放进 ho
 - 不声称已经替项目完成真实生产 canary；
 - `prepare --online` 只观察 bound 前序基线；目标唯一性由 publish 全局预检完成；
 - 不覆盖已有 branch/tag/Release，不 unpublish npm；
+- 不提供自动化 CodeBuddy/WorkBuddy marketplace 安装检查点——生成的 `adapters/workbuddy/` 分发适配器需手动安装；
 - 不承诺 Windows 或广泛的跨平台原生写入；
 - 不会隐藏地 commit、push、打 tag、创建 Release 或发布包。
 

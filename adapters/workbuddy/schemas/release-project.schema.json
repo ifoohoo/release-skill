@@ -1,0 +1,909 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://release-skill.dev/schemas/release-project/v1",
+  "title": "Release Project Configuration",
+  "description": "Schema for .release-skill/project.yaml project configuration file",
+  "type": "object",
+  "required": [
+    "apiVersion",
+    "kind",
+    "project",
+    "releaseUnits"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "release-skill/v1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "ReleaseProject"
+    },
+    "project": {
+      "type": "object",
+      "required": [
+        "name",
+        "defaultBranch"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "defaultBranch": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "releaseUnits": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "publicRepo",
+          "version",
+          "distributions",
+          "publicFiles",
+          "requiredPublicFiles",
+          "previousPublicBaseline"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$"
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$"
+          },
+          "publicRepo": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$"
+          },
+          "production": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "githubHost": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9.-]+$"
+              },
+              "branchTemplate": {
+                "type": "string",
+                "minLength": 1
+              },
+              "releaseTitleTemplate": {
+                "type": "string",
+                "minLength": 1
+              },
+              "releaseNotes": {
+                "type": "string"
+              },
+              "branchStrategy": {
+                "type": "string",
+                "enum": [
+                  "create-release-branch",
+                  "advance-existing-branch",
+                  "initialize-default-branch"
+                ]
+              },
+              "setAsDefaultBranch": {
+                "type": "boolean"
+              },
+              "expectedCurrentDefaultBranch": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "version": {
+            "type": "object",
+            "required": [
+              "source",
+              "tagTemplate"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "source": {
+                "type": "string",
+                "minLength": 1
+              },
+              "tagTemplate": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "distributions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "type"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "npm",
+                    "claude-plugin",
+                    "codex-plugin",
+                    "kimi-plugin"
+                  ]
+                },
+                "package": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 214,
+                  "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$"
+                },
+                "access": {
+                  "type": "string",
+                  "enum": [
+                    "public",
+                    "restricted"
+                  ]
+                },
+                "provenance": {
+                  "type": "boolean"
+                },
+                "tag": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "registry": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^https://[^\\s]+$",
+                  "description": "Normalized HTTPS URL of the npm registry"
+                },
+                "publisher": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                  "description": "Expected npm whoami username for this registry"
+                },
+                "plugin": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                "marketplace": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                "entrySkill": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[a-z0-9][a-z0-9-]*$"
+                },
+                "smokeBin": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "smokeArgs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "smokeExpectedJson": {
+                  "type": "object"
+                },
+                "timeoutMs": {
+                  "type": "integer",
+                  "minimum": 30000,
+                  "maximum": 900000,
+                  "description": "Timeout in milliseconds for plugin marketplace install commands (claude-plugin, codex-plugin). Kimi Code has no scriptable install command, so for kimi-plugin this bounds the read-only observation/verification only, not an install command. Only valid for claude-plugin, codex-plugin, and kimi-plugin distributions."
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "npm"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "package",
+                      "registry",
+                      "publisher"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "required": [
+                      "timeoutMs"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
+                          "kimi-plugin"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin"
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "plugin",
+                      "marketplace",
+                      "entrySkill"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "kimi-plugin"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "plugin",
+                      "entrySkill"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "required": [
+                      "smokeExpectedJson"
+                    ],
+                    "properties": {
+                      "smokeBin": {
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "smokeBin"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "required": [
+                      "smokeArgs"
+                    ],
+                    "properties": {
+                      "smokeBin": {
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "smokeBin"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "publicFiles": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "from",
+                "to",
+                "mode"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "sourceScope": {
+                  "type": "string",
+                  "enum": [
+                    "unit",
+                    "workspace"
+                  ],
+                  "default": "unit"
+                },
+                "from": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$"
+                },
+                "to": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$"
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "preserve"
+                  ]
+                }
+              }
+            }
+          },
+          "requiredPublicFiles": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$"
+            }
+          },
+          "previousPublicBaseline": {
+            "type": "object",
+            "required": [
+              "mode"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "bound"
+                ]
+              },
+              "githubHost": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9.-]+$"
+              },
+              "repo": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$"
+              },
+              "ref": {
+                "type": "string",
+                "minLength": 1
+              },
+              "commit": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{40,64}$"
+              },
+              "tree": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{40,64}$"
+              },
+              "manifestDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "if": {
+              "properties": {
+                "mode": {
+                  "const": "bound"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "repo",
+                "ref",
+                "commit"
+              ]
+            },
+            "else": {
+              "allOf": [
+                {
+                  "not": {
+                    "required": [
+                      "repo"
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "required": [
+                      "githubHost"
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "required": [
+                      "ref"
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "required": [
+                      "commit"
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "required": [
+                      "tree"
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "required": [
+                      "manifestDigest"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "releaseDocuments": {
+            "$ref": "#/definitions/releaseDocuments"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "production"
+              ],
+              "properties": {
+                "production": {
+                  "required": [
+                    "branchStrategy"
+                  ],
+                  "properties": {
+                    "branchStrategy": {
+                      "enum": [
+                        "advance-existing-branch",
+                        "initialize-default-branch"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "previousPublicBaseline": {
+                  "properties": {
+                    "mode": {
+                      "const": "bound"
+                    }
+                  },
+                  "required": [
+                    "mode"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "production"
+              ],
+              "properties": {
+                "production": {
+                  "required": [
+                    "branchStrategy"
+                  ],
+                  "properties": {
+                    "branchStrategy": {
+                      "const": "initialize-default-branch"
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "production": {
+                  "required": [
+                    "setAsDefaultBranch",
+                    "expectedCurrentDefaultBranch"
+                  ],
+                  "properties": {
+                    "setAsDefaultBranch": {
+                      "const": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "production"
+              ],
+              "properties": {
+                "production": {
+                  "required": [
+                    "setAsDefaultBranch"
+                  ],
+                  "properties": {
+                    "setAsDefaultBranch": {
+                      "const": true
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "production": {
+                  "required": [
+                    "branchStrategy"
+                  ],
+                  "properties": {
+                    "branchStrategy": {
+                      "const": "initialize-default-branch"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "verificationGates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/verificationGate"
+      }
+    },
+    "hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "docs": {
+          "$ref": "#/definitions/hook"
+        },
+        "build": {
+          "$ref": "#/definitions/hook"
+        },
+        "test": {
+          "$ref": "#/definitions/hook"
+        },
+        "typecheck": {
+          "$ref": "#/definitions/hook"
+        },
+        "lint": {
+          "$ref": "#/definitions/hook"
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "forbiddenPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbiddenContentPatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "hook": {
+      "type": "object",
+      "required": [
+        "command"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "cwd": {
+          "type": "string",
+          "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 7200000
+        },
+        "envAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z_][A-Z0-9_]*$"
+          },
+          "uniqueItems": true
+        },
+        "cacheable": {
+          "type": "boolean",
+          "description": "Opt this hook into the incremental result cache: when its cacheInputs fingerprint is unchanged and the last run succeeded, prepare replays the cached outcome instead of re-executing. Absence means the hook always runs in full. cacheable=true requires a non-empty cacheInputs (enforced at runtime)."
+        },
+        "cacheInputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true,
+          "description": "Root-relative globs declaring the hook's full input set (source, scripts, config, lockfiles). The cache key fingerprints the content of every matched file; a glob that matches nothing fails closed. Must cover ALL inputs or the cache can return a false hit."
+        }
+      }
+    },
+    "releaseDocuments": {
+      "type": "object",
+      "description": "Optional configuration-driven multilingual release-document refresh for one release unit. Absence preserves legacy behaviour. Lexical layer only; runtime path, locale-membership and collision checks apply additionally.",
+      "required": [
+        "notesSource",
+        "locales",
+        "changelogs",
+        "readmes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "notesSource": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$)(?!.*\\{(?!version\\}))(?!.*(?<!\\{version)\\}).+\\.(?:yaml|yml|json)$"
+        },
+        "locales": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+          }
+        },
+        "changelogs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/releaseDocumentsChangelog"
+          }
+        },
+        "readmes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/releaseDocumentsReadme"
+          }
+        }
+      }
+    },
+    "releaseDocumentsChangelog": {
+      "type": "object",
+      "required": [
+        "path",
+        "locale"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$"
+        },
+        "locale": {
+          "type": "string",
+          "pattern": "^[a-zA-Z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+        }
+      }
+    },
+    "releaseDocumentsReadme": {
+      "type": "object",
+      "required": [
+        "path",
+        "locale",
+        "regions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$"
+        },
+        "locale": {
+          "type": "string",
+          "pattern": "^[a-zA-Z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+        },
+        "regions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          }
+        },
+        "versionMarkers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/releaseDocumentsVersionMarker"
+          }
+        }
+      }
+    },
+    "releaseDocumentsVersionMarker": {
+      "type": "object",
+      "required": [
+        "id",
+        "pattern"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "pattern": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "verificationGate": {
+      "type": "object",
+      "required": [
+        "id",
+        "phase",
+        "scope",
+        "command",
+        "cwd",
+        "timeoutMs",
+        "envAllowlist"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "snapshot-verify",
+            "consumer-verify"
+          ]
+        },
+        "scope": {
+          "type": "object",
+          "required": [
+            "unit"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "unit": {
+              "type": "string",
+              "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$"
+            },
+            "distribution": {
+              "type": "string",
+              "enum": [
+                "npm",
+                "claude-plugin",
+                "codex-plugin",
+                "kimi-plugin"
+              ]
+            }
+          }
+        },
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "cwd": {
+          "type": "string",
+          "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 7200000
+        },
+        "envAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z_][A-Z0-9_]*$"
+          },
+          "uniqueItems": true
+        },
+        "expectedJson": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "phase": {
+                "const": "consumer-verify"
+              }
+            },
+            "required": [
+              "phase"
+            ]
+          },
+          "then": {
+            "properties": {
+              "scope": {
+                "required": [
+                  "unit",
+                  "distribution"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "phase": {
+                "const": "snapshot-verify"
+              }
+            },
+            "required": [
+              "phase"
+            ]
+          },
+          "then": {
+            "properties": {
+              "scope": {
+                "not": {
+                  "required": [
+                    "distribution"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

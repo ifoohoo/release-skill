@@ -2,7 +2,7 @@
 
 [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.2.0 -->
+<!-- release-skill:release-version: 0.2.1 -->
 ## 前置条件
 
 - Node.js 22.0.0 或更高版本
@@ -62,7 +62,7 @@ release-skill 把 Kimi 安装建模为“版本钉死的手动安装 + 可信观
    它会安装最新 release 或默认分支），确认信任提示后重新加载：
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.0
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.1
    /plugins reload
    ```
 
@@ -76,10 +76,10 @@ release-skill 把 Kimi 安装建模为“版本钉死的手动安装 + 可信观
 {
   "consumer": "kimi",
   "plugin": "release-skill",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "entrySkill": "release-help",
   "repo": "ifoohoo/release-skill",
-  "ref": "release-skill-v0.2.0",
+  "ref": "release-skill-v0.2.1",
   "installPath": "<kimiCodeHome>/plugins/managed/release-skill",
   "planDigest": "<64 位十六进制冻结计划摘要>",
   "payloadDigest": "<64 位十六进制冻结快照载荷摘要>",
@@ -97,6 +97,24 @@ release-skill 把 Kimi 安装建模为“版本钉死的手动安装 + 可信观
 把插件安装到日常的 `~/.kimi-code` **不**构成有效证明：证明中的 `installPath`
 必须解析到 requirement 给出的隔离 `KIMI_CODE_HOME` managed 根之内，否则验证
 失败关闭，Kimi 单元绝不进入 `VERIFIED`。
+
+## 安装为 CodeBuddy/WorkBuddy 插件
+
+本包还随 `adapters/claude/`、`adapters/codex/`、`adapters/kimi/` 一并提供生成的
+自包含 CodeBuddy/WorkBuddy 适配器 `adapters/workbuddy/`。其清单位于
+`.codebuddy-plugin/plugin.json`（组件——`skills/`、`bin/`、`schemas/`、
+`native/`——按 CodeBuddy 插件规范位于插件根目录），技能通过
+`${CODEBUDDY_PLUGIN_ROOT}` 解析 CLI 入口；CodeBuddy 会像 Claude Code 展开
+`${CLAUDE_PLUGIN_ROOT}` 一样内联展开该变量。
+
+CodeBuddy/WorkBuddy 安装目前是**手动**步骤：自动化 marketplace 安装检查点
+（`publish`/`verify`）尚未覆盖 CodeBuddy。使用该适配器时，把 CodeBuddy 指向
+生成的插件目录——单会话可用 `--plugin-dir <path>/adapters/workbuddy` 启动
+CodeBuddy；或把该目录作为你控制的 marketplace 源
+（`codebuddy plugin marketplace add <source>`）再从中安装
+（`codebuddy plugin install release-skill@<marketplace>`，或交互式 `/plugin`
+管理器）。安装后的副本落在 CodeBuddy 的版本化插件缓存中；适配器不引用自身
+目录之外的任何文件。
 
 ## 开发安装（本地源码）
 

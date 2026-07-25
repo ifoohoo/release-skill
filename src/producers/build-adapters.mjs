@@ -2,10 +2,12 @@
  * Pure producer: build adapters from skills and plugin templates.
  *
  * Reads skill metadata from skills-src/ and plugin.json templates,
- * generates self-contained adapter directories for each platform (claude, codex, kimi).
+ * generates self-contained adapter directories for each platform
+ * (claude, codex, kimi, and the build-only workbuddy adapter).
  *
  * Each adapter root contains:
- * - Plugin manifest (.claude-plugin/, .codex-plugin/, or .kimi-plugin/)
+ * - Plugin manifest (.claude-plugin/, .codex-plugin/, .kimi-plugin/, or
+ *   .codebuddy-plugin/)
  * - Skills with host-specific root resolution
  * - bin/release-skill.mjs (wrapper) + bin/release-skill.bundle.mjs (self-contained bundle)
  * - schemas/ (JSON Schema files)
@@ -195,7 +197,7 @@ export function computeBuildAdaptersDigest(sourceBytes) {
 // of platform knowledge). The build shape mirrors the legacy inline table
 // byte-for-byte: marketplaceFileName is present only when the platform
 // co-locates a marketplace manifest in its plugin dir (claude).
-export const PLATFORMS = PLATFORM_REGISTRY.map((platform) => ({
+const REGISTRY_PLATFORMS = PLATFORM_REGISTRY.map((platform) => ({
   name: platform.id,
   pluginDirName: platform.buildAdapter.pluginDirName,
   templateFileName: platform.buildAdapter.templateFileName,
@@ -204,6 +206,30 @@ export const PLATFORMS = PLATFORM_REGISTRY.map((platform) => ({
     : {}),
   hasMarketplace: platform.buildAdapter.hasMarketplace,
 }));
+
+/**
+ * Build-only distribution adapters: generated, self-contained plugin trees
+ * that are NOT wired into the automated publish/reconcile/verify pipeline —
+ * no registry PLATFORMS membership, no distributionType/actionType in the
+ * plan schemas, no automated install checkpoint. A host joins the pipeline
+ * only with a full registry descriptor (strategy, CLI protocol, schema enum);
+ * until then a build-only entry lets the build emit an installable adapter
+ * tree without fabricating an unverified install protocol.
+ *
+ * workbuddy: CodeBuddy/WorkBuddy plugin (official plugin reference:
+ * `.codebuddy-plugin/plugin.json`, components at the plugin root,
+ * `${CODEBUDDY_PLUGIN_ROOT}` expanded inline in skill content).
+ */
+export const BUILD_ONLY_ADAPTERS = Object.freeze([
+  Object.freeze({
+    name: 'workbuddy',
+    pluginDirName: '.codebuddy-plugin',
+    templateFileName: 'plugin.json',
+    hasMarketplace: false,
+  }),
+]);
+
+export const PLATFORMS = Object.freeze([...REGISTRY_PLATFORMS, ...BUILD_ONLY_ADAPTERS]);
 
 const REQUIRED_SCHEMA_FILES = Object.freeze([
   'approval-record.schema.json',
@@ -316,13 +342,21 @@ const KIMI_PREAMBLE = `\
  * - Codex: replaces the Claude-only path with $RELEASE_SKILL_ENTRY,
  *   and prepends the path resolution protocol preamble.
  * - Kimi: same substitution as Codex, with the Kimi Code preamble.
+ * - WorkBuddy: pure variable substitution (${CLAUDE_PLUGIN_ROOT} ->
+ *   ${CODEBUDDY_PLUGIN_ROOT}); CodeBuddy expands the variable inline in
+ *   skill content (official plugin reference), the same mechanism Claude
+ *   uses, so no entry-resolution preamble is needed.
  *
  * @param {string} content - Canonical SKILL.md content.
- * @param {string} platformName - 'claude', 'codex', or 'kimi'.
+ * @param {string} platformName - 'claude', 'codex', 'kimi', or 'workbuddy'.
  * @returns {string}
  */
 function renderSkillForPlatform(content, platformName) {
   if (platformName === 'claude') return content;
+
+  if (platformName === 'workbuddy') {
+    return content.replaceAll('${CLAUDE_PLUGIN_ROOT}', '${CODEBUDDY_PLUGIN_ROOT}');
+  }
 
   if (platformName === 'codex' || platformName === 'kimi') {
     const hostLabel = platformName === 'codex' ? 'Codex' : 'Kimi';
