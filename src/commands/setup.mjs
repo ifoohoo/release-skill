@@ -89,6 +89,7 @@ async function walkDiscoveryFiles(root, maxDepth = 8) {
           absolute.endsWith('/.claude-plugin/plugin.json') ||
           absolute.endsWith('/.codex-plugin/plugin.json') ||
           absolute.endsWith('/.kimi-plugin/plugin.json') ||
+          absolute.endsWith('/.codebuddy-plugin/plugin.json') ||
           absolute.endsWith('/.claude-plugin/marketplace.json') ||
           absolute.endsWith('/.codex-plugin/marketplace.json'))
       ) {
@@ -461,7 +462,8 @@ async function discoverFacts(root) {
       path: safeRelative(root, path),
       host: path.includes('/.claude-plugin/') ? 'claude'
         : path.includes('/.kimi-plugin/') ? 'kimi'
-          : 'codex',
+          : path.includes('/.codebuddy-plugin/') ? 'codebuddy'
+            : 'codex',
       kind: path.endsWith('/marketplace.json') ? 'marketplace' : 'plugin',
       name: typeof value.name === 'string' ? value.name : null,
       version: typeof value.version === 'string' ? value.version : null,
@@ -487,7 +489,8 @@ async function discoverFacts(root) {
         host: relPath.includes('/adapters/claude/') ? 'claude'
           : relPath.includes('/adapters/codex/') ? 'codex'
             : relPath.includes('/adapters/kimi/') ? 'kimi'
-              : 'shared',
+              : relPath.includes('/adapters/workbuddy/') ? 'codebuddy'
+                : 'shared',
       };
     })
     .filter((item) => item.name)
@@ -655,7 +658,7 @@ function buildCandidates(facts) {
   const ids = new Set();
   const knownFiles = new Set(facts.fileDigests.map((file) => file.path));
   const manifestRoots = facts.manifests.map((manifest) => {
-    const match = manifest.path.match(/^(.*?)(?:\/)?(?:\.claude-plugin|\.codex-plugin|\.kimi-plugin)\/(?:plugin|marketplace)\.json$/);
+    const match = manifest.path.match(/^(.*?)(?:\/)?(?:\.claude-plugin|\.codex-plugin|\.kimi-plugin|\.codebuddy-plugin)\/(?:plugin|marketplace)\.json$/);
     return { ...manifest, root: match?.[1] || '.' };
   });
   const manifestOwners = new Map();
@@ -703,6 +706,7 @@ function buildCandidates(facts) {
     if (pluginHosts.includes('claude')) distributions.push('claude-plugin');
     if (pluginHosts.includes('codex')) distributions.push('codex-plugin');
     if (pluginHosts.includes('kimi')) distributions.push('kimi-plugin');
+    if (pluginHosts.includes('codebuddy')) distributions.push('codebuddy-plugin');
     if (pkg.private && matchingLegacyUnits.length === 0 && facts.legacyReleaseConfigs.length > 0) continue;
     if (pkg.private && distributions.length === 0) continue;
 

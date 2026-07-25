@@ -2,7 +2,7 @@
 
 [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.2.1 -->
+<!-- release-skill:release-version: 0.2.2 -->
 ## Prerequisites
 
 - Node.js 22.0.0 or later
@@ -35,12 +35,91 @@ release-skill help
 
 You should see the version number and the list of available commands.
 
+## Install as a plugin (unified marketplace — recommended)
+
+All four supported plugin hosts install release-skill from the unified
+marketplace [ifoohoo/artifact-skill-set](https://github.com/ifoohoo/artifact-skill-set),
+which publishes the Claude Code, CodeBuddy/WorkBuddy, Codex, and Kimi Code
+manifests for the same release. Add the marketplace once, then install the
+plugin:
+
+> **External independent marketplace model.** `ifoohoo/artifact-skill-set` is an
+> external independent marketplace: the plugin repository
+> (`ifoohoo/release-skill`) carries only the plugin manifest
+> (`.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, …), while the
+> marketplace index (`marketplace.json`) is centralized in the external
+> marketplace repository. When a release unit's plugin distribution declares
+> `marketplaceRepo`, `prepare --online --production` freezes the external
+> marketplace HEAD — Codex pins the commit sha (strong freeze), Claude pins the
+> default branch name (weak freeze) — and verifies the installed payload against
+> the unit's own frozen snapshot whole-tree (contract `external-marketplace-v1`).
+>
+> **Release ordering (marketplace before plugin).** Because the install targets
+> the external marketplace, the marketplace index must be versioned and published
+> **first** — its `release-skill` entry version must equal the target release
+> version (the Claude form verifies this entry) — before
+> `prepare --online --production` can freeze a marketplace sha that contains that
+> entry. See `references/06-adapter-contract.md` §2.3/§2.4.
+
+**Claude Code** (interactive session):
+
+```
+/plugin marketplace add ifoohoo/artifact-skill-set
+/plugin install release-skill@artifact-skill-set
+```
+
+**CodeBuddy / WorkBuddy:**
+
+```bash
+codebuddy plugin marketplace add ifoohoo/artifact-skill-set
+codebuddy plugin install release-skill@artifact-skill-set
+```
+
+WorkBuddy desktop installs only through a registered marketplace: after the
+`marketplace add` above, install `release-skill` from the plugin panel.
+
+**OpenAI Codex:**
+
+```bash
+codex plugin marketplace add ifoohoo/artifact-skill-set
+```
+
+Then install `release-skill` from the interactive `/plugins` browser.
+
+**Kimi Code** (interactive session):
+
+```
+/plugins marketplace https://raw.githubusercontent.com/ifoohoo/artifact-skill-set/main/kimi-marketplace.json
+```
+
+Or point `KIMI_CODE_PLUGIN_MARKETPLACE_URL` at the same URL before launching.
+Then install `release-skill` from the `/plugins` panel.
+
+### Alternative: direct repository install (advanced)
+
+The unified marketplace above is the supported primary path. Direct
+installation from the release repository remains available for advanced
+scenarios:
+
+- Claude Code: `/plugin marketplace add ifoohoo/release-skill`, then
+  `/plugin install release-skill@release-skill`.
+- Kimi Code: the version-pinned `/plugins install <release-tag URL>` documented
+  in the [Kimi Code section](#install-as-a-kimi-code-plugin) below.
+- CodeBuddy: single-session use directly from a source checkout via
+  `--plugin-dir <path>/adapters/workbuddy` (see the
+  [CodeBuddy/WorkBuddy section](#install-as-a-codebuddyworkbuddy-plugin)).
+
 ## Install as a Kimi Code plugin
 
 Kimi Code is a supported plugin host alongside Claude Code and Codex. The
 Kimi Code plugin manifest lives at `.kimi-plugin/plugin.json`, mirroring
 `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json`, and the package
 ships `adapters/kimi/` next to `adapters/claude/` and `adapters/codex/`.
+
+For day-to-day installation, prefer the
+[unified marketplace path](#install-as-a-plugin-unified-marketplace--recommended)
+above. The remainder of this section documents the version-pinned manual
+closed loop that release-skill's own publish/verify pipeline relies on.
 
 Kimi Code has an interactive plugin marketplace but **no scriptable,
 non-interactive install API**. release-skill therefore models Kimi installation
@@ -68,7 +147,7 @@ as a version-pinned **manual** install plus trusted observation/attestation:
    default branch), confirm the trust prompt, then reload:
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.1
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.2
    /plugins reload
    ```
 
@@ -83,10 +162,10 @@ as a version-pinned **manual** install plus trusted observation/attestation:
 {
   "consumer": "kimi",
   "plugin": "release-skill",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "entrySkill": "release-help",
   "repo": "ifoohoo/release-skill",
-  "ref": "release-skill-v0.2.1",
+  "ref": "release-skill-v0.2.2",
   "installPath": "<kimiCodeHome>/plugins/managed/release-skill",
   "planDigest": "<64-hex frozen plan digest>",
   "payloadDigest": "<64-hex frozen snapshot payload digest>",
@@ -108,23 +187,106 @@ unit never reaches `VERIFIED`.
 
 ## Install as a CodeBuddy/WorkBuddy plugin
 
-The package also ships a generated, self-contained CodeBuddy/WorkBuddy adapter
-at `adapters/workbuddy/`, next to `adapters/claude/`, `adapters/codex/`, and
-`adapters/kimi/`. Its manifest lives at `.codebuddy-plugin/plugin.json` (the
-components — `skills/`, `bin/`, `schemas/`, `native/` — sit at the plugin
-root, per the CodeBuddy plugin reference), and its skills resolve the CLI
-entry via `${CODEBUDDY_PLUGIN_ROOT}`, which CodeBuddy expands inline like
-Claude Code expands `${CLAUDE_PLUGIN_ROOT}`.
+CodeBuddy (desktop product WorkBuddy) is a supported plugin host alongside
+Claude Code, Codex, and Kimi Code. The package ships a generated, self-contained
+CodeBuddy/WorkBuddy adapter at `adapters/workbuddy/`, next to `adapters/claude/`,
+`adapters/codex/`, and `adapters/kimi/`. Its manifest lives at
+`.codebuddy-plugin/plugin.json` (the components — `skills/`, `bin/`, `schemas/`,
+`native/` — sit at the plugin root, per the CodeBuddy plugin reference), and its
+skills resolve the CLI entry via `${CODEBUDDY_PLUGIN_ROOT}`, which CodeBuddy
+expands inline like Claude Code expands `${CLAUDE_PLUGIN_ROOT}`. The build
+adapter directory is named `workbuddy` while the platform / distribution id is
+`codebuddy`; the two names refer to the same target.
 
-CodeBuddy/WorkBuddy installation is a **manual** step today: the automated
-marketplace install checkpoint (`publish`/`verify`) does not cover CodeBuddy
-yet. To use the adapter, point CodeBuddy at the generated plugin directory —
-for a single session run CodeBuddy with `--plugin-dir <path>/adapters/workbuddy`,
-or add the directory as a marketplace source you control
-(`codebuddy plugin marketplace add <source>`) and install from it
-(`codebuddy plugin install release-skill@<marketplace>`, or the interactive
-`/plugin` manager). The installed copy lands in CodeBuddy's versioned plugin
-cache; the adapter never references files outside its own directory.
+For day-to-day installation, prefer the
+[unified marketplace path](#install-as-a-plugin-unified-marketplace--recommended)
+above. The remainder of this section documents the manual attestation closed loop
+that release-skill's own publish/verify pipeline relies on.
+
+The codebuddy CLI can add a marketplace and install a plugin, but **neither
+`plugin marketplace add` nor `plugin install` accepts a ref option** — the install
+tracks the marketplace default branch / latest. An automated install checkpoint
+therefore cannot guarantee the frozen artifact's identity, so release-skill models
+CodeBuddy installation as a **manual** install plus trusted observation/
+attestation (the same capability gap and closed loop as Kimi Code):
+`publish`/`verify` never auto-install CodeBuddy plugins. The closed loop is:
+
+1. `publish` performs the automated writes (Git branch/tag, npm, GitHub
+   Release), then reaches the `codebuddy-marketplace-install` checkpoint. Because
+   the install cannot pin a frozen ref, that checkpoint **fails closed** and the
+   run lands in `PARTIAL` — the successful automated writes are NOT undone. The
+   checkpoint observation (and the requirement file below) names both install
+   channels, the unified marketplace, the isolated CLI home, and the attestation
+   path.
+2. Read the requirement at
+   `<root>/.release-skill/codebuddy-attestations/<planDigest>/<plugin>/release-skill-codebuddy-manual-install.json`.
+3. Install release-skill from the unified marketplace `artifact-skill-set`
+   (https://github.com/ifoohoo/artifact-skill-set) through ONE of two channels:
+
+   **Primary path (WorkBuddy desktop):** install release-skill from the plugin
+   panel, then confirm `~/.workbuddy/settings.json` `enabledPlugins` contains
+   `"release-skill@artifact-skill-set": true`. The plugin lands at
+   `~/.workbuddy/plugins/marketplaces/artifact-skill-set/plugins/release-skill/`.
+
+   **Alternate path (bundled codebuddy CLI, isolatable):** run the CLI with the
+   **isolated** home from the requirement so the clone lands inside it (do not use
+   your ordinary `~/.codebuddy`):
+
+   ```
+   HOME="<codebuddyHome>" <codebuddy binary> plugin marketplace add https://github.com/ifoohoo/artifact-skill-set
+   HOME="<codebuddyHome>" <codebuddy binary> plugin install release-skill@artifact-skill-set
+   ```
+
+   The CLI ships with WorkBuddy.app (macOS known path
+   `/Applications/WorkBuddy.app/Contents/Resources/app.asar.unpacked/cli/bin/codebuddy`).
+   The plugin lands at
+   `<codebuddyHome>/.codebuddy/plugins/marketplaces/artifact-skill-set/plugins/release-skill/`.
+4. **Ref limitation warning:** a codebuddy install tracks the marketplace default
+   branch and CANNOT be pinned to the frozen ref. Before writing the attestation
+   you MUST confirm the installed plugin manifest version equals the frozen
+   version `0.2.1`; otherwise do NOT issue an attestation.
+5. Write the attestation JSON to
+   `<root>/.release-skill/codebuddy-attestations/<planDigest>/<plugin>/release-skill-codebuddy-attestation.json`.
+   `planDigest` MUST be the frozen **plan** digest; `payloadDigest` MUST be the
+   frozen snapshot **payload** digest; `installChannel` MUST be `"desktop"` or
+   `"cli"`; `marketplace` MUST be `artifact-skill-set`; `installPath` MUST be the
+   actual installed plugin directory for the chosen channel; `attestedAt` must not
+   be in the future and `expiresAt` must be within 24 hours of `attestedAt`.
+   Example:
+
+```json
+{
+  "consumer": "codebuddy",
+  "plugin": "release-skill",
+  "version": "0.2.2",
+  "entrySkill": "release-help",
+  "repo": "ifoohoo/release-skill",
+  "ref": "release-skill-v0.2.2",
+  "marketplace": "artifact-skill-set",
+  "installChannel": "desktop",
+  "installPath": "~/.workbuddy/plugins/marketplaces/artifact-skill-set/plugins/release-skill",
+  "planDigest": "<64-hex frozen plan digest>",
+  "payloadDigest": "<64-hex frozen snapshot payload digest>",
+  "attestedBy": "<person responsible>",
+  "attestedAt": "2026-07-23T00:00:00.000Z",
+  "expiresAt": "2026-07-23T12:00:00.000Z"
+}
+```
+
+6. Run `release-skill reconcile --run <publish-run>` (promotes `PARTIAL` →
+   `PUBLISHED`) and then `release-skill verify --run <reconcile-run>` (→
+   `VERIFIED`). Both read the attestation from the same plan-digest-keyed
+   directory, so their fresh run directories do not lose the proof.
+
+For the cli channel, installing into the ordinary `~/.codebuddy` is **not**
+acceptable proof: the attested `installPath` must resolve inside the requirement's
+isolated `<codebuddyHome>` managed root, otherwise verification fails closed and
+the CodeBuddy unit never reaches `VERIFIED`. (The desktop channel uses the real
+`~/.workbuddy` marketplace layout above, which IS the well-known proof layout.)
+
+For a single session from a source checkout you can also point CodeBuddy at the
+generated plugin directory with `--plugin-dir <path>/adapters/workbuddy`; the
+adapter never references files outside its own directory.
 
 ## Development Install (Local Checkout)
 

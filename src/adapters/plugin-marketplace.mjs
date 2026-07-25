@@ -41,6 +41,17 @@ import {
   validateKimiAttestation,
   readKimiManifest,
 } from '../platforms/kimi.mjs';
+import {
+  CODEBUDDY_REQUIREMENT_FILE,
+  CODEBUDDY_ATTESTATION_FILE,
+  CODEBUDDY_MARKETPLACE_NAME,
+  CODEBUDDY_MARKETPLACE_SOURCE,
+  resolveCodeBuddyBoundPlanDigest,
+  codebuddyAuthorityDir,
+  codebuddyCliHome,
+  codebuddyCliInstallRoot,
+  validateCodeBuddyAttestation,
+} from '../platforms/codebuddy.mjs';
 
 const execFile = promisify(execFileCb);
 
@@ -67,6 +78,15 @@ function transportPayload(entries) {
  * Actions without the marker keep the legacy full-tree equality semantics.
  */
 const PAYLOAD_CONTRACT_DECLARED_MANIFEST = 'declared-manifest-v1';
+/**
+ * External independent marketplace contract. The marketplace index lives in an
+ * external repository (frozen by prepare via marketplaceCommitSha + add-ref);
+ * the unit snapshot carries only the plugin manifest. The installed payload is
+ * verified by whole-tree ('.') containment with the same semantics as
+ * declared-manifest-v1 (every authority file present and byte-identical;
+ * host-added files recorded as extraInstalledPaths, not failed).
+ */
+const PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE = 'external-marketplace-v1';
 /** Audit cap: at most this many extra installed paths are recorded. */
 const EXTRA_INSTALLED_PATHS_CAP = 200;
 /** Diagnostic cap: at most this many conflict paths are listed per error. */
@@ -132,6 +152,17 @@ function extractDeclaredPluginSource(consumer, entry) {
  * tampering with it fails the snapshot digest revalidation first.
  */
 async function resolveInstalledPayloadSubpath(snapshotDir, sourceEntries, action, consumer) {
+  // External independent marketplace form: the marketplace index lives in the
+  // external repository, not the unit snapshot (which may carry no marketplace
+  // manifest). The whole snapshot is the installed payload — short-circuit to
+  // "." without reading any marketplace manifest. kimi/codebuddy/inline never
+  // carry these markers, so they fall through to their existing branches below.
+  if (
+    action.payloadContract === PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE
+    || action.marketplaceLocation === 'external'
+  ) {
+    return '.';
+  }
   // Platforms without a marketplace manifest (kimi) install the whole
   // snapshot as the payload.
   const marketplaceRelative = getPlatform(consumer).manifestPaths.marketplace;
@@ -199,15 +230,26 @@ async function verifyInstalledMarketplacePayload(action, context, installPath, c
   // plans without the marker keep the legacy full-tree equality semantics
   // byte-for-byte (including the consumer transport exclusion list).
   const payloadContract = action.payloadContract;
-  if (payloadContract !== undefined && payloadContract !== PAYLOAD_CONTRACT_DECLARED_MANIFEST) {
+  if (
+    payloadContract !== undefined
+    && payloadContract !== PAYLOAD_CONTRACT_DECLARED_MANIFEST
+    && payloadContract !== PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE
+  ) {
     throw new Error(`unsupported marketplace payload contract: ${JSON.stringify(payloadContract)}`);
   }
-  if (payloadContract === PAYLOAD_CONTRACT_DECLARED_MANIFEST) {
-    // declared-manifest-v1: every authority entry must exist in the installed
-    // payload and agree in type/size/bytes/non-write mode bits. Host-added
-    // files are NOT failures — they are recorded (relative paths, capped) as
-    // audit evidence so host evolution can never break a release, while any
-    // missing or altered declared file still fails closed.
+  if (
+    payloadContract === PAYLOAD_CONTRACT_DECLARED_MANIFEST
+    || payloadContract === PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE
+  ) {
+    // declared-manifest-v1 / external-marketplace-v1: every authority entry
+    // must exist in the installed payload and agree in
+    // type/size/bytes/non-write mode bits. Host-added files are NOT failures —
+    // they are recorded (relative paths, capped) as audit evidence so host
+    // evolution can never break a release, while any missing or altered
+    // declared file still fails closed. The two contracts share this
+    // containment semantics; they differ only in the authority subtree source
+    // (declared-manifest reads the entry's declared source subpath; external
+    // short-circuits to the whole tree '.').
     const installedSnapshot = await computeFrozenSnapshot(installPath);
     const authorityPayload = transportPayload(authorityEntries);
     const installedByPath = new Map(
@@ -237,7 +279,7 @@ async function verifyInstalledMarketplacePayload(action, context, installPath, c
         ? `; and ${conflicts.length - PAYLOAD_CONFLICT_REPORT_CAP} more conflicting path(s)`
         : '';
       throw new Error(
-        `installed marketplace payload differs in path, bytes, size, or non-write mode bits (${PAYLOAD_CONTRACT_DECLARED_MANIFEST}): ${listed}${overflow}`,
+        `installed marketplace payload differs in path, bytes, size, or non-write mode bits (${payloadContract}): ${listed}${overflow}`,
       );
     }
     const authorityPaths = new Set(authorityPayload.map((entry) => entry.path));
@@ -395,12 +437,115 @@ async function resolveKimiEntrySkillFile(pluginRootReal, manifest, entrySkill) {
   return entryReal;
 }
 
+/**
+ * CodeBuddy equivalent of normalizeKimiSkillsRel (parallel implementation,
+ * codebuddy wording; the kimi helper above is intentionally left untouched so
+ * its error strings stay byte-identical). Validates a manifest `skills` value
+ * as a safe plugin-root-relative path and returns the normalized root-relative
+ * path (no leading "./", no trailing "/").
+ *
+ * @param {string} skillsRaw
+ * @returns {string} normalized relative path ('' for the plugin root itself)
+ */
+function normalizeCodeBuddySkillsRel(skillsRaw) {
+  if (typeof skillsRaw !== 'string' || skillsRaw.length === 0) {
+    throw new Error('codebuddy manifest skills must be a non-empty relative path when present');
+  }
+  if (
+    skillsRaw.startsWith('/') ||
+    skillsRaw.includes('..') ||
+    skillsRaw.includes('\\') ||
+    /^https?:\/\//i.test(skillsRaw)
+  ) {
+    throw new Error(`codebuddy manifest skills "${skillsRaw}" is not a safe relative path`);
+  }
+  let rel = skillsRaw.replace(/^\.\//, '');
+  rel = rel.replace(/\/+$/, '');
+  if (rel.split('/').some((segment) => segment === '' || segment === '.' || segment === '..')) {
+    throw new Error(`codebuddy manifest skills "${skillsRaw}" is not a safe relative path`);
+  }
+  return rel;
+}
+
+/**
+ * CodeBuddy equivalent of resolveKimiEntrySkillFile (parallel implementation,
+ * codebuddy wording; the kimi helper above is intentionally left untouched).
+ * Resolves the entry SKILL.md from the authoritative codebuddy manifest:
+ * - declared `skills`: entry resolves under that validated, realpath-contained
+ *   skills root;
+ * - omitted `skills`: the plugin root's own SKILL.md is the single skill.
+ * The returned path is realpath-contained within pluginRootReal and is a
+ * regular, non-symlink file. Throws on missing/escaping/invalid layouts so the
+ * caller fails closed.
+ *
+ * @param {string} pluginRootReal - realpath of the verified plugin root.
+ * @param {object} manifest - parsed codebuddy plugin manifest.
+ * @param {string} entrySkill - expected entry skill id.
+ * @returns {Promise<string>} realpath of the entry SKILL.md
+ */
+async function resolveCodeBuddyEntrySkillFile(pluginRootReal, manifest, entrySkill) {
+  if (!entrySkill || typeof entrySkill !== 'string' || !SAFE_ID_RE.test(entrySkill)) {
+    throw new Error(`unsafe entrySkill: "${entrySkill}"`);
+  }
+  let entryAbs;
+  if (manifest.skills === undefined || manifest.skills === null) {
+    // Official single-skill semantics: root SKILL.md is the sole skill.
+    entryAbs = resolve(pluginRootReal, 'SKILL.md');
+  } else {
+    const skillsRel = normalizeCodeBuddySkillsRel(manifest.skills);
+    const skillsRootAbs = skillsRel === '' ? pluginRootReal : resolve(pluginRootReal, skillsRel);
+    const skillsRootReal = await realpath(skillsRootAbs).catch(() => null);
+    if (!skillsRootReal) {
+      throw new Error(`codebuddy manifest skills root does not exist: ${manifest.skills}`);
+    }
+    const skillsContainment = relative(pluginRootReal, skillsRootReal);
+    const sepK = process.platform === 'win32' ? '\\' : '/';
+    if (
+      skillsContainment !== '' &&
+      (isAbsolute(skillsContainment) || skillsContainment === '..' || skillsContainment.startsWith(`..${sepK}`))
+    ) {
+      throw new Error(`codebuddy manifest skills "${manifest.skills}" escapes the plugin root after symlink resolution`);
+    }
+    entryAbs = resolve(skillsRootReal, entrySkill, 'SKILL.md');
+  }
+
+  // lstat the LEXICAL entry BEFORE realpath: a symlinked SKILL.md must be
+  // rejected outright (lstat-ing the resolved target would miss the symlink).
+  let entryLexicalStat;
+  try {
+    entryLexicalStat = await lstat(entryAbs);
+  } catch {
+    throw new Error(`codebuddy entry skill not found: ${relative(pluginRootReal, entryAbs) || 'SKILL.md'}`);
+  }
+  if (entryLexicalStat.isSymbolicLink()) {
+    throw new Error('codebuddy entry skill must not be a symlink');
+  }
+  if (!entryLexicalStat.isFile()) {
+    throw new Error('codebuddy entry skill is not a regular file');
+  }
+
+  const entryReal = await realpath(entryAbs).catch(() => null);
+  if (!entryReal) {
+    throw new Error(`codebuddy entry skill not found: ${relative(pluginRootReal, entryAbs) || 'SKILL.md'}`);
+  }
+  const entryContainment = relative(pluginRootReal, entryReal);
+  const sepE = process.platform === 'win32' ? '\\' : '/';
+  if (
+    entryContainment !== '' &&
+    (isAbsolute(entryContainment) || entryContainment === '..' || entryContainment.startsWith(`..${sepE}`))
+  ) {
+    throw new Error('codebuddy entry skill escapes the plugin root after symlink resolution');
+  }
+  return entryReal;
+}
+
 const SUPPORTED_TYPES = [
   ActionType.PLUGIN_MANIFEST_VALIDATE,
   ActionType.PLUGIN_INSTALL_CHECK,
   ActionType.CLAUDE_MARKETPLACE_INSTALL,
   ActionType.CODEX_MARKETPLACE_INSTALL,
   ActionType.KIMI_MARKETPLACE_INSTALL,
+  ActionType.CODEBUDDY_MARKETPLACE_INSTALL,
 ];
 
 /** Safe repo pattern: owner/repo with alphanumeric, hyphens, dots, underscores. */
@@ -662,7 +807,8 @@ export function createPluginMarketplaceAdapter(deps = {}) {
         if (
           actionType === ActionType.CLAUDE_MARKETPLACE_INSTALL ||
           actionType === ActionType.CODEX_MARKETPLACE_INSTALL ||
-          actionType === ActionType.KIMI_MARKETPLACE_INSTALL
+          actionType === ActionType.KIMI_MARKETPLACE_INSTALL ||
+          actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL
         ) {
           // 1. Validate all parameters for injection safety
           const validation = validateMarketplaceParams(action);
@@ -752,12 +898,15 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
 
-          // A non-automatable platform (kimi) has no non-interactive
-          // marketplace/install API: the whole repo is installed as one
-          // plugin. The authoritative manifest is read from the verified
-          // snapshot root via the platform strategy's official precedence
-          // (kimi.plugin.json over .kimi-plugin/plugin.json).
+          // A non-automatable platform (kimi, codebuddy) has no trustworthy
+          // automated install: the whole repo is installed as one plugin. The
+          // authoritative manifest is read from the verified snapshot root via
+          // the platform strategy (kimi: kimi.plugin.json over
+          // .kimi-plugin/plugin.json; codebuddy: .codebuddy-plugin/plugin.json).
           if (!platform.automatable) {
+            // Error-message label keeps the kimi wording byte-identical while
+            // giving codebuddy its own wording.
+            const manifestLabel = consumer === 'codebuddy' ? 'codebuddy' : 'kimi';
             let kimiManifestResult;
             try {
               kimiManifestResult = await platform.strategy.readManifest(snapshotDirReal);
@@ -765,7 +914,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
               return createResult({
                 actionType,
                 status: ActionStatus.PREFLIGHT_FAILED,
-                error: `frozen snapshot kimi manifest invalid: ${manifestErr.message}`,
+                error: `frozen snapshot ${manifestLabel} manifest invalid: ${manifestErr.message}`,
               });
             }
             const kimiManifest = kimiManifestResult.manifest;
@@ -787,6 +936,59 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           }
 
           if (platform.automatable) {
+          if (action.marketplaceLocation === 'external') {
+          // External independent marketplace form: the marketplace index lives
+          // in the external repository (frozen by prepare), NOT in the unit
+          // snapshot, so the snapshot marketplace-manifest section is skipped
+          // entirely. The plugin manifest is read directly from the snapshot
+          // root and the frozen external identity fields are validated. ref was
+          // already injection-checked above (step 2); the entry skill reuses the
+          // automatable fixed layout validated below.
+          if (
+            typeof action.marketplaceCommitSha !== 'string'
+            || !/^[0-9a-f]{40}$/.test(action.marketplaceCommitSha)
+          ) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: `external marketplace marketplaceCommitSha must be a 40-hex commit sha, got ${JSON.stringify(action.marketplaceCommitSha)}`,
+            });
+          }
+          if (
+            typeof action.repo !== 'string'
+            || !/^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/.test(action.repo)
+          ) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: `external marketplace repo must be an owner/name repository, got ${JSON.stringify(action.repo)}`,
+            });
+          }
+          const externalManifestRelative = platform.manifestPaths.plugin;
+          const externalManifestPath = resolve(snapshotDirReal, externalManifestRelative);
+          const externalManifestResult = await validateManifestFile(externalManifestPath, ['name', 'version']);
+          if (!externalManifestResult.valid) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: `frozen snapshot ${externalManifestRelative} invalid: ${externalManifestResult.error}`,
+            });
+          }
+          if (externalManifestResult.manifest.name !== action.plugin) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: `plugin manifest name "${externalManifestResult.manifest.name}" does not match action plugin "${action.plugin}"`,
+            });
+          }
+          if (externalManifestResult.manifest.version !== action.version) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: `plugin manifest version "${externalManifestResult.manifest.version}" does not match action version "${action.version}"`,
+            });
+          }
+          } else {
           // Verify marketplace files exist.
           // marketplace.json is at the snapshot root; plugin manifest is
           // resolved relative to the entry's declared source path.
@@ -923,17 +1125,21 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
           }
+          }
 
           // Verify the entry skill exists in the snapshot.
           // Automatable platforms' manifests always declare ./skills/, so the
           // fixed skills/<entrySkill>/SKILL.md layout is authoritative for
-          // them. A non-automatable platform (kimi) resolves the entry skill
-          // via the manifest-declared skills root (MAJOR-4): the root is
-          // validated + realpath-contained, and omitted `skills` means the
-          // official single-skill root SKILL.md.
+          // them. A non-automatable platform (kimi, codebuddy) resolves the
+          // entry skill via the manifest-declared skills root (MAJOR-4): the
+          // root is validated + realpath-contained, and omitted `skills` means
+          // the official single-skill root SKILL.md.
           if (!platform.automatable) {
+            const resolveEntrySkillFile = consumer === 'codebuddy'
+              ? resolveCodeBuddyEntrySkillFile
+              : resolveKimiEntrySkillFile;
             try {
-              await resolveKimiEntrySkillFile(snapshotDirReal, kimiSnapshotManifest, action.entrySkill);
+              await resolveEntrySkillFile(snapshotDirReal, kimiSnapshotManifest, action.entrySkill);
             } catch (entryErr) {
               return createResult({
                 actionType,
@@ -1100,7 +1306,8 @@ export function createPluginMarketplaceAdapter(deps = {}) {
       if (
         actionType === ActionType.CLAUDE_MARKETPLACE_INSTALL ||
         actionType === ActionType.CODEX_MARKETPLACE_INSTALL ||
-        actionType === ActionType.KIMI_MARKETPLACE_INSTALL
+        actionType === ActionType.KIMI_MARKETPLACE_INSTALL ||
+        actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL
       ) {
         try {
           assertIsolatedConsumerWritesAuthorized(context, actionType);
@@ -1442,7 +1649,8 @@ export function createPluginMarketplaceAdapter(deps = {}) {
         if (
           actionType === ActionType.CLAUDE_MARKETPLACE_INSTALL ||
           actionType === ActionType.CODEX_MARKETPLACE_INSTALL ||
-          actionType === ActionType.KIMI_MARKETPLACE_INSTALL
+          actionType === ActionType.KIMI_MARKETPLACE_INSTALL ||
+          actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL
         ) {
           const consumer = action.consumer;
           const runDir = context.runDir;
@@ -1493,7 +1701,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           // root (MAJOR-4), and manifest name/version.
           // Missing/expired/mismatched/escaping proof fails closed so a kimi
           // unit can never reach VERIFIED without it.
-          if (platform && !platform.automatable) {
+          if (platform && !platform.automatable && actionType === ActionType.KIMI_MARKETPLACE_INSTALL) {
             const expectedRef = action.ref ?? `v${action.version}`;
 
             // Bind to the REAL frozen plan digest (A). Fail closed if the
@@ -1765,6 +1973,301 @@ export function createPluginMarketplaceAdapter(deps = {}) {
               version: installedManifest.version,
               repo: action.repo,
               ref: expectedRef,
+              ...extraInstalledPathsAudit(payloadBinding),
+            };
+            return createResult({
+              actionType,
+              status: ActionStatus.OBSERVED,
+              observation,
+            });
+          }
+
+          // CodeBuddy protocol capability gap (parallel to the kimi branch
+          // above; duplicated rather than abstracted so the kimi error strings,
+          // file layout, and golden bytes stay byte-for-byte unchanged). The
+          // codebuddy CLI cannot pin a frozen ref, so observe never execs a
+          // codebuddy command. It consumes a structured human attestation bound
+          // to the frozen plan digest + identity, validates the install path per
+          // channel (desktop `~/.workbuddy` layout / isolated cli home), then
+          // performs read-only verification of the installed copy: payload
+          // digest vs the sealed authority, entry skill resolved via the
+          // manifest skills root, and manifest name/version. Missing/expired/
+          // mismatched/escaping proof fails closed so a codebuddy unit can never
+          // reach VERIFIED without it.
+          if (platform && !platform.automatable && actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL) {
+            const expectedRef = action.ref ?? `v${action.version}`;
+
+            // Bind to the REAL frozen plan digest (A). Fail closed if the
+            // context does not carry an intact frozen plan.
+            let boundPlanDigest;
+            try {
+              boundPlanDigest = await resolveCodeBuddyBoundPlanDigest(context);
+            } catch (planErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: false,
+                  error: `cannot bind codebuddy observation to the frozen plan: ${planErr.message}`,
+                },
+              });
+            }
+
+            // Stable, cross-run attestation authority (B), keyed by the verified
+            // plan digest + plugin, so it survives publish PARTIAL -> reconcile
+            // -> verify (each uses a fresh runDir).
+            let attestationDir;
+            try {
+              attestationDir = codebuddyAuthorityDir(context, boundPlanDigest, action.plugin);
+            } catch (dirErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: { installed: false, error: dirErr.message },
+              });
+            }
+
+            // The execute-emitted requirement must exist and bind to the action
+            // and the frozen plan digest.
+            let requirement = null;
+            try {
+              requirement = JSON.parse(await readFile(resolve(attestationDir, CODEBUDDY_REQUIREMENT_FILE), 'utf8'));
+            } catch {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: false,
+                  manualInstallRequired: true,
+                  error: 'codebuddy manual-install requirement is missing; run execute first',
+                },
+              });
+            }
+            if (
+              requirement.planDigest !== boundPlanDigest ||
+              requirement.plugin !== action.plugin ||
+              requirement.version !== action.version ||
+              requirement.entrySkill !== action.entrySkill ||
+              requirement.repo !== action.repo ||
+              requirement.ref !== expectedRef
+            ) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: false,
+                  error: 'codebuddy manual-install requirement does not match the frozen plan/action',
+                },
+              });
+            }
+
+            // The trusted human attestation is mandatory and is read from the
+            // stable authority dir. Without it the manual install has not been
+            // proven: fail closed.
+            let attestation = null;
+            try {
+              attestation = JSON.parse(await readFile(resolve(attestationDir, CODEBUDDY_ATTESTATION_FILE), 'utf8'));
+            } catch {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: false,
+                  manualInstallRequired: true,
+                  marketplaceSource: CODEBUDDY_MARKETPLACE_SOURCE,
+                  attestationDir,
+                  error: `codebuddy attestation is missing; write ${resolve(attestationDir, CODEBUDDY_ATTESTATION_FILE)} after the manual install (marketplace ${CODEBUDDY_MARKETPLACE_SOURCE})`,
+                },
+              });
+            }
+
+            const attestationCheck = validateCodeBuddyAttestation(attestation, action, new Date().toISOString(), boundPlanDigest);
+            if (!attestationCheck.valid) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: { installed: false, error: attestationCheck.error },
+              });
+            }
+
+            // The attested install path must be a real directory (not a symlink)
+            // that resolves successfully. Per-channel containment:
+            //   cli:     installPath must resolve inside the ISOLATED, plan-digest
+            //            keyed codebuddy home's marketplace plugin root.
+            //   desktop: the segment-level `~/.workbuddy/...` layout check already
+            //            ran in validateCodeBuddyAttestation; here we only require
+            //            the path to resolve to a real directory.
+            const installPath = resolve(attestation.installPath);
+            let installPathStat;
+            try {
+              installPathStat = await lstat(installPath);
+            } catch {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: { installed: false, error: `codebuddy install path does not exist: ${attestation.installPath}` },
+              });
+            }
+            if (installPathStat.isSymbolicLink()) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: { installed: false, error: `codebuddy install path must not be a symlink: ${attestation.installPath}` },
+              });
+            }
+            if (!installPathStat.isDirectory()) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: { installed: false, error: `codebuddy install path must be a directory: ${attestation.installPath}` },
+              });
+            }
+            const installPathReal = await realpath(installPath).catch(() => null);
+            if (!installPathReal) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: { installed: false, error: `codebuddy install path cannot be resolved: ${attestation.installPath}` },
+              });
+            }
+
+            if (attestation.installChannel === 'cli') {
+              const cliHome = codebuddyCliHome(attestationDir);
+              const cliHomeReal = await realpath(cliHome).catch(() => null);
+              if (!cliHomeReal) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: {
+                    installed: false,
+                    error: `codebuddy isolated CLI home does not exist or cannot be resolved: ${cliHome}`,
+                  },
+                });
+              }
+              const cliRootAbs = codebuddyCliInstallRoot(cliHomeReal, attestation.marketplace, action.plugin);
+              const cliRootReal = await realpath(cliRootAbs).catch(() => null);
+              if (!cliRootReal) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: {
+                    installed: false,
+                    error: `codebuddy CLI marketplace plugin root does not exist: ${cliRootAbs}`,
+                  },
+                });
+              }
+              const sepC = process.platform === 'win32' ? '\\' : '/';
+              const relToRoot = relative(cliRootReal, installPathReal);
+              if (
+                relToRoot !== '' &&
+                (isAbsolute(relToRoot) || relToRoot === '..' || relToRoot.startsWith(`..${sepC}`))
+              ) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: {
+                    installed: false,
+                    error: `codebuddy install path escapes the isolated CLI marketplace root (${cliRootReal}): ${attestation.installPath}`,
+                  },
+                });
+              }
+            }
+
+            // Read-only payload binding: the installed copy must match the
+            // sealed frozen authority exactly (transport-normalized).
+            let manifestDigest;
+            let payloadBinding = null;
+            try {
+              payloadBinding = await verifyInstalledMarketplacePayload(action, context, installPathReal, consumer);
+              manifestDigest = payloadBinding.manifestDigest;
+            } catch (digestErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: true,
+                  installPath: installPathReal,
+                  error: `failed to bind installed codebuddy payload to frozen authority: ${digestErr.message}`,
+                },
+              });
+            }
+            if (manifestDigest !== action.manifestDigest) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: true,
+                  installPath: installPathReal,
+                  error: 'installed codebuddy payload digest does not match the frozen plan digest',
+                },
+              });
+            }
+
+            // Entry skill must resolve via the installed manifest's skills root,
+            // with the codebuddy single-candidate manifest.
+            let installedManifest;
+            try {
+              const readManifest = await platform.strategy.readManifest(installPathReal);
+              installedManifest = readManifest.manifest;
+              await resolveCodeBuddyEntrySkillFile(installPathReal, installedManifest, action.entrySkill);
+            } catch (entryErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: true,
+                  installPath: installPathReal,
+                  manifestDigest,
+                  entrySkillFound: false,
+                  error: `codebuddy entry skill not resolvable in installed copy: ${entryErr.message}`,
+                },
+              });
+            }
+
+            // Installed manifest identity must match the frozen action.
+            if (installedManifest.name !== action.plugin) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: true,
+                  installPath: installPathReal,
+                  manifestDigest,
+                  entrySkillFound: true,
+                  error: `installed codebuddy manifest name "${installedManifest.name}" does not match action plugin "${action.plugin}"`,
+                },
+              });
+            }
+            if (installedManifest.version !== action.version) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: true,
+                  installPath: installPathReal,
+                  manifestDigest,
+                  entrySkillFound: true,
+                  error: `installed codebuddy manifest version "${installedManifest.version}" does not match action version "${action.version}"`,
+                },
+              });
+            }
+
+            // Build the observation from independently verified fields only.
+            // marketplace + installChannel ARE validated codebuddy identity
+            // fields (unlike kimi's MINOR-1 marketplace exclusion).
+            const observation = {
+              installed: true,
+              installPath: installPathReal,
+              entrySkillFound: true,
+              entrySkill: action.entrySkill,
+              manifestDigest,
+              consumer,
+              plugin: installedManifest.name,
+              version: installedManifest.version,
+              repo: action.repo,
+              ref: expectedRef,
+              marketplace: attestation.marketplace,
+              installChannel: attestation.installChannel,
               ...extraInstalledPathsAudit(payloadBinding),
             };
             return createResult({
@@ -2074,6 +2577,16 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           // Output repo/ref only after cross-validation
           if (evidence.repo) observation.repo = evidence.repo;
           if (evidence.ref) observation.ref = evidence.ref;
+
+          // External independent marketplace form: bind the frozen external
+          // identity markers so verify's expected subset matches. These are
+          // frozen plan identity (like repo/ref), never re-derived from the
+          // remote at observe time; the install-side entry observation above
+          // (CLI list version binding) compensates for the weak name-freeze.
+          if (action.marketplaceLocation === 'external') {
+            observation.marketplaceLocation = action.marketplaceLocation;
+            observation.marketplaceCommitSha = action.marketplaceCommitSha;
+          }
 
           return createResult({
             actionType,

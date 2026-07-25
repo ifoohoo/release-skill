@@ -139,7 +139,8 @@
                     "npm",
                     "claude-plugin",
                     "codex-plugin",
-                    "kimi-plugin"
+                    "kimi-plugin",
+                    "codebuddy-plugin"
                   ]
                 },
                 "package": {
@@ -184,6 +185,11 @@
                   "minLength": 1,
                   "pattern": "^[a-z0-9][a-z0-9._-]*$"
                 },
+                "marketplaceRepo": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*$",
+                  "description": "外部独立市场仓库 owner/name；存在即启用外部市场形态"
+                },
                 "entrySkill": {
                   "type": "string",
                   "minLength": 1,
@@ -206,7 +212,7 @@
                   "type": "integer",
                   "minimum": 30000,
                   "maximum": 900000,
-                  "description": "Timeout in milliseconds for plugin marketplace install commands (claude-plugin, codex-plugin). Kimi Code has no scriptable install command, so for kimi-plugin this bounds the read-only observation/verification only, not an install command. Only valid for claude-plugin, codex-plugin, and kimi-plugin distributions."
+                  "description": "Timeout in milliseconds for plugin marketplace install commands (claude-plugin, codex-plugin). Kimi Code has no scriptable install command, so for kimi-plugin this bounds the read-only observation/verification only, not an install command. CodeBuddy/WorkBuddy has no scriptable install command that can pin a frozen ref, so for codebuddy-plugin this likewise bounds the read-only observation/verification only. Only valid for claude-plugin, codex-plugin, kimi-plugin, and codebuddy-plugin distributions."
                 }
               },
               "allOf": [
@@ -238,7 +244,8 @@
                         "enum": [
                           "claude-plugin",
                           "codex-plugin",
-                          "kimi-plugin"
+                          "kimi-plugin",
+                          "codebuddy-plugin"
                         ]
                       }
                     }
@@ -276,6 +283,40 @@
                       "plugin",
                       "entrySkill"
                     ]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "codebuddy-plugin"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "plugin",
+                      "entrySkill"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "kimi-plugin",
+                          "codebuddy-plugin"
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "not": {
+                      "required": [
+                        "marketplaceRepo"
+                      ]
+                    }
                   }
                 },
                 {
@@ -824,7 +865,8 @@
                 "npm",
                 "claude-plugin",
                 "codex-plugin",
-                "kimi-plugin"
+                "kimi-plugin",
+                "codebuddy-plugin"
               ]
             }
           }

@@ -85,6 +85,7 @@ const MARKETPLACE_TYPES = new Set([
   'claude-marketplace-install',
   'codex-marketplace-install',
   'kimi-marketplace-install',
+  'codebuddy-marketplace-install',
 ]);
 
 // ---------------------------------------------------------------------------

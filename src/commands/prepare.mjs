@@ -942,6 +942,231 @@ async function buildProductionAssets(
 }
 
 // ---------------------------------------------------------------------------
+// External independent marketplace freeze (production + online only)
+// ---------------------------------------------------------------------------
+
+const EXTERNAL_MARKETPLACE_SHA_RE = /^[0-9a-f]{40}$/;
+
+/**
+ * Parse `git ls-remote --symref <url> HEAD` output into the resolved HEAD
+ * commit sha and the default branch name. Pure: no I/O.
+ *
+ * Expected lines (tab-separated):
+ *   ref: refs/heads/<branch>\tHEAD
+ *   <40-hex sha>\tHEAD
+ *
+ * @param {string} stdout
+ * @returns {{sha:string, defaultBranch:string}|null} null when either is absent.
+ */
+export function parseExternalMarketplaceLsRemote(stdout) {
+  if (typeof stdout !== 'string') return null;
+  const lines = stdout.trim().split('\n').filter((line) => line.length > 0);
+  let defaultBranch = null;
+  let sha = null;
+  for (const line of lines) {
+    const tabIndex = line.indexOf('\t');
+    if (tabIndex < 0) continue;
+    const left = line.slice(0, tabIndex);
+    const right = line.slice(tabIndex + 1);
+    if (right !== 'HEAD') continue;
+    if (left.startsWith('ref: refs/heads/')) {
+      defaultBranch = left.slice('ref: refs/heads/'.length);
+    } else if (EXTERNAL_MARKETPLACE_SHA_RE.test(left)) {
+      sha = left;
+    }
+  }
+  if (!sha || !defaultBranch) return null;
+  return { sha, defaultBranch };
+}
+
+/**
+ * Decode a GitHub contents-API base64 `.content` field and parse it as the
+ * marketplace index JSON. Pure: no I/O.
+ *
+ * @param {string} base64Content
+ * @returns {object|null} parsed index, or null on decode/parse failure.
+ */
+export function decodeExternalMarketplaceIndex(base64Content) {
+  if (typeof base64Content !== 'string') return null;
+  try {
+    const base64 = base64Content.replace(/\s/g, '');
+    const content = Buffer.from(base64, 'base64').toString('utf8');
+    const parsed = JSON.parse(content);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve an external marketplace repository's current HEAD via
+ * `git ls-remote --symref`, returning both the resolved commit sha and the
+ * default branch name. Read-only: never writes to the remote.
+ *
+ * @param {string} repo - External marketplace repository (owner/name).
+ * @param {object} [opts]
+ * @param {string} [opts.githubHost]
+ * @returns {Promise<{status:string, sha?:string, defaultBranch?:string, error?:string}>}
+ */
+async function defaultObserveExternalMarketplaceHead(repo, { githubHost = 'github.com' } = {}) {
+  try {
+    const { stdout } = await execFile(
+      'git',
+      ['ls-remote', '--symref', `https://${githubHost}/${repo}.git`, 'HEAD'],
+      { shell: false, encoding: 'utf8', timeout: 30000 },
+    );
+    const parsed = parseExternalMarketplaceLsRemote(stdout);
+    if (!parsed) {
+      return { status: 'unknown', error: 'could not resolve HEAD commit sha and default branch from ls-remote --symref output' };
+    }
+    return { status: 'observed', sha: parsed.sha, defaultBranch: parsed.defaultBranch };
+  } catch (error) {
+    return { status: 'unknown', error: error.message };
+  }
+}
+
+/**
+ * Fetch and parse an external marketplace index manifest at a frozen ref via
+ * the GitHub contents API. Read-only: never writes to the remote.
+ *
+ * @param {string} repo - External marketplace repository (owner/name).
+ * @param {string} manifestPath - Platform marketplace manifest path.
+ * @param {string} ref - Frozen commit sha to read the index at.
+ * @param {object} [opts]
+ * @param {string} [opts.githubHost]
+ * @returns {Promise<{status:string, index?:object, error?:string}>}
+ */
+async function defaultFetchExternalMarketplaceIndex(repo, manifestPath, ref, { githubHost = 'github.com' } = {}) {
+  try {
+    const { stdout } = await execFile(
+      'gh',
+      ['api', `repos/${repo}/contents/${manifestPath}?ref=${ref}`, '--jq', '.content'],
+      {
+        shell: false,
+        encoding: 'utf8',
+        timeout: 30000,
+        env: { ...process.env, GH_HOST: githubHost },
+      },
+    );
+    const index = decodeExternalMarketplaceIndex(stdout);
+    if (!index) {
+      return { status: 'unknown', error: 'could not decode external marketplace index content' };
+    }
+    return { status: 'fetched', index };
+  } catch (error) {
+    return { status: 'unknown', error: error.message };
+  }
+}
+
+/**
+ * Freeze the external marketplace HEAD for every claude/codex distribution
+ * that declares `marketplaceRepo` (production + online only). For each such
+ * distribution: resolve the external repository's HEAD commit sha + default
+ * branch name, validate the marketplace index entry at that sha (name match,
+ * exactly one plugin entry, claude-form entry version equals the target
+ * version), then record the add-ref (codex=sha, claude=default branch name)
+ * and the frozen marketplaceCommitSha. Any failure fails closed. The remote is
+ * only ever read (git ls-remote / gh api), never written.
+ *
+ * @returns {Promise<Map<string, {repo:string, ref:string, marketplaceCommitSha:string, marketplace:string}>>}
+ *   keyed by `${unitId} ${distributionType}`.
+ */
+export async function resolveExternalMarketplaceFreezes({
+  unitResults,
+  resolvedVersions,
+  offline,
+  evidence,
+  observeHeadFn,
+  fetchIndexFn,
+}) {
+  const freezes = new Map();
+  for (let index = 0; index < unitResults.length; index += 1) {
+    const { unit } = unitResults[index];
+    const version = resolvedVersions[index];
+    const githubHost = unit.production?.githubHost ?? 'github.com';
+    for (const dist of unit.distributions ?? []) {
+      if (dist.marketplaceRepo === undefined || dist.marketplaceRepo === null) continue;
+      const platform = PLATFORMS.find((p) => p.distributionType === dist.type);
+      if (!platform || platform.marketplaceRefForm === null) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" ${dist.type} distribution declares marketplaceRepo but the platform has no marketplace add capability`,
+          { unitId: unit.id, distributionType: dist.type },
+        );
+      }
+      if (offline) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" ${dist.type} external marketplace form requires online production prepare to freeze the marketplace commit sha`,
+          { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo },
+        );
+      }
+      const observed = await observeHeadFn(dist.marketplaceRepo, { githubHost });
+      if (observed.status !== 'observed' || !EXTERNAL_MARKETPLACE_SHA_RE.test(observed.sha ?? '') || !observed.defaultBranch) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" could not freeze external marketplace "${dist.marketplaceRepo}" HEAD: ${observed.error ?? 'unknown'}`,
+          { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo },
+        );
+      }
+      const sha = observed.sha;
+      const manifestPath = platform.manifestPaths.marketplace;
+      const fetched = await fetchIndexFn(dist.marketplaceRepo, manifestPath, sha, { githubHost });
+      if (fetched.status !== 'fetched' || !fetched.index || typeof fetched.index !== 'object') {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" could not read external marketplace index for "${dist.marketplaceRepo}" at ${sha}: ${fetched.error ?? 'unknown'}`,
+          { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo },
+        );
+      }
+      const marketplaceIndex = fetched.index;
+      if (marketplaceIndex.name !== dist.marketplace) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" external marketplace index name "${marketplaceIndex.name}" does not match distribution marketplace "${dist.marketplace}"`,
+          { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo },
+        );
+      }
+      const pluginEntries = Array.isArray(marketplaceIndex.plugins)
+        ? marketplaceIndex.plugins.filter((entry) => entry && entry.name === dist.plugin)
+        : [];
+      if (pluginEntries.length !== 1) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" external marketplace index must contain exactly one plugin entry named "${dist.plugin}", found ${pluginEntries.length}`,
+          { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo },
+        );
+      }
+      if (platform.marketplaceEntryCarriesVersion && pluginEntries[0].version !== version) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" external marketplace index entry version "${pluginEntries[0].version}" does not match target version "${version}"`,
+          { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo },
+        );
+      }
+      const ref = platform.marketplaceRefForm === 'sha' ? sha : observed.defaultBranch;
+      freezes.set(`${unit.id} ${dist.type}`, {
+        repo: dist.marketplaceRepo,
+        ref,
+        marketplaceCommitSha: sha,
+        marketplace: dist.marketplace,
+      });
+      await evidence.append({
+        phase: 'external-marketplace-freeze',
+        unitId: unit.id,
+        distributionType: dist.type,
+        status: 'completed',
+        marketplaceRepo: dist.marketplaceRepo,
+        marketplaceCommitSha: sha,
+        defaultBranch: observed.defaultBranch,
+        addRef: ref,
+      });
+    }
+  }
+  return freezes;
+}
+
+// ---------------------------------------------------------------------------
 // External actions generation
 // ---------------------------------------------------------------------------
 
@@ -956,7 +1181,7 @@ async function buildProductionAssets(
  * @param {string} realRoot - The project root for relative path calculation.
  * @returns {object[]} Array of external action descriptors.
  */
-function buildExternalActions(unitResults, resolvedVersions, productionAssets) {
+export function buildExternalActions(unitResults, resolvedVersions, productionAssets, externalFreezes = new Map()) {
   const actions = [];
 
   if (!productionAssets) {
@@ -1026,6 +1251,13 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets) {
         if (!dist) continue;
         const requiresMarketplace = platform.schemaRequiredFields.includes('marketplace');
         const timeoutMs = Number.isInteger(dist.timeoutMs) ? dist.timeoutMs : 300000;
+        // External independent marketplace form: the distribution declares
+        // marketplaceRepo, so the install targets the external marketplace repo
+        // and carries the external payload contract. Non-production prepare does
+        // no online resolution, so it carries the external marker + repo shape
+        // but no frozen ref/marketplaceCommitSha (production-only bindings),
+        // keeping the two loops' shapes aligned for plan completeness.
+        const externalMarketplace = dist.marketplaceRepo !== undefined && dist.marketplaceRepo !== null;
         actions.push({
           id: `${platform.actionType}-${unit.id}`,
           type: platform.actionType,
@@ -1035,7 +1267,7 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets) {
             consumer: platform.id,
             plugin: dist.plugin,
             ...(requiresMarketplace ? { marketplace: dist.marketplace } : {}),
-            repo: unit.publicRepo,
+            repo: externalMarketplace ? dist.marketplaceRepo : unit.publicRepo,
             version,
             entrySkill: dist.entrySkill,
             timeoutMs,
@@ -1043,7 +1275,10 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets) {
             // payload is verified by declared-manifest containment; host-added
             // files are recorded, not failed. Frozen plans without this marker
             // keep the legacy full-tree equality semantics byte-for-byte.
-            payloadContract: 'declared-manifest-v1',
+            // External marketplace form uses the external-marketplace-v1
+            // contract (whole-tree '.' containment; see plugin-marketplace).
+            payloadContract: externalMarketplace ? 'external-marketplace-v1' : 'declared-manifest-v1',
+            ...(externalMarketplace ? { marketplaceLocation: 'external' } : {}),
           },
           expected: {
             installed: true,
@@ -1051,6 +1286,7 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets) {
             ...(requiresMarketplace ? { marketplace: dist.marketplace } : {}),
             version,
             entrySkill: dist.entrySkill,
+            ...(externalMarketplace ? { marketplaceLocation: 'external', repo: dist.marketplaceRepo } : {}),
           },
           status: 'PENDING',
         });
@@ -1207,6 +1443,13 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets) {
       if (!dist) continue;
       const requiresMarketplace = platform.schemaRequiredFields.includes('marketplace');
       const timeoutMs = Number.isInteger(dist.timeoutMs) ? dist.timeoutMs : 300000;
+      // External independent marketplace form: the install targets the external
+      // marketplace repo with the add-ref + marketplaceCommitSha frozen online
+      // by resolveExternalMarketplaceFreezes. snapshotPath/manifestDigest still
+      // bind this unit's own frozen snapshot — the payload authority is the unit
+      // snapshot, unchanged. Inline form (no marketplaceRepo) is byte-identical.
+      const externalMarketplace = dist.marketplaceRepo !== undefined && dist.marketplaceRepo !== null;
+      const freeze = externalMarketplace ? externalFreezes.get(`${unit.id} ${dist.type}`) : null;
       actions.push({
         id: `${platform.actionType}-${unit.id}`,
         type: platform.actionType,
@@ -1216,8 +1459,8 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets) {
           consumer: platform.id,
           plugin: dist.plugin,
           ...(requiresMarketplace ? { marketplace: dist.marketplace } : {}),
-          repo: unit.publicRepo,
-          ref: resolvedTag,
+          repo: externalMarketplace ? dist.marketplaceRepo : unit.publicRepo,
+          ref: externalMarketplace ? freeze.ref : resolvedTag,
           version: unitVersion,
           entrySkill: dist.entrySkill,
           snapshotPath: asset.snapshotPath,
@@ -1227,19 +1470,23 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets) {
           // payload is verified by declared-manifest containment; host-added
           // files are recorded, not failed. Frozen plans without this marker
           // keep the legacy full-tree equality semantics byte-for-byte.
-          payloadContract: 'declared-manifest-v1',
+          // External marketplace form uses the external-marketplace-v1
+          // contract (whole-tree '.' containment; see plugin-marketplace).
+          payloadContract: externalMarketplace ? 'external-marketplace-v1' : 'declared-manifest-v1',
+          ...(externalMarketplace ? { marketplaceLocation: 'external', marketplaceCommitSha: freeze.marketplaceCommitSha } : {}),
         },
         expected: {
           installed: true,
           consumer: platform.id,
           plugin: dist.plugin,
           ...(requiresMarketplace ? { marketplace: dist.marketplace } : {}),
-          repo: unit.publicRepo,
+          repo: externalMarketplace ? dist.marketplaceRepo : unit.publicRepo,
           version: unitVersion,
-          ref: resolvedTag,
+          ref: externalMarketplace ? freeze.ref : resolvedTag,
           entrySkill: dist.entrySkill,
           entrySkillFound: true,
           manifestDigest: asset.manifestDigest,
+          ...(externalMarketplace ? { marketplaceLocation: 'external', marketplaceCommitSha: freeze.marketplaceCommitSha } : {}),
         },
         status: 'PENDING',
       });
@@ -1891,7 +2138,24 @@ export async function prepareRelease(options) {
       };
     });
 
-    const externalActions = buildExternalActions(unitResults, resolvedVersions, productionAssets);
+    // Freeze external independent marketplace HEADs (production + online only):
+    // for each claude/codex distribution declaring marketplaceRepo, resolve the
+    // external repo's HEAD sha + default branch and validate the marketplace
+    // index entry at that sha before freezing the add-ref. Offline production
+    // with a declared marketplaceRepo fails closed inside the resolver. The
+    // remote is only ever read (git ls-remote / gh api), never written.
+    const externalMarketplaceFreezes = production
+      ? await resolveExternalMarketplaceFreezes({
+          unitResults,
+          resolvedVersions,
+          offline,
+          evidence,
+          observeHeadFn: options.observeExternalMarketplaceHeadFn ?? defaultObserveExternalMarketplaceHead,
+          fetchIndexFn: options.fetchExternalMarketplaceIndexFn ?? defaultFetchExternalMarketplaceIndex,
+        })
+      : new Map();
+
+    const externalActions = buildExternalActions(unitResults, resolvedVersions, productionAssets, externalMarketplaceFreezes);
 
     // Compute overall snapshot digest
     const overallSnapshotDigest = sha256Hex(snapshotDigests.join(':'));

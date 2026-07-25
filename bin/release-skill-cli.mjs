@@ -52,6 +52,36 @@ async function checkDependency(command, versionArgs = ['--version']) {
   }
 }
 
+/** Known macOS bundled location of the codebuddy CLI shipped with WorkBuddy.app. */
+const CODEBUDDY_MACOS_ABS_PATH = '/Applications/WorkBuddy.app/Contents/Resources/app.asar.unpacked/cli/bin/codebuddy';
+
+/**
+ * Detect the CodeBuddy CLI (`codebuddy`, alias `cbc`), which is NOT on PATH by
+ * default: it ships bundled inside WorkBuddy.app. Probe in order — PATH
+ * `codebuddy`, PATH `cbc`, then the known macOS absolute bundle path (read-only
+ * `--version`) — and report the first available. The closed loop never execs
+ * this CLI for install (the install cannot pin a frozen ref); detection only
+ * powers the help/dependency report.
+ *
+ * @returns {Promise<{available: boolean, version: string|null, diagnostic: string, source: string|null}>}
+ */
+async function checkCodeBuddyDependency() {
+  const candidates = [
+    { source: 'PATH:codebuddy', command: 'codebuddy' },
+    { source: 'PATH:cbc', command: 'cbc' },
+    { source: 'macOS-bundle', command: CODEBUDDY_MACOS_ABS_PATH },
+  ];
+  const diagnostics = [];
+  for (const { source, command } of candidates) {
+    const result = await checkDependency(command, ['--version']);
+    if (result.available) {
+      return { available: true, version: result.version, diagnostic: 'ok', source };
+    }
+    diagnostics.push(`${source}: ${result.diagnostic}`);
+  }
+  return { available: false, version: null, diagnostic: diagnostics.join('; '), source: null };
+}
+
 /**
  * Perform environment and dependency checks.
  *
@@ -122,6 +152,13 @@ async function performEnvironmentChecks() {
     usage: '仅当计划声明 kimi-plugin distribution 时用于消费者安装验证',
   };
 
+  const codebuddyCheck = await checkCodeBuddyDependency();
+  checks.codebuddy = {
+    ...codebuddyCheck,
+    required: false,
+    usage: '仅当计划声明 codebuddy-plugin distribution 时用于消费者安装验证（人工 attestation 闭环；CLI 无法钉死冻结 ref，安装由人工完成并出具 attestation）',
+  };
+
   return checks;
 }
 
@@ -155,7 +192,7 @@ function getCapabilityMaturity() {
     publish: {
       available: true,
       mode: 'controlled production (protocol-tested; no OS/network sandbox)',
-      description: 'Publishes frozen GitHub/npm artifacts and runs configured Claude/Codex/Kimi consumer checkpoints with approval and exact digest confirmation',
+      description: 'Publishes frozen GitHub/npm artifacts and runs configured Claude/Codex/Kimi/CodeBuddy consumer checkpoints (CodeBuddy via human attestation closed loop) with approval and exact digest confirmation',
     },
     reconcile: {
       available: true,
@@ -165,7 +202,7 @@ function getCapabilityMaturity() {
     verify: {
       available: true,
       mode: 'fresh consumer verification (protocol-tested; no OS/network sandbox)',
-      description: 'Recheck remote state, exact npm installation, CLI help, and configured Claude/Codex/Kimi installs before VERIFIED',
+      description: 'Recheck remote state, exact npm installation, CLI help, and configured Claude/Codex/Kimi/CodeBuddy installs (CodeBuddy via human attestation) before VERIFIED',
     },
   };
 }
@@ -307,6 +344,7 @@ if (!command || command === 'help') {
             claude: '声明 claude-plugin distribution 时必须可用',
             codex: '声明 codex-plugin distribution 时必须可用',
             kimi: '声明 kimi-plugin distribution 时必须可用',
+            codebuddy: '声明 codebuddy-plugin distribution 时用于人工 attestation 闭环（CLI 无法钉死冻结 ref，安装由人工完成并出具 attestation）',
           },
         },
       },
@@ -318,9 +356,9 @@ if (!command || command === 'help') {
         prepare: 'offline local writes; configured hooks/gates require their explicit side-effect acknowledgements',
         docs: 'read-only dry-run by default; write requires --write, exact --confirm-refresh, and --ack-local-document-write; never commits, pushes, or publishes',
         onlinePrepare: 'previous-public-baseline observation available; production mode freezes publish artifacts and fails closed on drift or unknown state',
-        publish: 'GitHub/npm plus configured Claude/Codex/Kimi consumer checkpoints are protocol-tested without an OS/network sandbox; approval and exact digest confirmation required',
+        publish: 'GitHub/npm plus configured Claude/Codex/Kimi/CodeBuddy consumer checkpoints are protocol-tested without an OS/network sandbox (CodeBuddy via human attestation closed loop); approval and exact digest confirmation required',
         reconcile: 'PARTIAL recovery is protocol-tested without an OS/network sandbox; remote conflicts require human intervention',
-        verify: 'fresh exact npm and Claude/Codex/Kimi consumer installation checks are protocol-tested without an OS/network sandbox; configured consumer processes require explicit acknowledgement; success reaches VERIFIED',
+        verify: 'fresh exact npm and Claude/Codex/Kimi/CodeBuddy consumer installation checks are protocol-tested without an OS/network sandbox (CodeBuddy via human attestation); configured consumer processes require explicit acknowledgement; success reaches VERIFIED',
       },
       recommendations: [],
     };
@@ -358,6 +396,10 @@ if (!command || command === 'help') {
 
     if (!checks.kimi.available) {
       output.recommendations.push('Install Kimi Code CLI before releasing a configured kimi-plugin distribution');
+    }
+
+    if (!checks.codebuddy.available) {
+      output.recommendations.push('Install WorkBuddy (bundled codebuddy CLI) before releasing a configured codebuddy-plugin distribution; the install is a manual attestation closed loop because the CLI cannot pin a frozen ref');
     }
 
     console.log(JSON.stringify(output, null, 2));

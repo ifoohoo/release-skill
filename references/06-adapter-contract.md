@@ -108,9 +108,23 @@
 | 查询插件状态 | observe | 检查插件是否可被发现 |
 | 验证安装性 | verify | 在全新环境中安装并验证插件可调用 |
 
-支持目标：Claude Code plugin marketplace、Codex plugin manifest/marketplace、Kimi Code（人工 attestation 闭环）、CodeBuddy/WorkBuddy marketplace（当前范围：仅由 build-adapters 生成自包含分发适配器 `adapters/workbuddy/`（清单 `.codebuddy-plugin/plugin.json`，组件位于插件根，技能以 `${CODEBUDDY_PLUGIN_ROOT}` 渲染），安装为手动步骤；自动化 preflight/execute/observe/verify 安装闭环尚未接入，接入前不得在未冻结清单的情况下声明支持）。
+支持目标：Claude Code plugin marketplace、Codex plugin manifest/marketplace、Kimi Code（人工 attestation 闭环）、CodeBuddy/WorkBuddy（人工 attestation 闭环）。
 
-### 2.4 安装载荷校验契约（declared-manifest-v1）
+**CodeBuddy/WorkBuddy 接入形态（人工 attestation 闭环）**：目录名 `workbuddy` 与平台名 `codebuddy` 指同一目标——build adapter 目录保持 `adapters/workbuddy/`（由 build-adapters 生成的自包含分发适配器，清单 `.codebuddy-plugin/plugin.json`，组件位于插件根，技能以 `${CODEBUDDY_PLUGIN_ROOT}` 渲染），而 platform id / distributionType / actionType 分别为 `codebuddy` / `codebuddy-plugin` / `codebuddy-marketplace-install`。codebuddy CLI 的 `plugin marketplace add` 与 `plugin install` 均无 ref 选项、安装跟踪市场默认分支，**无法钉死冻结 ref**，自动化安装检查点无法保证冻结产物同一性，因此**不采用自动化安装检查点**，改与 Kimi Code 同级的人工 attestation 闭环：
+
+- `execute` 不 exec 任何 codebuddy 命令，写出绑定冻结计划摘要与身份的手动安装 requirement（声明桌面端/CLI 双安装通道与统一市场 `ifoohoo/artifact-skill-set`），检查点失败关闭、run 置 `PARTIAL`（其余自动化外写先完成）。
+- 操作者经 **WorkBuddy 桌面端统一市场**（`ifoohoo/artifact-skill-set`，落点 `~/.workbuddy/plugins/marketplaces/artifact-skill-set/plugins/<plugin>/`）或 **codebuddy CLI**（隔离 `HOME` 下 `plugin marketplace add https://github.com/ifoohoo/artifact-skill-set` 再 `plugin install <plugin>@artifact-skill-set`）安装；因无法钉死 ref，出具 attestation 前必须核实已安装清单版本等于冻结版本。
+- `observe`/`verify` 仅消费结构化人工 attestation 并只读核验安装点 manifest：校验 `planDigest`/`payloadDigest` 绑定、`consumer==='codebuddy'`、`installChannel`（`desktop`/`cli`）与 `marketplace`、按通道校验 `installPath` 布局，以及时间窗（`attestedAt` 不在未来、`expiresAt` 在 `attestedAt` 后 24 小时内且未过期），任一不符即 fail-closed；缺失或失配证明时 CodeBuddy 单元绝不进入 `VERIFIED`，与 Kimi 同阶（发布后验证不可豁免）。
+
+**外部独立市场形态（claude/codex）**：distribution 声明可选字段 `marketplaceRepo`（`owner/name`）即启用外部形态，marketplace 索引与插件仓库解耦：
+
+- **权威分布**：marketplace 索引（`marketplace.json`）集中于外部独立市场仓库（如 `ifoohoo/artifact-skill-set`），插件仓库的冻结快照**只含 plugin 清单**（claude=`.claude-plugin/plugin.json`、codex=`.codex-plugin/plugin.json`），**不含自市场 marketplace.json**。marketplaceAdd 目标即外部市场仓库（action `repo=marketplaceRepo`），`marketplace` 字段为外部市场名（不必等于 unit.id）。
+- **ref 冻结的不对称**（CLI 实测结论）：prepare 仅在 `--online` 生产路径经 `git ls-remote --symref` 解析外部市场仓库当前 HEAD，并经 GitHub contents API 校验该 sha 处的索引条目（`name` 匹配、`plugins[]` 中目标插件恰一条、claude 形态 `entry.version` 等于目标版本）后冻结。**codex 能钉裸 commit sha**（`--ref <sha>`，强冻）→ action `ref` 取 HEAD sha；**claude 只能钉分支/tag 名**（`@<sha>` 失败、`@<name>` 成功，且本地不存解析 sha，弱冻）→ action `ref` 取默认分支名。二者**始终**把解析出的 HEAD sha 冻结为 `marketplaceCommitSha`（审计/期望字段；claude 弱冻下它是 prepare 时刻的快照状态）。非在线而声明 `marketplaceRepo` → 失败关闭。外部仓库全程**只读**（`git ls-remote`/`gh api` 读，绝不写）。
+- **载荷权威不变**：安装侧载荷权威仍是**本单元冻结快照整树**（`snapshotPath`/`manifestDigest` 指本单元快照），marketplace 索引只在远端、不进快照权威。校验契约见 §2.4 `external-marketplace-v1`。
+- **时序约束（先市场后插件）**：外部市场索引必须先于插件发布定版——即先在外部市场仓库（artifact-skill-set-workspace 的 `plugins.mjs`）定版并 publish 市场，使索引 `entry.version` 等于目标发布版本（claude 形态强校验该条），prepare 才能冻结到**含该条目**的市场 sha。若市场索引尚未定版到目标版本，prepare 在线索引校验即失败关闭。
+- **范围与边界**：kimi/codebuddy 无 marketplace add 能力，distribution 出现 `marketplaceRepo` 在 plan 完整性与 prepare 均失败关闭；本形态不写外部仓库（市场索引更新属另立项的 Phase B）。
+
+### 2.4 安装载荷校验契约（declared-manifest-v1 / external-marketplace-v1）
 
 marketplace install action 的安装侧载荷校验以 action 参数 `payloadContract` 选择语义：
 
@@ -120,6 +134,11 @@ marketplace install action 的安装侧载荷校验以 action 参数 `payloadCon
   - 判定：**权威方每一条 entry 必须在安装侧存在**，且 `type/size/contentDigest/mode（忽略写位 `& ~0o222`）` 全部一致。缺失、内容篡改、非写位 mode 变化（如可执行位丢失）→ 失败关闭（CONFLICTING），错误信息列出具体冲突路径（前 10 条，超出记总数）。
   - 安装侧多出的文件（宿主 CLI 副产物，如 claude `.in_use`、codex `.git` 检出与 `.codex-plugin/migrated-command-skills/`、以及任何未来新增物）**不视为失败**，收集为相对路径 `extraInstalledPaths`（上限 200 条，超出记录 `extraInstalledPathsTotal` 总数）写入 evidence/observation，供审计与宿主演进观察。
   - 安全性质不降：供应链校验的对象是我方声明拥有的文件；宿主副产物不是我方责任，纳入全等比较只会把宿主行为风险转嫁为发布阻断。
+- **`payloadContract: 'external-marketplace-v1'`**（外部独立市场形态由 prepare 写入，见 §2.3）：
+  - 权威方 = 冻结快照**整树**（子树解析短路为 `'.'`，**不读任何 marketplace 清单**——外部形态快照本就可无市场清单，索引在远端外部仓库）。
+  - 安装侧 = 安装目录的完整文件遍历，**不做任何豁免**。
+  - 判定：与 `declared-manifest-v1` **完全相同的包含语义**——权威方每一条 entry 必须在安装侧存在且 `type/size/contentDigest/mode（忽略写位）` 一致，缺失/篡改/非写位 mode 变化失败关闭；安装侧多出文件记 `extraInstalledPaths` 不视为失败。两契约仅权威子树来源不同（declared 经清单声明 source 裁子树，external 整树）。
+  - **冻结强度权衡**：`marketplaceCommitSha`（codex sha 冻 / claude 名冻）只冻结**市场索引位置**，其强度**低于摘要密封**——它不密封插件载荷字节。载荷同一性仍由本单元冻结快照摘要（`manifestDigest`）独立保证；索引位置冻结与载荷摘要密封是两条互不替代的链。弱冻 claude 若默认分支漂移致安装版本不符，由**安装侧条目观察比对**补偿（claude `plugin list` version 绑定、codex `crossValidateListEntry` 绑 name/marketplace/version），版本不符即 fail-closed。verify/observe **离线绝不回查远端**，全靠冻结快照 + 本地消费者 CLI list 输出。
 - **缺失 `payloadContract` 字段**（存量已冻结计划）：走 legacy 全等语义——安装侧整树（按 `consumerTransportExclusions` 豁免宿主传输元数据后）与权威方逐字节全等，任何差异失败关闭。行为逐字节保持，用于保护旧计划的恢复路径（reconcile/verify）。
 - 未识别的 `payloadContract` 取值 → 失败关闭。
 - `consumerTransportExclusions` 自本契约起 **deprecated**：仅 legacy 分支使用，待平台注册表任务（T2.2）迁入注册表后删除。

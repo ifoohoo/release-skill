@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.2.1 -->
+<!-- release-skill:release-version: 0.2.2 -->
 Release preparation for Claude Code, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -11,20 +11,27 @@ reviewed artifacts first and publishes those same artifacts later; it does not
 regenerate a README or re-pack the live workspace at the last step.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.2.1** (2026-07-25)
+**0.2.2** (2026-07-26)
 
-v0.2.1 adds a fourth platform adapter — workbuddy (CodeBuddy/WorkBuddy plugin) — using a build-only distribution model. The build-adapters generator and platform registry now register workbuddy alongside claude, codex, and kimi, producing a self-contained adapter directory at `adapters/workbuddy/` with a `.codebuddy-plugin/plugin.json` manifest, bundled CLI entry, native prebuilds, schemas, and skills. The sync-public-files and sync-version scripts cover the new manifest, and the adapter-contract standard documents build-only distribution. README and INSTALL (en + zh-CN) register the CodeBuddy installation entry. Installation is manual — the automated marketplace install checkpoint does not cover CodeBuddy yet.
+v0.2.2 closes the CodeBuddy platform distribution loop and adds the external independent marketplace distribution form. CodeBuddy/WorkBuddy joins the publish/reconcile/verify pipeline through a human attestation closed loop isomorphic to kimi: because the codebuddy CLI cannot pin a frozen ref (no ref option; installs track the default branch/latest), the execute phase writes a manual install requirement (never execs the CLI), and observe/verify consume a structured human attestation with read-only install-point validation — missing, expired, mismatched, or path-escaping attestations all fail closed, at the same severity as kimi (post-publish verification cannot be waived). The external marketplace form lets a distribution declare `marketplaceRepo` so prepare freezes the external marketplace HEAD online (codex hard-frozen to a commit sha, claude weak-frozen to its default branch name) with frozen-sha and index-entry integrity checks, and plugin-marketplace gains matching preflight/observe branches under the `external-marketplace-v1` payload contract while the inline/kimi/codebuddy/legacy branches stay byte-for-byte unchanged. Installation docs (en + zh-CN) are unified on the independent marketplace `ifoohoo/artifact-skill-set` primary path. The npm package name (`release-skill`), publishing identity (`publisher: mzdbxqh`), public repository (`ifoohoo/release-skill`), and corporate maintainer remain unchanged.
 
 **Added**
 
-- **WorkBuddy/CodeBuddy build-only distribution adapter**: new fourth platform adapter `workbuddy` registered in the platform registry and build-adapters generator. The generated self-contained adapter directory (`adapters/workbuddy/`) ships a `.codebuddy-plugin/plugin.json` manifest, a bundled CLI entry (`bin/release-skill.bundle.mjs`), native safe-write prebuilds, JSON schemas, and the full skill set. Skills resolve the CLI entry via `${CODEBUDDY_PLUGIN_ROOT}`, which CodeBuddy expands inline.
-- **Build-only distribution model in adapter-contract standard**: both the parent `standards/06-adapter-contract.md` and the public `references/06-adapter-contract.md` now document the build-only distribution scope — the adapter is generated and self-contained, installation is manual, and the automated preflight/execute/observe/verify marketplace checkpoint is not yet wired for CodeBuddy.
-- **sync-public-files and sync-version coverage for `.codebuddy-plugin`**: the `sync-public-files.mjs` script now validates the `.codebuddy-plugin/plugin.json` manifest as a public asset, and `sync-version.mjs` propagates the package version into it. The build-adapters generator produces workbuddy artifacts alongside the existing three platforms.
-- **README and INSTALL registration (en + zh-CN)**: all four public documents (README.md, README.zh-CN.md, INSTALL.md, INSTALL.zh-CN.md) now list the CodeBuddy/WorkBuddy adapter, its manual installation path, and the scope limitation that the automated marketplace install checkpoint does not yet cover CodeBuddy.
+- **CodeBuddy platform human attestation closed loop**: CodeBuddy/WorkBuddy joins the release pipeline (`publish`/`reconcile`/`verify`) via a human attestation closed loop isomorphic to kimi. The codebuddy CLI's marketplace add/install cannot pin a frozen ref (no ref option; installs track the default branch/`latest`, measured), so the automated install checkpoint cannot guarantee frozen-artifact identity. Execute writes a manual install requirement and never execs the CLI; observe/verify consume a structured human attestation and read-only-validate the install point. Missing, expired, mismatched, or path-escaping attestations all fail closed, at the same severity as kimi (post-publish verification cannot be waived). Two measured install channels: desktop installs through the WorkBuddy desktop unified marketplace `artifact-skill-set` (`installPath` must contain the `/.workbuddy/plugins/marketplaces/artifact-skill-set/plugins/<plugin>` tail segment, segment-checked); cli runs the bundled CLI under an isolated `HOME=<authorityDir>/codebuddy-home` (`installPath` must be contained in that isolated home's marketplace plugin root). Attestations carry `installChannel` + `marketplace` fields and are validated per channel. Pipeline routing: platform id `codebuddy`, distributionType `codebuddy-plugin`, actionType `codebuddy-marketplace-install`, Tier 3 (same tier as kimi); the build adapter keeps its historical directory name `workbuddy` (`adapters/workbuddy/`, `.codebuddy-plugin/plugin.json` manifest, bytes unchanged).
+- **External independent marketplace distribution form**: a distribution declaring `marketplaceRepo` enables the external form. The prepare production loop freezes the external marketplace HEAD online via `git ls-remote --symref` (codex hard-frozen to a commit sha, claude weak-frozen to its default branch name) and validates the external index entry via `gh api` (name match, exactly one entry, `entry.version == target version` for the claude form); declaring the external form while offline fails closed, and the external repository is strictly read-only. Frozen actions carry `repo=marketplaceRepo`, `ref=add-ref`, `marketplaceCommitSha`, `marketplaceLocation=external`, `payloadContract=external-marketplace-v1`; `snapshotPath`/`manifestDigest` still bind this unit's frozen snapshot (payload authority unchanged). Plan integrity gains an external branch (repo match, `marketplaceLocation`, 40-hex `marketplaceCommitSha`, ref structure safety); kimi/codebuddy with `marketplaceRepo` fail closed. `plugin-marketplace` gains external preflight/observe branches: `external-marketplace-v1` uses the same whole-tree containment semantics as `declared-manifest-v1` (authority is `.`, host-added paths recorded as `extraInstalledPaths` rather than failing); preflight skips the in-snapshot marketplace segment and reads the plugin manifest from the snapshot root, validating name/version and the frozen fields; observe reuses the existing strategy for install-side entry comparison (weak-frozen claude version drift fails closed). Inline/kimi/codebuddy/legacy/`declared-manifest-v1` branches are byte-for-byte unchanged.
+
+**Changed**
+
+- **Installation docs unified on the marketplace primary path (en + zh-CN)**: README and INSTALL (all four documents) now route plugin installation through the independent marketplace `ifoohoo/artifact-skill-set` as the primary path, and the READMEs add a workflow overview and platform distribution description. Standards and public references (`standards/06-adapter-contract.md`, `references/06-adapter-contract.md`) are synchronized to the codebuddy attestation form and the external marketplace form with its ordering constraints.
+
+**Fixed**
+
+- **CodeBuddy plugin manifest `skills` field is now an array**: the `.codebuddy-plugin/plugin.json` manifest's `skills` field is emitted as an array, matching the CodeBuddy host's expected shape.
+- **`verificationGate` scope distribution enum includes `codebuddy-plugin`**: `release-project.schema.json` adds `codebuddy-plugin` to the `verificationGate.scope.distribution` enum (mirroring the existing `kimi-plugin` rule), keeping the schema and the runtime gate whitelist consistent; the embedded schema copies in all four adapters are rebuilt to match.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.2.1 is the current release (v0.1.9 previously held
+> **Current boundary:** v0.2.2 is the current release (v0.1.9 previously held
 > published status before the codex migrated-command-skills fix was added).
 > v0.1.1 completed a real production release to GitHub and npm — the first
 > production-verified milestone — followed by
@@ -57,6 +64,45 @@ v0.2.1 adds a fourth platform adapter — workbuddy (CodeBuddy/WorkBuddy plugin)
 > publish --confirm-production <planDigest>`; a `bound` previous-public baseline
 > specifically requires `prepare --online --production`. Without digest confirmation,
 > no remote preflight or write starts.
+
+## Release workflow overview
+
+release-skill models the release lifecycle as a strict state machine so that every
+stage has explicit entry and exit conditions and no stage can be skipped. The
+normative definition lives in `references/01-state-machine.md`.
+
+```text
+DISCOVERED -> ASSESSED -> PREPARED -> APPROVED -> PUBLISHING -> PUBLISHED -> VERIFIED
+                                   exception states: NEEDS_INPUT / BLOCKED / PARTIAL
+```
+
+Each CLI command maps to one transition:
+
+- `help` checks the environment; `setup` discovers the project and, after digest
+  confirmation, creates the config once.
+- `assess` performs a read-only readiness evaluation (`DISCOVERED -> ASSESSED`).
+- `prepare` runs the verification gates, freezes an immutable release plan, and
+  copies the configured public files into an isolated snapshot
+  (`ASSESSED -> PREPARED`). It writes only under `.release-skill/` and never
+  touches remote services.
+- `approve` records human approval bound to the plan digest with a 24-hour expiry
+  (`PREPARED -> APPROVED`). A changed plan invalidates the approval automatically.
+- `publish` executes the external write checkpoints in order
+  (`APPROVED -> PUBLISHING -> PUBLISHED`).
+- `reconcile` recovers from `PARTIAL`; `verify` performs a fresh consumer-install
+  check in an isolated environment (`PUBLISHED -> VERIFIED`).
+
+`PUBLISHED` is **not** the terminal state. Only a fresh `verify` run that confirms
+remote state and exact consumer installs match the frozen plan reaches `VERIFIED`.
+
+**Publishing checkpoint order.** `publish` runs a read-only global preflight over
+all actions, then executes and observes in this fixed order: public snapshot
+branch -> signed/tracked tag -> npm publish -> GitHub Release -> configured
+Claude/Codex plugin-marketplace install -> run record. Any failure stops subsequent
+checkpoints and the run lands in `PARTIAL`. The system never auto-deletes remote
+tags, unpublishes packages, or restarts from scratch; `reconcile` queries the actual
+remote state, skips already-consistent steps, and retries only safe, incomplete
+actions, while remote conflicts require a human decision.
 
 ## Why this is safe for a hand-edited README
 
@@ -115,6 +161,29 @@ npx release-skill help
 ```bash
 release-skill help
 ```
+
+**Install as a plugin (Claude Code / CodeBuddy / WorkBuddy / Codex / Kimi Code):**
+
+All four plugin hosts install from the unified marketplace
+`ifoohoo/artifact-skill-set` — for example, in a Claude Code session:
+
+```
+/plugin marketplace add ifoohoo/artifact-skill-set
+/plugin install release-skill@artifact-skill-set
+```
+
+`ifoohoo/artifact-skill-set` is an **external independent marketplace**: the
+plugin repository carries only the plugin manifest, while the marketplace index
+is centralized in the external marketplace repository. When a release unit's
+plugin distribution declares `marketplaceRepo`, `prepare --online --production`
+freezes the external marketplace HEAD (Codex pins the commit sha — strong
+freeze; Claude pins the default branch name — weak freeze) and verifies the
+installed payload against the unit's own frozen snapshot whole-tree. **Release
+ordering:** publish the external marketplace index first — its entry version
+must equal the target release version — before `prepare` can freeze a
+marketplace sha containing that entry. See [INSTALL.md](INSTALL.md) for the
+per-platform commands and `references/06-adapter-contract.md` §2.3/§2.4 for the
+contract and the advanced direct-repository options.
 
 **Development install (contributor fallback, from source checkout):**
 
@@ -894,11 +963,19 @@ Successful reconcile returns `PUBLISHED`, not `VERIFIED`; only the fresh
   Code (no scriptable install API) it emits a version-pinned manual install
   requirement and proves the entry Skill and payload digest only from a trusted
   attestation bound to the frozen plan digest;
+- supports an external independent marketplace for Claude/Codex distributions
+  (`marketplaceRepo`): `prepare --online --production` freezes the external
+  marketplace HEAD (Codex commit sha / Claude default branch name), validates the
+  marketplace index entry at that sha, and verifies the installed payload against
+  the unit's own frozen snapshot whole-tree (`external-marketplace-v1`), while the
+  install-side CLI list observation fails closed on version drift;
 - ships a generated, self-contained CodeBuddy/WorkBuddy adapter
   (`adapters/workbuddy/`, manifest `.codebuddy-plugin/plugin.json`, skills
   rendered with `${CODEBUDDY_PLUGIN_ROOT}`) alongside the Claude/Codex/Kimi
-  adapters; CodeBuddy installation is manual — the automated marketplace
-  install checkpoint does not cover CodeBuddy yet;
+  adapters; because the codebuddy CLI cannot pin a frozen ref there is no
+  automated marketplace install checkpoint, so it emits a manual install
+  requirement and proves the entry Skill and payload digest only from a trusted
+  attestation bound to the frozen plan digest;
 - distinguishes `PUBLISHED` (writes completed) from `VERIFIED` (remote and
   consumer installation evidence completed);
 - stops subsequent checkpoints on failure and writes a separate run record
@@ -985,7 +1062,8 @@ npm publish may never be hooks/gates; they remain controlled plan actions.
   `--force-with-lease=<ref>:` solely as an atomic compare-and-set assertion that
   the ref is absent, while existing branches use an ordinary non-force push;
 - no automated CodeBuddy/WorkBuddy marketplace install checkpoint — the
-  generated `adapters/workbuddy/` distribution adapter is installed manually;
+  codebuddy CLI cannot pin a frozen ref, so installation is a manual step proven
+  by the same attestation closed loop as Kimi Code;
 - no promise of Windows or broad multi-platform native write support;
 - no hidden commit, push, tag, release, or package publication.
 
@@ -1035,6 +1113,29 @@ sandbox targets for the smallest safe rehearsal.
 Conflicts still default to human intervention. The npm-installed `release-skill`
 CLI is the supported user entry after v0.1.1 production publication; source
 checkout remains the development/contributor fallback.
+
+## Platform distribution
+
+One deterministic core engine ships to several targets through build-only adapter
+closures. A release unit declares what reaches users via `distributions`; each
+distribution type maps to a concrete artifact:
+
+| `distributions` type | Physical artifact | Install |
+|---|---|---|
+| `npm` | npm package with CLI entry | `npm install -g release-skill` |
+| `claude-plugin` | self-contained closure under `adapters/claude/` | automated marketplace checkpoint |
+| `codex-plugin` | self-contained closure under `adapters/codex/` | automated marketplace checkpoint |
+| `kimi-plugin` | self-contained closure (no scriptable install API) | manual, attestation-bound |
+| `codebuddy-plugin` | generated `adapters/workbuddy/` with `.codebuddy-plugin/plugin.json` (the codebuddy CLI cannot pin a frozen ref) | manual, attestation-bound |
+
+Each adapter closure bundles its own copy of the CLI bundle, skills, and schemas so
+it runs with no external dependency after installation. The Claude/Codex marketplace
+install checkpoints are automated (preflight, execute, observe, verify); the Kimi
+Code checkpoint fails closed and produces a version-pinned manual install
+requirement; the CodeBuddy/WorkBuddy checkpoint likewise fails closed — because
+the codebuddy CLI cannot pin a frozen ref there is no automated install
+checkpoint — and produces a manual install requirement proven by a trusted
+attestation bound to the frozen plan digest.
 
 ## License
 

@@ -33,6 +33,7 @@ export const CHECKPOINT_ORDER = [
   'claude-marketplace-install',
   'codex-marketplace-install',
   'kimi-marketplace-install',
+  'codebuddy-marketplace-install',
 ];
 
 /**
@@ -52,6 +53,7 @@ export const ADAPTER_ACTION_TYPE_MAP = {
   'claude-marketplace-install': 'claude-marketplace-install',
   'codex-marketplace-install': 'codex-marketplace-install',
   'kimi-marketplace-install': 'kimi-marketplace-install',
+  'codebuddy-marketplace-install': 'codebuddy-marketplace-install',
 };
 
 /**
@@ -67,7 +69,10 @@ export const ADAPTER_ACTION_TYPE_MAP = {
  * - Tier 2 `github-release` and the claude/codex marketplace installs depend
  *   on Tier 1 `create-tag` (release `--verify-tag`; install ref is the tag).
  * - Tier 3 `kimi-marketplace-install` depends on Tier 2 `github-release`
- *   (its install URL points at the Release page).
+ *   (its install URL points at the Release page). `codebuddy-marketplace-install`
+ *   is also a non-automatable human-attestation closure and runs in Tier 3 after
+ *   the automated writes (its install is from a unified marketplace, proven by a
+ *   human attestation rather than an automated install checkpoint).
  *
  * Action types not listed in any tier are unknown to the scheduler and fail
  * closed (see groupActionsByTier); they are never silently scheduled.
@@ -76,7 +81,7 @@ export const TIER_TABLE = [
   ['push-commit', 'push-snapshot'],                                              // Tier 0
   ['set-default-branch', 'create-tag', 'npm-publish'],                          // Tier 1
   ['github-release', 'claude-marketplace-install', 'codex-marketplace-install'], // Tier 2
-  ['kimi-marketplace-install'],                                                 // Tier 3
+  ['kimi-marketplace-install', 'codebuddy-marketplace-install'],                // Tier 3
 ];
 
 /** Fast reverse lookup: action type -> tier index (-1 when unknown). */

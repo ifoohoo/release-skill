@@ -261,8 +261,10 @@ async function collectEntries() {
       }
     }
 
-    // Adapter directory files
-    const adapterDir = `adapters/${platform.id}`;
+    // Adapter directory files. The adapter directory follows the build adapter
+    // NAME, which may differ from the pipeline platform id: codebuddy (id)
+    // builds adapters/workbuddy/ (buildAdapter.name = 'workbuddy').
+    const adapterDir = `adapters/${platform.buildAdapter?.name ?? platform.id}`;
     const adapterDirPrefix = `${adapterDir}/`;
     for (const f of allFiles) {
       if (f.startsWith(adapterDirPrefix)) {
@@ -271,9 +273,11 @@ async function collectEntries() {
     }
   }
 
-  // Build-only distribution adapters (e.g. workbuddy): not publish-pipeline
+  // Build-only distribution adapters (BUILD_ONLY_ADAPTERS): not publish-pipeline
   // platforms, but their generated adapter trees and root manifests ship
-  // publicly just like the pipeline platforms'.
+  // publicly just like the pipeline platforms'. Currently empty — workbuddy
+  // moved into the registry as the `codebuddy` platform (handled above via its
+  // buildAdapter.name); this loop is retained for future build-only hosts.
   for (const adapter of BUILD_ONLY_ADAPTERS) {
     const rootManifest = `${adapter.pluginDirName}/${adapter.templateFileName}`;
     if (allSet.has(rootManifest)) {

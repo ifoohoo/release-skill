@@ -197,8 +197,15 @@ export function computeBuildAdaptersDigest(sourceBytes) {
 // of platform knowledge). The build shape mirrors the legacy inline table
 // byte-for-byte: marketplaceFileName is present only when the platform
 // co-locates a marketplace manifest in its plugin dir (claude).
+//
+// The build adapter NAME defaults to the platform id, but a platform may keep a
+// historical directory name distinct from its pipeline id via
+// `buildAdapter.name`: codebuddy (pipeline id) builds the `workbuddy` adapter
+// tree (adapters/workbuddy/, manifest .codebuddy-plugin/plugin.json). This is
+// what lets codebuddy join the publish pipeline WITHOUT changing a single byte
+// of the generated workbuddy adapter (the former BUILD_ONLY workbuddy entry).
 const REGISTRY_PLATFORMS = PLATFORM_REGISTRY.map((platform) => ({
-  name: platform.id,
+  name: platform.buildAdapter?.name ?? platform.id,
   pluginDirName: platform.buildAdapter.pluginDirName,
   templateFileName: platform.buildAdapter.templateFileName,
   ...(platform.buildAdapter.hasMarketplace
@@ -216,18 +223,16 @@ const REGISTRY_PLATFORMS = PLATFORM_REGISTRY.map((platform) => ({
  * until then a build-only entry lets the build emit an installable adapter
  * tree without fabricating an unverified install protocol.
  *
- * workbuddy: CodeBuddy/WorkBuddy plugin (official plugin reference:
- * `.codebuddy-plugin/plugin.json`, components at the plugin root,
- * `${CODEBUDDY_PLUGIN_ROOT}` expanded inline in skill content).
+ * Currently EMPTY: every platform the build emits now has a full registry
+ * descriptor. workbuddy (the CodeBuddy/WorkBuddy plugin, manifest
+ * `.codebuddy-plugin/plugin.json`, `${CODEBUDDY_PLUGIN_ROOT}` expanded inline
+ * in skill content) moved into the registry as the `codebuddy` platform with
+ * `buildAdapter.name = 'workbuddy'`, so its adapter tree is still produced —
+ * byte-for-byte unchanged — via REGISTRY_PLATFORMS. This constant is retained
+ * (still exported and consumed below) for future build-only hosts that have an
+ * installable adapter tree but no verified install protocol yet.
  */
-export const BUILD_ONLY_ADAPTERS = Object.freeze([
-  Object.freeze({
-    name: 'workbuddy',
-    pluginDirName: '.codebuddy-plugin',
-    templateFileName: 'plugin.json',
-    hasMarketplace: false,
-  }),
-]);
+export const BUILD_ONLY_ADAPTERS = Object.freeze([]);
 
 export const PLATFORMS = Object.freeze([...REGISTRY_PLATFORMS, ...BUILD_ONLY_ADAPTERS]);
 
@@ -427,8 +432,11 @@ async function generateAdapterFiles(platform, skills, templateJson, root, market
   const adapted = JSON.parse(JSON.stringify(templateJson));
 
   // Preserve platform-supported directory auto-discovery in generated adapters.
+  // The CodeBuddy server-side validator (`codebuddy plugin validate`) requires
+  // `skills` to be an array of component paths, so the workbuddy adapter emits
+  // ["./skills/"]; claude/codex/kimi hosts keep the directory-string form.
   if (typeof adapted.skills === 'string') {
-    adapted.skills = './skills/';
+    adapted.skills = platform.name === 'workbuddy' ? ['./skills/'] : './skills/';
   } else if (Array.isArray(adapted.skills)) {
     for (const skill of adapted.skills) {
       skill.source = `../skills/${skill.name}/SKILL.md`;

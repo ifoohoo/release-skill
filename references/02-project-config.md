@@ -40,6 +40,13 @@ releaseUnits:               # 发布单元数组，至少 1 个
     distributions:          # 分发渠道数组
       - type: <string>      # "npm" | "claude-plugin" | "codex-plugin"
         package: <string>   # npm 包名（type 为 npm 时必填）
+        # 插件渠道（claude-plugin/codex-plugin/kimi-plugin/codebuddy-plugin）
+        # 另含 plugin/marketplace/entrySkill 与可选 timeoutMs。
+        marketplaceRepo: <string>  # 可选；外部独立市场仓库 owner/name。仅
+          # claude-plugin/codex-plugin 可声明，出现即启用外部市场形态：marketplace
+          # 索引集中于该外部仓库，插件冻结快照只含 plugin 清单；prepare 在线冻结
+          # 市场 HEAD（codex sha 冻 / claude 名冻）。kimi/codebuddy 声明会被 plan
+          # 完整性与 prepare 失败关闭。详见 standards/06 §2.3/§2.4。
     publicFiles:            # 公开源码镜像的显式闭世界映射
       - from: <string>      # 项目根相对路径
         to: <string>        # 公开仓库中的发布单元相对路径

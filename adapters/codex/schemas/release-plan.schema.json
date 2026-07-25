@@ -353,7 +353,8 @@
                     "npm",
                     "claude-plugin",
                     "codex-plugin",
-                    "kimi-plugin"
+                    "kimi-plugin",
+                    "codebuddy-plugin"
                   ]
                 },
                 "package": {
@@ -396,6 +397,11 @@
                   "type": "string",
                   "minLength": 1,
                   "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                "marketplaceRepo": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*$",
+                  "description": "外部独立市场仓库 owner/name；存在即启用外部市场形态"
                 },
                 "entrySkill": {
                   "type": "string",
@@ -465,6 +471,40 @@
                       "plugin",
                       "entrySkill"
                     ]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "codebuddy-plugin"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "plugin",
+                      "entrySkill"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "kimi-plugin",
+                          "codebuddy-plugin"
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "not": {
+                      "required": [
+                        "marketplaceRepo"
+                      ]
+                    }
                   }
                 },
                 {
@@ -671,6 +711,7 @@
               "claude-marketplace-install",
               "codex-marketplace-install",
               "kimi-marketplace-install",
+              "codebuddy-marketplace-install",
               "set-default-branch"
             ]
           },
@@ -797,7 +838,8 @@
                 "npm",
                 "claude-plugin",
                 "codex-plugin",
-                "kimi-plugin"
+                "kimi-plugin",
+                "codebuddy-plugin"
               ]
             }
           }

@@ -129,7 +129,8 @@ function identifyTopology(config) {
   const hasPlugin =
     uniqueDistTypes.includes('claude-plugin') ||
     uniqueDistTypes.includes('codex-plugin') ||
-    uniqueDistTypes.includes('kimi-plugin');
+    uniqueDistTypes.includes('kimi-plugin') ||
+    uniqueDistTypes.includes('codebuddy-plugin');
 
   if (units.length === 0) {
     type = 'no-release-units';
@@ -422,6 +423,54 @@ async function checkPluginManifests(root, config) {
               severity: Severity.ERROR,
               code: 'KIMI_MANIFEST_INVALID',
               message: '.kimi-plugin/plugin.json 解析失败',
+              file: displayPath,
+            }),
+          );
+        }
+      }
+    }
+
+    if (distributionTypes.has('codebuddy-plugin')) {
+      const manifestPath = resolve(unitRoot, '.codebuddy-plugin', 'plugin.json');
+      const displayPath = unitFile(unit, '.codebuddy-plugin/plugin.json');
+      const exists = await fileExists(manifestPath);
+      if (!exists) {
+        gaps.push(
+          createGap({
+            scope: GapScope.PROFILE,
+            category: GapCategory.MANIFEST,
+            severity: Severity.ERROR,
+            code: 'CODEBUDDY_MANIFEST_MISSING',
+            message: `发布单元 "${unit.id}" 缺少 .codebuddy-plugin/plugin.json 插件清单`,
+            file: displayPath,
+          }),
+        );
+      } else {
+        try {
+          const content = await readFile(manifestPath, 'utf8');
+          const manifest = JSON.parse(content);
+          const requiredFields = ['name', 'version', 'description'];
+          const missingFields = requiredFields.filter((f) => !(f in manifest));
+          if (missingFields.length > 0) {
+            gaps.push(
+              createGap({
+                scope: GapScope.PROFILE,
+                category: GapCategory.MANIFEST,
+                severity: Severity.ERROR,
+                code: 'CODEBUDDY_MANIFEST_INCOMPLETE',
+                message: `CodeBuddy 插件清单缺少必填字段: ${missingFields.join(', ')}`,
+                file: displayPath,
+              }),
+            );
+          }
+        } catch {
+          gaps.push(
+            createGap({
+              scope: GapScope.PROFILE,
+              category: GapCategory.MANIFEST,
+              severity: Severity.ERROR,
+              code: 'CODEBUDDY_MANIFEST_INVALID',
+              message: '.codebuddy-plugin/plugin.json 解析失败',
               file: displayPath,
             }),
           );

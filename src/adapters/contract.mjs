@@ -60,6 +60,7 @@ export const ActionType = Object.freeze({
   CLAUDE_MARKETPLACE_INSTALL: 'claude-marketplace-install',
   CODEX_MARKETPLACE_INSTALL: 'codex-marketplace-install',
   KIMI_MARKETPLACE_INSTALL: 'kimi-marketplace-install',
+  CODEBUDDY_MARKETPLACE_INSTALL: 'codebuddy-marketplace-install',
 
   // default branch management
   SET_DEFAULT_BRANCH: 'set-default-branch',

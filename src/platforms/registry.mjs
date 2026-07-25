@@ -1,6 +1,6 @@
 /**
  * Platform registry — the single source of truth for consumer-platform
- * knowledge (claude / codex / kimi).
+ * knowledge (claude / codex / kimi / codebuddy).
  *
  * T2.2 converges platform facts that were scattered across plugin-marketplace.mjs,
  * build-adapters.mjs, prepare.mjs, plan.mjs and project.yaml into this module.
@@ -23,6 +23,8 @@
  * file; kimi's side-effecting manual-requirement and manifest-reading
  * strategies live in ./kimi.mjs (§4.2's per-platform-module option — the only
  * non-trivial strategies) and are referenced from the kimi descriptor below.
+ * codebuddy's analogous human-attestation strategies live in ./codebuddy.mjs
+ * and are referenced from the codebuddy descriptor below.
  * plugin-marketplace.mjs consumes every platform difference through this
  * registry; see the t2-2 deviation record for the step-2 wiring details.
  *
@@ -36,6 +38,10 @@ import {
   readKimiManifest,
   KIMI_MANIFEST_CANDIDATES,
 } from './kimi.mjs';
+import {
+  executeCodeBuddyManualRequirement,
+  readCodeBuddyManifest,
+} from './codebuddy.mjs';
 
 // --- claude strategy -------------------------------------------------------
 
@@ -155,6 +161,10 @@ const CLAUDE = Object.freeze({
   // Claude carries the authoritative version in the marketplace entry: the
   // preflight binds entry.version to the action version.
   marketplaceEntryCarriesVersion: true,
+  // External marketplace form: `claude plugin marketplace add repo@<ref>` can
+  // only pin a branch/tag NAME (a bare commit sha fails to clone and the
+  // resolved sha is not recorded locally) — name-form weak freeze.
+  marketplaceRefForm: 'name',
   knownHostArtifacts: Object.freeze(['.in_use']),
   schemaRequiredFields: Object.freeze(['plugin', 'marketplace', 'entrySkill']),
   skillRendering: Object.freeze({ mode: 'verbatim', preamble: null, placeholder: '${CLAUDE_PLUGIN_ROOT}' }),
@@ -204,6 +214,9 @@ const CODEX = Object.freeze({
   // Codex keeps the authoritative version in .codex-plugin/plugin.json; the
   // marketplace entry version is not bound to the action version.
   marketplaceEntryCarriesVersion: false,
+  // External marketplace form: `codex plugin marketplace add repo --ref <ref>`
+  // accepts a bare commit sha — sha-form strong freeze.
+  marketplaceRefForm: 'sha',
   knownHostArtifacts: Object.freeze(['.git', '.codex-plugin/migrated-command-skills']),
   schemaRequiredFields: Object.freeze(['plugin', 'marketplace', 'entrySkill']),
   skillRendering: Object.freeze({ mode: 'substitute', preamble: 'codex', placeholder: '${CLAUDE_PLUGIN_ROOT}' }),
@@ -251,6 +264,9 @@ const KIMI = Object.freeze({
   // apply (null = N/A, never consulted: kimi preflight reads its manifest via
   // strategy.readManifest).
   marketplaceEntryCarriesVersion: null,
+  // kimi has no marketplace add at all, so the marketplace ref form does not
+  // apply (null = N/A, never consulted).
+  marketplaceRefForm: null,
   knownHostArtifacts: Object.freeze(['.git']),
   schemaRequiredFields: Object.freeze(['plugin', 'entrySkill']),
   skillRendering: Object.freeze({ mode: 'substitute', preamble: 'kimi', placeholder: '${CLAUDE_PLUGIN_ROOT}' }),
@@ -272,12 +288,88 @@ const KIMI = Object.freeze({
   }),
 });
 
-/** Ordered platform registry. Order is significant (claude, codex, kimi). */
-export const PLATFORMS = Object.freeze([CLAUDE, CODEX, KIMI]);
+// CodeBuddy (desktop product WorkBuddy) is a NON-automatable human-attestation
+// platform like kimi: the codebuddy CLI's marketplace add/install cannot pin a
+// frozen ref (no ref option; the install tracks the default branch / latest),
+// so an automated install checkpoint cannot guarantee frozen-artifact identity.
+// Install state has a stable on-disk layout, so the closed loop is proven by a
+// human attestation + read-only verification (./codebuddy.mjs), fail-closed at
+// the same severity as kimi.
+//
+// NAMING MAPPING: the platform id is `codebuddy`, but its BUILD adapter keeps
+// the historical directory name `workbuddy` (`adapters/workbuddy/`, manifest
+// `.codebuddy-plugin/plugin.json`). `buildAdapter.name = 'workbuddy'` drives
+// the build-adapters producer + public-file collection; the pipeline identity
+// (distributionType/actionType/consumer) stays `codebuddy`.
+const CODEBUDDY = Object.freeze({
+  id: 'codebuddy',
+  distributionType: 'codebuddy-plugin',
+  actionType: 'codebuddy-marketplace-install',
+  adapter: 'plugin-marketplace',
+  automatable: false,
+  cli: null,
+  jsonProtocol: Object.freeze({
+    listOutput: null,
+    installPathSource: null,
+    marketplaceAddOutput: null,
+    pluginInstallOutput: null,
+  }),
+  // The closed loop never execs the codebuddy CLI; HOME is the only isolation
+  // input and exists solely so the attestation's isolated cli-channel home has
+  // a base. No unverified host env vars are fabricated.
+  isolationEnv: (home) => ({ HOME: home }),
+  // codebuddy never execs a CLI; its isolated cli home is created by the
+  // manual-requirement strategy under the attestation authority.
+  isolationSubdirs: Object.freeze([]),
+  manifestPaths: Object.freeze({
+    // Single authoritative manifest (no precedence chain, unlike kimi).
+    plugin: '.codebuddy-plugin/plugin.json',
+    marketplace: null,
+  }),
+  marketplaceSourceForm: null,
+  // codebuddy installs from a unified marketplace but carries no marketplace
+  // identity in the action (the marketplace is a fixed constant in
+  // ./codebuddy.mjs); the entry-version binding does not apply (null = N/A).
+  marketplaceEntryCarriesVersion: null,
+  // codebuddy has no marketplace add that can pin a frozen ref (attestation
+  // loop instead), so the marketplace ref form does not apply (null = N/A).
+  marketplaceRefForm: null,
+  knownHostArtifacts: Object.freeze(['.git']),
+  schemaRequiredFields: Object.freeze(['plugin', 'entrySkill']),
+  // Declarative rendering intent (the build-adapters producer keys on
+  // buildAdapter.name = 'workbuddy'): pure ${CLAUDE_PLUGIN_ROOT} ->
+  // ${CODEBUDDY_PLUGIN_ROOT} substitution, no entry-resolution preamble
+  // (CodeBuddy expands the variable inline in skill content).
+  skillRendering: Object.freeze({ mode: 'substitute', preamble: null, placeholder: '${CODEBUDDY_PLUGIN_ROOT}' }),
+  buildAdapter: Object.freeze({
+    // Build adapter keeps the historical `workbuddy` directory name; the fields
+    // are byte-for-byte the legacy BUILD_ONLY workbuddy entry so the generated
+    // adapters/workbuddy/ tree is unchanged.
+    name: 'workbuddy',
+    pluginDirName: '.codebuddy-plugin',
+    templateFileName: 'plugin.json',
+    marketplaceFileName: null,
+    hasMarketplace: false,
+  }),
+  strategy: Object.freeze({
+    parseListOutput: null,
+    extractInstallPath: null,
+    extractListIdentity: null,
+    crossValidateListEntry: null,
+    // codebuddy's side-effecting manual-requirement builder and manifest reader
+    // live in ./codebuddy.mjs (per-platform-module option, mirroring kimi).
+    buildManualRequirement: executeCodeBuddyManualRequirement,
+    readManifest: readCodeBuddyManifest,
+  }),
+});
 
-const VALID_DISTRIBUTION_TYPES = new Set(['claude-plugin', 'codex-plugin', 'kimi-plugin']);
-const VALID_ACTION_TYPES = new Set(['claude-marketplace-install', 'codex-marketplace-install', 'kimi-marketplace-install']);
+/** Ordered platform registry. Order is significant (claude, codex, kimi, codebuddy). */
+export const PLATFORMS = Object.freeze([CLAUDE, CODEX, KIMI, CODEBUDDY]);
+
+const VALID_DISTRIBUTION_TYPES = new Set(['claude-plugin', 'codex-plugin', 'kimi-plugin', 'codebuddy-plugin']);
+const VALID_ACTION_TYPES = new Set(['claude-marketplace-install', 'codex-marketplace-install', 'kimi-marketplace-install', 'codebuddy-marketplace-install']);
 const VALID_SOURCE_FORMS = new Set(['string', 'local-path-object', null]);
+const VALID_MARKETPLACE_REF_FORMS = new Set(['sha', 'name', null]);
 const VALID_LIST_OUTPUTS = new Set(['array', 'installed-object', null]);
 const VALID_CLI_OUTPUTS = new Set(['json', null]);
 const VALID_ENTRY_VERSION_BINDING = new Set([true, false, null]);
@@ -332,6 +424,9 @@ export function assertRegistry(registry = PLATFORMS) {
     }
     if (!VALID_SOURCE_FORMS.has(platform.marketplaceSourceForm)) {
       throw new Error(`platform registry: ${label} has illegal marketplaceSourceForm "${platform.marketplaceSourceForm}"`);
+    }
+    if (!VALID_MARKETPLACE_REF_FORMS.has(platform.marketplaceRefForm)) {
+      throw new Error(`platform registry: ${label} has illegal marketplaceRefForm "${platform.marketplaceRefForm}"`);
     }
     if (!Array.isArray(platform.knownHostArtifacts)) {
       throw new Error(`platform registry: ${label} knownHostArtifacts must be an array`);

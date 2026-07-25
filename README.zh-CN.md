@@ -2,26 +2,33 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.2.1 -->
+<!-- release-skill:release-version: 0.2.2 -->
 面向 Claude Code、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它先冻结并供人工审阅，再从同一份冻结产物发布，不会在最后一步重新生成 README、重新打包当前工作区或覆盖人工内容。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.2.1** (2026-07-25)
+**0.2.2** (2026-07-26)
 
-v0.2.1 新增第四个平台适配器 workbuddy（CodeBuddy/WorkBuddy 插件），采用 build-only 分发模式。build-adapters 生成器与平台注册表现在将 workbuddy 与 claude、codex、kimi 并列登记，在 `adapters/workbuddy/` 产出包含 `.codebuddy-plugin/plugin.json` 清单、打包 CLI 入口、native 预编译、JSON schemas 与全套技能的自包含适配器目录。sync-public-files 与 sync-version 脚本覆盖新清单，适配器契约标准补充 build-only 分发说明。README 与 INSTALL（中英四份）登记 CodeBuddy 安装入口。安装为手动步骤——自动化 marketplace 安装检查点尚未覆盖 CodeBuddy。
+v0.2.2 闭合 CodeBuddy 平台分发链路并新增外部独立市场分发形态。CodeBuddy/WorkBuddy 经与 kimi 同构的人工 attestation 闭环接入 publish/reconcile/verify 流水线：因 codebuddy CLI 无法钉死冻结 ref（无 ref 选项、安装跟踪默认分支/latest），execute 阶段写手动安装 requirement（绝不 exec CLI），observe/verify 消费结构化人工 attestation 并对安装点做只读校验——缺失、过期、不匹配、路径逃逸一律 fail-closed，严重级别与 kimi 一致（发布后验证不可豁免）。外部市场形态允许 distribution 声明 `marketplaceRepo`，prepare 在线冻结外部市场 HEAD（codex 强冻至 commit sha、claude 弱冻至默认分支名）并做冻结 sha 与索引条目完整性校验，plugin-marketplace 在 `external-marketplace-v1` 载荷契约下新增对应 preflight/observe 分支，inline/kimi/codebuddy/legacy 分支一字不变。安装说明（中英四份）统一以独立市场 `ifoohoo/artifact-skill-set` 为主路径。npm 包名（`release-skill`）、发布身份（`publisher: mzdbxqh`）、公开仓库（`ifoohoo/release-skill`）与公司维护主体保持不变。
 
 **新增**
 
-- **WorkBuddy/CodeBuddy build-only 分发适配器**：新增第四个平台适配器 `workbuddy`，在平台注册表和 build-adapters 生成器中登记。生成的自包含适配器目录（`adapters/workbuddy/`）附带 `.codebuddy-plugin/plugin.json` 清单、打包 CLI 入口（`bin/release-skill.bundle.mjs`）、native safe-write 预编译、JSON schemas 与全套技能。技能通过 `${CODEBUDDY_PLUGIN_ROOT}` 解析 CLI 入口，CodeBuddy 会内联展开该变量。
-- **适配器契约标准补充 build-only 分发模型**：父级 `standards/06-adapter-contract.md` 与公开 `references/06-adapter-contract.md` 均补充 build-only 分发范围说明——适配器由生成器产出且自包含，安装为手动步骤，CodeBuddy 的自动化 preflight/execute/observe/verify marketplace 检查点尚未接入。
-- **sync-public-files 与 sync-version 覆盖 `.codebuddy-plugin`**：`sync-public-files.mjs` 脚本现在将 `.codebuddy-plugin/plugin.json` 清单作为公开资产校验，`sync-version.mjs` 将包版本同步到该清单。build-adapters 生成器将 workbuddy 产物与既有三平台并列生成。
-- **README 与 INSTALL 登记（中英四份）**：四份公开文档（README.md、README.zh-CN.md、INSTALL.md、INSTALL.zh-CN.md）均列出 CodeBuddy/WorkBuddy 适配器、其手动安装路径以及自动化 marketplace 安装检查点尚未覆盖 CodeBuddy 的范围限制。
+- **CodeBuddy 平台人工 attestation 闭环**：CodeBuddy/WorkBuddy 经与 kimi 同构的人工 attestation 闭环接入发布流水线（`publish`/`reconcile`/`verify`）。因 codebuddy CLI 的 marketplace add/install 均无法钉死冻结 ref（无 ref 选项、安装跟踪默认分支/`latest`，已实测），自动化安装检查点无法保证冻结产物同一性。execute 写手动安装 requirement，绝不 exec CLI；observe/verify 消费结构化人工 attestation 并对安装点做只读校验。缺失、过期、不匹配、路径逃逸的 attestation 一律 fail-closed，严重级别与 kimi 一致（发布后验证不可豁免）。双安装通道（均有实测落盘证据）：desktop 经 WorkBuddy 桌面端统一市场 `artifact-skill-set` 安装（`installPath` 须含 `/.workbuddy/plugins/marketplaces/artifact-skill-set/plugins/<plugin>` 尾段，段级检查）；cli 以隔离 `HOME=<authorityDir>/codebuddy-home` 运行捆绑 CLI（`installPath` 须 containment 于该隔离 home 的市场插件根）。attestation 增加 `installChannel` + `marketplace` 字段并按通道校验。管线路由：平台 id `codebuddy`，distributionType `codebuddy-plugin`，actionType `codebuddy-marketplace-install`，列于 Tier 3（与 kimi 同层）；build adapter 保留历史目录名 `workbuddy`（`adapters/workbuddy/`、`.codebuddy-plugin/plugin.json` 清单，字节不变）。
+- **外部独立市场分发形态**：distribution 声明 `marketplaceRepo` 时启用外部形态。prepare 生产循环经 `git ls-remote --symref` 在线冻结外部市场 HEAD（codex 强冻至 commit sha、claude 弱冻至默认分支名），并经 `gh api` 校验外部索引条目（name 匹配、恰一条、claude 形态 `entry.version == 目标版本`）；非在线声明外部形态 fail-closed，外部仓库严格只读。冻结动作携带 `repo=marketplaceRepo`、`ref=add-ref`、`marketplaceCommitSha`、`marketplaceLocation=external`、`payloadContract=external-marketplace-v1`；`snapshotPath`/`manifestDigest` 仍绑本单元冻结快照（载荷权威不变）。plan 完整性校验增加外部分支（repo 匹配、`marketplaceLocation`、40-hex `marketplaceCommitSha`、ref 结构安全）；kimi/codebuddy 携带 `marketplaceRepo` fail-closed。`plugin-marketplace` 新增外部形态 preflight/observe 分支：`external-marketplace-v1` 走与 `declared-manifest-v1` 相同的整树包含语义（权威为 `.`，宿主新增路径记 `extraInstalledPaths` 而非失败）；preflight 跳过快照内市场段，从快照根读 plugin manifest 校验 name/version 与冻结字段；observe 复用既有 strategy 做安装侧条目观察比对（弱冻 claude 版本漂移 fail-closed）。inline/kimi/codebuddy/legacy/`declared-manifest-v1` 分支一字不变。
+
+**变更**
+
+- **安装说明统一市场主路径（中英四份）**：README 与 INSTALL（四份文档）将插件安装统一改为以独立市场 `ifoohoo/artifact-skill-set` 为主路径，README 增补工作流概览与平台分发说明。标准与公开参考（`standards/06-adapter-contract.md`、`references/06-adapter-contract.md`）同步至 codebuddy attestation 形态与外部独立市场形态及其时序约束。
+
+**修复**
+
+- **CodeBuddy 插件 manifest `skills` 字段改为数组**：`.codebuddy-plugin/plugin.json` 清单的 `skills` 字段改为数组输出，与 CodeBuddy 宿主期望的形状一致。
+- **`verificationGate` 作用域 distribution 枚举补 `codebuddy-plugin`**：`release-project.schema.json` 的 `verificationGate.scope.distribution` 枚举补入 `codebuddy-plugin`（镜像既有 `kimi-plugin` 规则），保持 schema 与运行时门白名单一致；四个适配器内嵌的 schema 副本同步重建。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.2.1 是当前发布版本（v0.1.9 曾处于已发布、待独立验证状态）。
+> **当前边界：** v0.2.2 是当前发布版本（v0.1.9 曾处于已发布、待独立验证状态）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；“当前发布版本”与“首次生产验证里程碑”
@@ -47,6 +54,28 @@ v0.2.1 新增第四个平台适配器 workbuddy（CodeBuddy/WorkBuddy 插件）�
 > 生产发布在此基础上显式增加 `prepare --production → approve → publish
 > --confirm-production <planDigest>`；`bound` 前序公开基线必须使用
 > `prepare --online --production`。没有摘要确认就不会预检或写远端。
+
+## 发布工作流概览
+
+release-skill 把发布生命周期建模为一个严格状态机，让每个阶段都有明确的进入和退出条件，且任何阶段都不能跳过。规范定义见 `references/01-state-machine.md`。
+
+```text
+DISCOVERED -> ASSESSED -> PREPARED -> APPROVED -> PUBLISHING -> PUBLISHED -> VERIFIED
+                                   异常态：NEEDS_INPUT / BLOCKED / PARTIAL
+```
+
+每个 CLI 命令对应一次状态转换：
+
+- `help` 检查环境；`setup` 发现项目，并在摘要确认后仅首次创建配置。
+- `assess` 执行只读就绪度评估（`DISCOVERED -> ASSESSED`）。
+- `prepare` 运行验证门、冻结一份不可变发布计划，并把配置的公开文件复制进隔离快照（`ASSESSED -> PREPARED`）。它只写入 `.release-skill/` 目录，从不触碰远端服务。
+- `approve` 记录人工批准，绑定到计划摘要并带 24 小时有效期（`PREPARED -> APPROVED`）。计划一旦变化，批准自动失效。
+- `publish` 按顺序执行外部写操作检查点（`APPROVED -> PUBLISHING -> PUBLISHED`）。
+- `reconcile` 从 `PARTIAL` 恢复；`verify` 在全新隔离环境完成消费者安装验证（`PUBLISHED -> VERIFIED`）。
+
+`PUBLISHED` **不是**终态。只有全新运行的 `verify` 确认远端状态和精确消费者安装都与冻结计划一致时，才会到达 `VERIFIED`。
+
+**发布检查点顺序。** `publish` 先对所有动作做只读全局预检，再按固定顺序执行并观察：公开快照 branch → 签名/可追溯 tag → npm 发布 → GitHub Release → 配置的 Claude/Codex 插件市场安装 → 运行记录。任一步骤失败都会停止后续检查点并使运行进入 `PARTIAL`。系统绝不自动删除远端 tag、不 unpublish 包、不从头重跑；`reconcile` 查询实际远端状态，跳过已一致的步骤，只重试安全且未完成的动作，远端冲突则交由人工决策。
 
 ## 为什么人工修改的 README 不会丢失
 
@@ -88,6 +117,25 @@ npx release-skill help
 ```bash
 release-skill help
 ```
+
+**安装为插件（Claude Code / CodeBuddy / WorkBuddy / Codex / Kimi Code）：**
+
+四种插件宿主都从统一市场 `ifoohoo/artifact-skill-set` 安装——以 Claude
+Code 会话为例：
+
+```
+/plugin marketplace add ifoohoo/artifact-skill-set
+/plugin install release-skill@artifact-skill-set
+```
+
+`ifoohoo/artifact-skill-set` 是一个**外部独立市场**：插件仓库只含 plugin
+清单，marketplace 索引集中于外部市场仓库。当发布单元的插件 distribution 声明
+`marketplaceRepo` 时，`prepare --online --production` 会冻结外部市场 HEAD
+（Codex 钉 commit sha——强冻结；Claude 钉默认分支名——弱冻结），并以本单元自身
+冻结快照整树校验安装载荷。**发布时序：** 须先发布外部市场索引——其条目版本须
+等于目标发布版本——之后 `prepare` 才能冻结到含该条目的市场 sha。各平台完整命令
+见 [INSTALL.zh-CN.md](INSTALL.zh-CN.md)，契约与进阶直接仓库安装方式见
+`references/06-adapter-contract.md` §2.3/§2.4。
 
 **开发安装（贡献者回退，从源码 checkout）：**
 
@@ -595,7 +643,8 @@ reconcile 成功只返回 `PUBLISHED`，不会返回 `VERIFIED`；只有全新�
 - 用计划摘要、有效期和显式 action allowlist 绑定人工批准；
 - 从冻结 Git object 和 npm tarball 发布，并核对远端 commit/tree/tag/integrity；
 - 从冻结 Git ref 安装配置的 Claude/Codex 插件，证明入口 Skill 和安装载荷摘要；对 Kimi Code（无可脚本化安装接口）产出版本钉死的手动安装要求，仅依据绑定到冻结计划摘要的可信证明来确认入口 Skill 和载荷摘要；
-- 随 Claude/Codex/Kimi 适配器一并提供生成的自包含 CodeBuddy/WorkBuddy 适配器（`adapters/workbuddy/`，清单 `.codebuddy-plugin/plugin.json`，技能以 `${CODEBUDDY_PLUGIN_ROOT}` 渲染）；CodeBuddy 安装为手动步骤——自动化 marketplace 安装检查点尚未覆盖 CodeBuddy；
+- 为 Claude/Codex distribution 支持外部独立市场（`marketplaceRepo`）：`prepare --online --production` 冻结外部市场 HEAD（Codex commit sha / Claude 默认分支名），校验该 sha 处的市场索引条目，并以本单元自身冻结快照整树校验安装载荷（`external-marketplace-v1`），安装侧 CLI list 观察在版本漂移时失败关闭；
+- 随 Claude/Codex/Kimi 适配器一并提供生成的自包含 CodeBuddy/WorkBuddy 适配器（`adapters/workbuddy/`，清单 `.codebuddy-plugin/plugin.json`，技能以 `${CODEBUDDY_PLUGIN_ROOT}` 渲染）；因 codebuddy CLI 无法钉死冻结 ref 而无自动化 marketplace 安装检查点，故产出手动安装要求，仅依据绑定到冻结计划摘要的可信证明来确认入口 Skill 和载荷摘要；
 - 明确区分 `PUBLISHED`（外写完成）与 `VERIFIED`（远端和消费者安装证据完成）；
 - 中途失败停止后续动作，记录独立 run；不修改冻结 plan，不自动撤销已成功动作。
 
@@ -647,7 +696,7 @@ push、tag、默认分支修改、GitHub Release 和 npm publish 不能放进 ho
 - 不声称已经替项目完成真实生产 canary；
 - `prepare --online` 只观察 bound 前序基线；目标唯一性由 publish 全局预检完成；
 - 不覆盖已有 branch/tag/Release，不 unpublish npm；
-- 不提供自动化 CodeBuddy/WorkBuddy marketplace 安装检查点——生成的 `adapters/workbuddy/` 分发适配器需手动安装；
+- 不提供自动化 CodeBuddy/WorkBuddy marketplace 安装检查点——codebuddy CLI 无法钉死冻结 ref，安装为手动步骤，经与 Kimi Code 相同的可信证明闭环确认；
 - 不承诺 Windows 或广泛的跨平台原生写入；
 - 不会隐藏地 commit、push、打 tag、创建 Release 或发布包。
 
@@ -686,6 +735,20 @@ push、tag、默认分支修改、GitHub Release 和 npm publish 不能放进 ho
 - `release-publish`：经批准、摘要确认的冻结 GitHub+npm 发布。
 - `release-reconcile`：基于证据恢复 PARTIAL；冲突时人工介入。
 - `release-verify`：发布后验证；只有 `VERIFIED` 才是 happy end。
+
+## 平台分发
+
+同一个确定性核心引擎通过 build-only 适配器闭包分发到多个目标。发布单元用 `distributions` 声明要发布给谁；每种分发类型对应一个具体产物：
+
+| `distributions` 类型 | 物理产物 | 安装方式 |
+|---|---|---|
+| `npm` | 带 CLI 入口的 npm 包 | `npm install -g release-skill` |
+| `claude-plugin` | `adapters/claude/` 下的自包含闭包 | 自动化 marketplace 检查点 |
+| `codex-plugin` | `adapters/codex/` 下的自包含闭包 | 自动化 marketplace 检查点 |
+| `kimi-plugin` | 自包含闭包（无可脚本化安装接口） | 手动，需可信证明 |
+| `codebuddy-plugin` | 生成的 `adapters/workbuddy/`，带 `.codebuddy-plugin/plugin.json`（codebuddy CLI 无法钉死冻结 ref） | 手动，需可信证明 |
+
+每个适配器闭包都自带一份 CLI bundle、skills 和 schemas 的副本，安装后无需外部依赖即可运行。Claude/Codex 的 marketplace 安装检查点是自动化的（preflight、execute、observe、verify）；Kimi Code 检查点失败关闭，并产出版本钉死的手动安装要求；CodeBuddy/WorkBuddy 检查点同样失败关闭——因 codebuddy CLI 无法钉死冻结 ref 而无自动化安装检查点——并产出经绑定冻结计划摘要的可信证明确认的手动安装要求。
 
 ## 许可证
 

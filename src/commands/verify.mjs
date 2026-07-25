@@ -69,6 +69,7 @@ const ADAPTER_ACTION_TYPE_MAP = {
   'claude-marketplace-install': 'claude-marketplace-install',
   'codex-marketplace-install': 'codex-marketplace-install',
   'kimi-marketplace-install': 'kimi-marketplace-install',
+  'codebuddy-marketplace-install': 'codebuddy-marketplace-install',
 };
 
 // ---------------------------------------------------------------------------
@@ -735,6 +736,7 @@ export async function verifyRelease(options) {
       'claude-marketplace-install',
       'codex-marketplace-install',
       'kimi-marketplace-install',
+      'codebuddy-marketplace-install',
     ]);
 
     for (const action of actions) {

@@ -776,6 +776,19 @@ export function validatePlanActionCompleteness(plan, options = {}) {
           );
         }
 
+        // External independent marketplace form: the distribution declares
+        // marketplaceRepo, so the install targets the external marketplace
+        // repository instead of publicRepo. Only platforms with a marketplace
+        // add capability (marketplaceRefForm !== null: claude=name, codex=sha)
+        // may carry it; kimi/codebuddy fail closed. Inline form (no
+        // marketplaceRepo) keeps every assertion below byte-for-byte.
+        const externalMarketplace = dist.marketplaceRepo !== undefined && dist.marketplaceRepo !== null;
+        if (externalMarketplace && platform.marketplaceRefForm === null) {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": ${platform.distributionType} distribution declares marketplaceRepo but the platform has no marketplace add capability`,
+          );
+        }
+
         // Parameter checks
         _checkRequired(action, 'parameters.consumer', action.parameters?.consumer, platform.id, unitId, failures);
         _checkRequired(action, 'parameters.plugin', action.parameters?.plugin, plugin, unitId, failures);
@@ -792,12 +805,53 @@ export function validatePlanActionCompleteness(plan, options = {}) {
             `unit "${unitId}", action "${action.id}": parameters.marketplace is "${action.parameters.marketplace}", expected optional legacy value "${marketplace}"`,
           );
         }
-        _checkRequired(action, 'parameters.repo', action.parameters?.repo, publicRepo, unitId, failures);
+        if (externalMarketplace) {
+          // External form: the install repo is the external marketplace repo,
+          // not publicRepo; marketplaceLocation is the action-level marker.
+          _checkRequired(action, 'parameters.repo', action.parameters?.repo, dist.marketplaceRepo, unitId, failures);
+          _checkRequired(action, 'parameters.marketplaceLocation', action.parameters?.marketplaceLocation, 'external', unitId, failures);
+        } else {
+          _checkRequired(action, 'parameters.repo', action.parameters?.repo, publicRepo, unitId, failures);
+        }
         _checkRequired(action, 'parameters.version', action.parameters?.version, targetVersion, unitId, failures);
         _checkRequired(action, 'parameters.entrySkill', action.parameters?.entrySkill, entrySkill, unitId, failures);
         if (production) {
+          // snapshotPath/manifestDigest always bind the unit's own frozen
+          // snapshot — the payload authority is unchanged for external form.
           _checkRequired(action, 'parameters.snapshotPath', action.parameters?.snapshotPath, frozen?.path, unitId, failures);
-          _checkRequired(action, 'parameters.ref', action.parameters?.ref, expectedTag, unitId, failures);
+          if (externalMarketplace) {
+            // The add-ref is frozen online by prepare (codex=commit sha,
+            // claude=default branch name) and cannot be re-derived offline;
+            // validate structural safety plus self-consistency with expected.ref.
+            const ref = action.parameters?.ref;
+            if (ref === undefined || ref === null) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.ref is missing, expected the frozen external marketplace add-ref`,
+              );
+            } else if (!_isStructurallySafeExternalRef(ref)) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.ref is not a structurally safe ref: ${JSON.stringify(ref)}`,
+              );
+            } else if (ref !== action.expected?.ref) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.ref is "${ref}", expected self-consistent expected.ref "${action.expected?.ref}"`,
+              );
+            }
+            // marketplaceCommitSha is the frozen 40-hex marketplace HEAD
+            // (online freeze, offline completeness — same model as manifestDigest).
+            const sha = action.parameters?.marketplaceCommitSha;
+            if (sha === undefined || sha === null) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.marketplaceCommitSha is missing, expected a frozen 40-hex commit sha`,
+              );
+            } else if (typeof sha !== 'string' || !EXTERNAL_MARKETPLACE_SHA_RE.test(sha)) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.marketplaceCommitSha must be a 40-hex commit sha, got: ${JSON.stringify(sha)}`,
+              );
+            }
+          } else {
+            _checkRequired(action, 'parameters.ref', action.parameters?.ref, expectedTag, unitId, failures);
+          }
           _checkRequired(action, 'parameters.manifestDigest', action.parameters?.manifestDigest, frozen?.manifestDigest, unitId, failures);
         }
         // timeoutMs is mandatory for all marketplace install actions.
@@ -840,8 +894,15 @@ export function validatePlanActionCompleteness(plan, options = {}) {
         _checkRequired(action, 'expected.entrySkill', action.expected?.entrySkill, entrySkill, unitId, failures);
         if (production) {
           _checkRequired(action, 'expected.consumer', action.expected?.consumer, platform.id, unitId, failures);
-          _checkRequired(action, 'expected.repo', action.expected?.repo, publicRepo, unitId, failures);
-          _checkRequired(action, 'expected.ref', action.expected?.ref, expectedTag, unitId, failures);
+          if (externalMarketplace) {
+            _checkRequired(action, 'expected.repo', action.expected?.repo, dist.marketplaceRepo, unitId, failures);
+            _checkRequired(action, 'expected.ref', action.expected?.ref, action.parameters?.ref, unitId, failures);
+            _checkRequired(action, 'expected.marketplaceLocation', action.expected?.marketplaceLocation, 'external', unitId, failures);
+            _checkRequired(action, 'expected.marketplaceCommitSha', action.expected?.marketplaceCommitSha, action.parameters?.marketplaceCommitSha, unitId, failures);
+          } else {
+            _checkRequired(action, 'expected.repo', action.expected?.repo, publicRepo, unitId, failures);
+            _checkRequired(action, 'expected.ref', action.expected?.ref, expectedTag, unitId, failures);
+          }
           _checkRequired(action, 'expected.entrySkillFound', action.expected?.entrySkillFound, true, unitId, failures);
           _checkRequired(action, 'expected.manifestDigest', action.expected?.manifestDigest, frozen?.manifestDigest, unitId, failures);
         }
@@ -945,4 +1006,36 @@ function _checkRequired(action, fieldPath, actual, expected, unitId, failures) {
       `unit "${unitId}", action "${action.id}": ${fieldPath} is "${actual}", expected "${expected}"`,
     );
   }
+}
+
+// External independent marketplace form (external-marketplace): a frozen
+// marketplace HEAD commit sha is a 40-char lowercase hex string.
+const EXTERNAL_MARKETPLACE_SHA_RE = /^[0-9a-f]{40}$/;
+
+/**
+ * Structural safety check for an externally frozen marketplace add-ref.
+ *
+ * The add-ref (codex=commit sha, claude=default branch name) is frozen online
+ * by prepare and cannot be re-derived offline; full injection-safety validation
+ * already happened at freeze time (plugin-marketplace `validateSafeRef`). The
+ * offline completeness gate re-checks structural well-formedness so a tampered
+ * or corrupted frozen ref fails closed here too. Mirrors that validator's rules.
+ *
+ * @param {unknown} ref
+ * @returns {boolean}
+ */
+function _isStructurallySafeExternalRef(ref) {
+  if (typeof ref !== 'string' || ref.length === 0) return false;
+  if (/[\x00-\x1f]/.test(ref)) return false;
+  if (ref.startsWith('-')) return false;
+  if (ref.includes('\\')) return false;
+  if (ref.includes('//')) return false;
+  if (ref.startsWith('/') || ref.endsWith('/')) return false;
+  if (ref.endsWith('.')) return false;
+  if (ref.endsWith('.lock')) return false;
+  if (ref.includes('@{')) return false;
+  if (ref === '@') return false;
+  if (ref.includes('..')) return false;
+  if (/[;|&`$(){}]/.test(ref)) return false;
+  return /^[a-zA-Z0-9][a-zA-Z0-9._/-]*$/.test(ref);
 }
