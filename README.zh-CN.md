@@ -2,39 +2,31 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.1.10 -->
+<!-- release-skill:release-version: 0.2.0 -->
 面向 Claude Code、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它先冻结并供人工审阅，再从同一份冻结产物发布，不会在最后一步重新生成 README、重新打包当前工作区或覆盖人工内容。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.1.10** (2026-07-24)
+**0.2.0** (2026-07-25)
 
-v0.1.10 修复 codex marketplace 安装校验失败：codex CLI 安装时会在插件安装根目录生成 `.codex-plugin/migrated-command-skills/` 子树（commands 迁移为 skill 格式的产物）。这部分消费者所有的传输元数据现在与根目录 `.git` 检出一样获得豁免；冻结快照排除清单扩展支持多段相对路径前缀，单段行为保持不变。密封快照摘要、发布计划 schema 与 prepare 冻结均未改动，已冻结计划无需重新审批即可 reconcile。npm 包名（`release-skill`）、发布身份（`publisher: mzdbxqh`）、公开仓库（`ifoohoo/release-skill`）与公司维护主体保持不变。
+v0.2.0 是一个硬化发布，提升发布可靠性、摘要可复现性、版本管理和平台注册表数据驱动架构。完成九个硬化任务：暂态重试退避、摘要解耦 planVersion 2、声明式清单载荷契约、版本单源、真实 CLI 契约测试、增量 hooks 缓存、分层并行检查点执行、observe-before-execute 幂等跳过、平台注册表数据化。npm 包名（`release-skill`）、发布身份（`publisher: mzdbxqh`）、公开仓库（`ifoohoo/release-skill`）与公司维护主体保持不变。
 
-**修复**
+**新增**
 
-- **Codex `migrated-command-skills` 传输豁免**：codex CLI 安装时会把插件
-  `commands/` 转换为 skill 格式并写入安装根目录的
-  `.codex-plugin/migrated-command-skills/`。该消费者所有的子树不属于已发布
-  载荷，导致整树比较在每次真实 codex marketplace 安装中失败；codex 消费者
-  传输豁免从 `['.git']` 扩为 `['.git', '.codex-plugin/migrated-command-skills']`。
-  Claude（`.in_use`）与 Kimi（`.git`）豁免不变，且豁免刻意不扩大为
-  `.codex-plugin/*` 或任意多余文件。flow-architect 真实安装实测验证：除
-  migrated-command-skills 目录外，安装内容与冻结快照逐字节一致。密封摘要、
-  计划 schema 与 prepare 冻结均未改动，已冻结计划可以不变地 reconcile 收口。
-- **多段快照排除，失败关闭**：`computeFrozenSnapshot` 的
-  `excludeRootEntries` 现在接受多段相对路径前缀，命名一个精确排除的子树
-  （`.codex-plugin/migrated-command-skills` 豁免所必需）；单段条目保持历史
-  的根直接子项匹配。畸形条目（非字符串、绝对路径、`..`、反斜杠）失败关闭：
-  错误的排除清单是调用方 bug，不是传输元数据。
-- **回归覆盖**：新增协议级测试覆盖带 CLI 生成 migrated-command-skills 树的
-  根布局 codex execute→observe→verify 完整链路，包含必须仍然失败关闭的字节
-  篡改与多余文件负例。
+- **暂态重试退避（`observeWithRetry`）**：publish/reconcile 的 execute 后 observe 现在对暂态失败使用有界指数退避。暂态分类具有传播性——仅对暂态错误（网络超时、5xx）重试；CONFLICTING 错误永不重试。市场重试窗口钳制到动作 `timeoutMs`。这解决了真实网络上因暂态 observe 超时导致的间歇性 PARTIAL 失败。
+- **摘要解耦 planVersion 2**：计划字段拆分为绑定层（冻结制品、动作、版本、配置）与记录层（基线、创建时间、状态）。冻结提交时间戳从 `headCommit` 派生，确保摘要可复现。审批不再因树/工作区摘要漂移而失效（v2 计划）；基线检查降级为证据警告。v1 遗留行为逐字节保留（黄金值测试）。
+- **声明式清单载荷契约**：用声明式清单比较替换整树字节相等性。权威条目必须存在且在安装目录中逐字节匹配；主机添加的文件记录（`extraInstalledPaths`，有上限）而非失败。缺少 `payloadContract` 的遗留计划保持精确整树语义。`consumerTransportExclusions` 已弃用（仅遗留路径）。
+- **版本单源 `sync-version` 脚本**：`package.json` 版本现在是唯一手写来源。新的 `sync-version.mjs` 将其传播到插件清单、marketplace.json、README 边界行和 INSTALL 文档（幂等、`--check` 模式、防御性白名单）。`smokeExpectedJson.version` 在运行时从 `targetVersion` 注入，结束 bump-invalidates-plan 循环。docs 钩子现在运行 `check-docs-drift.mjs`（render 检查 + sync-version 检查）。测试中的硬编码版本字面量替换为动态读取。
+- **真实 CLI 契约测试**：隔离 HOME 的契约测试，针对真实 CLI 协议形状（`list --json` 输出形式、子命令存在性）断言适配器假设，由 `RELEASE_SKILL_LIVE_CLI=1` 门控，skip-not-fail 语义。静态契约锁定 'kimi 无脚本化安装'，防止伪造的 CLI 命令静默回归。
+- **增量 hooks 缓存**：hooks 可声明 `cacheable`+`cacheInputs`；结果缓存在 `.release-skill/cache/hooks/<name>/<key>.json`，按 hook 配置和输入内容哈希键控。失败永不缓存；命中跳过执行但不跳过授权门；`--no-hook-cache` 逃生舱。缓存目录注册到基线控制面排除和 gitignore。本项目的 test/typecheck hooks 已缓存：第二次 prepare 降至约 2 秒（test hook 从缓存服务）。
+- **分层并行检查点执行**：publish 检查点分组为硬编码 `TIER_TABLE` 层。层顺序执行，层内动作并发执行，`allSettled` 语义（不快速失败，成功保留）。状态持久化移至每层快照，保持 appendRunState 哈希链完整；通过 SIGKILL-层中集成测试验证崩溃恢复。证据追加通过互斥链序列化，序列从 1 开始，`details.tier` 包含层信息。
+- **observe-before-execute 幂等跳过**：publish 每个检查点 execute 前增加单发只读 pre-observe。四分类：CONSISTENT→SKIPPED / MISSING→execute / CONFLICTING→FAILED / 不可观察→execute。两层 preflight 共用 `classifyPreObservation` 单源（全局 Safety Gate 10 占用仲裁）。SKIPPED 下游适配：层折叠认成功、三处 `every` 扩展为 SUCCEEDED||SKIPPED、`buildPersistedState` 映射 skipped、TOCTOU 照常。
+- **平台注册表数据驱动架构**：新增 `src/platforms/registry.mjs`，包含 `PLATFORMS`/`getPlatform`/`assertRegistry` 模块自校验。三平台完整描述（§3.4 矩阵全维度）+ 纯策略函数。黄金测试 12 用例固化三平台 execute/observe/list 现状行为。`src/producers/build-adapters.mjs` PLATFORMS 改从注册表派生；`scripts/build-adapters.mjs` 重复平台表删除同源导入。`build:adapters:check` 逐字节零 diff（行为零变化强证据）。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.1.10 是当前发布版本（v0.1.9 曾处于已发布、待独立验证状态）。
+> **当前边界：** v0.2.0 是当前发布版本（v0.1.9 曾处于已发布、待独立验证状态）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；“当前发布版本”与“首次生产验证里程碑”

@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.1.10 -->
+<!-- release-skill:release-version: 0.2.0 -->
 Release preparation for Claude Code, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -11,40 +11,25 @@ reviewed artifacts first and publishes those same artifacts later; it does not
 regenerate a README or re-pack the live workspace at the last step.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.1.10** (2026-07-24)
+**0.2.0** (2026-07-25)
 
-v0.1.10 fixes the codex marketplace install verification failure caused by the codex CLI materializing a `.codex-plugin/migrated-command-skills/` subtree (commands migrated to skill format) in the plugin install root at install time. That consumer-owned transport metadata is now exempted alongside the root `.git` checkout, and the frozen snapshot exclusion list supports multi-segment relative path prefixes while single-segment root-only behavior is unchanged. The sealed snapshot digest, release plan schema, and prepare-side freezing are unchanged, so already-frozen plans reconcile without re-approval. The npm package name (`release-skill`), publishing identity (`publisher: mzdbxqh`), public repository (`ifoohoo/release-skill`), and corporate maintainer remain unchanged.
+v0.2.0 is a hardening release that improves publish reliability, digest reproducibility, version management, and platform registry data-driven architecture. Nine hardening tasks are completed: observe retry backoff, digest decoupling with planVersion 2, declared-manifest payload contract, single-source versioning, real CLI contract tests, incremental hook caching, tiered parallel checkpoint execution, observe-before-execute idempotent skip, and platform registry data-driven architecture. The npm package name (`release-skill`), publishing identity (`publisher: mzdbxqh`), public repository (`ifoohoo/release-skill`), and corporate maintainer remain unchanged.
 
-**Fixed**
+**Added**
 
-- **Codex `migrated-command-skills` transport exemption**: the codex CLI
-  converts plugin `commands/` into skill format at install time and writes the
-  result under `.codex-plugin/migrated-command-skills/` in the install root.
-  That consumer-owned subtree is not part of the published payload, so the
-  whole-tree comparison failed every real codex marketplace install; the
-  codex consumer transport exemptions widen from `['.git']` to
-  `['.git', '.codex-plugin/migrated-command-skills']`. Claude (`.in_use`) and
-  Kimi (`.git`) exemptions are unchanged, and the exemption deliberately
-  never widens to `.codex-plugin/*` or arbitrary extra files. Verified
-  against a real flow-architect install: the installed tree is byte-identical
-  to the frozen snapshot except for the migrated-command-skills directory.
-  Already-frozen plans reconcile unchanged because the sealed digest, plan
-  schema, and prepare-side freezing are untouched.
-- **Multi-segment snapshot exclusions, fail-closed**:
-  `computeFrozenSnapshot`'s `excludeRootEntries` now accepts multi-segment
-  relative path prefixes naming an exact excluded subtree (required for the
-  `.codex-plugin/migrated-command-skills` exemption); single-segment entries
-  keep the historical root-only matching. Malformed entries (non-string,
-  absolute, `..`, backslash) fail closed: a bad exclusion list is a caller
-  bug, not transport metadata.
-- **Regression coverage**: new protocol-level tests cover the root-layout
-  codex execute→observe→verify cycle with the CLI-generated
-  migrated-command-skills tree present, including byte-tamper and extra-file
-  negatives that must still fail closed.
+- **Observe retry backoff (`observeWithRetry`)**: post-execute observe in publish/reconcile now uses bounded exponential backoff for transient failures. Transient classification is propagating — retries only on transient errors (network timeouts, 5xx); CONFLICTING errors are never retried. Marketplace retry window is clamped to action `timeoutMs`. This resolves intermittent PARTIAL failures caused by transient observe timeouts on real networks.
+- **Digest decoupling with planVersion 2**: plan fields split into binding layer (frozen artifacts, actions, versions, config) vs record layer (baseline, createdAt, status). Frozen commit timestamp derived from `headCommit` for reproducible digests. Approval no longer invalidated by tree/workspace digest drift (v2 plans); baseline check demoted to evidence warning. v1 legacy behavior preserved byte-for-byte (golden-value tested).
+- **Declared-manifest payload contract for marketplace installs**: replace whole-tree byte equality with declared-manifest comparison. Authority entries must exist and match byte-for-byte in the install dir; host-added files are recorded (`extraInstalledPaths`, capped) instead of failing. Legacy plans without `payloadContract` keep exact whole-tree semantics. `consumerTransportExclusions` deprecated (legacy path only).
+- **Single-source versioning with `sync-version` script**: `package.json` version is now the sole handwritten source. New `sync-version.mjs` propagates it to plugin manifests, marketplace.json, README boundary lines, and INSTALL docs (idempotent, `--check` mode, defensive whitelist). `smokeExpectedJson.version` is injected at runtime from `targetVersion`, ending the bump-invalidates-plan loop. docs hook now runs `check-docs-drift.mjs` (render check + sync-version check). Hardcoded version literals in tests replaced with dynamic reads.
+- **Real CLI contract tests for claude/codex/kimi adapters**: isolated-HOME contract tests asserting adapter assumptions against real CLI protocol shapes (`list --json` output forms, subcommand existence), gated by `RELEASE_SKILL_LIVE_CLI=1` with skip-not-fail semantics. Static contract locks in 'kimi has no scriptable install' to prevent fabricated CLI commands from regressing silently.
+- **Incremental hook caching for prepare**: hooks can declare `cacheable`+`cacheInputs`; results cached under `.release-skill/cache/hooks/<name>/<key>.json` keyed by hook config and input content hashes. Failures never cached; hits skip execution but not authorization gates; `--no-hook-cache` escape hatch. Cache dir registered in baseline control-plane exclusions and gitignore. test/typecheck hooks cached in this project: second prepare drops to ~2s with test hook served from cache.
+- **Tiered parallel checkpoint execution for publish**: publish checkpoints grouped into hard-coded `TIER_TABLE` layers. Layers run sequentially, actions within a layer run concurrently with `allSettled` semantics (no fail-fast, successes preserved). State persistence moves to per-layer snapshots keeping the appendRunState hash chain intact; crash recovery verified via SIGKILL-mid-tier integration test. Evidence appends serialized through a mutex chain with sequence starting at 1 and tier info in `details.tier`.
+- **Observe-before-execute idempotent skip**: publish each checkpoint execute now has a single read-only pre-observe. Four-way classification: CONSISTENT→SKIPPED / MISSING→execute / CONFLICTING→FAILED / not observable→execute. Two-layer preflight shares `classifyPreObservation` single source (global Safety Gate 10 arbitration). SKIPPED downstream adaptation: layer folding recognizes success, three `every` checks expanded to SUCCEEDED||SKIPPED, `buildPersistedState` maps skipped, TOCTOU as usual.
+- **Platform registry data-driven architecture**: new `src/platforms/registry.mjs` with `PLATFORMS`/`getPlatform`/`assertRegistry` module self-validation. Three platforms complete description (§3.4 matrix full dimensions) + pure strategy functions. Golden tests 12 cases solidify three platforms execute/observe/list current behavior. `src/producers/build-adapters.mjs` PLATFORMS now derived from registry; `scripts/build-adapters.mjs` duplicate platform table removed for single-source. `build:adapters:check` byte-zero diff (zero behavior change strong evidence).
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.1.10 is the current release (v0.1.9 previously held
+> **Current boundary:** v0.2.0 is the current release (v0.1.9 previously held
 > published status before the codex migrated-command-skills fix was added).
 > v0.1.1 completed a real production release to GitHub and npm — the first
 > production-verified milestone — followed by

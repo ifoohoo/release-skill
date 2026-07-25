@@ -54,7 +54,7 @@ function validateHook(hook) {
     throw new ReleaseError('INVALID_HOOK', 'hook must be a non-null object');
   }
 
-  const { command, cwd, timeoutMs, envAllowlist } = hook;
+  const { command, cwd, timeoutMs, envAllowlist, cacheable, cacheInputs } = hook;
 
   // command: required, non-empty array of strings
   if (!Array.isArray(command) || command.length === 0) {
@@ -91,6 +91,40 @@ function validateHook(hook) {
         );
       }
     }
+  }
+
+  // cacheable: optional boolean opting the hook into the incremental result
+  // cache (T3.2). Absence means the hook always runs in full (default).
+  if (cacheable !== undefined && typeof cacheable !== 'boolean') {
+    throw new ReleaseError('INVALID_HOOK', 'hook.cacheable must be a boolean when provided');
+  }
+
+  // cacheInputs: optional non-empty array of non-empty glob strings declaring
+  // the hook's full input set (used to fingerprint the cache key).
+  if (cacheInputs !== undefined) {
+    if (!Array.isArray(cacheInputs) || cacheInputs.length === 0) {
+      throw new ReleaseError(
+        'INVALID_HOOK',
+        'hook.cacheInputs must be a non-empty array of glob strings when provided',
+      );
+    }
+    for (const glob of cacheInputs) {
+      if (typeof glob !== 'string' || glob.length === 0) {
+        throw new ReleaseError(
+          'INVALID_HOOK',
+          'every element of hook.cacheInputs must be a non-empty string',
+        );
+      }
+    }
+  }
+
+  // A cacheable hook MUST declare its inputs: a cache without an input
+  // declaration is untrustworthy (any unseen change could cause a false hit).
+  if (cacheable === true && (!Array.isArray(cacheInputs) || cacheInputs.length === 0)) {
+    throw new ReleaseError(
+      'INVALID_HOOK',
+      'hook.cacheable=true requires a non-empty hook.cacheInputs',
+    );
   }
 }
 
@@ -146,6 +180,8 @@ function buildFilteredEnv(envAllowlist, contextEnv) {
  * @param {string}     [hook.cwd]         - Relative (to root) working directory.
  * @param {number}     [hook.timeoutMs]   - Kill child after this many ms.
  * @param {string[]}   [hook.envAllowlist] - Extra env keys to pass through.
+ * @param {boolean}    [hook.cacheable]    - Opt into the incremental result cache.
+ * @param {string[]}   [hook.cacheInputs]  - Input globs fingerprinting the cache key.
  *
  * @param {Object} context
  * @param {string} context.root           - Absolute project root.

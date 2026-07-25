@@ -2,8 +2,8 @@
   "source": "schemas",
   "files": {
     "approval-record.schema.json": {
-      "digest": "2ddac883435110e2c036cfadb00ce0c4d347a97d674b2c4ea9fcda3d72f81b8b",
-      "bytes": 3135
+      "digest": "05b5a16d58372e4fdda625a472a4bb71439aa5db4e9813bf7f3d3cf2d39d144e",
+      "bytes": 3357
     },
     "artifact-lock.schema.json": {
       "digest": "6a5f4c826540b849571f173118bcbd778dfaceb4133034036ae565c3e9e353e5",
@@ -22,16 +22,16 @@
       "bytes": 2390
     },
     "release-plan.schema.json": {
-      "digest": "69feff34b2fee517fd9ae89f576840c0abf331df9e9537f2798f62fab9a6720f",
-      "bytes": 23091
+      "digest": "d7869cdb335618754eb787fe352c4c1775c799900f3bb926197c51359699a648",
+      "bytes": 24088
     },
     "release-project.schema.json": {
-      "digest": "e9e3d090ee9c7a963e7346250328e30bf91a16a0962e5bc85deeab7c756c9e95",
-      "bytes": 24329
+      "digest": "53efe202fc5e2bf63c8d846cf4d50648991163b270536c1450c4be44e45d4b93",
+      "bytes": 25761
     },
     "release-run.schema.json": {
-      "digest": "74f087f8815f00997c6ad3bac033660b9b69de226a6f5c48a96194dba0fa872c",
-      "bytes": 8917
+      "digest": "f453845fd2aab02c7b0812b1f62fd1ab7fa37104b8e752914906551c0e8c2637",
+      "bytes": 8959
     }
   }
 }

@@ -205,6 +205,7 @@ Options:
   --ack-local-document-write Acknowledge the explicit local release-document write (docs refresh --write)
   --acknowledge-hook-side-effects Acknowledge unsandboxed legacy hook execution
   --acknowledge-gate-side-effects Acknowledge unsandboxed local verification gate execution
+  --no-hook-cache  Force every prepare hook to run in full; neither read nor write the hook cache
   --json           Output results as JSON
   --version        Show version and exit
   -h, --help       Show this help message and exit
@@ -476,6 +477,7 @@ if (command === 'prepare') {
 
   const hooksAuthorized = args.includes('--acknowledge-hook-side-effects');
   const verificationGatesAuthorized = args.includes('--acknowledge-gate-side-effects');
+  const hookCache = !args.includes('--no-hook-cache');
   const production = args.includes('--production');
   const outputIdx = args.indexOf('--output');
   const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve(args[outputIdx + 1]) : undefined;
@@ -491,6 +493,7 @@ if (command === 'prepare') {
       offline,
       hooksAuthorized,
       verificationGatesAuthorized,
+      hookCache,
       production,
       output,
       runDir,

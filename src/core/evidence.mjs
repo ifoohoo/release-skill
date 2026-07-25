@@ -95,12 +95,22 @@ export function createEvidenceWriter({ runDir, command, clock }) {
   const evidencePath = `${runDir}/evidence.jsonl`;
   const summaryPath = `${runDir}/summary.json`;
 
-  let sequence = 0;
+  // Sequences start at 1, matching schemas/evidence-event.schema.json
+  // (`sequence.minimum: 1`). The historical implementation started at 0; that
+  // was an implementation/schema drift, corrected here (T3.1 §4.4).
+  let sequence = 1;
   let handle = null;
+  // Mutex chain serializing every append. T3.1 runs same-tier checkpoints
+  // concurrently, so multiple `append` calls can be in flight at once; even
+  // under JS single-threading their awaits would interleave and could tear a
+  // line. Chaining each append behind the previous one guarantees a complete
+  // line is written before the next event starts.
+  let appendChain = Promise.resolve();
 
   /**
    * Lazily open the evidence file for appending.
    * Creates the run directory if it does not exist.
+   * Must only be called from inside the serialized append chain.
    */
   async function ensureHandle() {
     if (handle === null) {
@@ -115,16 +125,23 @@ export function createEvidenceWriter({ runDir, command, clock }) {
    * The event is enriched with automatic metadata:
    * - `schemaVersion`: always 1
    * - `runId`: extracted from the run directory name
-   * - `sequence`: auto-incrementing integer starting at 0
+   * - `sequence`: auto-incrementing integer starting at 1
    * - `timestamp`: ISO-8601 string from the clock
    * - `command`: the command passed at creation time
    *
    * The entire event object is redacted before writing.
    *
+   * Ordering semantics (T3.1 §4.4): `sequence` is guaranteed monotonic but is
+   * NOT guaranteed to match real-world completion order. Same-tier checkpoints
+   * run concurrently, so their events are serialized in whichever order reaches
+   * the mutex first. Callers that need layer context attach it as `details.tier`
+   * (no top-level field is added; the evidence schema is `additionalProperties:
+   * false` at the top level).
+   *
    * @param {Object} event - The event data. Must include `phase` and `status`;
    *   may include `error` and any other fields.
    */
-  async function append(event) {
+  async function appendOnce(event) {
     await ensureHandle();
 
     const enriched = {
@@ -144,6 +161,14 @@ export function createEvidenceWriter({ runDir, command, clock }) {
     await handle.write(`${line}\n`, null, 'utf8');
   }
 
+  function append(event) {
+    const result = appendChain.then(() => appendOnce(event));
+    // Keep the chain alive even if one append rejects; the caller still
+    // receives that rejection through `result`.
+    appendChain = result.then(() => undefined, () => undefined);
+    return result;
+  }
+
   /**
    * Write the final summary file and close the evidence stream.
    *
@@ -152,6 +177,8 @@ export function createEvidenceWriter({ runDir, command, clock }) {
    * @param {Object} summary - The run summary object.
    */
   async function finish(summary) {
+    // Drain any in-flight appends before closing the handle.
+    await appendChain;
     await ensureHandle();
 
     const redacted = redact(summary);

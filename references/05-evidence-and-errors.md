@@ -11,7 +11,7 @@
 | 错误码 | 含义 | 触发场景 | 典型恢复 |
 |---|---|---|---|
 | `CONFIG_INVALID` | 配置文件格式或内容不合法 | YAML 语法错误、schema 校验失败、路径逃逸、hook 不合规 | 修正配置文件后重新运行 |
-| `BASELINE_CHANGED` | 发布计划冻结后 Git tree 发生变化 | 有文件被修改、新增或删除导致 tree hash 不匹配 | 重新运行 `prepare` 冻结新基线 |
+| `BASELINE_CHANGED` | 发布计划冻结后 Git tree 发生变化（仅 planVersion 1 计划硬失败） | 有文件被修改、新增或删除导致 tree hash 不匹配。planVersion 2 计划的基线是记录层审计数据：漂移只记录 warning 级证据事件并继续执行，不抛此错误，产物完整性由发布前冻结产物重验兜底 | 重新运行 `prepare` 冻结新基线 |
 | `DIRTY_SCOPE_CONFLICT` | 工作目录存在未提交变更且可能影响发布范围 | dirty 文件与发布单元的源码路径重叠 | 提交或暂存变更后重试 |
 | `GATE_FAILED` | 发布门（构建、测试、lint、文档验证等）未通过 | hook 返回非零退出码 | 修复失败项后重新运行 `prepare` |
 | `AUTH_MISSING` | 缺少必要的认证凭据或权限 | GitHub token 未配置、npm 登录缺失、marketplace 凭据不足 | 配置凭据后重试 |

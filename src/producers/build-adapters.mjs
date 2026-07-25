@@ -22,6 +22,7 @@ import { join, dirname, relative, isAbsolute, sep, resolve, posix as pathPosix }
 import { createHash } from 'node:crypto';
 
 import { canonicalJson, sha256Hex } from '../core/digest.mjs';
+import { PLATFORMS as PLATFORM_REGISTRY } from '../platforms/registry.mjs';
 
 /**
  * Assert that a resolved real path is contained within the allowed root.
@@ -190,28 +191,19 @@ export function computeBuildAdaptersDigest(sourceBytes) {
   return `sha256:${h.digest('hex')}`;
 }
 
-// Platform definitions
-const PLATFORMS = [
-  {
-    name: 'claude',
-    pluginDirName: '.claude-plugin',
-    templateFileName: 'plugin.json',
-    marketplaceFileName: 'marketplace.json',
-    hasMarketplace: true,
-  },
-  {
-    name: 'codex',
-    pluginDirName: '.codex-plugin',
-    templateFileName: 'plugin.json',
-    hasMarketplace: false,
-  },
-  {
-    name: 'kimi',
-    pluginDirName: '.kimi-plugin',
-    templateFileName: 'plugin.json',
-    hasMarketplace: false,
-  },
-];
+// Platform definitions, derived from the platform registry (the single source
+// of platform knowledge). The build shape mirrors the legacy inline table
+// byte-for-byte: marketplaceFileName is present only when the platform
+// co-locates a marketplace manifest in its plugin dir (claude).
+export const PLATFORMS = PLATFORM_REGISTRY.map((platform) => ({
+  name: platform.id,
+  pluginDirName: platform.buildAdapter.pluginDirName,
+  templateFileName: platform.buildAdapter.templateFileName,
+  ...(platform.buildAdapter.hasMarketplace
+    ? { marketplaceFileName: platform.buildAdapter.marketplaceFileName }
+    : {}),
+  hasMarketplace: platform.buildAdapter.hasMarketplace,
+}));
 
 const REQUIRED_SCHEMA_FILES = Object.freeze([
   'approval-record.schema.json',

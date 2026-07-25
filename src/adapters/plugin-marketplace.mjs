@@ -14,7 +14,7 @@
 
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readFile, stat, mkdir, writeFile, rename, readdir, rm, realpath, lstat } from 'node:fs/promises';
+import { readFile, stat, mkdir, readdir, realpath, lstat } from 'node:fs/promises';
 import { join, resolve, relative, isAbsolute, basename } from 'node:path';
 
 import {
@@ -24,12 +24,23 @@ import {
   assertWritesAuthorized,
   assertIsolatedConsumerWritesAuthorized,
   matchObservation,
+  resolveTimeoutMs,
+  SAFE_ID_RE,
+  writeEvidenceAtomic,
 } from './contract.mjs';
 
 import { createHash } from 'node:crypto';
 import { computeFrozenSnapshot, resolveFrozenPath } from '../snapshot/frozen.mjs';
-import { computePlanDigest } from '../core/plan.mjs';
-import { canonicalJson } from '../core/digest.mjs';
+import { PLATFORMS, getPlatform } from '../platforms/registry.mjs';
+import {
+  KIMI_REQUIREMENT_FILE,
+  KIMI_ATTESTATION_FILE,
+  KIMI_MANAGED_SUBPATH,
+  resolveBoundPlanDigest,
+  kimiAuthorityDir,
+  validateKimiAttestation,
+  readKimiManifest,
+} from '../platforms/kimi.mjs';
 
 const execFile = promisify(execFileCb);
 
@@ -48,22 +59,26 @@ function transportPayload(entries) {
   }));
 }
 
+/**
+ * Payload verification contract marker written into marketplace install
+ * action parameters by prepare. Plans declaring this contract verify the
+ * installed payload by declared-manifest containment (every authority file
+ * present and byte-identical; host-added files recorded, not failed).
+ * Actions without the marker keep the legacy full-tree equality semantics.
+ */
+const PAYLOAD_CONTRACT_DECLARED_MANIFEST = 'declared-manifest-v1';
+/** Audit cap: at most this many extra installed paths are recorded. */
+const EXTRA_INSTALLED_PATHS_CAP = 200;
+/** Diagnostic cap: at most this many conflict paths are listed per error. */
+const PAYLOAD_CONFLICT_REPORT_CAP = 10;
+
 // Consumer-owned transport metadata written into the plugin install root
-// that is not part of the published payload. Codex checks out the
-// repository (root `.git` metadata) and materializes migrated command
-// skills under `.codex-plugin/migrated-command-skills/` (the CLI converts
-// plugin commands/ into skill format at install time); Claude marks in-use
-// plugin checkouts with an empty root `.in_use` marker. Single-segment
-// exclusions apply to root entries only; the multi-segment exclusion names
-// the exact CLI-generated subtree. All other payload paths keep the
-// fail-closed file checks — the exemption must never widen to
-// ".codex-plugin/*" or arbitrary extra files.
-function consumerTransportExclusions(consumer) {
-  if (consumer === 'claude') return ['.in_use'];
-  if (consumer === 'codex') return ['.git', '.codex-plugin/migrated-command-skills'];
-  if (consumer === 'kimi') return ['.git'];
-  return [];
-}
+// that is not part of the published payload (e.g. codex's root `.git`
+// checkout and `.codex-plugin/migrated-command-skills/`, claude's `.in_use`
+// marker) lives in each platform's `knownHostArtifacts` registry data. Only
+// the legacy payload path (frozen plans without a `payloadContract` marker)
+// applies that list; declared-manifest-v1 verification never excludes
+// anything — host-added files are recorded as `extraInstalledPaths` instead.
 
 /**
  * Extract the marketplace plugin entry's declared source as a validated,
@@ -76,11 +91,16 @@ function consumerTransportExclusions(consumer) {
  * slashes. Throws with the preflight's exact error messages.
  */
 function extractDeclaredPluginSource(consumer, entry) {
-  const rawSource = consumer === 'claude'
+  const platform = getPlatform(consumer);
+  // Source form is registry data: claude declares a plain string, codex an
+  // {source:"local",path} object; any other form has no raw source.
+  const rawSource = platform.marketplaceSourceForm === 'string'
     ? entry.source
-    : entry.source?.source === 'local' ? entry.source?.path : null;
+    : platform.marketplaceSourceForm === 'local-path-object'
+      ? (entry.source?.source === 'local' ? entry.source?.path : null)
+      : null;
   if (typeof rawSource !== 'string' || rawSource.length === 0) {
-    throw new Error(`marketplace plugin entry source must be a non-empty relative path${consumer === 'codex' ? ' (object with source:"local")' : ''}, got ${JSON.stringify(entry.source)}`);
+    throw new Error(`marketplace plugin entry source must be a non-empty relative path${platform.marketplaceSourceForm === 'local-path-object' ? ' (object with source:"local")' : ''}, got ${JSON.stringify(entry.source)}`);
   }
   if (
     rawSource.startsWith('/') ||
@@ -112,10 +132,10 @@ function extractDeclaredPluginSource(consumer, entry) {
  * tampering with it fails the snapshot digest revalidation first.
  */
 async function resolveInstalledPayloadSubpath(snapshotDir, sourceEntries, action, consumer) {
-  if (consumer === 'kimi') return '.';
-  const marketplaceRelative = consumer === 'claude'
-    ? '.claude-plugin/marketplace.json'
-    : '.agents/plugins/marketplace.json';
+  // Platforms without a marketplace manifest (kimi) install the whole
+  // snapshot as the payload.
+  const marketplaceRelative = getPlatform(consumer).manifestPaths.marketplace;
+  if (marketplaceRelative === null) return '.';
   // Anchor the manifest read to the digest-verified entry walk: the target
   // must be one of the regular files that already passed the fail-closed
   // read checks (O_NOFOLLOW, single link, before/after stat stability).
@@ -174,8 +194,72 @@ async function verifyInstalledMarketplacePayload(action, context, installPath, c
   if (authorityEntries.length === 0) {
     throw new Error('frozen snapshot contains no payload under the declared marketplace source');
   }
+  // Contract selection is bound by the frozen plan: prepare writes
+  // `payloadContract` into marketplace install action parameters; frozen
+  // plans without the marker keep the legacy full-tree equality semantics
+  // byte-for-byte (including the consumer transport exclusion list).
+  const payloadContract = action.payloadContract;
+  if (payloadContract !== undefined && payloadContract !== PAYLOAD_CONTRACT_DECLARED_MANIFEST) {
+    throw new Error(`unsupported marketplace payload contract: ${JSON.stringify(payloadContract)}`);
+  }
+  if (payloadContract === PAYLOAD_CONTRACT_DECLARED_MANIFEST) {
+    // declared-manifest-v1: every authority entry must exist in the installed
+    // payload and agree in type/size/bytes/non-write mode bits. Host-added
+    // files are NOT failures — they are recorded (relative paths, capped) as
+    // audit evidence so host evolution can never break a release, while any
+    // missing or altered declared file still fails closed.
+    const installedSnapshot = await computeFrozenSnapshot(installPath);
+    const authorityPayload = transportPayload(authorityEntries);
+    const installedByPath = new Map(
+      transportPayload(installedSnapshot.entries).map((entry) => [entry.path, entry]),
+    );
+    const conflicts = [];
+    for (const authorityEntry of authorityPayload) {
+      const installedEntry = installedByPath.get(authorityEntry.path);
+      if (!installedEntry) {
+        conflicts.push(`missing: ${authorityEntry.path}`);
+        continue;
+      }
+      if (installedEntry.type !== authorityEntry.type) {
+        conflicts.push(`type mismatch: ${authorityEntry.path}`);
+      } else if (
+        installedEntry.size !== authorityEntry.size ||
+        installedEntry.contentDigest !== authorityEntry.contentDigest
+      ) {
+        conflicts.push(`content mismatch: ${authorityEntry.path}`);
+      } else if (installedEntry.mode !== authorityEntry.mode) {
+        conflicts.push(`mode mismatch: ${authorityEntry.path}`);
+      }
+    }
+    if (conflicts.length > 0) {
+      const listed = conflicts.slice(0, PAYLOAD_CONFLICT_REPORT_CAP).join('; ');
+      const overflow = conflicts.length > PAYLOAD_CONFLICT_REPORT_CAP
+        ? `; and ${conflicts.length - PAYLOAD_CONFLICT_REPORT_CAP} more conflicting path(s)`
+        : '';
+      throw new Error(
+        `installed marketplace payload differs in path, bytes, size, or non-write mode bits (${PAYLOAD_CONTRACT_DECLARED_MANIFEST}): ${listed}${overflow}`,
+      );
+    }
+    const authorityPaths = new Set(authorityPayload.map((entry) => entry.path));
+    const extraPaths = installedSnapshot.entries
+      .map((entry) => entry.path)
+      .filter((path) => !authorityPaths.has(path));
+    const extraInstalledPaths = extraPaths.slice(0, EXTRA_INSTALLED_PATHS_CAP);
+    // This is not an expected-value backfill: the sealed authority digest was
+    // revalidated above and every declared file was independently compared.
+    return {
+      manifestDigest: action.manifestDigest,
+      extraInstalledPaths,
+      ...(extraPaths.length > EXTRA_INSTALLED_PATHS_CAP
+        ? { extraInstalledPathsTotal: extraPaths.length }
+        : {}),
+    };
+  }
+  // Legacy contract (frozen plans without payloadContract): full-tree
+  // equality against the consumer-exclusion-filtered install tree. Behavior
+  // is frozen byte-for-byte; do not change.
   const installedSnapshot = await computeFrozenSnapshot(installPath, {
-    excludeRootEntries: consumerTransportExclusions(consumer),
+    excludeRootEntries: getPlatform(consumer).knownHostArtifacts,
   });
   if (
     JSON.stringify(transportPayload(authorityEntries))
@@ -183,222 +267,29 @@ async function verifyInstalledMarketplacePayload(action, context, installPath, c
   ) {
     throw new Error('installed marketplace payload differs in path, bytes, size, or non-write mode bits');
   }
-  // This is not an expected-value backfill: the sealed authority digest was
-  // revalidated above and the installed payload was independently compared.
-  return action.manifestDigest;
-}
-
-async function writeEvidenceAtomic(filePath, value) {
-  const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-  try {
-    await writeFile(tempPath, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', mode: 0o600, flag: 'wx' });
-    await rename(tempPath, filePath);
-  } catch (err) {
-    await rm(tempPath, { force: true }).catch(() => {});
-    throw err;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Kimi Code protocol-gap modeling (BLOCKER-1 / MAJOR-1 / MAJOR-4 / MINOR-1).
-//
-// Kimi Code has NO scriptable plugin install/list CLI: plugin management is
-// interactive-only (`/plugins install <path-or-url>` in the TUI). There is no
-// `kimi plugins ...` subcommand and no `--json` output protocol. Therefore the
-// kimi-marketplace-install action is modeled as a protocol capability gap:
-//
-//   - execute NEVER execs a kimi CLI. It emits an actionable, version-pinned
-//     manual-install requirement bound to the frozen plan digest + identity.
-//   - observe consumes a structured human attestation (written after the
-//     operator runs the interactive install) plus read-only verification of
-//     the installed managed copy. Missing/expired/mismatched/escaping proof
-//     fails closed, so a kimi unit can never reach VERIFIED without it.
-// ---------------------------------------------------------------------------
-
-/** Structured manual-install requirement written by kimi execute. */
-const KIMI_REQUIREMENT_FILE = 'release-skill-kimi-manual-install.json';
-/** Structured human attestation consumed by kimi observe. */
-const KIMI_ATTESTATION_FILE = 'release-skill-kimi-attestation.json';
-/** Kimi Code managed install layout: $KIMI_CODE_HOME/plugins/managed/<id>/. */
-const KIMI_MANAGED_SUBPATH = join('plugins', 'managed');
-/** Maximum attestation validity window (mirrors the 24h approval expiry). */
-const KIMI_MAX_ATTESTATION_VALIDITY_MS = 24 * 60 * 60 * 1000;
-
-/** 64-char lowercase hex plan/payload digest pattern. */
-const HEX_DIGEST_RE = /^[a-f0-9]{64}$/;
-
-/**
- * Normalize a plan back to its frozen form for digest comparison.
- *
- * Only lifecycle status fields are reset: the top-level `status` returns to
- * "PREPARED" and every `externalActions[].status` returns to "PENDING". Every
- * other field is preserved verbatim. publish/reconcile/verify mutate exactly
- * these status fields in memory as the saga progresses, so normalizing them
- * recovers the frozen digest while leaving all security-relevant fields
- * (baseline, units, action parameters/expected, production config, …) intact.
- *
- * @param {object} plan
- * @returns {object} the lifecycle-normalized plan
- */
-function normalizePlanForDigest(plan) {
-  const normalized = { ...plan, status: 'PREPARED' };
-  if (Array.isArray(plan.externalActions)) {
-    normalized.externalActions = plan.externalActions.map((action) => (
-      action && typeof action === 'object' && !Array.isArray(action)
-        ? { ...action, status: 'PENDING' }
-        : action
-    ));
-  }
-  return normalized;
+  return { manifestDigest: action.manifestDigest };
 }
 
 /**
- * Resolve and verify the genuine frozen plan digest from the adapter context.
- *
- * The kimi manual-install requirement and attestation bind to the REAL frozen
- * plan digest (`context.plan.digest`) — never to `action.manifestDigest`, which
- * is only the snapshot payload digest.
- *
- * Integrity model: the carried `context.plan.digest` is recomputed from the
- * lifecycle-normalized plan and must match EXACTLY. Status transitions
- * (top-level status, per-action checkpoint status) are normalized away, but any
- * other field tamper changes the recomputed digest and fails closed. This
- * proves the attestation is bound to the genuine frozen plan, not to a spoofed
- * or mutated stand-in.
- *
- * @param {object} context - adapter context (must carry the frozen `plan`).
- * @returns {string} the verified frozen plan digest.
- * @throws {Error} when the plan is absent or the digest does not match.
+ * Build the audit fields recorded when a declared-manifest-v1 verification
+ * observes host-added files in the install tree. Empty for legacy bindings
+ * (and for failed bindings), so legacy observations stay byte-identical.
  */
-function resolveBoundPlanDigest(context) {
-  const plan = context?.plan;
-  if (!plan || typeof plan !== 'object' || Array.isArray(plan)) {
-    throw new Error('context.plan is required to bind the kimi plan digest');
-  }
-  const carried = plan.digest;
-  if (typeof carried !== 'string' || !HEX_DIGEST_RE.test(carried)) {
-    throw new Error('context.plan.digest must be a 64-char lowercase hex frozen plan digest');
-  }
-  const normalized = normalizePlanForDigest(plan);
-  if (computePlanDigest(normalized) !== carried) {
-    throw new Error('context.plan.digest does not match the normalized frozen plan (a non-lifecycle field was tampered)');
-  }
-  return carried;
+function extraInstalledPathsAudit(binding) {
+  if (!binding || !Array.isArray(binding.extraInstalledPaths)) return {};
+  return {
+    extraInstalledPaths: binding.extraInstalledPaths,
+    ...(binding.extraInstalledPathsTotal !== undefined
+      ? { extraInstalledPathsTotal: binding.extraInstalledPathsTotal }
+      : {}),
+  };
 }
 
-/**
- * Authoritative, cross-run attestation directory for a kimi install.
- *
- * Lives at a stable root-fixed location keyed by the verified frozen plan
- * digest and plugin id:
- *   <root>/.release-skill/kimi-attestations/<planDigest>/<plugin>/
- *
- * This survives the publish -> manual install -> reconcile -> verify chain,
- * where each command otherwise uses a fresh runDir (an attestation written to a
- * publish runDir would be invisible to reconcile/verify). Both the requirement
- * and the human attestation live here. The segments are pre-validated (planDigest
- * is 64-hex, plugin matches SAFE_ID_RE) and the resolved path is contained
- * within the authority base, so no path escape is possible.
- *
- * @param {object} context - adapter context (needs `root`).
- * @param {string} planDigest - verified frozen plan digest (64-hex).
- * @param {string} plugin - plugin id (SAFE_ID_RE).
- * @returns {string} absolute authority directory.
- */
-function kimiAuthorityDir(context, planDigest, plugin) {
-  if (!context?.root) {
-    throw new Error('context.root is required for the kimi attestation authority');
-  }
-  if (!HEX_DIGEST_RE.test(planDigest)) {
-    throw new Error('kimi attestation authority requires a 64-hex plan digest');
-  }
-  if (!SAFE_ID_RE.test(plugin)) {
-    throw new Error(`kimi attestation authority requires a safe plugin id: "${plugin}"`);
-  }
-  const base = resolve(context.root, '.release-skill', 'kimi-attestations');
-  const dir = resolve(base, planDigest, plugin);
-  const rel = relative(base, dir);
-  const sep = process.platform === 'win32' ? '\\' : '/';
-  if (
-    rel === '' || rel === '..' || isAbsolute(rel) || rel.startsWith(`..${sep}`)
-    || rel.split(sep).some((segment) => segment === '..' || segment === '')
-  ) {
-    throw new Error('kimi attestation authority path escapes its base');
-  }
-  return dir;
-}
-
-/**
- * Build the official, version-pinned install URL for a frozen Git ref.
- *
- * Prefers the GitHub release-tag URL (`/releases/tag/<ref>`), which pins the
- * exact published ref; `/tree/<ref>` is the documented equivalent. A bare
- * repository URL is NOT acceptable because it installs the latest release (or
- * default branch), which need not equal the frozen version.
- *
- * @param {string} repo - owner/repo
- * @param {string} ref - frozen Git ref (tag)
- * @returns {string}
- */
-function buildKimiInstallUrl(repo, ref) {
-  return `https://github.com/${repo}/releases/tag/${ref}`;
-}
-
-/**
- * Human-facing, actionable manual-install closed-loop instructions for Kimi Code.
- *
- * @param {{installUrl:string, plugin:string, version:string, ref:string, isolatedHome:string, attestationDir:string}} p
- * @returns {string[]}
- */
-function buildKimiManualInstructions({ installUrl, plugin, version, ref, isolatedHome, attestationDir }) {
-  return [
-    `Kimi Code has no scriptable plugin-install CLI; installation is a manual, interactive step.`,
-    `1) publish fails closed at this kimi checkpoint and leaves the run PARTIAL (the automated Git branch/tag, npm, and GitHub Release writes still complete first).`,
-    `2) Launch Kimi Code with the ISOLATED home from this requirement so the managed copy lands inside it: set HOME="${isolatedHome}" and KIMI_CODE_HOME="${isolatedHome}". The plugin installs to "${isolatedHome}/plugins/managed/${plugin}/".`,
-    `3) In that isolated Kimi Code session run: /plugins install ${installUrl}  (pinned to frozen ref "${ref}", version ${version}; never install the bare repository URL). Confirm the trust prompt for plugin "${plugin}", then run /plugins reload (or /new).`,
-    `4) Write the attestation JSON to: ${attestationDir}/${KIMI_ATTESTATION_FILE}. planDigest MUST be the frozen plan digest; payloadDigest MUST be the frozen snapshot payload digest; installPath MUST be the isolated managed directory above. attestedAt must not be in the future and expiresAt must be within 24 hours of attestedAt.`,
-    `   Required fields: consumer="kimi", plugin, version, entrySkill, repo, ref, installPath, planDigest, payloadDigest, attestedBy, attestedAt, expiresAt.`,
-    `5) Re-run release-skill reconcile (promotes PARTIAL -> PUBLISHED) and then verify (-> VERIFIED). Both read the attestation from this same plan-digest-keyed authority directory, so a fresh run directory does not lose the proof.`,
-    `An install into the ordinary ~/.kimi-code is NOT acceptable proof: the attested installPath must resolve inside this requirement's isolated KIMI_CODE_HOME managed root, otherwise verification fails closed.`,
-  ];
-}
-
-/**
- * Read the authoritative Kimi plugin manifest from a verified plugin root.
- *
- * `kimi.plugin.json` at the root takes priority over `.kimi-plugin/plugin.json`
- * when both exist (official precedence). Returns the parsed manifest and the
- * root-relative manifest path. Throws when no valid manifest is present.
- *
- * @param {string} pluginRootReal - realpath of the verified plugin root.
- * @returns {Promise<{manifest:object, manifestRelative:string}>}
- */
-async function readKimiManifest(pluginRootReal) {
-  const candidates = [
-    'kimi.plugin.json',
-    join('.kimi-plugin', 'plugin.json'),
-  ];
-  for (const manifestRelative of candidates) {
-    const manifestPath = resolve(pluginRootReal, manifestRelative);
-    let content;
-    try {
-      content = await readFile(manifestPath, 'utf8');
-    } catch {
-      continue;
-    }
-    let manifest;
-    try {
-      manifest = JSON.parse(content);
-    } catch {
-      throw new Error(`kimi plugin manifest ${manifestRelative} is not valid JSON`);
-    }
-    if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
-      throw new Error(`kimi plugin manifest ${manifestRelative} is not an object`);
-    }
-    return { manifest, manifestRelative };
-  }
-  throw new Error('no kimi plugin manifest found (expected kimi.plugin.json or .kimi-plugin/plugin.json)');
-}
+// The kimi protocol closure (manual-install requirement, human attestation
+// validation, manifest reading, shared constants) lives in
+// ../platforms/kimi.mjs and is referenced from the platform registry's kimi
+// strategy table. Shared adapter primitives (SAFE_ID_RE, resolveTimeoutMs,
+// writeEvidenceAtomic) live in ./contract.mjs.
 
 /**
  * Validate that a manifest `skills` value is a safe plugin-root-relative path.
@@ -504,281 +395,6 @@ async function resolveKimiEntrySkillFile(pluginRootReal, manifest, entrySkill) {
   return entryReal;
 }
 
-/**
- * Validate a structured kimi manual-install attestation against the frozen
- * action and the verified frozen plan digest.
- *
- * Bindings (fail closed on any mismatch):
- * - `planDigest` binds to the REAL frozen plan digest (`boundPlanDigest`, from
- *   `context.plan.digest`) — NOT to `action.manifestDigest`.
- * - `payloadDigest` binds separately to `action.manifestDigest` (the sealed
- *   snapshot payload digest).
- * - plugin identity, version, entry skill, repo, and frozen ref must match.
- * - Time bounds: `attestedAt` must not be in the future, the validity window
- *   (`expiresAt - attestedAt`) must not exceed 24h, and the attestation must
- *   not be expired relative to `isoNow`.
- *
- * @param {object} attestation - parsed attestation JSON.
- * @param {object} action - the expanded kimi action (top-level fields).
- * @param {string} isoNow - current ISO timestamp.
- * @param {string} boundPlanDigest - verified frozen plan digest.
- * @returns {{valid:boolean, error:string|null}}
- */
-function validateKimiAttestation(attestation, action, isoNow, boundPlanDigest) {
-  if (!attestation || typeof attestation !== 'object' || Array.isArray(attestation)) {
-    return { valid: false, error: 'kimi attestation is not an object' };
-  }
-  const requiredStrings = ['plugin', 'version', 'entrySkill', 'repo', 'ref', 'installPath', 'payloadDigest', 'planDigest', 'attestedBy', 'attestedAt', 'expiresAt'];
-  for (const field of requiredStrings) {
-    if (typeof attestation[field] !== 'string' || attestation[field].length === 0) {
-      return { valid: false, error: `kimi attestation missing required field "${field}"` };
-    }
-  }
-  if (attestation.consumer !== 'kimi') {
-    return { valid: false, error: `kimi attestation consumer "${attestation.consumer}" must be "kimi"` };
-  }
-  if (!HEX_DIGEST_RE.test(attestation.planDigest)) {
-    return { valid: false, error: 'kimi attestation planDigest must be a 64-char lowercase hex digest' };
-  }
-  if (attestation.planDigest !== boundPlanDigest) {
-    return { valid: false, error: 'kimi attestation planDigest does not match the frozen plan digest' };
-  }
-  if (attestation.plugin !== action.plugin) {
-    return { valid: false, error: `kimi attestation plugin "${attestation.plugin}" does not match action plugin "${action.plugin}"` };
-  }
-  if (attestation.version !== action.version) {
-    return { valid: false, error: `kimi attestation version "${attestation.version}" does not match action version "${action.version}"` };
-  }
-  if (attestation.entrySkill !== action.entrySkill) {
-    return { valid: false, error: `kimi attestation entrySkill "${attestation.entrySkill}" does not match action entrySkill "${action.entrySkill}"` };
-  }
-  if (attestation.repo !== action.repo) {
-    return { valid: false, error: `kimi attestation repo "${attestation.repo}" does not match action repo "${action.repo}"` };
-  }
-  const expectedRef = action.ref ?? `v${action.version}`;
-  if (attestation.ref !== expectedRef) {
-    return { valid: false, error: `kimi attestation ref "${attestation.ref}" does not match frozen ref "${expectedRef}"` };
-  }
-  if (attestation.payloadDigest !== action.manifestDigest) {
-    return { valid: false, error: 'kimi attestation payloadDigest does not match the frozen payload digest' };
-  }
-  const attestedMs = Date.parse(attestation.attestedAt);
-  const expiresMs = Date.parse(attestation.expiresAt);
-  const nowMs = Date.parse(isoNow);
-  if (!Number.isFinite(attestedMs) || !Number.isFinite(expiresMs) || !Number.isFinite(nowMs)) {
-    return { valid: false, error: 'kimi attestation attestedAt/expiresAt must be valid ISO timestamps' };
-  }
-  if (attestedMs > nowMs) {
-    return { valid: false, error: 'kimi attestation attestedAt is in the future' };
-  }
-  if (expiresMs <= attestedMs) {
-    return { valid: false, error: 'kimi attestation expiresAt must be after attestedAt' };
-  }
-  if (expiresMs - attestedMs > KIMI_MAX_ATTESTATION_VALIDITY_MS) {
-    return { valid: false, error: 'kimi attestation validity must not exceed 24 hours' };
-  }
-  if (nowMs > expiresMs) {
-    return { valid: false, error: 'kimi attestation has expired' };
-  }
-  return { valid: true, error: null };
-}
-
-/**
- * Kimi Code protocol capability gap (BLOCKER-1): there is NO scriptable
- * `kimi plugins install/list` CLI and no `--json` protocol. execute NEVER execs
- * a kimi command. Instead it emits an actionable, version-pinned manual-install
- * requirement bound to the real frozen plan digest + identity, and leaves
- * success to observe, which consumes only a trusted human attestation plus
- * read-only verification. Without that proof the checkpoint fails closed and can
- * never reach VERIFIED.
- *
- * Isolation model (B/C): the kimi home is a STABLE, plan-digest-keyed directory
- * under the attestation authority (`<authorityDir>/kimi-home`), not the per-run
- * runDir consumer dir. The operator launches Kimi Code with that KIMI_CODE_HOME
- * so the managed copy lands at `<kimiHome>/plugins/managed/<plugin>/`, a
- * location that is identical across publish/reconcile/verify run dirs. execute
- * creates ONLY the managed parent (`plugins/managed`), never `managed/<plugin>`
- * (the operator's interactive install creates that). The requirement write is
- * idempotent: an identical existing requirement is left untouched, a divergent
- * one fails closed.
- *
- * @param {object} action - expanded kimi action (validated params already).
- * @param {object} context - adapter context (root, runDir, plan).
- * @returns {Promise<import('./contract.mjs').AdapterResult>}
- */
-async function executeKimiManualRequirement(action, context) {
-  const actionType = ActionType.KIMI_MARKETPLACE_INSTALL;
-
-  // (A) Bind to the REAL frozen plan digest via strict normalized recompute.
-  let planDigest;
-  try {
-    planDigest = resolveBoundPlanDigest(context);
-  } catch (planErr) {
-    return createResult({
-      actionType,
-      status: ActionStatus.EXECUTE_FAILED,
-      error: `cannot bind kimi requirement to the frozen plan: ${planErr.message}`,
-    });
-  }
-
-  // Validate the frozen timeout. Kimi execs no CLI, but the frozen-timeout
-  // fail-closed invariant still holds for every marketplace action.
-  try {
-    resolveTimeoutMs(action);
-  } catch (timeoutErr) {
-    return createResult({
-      actionType,
-      status: ActionStatus.EXECUTE_FAILED,
-      error: timeoutErr.message,
-    });
-  }
-
-  const ref = action.ref ?? `v${action.version}`;
-  const installUrl = buildKimiInstallUrl(action.repo, ref);
-
-  // (B) Stable, plan-digest-keyed authority dir — the ONLY kimi home, shared
-  // across publish/reconcile/verify run dirs.
-  let attestationDir;
-  try {
-    attestationDir = kimiAuthorityDir(context, planDigest, action.plugin);
-  } catch (dirErr) {
-    return createResult({
-      actionType,
-      status: ActionStatus.EXECUTE_FAILED,
-      error: dirErr.message,
-    });
-  }
-  const kimiHome = resolve(attestationDir, 'kimi-home');
-  const managedParent = resolve(kimiHome, KIMI_MANAGED_SUBPATH); // plugins/managed
-  // plugins/managed/<plugin> — created by the operator's interactive install.
-  const managedInstallRoot = resolve(managedParent, action.plugin);
-
-  const instructions = buildKimiManualInstructions({
-    installUrl,
-    plugin: action.plugin,
-    version: action.version,
-    ref,
-    isolatedHome: kimiHome,
-    attestationDir,
-  });
-
-  const requirement = {
-    kind: 'kimi-manual-install-requirement',
-    consumer: 'kimi',
-    plugin: action.plugin,
-    version: action.version,
-    entrySkill: action.entrySkill,
-    repo: action.repo,
-    ref,
-    installUrl,
-    // (A) planDigest binds to the real frozen plan digest;
-    // expectedPayloadDigest binds separately to the snapshot payload digest.
-    planDigest,
-    expectedPayloadDigest: action.manifestDigest,
-    isolatedHome: kimiHome,
-    kimiCodeHome: kimiHome,
-    managedInstallRoot,
-    attestationDir,
-    attestationFile: KIMI_ATTESTATION_FILE,
-    attestationTemplate: {
-      consumer: 'kimi',
-      plugin: action.plugin,
-      version: action.version,
-      entrySkill: action.entrySkill,
-      repo: action.repo,
-      ref,
-      installPath: managedInstallRoot,
-      planDigest,
-      payloadDigest: action.manifestDigest,
-      attestedBy: '<person responsible for the manual install>',
-      attestedAt: '<ISO 8601 now; must not be in the future>',
-      expiresAt: '<ISO 8601; within 24h of attestedAt>',
-    },
-    instructions,
-  };
-
-  // Create ONLY the managed parent (plugins/managed); never pre-create
-  // managed/<plugin> — the operator's interactive install creates that.
-  try {
-    await mkdir(managedParent, { recursive: true, mode: 0o700 });
-  } catch (mkdirErr) {
-    return createResult({
-      actionType,
-      status: ActionStatus.EXECUTE_FAILED,
-      error: `cannot create kimi managed parent directory: ${mkdirErr.message}`,
-    });
-  }
-
-  // Idempotent requirement write: an identical existing requirement is left
-  // untouched; a divergent existing requirement fails closed (never silently
-  // overwritten). `createdAt` is volatile and excluded from the comparison.
-  const requirementPath = resolve(attestationDir, KIMI_REQUIREMENT_FILE);
-  let existing = null;
-  let requirementMissing = false;
-  try {
-    const existingRaw = await readFile(requirementPath, 'utf8');
-    try {
-      existing = JSON.parse(existingRaw);
-    } catch (parseErr) {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: `existing kimi manual-install requirement is invalid JSON; refusing to overwrite: ${parseErr.message}`,
-      });
-    }
-  } catch (readErr) {
-    if (readErr?.code === 'ENOENT') {
-      requirementMissing = true;
-    } else {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: `existing kimi manual-install requirement cannot be read; refusing to overwrite: ${readErr.message}`,
-      });
-    }
-  }
-  if (!requirementMissing) {
-    if (!existing || typeof existing !== 'object' || Array.isArray(existing)) {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: 'existing kimi manual-install requirement is not an object; refusing to overwrite',
-      });
-    }
-    const { createdAt: _existingCreatedAt, ...existingBody } = existing;
-    if (canonicalJson(existingBody) !== canonicalJson(requirement)) {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: 'existing kimi manual-install requirement conflicts with the current frozen action; refusing to overwrite',
-      });
-    }
-  } else {
-    await writeEvidenceAtomic(requirementPath, { ...requirement, createdAt: new Date().toISOString() });
-  }
-
-  return createResult({
-    actionType,
-    status: ActionStatus.EXECUTED,
-    observation: {
-      installed: false,
-      manualInstallRequired: true,
-      consumer: 'kimi',
-      plugin: action.plugin,
-      version: action.version,
-      entrySkill: action.entrySkill,
-      repo: action.repo,
-      ref,
-      installUrl,
-      planDigest,
-      attestationDir,
-      kimiCodeHome: kimiHome,
-      managedInstallRoot,
-      instructions,
-    },
-  });
-}
-
 const SUPPORTED_TYPES = [
   ActionType.PLUGIN_MANIFEST_VALIDATE,
   ActionType.PLUGIN_INSTALL_CHECK,
@@ -787,11 +403,11 @@ const SUPPORTED_TYPES = [
   ActionType.KIMI_MARKETPLACE_INSTALL,
 ];
 
-/** Safe identifier pattern: lowercase alphanumeric, hyphens, dots, underscores. */
-const SAFE_ID_RE = /^[a-z0-9][a-z0-9._-]*$/;
-
 /** Safe repo pattern: owner/repo with alphanumeric, hyphens, dots, underscores. */
 const SAFE_REPO_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*\/[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
+
+/** Valid consumer ids, derived from the platform registry (single source). */
+const CONSUMER_IDS = new Set(PLATFORMS.map((p) => p.id));
 
 /**
  * Strict semver pattern: supports prerelease and build metadata.
@@ -862,7 +478,7 @@ function validateMarketplaceParams(params) {
     return { valid: false, error: 'parameters must be an object' };
   }
   const { consumer, plugin, marketplace, repo, version, entrySkill } = params;
-  if (!['claude', 'codex', 'kimi'].includes(consumer)) {
+  if (!CONSUMER_IDS.has(consumer)) {
     return { valid: false, error: `invalid consumer: "${consumer}"` };
   }
   if (!plugin || !SAFE_ID_RE.test(plugin)) {
@@ -873,7 +489,7 @@ function validateMarketplaceParams(params) {
   // marketplace but NO non-interactive install API, so `marketplace` carries no
   // executable meaning for kimi and is optional (validated only if present); it
   // must not become a required identity condition for kimi execution/observe.
-  if (consumer === 'kimi') {
+  if (!getPlatform(consumer).automatable) {
     if (marketplace !== undefined && marketplace !== null && !SAFE_ID_RE.test(marketplace)) {
       return { valid: false, error: `unsafe marketplace identifier: "${marketplace}"` };
     }
@@ -892,42 +508,6 @@ function validateMarketplaceParams(params) {
   return { valid: true, error: null };
 }
 
-
-/**
- * Resolve and validate the frozen timeoutMs from the expanded adapter action.
- *
- * The publish/reconcile/verify call path expands plan actions as
- * `{ actionType, ...action.parameters }`, so `parameters.timeoutMs` in the
- * plan becomes `action.timeoutMs` at the adapter level. This function reads
- * from the top-level action, not from a nested `parameters` sub-object.
- *
- * Rules:
- * - Missing field (undefined): returns 300000 default (legacy compatibility).
- * - Present but null/invalid (null, string, NaN, Infinity, non-integer,
- *   out of range): fail-closed, throws.
- * - Valid integer in [30000, 900000]: returns the value as-is.
- *
- * @param {object} action - The expanded adapter action (top-level).
- * @returns {number} Validated timeout in milliseconds.
- * @throws {Error} If the value is present but invalid.
- */
-function resolveTimeoutMs(action) {
-  const raw = action?.timeoutMs;
-  if (raw === undefined) {
-    return 300000;
-  }
-  if (raw === null || typeof raw !== 'number' || !Number.isFinite(raw) || !Number.isInteger(raw)) {
-    throw new Error(
-      `action.timeoutMs must be a finite integer, got: ${JSON.stringify(raw)}`,
-    );
-  }
-  if (raw < 30000 || raw > 900000) {
-    throw new Error(
-      `action.timeoutMs must be between 30000 and 900000, got: ${raw}`,
-    );
-  }
-  return raw;
-}
 
 /**
  * Run a CLI command using execFile (never shell: true).
@@ -1157,6 +737,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
 
           // 6. Verify frozen snapshot exists and contains required marketplace files
           const consumer = action.consumer;
+          const platform = getPlatform(consumer);
           let snapshotDirReal;
           // Authoritative kimi manifest (from the frozen snapshot), used to
           // resolve the entry skill via the manifest-declared skills root.
@@ -1171,14 +752,15 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
 
-          // Kimi has no non-interactive marketplace/install API: the whole repo
-          // is installed as one plugin. The authoritative manifest is read from
-          // the verified snapshot root with official precedence
+          // A non-automatable platform (kimi) has no non-interactive
+          // marketplace/install API: the whole repo is installed as one
+          // plugin. The authoritative manifest is read from the verified
+          // snapshot root via the platform strategy's official precedence
           // (kimi.plugin.json over .kimi-plugin/plugin.json).
-          if (consumer === 'kimi') {
+          if (!platform.automatable) {
             let kimiManifestResult;
             try {
-              kimiManifestResult = await readKimiManifest(snapshotDirReal);
+              kimiManifestResult = await platform.strategy.readManifest(snapshotDirReal);
             } catch (manifestErr) {
               return createResult({
                 actionType,
@@ -1204,13 +786,11 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             kimiSnapshotManifest = kimiManifest;
           }
 
-          if (consumer !== 'kimi') {
+          if (platform.automatable) {
           // Verify marketplace files exist.
           // marketplace.json is at the snapshot root; plugin manifest is
           // resolved relative to the entry's declared source path.
-          const marketplaceRelative = consumer === 'claude'
-            ? '.claude-plugin/marketplace.json'
-            : '.agents/plugins/marketplace.json';
+          const marketplaceRelative = platform.manifestPaths.marketplace;
 
           const marketplacePath = resolve(snapshotDirReal, marketplaceRelative);
 
@@ -1294,9 +874,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           //   snapshot/.claude-plugin/plugin.json
           // For subdirectory layouts (source: "./adapters/claude"), this resolves to
           //   snapshot/adapters/claude/.claude-plugin/plugin.json
-          const manifestRelative = consumer === 'claude'
-            ? join(sourcePath, '.claude-plugin', 'plugin.json')
-            : join(sourcePath, '.codex-plugin', 'plugin.json');
+          const manifestRelative = join(sourcePath, platform.manifestPaths.plugin);
           const manifestPath = resolve(snapshotDirReal, manifestRelative);
 
           const manifestResult = await validateManifestFile(manifestPath, ['name', 'version']);
@@ -1308,9 +886,12 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
 
-          // Claude carries the version in the marketplace entry. Codex keeps
-          // the authoritative version in .codex-plugin/plugin.json.
-          if (consumer === 'claude' && entry.version !== action.version) {
+          // Whether the marketplace entry itself carries the authoritative
+          // version is a platform protocol split (registry data): claude
+          // binds entry.version to the action version, codex keeps the
+          // authoritative version in .codex-plugin/plugin.json (the entry
+          // version is never bound), kimi has no marketplace.
+          if (platform.marketplaceEntryCarriesVersion && entry.version !== action.version) {
             return createResult({
               actionType,
               status: ActionStatus.PREFLIGHT_FAILED,
@@ -1344,12 +925,13 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           }
 
           // Verify the entry skill exists in the snapshot.
-          // Claude/Codex manifests always declare ./skills/, so the fixed
-          // skills/<entrySkill>/SKILL.md layout is authoritative for them.
-          // Kimi resolves the entry skill via the manifest-declared skills root
-          // (MAJOR-4): the root is validated + realpath-contained, and omitted
-          // `skills` means the official single-skill root SKILL.md.
-          if (consumer === 'kimi') {
+          // Automatable platforms' manifests always declare ./skills/, so the
+          // fixed skills/<entrySkill>/SKILL.md layout is authoritative for
+          // them. A non-automatable platform (kimi) resolves the entry skill
+          // via the manifest-declared skills root (MAJOR-4): the root is
+          // validated + realpath-contained, and omitted `skills` means the
+          // official single-skill root SKILL.md.
+          if (!platform.automatable) {
             try {
               await resolveKimiEntrySkillFile(snapshotDirReal, kimiSnapshotManifest, action.entrySkill);
             } catch (entryErr) {
@@ -1548,13 +1130,15 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
 
-          // Kimi has NO scriptable install CLI. It is handled entirely by the
-          // manual-requirement helper, which uses a stable plan-digest-keyed
-          // home and deliberately SKIPS the per-run isolated consumer dir and
-          // its runDir containment check (that model only fits claude/codex,
-          // which exec a real CLI into a per-run HOME).
-          if (action.consumer === 'kimi') {
-            return executeKimiManualRequirement(action, context);
+          // A non-automatable platform (kimi) has NO scriptable install CLI.
+          // It is handled entirely by its manual-requirement strategy, which
+          // uses a stable plan-digest-keyed home and deliberately SKIPS the
+          // per-run isolated consumer dir and its runDir containment check
+          // (that model only fits automatable platforms, which exec a real
+          // CLI into a per-run HOME).
+          const platform = getPlatform(action.consumer);
+          if (!platform.automatable) {
+            return platform.strategy.buildManualRequirement(action, context);
           }
 
           const consumer = action.consumer;
@@ -1574,21 +1158,18 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
 
-          // Create isolated HOME and required subdirectories
+          // Create isolated HOME and the consumer state subdirectories the
+          // registry declares for this platform.
           await mkdir(isolatedHome, { recursive: true, mode: 0o700 });
-          if (consumer === 'claude') {
-            await mkdir(resolve(isolatedHome, '.claude'), { recursive: true, mode: 0o700 });
-          } else {
-            await mkdir(resolve(isolatedHome, '.codex'), { recursive: true, mode: 0o700 });
+          for (const subdir of platform.isolationSubdirs) {
+            await mkdir(resolve(isolatedHome, subdir), { recursive: true, mode: 0o700 });
           }
 
-          const cliCmd = consumer === 'claude' ? 'claude' : 'codex';
+          const cliCmd = platform.cli.binary;
           const baseEnv = { ...process.env, ...context.env };
           const env = {
             ...baseEnv,
-            ...(consumer === 'claude'
-              ? { HOME: isolatedHome, CLAUDE_CONFIG_DIR: resolve(isolatedHome, '.claude') }
-              : { HOME: isolatedHome, CODEX_HOME: isolatedHome }),
+            ...platform.isolationEnv(isolatedHome),
           };
           // Ensure real HOME/CODEX_HOME don't leak back (already overridden
           // above).
@@ -1610,16 +1191,14 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
 
-          // Step 1: Add marketplace (claude/codex only; kimi returned above)
+          // Step 1: Add marketplace (automatable platforms only; the
+          // non-automatable manual-requirement path returned above)
           const ref = action.ref ?? `v${action.version}`;
           let addOutput = null;
-          if (consumer !== 'kimi') {
-          const marketplaceArgs = consumer === 'claude'
-            ? ['plugin', 'marketplace', 'add', `${action.repo}@${ref}`]
-            : ['plugin', 'marketplace', 'add', action.repo, '--ref', ref, '--json'];
+          const marketplaceArgs = platform.cli.marketplaceAdd(action.repo, ref);
           try {
             const addResult = await exec(cliCmd, marketplaceArgs, { env, cwd: context.root, timeout: frozenTimeoutMs });
-            if (consumer === 'codex') {
+            if (platform.jsonProtocol.marketplaceAddOutput === 'json') {
               try {
                 addOutput = JSON.parse(addResult.stdout);
                 if (!addOutput || typeof addOutput !== 'object') {
@@ -1651,17 +1230,14 @@ export function createPluginMarketplaceAdapter(deps = {}) {
               error: `marketplace add failed: ${addErr.message}`,
             });
           }
-          }
 
-          // Step 2: Install plugin (claude/codex only; kimi has no install CLI
-          // and returned the manual-install requirement above).
+          // Step 2: Install plugin (the non-automatable manual-requirement
+          // path returned above; it has no install CLI).
           let installOutput;
-          const installArgs = consumer === 'claude'
-            ? ['plugin', 'install', `${action.plugin}@${action.marketplace}`]
-            : ['plugin', 'add', `${action.plugin}@${action.marketplace}`, '--json'];
+          const installArgs = platform.cli.install(action.plugin, action.marketplace);
           try {
             const installResult = await exec(cliCmd, installArgs, { env, cwd: context.root, timeout: frozenTimeoutMs });
-            if (consumer === 'codex') {
+            if (platform.jsonProtocol.pluginInstallOutput === 'json') {
               try {
                 installOutput = JSON.parse(installResult.stdout);
                 if (!installOutput || typeof installOutput !== 'object') {
@@ -1729,6 +1305,29 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
 
+          // Bind the installed payload to the sealed authority before writing
+          // evidence so the evidence file can carry the declared-manifest
+          // audit fields (host-added paths). Best-effort: binding failure is
+          // caught at verify time. Claude's install CLI reports no
+          // installedPath, so claude binds only at observe (via `plugin
+          // list`); codex binds here from the validated install JSON.
+          const installPath = installOutput?.installedPath;
+          let executeManifestDigest = null;
+          let executeBinding = null;
+          if (installPath) {
+            try {
+              executeBinding = await verifyInstalledMarketplacePayload(
+                action,
+                context,
+                installPath,
+                consumer,
+              );
+              executeManifestDigest = executeBinding.manifestDigest;
+            } catch {
+              // Digest computation failure is caught at verify time
+            }
+          }
+
           // Build and write structured evidence for observe cross-validation
           const evidence = {
             isolatedHome,
@@ -1741,6 +1340,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             addOutput,
             installOutput,
             executedAt: new Date().toISOString(),
+            ...extraInstalledPathsAudit(executeBinding),
           };
 
           // Write evidence file to runDir/evidence/ (outside isolatedHome/installPath digest scope)
@@ -1749,24 +1349,8 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           const evidencePath = resolve(evidenceDir, 'release-skill-install-evidence.json');
           await writeEvidenceAtomic(evidencePath, evidence);
 
-          // Compute manifestDigest from installed content and build
-          // expected-compatible observation for executeCheckpoint's
+          // Build expected-compatible observation for executeCheckpoint's
           // matchObservation check.
-          const installPath = installOutput?.installedPath;
-          let executeManifestDigest = null;
-          if (installPath) {
-            try {
-              executeManifestDigest = await verifyInstalledMarketplacePayload(
-                action,
-                context,
-                installPath,
-                consumer,
-              );
-            } catch {
-              // Digest computation failure is caught at verify time
-            }
-          }
-
           const executeObservation = {
             ...evidence,
             installed: true,
@@ -1870,15 +1454,19 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
           const isolatedHome = resolve(runDir, 'consumers', `${consumer}-${action.plugin}`);
-          const cliCmd = consumer === 'claude' ? 'claude' : consumer === 'codex' ? 'codex' : 'kimi';
+          // Registry-driven platform data. observe historically applies no
+          // consumer validation gate (execute/preflight validate it), so an
+          // unregistered consumer keeps the legacy fall-through shape: a
+          // kimi-shaped env, no attestation branch, and no CLI binary — it
+          // still fails closed on the missing execute evidence below.
+          const platform = PLATFORMS.find((p) => p.id === consumer) ?? null;
+          const cliCmd = platform ? (platform.cli ? platform.cli.binary : null) : 'kimi';
           const baseEnv = { ...process.env, ...(context.env ?? {}) };
           const env = {
             ...baseEnv,
-            ...(consumer === 'claude'
-              ? { HOME: isolatedHome, CLAUDE_CONFIG_DIR: resolve(isolatedHome, '.claude') }
-              : consumer === 'codex'
-                ? { HOME: isolatedHome, CODEX_HOME: isolatedHome }
-                : { HOME: isolatedHome, KIMI_CODE_HOME: isolatedHome }),
+            ...(platform
+              ? platform.isolationEnv(isolatedHome)
+              : { HOME: isolatedHome, KIMI_CODE_HOME: isolatedHome }),
           };
 
           // Resolve frozen timeoutMs from the expanded action (top-level).
@@ -1895,16 +1483,17 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
 
-          // Kimi Code protocol capability gap (BLOCKER-1): there is NO
-          // `kimi plugins list --json` interface. observe never execs a kimi
-          // command. Instead it consumes a structured human attestation (written
-          // after the interactive install) bound to the frozen plan digest and
-          // expected identity, then performs read-only verification of the
-          // installed managed copy: payload digest vs the sealed authority,
-          // entry skill resolved via the manifest skills root (MAJOR-4), and
-          // manifest name/version. Missing/expired/mismatched/escaping proof
-          // fails closed so a kimi unit can never reach VERIFIED without it.
-          if (consumer === 'kimi') {
+          // Non-automatable platform protocol capability gap (BLOCKER-1):
+          // there is NO `kimi plugins list --json` interface. observe never
+          // execs a kimi command. Instead it consumes a structured human
+          // attestation (written after the interactive install) bound to the
+          // frozen plan digest and expected identity, then performs read-only
+          // verification of the installed managed copy: payload digest vs the
+          // sealed authority, entry skill resolved via the manifest skills
+          // root (MAJOR-4), and manifest name/version.
+          // Missing/expired/mismatched/escaping proof fails closed so a kimi
+          // unit can never reach VERIFIED without it.
+          if (platform && !platform.automatable) {
             const expectedRef = action.ref ?? `v${action.version}`;
 
             // Bind to the REAL frozen plan digest (A). Fail closed if the
@@ -2085,8 +1674,10 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             // Read-only payload binding: the installed managed copy must match
             // the sealed frozen authority exactly (transport-normalized).
             let manifestDigest;
+            let payloadBinding = null;
             try {
-              manifestDigest = await verifyInstalledMarketplacePayload(action, context, installPathReal, consumer);
+              payloadBinding = await verifyInstalledMarketplacePayload(action, context, installPathReal, consumer);
+              manifestDigest = payloadBinding.manifestDigest;
             } catch (digestErr) {
               return createResult({
                 actionType,
@@ -2115,7 +1706,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             let installedManifest;
             let entrySkillFound = false;
             try {
-              const readManifest = await readKimiManifest(installPathReal);
+              const readManifest = await platform.strategy.readManifest(installPathReal);
               installedManifest = readManifest.manifest;
               await resolveKimiEntrySkillFile(installPathReal, installedManifest, action.entrySkill);
               entrySkillFound = true;
@@ -2174,6 +1765,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
               version: installedManifest.version,
               repo: action.repo,
               ref: expectedRef,
+              ...extraInstalledPathsAudit(payloadBinding),
             };
             return createResult({
               actionType,
@@ -2217,8 +1809,9 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
 
-          // Run list command to verify installation (claude/codex only; kimi
-          // has no list CLI and returned via the attestation path above).
+          // Run list command to verify installation (automatable platforms
+          // only; a non-automatable platform has no list CLI and returned via
+          // the attestation path above).
           const listArgs = ['plugin', 'list', '--json'];
 
           let listOutput;
@@ -2240,98 +1833,57 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           let found = null;
           let installPath = null;
 
-          if (consumer === 'claude') {
-            // Claude: list returns an array; find by id === "plugin@marketplace"
-            if (!Array.isArray(listOutput)) {
+          // Protocol differences live in the platform strategy functions.
+          // Where the install path comes from install evidence (codex) that
+          // check runs BEFORE the list shape check (legacy ordering); where it
+          // comes from the parsed list entry (claude), extractInstallPath is
+          // only reached after parseListOutput returned ok — which has already
+          // fail-closed on a missing installPath, so the lenient
+          // claudeExtractInstallPath boundary can never observe an incomplete
+          // listParsed (slice-1 review leftover).
+          if (platform && platform.jsonProtocol.installPathSource === 'install-output') {
+            const extracted = platform.strategy.extractInstallPath({ execEvidence: evidence });
+            if (!extracted.ok) {
               return createResult({
                 actionType,
                 status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  error: 'Claude plugin list did not return an array',
-                },
+                observation: { installed: false, error: extracted.error },
               });
             }
-            found = listOutput.find((p) => p.id === pluginId);
-            if (!found) {
+            installPath = extracted.installPath;
+          }
+          if (platform && platform.strategy.parseListOutput) {
+            const listParsed = platform.strategy.parseListOutput(listOutput, pluginId);
+            if (!listParsed.ok) {
               return createResult({
                 actionType,
                 status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  error: `plugin "${pluginId}" not found in Claude plugin list`,
-                },
+                observation: { installed: false, error: listParsed.error },
               });
             }
-            if (!found.installPath) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  error: `plugin "${pluginId}" found but missing installPath`,
-                },
-              });
+            found = listParsed.found;
+            if (platform.jsonProtocol.installPathSource === 'list') {
+              const extracted = platform.strategy.extractInstallPath({ listParsed });
+              if (!extracted.ok) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: { installed: false, error: extracted.error },
+                });
+              }
+              installPath = extracted.installPath;
             }
-            installPath = found.installPath;
-          } else if (consumer === 'codex') {
-            // Codex: installPath comes from validated evidence, not from list
-            installPath = evidence.installOutput?.installedPath;
-            if (!installPath) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  error: 'evidence install JSON missing installedPath',
-                },
-              });
-            }
-
-            // Cross-validate with list (list does NOT provide installedPath)
-            const installed = listOutput?.installed;
-            if (!Array.isArray(installed)) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  error: 'Codex plugin list did not return {installed: [...]}',
-                },
-              });
-            }
-            found = installed.find((p) => p.pluginId === pluginId);
-            if (!found) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  error: `plugin "${pluginId}" not found in Codex installed list`,
-                },
-              });
-            }
-            // Cross-validate: list fields must match evidence/action
-            if (found.name !== action.plugin) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `list name "${found.name}" does not match action plugin "${action.plugin}"` },
-              });
-            }
-            if (found.marketplaceName !== action.marketplace) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `list marketplaceName "${found.marketplaceName}" does not match action marketplace "${action.marketplace}"` },
-              });
-            }
-            if (found.version !== action.version) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `list version "${found.version}" does not match action version "${action.version}"` },
-              });
+            // Cross-validate list identity fields against the frozen action
+            // where the platform protocol requires it (codex).
+            if (platform.strategy.crossValidateListEntry) {
+              const crossCheck = platform.strategy.crossValidateListEntry(found, action);
+              if (!crossCheck.ok) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: { installed: false, error: crossCheck.error },
+                });
+              }
             }
           }
 
@@ -2383,20 +1935,26 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           // normalizing only transport-restored write permission bits.
           let manifestDigest;
           let manifestError = null;
+          let payloadBinding = null;
           try {
-            manifestDigest = await verifyInstalledMarketplacePayload(
+            payloadBinding = await verifyInstalledMarketplacePayload(
               action,
               context,
               installPath,
               consumer,
             );
+            manifestDigest = payloadBinding.manifestDigest;
           } catch (digestErr) {
             // Preserve independently observed fields for diagnostics. This
             // raw digest is not accepted as plan authority because the error
-            // is returned and verify therefore fails closed.
+            // is returned and verify therefore fails closed. The legacy
+            // contract filters consumer-owned transport metadata; the
+            // declared-manifest contract never excludes anything.
             try {
               const installedSnapshot = await computeFrozenSnapshot(installPath, {
-                excludeRootEntries: consumerTransportExclusions(consumer),
+                excludeRootEntries: action.payloadContract === undefined
+                  ? getPlatform(consumer).knownHostArtifacts
+                  : [],
               });
               manifestDigest = installedSnapshot.digest;
             } catch {
@@ -2413,20 +1971,15 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             entrySkill: action.entrySkill,
             manifestDigest,
             consumer,
+            ...extraInstalledPathsAudit(payloadBinding),
           };
 
-          // Fields from CLI evidence only (claude/codex; kimi observe returns
-          // via the attestation path above and never reaches this point).
-          if (consumer === 'claude') {
-            // Claude list may not have name; extract plugin/marketplace from id
-            const idParts = found.id.split('@');
-            observation.plugin = idParts[0];
-            observation.marketplace = idParts.slice(1).join('@');
-            if (found.version) observation.version = found.version;
-          } else if (consumer === 'codex') {
-            if (found.name) observation.plugin = found.name;
-            if (found.marketplaceName) observation.marketplace = found.marketplaceName;
-            if (found.version) observation.version = found.version;
+          // Fields from CLI evidence only, extracted by the platform strategy
+          // (a non-automatable platform observe returns via the attestation
+          // path above and never reaches this point). Key insertion order is
+          // strategy-owned and mirrors the legacy backfill.
+          if (platform && platform.strategy.extractListIdentity) {
+            Object.assign(observation, platform.strategy.extractListIdentity(found));
           }
 
           // Cross-validate version: evidence vs CLI
@@ -2446,7 +1999,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
 
           // Verify installed manifest name/version matches CLI/evidence
           try {
-            const installedManifestPath = resolve(installPath, consumer === 'claude' ? '.claude-plugin/plugin.json' : '.codex-plugin/plugin.json');
+            const installedManifestPath = resolve(installPath, platform.manifestPaths.plugin);
             const installedManifestContent = await readFile(installedManifestPath, 'utf8');
             const installedManifest = JSON.parse(installedManifestContent);
             const expectedName = observation.plugin;

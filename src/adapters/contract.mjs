@@ -13,6 +13,8 @@
  * @module adapters/contract
  */
 
+import { writeFile, rename, rm } from 'node:fs/promises';
+
 import { ReleaseError, AUTH_MISSING } from '../core/errors.mjs';
 
 /**
@@ -144,6 +146,64 @@ export function matchObservation(expected, observation) {
   }
 
   return { matches: mismatches.length === 0, mismatches };
+}
+
+/** Safe identifier pattern: lowercase alphanumeric, hyphens, dots, underscores. */
+export const SAFE_ID_RE = /^[a-z0-9][a-z0-9._-]*$/;
+
+/**
+ * Resolve and validate the frozen timeoutMs from the expanded adapter action.
+ *
+ * The publish/reconcile/verify call path expands plan actions as
+ * `{ actionType, ...action.parameters }`, so `parameters.timeoutMs` in the
+ * plan becomes `action.timeoutMs` at the adapter level. This function reads
+ * from the top-level action, not from a nested `parameters` sub-object.
+ *
+ * Rules:
+ * - Missing field (undefined): returns 300000 default (legacy compatibility).
+ * - Present but null/invalid (null, string, NaN, Infinity, non-integer,
+ *   out of range): fail-closed, throws.
+ * - Valid integer in [30000, 900000]: returns the value as-is.
+ *
+ * @param {object} action - The expanded adapter action (top-level).
+ * @returns {number} Validated timeout in milliseconds.
+ * @throws {Error} If the value is present but invalid.
+ */
+export function resolveTimeoutMs(action) {
+  const raw = action?.timeoutMs;
+  if (raw === undefined) {
+    return 300000;
+  }
+  if (raw === null || typeof raw !== 'number' || !Number.isFinite(raw) || !Number.isInteger(raw)) {
+    throw new Error(
+      `action.timeoutMs must be a finite integer, got: ${JSON.stringify(raw)}`,
+    );
+  }
+  if (raw < 30000 || raw > 900000) {
+    throw new Error(
+      `action.timeoutMs must be between 30000 and 900000, got: ${raw}`,
+    );
+  }
+  return raw;
+}
+
+/**
+ * Atomically write a JSON evidence/requirement file (mode 0o600, exclusive
+ * create, rename into place). Crash-safe: a partial write never replaces an
+ * existing file.
+ *
+ * @param {string} filePath
+ * @param {object} value
+ */
+export async function writeEvidenceAtomic(filePath, value) {
+  const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    await writeFile(tempPath, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+    await rename(tempPath, filePath);
+  } catch (err) {
+    await rm(tempPath, { force: true }).catch(() => {});
+    throw err;
+  }
 }
 
 /**

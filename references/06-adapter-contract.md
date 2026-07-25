@@ -35,6 +35,30 @@
   - `MISSING`：远端资源尚未创建。
   - `CONFLICTING`：远端资源存在但与计划不匹配。
 
+- **调用方退避策略（重要）**：`observe` 是只读查询，其契约状态只有
+  上面三种（`CONSISTENT` / `MISSING` / `CONFLICTING`）。`PROPAGATING`
+  （“写入已发生但远端尚不可见”的暂态）**不是 adapter 契约状态**，
+  而是调用方在 `observe` 之外的内部分类，由
+  `src/core/observe-retry.mjs` 的 `observeWithRetry` 统一实现：
+  - 当 `observe` 抛错、返回空观察、或显式缺失（`exists:false` 等）
+    时，调用方视为“信息不足”，按固定退避策略（`maxAttempts:5`、
+    `delaysMs:[10_000,20_000,40_000,80_000]`，总窗口约 150s）重试只读
+    `observe`，以消化最终一致性传播延迟（如 `npm publish` 成功后
+    `npm view` 暂查不到新版本）。
+  - 一旦 `observe` 读到**具体且非空**的远端对象，立即停（无论是否匹配）：
+    匹配则 `CONSISTENT`，不匹配则 `CONFLICTING`——**绝不对
+    `CONFLICTING` 重试**，因为它已是权威冲突，必须失败关闭交人决策。
+  - 重试耗尽仍缺失，按现状语义判 `FAILED`/`UNCERTAIN`，终态不变。
+  - `preflight`（资源是否被占用）不存在传播暂态，保持单次调用，不接入
+    退避。
+  - 退避策略常量集中在 `observe-retry.mjs`，不进冻结计划 schema、不做用户配置，
+    因此改变退避参数不会使已批准发布的摘要失效。
+  - 测试逃生口：环境变量 `RELEASE_SKILL_OBSERVE_RETRY_NO_WAIT=1` 仅使
+    重试间隔立即返回（跳过挂钟等待），供 spawn 真实 CLI 子进程的测试沙箱
+    使用；尝试次数、顺序与 PROPAGATING/CONFLICTING 分类完全不变，
+    因此它不可能弱化任何失败关闭决策。进程内测试应优先使用
+    `observeRetrySleep` 依赖注入而非该环境变量。
+
 ### 1.4 verify(action, context)
 
 - **职责**：对外部写操作的结果进行深度验证。
@@ -84,7 +108,23 @@
 | 查询插件状态 | observe | 检查插件是否可被发现 |
 | 验证安装性 | verify | 在全新环境中安装并验证插件可调用 |
 
-支持目标：Claude Code plugin marketplace、Codex plugin manifest/marketplace。
+支持目标：Claude Code plugin marketplace、Codex plugin manifest/marketplace、Kimi Code（人工 attestation 闭环）。
+
+### 2.4 安装载荷校验契约（declared-manifest-v1）
+
+marketplace install action 的安装侧载荷校验以 action 参数 `payloadContract` 选择语义：
+
+- **`payloadContract: 'declared-manifest-v1'`**（新计划由 prepare 写入）：
+  - 权威方 = 冻结快照经摘要密封后、按 marketplace 清单声明的 `source` 子树过滤出的条目集合（子树解析路径与清单版本校验不变）。
+  - 安装侧 = 安装目录的完整文件遍历，**不做任何豁免**。
+  - 判定：**权威方每一条 entry 必须在安装侧存在**，且 `type/size/contentDigest/mode（忽略写位 `& ~0o222`）` 全部一致。缺失、内容篡改、非写位 mode 变化（如可执行位丢失）→ 失败关闭（CONFLICTING），错误信息列出具体冲突路径（前 10 条，超出记总数）。
+  - 安装侧多出的文件（宿主 CLI 副产物，如 claude `.in_use`、codex `.git` 检出与 `.codex-plugin/migrated-command-skills/`、以及任何未来新增物）**不视为失败**，收集为相对路径 `extraInstalledPaths`（上限 200 条，超出记录 `extraInstalledPathsTotal` 总数）写入 evidence/observation，供审计与宿主演进观察。
+  - 安全性质不降：供应链校验的对象是我方声明拥有的文件；宿主副产物不是我方责任，纳入全等比较只会把宿主行为风险转嫁为发布阻断。
+- **缺失 `payloadContract` 字段**（存量已冻结计划）：走 legacy 全等语义——安装侧整树（按 `consumerTransportExclusions` 豁免宿主传输元数据后）与权威方逐字节全等，任何差异失败关闭。行为逐字节保持，用于保护旧计划的恢复路径（reconcile/verify）。
+- 未识别的 `payloadContract` 取值 → 失败关闭。
+- `consumerTransportExclusions` 自本契约起 **deprecated**：仅 legacy 分支使用，待平台注册表任务（T2.2）迁入注册表后删除。
+
+校验强度红线：我方文件少一个、改一字节、非写位 mode 变化，都必须仍是 CONFLICTING。版本一致性另由 `plugin list`/install evidence 与已安装清单 name/version 校验分别把关，本契约不替代那些检查。
 
 ---
 

@@ -6,7 +6,6 @@
   "type": "object",
   "required": [
     "planDigest",
-    "baseline",
     "approvedActions",
     "actor",
     "approvedAt",
@@ -25,6 +24,7 @@
     },
     "baseline": {
       "type": "object",
+      "description": "Workspace baseline captured at approval time. Optional record-layer audit data since planVersion 2 (validated structurally when present, never an approval binding); still required for v1 plans by validateApproval.",
       "required": ["gitTreeHash"],
       "additionalProperties": false,
       "properties": {

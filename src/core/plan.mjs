@@ -22,6 +22,13 @@ import addFormats from 'ajv-formats';
 import { canonicalJson, sha256Hex } from './digest.mjs';
 import { ReleaseError, GATE_FAILED } from './errors.mjs';
 import { readTrustedPackageResource } from './trusted-resource.mjs';
+// NOTE (T2.2 step 3): plan.mjs and the platform registry form a module cycle
+// (plan -> registry -> platforms/kimi -> plan, because the kimi strategies
+// bind computePlanDigest). PLATFORMS is therefore only ever read inside
+// function bodies (after the import graph has settled), never at plan.mjs
+// module-init time — a top-level read would hit the registry's
+// not-yet-initialized bindings when the cycle is entered registry-first.
+import { PLATFORMS } from '../platforms/registry.mjs';
 
 // ---------------------------------------------------------------------------
 // Schema loaded from the authoritative JSON file (single source of truth)
@@ -160,6 +167,37 @@ export function validatePlan(plan) {
 }
 
 /**
+ * planVersion 2 digest scope (design: t1-2-digest-decoupling.md §4.1).
+ *
+ * The record layer -- top-level `digest`, lifecycle `status`, `createdAt`,
+ * the whole `baseline` object, and each action's runtime `status` -- is
+ * still written to the plan file (schema unchanged, evidence chain intact)
+ * but is excluded from the digest. Everything else (planVersion, units with
+ * every frozenSnapshot artifact identity field, externalActions identity,
+ * production, configDigest, verificationGates, snapshotDigest) binds.
+ *
+ * This is the ONLY place the v2 record layer is defined.
+ *
+ * @param {object} plan - A plan object.
+ * @returns {object} The binding-layer projection of the plan.
+ */
+function stripRecordLayerV2(plan) {
+  const {
+    digest: _digest,
+    status: _status,
+    createdAt: _createdAt,
+    baseline: _baseline,
+    ...rest
+  } = plan;
+  return {
+    ...rest,
+    externalActions: (plan.externalActions ?? []).map(
+      ({ status: _actionStatus, ...action }) => action,
+    ),
+  };
+}
+
+/**
  * Compute a deterministic SHA-256 digest of a plan object.
  *
  * The digest is computed from the canonical JSON of the plan. The `digest`
@@ -167,11 +205,22 @@ export function validatePlan(plan) {
  * self-consistent: `computePlanDigest(plan) === plan.digest` when the plan
  * was written by `writePlanAtomic`.
  *
+ * Digest scope forks on `plan.planVersion` (centralized here, never spread
+ * elsewhere):
+ * - planVersion 2: record-layer fields (status/createdAt/baseline/action
+ *   status/digest) are stripped before hashing, so re-preparing over the
+ *   same sources yields the same digest. See `stripRecordLayerV2`.
+ * - planVersion 1 or absent (legacy): only the top-level `digest` field is
+ *   stripped. Byte-for-byte legacy semantics -- this path must never change.
+ *
  * @param {object} plan - A plan object (must not include a `digest` field,
  *   or the field will be stripped before hashing).
  * @returns {string} Lowercase 64-char hex SHA-256 digest.
  */
 export function computePlanDigest(plan) {
+  if (plan.planVersion === 2) {
+    return sha256Hex(canonicalJson(stripRecordLayerV2(plan)));
+  }
   // Strip the digest field if present so the hash is self-consistent.
   const { digest: _digest, ...rest } = plan;
   return sha256Hex(canonicalJson(rest));
@@ -260,6 +309,28 @@ export async function writePlanImmutable(planPath, plan) {
     if (error.code !== 'EEXIST') throw error;
     const existing = await readFile(planPath, 'utf8');
     if (existing !== json) {
+      // planVersion 2 (design: t1-2-digest-decoupling.md §4.1): record-layer
+      // fields (status/createdAt/baseline) are excluded from the digest, so
+      // re-preparing over identical binding content yields the SAME digest
+      // with legitimately different bytes. Reuse the existing authority IFF
+      // it is genuinely self-consistent (its embedded digest and recomputed
+      // digest both equal this digest) -- the authority is never replaced.
+      // Any other divergence (tampering, malformed file) still fails closed.
+      if (plan.planVersion === 2) {
+        let existingPlan = null;
+        try {
+          existingPlan = JSON.parse(existing);
+        } catch {
+          existingPlan = null;
+        }
+        if (
+          existingPlan && typeof existingPlan === 'object' &&
+          existingPlan.digest === planDigest &&
+          computePlanDigest(existingPlan) === planDigest
+        ) {
+          return { planPath, planDigest };
+        }
+      }
       throw new ReleaseError(
         GATE_FAILED,
         'immutable plan authority already exists with different bytes',
@@ -277,17 +348,33 @@ export async function writePlanImmutable(planPath, plan) {
 // Plan action completeness gate
 // ---------------------------------------------------------------------------
 
-/** Expected adapter for each action type. */
-const EXPECTED_ADAPTER = {
-  'push-snapshot': 'git-github',
-  'create-tag': 'git-github',
-  'github-release': 'github',
-  'npm-publish': 'npm',
-  'claude-marketplace-install': 'plugin-marketplace',
-  'codex-marketplace-install': 'plugin-marketplace',
-  'kimi-marketplace-install': 'plugin-marketplace',
-  'set-default-branch': 'git-github',
-};
+/**
+ * Canonical normalized freeze timestamp shape (`YYYY-MM-DDTHH:MM:SS+00:00`).
+ * Mirrors the frozenSnapshot.commitTimestamp pattern in the release-plan
+ * schema; used by the planVersion 2 completeness gate, which requires a
+ * canonical normalized timestamp without re-binding it to plan.createdAt.
+ */
+const CANONICAL_COMMIT_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00$/;
+
+/**
+ * Build the expected-adapter map for each action type. The marketplace
+ * install entries are derived from the platform registry (the single source
+ * of platform knowledge: actionType -> adapter); the remaining entries are
+ * fixed non-platform action types.
+ *
+ * Built lazily on demand (see the PLATFORMS import note above): this must
+ * never run at plan.mjs module-init time.
+ */
+function buildExpectedAdapterMap() {
+  return {
+    'push-snapshot': 'git-github',
+    'create-tag': 'git-github',
+    'github-release': 'github',
+    'npm-publish': 'npm',
+    ...Object.fromEntries(PLATFORMS.map((p) => [p.actionType, p.adapter])),
+    'set-default-branch': 'git-github',
+  };
+}
 
 /** Required action types for every unit. */
 const REQUIRED_ACTION_TYPES = ['push-snapshot', 'create-tag', 'github-release'];
@@ -300,9 +387,9 @@ const REQUIRED_ACTION_TYPES = ['push-snapshot', 'create-tag', 'github-release'];
  * - 1 create-tag     (adapter: git-github)
  * - 1 github-release (adapter: github)
  * - 1 npm-publish    (adapter: npm) — only if the unit has an npm distribution
- * - 1 claude-marketplace-install (adapter: plugin-marketplace) — only if the unit has a claude-plugin distribution
- * - 1 codex-marketplace-install  (adapter: plugin-marketplace) — only if the unit has a codex-plugin distribution
- * - 1 kimi-marketplace-install   (adapter: plugin-marketplace) — only if the unit has a kimi-plugin distribution
+ * - 1 <platform>-marketplace-install (adapter from the platform registry) —
+ *   one per registry platform whose distribution the unit declares
+ *   (currently claude / codex / kimi; driven by src/platforms/registry.mjs)
  *
  * Every action must bind to the correct unitId, correct adapter, correct
  * version, correct publicRepo (where applicable), and correct tag derived
@@ -329,6 +416,7 @@ export function validatePlanActionCompleteness(plan, options = {}) {
 
   const units = Array.isArray(plan.units) ? plan.units : [];
   const actions = Array.isArray(plan.externalActions) ? plan.externalActions : [];
+  const expectedAdapterMap = buildExpectedAdapterMap();
 
   // --- Must have at least one action ---
   if (actions.length === 0) {
@@ -394,6 +482,15 @@ export function validatePlanActionCompleteness(plan, options = {}) {
       }
       if (!frozen.commitTimestamp || typeof frozen.commitTimestamp !== 'string') {
         failures.push(`unit "${unitId}" frozenSnapshot.commitTimestamp is missing; legacy production plans without a freeze timestamp are rejected, never silently backfilled`);
+      } else if (plan.planVersion === 2) {
+        // planVersion 2 (design: t1-2-digest-decoupling.md §4.2): the freeze
+        // timestamp is derived from the headCommit committer date, so it no
+        // longer equals plan.createdAt (record-layer real clock). It must
+        // still be a canonical normalized timestamp -- the same pattern the
+        // release-plan schema enforces.
+        if (!CANONICAL_COMMIT_TIMESTAMP_RE.test(frozen.commitTimestamp)) {
+          failures.push(`unit "${unitId}" frozenSnapshot.commitTimestamp is not a canonical normalized timestamp (expected YYYY-MM-DDTHH:MM:SS+00:00)`);
+        }
       } else if (plan.createdAt !== frozen.commitTimestamp) {
         failures.push(`unit "${unitId}" frozenSnapshot.commitTimestamp must equal plan.createdAt`);
       }
@@ -425,7 +522,7 @@ export function validatePlanActionCompleteness(plan, options = {}) {
     // Required actions for this unit (always required)
     for (const actionType of REQUIRED_ACTION_TYPES) {
       expectedCount++;
-      const expectedAdapter = EXPECTED_ADAPTER[actionType];
+      const expectedAdapter = expectedAdapterMap[actionType];
       const expectedActionId = `${actionType}-${unitId}`;
       const matchingActions = actions.filter(
         (a) => a.unitId === unitId && a.type === actionType,
@@ -617,31 +714,46 @@ export function validatePlanActionCompleteness(plan, options = {}) {
       }
     }
 
-    // claude-marketplace-install: only required if unit has claude-plugin distribution
-    const claudeDist = distributions.find((d) => d.type === 'claude-plugin');
-    if (claudeDist) {
-      const plugin = claudeDist.plugin;
-      const marketplace = claudeDist.marketplace;
-      const entrySkill = claudeDist.entrySkill;
-      if (!plugin || !marketplace || !entrySkill) {
-        failures.push(`unit "${unitId}": claude-plugin distribution requires plugin, marketplace, and entrySkill`);
+    // Consumer marketplace install actions: one required per declared
+    // platform distribution, driven by the platform registry (T2.2 step 3).
+    // The loop body is shared by every platform; the registry declares the
+    // per-platform differences (actionType, distributionType, adapter,
+    // consumer id, and — via the schema required fields — whether marketplace
+    // identity is a required binding). Platforms without a required
+    // marketplace (kimi, MINOR-1: Kimi Code has an interactive marketplace
+    // but no non-interactive install API) tolerate a declared marketplace as
+    // an optional legacy value but never bind it as a required condition, in
+    // parameters or in expected.
+    for (const platform of PLATFORMS) {
+      const dist = distributions.find((d) => d.type === platform.distributionType);
+      if (!dist) continue;
+      const plugin = dist.plugin;
+      const marketplace = dist.marketplace;
+      const entrySkill = dist.entrySkill;
+      const requiresMarketplace = platform.schemaRequiredFields.includes('marketplace');
+      if (requiresMarketplace) {
+        if (!plugin || !marketplace || !entrySkill) {
+          failures.push(`unit "${unitId}": ${platform.distributionType} distribution requires plugin, marketplace, and entrySkill`);
+        }
+      } else if (!plugin || !entrySkill) {
+        failures.push(`unit "${unitId}": ${platform.distributionType} distribution requires plugin and entrySkill`);
       }
       expectedCount++;
-      const expectedActionId = `claude-marketplace-install-${unitId}`;
-      const claudeActions = actions.filter(
-        (a) => a.unitId === unitId && a.type === 'claude-marketplace-install',
+      const expectedActionId = `${platform.actionType}-${unitId}`;
+      const matchingActions = actions.filter(
+        (a) => a.unitId === unitId && a.type === platform.actionType,
       );
 
-      if (claudeActions.length === 0) {
+      if (matchingActions.length === 0) {
         failures.push(
-          `unit "${unitId}": claude-plugin distribution declared but "claude-marketplace-install" action is missing`,
+          `unit "${unitId}": ${platform.distributionType} distribution declared but "${platform.actionType}" action is missing`,
         );
-      } else if (claudeActions.length > 1) {
+      } else if (matchingActions.length > 1) {
         failures.push(
-          `unit "${unitId}": duplicate claude-marketplace-install actions (${claudeActions.length} found, expected 1)`,
+          `unit "${unitId}": duplicate ${platform.actionType} actions (${matchingActions.length} found, expected 1)`,
         );
       } else {
-        const action = claudeActions[0];
+        const action = matchingActions[0];
 
         if (action.id !== expectedActionId) {
           failures.push(
@@ -653,9 +765,9 @@ export function validatePlanActionCompleteness(plan, options = {}) {
             `unit "${unitId}", action "${action.id}": unitId is "${action.unitId}", expected "${unitId}"`,
           );
         }
-        if (action.adapter !== 'plugin-marketplace') {
+        if (action.adapter !== platform.adapter) {
           failures.push(
-            `unit "${unitId}", action "${action.id}": adapter is "${action.adapter}", expected "plugin-marketplace"`,
+            `unit "${unitId}", action "${action.id}": adapter is "${action.adapter}", expected "${platform.adapter}"`,
           );
         }
         if (action.status !== 'PENDING') {
@@ -665,224 +777,17 @@ export function validatePlanActionCompleteness(plan, options = {}) {
         }
 
         // Parameter checks
-        _checkRequired(action, 'parameters.consumer', action.parameters?.consumer, 'claude', unitId, failures);
+        _checkRequired(action, 'parameters.consumer', action.parameters?.consumer, platform.id, unitId, failures);
         _checkRequired(action, 'parameters.plugin', action.parameters?.plugin, plugin, unitId, failures);
-        _checkRequired(action, 'parameters.marketplace', action.parameters?.marketplace, marketplace, unitId, failures);
-        _checkRequired(action, 'parameters.repo', action.parameters?.repo, publicRepo, unitId, failures);
-        _checkRequired(action, 'parameters.version', action.parameters?.version, targetVersion, unitId, failures);
-        _checkRequired(action, 'parameters.entrySkill', action.parameters?.entrySkill, entrySkill, unitId, failures);
-        if (production) {
-          _checkRequired(action, 'parameters.snapshotPath', action.parameters?.snapshotPath, frozen?.path, unitId, failures);
-          _checkRequired(action, 'parameters.ref', action.parameters?.ref, expectedTag, unitId, failures);
-          _checkRequired(action, 'parameters.manifestDigest', action.parameters?.manifestDigest, frozen?.manifestDigest, unitId, failures);
-        }
-        // timeoutMs is mandatory for all marketplace install actions.
-        // Legacy plans (pre-v0.1.5) lack this field; legacyCompatibility
-        // relaxes the check for reconcile/verify paths only, and only when
-        // the property is genuinely absent (undefined). An explicit null is
-        // NOT "absent" -- it is an invalid value and always fails closed,
-        // like strings or out-of-range numbers, even in legacyCompatibility.
-        {
-          const raw = action.parameters?.timeoutMs;
-          if (raw === undefined) {
-            if (!options.legacyCompatibility) {
-              failures.push(
-                `unit "${unitId}", action "${action.id}": parameters.timeoutMs is missing, expected a valid timeout (30000-900000)`,
-              );
-            }
-          } else {
-            // Field is present -- always validate range/type, even in legacy mode
-            if (typeof raw !== 'number' || !Number.isFinite(raw) || !Number.isInteger(raw)) {
-              failures.push(
-                `unit "${unitId}", action "${action.id}": parameters.timeoutMs must be a finite integer, got: ${JSON.stringify(raw)}`,
-              );
-            } else if (raw < 30000 || raw > 900000) {
-              failures.push(
-                `unit "${unitId}", action "${action.id}": parameters.timeoutMs must be between 30000 and 900000, got: ${raw}`,
-              );
-            }
-          }
-        }
-
-        // Expected checks
-        _checkRequired(action, 'expected.installed', action.expected?.installed, true, unitId, failures);
-        _checkRequired(action, 'expected.plugin', action.expected?.plugin, plugin, unitId, failures);
-        _checkRequired(action, 'expected.marketplace', action.expected?.marketplace, marketplace, unitId, failures);
-        _checkRequired(action, 'expected.version', action.expected?.version, targetVersion, unitId, failures);
-        _checkRequired(action, 'expected.entrySkill', action.expected?.entrySkill, entrySkill, unitId, failures);
-        if (production) {
-          _checkRequired(action, 'expected.consumer', action.expected?.consumer, 'claude', unitId, failures);
-          _checkRequired(action, 'expected.repo', action.expected?.repo, publicRepo, unitId, failures);
-          _checkRequired(action, 'expected.ref', action.expected?.ref, expectedTag, unitId, failures);
-          _checkRequired(action, 'expected.entrySkillFound', action.expected?.entrySkillFound, true, unitId, failures);
-          _checkRequired(action, 'expected.manifestDigest', action.expected?.manifestDigest, frozen?.manifestDigest, unitId, failures);
-        }
-      }
-    }
-
-    // codex-marketplace-install: only required if unit has codex-plugin distribution
-    const codexDist = distributions.find((d) => d.type === 'codex-plugin');
-    if (codexDist) {
-      const plugin = codexDist.plugin;
-      const marketplace = codexDist.marketplace;
-      const entrySkill = codexDist.entrySkill;
-      if (!plugin || !marketplace || !entrySkill) {
-        failures.push(`unit "${unitId}": codex-plugin distribution requires plugin, marketplace, and entrySkill`);
-      }
-      expectedCount++;
-      const expectedActionId = `codex-marketplace-install-${unitId}`;
-      const codexActions = actions.filter(
-        (a) => a.unitId === unitId && a.type === 'codex-marketplace-install',
-      );
-
-      if (codexActions.length === 0) {
-        failures.push(
-          `unit "${unitId}": codex-plugin distribution declared but "codex-marketplace-install" action is missing`,
-        );
-      } else if (codexActions.length > 1) {
-        failures.push(
-          `unit "${unitId}": duplicate codex-marketplace-install actions (${codexActions.length} found, expected 1)`,
-        );
-      } else {
-        const action = codexActions[0];
-
-        if (action.id !== expectedActionId) {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": id is "${action.id}", expected "${expectedActionId}"`,
-          );
-        }
-        if (action.unitId !== unitId) {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": unitId is "${action.unitId}", expected "${unitId}"`,
-          );
-        }
-        if (action.adapter !== 'plugin-marketplace') {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": adapter is "${action.adapter}", expected "plugin-marketplace"`,
-          );
-        }
-        if (action.status !== 'PENDING') {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": status is "${action.status ?? '(missing)'}", expected "PENDING"`,
-          );
-        }
-
-        // Parameter checks
-        _checkRequired(action, 'parameters.consumer', action.parameters?.consumer, 'codex', unitId, failures);
-        _checkRequired(action, 'parameters.plugin', action.parameters?.plugin, plugin, unitId, failures);
-        _checkRequired(action, 'parameters.marketplace', action.parameters?.marketplace, marketplace, unitId, failures);
-        _checkRequired(action, 'parameters.repo', action.parameters?.repo, publicRepo, unitId, failures);
-        _checkRequired(action, 'parameters.version', action.parameters?.version, targetVersion, unitId, failures);
-        _checkRequired(action, 'parameters.entrySkill', action.parameters?.entrySkill, entrySkill, unitId, failures);
-        if (production) {
-          _checkRequired(action, 'parameters.snapshotPath', action.parameters?.snapshotPath, frozen?.path, unitId, failures);
-          _checkRequired(action, 'parameters.ref', action.parameters?.ref, expectedTag, unitId, failures);
-          _checkRequired(action, 'parameters.manifestDigest', action.parameters?.manifestDigest, frozen?.manifestDigest, unitId, failures);
-        }
-        // timeoutMs is mandatory for all marketplace install actions.
-        // Legacy plans (pre-v0.1.5) lack this field; legacyCompatibility
-        // relaxes the check for reconcile/verify paths only, and only when
-        // the property is genuinely absent (undefined). An explicit null is
-        // NOT "absent" -- it is an invalid value and always fails closed,
-        // like strings or out-of-range numbers, even in legacyCompatibility.
-        {
-          const raw = action.parameters?.timeoutMs;
-          if (raw === undefined) {
-            if (!options.legacyCompatibility) {
-              failures.push(
-                `unit "${unitId}", action "${action.id}": parameters.timeoutMs is missing, expected a valid timeout (30000-900000)`,
-              );
-            }
-          } else {
-            // Field is present -- always validate range/type, even in legacy mode
-            if (typeof raw !== 'number' || !Number.isFinite(raw) || !Number.isInteger(raw)) {
-              failures.push(
-                `unit "${unitId}", action "${action.id}": parameters.timeoutMs must be a finite integer, got: ${JSON.stringify(raw)}`,
-              );
-            } else if (raw < 30000 || raw > 900000) {
-              failures.push(
-                `unit "${unitId}", action "${action.id}": parameters.timeoutMs must be between 30000 and 900000, got: ${raw}`,
-              );
-            }
-          }
-        }
-
-        // Expected checks
-        _checkRequired(action, 'expected.installed', action.expected?.installed, true, unitId, failures);
-        _checkRequired(action, 'expected.plugin', action.expected?.plugin, plugin, unitId, failures);
-        _checkRequired(action, 'expected.marketplace', action.expected?.marketplace, marketplace, unitId, failures);
-        _checkRequired(action, 'expected.version', action.expected?.version, targetVersion, unitId, failures);
-        _checkRequired(action, 'expected.entrySkill', action.expected?.entrySkill, entrySkill, unitId, failures);
-        if (production) {
-          _checkRequired(action, 'expected.consumer', action.expected?.consumer, 'codex', unitId, failures);
-          _checkRequired(action, 'expected.repo', action.expected?.repo, publicRepo, unitId, failures);
-          _checkRequired(action, 'expected.ref', action.expected?.ref, expectedTag, unitId, failures);
-          _checkRequired(action, 'expected.entrySkillFound', action.expected?.entrySkillFound, true, unitId, failures);
-          _checkRequired(action, 'expected.manifestDigest', action.expected?.manifestDigest, frozen?.manifestDigest, unitId, failures);
-        }
-      }
-    }
-
-    // kimi-marketplace-install: only required if unit has kimi-plugin distribution
-    const kimiDist = distributions.find((d) => d.type === 'kimi-plugin');
-    if (kimiDist) {
-      const plugin = kimiDist.plugin;
-      // marketplace is NOT a required identity field for kimi: Kimi Code has an
-      // interactive marketplace but no non-interactive install API, so the kimi
-      // action carries no executable marketplace identity (MINOR-1). Only plugin
-      // and entrySkill are required; a declared marketplace is tolerated as an
-      // optional legacy value but never bound as a required condition.
-      const marketplace = kimiDist.marketplace;
-      const entrySkill = kimiDist.entrySkill;
-      if (!plugin || !entrySkill) {
-        failures.push(`unit "${unitId}": kimi-plugin distribution requires plugin and entrySkill`);
-      }
-      expectedCount++;
-      const expectedActionId = `kimi-marketplace-install-${unitId}`;
-      const kimiActions = actions.filter(
-        (a) => a.unitId === unitId && a.type === 'kimi-marketplace-install',
-      );
-
-      if (kimiActions.length === 0) {
-        failures.push(
-          `unit "${unitId}": kimi-plugin distribution declared but "kimi-marketplace-install" action is missing`,
-        );
-      } else if (kimiActions.length > 1) {
-        failures.push(
-          `unit "${unitId}": duplicate kimi-marketplace-install actions (${kimiActions.length} found, expected 1)`,
-        );
-      } else {
-        const action = kimiActions[0];
-
-        if (action.id !== expectedActionId) {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": id is "${action.id}", expected "${expectedActionId}"`,
-          );
-        }
-        if (action.unitId !== unitId) {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": unitId is "${action.unitId}", expected "${unitId}"`,
-          );
-        }
-        if (action.adapter !== 'plugin-marketplace') {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": adapter is "${action.adapter}", expected "plugin-marketplace"`,
-          );
-        }
-        if (action.status !== 'PENDING') {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": status is "${action.status ?? '(missing)'}", expected "PENDING"`,
-          );
-        }
-
-        // Parameter checks
-        _checkRequired(action, 'parameters.consumer', action.parameters?.consumer, 'kimi', unitId, failures);
-        _checkRequired(action, 'parameters.plugin', action.parameters?.plugin, plugin, unitId, failures);
-        // marketplace is optional for kimi (MINOR-1). If a legacy plan still
-        // carries it, it must be consistent with the declared distribution but
-        // is never a required identity condition.
-        if (action.parameters?.marketplace !== undefined && marketplace !== undefined
-          && action.parameters.marketplace !== marketplace) {
+        if (requiresMarketplace) {
+          _checkRequired(action, 'parameters.marketplace', action.parameters?.marketplace, marketplace, unitId, failures);
+        } else if (
+          action.parameters?.marketplace !== undefined && marketplace !== undefined
+          && action.parameters.marketplace !== marketplace
+        ) {
+          // marketplace is optional here (MINOR-1): a legacy plan may still
+          // carry it, but it must be consistent with the declared
+          // distribution and is never a required identity condition.
           failures.push(
             `unit "${unitId}", action "${action.id}": parameters.marketplace is "${action.parameters.marketplace}", expected optional legacy value "${marketplace}"`,
           );
@@ -923,14 +828,18 @@ export function validatePlanActionCompleteness(plan, options = {}) {
           }
         }
 
-        // Expected checks. marketplace is NOT part of the kimi expected
-        // identity (MINOR-1): the kimi observation never binds a marketplace.
+        // Expected checks. Marketplace identity is bound only on platforms
+        // whose schema requires it (MINOR-1): a non-marketplace platform's
+        // observation never binds a marketplace.
         _checkRequired(action, 'expected.installed', action.expected?.installed, true, unitId, failures);
         _checkRequired(action, 'expected.plugin', action.expected?.plugin, plugin, unitId, failures);
+        if (requiresMarketplace) {
+          _checkRequired(action, 'expected.marketplace', action.expected?.marketplace, marketplace, unitId, failures);
+        }
         _checkRequired(action, 'expected.version', action.expected?.version, targetVersion, unitId, failures);
         _checkRequired(action, 'expected.entrySkill', action.expected?.entrySkill, entrySkill, unitId, failures);
         if (production) {
-          _checkRequired(action, 'expected.consumer', action.expected?.consumer, 'kimi', unitId, failures);
+          _checkRequired(action, 'expected.consumer', action.expected?.consumer, platform.id, unitId, failures);
           _checkRequired(action, 'expected.repo', action.expected?.repo, publicRepo, unitId, failures);
           _checkRequired(action, 'expected.ref', action.expected?.ref, expectedTag, unitId, failures);
           _checkRequired(action, 'expected.entrySkillFound', action.expected?.entrySkillFound, true, unitId, failures);

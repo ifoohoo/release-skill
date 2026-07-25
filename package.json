@@ -1,6 +1,6 @@
 {
   "name": "release-skill",
-  "version": "0.1.10",
+  "version": "0.2.0",
   "description": "Safe preparation and frozen GitHub/npm production publishing with full happy end verification",
   "author": {
     "name": "广州市风荷科技有限公司"
@@ -37,6 +37,7 @@
     "native/",
     "!native/safe-write/build/",
     "scripts/build-bundle.mjs",
+    "scripts/sync-public-files.mjs",
     "README.md",
     "README.zh-CN.md",
     "CHANGELOG.md",
@@ -51,10 +52,15 @@
   "scripts": {
     "build": "node --check src/**/*.mjs && node scripts/build-bundle.mjs",
     "test": "node --test test/*.test.mjs",
-    "test:no-dogfood": "node --test $(ls test/*.test.mjs | grep -v -E 'dogfood|artifacts-safe-fs-native-seam|setup-live-samples')",
+    "test:no-dogfood": "node --test $(ls test/*.test.mjs | grep -v -E 'dogfood|artifacts-safe-fs-native-seam|setup-live-samples|reference-configs')",
+    "test:cli-contract": "node --test test/cli-contract.test.mjs",
     "typecheck": "node --check src/**/*.mjs bin/*.mjs",
     "sync:skills": "node scripts/sync-skills.mjs",
     "sync:skills:check": "node scripts/sync-skills.mjs --check",
+    "sync:version": "node scripts/sync-version.mjs",
+    "sync:version:check": "node scripts/sync-version.mjs --check",
+    "sync:public-files": "node scripts/sync-public-files.mjs",
+    "sync:public-files:check": "node scripts/sync-public-files.mjs --check",
     "build:adapters": "node scripts/build-adapters.mjs",
     "build:adapters:check": "node scripts/build-adapters.mjs --check",
     "build:bundle": "node scripts/build-bundle.mjs",

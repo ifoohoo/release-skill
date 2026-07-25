@@ -135,7 +135,7 @@ human-owned 权威源，然后重新 prepare、审阅并 approve；后续环节�
 - 说明源的 `version` 必须与 `version.source` 解析结果精确一致，`date` 为 `YYYY-MM-DD`；每个配置语种恰好出现一次，`summary` 和变更项去除首尾空白后非空，`security`/`breaking`/`added`/`changed`/`deprecated`/`removed`/`fixed` 至少一个类别含条目。重复键、YAML alias/anchor、合并键、自定义标签、未知字段、缺少或多余语种、语种回退均失败关闭。
 - README 受管区域以 `<!-- release-skill:managed:start id=<region> -->` 与对应结束标记做字节偏移替换；版本标记必须唯一匹配且只替换机器值，零次或多次匹配拒绝写入。CHANGELOG 当前版本受管条目由含 `baseline` 摘要的注释包围，基线不符、非受管同版本条目或标记损坏返回冲突。
 - `docs refresh --unit <id>` 默认只读演练，输出逐文件相对路径、语种、新旧摘要和 `refreshDigest`；写入必须同时提供 `--write`、精确 `--confirm-refresh <refreshDigest>` 和 `--ack-local-document-write`，全部目标作为一个事务提交。该授权只覆盖声明的本地文档目标，不包含 hook、提交、推送、发布或安装。
-- `prepare` 在 hook、基线、快照、远端检查和计划冻结前执行同一只读规划器：`clean` 继续，`changes` 以 `RELEASE_DOCS_STALE` 失败关闭并给出精确演练/写入参数。`prepare`、`publish`、`reconcile` 永不隐式刷新文档；刷新后重新 prepare 会自然改变快照、workspace digest 与 plan digest，使旧批准失效。
+- `prepare` 在 hook、基线、快照、远端检查和计划冻结前执行同一只读规划器：`clean` 继续，`changes` 以 `RELEASE_DOCS_STALE` 失败关闭并给出精确演练/写入参数。`prepare`、`publish`、`reconcile` 永不隐式刷新文档；刷新后重新 prepare 会自然改变快照与 plan digest（文档进入发布产物时），使旧批准失效。
 
 ---
 

@@ -120,7 +120,10 @@ function matchesSubset(actual, expected) {
  * - When smokeBin is configured: the specified bin is resolved, validated
  *   against path-escape/symlink/non-regular-file guards, and executed with
  *   smokeArgs; output is validated against smokeExpectedJson (recursive
- *   subset match) when present.
+ *   subset match) when present. The expected `version` field is injected at
+ *   runtime from the unit's resolved targetVersion and overrides any
+ *   config-declared value, so the version check never depends on a
+ *   hand-written config version (T2.1 §4.3).
  * - When smokeBin is not configured: install + name/version check passes
  *   immediately; runBin is never called; result records
  *   cliSmoke: "not-configured".
@@ -162,7 +165,15 @@ export async function runSmokeTest(plan, root, options = {}) {
             unitId: unit.id,
             smokeBin: dist.smokeBin,
             smokeArgs: dist.smokeArgs ?? [],
-            smokeExpectedJson: dist.smokeExpectedJson,
+            // The expected `version` is always the unit's resolved
+            // targetVersion (whose source is version.source → package.json),
+            // injected at runtime. A config-declared smokeExpectedJson.version
+            // is redundant and overridden. This keeps the version check strong
+            // without hand-writing the version into project config, so a
+            // version bump never churns configDigest (T2.1 §4.3).
+            smokeExpectedJson: dist.smokeExpectedJson
+              ? { ...dist.smokeExpectedJson, version: unit.targetVersion }
+              : dist.smokeExpectedJson,
           });
         }
       }

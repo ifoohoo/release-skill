@@ -38,6 +38,11 @@ const CONTROL_PLANE_PREFIXES = [
   '.release-skill/runs',
   '.release-skill/transactions',
   '.release-skill/kimi-attestations',
+  // T3.2 incremental hook cache: a pure local optimisation written by prepare.
+  // Excluding it keeps cache records from destabilising workspaceDigest on
+  // every prepare (and hook-cache.mjs also skips this prefix when fingerprinting
+  // inputs, so records never hash themselves).
+  '.release-skill/cache',
 ];
 const RESERVED_CONTROL_PREFIXES = [
   ...CONTROL_PLANE_PREFIXES,

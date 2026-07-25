@@ -28,6 +28,7 @@ const execFile = promisify(execFileCb);
 import { loadProjectConfig } from '../core/config.mjs';
 import { captureBaseline } from '../core/baseline.mjs';
 import { runHook } from '../core/hooks.mjs';
+import { computeHookCacheKey, readHookCache, writeHookCache } from '../core/hook-cache.mjs';
 import { runSnapshotVerificationGates } from '../core/verification-gates.mjs';
 import { createEvidenceWriter } from '../core/evidence.mjs';
 import { computePlanDigest, writePlanAtomic, writePlanImmutable } from '../core/plan.mjs';
@@ -48,6 +49,7 @@ import { acquireProjectLock } from '../artifacts/project-lock.mjs';
 import { assertPreviousPublicBaselineTarget, observePreviousPublicBaseline } from '../core/previous-public-baseline.mjs';
 import { verifyFrozenNpmTarballIdentity } from '../adapters/npm.mjs';
 import { createProductionPrepareRunDir } from '../core/run.mjs';
+import { PLATFORMS } from '../platforms/registry.mjs';
 
 // ---------------------------------------------------------------------------
 // Version resolution
@@ -200,17 +202,31 @@ export async function resolveAllUnitVersions(units, root, explicitVersion, evide
 /**
  * Run all declared project hooks in order: docs, build, test, typecheck.
  *
+ * Incremental cache (T3.2): a hook that opts in with `cacheable: true` and a
+ * non-empty `cacheInputs` is fingerprinted by its configuration plus the
+ * content of every matched input file. On an unchanged fingerprint whose last
+ * run succeeded, execution is skipped and the cached outcome replayed. The
+ * cache only ever skips execution — it runs after the hook authorization gate
+ * and never bypasses any GATE; hook order and failure semantics are unchanged.
+ * Failures (non-zero exit or HOOK_TIMEOUT) are never cached. A `cacheInputs`
+ * glob that matches nothing fails closed before the hook runs.
+ *
  * @param {object} config - The loaded project config.
  * @param {string} root - Absolute project root.
  * @param {object} evidence - The evidence writer.
  * @param {Function} [hookFn] - Hook runner (default runHook); tests inject a
  *   spy that records call order while delegating to the real implementation.
+ * @param {object} [options]
+ * @param {boolean} [options.hookCache=true] - When false (--no-hook-cache),
+ *   every hook runs in full and the cache is neither read nor written.
  * @returns {Promise<void>}
- * @throws {ReleaseError} GATE_FAILED if any hook returns a non-zero exit code.
+ * @throws {ReleaseError} GATE_FAILED if any hook returns a non-zero exit code,
+ *   throws, or declares a cacheInputs glob that matches no file.
  */
-async function runDeclaredHooks(config, root, evidence, hookFn = runHook) {
+export async function runDeclaredHooks(config, root, evidence, hookFn = runHook, options = {}) {
   const hookOrder = ['docs', 'build', 'test', 'typecheck'];
   const hooks = config.hooks ?? {};
+  const cacheEnabled = options.hookCache !== false;
 
   for (const name of hookOrder) {
     const hook = hooks[name];
@@ -221,6 +237,36 @@ async function runDeclaredHooks(config, root, evidence, hookFn = runHook) {
       status: 'started',
       hookName: name,
     });
+
+    // --- Incremental cache lookup (opt-in only; default zero change) ---
+    let cacheKey;
+    if (cacheEnabled && hook.cacheable === true) {
+      try {
+        ({ cacheKey } = await computeHookCacheKey(hook, root));
+      } catch (err) {
+        await evidence.append({
+          phase: 'hooks',
+          status: 'failed',
+          hookName: name,
+          error: { code: err.code, message: err.message },
+        });
+        throw err;
+      }
+
+      const cached = await readHookCache(root, name, cacheKey);
+      if (cached) {
+        // Cache hit: skip execution. The authorization gate already passed and
+        // no GATE is bypassed — ordering and failure semantics are untouched.
+        await evidence.append({
+          phase: 'hooks',
+          status: 'completed',
+          hookName: name,
+          cached: true,
+          cacheKey,
+        });
+        continue;
+      }
+    }
 
     let result;
     try {
@@ -256,6 +302,26 @@ async function runDeclaredHooks(config, root, evidence, hookFn = runHook) {
         `hook "${name}" exited with code ${result.exitCode}`,
         { hookName: name, exitCode: result.exitCode },
       );
+    }
+
+    // --- Write cache on success only; failures are never cached ---
+    if (cacheEnabled && hook.cacheable === true && cacheKey) {
+      const written = await writeHookCache(root, name, cacheKey, {
+        exitCode: 0,
+        stdoutTail: result.stdout.slice(-4000),
+        stderrTail: result.stderr.slice(-4000),
+      });
+      if (!written.ok) {
+        // The cache is an optimisation, not a gate: a write failure must not
+        // abort prepare. Surface it as a warning-level evidence event.
+        await evidence.append({
+          phase: 'hooks',
+          status: 'warning',
+          hookName: name,
+          warning: 'hook cache write failed; continuing without caching',
+          error: written.error,
+        });
+      }
     }
 
     await evidence.append({
@@ -731,6 +797,50 @@ function normalizedProductionConfig(unit) {
   };
 }
 
+/**
+ * Derive the deterministic freeze timestamp for planVersion 2 plans (design:
+ * t1-2-digest-decoupling.md §4.2): the baseline headCommit's committer date,
+ * read via `git show -s --format=%cI` and normalized to canonical UTC second
+ * precision with `normalizeGitTimestamp`.
+ *
+ * Same source commit -> same freeze timestamp -> byte-identical frozen
+ * release commit on every re-prepare. Failures fail closed with GATE_FAILED
+ * (prepare requires a readable Git repository); there is deliberately no
+ * fallback clock.
+ *
+ * @param {string} root - Repository root (git cwd).
+ * @param {string} headCommit - The baseline head commit object id.
+ * @param {Function} [exec] - Injectable exec (tests); defaults to execFile.
+ * @returns {Promise<string>} Canonical `YYYY-MM-DDTHH:MM:SS+00:00` timestamp.
+ * @throws {ReleaseError} GATE_FAILED when the committer date cannot be read
+ *   or normalized.
+ */
+export async function readHeadCommitTimestamp(root, headCommit, exec = execFile) {
+  try {
+    const { stdout } = await exec(
+      'git',
+      ['show', '-s', '--format=%cI', headCommit],
+      { cwd: root, shell: false },
+    );
+    const committerDate = stdout.trim();
+    if (!committerDate) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        'plan freeze timestamp derivation returned an empty headCommit committer date',
+        { headCommit },
+      );
+    }
+    return normalizeGitTimestamp(committerDate, 'plan freeze timestamp');
+  } catch (error) {
+    if (error instanceof ReleaseError) throw error;
+    throw new ReleaseError(
+      GATE_FAILED,
+      'plan freeze timestamp could not be derived from the headCommit committer date (git show -s --format=%cI failed); no fallback clock is used',
+      { headCommit, cause: error?.message ?? String(error) },
+    );
+  }
+}
+
 async function buildProductionAssets(
   unitResults,
   resolvedVersions,
@@ -849,12 +959,6 @@ async function buildProductionAssets(
 function buildExternalActions(unitResults, resolvedVersions, productionAssets) {
   const actions = [];
 
-  const marketplaceIdentity = (distribution) => ({
-    plugin: distribution.plugin,
-    marketplace: distribution.marketplace,
-    entrySkill: distribution.entrySkill,
-  });
-
   if (!productionAssets) {
     for (let index = 0; index < unitResults.length; index += 1) {
       const { unit } = unitResults[index];
@@ -909,88 +1013,44 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets) {
         parameters: { publicRepo: unit.publicRepo, version },
         status: 'PENDING',
       });
-      // Consumer marketplace install actions (only when distribution declared)
-      const claudeDist = (unit.distributions ?? []).find((d) => d.type === 'claude-plugin');
-      if (claudeDist) {
-        const identity = marketplaceIdentity(claudeDist);
-        const claudeTimeoutMs = Number.isInteger(claudeDist.timeoutMs) ? claudeDist.timeoutMs : 300000;
+      // Consumer marketplace install actions (only when distribution
+      // declared), driven by the platform registry (T2.2 step 3): one loop
+      // body for every platform; the registry declares the per-platform
+      // differences (actionType, distributionType, adapter, and — via the
+      // schema required fields — marketplace identity, which kimi does not
+      // carry: Kimi Code has no non-interactive install/marketplace API, so
+      // the kimi action carries no marketplace identity (MINOR-1); plugin +
+      // entrySkill are the meaningful identity fields there).
+      for (const platform of PLATFORMS) {
+        const dist = (unit.distributions ?? []).find((d) => d.type === platform.distributionType);
+        if (!dist) continue;
+        const requiresMarketplace = platform.schemaRequiredFields.includes('marketplace');
+        const timeoutMs = Number.isInteger(dist.timeoutMs) ? dist.timeoutMs : 300000;
         actions.push({
-          id: `claude-marketplace-install-${unit.id}`,
-          type: 'claude-marketplace-install',
-          adapter: 'plugin-marketplace',
+          id: `${platform.actionType}-${unit.id}`,
+          type: platform.actionType,
+          adapter: platform.adapter,
           unitId: unit.id,
           parameters: {
-            consumer: 'claude',
-            plugin: identity.plugin,
-            marketplace: identity.marketplace,
+            consumer: platform.id,
+            plugin: dist.plugin,
+            ...(requiresMarketplace ? { marketplace: dist.marketplace } : {}),
             repo: unit.publicRepo,
             version,
-            entrySkill: identity.entrySkill,
-            timeoutMs: claudeTimeoutMs,
+            entrySkill: dist.entrySkill,
+            timeoutMs,
+            // Payload verification contract for new plans (T1.3): installed
+            // payload is verified by declared-manifest containment; host-added
+            // files are recorded, not failed. Frozen plans without this marker
+            // keep the legacy full-tree equality semantics byte-for-byte.
+            payloadContract: 'declared-manifest-v1',
           },
           expected: {
             installed: true,
-            plugin: identity.plugin,
-            marketplace: identity.marketplace,
+            plugin: dist.plugin,
+            ...(requiresMarketplace ? { marketplace: dist.marketplace } : {}),
             version,
-            entrySkill: identity.entrySkill,
-          },
-          status: 'PENDING',
-        });
-      }
-      const codexDist = (unit.distributions ?? []).find((d) => d.type === 'codex-plugin');
-      if (codexDist) {
-        const identity = marketplaceIdentity(codexDist);
-        const codexTimeoutMs = Number.isInteger(codexDist.timeoutMs) ? codexDist.timeoutMs : 300000;
-        actions.push({
-          id: `codex-marketplace-install-${unit.id}`,
-          type: 'codex-marketplace-install',
-          adapter: 'plugin-marketplace',
-          unitId: unit.id,
-          parameters: {
-            consumer: 'codex',
-            plugin: identity.plugin,
-            marketplace: identity.marketplace,
-            repo: unit.publicRepo,
-            version,
-            entrySkill: identity.entrySkill,
-            timeoutMs: codexTimeoutMs,
-          },
-          expected: {
-            installed: true,
-            plugin: identity.plugin,
-            marketplace: identity.marketplace,
-            version,
-            entrySkill: identity.entrySkill,
-          },
-          status: 'PENDING',
-        });
-      }
-      const kimiDist = (unit.distributions ?? []).find((d) => d.type === 'kimi-plugin');
-      if (kimiDist) {
-        const identity = marketplaceIdentity(kimiDist);
-        const kimiTimeoutMs = Number.isInteger(kimiDist.timeoutMs) ? kimiDist.timeoutMs : 300000;
-        // Kimi Code has no non-interactive install/marketplace API, so the kimi
-        // action carries no marketplace identity (MINOR-1). plugin + entrySkill
-        // are the meaningful identity fields.
-        actions.push({
-          id: `kimi-marketplace-install-${unit.id}`,
-          type: 'kimi-marketplace-install',
-          adapter: 'plugin-marketplace',
-          unitId: unit.id,
-          parameters: {
-            consumer: 'kimi',
-            plugin: identity.plugin,
-            repo: unit.publicRepo,
-            version,
-            entrySkill: identity.entrySkill,
-            timeoutMs: kimiTimeoutMs,
-          },
-          expected: {
-            installed: true,
-            plugin: identity.plugin,
-            version,
-            entrySkill: identity.entrySkill,
+            entrySkill: dist.entrySkill,
           },
           status: 'PENDING',
         });
@@ -1136,109 +1196,48 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets) {
       status: 'PENDING',
     });
 
-    // Consumer marketplace install actions (only when distribution declared)
-    const claudeDist = (unit.distributions ?? []).find((d) => d.type === 'claude-plugin');
-    if (claudeDist) {
-      const identity = marketplaceIdentity(claudeDist);
-      const claudeTimeoutMs = Number.isInteger(claudeDist.timeoutMs) ? claudeDist.timeoutMs : 300000;
+    // Consumer marketplace install actions (only when distribution
+    // declared), driven by the platform registry (T2.2 step 3): mirrors the
+    // non-production loop above plus the production-only bindings
+    // (ref/snapshotPath/manifestDigest parameters; consumer/repo/ref/
+    // entrySkillFound/manifestDigest expected). Marketplace identity follows
+    // the registry's schema required fields — kimi carries none (MINOR-1).
+    for (const platform of PLATFORMS) {
+      const dist = (unit.distributions ?? []).find((d) => d.type === platform.distributionType);
+      if (!dist) continue;
+      const requiresMarketplace = platform.schemaRequiredFields.includes('marketplace');
+      const timeoutMs = Number.isInteger(dist.timeoutMs) ? dist.timeoutMs : 300000;
       actions.push({
-        id: `claude-marketplace-install-${unit.id}`,
-        type: 'claude-marketplace-install',
-        adapter: 'plugin-marketplace',
+        id: `${platform.actionType}-${unit.id}`,
+        type: platform.actionType,
+        adapter: platform.adapter,
         unitId: unit.id,
         parameters: {
-          consumer: 'claude',
-          plugin: identity.plugin,
-          marketplace: identity.marketplace,
+          consumer: platform.id,
+          plugin: dist.plugin,
+          ...(requiresMarketplace ? { marketplace: dist.marketplace } : {}),
           repo: unit.publicRepo,
           ref: resolvedTag,
           version: unitVersion,
-          entrySkill: identity.entrySkill,
+          entrySkill: dist.entrySkill,
           snapshotPath: asset.snapshotPath,
           manifestDigest: asset.manifestDigest,
-          timeoutMs: claudeTimeoutMs,
+          timeoutMs,
+          // Payload verification contract for new plans (T1.3): installed
+          // payload is verified by declared-manifest containment; host-added
+          // files are recorded, not failed. Frozen plans without this marker
+          // keep the legacy full-tree equality semantics byte-for-byte.
+          payloadContract: 'declared-manifest-v1',
         },
         expected: {
           installed: true,
-          consumer: 'claude',
-          plugin: identity.plugin,
-          marketplace: identity.marketplace,
+          consumer: platform.id,
+          plugin: dist.plugin,
+          ...(requiresMarketplace ? { marketplace: dist.marketplace } : {}),
           repo: unit.publicRepo,
           version: unitVersion,
           ref: resolvedTag,
-          entrySkill: identity.entrySkill,
-          entrySkillFound: true,
-          manifestDigest: asset.manifestDigest,
-        },
-        status: 'PENDING',
-      });
-    }
-    const codexDist = (unit.distributions ?? []).find((d) => d.type === 'codex-plugin');
-    if (codexDist) {
-      const identity = marketplaceIdentity(codexDist);
-      const codexTimeoutMs = Number.isInteger(codexDist.timeoutMs) ? codexDist.timeoutMs : 300000;
-      actions.push({
-        id: `codex-marketplace-install-${unit.id}`,
-        type: 'codex-marketplace-install',
-        adapter: 'plugin-marketplace',
-        unitId: unit.id,
-        parameters: {
-          consumer: 'codex',
-          plugin: identity.plugin,
-          marketplace: identity.marketplace,
-          repo: unit.publicRepo,
-          ref: resolvedTag,
-          version: unitVersion,
-          entrySkill: identity.entrySkill,
-          snapshotPath: asset.snapshotPath,
-          manifestDigest: asset.manifestDigest,
-          timeoutMs: codexTimeoutMs,
-        },
-        expected: {
-          installed: true,
-          consumer: 'codex',
-          plugin: identity.plugin,
-          marketplace: identity.marketplace,
-          repo: unit.publicRepo,
-          version: unitVersion,
-          ref: resolvedTag,
-          entrySkill: identity.entrySkill,
-          entrySkillFound: true,
-          manifestDigest: asset.manifestDigest,
-        },
-        status: 'PENDING',
-      });
-    }
-    const kimiDist = (unit.distributions ?? []).find((d) => d.type === 'kimi-plugin');
-    if (kimiDist) {
-      const identity = marketplaceIdentity(kimiDist);
-      const kimiTimeoutMs = Number.isInteger(kimiDist.timeoutMs) ? kimiDist.timeoutMs : 300000;
-      // No marketplace identity for kimi (MINOR-1): Kimi Code has an interactive
-      // marketplace but no non-interactive install API.
-      actions.push({
-        id: `kimi-marketplace-install-${unit.id}`,
-        type: 'kimi-marketplace-install',
-        adapter: 'plugin-marketplace',
-        unitId: unit.id,
-        parameters: {
-          consumer: 'kimi',
-          plugin: identity.plugin,
-          repo: unit.publicRepo,
-          ref: resolvedTag,
-          version: unitVersion,
-          entrySkill: identity.entrySkill,
-          snapshotPath: asset.snapshotPath,
-          manifestDigest: asset.manifestDigest,
-          timeoutMs: kimiTimeoutMs,
-        },
-        expected: {
-          installed: true,
-          consumer: 'kimi',
-          plugin: identity.plugin,
-          repo: unit.publicRepo,
-          version: unitVersion,
-          ref: resolvedTag,
-          entrySkill: identity.entrySkill,
+          entrySkill: dist.entrySkill,
           entrySkillFound: true,
           manifestDigest: asset.manifestDigest,
         },
@@ -1280,6 +1279,9 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets) {
  * @param {Function} [options.runHookFn] - Hook runner passed to
  *   runDeclaredHooks (default runHook); tests inject a spy that records call
  *   order while delegating to the real implementation.
+ * @param {boolean} [options.hookCache=true] - When false (CLI --no-hook-cache),
+ *   every declared hook runs in full and the incremental hook cache is neither
+ *   read nor written.
  *
  * @returns {Promise<{ planPath: string, planDigest: string, evidenceDir: string }>}
  *
@@ -1486,7 +1488,9 @@ export async function prepareRelease(options) {
 
     // --- Step 3: Run declared hooks ---
     await evidence.append({ phase: 'hooks', status: 'started' });
-    await runDeclaredHooks(config, realRoot, evidence, options.runHookFn ?? runHook);
+    await runDeclaredHooks(config, realRoot, evidence, options.runHookFn ?? runHook, {
+      hookCache: options.hookCache,
+    });
     await evidence.append({ phase: 'hooks', status: 'completed' });
 
     // --- Step 3b: Re-check release-document freshness AFTER hooks ---
@@ -1822,16 +1826,25 @@ export async function prepareRelease(options) {
     // --- Step 7: Build plan object ---
     await evidence.append({ phase: 'plan-assembly', status: 'started' });
 
-    // Production plans sample their freeze timestamp exactly once, before the
-    // first frozen Git object exists. This single canonical value becomes
-    // GIT_AUTHOR_DATE/GIT_COMMITTER_DATE for every unit's frozen commit,
-    // every unit's frozenSnapshot.commitTimestamp, and plan.createdAt. It is
-    // thereby bound by the plan digest and the approval record; publish,
-    // retry, and reconcile consume it from the frozen plan and never re-read
-    // the wall clock. A missing or invalid injected value fails closed here,
-    // before any Git write.
+    // New prepares emit planVersion 2 (design: t1-2-digest-decoupling.md
+    // §4.2/§7). Production freeze timestamps are derived deterministically
+    // from the baseline headCommit's committer date, before the first frozen
+    // Git object exists. This single canonical value becomes
+    // GIT_AUTHOR_DATE/GIT_COMMITTER_DATE for every unit's frozen commit and
+    // every unit's frozenSnapshot.commitTimestamp; identical sources freeze
+    // byte-identical Git objects on every re-prepare. The wall-clock sample
+    // is still validated here (fail closed before any Git write) and becomes
+    // plan.createdAt -- record-layer real clock behind the 24h approval
+    // window, no longer equal to the freeze timestamp for v2 plans. The v1
+    // legacy path used this same sample as the freeze timestamp itself
+    // (commitTimestamp == createdAt). publish, retry, and reconcile consume
+    // the frozen value from the plan and never re-read the wall clock or
+    // re-derive it.
+    const createdAtTimestamp = production
+      ? normalizeGitTimestamp(clock ? clock() : new Date().toISOString(), 'plan createdAt timestamp')
+      : null;
     const freezeTimestamp = production
-      ? normalizeGitTimestamp(clock ? clock() : new Date().toISOString(), 'plan freeze timestamp')
+      ? await readHeadCommitTimestamp(realRoot, baseline.gitHead)
       : null;
 
     const productionAssets = production
@@ -1884,7 +1897,7 @@ export async function prepareRelease(options) {
     const overallSnapshotDigest = sha256Hex(snapshotDigests.join(':'));
 
     const plan = {
-      planVersion: 1,
+      planVersion: 2,
       status: 'PREPARED',
       baseline: {
         gitTreeHash: baseline.gitTreeHash,
@@ -1905,7 +1918,7 @@ export async function prepareRelease(options) {
       } : {}),
       units,
       externalActions,
-      createdAt: production ? freezeTimestamp : (clock ? clock() : new Date().toISOString()),
+      createdAt: production ? createdAtTimestamp : (clock ? clock() : new Date().toISOString()),
     };
 
     await evidence.append({

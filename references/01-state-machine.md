@@ -41,7 +41,7 @@
 | ASSESSED | PREPARED | `prepare` 所有门通过且计划冻结 |
 | ASSESSED | NEEDS_INPUT | 评估发现需要用户输入 |
 | ASSESSED | BLOCKED | 认证缺失或外部服务阻止 |
-| PREPARED | APPROVED | 人工批准记录创建，且计划 hash、tree hash、目标版本和远端冲突状态均未变化 |
+| PREPARED | APPROVED | 人工批准记录创建，且计划 digest（v2：产物+动作+版本+配置绑定层）、目标版本均未变化；tree hash/workspace digest 漂移在 v2 下仅记录证据、不使批准失效（v1 计划仍按旧规则失效） |
 | PREPARED | NEEDS_INPUT | 计划需要补充信息 |
 | APPROVED | PUBLISHING | `publish` 读取未过期批准并开始执行 |
 | APPROVED | PREPARED | 批准过期或计划变更导致批准失效，回退到重新准备 |
@@ -63,7 +63,7 @@
 以下转换在条件满足时自动触发，无需人工干预：
 
 - APPROVED -> PREPARED：当批准记录的计划 hash 与当前冻结计划不匹配时，批准自动失效。
-- APPROVED -> PREPARED：当 plan digest、Git tree hash、workspace digest、目标版本或已批准 action 列表变化时，批准自动失效。
+- APPROVED -> PREPARED：当 plan digest、目标版本或已批准 action 列表变化时，批准自动失效。planVersion 2 计划的 digest 只绑定信任边界（冻结产物身份、动作列表、目标版本、配置摘要），工作区基线（Git tree hash、workspace digest）是记录层审计数据，不使批准失效；planVersion 1（旧版）计划维持旧规则，Git tree hash 与 workspace digest 变化同样使批准失效。
 - PUBLISHING -> PARTIAL：当任一检查点成功后下一检查点失败时，自动计算 PARTIAL 状态。
 
 ---
@@ -122,11 +122,11 @@
 
 批准记录绑定到发布计划 hash。以下任何变化均导致批准自动失效：
 
-- 发布计划内容变化（plan digest 不匹配）。
-- Git tree hash 变化。
-- 工作区 digest 变化。
+- 发布计划绑定层内容变化（plan digest 不匹配）。planVersion 2 的 digest 只绑定信任边界：冻结产物身份（git commit/tree、manifestDigest、npm tarball 摘要）、外部动作列表（不含运行时 status）、目标版本、配置摘要、校验门。
 - 目标版本变化。
 - 已批准的 action 列表变化。
+
+工作区基线（Git tree hash、workspace digest、捕获时间）与生命周期状态（计划 status、createdAt、action 运行时 status）是**记录层审计数据**：继续写入计划与审批文件以备查，但不参与 planVersion 2 的 digest、不使批准失效。publish/reconcile 检测到基线漂移时记录 warning 级证据事件并继续执行，产物完整性由发布前的冻结产物重验兜底。planVersion 1（旧版）计划维持旧规则：Git tree hash 与 workspace digest 变化同样使批准失效，基线漂移硬失败（BASELINE_CHANGED）。
 
 远端冲突状态（如 tag 已存在、npm 版本冲突等）不在 approval 绑定字段中；它在 publish/reconcile 的 preflight 阶段阻断执行并要求人工决策。
 

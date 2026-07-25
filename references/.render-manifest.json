@@ -6,12 +6,12 @@
       "bytes": 6335
     },
     "01-state-machine.md": {
-      "digest": "4004aece5729059397ef5eeac554827afc16a468ae4c6180da12fdd29228ed95",
-      "bytes": 7770
+      "digest": "f09a91b69cd7ba27bf5fe5d57deafb58aeb2edc3f69637020f573b06e190a0dd",
+      "bytes": 8840
     },
     "02-project-config.md": {
-      "digest": "837f1643245f544011eddf336f31718fc05a1fe7dd4f181f627168a8ffcec183",
-      "bytes": 16501
+      "digest": "1e3c10fb4598aa6406b9d7cb4fdab2f663c3dad017dce88098b9e79868796806",
+      "bytes": 16514
     },
     "03-readme-quality.md": {
       "digest": "d74e41052592443ebbd450d0ace5f9b9b19c7a94db50f952b17c1c5a4c5dc230",
@@ -22,12 +22,12 @@
       "bytes": 4682
     },
     "05-evidence-and-errors.md": {
-      "digest": "244cd989dc86031e69fbdce8ec299359c3495c4f4dad4c903b119ef0e7a39569",
-      "bytes": 8260
+      "digest": "00039b9bd3724f40ec084b366103f1b84a2b599c5e884f23904d337f4c193661",
+      "bytes": 8484
     },
     "06-adapter-contract.md": {
-      "digest": "f727bfbdcd2bd6f95edc144a4fd61732ecaac2a49ffda296dbf6923f14a0c2f1",
-      "bytes": 6890
+      "digest": "39f0271bc06eae38dade518ece8f7e16a18f53099a433e3ae07e9d20ff7a142e",
+      "bytes": 8716
     }
   }
 }

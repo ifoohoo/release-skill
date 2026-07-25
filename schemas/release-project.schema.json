@@ -651,6 +651,20 @@
             "pattern": "^[A-Z_][A-Z0-9_]*$"
           },
           "uniqueItems": true
+        },
+        "cacheable": {
+          "type": "boolean",
+          "description": "Opt this hook into the incremental result cache: when its cacheInputs fingerprint is unchanged and the last run succeeded, prepare replays the cached outcome instead of re-executing. Absence means the hook always runs in full. cacheable=true requires a non-empty cacheInputs (enforced at runtime)."
+        },
+        "cacheInputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true,
+          "description": "Root-relative globs declaring the hook's full input set (source, scripts, config, lockfiles). The cache key fingerprints the content of every matched file; a glob that matches nothing fails closed. Must cover ALL inputs or the cache can return a false hit."
         }
       }
     },

@@ -4,12 +4,20 @@
  * Centralises the safety gates that an approval record must pass before
  * any external write actions can proceed:
  * - planDigest matches the computed plan digest
- * - baseline.gitTreeHash matches the plan baseline
+ * - baseline.gitTreeHash matches the plan baseline (v1 plans only)
  * - targetVersion matches the plan's first unit target version
  * - approvedActions exactly equals plan external action ids (no superset, no subset)
  * - approval has not expired
  * - approval duration does not exceed 24 hours
  * - approvedAt is not in the future (beyond 5-minute clock skew tolerance)
+ *
+ * The planVersion fork (design: t1-2-digest-decoupling.md §4.3) is
+ * centralized here: for planVersion 2 plans the baseline is record-layer
+ * data -- gitTreeHash/workspaceDigest equality and the production workspace
+ * digest algorithm double-check are NOT invalidation conditions (artifact
+ * integrity is sealed by the frozen-artifact re-verification at publish).
+ * Version, action-list, planDigest, and time-window bindings are preserved
+ * for every plan version. v1 plans keep the full legacy path untouched.
  *
  * @module core/approval
  */
@@ -89,7 +97,19 @@ export function validateApproval(plan, approval, options = {}) {
     );
   }
 
-  if (!approval.planDigest || !approval.baseline?.gitTreeHash || !approval.expiresAt) {
+  // planVersion fork (centralized here; see module header): v2 plans treat
+  // the baseline as optional record-layer data.
+  const planV2 = plan?.planVersion === 2;
+
+  if (planV2) {
+    if (!approval.planDigest || !approval.expiresAt) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        'approval record missing required fields: planDigest or expiresAt',
+        { approval },
+      );
+    }
+  } else if (!approval.planDigest || !approval.baseline?.gitTreeHash || !approval.expiresAt) {
     throw new ReleaseError(
       GATE_FAILED,
       'approval record missing required fields: planDigest, baseline.gitTreeHash, or expiresAt',
@@ -97,34 +117,36 @@ export function validateApproval(plan, approval, options = {}) {
     );
   }
 
-  if (plan.production?.mode === 'github-npm-v1') {
-    if (plan.baseline?.workspaceDigestAlgorithm !== WORKSPACE_DIGEST_ALGORITHM) {
+  if (!planV2) {
+    if (plan.production?.mode === 'github-npm-v1') {
+      if (plan.baseline?.workspaceDigestAlgorithm !== WORKSPACE_DIGEST_ALGORITHM) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `production plan workspace digest algorithm is missing or obsolete; expected ${WORKSPACE_DIGEST_ALGORITHM}`,
+          { expected: WORKSPACE_DIGEST_ALGORITHM, actual: plan.baseline?.workspaceDigestAlgorithm ?? null },
+        );
+      }
+      if (approval.baseline?.workspaceDigestAlgorithm !== WORKSPACE_DIGEST_ALGORITHM) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `production approval workspace digest algorithm is missing or obsolete; expected ${WORKSPACE_DIGEST_ALGORITHM}`,
+          { expected: WORKSPACE_DIGEST_ALGORITHM, actual: approval.baseline?.workspaceDigestAlgorithm ?? null },
+        );
+      }
+    }
+    if (
+      plan.baseline?.workspaceDigestAlgorithm &&
+      approval.baseline?.workspaceDigestAlgorithm !== plan.baseline.workspaceDigestAlgorithm
+    ) {
       throw new ReleaseError(
         GATE_FAILED,
-        `production plan workspace digest algorithm is missing or obsolete; expected ${WORKSPACE_DIGEST_ALGORITHM}`,
-        { expected: WORKSPACE_DIGEST_ALGORITHM, actual: plan.baseline?.workspaceDigestAlgorithm ?? null },
+        'approval workspace digest algorithm does not match the frozen plan',
+        {
+          planAlgorithm: plan.baseline.workspaceDigestAlgorithm,
+          approvalAlgorithm: approval.baseline?.workspaceDigestAlgorithm ?? null,
+        },
       );
     }
-    if (approval.baseline?.workspaceDigestAlgorithm !== WORKSPACE_DIGEST_ALGORITHM) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `production approval workspace digest algorithm is missing or obsolete; expected ${WORKSPACE_DIGEST_ALGORITHM}`,
-        { expected: WORKSPACE_DIGEST_ALGORITHM, actual: approval.baseline?.workspaceDigestAlgorithm ?? null },
-      );
-    }
-  }
-  if (
-    plan.baseline?.workspaceDigestAlgorithm &&
-    approval.baseline?.workspaceDigestAlgorithm !== plan.baseline.workspaceDigestAlgorithm
-  ) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      'approval workspace digest algorithm does not match the frozen plan',
-      {
-        planAlgorithm: plan.baseline.workspaceDigestAlgorithm,
-        approvalAlgorithm: approval.baseline?.workspaceDigestAlgorithm ?? null,
-      },
-    );
   }
 
   // --- planDigest match ---
@@ -137,30 +159,35 @@ export function validateApproval(plan, approval, options = {}) {
     );
   }
 
-  // --- baseline.gitTreeHash match ---
-  if (approval.baseline.gitTreeHash !== plan.baseline?.gitTreeHash) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `approval baseline mismatch: approval says ${approval.baseline.gitTreeHash}, plan says ${plan.baseline?.gitTreeHash}`,
-      { approvalTreeHash: approval.baseline.gitTreeHash, planTreeHash: plan.baseline?.gitTreeHash },
-    );
-  }
-
-  // --- baseline.workspaceDigest match ---
-  if (plan.baseline?.workspaceDigest) {
-    if (!approval.baseline?.workspaceDigest) {
+  // --- baseline equality checks (v1 plans only) ---
+  // For planVersion 2 plans the baseline is record-layer data: it stays in
+  // the plan/approval files for audit but is not an invalidation condition.
+  if (!planV2) {
+    // --- baseline.gitTreeHash match ---
+    if (approval.baseline.gitTreeHash !== plan.baseline?.gitTreeHash) {
       throw new ReleaseError(
         GATE_FAILED,
-        'approval record missing baseline.workspaceDigest (plan has workspaceDigest)',
-        { planWorkspaceDigest: plan.baseline.workspaceDigest },
+        `approval baseline mismatch: approval says ${approval.baseline.gitTreeHash}, plan says ${plan.baseline?.gitTreeHash}`,
+        { approvalTreeHash: approval.baseline.gitTreeHash, planTreeHash: plan.baseline?.gitTreeHash },
       );
     }
-    if (approval.baseline.workspaceDigest !== plan.baseline.workspaceDigest) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `approval workspaceDigest mismatch: approval says ${approval.baseline.workspaceDigest}, plan says ${plan.baseline.workspaceDigest}`,
-        { approvalWorkspaceDigest: approval.baseline.workspaceDigest, planWorkspaceDigest: plan.baseline.workspaceDigest },
-      );
+
+    // --- baseline.workspaceDigest match ---
+    if (plan.baseline?.workspaceDigest) {
+      if (!approval.baseline?.workspaceDigest) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          'approval record missing baseline.workspaceDigest (plan has workspaceDigest)',
+          { planWorkspaceDigest: plan.baseline.workspaceDigest },
+        );
+      }
+      if (approval.baseline.workspaceDigest !== plan.baseline.workspaceDigest) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `approval workspaceDigest mismatch: approval says ${approval.baseline.workspaceDigest}, plan says ${plan.baseline.workspaceDigest}`,
+          { approvalWorkspaceDigest: approval.baseline.workspaceDigest, planWorkspaceDigest: plan.baseline.workspaceDigest },
+        );
+      }
     }
   }
 

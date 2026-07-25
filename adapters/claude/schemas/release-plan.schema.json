@@ -15,7 +15,11 @@
   "properties": {
     "planVersion": {
       "type": "integer",
-      "const": 1
+      "enum": [
+        1,
+        2
+      ],
+      "description": "Plan format and digest-scoping version. 1: legacy (every field except the top-level digest binds; commitTimestamp must equal createdAt). 2: T1.2 digest layering (record-layer fields status/createdAt/baseline/per-action status are excluded from the plan digest; commitTimestamp is derived from the HEAD commit committer date)."
     },
     "status": {
       "type": "string",
@@ -242,7 +246,7 @@
               "commitTimestamp": {
                 "type": "string",
                 "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\+00:00$",
-                "description": "Plan freeze timestamp sampled exactly once during production prepare, in canonical UTC second precision. Written verbatim to GIT_AUTHOR_DATE and GIT_COMMITTER_DATE of the frozen release commit, so it always equals the commit's %aI and %cI byte-for-byte, and must equal the plan's createdAt."
+                "description": "Frozen release commit timestamp in canonical UTC second precision. Written verbatim to GIT_AUTHOR_DATE and GIT_COMMITTER_DATE of the frozen release commit, so it always equals the commit's %aI and %cI byte-for-byte. v1 plans: the freeze timestamp sampled exactly once during production prepare, equal to the plan's createdAt. planVersion 2 plans: derived deterministically from the baseline headCommit's committer date, so identical sources freeze identical commits (not equal to createdAt, which remains the record-layer real clock)."
               },
               "parentCommit": {
                 "type": "string",

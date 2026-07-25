@@ -39,6 +39,7 @@ import {
   reObservePreviousPublicBaseline,
 } from '../core/previous-public-baseline.mjs';
 import { createEvidenceWriter } from '../core/evidence.mjs';
+import { CHECKPOINT_ORDER, ADAPTER_ACTION_TYPE_MAP } from '../core/checkpoints.mjs';
 import {
   loadRun,
   validateRunPlanDigest,
@@ -59,42 +60,15 @@ import {
 } from '../core/errors.mjs';
 import { assertTransition, PARTIAL, PUBLISHED, BLOCKED } from '../core/state-machine.mjs';
 import { matchObservation } from '../adapters/contract.mjs';
+import { observeWithRetry, clampPolicyToTimeout, DEFAULT_OBSERVE_RETRY_POLICY } from '../core/observe-retry.mjs';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-/**
- * Checkpoint order for the reconcile saga.
- * Must match publish.mjs.
- */
-const CHECKPOINT_ORDER = [
-  'push-commit',
-  'push-snapshot',
-  'set-default-branch',
-  'create-tag',
-  'npm-publish',
-  'github-release',
-  'claude-marketplace-install',
-  'codex-marketplace-install',
-  'kimi-marketplace-install',
-];
-
-/**
- * Map plan action type to adapter ActionType.
- * Must match publish.mjs.
- */
-const ADAPTER_ACTION_TYPE_MAP = {
-  'push-commit': 'git-push',
-  'push-snapshot': 'push-snapshot',
-  'set-default-branch': 'set-default-branch',
-  'create-tag': 'git-tag',
-  'npm-publish': 'npm-publish',
-  'github-release': 'github-release',
-  'claude-marketplace-install': 'claude-marketplace-install',
-  'codex-marketplace-install': 'codex-marketplace-install',
-  'kimi-marketplace-install': 'kimi-marketplace-install',
-};
+// CHECKPOINT_ORDER and ADAPTER_ACTION_TYPE_MAP live in ../core/checkpoints.mjs
+// (single source shared with publish.mjs; T3.1 §4.7). The historical
+// `Must match publish.mjs` double-write is removed.
 
 /**
  * Marketplace action types that are reconstructable isolated consumer checks,
@@ -151,6 +125,7 @@ export async function reconcileRelease(options) {
     captureBaselineFn,
     productionConfirmation,
     observePreviousPublicBaselineFn,
+    observeRetrySleep,
   } = options ?? {};
 
   const clockFn = typeof clockOpt === 'function' ? clockOpt : defaultClock;
@@ -364,31 +339,62 @@ export async function reconcileRelease(options) {
 
     const currentBaseline = await captureBaselineActual(root);
 
-    if (currentBaseline.gitTreeHash !== plan.baseline.gitTreeHash) {
-      await evidence.append({
-        phase: 'safety-gate',
-        gate: 'baseline-check',
-        status: 'failed',
-        planTreeHash: plan.baseline.gitTreeHash,
-        currentTreeHash: currentBaseline.gitTreeHash,
-      });
+    // planVersion fork (design: t1-2-digest-decoupling.md §4.3): for v2
+    // plans the baseline is record-layer audit data. Drift is recorded as a
+    // warning and execution continues -- artifact integrity is sealed by the
+    // frozen-artifact re-verification, never by workspace equality. v1 plans
+    // keep the BASELINE_CHANGED hard failure, byte for byte.
+    const planV2 = plan.planVersion === 2;
 
-      throw new ReleaseError(
-        BASELINE_CHANGED,
-        `baseline has changed since plan freeze: plan=${plan.baseline.gitTreeHash}, current=${currentBaseline.gitTreeHash}`,
-        { planTreeHash: plan.baseline.gitTreeHash, currentTreeHash: currentBaseline.gitTreeHash },
-      );
+    if (currentBaseline.gitTreeHash !== plan.baseline.gitTreeHash) {
+      if (planV2) {
+        await evidence.append({
+          phase: 'safety-gate',
+          gate: 'baseline-check',
+          status: 'warning',
+          severity: 'warning',
+          reason: 'planVersion 2: baseline drift is record-layer audit data; frozen-artifact re-verification remains the integrity authority',
+          planTreeHash: plan.baseline.gitTreeHash,
+          currentTreeHash: currentBaseline.gitTreeHash,
+        });
+      } else {
+        await evidence.append({
+          phase: 'safety-gate',
+          gate: 'baseline-check',
+          status: 'failed',
+          planTreeHash: plan.baseline.gitTreeHash,
+          currentTreeHash: currentBaseline.gitTreeHash,
+        });
+
+        throw new ReleaseError(
+          BASELINE_CHANGED,
+          `baseline has changed since plan freeze: plan=${plan.baseline.gitTreeHash}, current=${currentBaseline.gitTreeHash}`,
+          { planTreeHash: plan.baseline.gitTreeHash, currentTreeHash: currentBaseline.gitTreeHash },
+        );
+      }
     }
 
     if (
       plan.baseline.workspaceDigest &&
       currentBaseline.workspaceDigest !== plan.baseline.workspaceDigest
     ) {
-      throw new ReleaseError(
-        BASELINE_CHANGED,
-        `workspace digest has changed since plan freeze: plan=${plan.baseline.workspaceDigest}, current=${currentBaseline.workspaceDigest}`,
-        { planWorkspaceDigest: plan.baseline.workspaceDigest, currentWorkspaceDigest: currentBaseline.workspaceDigest },
-      );
+      if (planV2) {
+        await evidence.append({
+          phase: 'safety-gate',
+          gate: 'baseline-check',
+          status: 'warning',
+          severity: 'warning',
+          reason: 'planVersion 2: workspace digest drift is record-layer audit data; frozen-artifact re-verification remains the integrity authority',
+          planWorkspaceDigest: plan.baseline.workspaceDigest,
+          currentWorkspaceDigest: currentBaseline.workspaceDigest,
+        });
+      } else {
+        throw new ReleaseError(
+          BASELINE_CHANGED,
+          `workspace digest has changed since plan freeze: plan=${plan.baseline.workspaceDigest}, current=${currentBaseline.workspaceDigest}`,
+          { planWorkspaceDigest: plan.baseline.workspaceDigest, currentWorkspaceDigest: currentBaseline.workspaceDigest },
+        );
+      }
     }
 
     await evidence.append({
@@ -559,15 +565,21 @@ export async function reconcileRelease(options) {
     // --- Phase 1: Process each plan action using source run checkpoint ---
     //
     // Marketplace actions are reconstructable isolated consumer checks, not
-    // permanent remote writes. They are handled with a fresh
-    // preflight -> execute -> verify cycle in an isolated directory, using
-    // isolatedConsumerWritesAuthorized instead of externalWritesAuthorized.
+    // permanent remote writes. Their recovery is DEFERRED to phase 4 (after
+    // the non-marketplace remote-write retry loop): github-release is the
+    // prerequisite for kimi's install URL, and a marketplace failure must
+    // never block pending remote-write retries.
     //
     // Non-marketplace actions use observe-based consistency checks.
     // =======================================================================
     const actionsToRetry = [];
+    const marketplaceRetriesToRetry = [];
     const actionResults = new Map(); // actionId -> final status
-    let retryFailed = false;
+    // Remote-write retries and marketplace recovery are independent failure
+    // groups: neither group's failure blocks the other group's retries, and
+    // either failure keeps the run PARTIAL.
+    let remoteWriteRetryFailed = false;
+    let marketplaceRetryFailed = false;
 
     for (const action of planActions) {
       const sourceCp = sourceCpMap.get(action.id);
@@ -582,103 +594,11 @@ export async function reconcileRelease(options) {
       const adapter = adapterRegistry.getAdapter(adapterActionType);
 
       // -------------------------------------------------------------------
-      // Marketplace actions: isolated consumer verification
+      // Marketplace actions: deferred to the dedicated recovery phase that
+      // runs AFTER the non-marketplace remote-write retry loop (phase 4).
+      // A marketplace failure must never block pending remote-write retries.
       // -------------------------------------------------------------------
       if (MARKETPLACE_TYPES.has(action.type)) {
-        const marketplaceContext = {
-          externalWritesAuthorized: false,
-          isolatedConsumerWritesAuthorized: true,
-          plan,
-          baseline: plan.baseline,
-          root,
-          runDir,
-        };
-
-        const actionInput = {
-          actionType: adapterActionType,
-          ...action.parameters,
-        };
-
-        // Preflight (always runs — validates frozen snapshot)
-        const preflightResult = await adapter.preflight(actionInput, marketplaceContext);
-        if (preflightResult.status === 'PREFLIGHT_FAILED') {
-          actionResults.set(action.id, 'failed');
-          await evidence.append({
-            phase: 'reconcile-marketplace',
-            actionId: action.id,
-            actionType: action.type,
-            decision: 'preflight-failed',
-            error: preflightResult.error,
-          });
-          throw new ReleaseError(
-            POST_PUBLISH_VERIFY_FAILED,
-            `marketplace preflight failed for action "${action.id}": ${preflightResult.error}`,
-            { actionId: action.id },
-          );
-        }
-
-        // Execute (install to isolated consumer directory)
-        const executeResult = await adapter.execute(actionInput, marketplaceContext);
-        if (executeResult.status !== 'EXECUTED') {
-          actionResults.set(action.id, 'failed');
-          await evidence.append({
-            phase: 'reconcile-marketplace',
-            actionId: action.id,
-            actionType: action.type,
-            decision: 'execute-failed',
-            error: executeResult.error,
-          });
-          // Execute failed — if source was succeeded this is a conflict;
-          // if source was failed/pending, add to retry list
-          if (sourceCp.status === 'succeeded') {
-            throw new ReleaseError(
-              REMOTE_CONFLICT,
-              `marketplace execute failed for SUCCEEDED action "${action.id}": ${executeResult.error}`,
-              { actionId: action.id },
-            );
-          }
-          actionsToRetry.push(action);
-          continue;
-        }
-
-        // Verify (observe + match against plan expected state)
-        const verifyResult = await adapter.verify(
-          { ...actionInput, expected: action.expected },
-          marketplaceContext,
-        );
-
-        if (verifyResult.status === 'VERIFIED') {
-          // Consistent: source succeeded => skipped, source failed => succeeded (recovered)
-          const resultStatus = sourceCp.status === 'succeeded' ? 'skipped' : 'succeeded';
-          actionResults.set(action.id, resultStatus);
-          await evidence.append({
-            phase: 'reconcile-marketplace',
-            actionId: action.id,
-            actionType: action.type,
-            decision: sourceCp.status === 'succeeded' ? 'skip-source-succeeded-consistent' : 'recovered',
-            sourceStatus: sourceCp.status,
-          });
-        } else {
-          // Verify mismatch
-          await evidence.append({
-            phase: 'reconcile-marketplace',
-            actionId: action.id,
-            actionType: action.type,
-            decision: 'verify-mismatch',
-            error: verifyResult.error,
-          });
-          if (sourceCp.status === 'succeeded') {
-            throw new ReleaseError(
-              REMOTE_CONFLICT,
-              `marketplace verify mismatch for SUCCEEDED action "${action.id}": ${verifyResult.error}`,
-              { actionId: action.id },
-            );
-          }
-          // Source was failed/pending and verify mismatched after retry => BLOCKED
-          actionResults.set(action.id, 'failed');
-          retryFailed = true;
-          // Don't add to retry — this is a verify mismatch, not a missing state
-        }
         continue;
       }
 
@@ -805,11 +725,30 @@ export async function reconcileRelease(options) {
         continue;
       }
 
-      // FAILED or PENDING: observe remote state
-      const observeResult = await adapter.observe(
-        { actionType: adapterActionType, ...action.parameters },
+      // FAILED or PENDING: observe remote state (PROPAGATING retry, T1.1)
+      const observeInput = { actionType: adapterActionType, ...action.parameters };
+      const observePolicy = MARKETPLACE_TYPES.has(action.type)
+        ? clampPolicyToTimeout(DEFAULT_OBSERVE_RETRY_POLICY, action.parameters?.timeoutMs)
+        : DEFAULT_OBSERVE_RETRY_POLICY;
+      const observeRetry = await observeWithRetry({
+        observe: (act, ctx) => adapter.observe(act, ctx),
+        action: observeInput,
         context,
-      );
+        policy: observePolicy,
+        sleep: observeRetrySleep,
+        onAttempt: (info) => evidence.append({
+          phase: 'reconcile-observe-retry',
+          actionId: action.id,
+          actionType: action.type,
+          attempt: info.attempt,
+          maxAttempts: info.maxAttempts,
+          missing: info.missing,
+          delayMs: info.delayMs,
+          status: info.missing ? 'propagating' : 'resolved',
+          error: info.error ?? null,
+        }),
+      });
+      const observeResult = observeRetry.result;
 
       if (
         !observeResult.observation ||
@@ -941,12 +880,12 @@ export async function reconcileRelease(options) {
 
     // --- Phase 2: Validate approval and global preflight before retrying ---
     //
-    // Marketplace actions in the retry list do NOT require approval or
-    // productionConfirmation; they are isolated consumer checks, not
-    // permanent remote writes. Only non-marketplace retries require approval.
+    // Marketplace recovery is deferred to phase 4 and does NOT require
+    // approval or productionConfirmation; marketplace actions are isolated
+    // consumer checks, not permanent remote writes. Only non-marketplace
+    // retries require approval.
     // =======================================================================
-    // Split retry actions into marketplace and non-marketplace
-    const marketplaceRetries = actionsToRetry.filter((a) => MARKETPLACE_TYPES.has(a.type));
+    // Phase 1 only collects non-marketplace retry candidates.
     const nonMarketplaceRetries = actionsToRetry.filter((a) => !MARKETPLACE_TYPES.has(a.type));
 
     if (nonMarketplaceRetries.length > 0) {
@@ -997,11 +936,12 @@ export async function reconcileRelease(options) {
         );
 
         if (preflightResult.status === 'PREFLIGHT_FAILED') {
-          // Mark all retry actions as failed, stop
+          // Mark all retry actions as failed, stop. This only poisons the
+          // remote-write group; marketplace recovery (phase 4) still runs.
           for (const retryAction of actionsToRetry) {
             actionResults.set(retryAction.id, 'failed');
           }
-          retryFailed = true;
+          remoteWriteRetryFailed = true;
 
           await evidence.append({
             phase: 'reconcile-preflight',
@@ -1013,7 +953,7 @@ export async function reconcileRelease(options) {
         }
       }
 
-      if (!retryFailed) {
+      if (!remoteWriteRetryFailed) {
         await evidence.append({ phase: 'reconcile-preflight', status: 'passed' });
       }
     }
@@ -1061,13 +1001,16 @@ export async function reconcileRelease(options) {
       );
       return latestRetryState;
     };
-    if (!retryFailed && actionsToRetry.length > 0) {
+    if (!remoteWriteRetryFailed && actionsToRetry.length > 0) {
       await persistRetryState('PUBLISHING');
     }
 
-    // --- Phase 3: Execute retries ---
-    if (!retryFailed && actionsToRetry.length > 0) {
-      for (const action of actionsToRetry) {
+    // Execute one homogeneous retry group in plan order. The first failure
+    // stops the group (publish semantics) and marks only that group's own
+    // failure flag; a failure in one group never blocks the other group's
+    // retries.
+    const executeRetryGroup = async (groupActions, markGroupFailed) => {
+      for (const action of groupActions) {
         const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
         const adapter = adapterRegistry.getAdapter(adapterActionType);
 
@@ -1103,15 +1046,42 @@ export async function reconcileRelease(options) {
         if (executeResult.status === 'EXECUTED') {
           // Must verify after execute to check remote/install state
           if (MARKETPLACE_TYPES.has(action.type)) {
-            // Marketplace: verify via adapter.verify (observe + matchObservation)
-            const verifyResult = await adapter.verify(
-              { actionType: adapterActionType, ...action.parameters, expected: action.expected },
-              retryCtx,
+            // Marketplace: verify via adapter.verify (observe + matchObservation).
+            // Retry the read-only verify while remote state is information-
+            // insufficient (PROPAGATING, T1.1); a present mismatch is a
+            // real conflict and is never retried.
+            const verifyInput = {
+              actionType: adapterActionType,
+              ...action.parameters,
+              expected: action.expected,
+            };
+            const verifyPolicy = clampPolicyToTimeout(
+              DEFAULT_OBSERVE_RETRY_POLICY,
+              action.parameters?.timeoutMs,
             );
+            const verifyRetry = await observeWithRetry({
+              observe: (act, ctx) => adapter.verify(act, ctx),
+              action: verifyInput,
+              context: retryCtx,
+              policy: verifyPolicy,
+              sleep: observeRetrySleep,
+              onAttempt: (info) => evidence.append({
+                phase: 'reconcile-retry-verify',
+                actionId: action.id,
+                actionType: action.type,
+                attempt: info.attempt,
+                maxAttempts: info.maxAttempts,
+                missing: info.missing,
+                delayMs: info.delayMs,
+                status: info.missing ? 'propagating' : 'resolved',
+                error: info.error ?? null,
+              }),
+            });
+            const verifyResult = verifyRetry.result;
 
             if (verifyResult.status !== 'VERIFIED') {
               actionResults.set(action.id, 'failed');
-              retryFailed = true;
+              markGroupFailed();
               await evidence.append({
                 phase: 'reconcile-retry',
                 actionId: action.id,
@@ -1123,22 +1093,43 @@ export async function reconcileRelease(options) {
               break;
             }
           } else {
-            // Non-marketplace: observe after execute to verify remote state
-            let observation;
-            let observeError;
-            try {
-              const observeResult = await adapter.observe(
-                { actionType: adapterActionType, ...action.parameters, expected: action.expected },
-                retryCtx,
-              );
-              observation = observeResult.observation;
-              observeError = observeResult.error;
-            } catch (error) {
-              observeError = error.message;
-            }
+            // Non-marketplace: observe after execute to verify remote state.
+            // execute succeeded, so a missing/uncertain observe may be a
+            // transient propagation delay — retry with bounded backoff
+            // (PROPAGATING, T1.1). A present mismatch is a real
+            // conflict and is never retried.
+            const observeInput = {
+              actionType: adapterActionType,
+              ...action.parameters,
+              expected: action.expected,
+            };
+            const observePolicy = clampPolicyToTimeout(
+              DEFAULT_OBSERVE_RETRY_POLICY,
+              action.parameters?.timeoutMs,
+            );
+            const observeRetry = await observeWithRetry({
+              observe: (act, ctx) => adapter.observe(act, ctx),
+              action: observeInput,
+              context: retryCtx,
+              policy: observePolicy,
+              sleep: observeRetrySleep,
+              onAttempt: (info) => evidence.append({
+                phase: 'reconcile-retry-observe',
+                actionId: action.id,
+                actionType: action.type,
+                attempt: info.attempt,
+                maxAttempts: info.maxAttempts,
+                missing: info.missing,
+                delayMs: info.delayMs,
+                status: info.missing ? 'propagating' : 'resolved',
+                error: info.error ?? null,
+              }),
+            });
+            const observation = observeRetry.result?.observation ?? null;
+            const observeError = observeRetry.result?.error ?? null;
             if (!observation || (observeError && Object.keys(observation).length === 0)) {
               actionResults.set(action.id, 'uncertain');
-              retryFailed = true;
+              markGroupFailed();
               await evidence.append({
                 phase: 'reconcile-retry',
                 actionId: action.id,
@@ -1155,7 +1146,7 @@ export async function reconcileRelease(options) {
               const { matches } = matchObservation(action.expected, observation);
               if (!matches) {
                 actionResults.set(action.id, 'failed');
-                retryFailed = true;
+                markGroupFailed();
                 await evidence.append({
                   phase: 'reconcile-retry',
                   actionId: action.id,
@@ -1168,7 +1159,7 @@ export async function reconcileRelease(options) {
               }
             } else if (observation && observation.mismatched) {
               actionResults.set(action.id, 'failed');
-              retryFailed = true;
+              markGroupFailed();
                 await evidence.append({
                 phase: 'reconcile-retry',
                 actionId: action.id,
@@ -1227,7 +1218,7 @@ export async function reconcileRelease(options) {
           } else {
             actionResults.set(action.id, 'failed');
           }
-          retryFailed = true;
+          markGroupFailed();
 
           await evidence.append({
             phase: 'reconcile-retry',
@@ -1240,12 +1231,190 @@ export async function reconcileRelease(options) {
           break;
         }
       }
+    };
+
+    // --- Phase 3: Execute non-marketplace remote-write retries ---
+    //
+    // Runs BEFORE marketplace recovery: github-release is the prerequisite
+    // for kimi's install URL. Gated ONLY on the remote-write group's own
+    // failure flag — a failing marketplace recovery must never block these
+    // retries.
+    if (!remoteWriteRetryFailed && actionsToRetry.length > 0) {
+      await executeRetryGroup(actionsToRetry, () => { remoteWriteRetryFailed = true; });
     }
 
-    // Mark remaining retry actions as pending if we stopped early
-    if (retryFailed) {
+    // --- Phase 4: Marketplace recovery (isolated consumer checks) ---
+    //
+    // Deferred until after the remote-write retry loop. Marketplace actions
+    // are reconstructable isolated consumer checks, not permanent remote
+    // writes: each gets a fresh preflight -> execute -> verify cycle in an
+    // isolated directory, using isolatedConsumerWritesAuthorized instead of
+    // externalWritesAuthorized. A failed remote-write retry must not
+    // fabricate or suppress marketplace outcomes, and a marketplace failure
+    // never blocks the remote-write group above.
+    for (const action of planActions) {
+      if (!MARKETPLACE_TYPES.has(action.type)) continue;
+      const sourceCp = sourceCpMap.get(action.id);
+      const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
+      const adapter = adapterRegistry.getAdapter(adapterActionType);
+
+      const marketplaceContext = {
+        externalWritesAuthorized: false,
+        isolatedConsumerWritesAuthorized: true,
+        plan,
+        baseline: plan.baseline,
+        root,
+        runDir,
+      };
+
+      const actionInput = {
+        actionType: adapterActionType,
+        ...action.parameters,
+      };
+
+      // Preflight (always runs — validates frozen snapshot)
+      const preflightResult = await adapter.preflight(actionInput, marketplaceContext);
+      if (preflightResult.status === 'PREFLIGHT_FAILED') {
+        actionResults.set(action.id, 'failed');
+        await evidence.append({
+          phase: 'reconcile-marketplace',
+          actionId: action.id,
+          actionType: action.type,
+          decision: 'preflight-failed',
+          error: preflightResult.error,
+        });
+        throw new ReleaseError(
+          POST_PUBLISH_VERIFY_FAILED,
+          `marketplace preflight failed for action "${action.id}": ${preflightResult.error}`,
+          { actionId: action.id },
+        );
+      }
+
+      // Execute (install to isolated consumer directory)
+      const executeResult = await adapter.execute(actionInput, marketplaceContext);
+      if (executeResult.status !== 'EXECUTED') {
+        actionResults.set(action.id, 'failed');
+        await evidence.append({
+          phase: 'reconcile-marketplace',
+          actionId: action.id,
+          actionType: action.type,
+          decision: 'execute-failed',
+          error: executeResult.error,
+        });
+        // Execute failed — if source was succeeded this is a conflict;
+        // if source was failed/pending, add to the marketplace retry list
+        if (sourceCp.status === 'succeeded') {
+          throw new ReleaseError(
+            REMOTE_CONFLICT,
+            `marketplace execute failed for SUCCEEDED action "${action.id}": ${executeResult.error}`,
+            { actionId: action.id },
+          );
+        }
+        marketplaceRetriesToRetry.push(action);
+        continue;
+      }
+
+      // Verify (observe + match against plan expected state).
+      // Retry the read-only verify while remote state is information-
+      // insufficient (PROPAGATING, T1.1); a present mismatch is a
+      // real conflict and is never retried.
+      const verifyPolicy = clampPolicyToTimeout(
+        DEFAULT_OBSERVE_RETRY_POLICY,
+        action.parameters?.timeoutMs,
+      );
+      const verifyRetry = await observeWithRetry({
+        observe: (act, ctx) => adapter.verify(act, ctx),
+        action: { ...actionInput, expected: action.expected },
+        context: marketplaceContext,
+        policy: verifyPolicy,
+        sleep: observeRetrySleep,
+        onAttempt: (info) => evidence.append({
+          phase: 'reconcile-marketplace-verify',
+          actionId: action.id,
+          actionType: action.type,
+          attempt: info.attempt,
+          maxAttempts: info.maxAttempts,
+          missing: info.missing,
+          delayMs: info.delayMs,
+          status: info.missing ? 'propagating' : 'resolved',
+          error: info.error ?? null,
+        }),
+      });
+      const verifyResult = verifyRetry.result;
+
+      if (verifyResult.status === 'VERIFIED') {
+        // Consistent: source succeeded => skipped, source failed => succeeded (recovered)
+        const resultStatus = sourceCp.status === 'succeeded' ? 'skipped' : 'succeeded';
+        actionResults.set(action.id, resultStatus);
+        await evidence.append({
+          phase: 'reconcile-marketplace',
+          actionId: action.id,
+          actionType: action.type,
+          decision: sourceCp.status === 'succeeded' ? 'skip-source-succeeded-consistent' : 'recovered',
+          sourceStatus: sourceCp.status,
+        });
+      } else {
+        // Verify mismatch
+        await evidence.append({
+          phase: 'reconcile-marketplace',
+          actionId: action.id,
+          actionType: action.type,
+          decision: 'verify-mismatch',
+          error: verifyResult.error,
+        });
+        if (sourceCp.status === 'succeeded') {
+          throw new ReleaseError(
+            REMOTE_CONFLICT,
+            `marketplace verify mismatch for SUCCEEDED action "${action.id}": ${verifyResult.error}`,
+            { actionId: action.id },
+          );
+        }
+        // Source was failed/pending and verify mismatched after recovery => failed.
+        // Poisons ONLY the marketplace group; remote-write retries already ran.
+        actionResults.set(action.id, 'failed');
+        marketplaceRetryFailed = true;
+        // Don't add to retry — this is a verify mismatch, not a missing state
+      }
+    }
+
+    // Marketplace retry candidates (isolated execute failed above) are
+    // preflighted, then retried once through the shared journaled retry
+    // loop. Gated ONLY on the marketplace group's own failure flag.
+    if (!marketplaceRetryFailed && marketplaceRetriesToRetry.length > 0) {
+      for (const action of marketplaceRetriesToRetry) {
+        const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
+        const adapter = adapterRegistry.getAdapter(adapterActionType);
+        const preflightResult = await adapter.preflight(
+          { actionType: adapterActionType, ...action.parameters },
+          { ...context, externalWritesAuthorized: false, isolatedConsumerWritesAuthorized: true },
+        );
+        if (preflightResult.status === 'PREFLIGHT_FAILED') {
+          // Mark all marketplace retry actions as failed, stop
+          for (const retryAction of marketplaceRetriesToRetry) {
+            actionResults.set(retryAction.id, 'failed');
+          }
+          marketplaceRetryFailed = true;
+          await evidence.append({
+            phase: 'reconcile-preflight',
+            status: 'failed',
+            actionId: action.id,
+            error: preflightResult.error,
+          });
+          break;
+        }
+      }
+    }
+    if (!marketplaceRetryFailed && marketplaceRetriesToRetry.length > 0) {
+      if (retryStateSequence < 0) {
+        await persistRetryState('PUBLISHING');
+      }
+      await executeRetryGroup(marketplaceRetriesToRetry, () => { marketplaceRetryFailed = true; });
+    }
+
+    // Mark remaining retry actions as pending if a group stopped early
+    const markPendingAfterFailure = (groupActions) => {
       let foundFailed = false;
-      for (const action of actionsToRetry) {
+      for (const action of groupActions) {
         if (['failed', 'uncertain'].includes(actionResults.get(action.id))) {
           foundFailed = true;
           continue;
@@ -1254,12 +1423,18 @@ export async function reconcileRelease(options) {
           actionResults.set(action.id, 'pending');
         }
       }
+    };
+    if (remoteWriteRetryFailed) {
+      markPendingAfterFailure(actionsToRetry);
+    }
+    if (marketplaceRetryFailed) {
+      markPendingAfterFailure(marketplaceRetriesToRetry);
     }
 
     // Final branch/default-branch consistency closes late drift after a retry
     // or after the first observation pass. The set-default action expectation
     // includes both the branch name and its exact planned commit.
-    if (!retryFailed && planActions.every((action) => ['succeeded', 'skipped'].includes(actionResults.get(action.id)))) {
+    if (!remoteWriteRetryFailed && !marketplaceRetryFailed && planActions.every((action) => ['succeeded', 'skipped'].includes(actionResults.get(action.id)))) {
       await evidence.append({ phase: 'safety-gate', gate: 'final-branch-consistency', status: 'started' });
       for (const action of planActions) {
         if (!['push-snapshot', 'set-default-branch'].includes(action.type)) continue;
@@ -1279,7 +1454,7 @@ export async function reconcileRelease(options) {
         const comparison = observable ? matchObservation(action.expected ?? {}, observation) : { matches: false, mismatches: [] };
         if (!comparison.matches) {
           actionResults.set(action.id, observable ? 'failed' : 'uncertain');
-          retryFailed = true;
+          remoteWriteRetryFailed = true;
           await evidence.append({
             phase: 'safety-gate',
             gate: 'final-branch-consistency',
@@ -1290,7 +1465,7 @@ export async function reconcileRelease(options) {
           break;
         }
       }
-      if (!retryFailed) {
+      if (!remoteWriteRetryFailed) {
         await evidence.append({ phase: 'safety-gate', gate: 'final-branch-consistency', status: 'passed' });
       }
     }
@@ -1306,6 +1481,9 @@ export async function reconcileRelease(options) {
     );
 
     const effectiveFromStatus = PARTIAL;
+
+    // A failure in either independent retry group keeps the run PARTIAL.
+    const retryFailed = remoteWriteRetryFailed || marketplaceRetryFailed;
 
     // Map reconcile outcome to state machine target
     let overallStatus;
