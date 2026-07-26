@@ -2,7 +2,7 @@
 
 [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.2.2 -->
+<!-- release-skill:release-version: 0.2.3 -->
 ## Prerequisites
 
 - Node.js 22.0.0 or later
@@ -147,7 +147,7 @@ as a version-pinned **manual** install plus trusted observation/attestation:
    default branch), confirm the trust prompt, then reload:
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.2
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.3
    /plugins reload
    ```
 
@@ -162,10 +162,10 @@ as a version-pinned **manual** install plus trusted observation/attestation:
 {
   "consumer": "kimi",
   "plugin": "release-skill",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "entrySkill": "release-help",
   "repo": "ifoohoo/release-skill",
-  "ref": "release-skill-v0.2.2",
+  "ref": "release-skill-v0.2.3",
   "installPath": "<kimiCodeHome>/plugins/managed/release-skill",
   "planDigest": "<64-hex frozen plan digest>",
   "payloadDigest": "<64-hex frozen snapshot payload digest>",
@@ -244,7 +244,7 @@ attestation (the same capability gap and closed loop as Kimi Code):
 4. **Ref limitation warning:** a codebuddy install tracks the marketplace default
    branch and CANNOT be pinned to the frozen ref. Before writing the attestation
    you MUST confirm the installed plugin manifest version equals the frozen
-   version `0.2.1`; otherwise do NOT issue an attestation.
+   version `0.2.3`; otherwise do NOT issue an attestation.
 5. Write the attestation JSON to
    `<root>/.release-skill/codebuddy-attestations/<planDigest>/<plugin>/release-skill-codebuddy-attestation.json`.
    `planDigest` MUST be the frozen **plan** digest; `payloadDigest` MUST be the
@@ -258,10 +258,10 @@ attestation (the same capability gap and closed loop as Kimi Code):
 {
   "consumer": "codebuddy",
   "plugin": "release-skill",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "entrySkill": "release-help",
   "repo": "ifoohoo/release-skill",
-  "ref": "release-skill-v0.2.2",
+  "ref": "release-skill-v0.2.3",
   "marketplace": "artifact-skill-set",
   "installChannel": "desktop",
   "installPath": "~/.workbuddy/plugins/marketplaces/artifact-skill-set/plugins/release-skill",

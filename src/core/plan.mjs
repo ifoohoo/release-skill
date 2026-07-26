@@ -882,6 +882,184 @@ export function validatePlanActionCompleteness(plan, options = {}) {
           }
         }
 
+        // sourceCommit: frozen plugin source commit, binding the marketplace
+        // install action to the unit's frozen snapshot commit. Both forms
+        // require it in production plans; non-production diagnostic plans may
+        // omit it (never冒充生产计划).
+        if (production) {
+          _checkRequired(action, 'parameters.sourceCommit', action.parameters?.sourceCommit, frozen?.commit, unitId, failures);
+        }
+
+        // --- sourceDescriptor validation (marketplace source identity contract) ---
+        // Validates that marketplaceForm and sourceDescriptor.form are consistent,
+        // all form-specific fields are present and non-null, pluginRepo !== marketplaceRepo
+        // for standalone-index, and no mixed/extra fields exist.
+        // Only applies to platforms that require marketplace (claude, codex).
+        // Non-automatable platforms (kimi, codebuddy) use human-attestation
+        // and carry no marketplace form or source descriptor.
+        // Legacy plans (pre-sourceDescriptor) with legacyCompatibility are tolerated.
+        if (requiresMarketplace) {
+          const sd = action.parameters?.sourceDescriptor;
+          const mf = action.parameters?.marketplaceForm;
+          if (sd === undefined || sd === null) {
+            if (!options.legacyCompatibility) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.sourceDescriptor is missing; every marketplace install action must carry a complete source descriptor`,
+              );
+            }
+          } else if (typeof sd === 'object') {
+            // 1. marketplaceForm must be present when sourceDescriptor is present
+            if (mf === undefined || mf === null) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.marketplaceForm is missing but sourceDescriptor is present; form must be explicitly declared`,
+              );
+            }
+            // 2. sourceDescriptor.form must match marketplaceForm
+            if (sd.form !== mf) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": sourceDescriptor.form "${sd.form}" does not match parameters.marketplaceForm "${mf}"`,
+              );
+            }
+            // 3. Form-specific field completeness and non-null checks
+            // payloadDigest is allowed to be null in non-production plans
+            // (the frozen manifestDigest is only available after production freeze)
+            const BUNDLED_REQUIRED = ['form', 'repo', 'marketplaceEntry', 'pluginSubpath'];
+            const STANDALONE_REQUIRED = ['form', 'marketplaceRepo', 'marketplaceEntry', 'pluginRepo', 'sourceType'];
+            // Production-only fields that may be null in non-production plans
+            const PROD_ONLY_FIELDS = ['marketplaceCommitSha', 'ref', 'payloadDigest'];
+
+            if (sd.form === 'bundled-family') {
+              // Check bundled-family required fields are present and non-null
+              for (const field of BUNDLED_REQUIRED) {
+                if (sd[field] === undefined || sd[field] === null) {
+                  failures.push(
+                    `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is missing or null; bundled-family form requires all identity fields to be non-null`,
+                  );
+                }
+              }
+              // commit must be non-null in production plans (frozen from asset)
+              if (production && (sd.commit === undefined || sd.commit === null)) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.commit is missing or null; production bundled-family plans require a frozen commit`,
+                );
+              }
+              // commit must match frozenSnapshot.commit (production binding)
+              if (production && sd.commit !== undefined && sd.commit !== null &&
+                  frozen?.commit !== undefined && sd.commit !== frozen.commit) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.commit does not match frozenSnapshot.commit`,
+                );
+              }
+              // payloadDigest must be non-null in production plans
+              if (production && (sd.payloadDigest === undefined || sd.payloadDigest === null)) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.payloadDigest is missing or null; production plans require a frozen payload digest`,
+                );
+              }
+              // Prohibit standalone-index fields in bundled-family
+              const STANDALONE_ONLY = ['marketplaceRepo', 'pluginRepo', 'sourceType', 'marketplaceCommitSha', 'ref'];
+              for (const field of STANDALONE_ONLY) {
+                if (sd[field] !== undefined) {
+                  failures.push(
+                    `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is unexpected for bundled-family form; mixed fields are prohibited`,
+                  );
+                }
+              }
+              // repo must match the action's repo (publicRepo for bundled-family)
+              if (sd.repo !== undefined && sd.repo !== null && sd.repo !== publicRepo) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.repo "${sd.repo}" does not match unit publicRepo "${publicRepo}"`,
+                );
+              }
+              // marketplaceEntry must match action.plugin
+              if (sd.marketplaceEntry !== undefined && sd.marketplaceEntry !== null && sd.marketplaceEntry !== plugin) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.marketplaceEntry "${sd.marketplaceEntry}" does not match action plugin "${plugin}"`,
+                );
+              }
+              // payloadDigest must match manifestDigest (when both are present)
+              if (production && sd.payloadDigest !== undefined && sd.payloadDigest !== null &&
+                  frozen?.manifestDigest !== undefined && sd.payloadDigest !== frozen.manifestDigest) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.payloadDigest does not match frozen manifestDigest`,
+                );
+              }
+            } else if (sd.form === 'standalone-index') {
+              // Check standalone-index required fields are present and non-null
+              for (const field of STANDALONE_REQUIRED) {
+                if (sd[field] === undefined || sd[field] === null) {
+                  failures.push(
+                    `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is missing or null; standalone-index form requires all identity fields to be non-null`,
+                  );
+                }
+              }
+              // Production-only fields: must be non-null in production plans
+              if (production) {
+                for (const field of PROD_ONLY_FIELDS) {
+                  if (sd[field] === undefined || sd[field] === null) {
+                    failures.push(
+                      `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is missing or null; production standalone-index requires all fields to be non-null`,
+                    );
+                  }
+                }
+              }
+              // Prohibit bundled-family fields in standalone-index
+              const BUNDLED_ONLY = ['repo', 'commit', 'pluginSubpath'];
+              for (const field of BUNDLED_ONLY) {
+                if (sd[field] !== undefined) {
+                  failures.push(
+                    `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is unexpected for standalone-index form; mixed fields are prohibited`,
+                  );
+                }
+              }
+              // pluginRepo must NOT equal marketplaceRepo
+              if (sd.pluginRepo !== undefined && sd.pluginRepo !== null &&
+                  sd.marketplaceRepo !== undefined && sd.marketplaceRepo !== null &&
+                  sd.pluginRepo === sd.marketplaceRepo) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.pluginRepo must not equal marketplaceRepo; the plugin repo and marketplace repo are distinct repositories`,
+                );
+              }
+              // marketplaceRepo must match action.repo (for standalone-index, repo is the external marketplace)
+              if (externalMarketplace && sd.marketplaceRepo !== undefined && sd.marketplaceRepo !== null &&
+                  sd.marketplaceRepo !== dist.marketplaceRepo) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.marketplaceRepo "${sd.marketplaceRepo}" does not match distribution marketplaceRepo "${dist.marketplaceRepo}"`,
+                );
+              }
+              // pluginRepo must match the unit's publicRepo
+              if (sd.pluginRepo !== undefined && sd.pluginRepo !== null && sd.pluginRepo !== publicRepo) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.pluginRepo "${sd.pluginRepo}" does not match unit publicRepo "${publicRepo}"`,
+                );
+              }
+              // marketplaceEntry must match action.plugin
+              if (sd.marketplaceEntry !== undefined && sd.marketplaceEntry !== null && sd.marketplaceEntry !== plugin) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.marketplaceEntry "${sd.marketplaceEntry}" does not match action plugin "${plugin}"`,
+                );
+              }
+              // sourceType must be 'marketplace-entry'
+              if (sd.sourceType !== undefined && sd.sourceType !== null && sd.sourceType !== 'marketplace-entry') {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.sourceType "${sd.sourceType}" is unexpected; standalone-index sourceType must be "marketplace-entry"`,
+                );
+              }
+              // payloadDigest must match manifestDigest (when both are present)
+              if (production && sd.payloadDigest !== undefined && sd.payloadDigest !== null &&
+                  frozen?.manifestDigest !== undefined && sd.payloadDigest !== frozen.manifestDigest) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.payloadDigest does not match frozen manifestDigest`,
+                );
+              }
+            } else {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": sourceDescriptor.form "${sd.form}" is unknown; expected "bundled-family" or "standalone-index"`,
+              );
+            }
+          }
+        }
+
         // Expected checks. Marketplace identity is bound only on platforms
         // whose schema requires it (MINOR-1): a non-marketplace platform's
         // observation never binds a marketplace.

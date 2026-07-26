@@ -1,10 +1,12 @@
 {
   "name": "release-skill",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Safe preparation and frozen GitHub/npm production publishing with full happy end verification",
   "author": {
     "name": "广州市风荷科技有限公司"
   },
   "license": "MIT",
-  "skills": "./adapters/workbuddy/skills/"
+  "skills": [
+    "./adapters/workbuddy/skills/"
+  ]
 }

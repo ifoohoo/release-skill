@@ -849,7 +849,9 @@ export async function verifyRelease(options) {
           ? 'claude-plugin'
           : action.type === 'codex-marketplace-install'
             ? 'codex-plugin'
-            : 'kimi-plugin';
+            : action.type === 'codebuddy-marketplace-install'
+              ? 'codebuddy-plugin'
+              : 'kimi-plugin';
         const installPath = verifyResult.observation?.installPath;
         consumerGateResults.push(...await runConsumerVerificationGates({
           plan,
@@ -868,10 +870,14 @@ export async function verifyRelease(options) {
                   HOME: resolve(runDir, 'consumers', `codex-${action.parameters.plugin}`),
                   CODEX_HOME: resolve(runDir, 'consumers', `codex-${action.parameters.plugin}`),
                 }
-              : {
-                  HOME: resolve(runDir, 'consumers', `kimi-${action.parameters.plugin}`),
-                  KIMI_CODE_HOME: resolve(runDir, 'consumers', `kimi-${action.parameters.plugin}`),
-                },
+              : action.type === 'codebuddy-marketplace-install'
+                ? {
+                    HOME: resolve(runDir, 'consumers', `codebuddy-${action.parameters.plugin}`),
+                  }
+                : {
+                    HOME: resolve(runDir, 'consumers', `kimi-${action.parameters.plugin}`),
+                    KIMI_CODE_HOME: resolve(runDir, 'consumers', `kimi-${action.parameters.plugin}`),
+                  },
         }));
       } else {
         // --- Non-marketplace: read-only adapter.verify() ---

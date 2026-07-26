@@ -243,6 +243,19 @@ function codebuddyDesktopTailSegments(marketplace, plugin) {
 }
 
 /**
+ * Segment-level tail an attested cli installPath must end with:
+ * `/.codebuddy/plugins/marketplaces/<marketplace>/plugins/<plugin>`
+ * (verified CodeBuddy CLI layout).
+ *
+ * @param {string} marketplace
+ * @param {string} plugin
+ * @returns {string[]}
+ */
+function codebuddyCliTailSegments(marketplace, plugin) {
+  return [CODEBUDDY_CLI_STATE_DIR, 'plugins', 'marketplaces', marketplace, 'plugins', plugin];
+}
+
+/**
  * Segment-level check that a desktop installPath ends with the well-known
  * WorkBuddy marketplace layout. Pure string check (no filesystem): the path's
  * segments (split on `/` or `\`, dropping empty/`.` segments) must end with the
@@ -256,6 +269,25 @@ function codebuddyDesktopTailSegments(marketplace, plugin) {
 function matchesDesktopLayout(installPath, marketplace, plugin) {
   const segments = installPath.split(/[\\/]+/).filter((s) => s !== '' && s !== '.');
   const tail = codebuddyDesktopTailSegments(marketplace, plugin);
+  if (segments.length < tail.length) return false;
+  const offset = segments.length - tail.length;
+  return tail.every((segment, index) => segments[offset + index] === segment);
+}
+
+/**
+ * Segment-level check that a cli installPath ends with the well-known
+ * CodeBuddy CLI marketplace layout. Pure string check (no filesystem): the
+ * path's segments (split on `/` or `\`, dropping empty/`.` segments) must end
+ * with the cli tail. Fails closed otherwise.
+ *
+ * @param {string} installPath
+ * @param {string} marketplace
+ * @param {string} plugin
+ * @returns {boolean}
+ */
+function matchesCliLayout(installPath, marketplace, plugin) {
+  const segments = installPath.split(/[\\/]+/).filter((s) => s !== '' && s !== '.');
+  const tail = codebuddyCliTailSegments(marketplace, plugin);
   if (segments.length < tail.length) return false;
   const offset = segments.length - tail.length;
   return tail.every((segment, index) => segments[offset + index] === segment);
@@ -410,6 +442,14 @@ export function validateCodeBuddyAttestation(attestation, action, isoNow, boundP
   if (attestation.installChannel === 'desktop'
       && !matchesDesktopLayout(attestation.installPath, attestation.marketplace, attestation.plugin)) {
     return { valid: false, error: `codebuddy attestation installPath does not match the WorkBuddy desktop marketplace layout (.workbuddy/plugins/marketplaces/${attestation.marketplace}/plugins/${attestation.plugin})` };
+  }
+  // CLI installPath must end with the well-known CodeBuddy CLI marketplace
+  // layout (segment-level). This is a lexical check; the full realpath
+  // containment within the isolated home is enforced in the adapter observe
+  // branch (needs the context-derived isolated home + realpath resolution).
+  if (attestation.installChannel === 'cli'
+      && !matchesCliLayout(attestation.installPath, attestation.marketplace, attestation.plugin)) {
+    return { valid: false, error: `codebuddy attestation installPath does not match the CodeBuddy CLI marketplace layout (.codebuddy/plugins/marketplaces/${attestation.marketplace}/plugins/${attestation.plugin})` };
   }
   return { valid: true, error: null };
 }

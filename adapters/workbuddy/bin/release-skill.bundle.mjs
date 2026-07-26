@@ -9,7 +9,7 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.2.2"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.2.3"});
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -17819,11 +17819,24 @@ var init_baseline = __esm({
       ".release-skill/runs",
       ".release-skill/transactions",
       ".release-skill/kimi-attestations",
+      // codebuddy-attestations: same rationale as kimi-attestations above.
+      // Holds CodeBuddy's closure-protocol lifecycle artifacts: manual install
+      // requirements and human attestations bound to planDigest, payloadDigest,
+      // version, install path, responsible person, and expiry. Neither is
+      // publishable source or project configuration — they never enter the frozen
+      // snapshot — so excluding them keeps reconcile's own requirement output and
+      // the flow-required attestation from invalidating the baseline.
+      ".release-skill/codebuddy-attestations",
       // T3.2 incremental hook cache: a pure local optimisation written by prepare.
       // Excluding it keeps cache records from destabilising workspaceDigest on
       // every prepare (and hook-cache.mjs also skips this prefix when fingerprinting
       // inputs, so records never hash themselves).
-      ".release-skill/cache"
+      ".release-skill/cache",
+      // waivers: exception records with reason, responsible person, and expiry.
+      // Like attestations, they are runtime closure artifacts — not publishable
+      // source or project configuration — so excluding them keeps waiver writes
+      // from invalidating the workspace baseline.
+      ".release-skill/waivers"
     ];
     RESERVED_CONTROL_PREFIXES = [
       ...CONTROL_PLANE_PREFIXES,
@@ -20810,9 +20823,19 @@ function codebuddyCliInstallRoot(cliHome, marketplace, plugin) {
 function codebuddyDesktopTailSegments(marketplace, plugin) {
   return [CODEBUDDY_DESKTOP_HOME_DIR, "plugins", "marketplaces", marketplace, "plugins", plugin];
 }
+function codebuddyCliTailSegments(marketplace, plugin) {
+  return [CODEBUDDY_CLI_STATE_DIR, "plugins", "marketplaces", marketplace, "plugins", plugin];
+}
 function matchesDesktopLayout(installPath, marketplace, plugin) {
   const segments = installPath.split(/[\\/]+/).filter((s) => s !== "" && s !== ".");
   const tail = codebuddyDesktopTailSegments(marketplace, plugin);
+  if (segments.length < tail.length) return false;
+  const offset = segments.length - tail.length;
+  return tail.every((segment, index) => segments[offset + index] === segment);
+}
+function matchesCliLayout(installPath, marketplace, plugin) {
+  const segments = installPath.split(/[\\/]+/).filter((s) => s !== "" && s !== ".");
+  const tail = codebuddyCliTailSegments(marketplace, plugin);
   if (segments.length < tail.length) return false;
   const offset = segments.length - tail.length;
   return tail.every((segment, index) => segments[offset + index] === segment);
@@ -20915,6 +20938,9 @@ function validateCodeBuddyAttestation(attestation, action, isoNow, boundPlanDige
   }
   if (attestation.installChannel === "desktop" && !matchesDesktopLayout(attestation.installPath, attestation.marketplace, attestation.plugin)) {
     return { valid: false, error: `codebuddy attestation installPath does not match the WorkBuddy desktop marketplace layout (.workbuddy/plugins/marketplaces/${attestation.marketplace}/plugins/${attestation.plugin})` };
+  }
+  if (attestation.installChannel === "cli" && !matchesCliLayout(attestation.installPath, attestation.marketplace, attestation.plugin)) {
+    return { valid: false, error: `codebuddy attestation installPath does not match the CodeBuddy CLI marketplace layout (.codebuddy/plugins/marketplaces/${attestation.marketplace}/plugins/${attestation.plugin})` };
   }
   return { valid: true, error: null };
 }
@@ -21096,7 +21122,9 @@ var init_codebuddy = __esm({
     __name(codebuddyCliHome, "codebuddyCliHome");
     __name(codebuddyCliInstallRoot, "codebuddyCliInstallRoot");
     __name(codebuddyDesktopTailSegments, "codebuddyDesktopTailSegments");
+    __name(codebuddyCliTailSegments, "codebuddyCliTailSegments");
     __name(matchesDesktopLayout, "matchesDesktopLayout");
+    __name(matchesCliLayout, "matchesCliLayout");
     __name(buildCodeBuddyManualInstructions, "buildCodeBuddyManualInstructions");
     __name(readCodeBuddyManifest, "readCodeBuddyManifest");
     __name(validateCodeBuddyAttestation, "validateCodeBuddyAttestation");
@@ -21229,6 +21257,21 @@ function assertRegistry(registry = PLATFORMS) {
     if (!Array.isArray(platform.isolationSubdirs)) {
       throw new Error(`platform registry: ${label} isolationSubdirs must be an array`);
     }
+    if (!VALID_INSTALL_METHODS.has(platform.installMethod)) {
+      throw new Error(`platform registry: ${label} has illegal installMethod "${platform.installMethod}"`);
+    }
+    if (!VALID_REF_STRENGTHS.has(platform.refStrength)) {
+      throw new Error(`platform registry: ${label} has illegal refStrength "${platform.refStrength}"`);
+    }
+    if (!VALID_OUTPUT_PROTOCOLS.has(platform.outputProtocol)) {
+      throw new Error(`platform registry: ${label} has illegal outputProtocol "${platform.outputProtocol}"`);
+    }
+    if (!VALID_IDENTITY_EVIDENCE.has(platform.identityEvidence)) {
+      throw new Error(`platform registry: ${label} has illegal identityEvidence "${platform.identityEvidence}"`);
+    }
+    if (!VALID_DEGRADATION_POLICIES.has(platform.degradationPolicy)) {
+      throw new Error(`platform registry: ${label} has illegal degradationPolicy "${platform.degradationPolicy}"`);
+    }
     if (platform.automatable) {
       if (!platform.cli || typeof platform.cli.marketplaceAdd !== "function" || typeof platform.cli.install !== "function" || typeof platform.cli.list !== "function") {
         throw new Error(`platform registry: automatable platform ${label} needs cli template functions`);
@@ -21253,9 +21296,75 @@ function assertRegistry(registry = PLATFORMS) {
         throw new Error(`platform registry: non-automatable platform ${label} needs strategy.readManifest`);
       }
     }
+    if (platform.automatable === true && platform.installMethod !== "structured-cli") {
+      throw new Error(`platform registry: ${label} is automatable but installMethod is "${platform.installMethod}" (expected "structured-cli")`);
+    }
+    if (platform.automatable === false && platform.installMethod === "structured-cli") {
+      throw new Error(`platform registry: ${label} is not automatable but installMethod is "structured-cli"`);
+    }
+    if (platform.installMethod === "structured-cli" && platform.refStrength === "unfixable") {
+      throw new Error(`platform registry: ${label} has structured-cli install but unfixable refStrength`);
+    }
+    if (platform.installMethod === "human-attestation" && platform.identityEvidence !== "human-attestation") {
+      throw new Error(`platform registry: ${label} has human-attestation install but identityEvidence is "${platform.identityEvidence}"`);
+    }
   }
 }
-var CLAUDE, CODEX, KIMI, CODEBUDDY, PLATFORMS, VALID_DISTRIBUTION_TYPES, VALID_ACTION_TYPES, VALID_SOURCE_FORMS, VALID_MARKETPLACE_REF_FORMS, VALID_LIST_OUTPUTS, VALID_CLI_OUTPUTS, VALID_ENTRY_VERSION_BINDING;
+function resolvePlatformRoute(platform) {
+  const { installMethod } = platform;
+  if (installMethod === "structured-cli") {
+    return { route: "structured-cli", reason: `installMethod is structured-cli` };
+  }
+  if (installMethod === "interactive-only" || installMethod === "human-attestation") {
+    return { route: "human-attestation", reason: `installMethod is ${installMethod}` };
+  }
+  throw new Error(
+    `platform "${platform?.id ?? "<unknown>"}" with installMethod="${installMethod}" cannot be routed`
+  );
+}
+function resolveCapabilityConflicts(platform) {
+  const conflicts = [];
+  const { id, automatable, installMethod, refStrength, identityEvidence, cli, strategy } = platform;
+  if (automatable === true && installMethod !== "structured-cli") {
+    conflicts.push(`automatable=true but installMethod="${installMethod}"`);
+  }
+  if (automatable === false && installMethod === "structured-cli") {
+    conflicts.push(`automatable=false but installMethod="structured-cli"`);
+  }
+  if (installMethod === "structured-cli" && refStrength === "unfixable") {
+    conflicts.push(`structured-cli with unfixable refStrength`);
+  }
+  if (installMethod === "human-attestation" && identityEvidence !== "human-attestation") {
+    conflicts.push(`human-attestation install but identityEvidence="${identityEvidence}"`);
+  }
+  if (automatable === true) {
+    if (!cli || typeof cli !== "object") {
+      conflicts.push(`automatable=true but cli is missing`);
+    }
+    if (!strategy || typeof strategy.parseListOutput !== "function") {
+      conflicts.push(`automatable=true but strategy.parseListOutput is missing`);
+    }
+    if (!strategy || typeof strategy.extractInstallPath !== "function") {
+      conflicts.push(`automatable=true but strategy.extractInstallPath is missing`);
+    }
+  }
+  if (automatable === false) {
+    if (cli !== null) {
+      conflicts.push(`automatable=false but cli is not null`);
+    }
+    if (!strategy || typeof strategy.buildManualRequirement !== "function") {
+      conflicts.push(`automatable=false but strategy.buildManualRequirement is missing`);
+    }
+    if (!strategy || typeof strategy.readManifest !== "function") {
+      conflicts.push(`automatable=false but strategy.readManifest is missing`);
+    }
+  }
+  if (conflicts.length > 0) {
+    throw new Error(`capability conflict in platform "${id}": ${conflicts.join("; ")}`);
+  }
+  return { hasConflict: false, conflicts: [] };
+}
+var CLAUDE, CODEX, KIMI, CODEBUDDY, PLATFORMS, VALID_DISTRIBUTION_TYPES, VALID_ACTION_TYPES, VALID_SOURCE_FORMS, VALID_MARKETPLACE_REF_FORMS, VALID_LIST_OUTPUTS, VALID_CLI_OUTPUTS, VALID_ENTRY_VERSION_BINDING, VALID_INSTALL_METHODS, VALID_REF_STRENGTHS, VALID_OUTPUT_PROTOCOLS, VALID_IDENTITY_EVIDENCE, VALID_DEGRADATION_POLICIES;
 var init_registry = __esm({
   async "src/platforms/registry.mjs"() {
     await init_kimi();
@@ -21276,6 +21385,12 @@ var init_registry = __esm({
       // actionType -> adapter map from it (T2.2 step 3).
       adapter: "plugin-marketplace",
       automatable: true,
+      // --- capability contract (平台能力契约) ------------------------------------
+      installMethod: "structured-cli",
+      refStrength: "name-ref",
+      outputProtocol: "text",
+      identityEvidence: "list-record",
+      degradationPolicy: "block",
       cli: Object.freeze({
         binary: "claude",
         marketplaceAdd: /* @__PURE__ */ __name((repo, ref) => ["plugin", "marketplace", "add", `${repo}@${ref}`], "marketplaceAdd"),
@@ -21328,6 +21443,12 @@ var init_registry = __esm({
       actionType: "codex-marketplace-install",
       adapter: "plugin-marketplace",
       automatable: true,
+      // --- capability contract (平台能力契约) ------------------------------------
+      installMethod: "structured-cli",
+      refStrength: "commit-sha",
+      outputProtocol: "structured",
+      identityEvidence: "install-output",
+      degradationPolicy: "block",
       cli: Object.freeze({
         binary: "codex",
         marketplaceAdd: /* @__PURE__ */ __name((repo, ref) => ["plugin", "marketplace", "add", repo, "--ref", ref, "--json"], "marketplaceAdd"),
@@ -21379,6 +21500,12 @@ var init_registry = __esm({
       actionType: "kimi-marketplace-install",
       adapter: "plugin-marketplace",
       automatable: false,
+      // --- capability contract (平台能力契约) ------------------------------------
+      installMethod: "interactive-only",
+      refStrength: "unfixable",
+      outputProtocol: "none",
+      identityEvidence: "filesystem-payload",
+      degradationPolicy: "human-attestation",
       cli: null,
       jsonProtocol: Object.freeze({
         listOutput: null,
@@ -21430,6 +21557,12 @@ var init_registry = __esm({
       actionType: "codebuddy-marketplace-install",
       adapter: "plugin-marketplace",
       automatable: false,
+      // --- capability contract (平台能力契约) ------------------------------------
+      installMethod: "human-attestation",
+      refStrength: "unfixable",
+      outputProtocol: "none",
+      identityEvidence: "human-attestation",
+      degradationPolicy: "human-attestation",
       cli: null,
       jsonProtocol: Object.freeze({
         listOutput: null,
@@ -21493,9 +21626,16 @@ var init_registry = __esm({
     VALID_LIST_OUTPUTS = /* @__PURE__ */ new Set(["array", "installed-object", null]);
     VALID_CLI_OUTPUTS = /* @__PURE__ */ new Set(["json", null]);
     VALID_ENTRY_VERSION_BINDING = /* @__PURE__ */ new Set([true, false, null]);
+    VALID_INSTALL_METHODS = /* @__PURE__ */ new Set(["structured-cli", "interactive-only", "human-attestation"]);
+    VALID_REF_STRENGTHS = /* @__PURE__ */ new Set(["commit-sha", "name-ref", "unfixable"]);
+    VALID_OUTPUT_PROTOCOLS = /* @__PURE__ */ new Set(["structured", "text", "none"]);
+    VALID_IDENTITY_EVIDENCE = /* @__PURE__ */ new Set(["list-record", "install-output", "filesystem-payload", "human-attestation"]);
+    VALID_DEGRADATION_POLICIES = /* @__PURE__ */ new Set(["block", "human-attestation"]);
     __name(getPlatform, "getPlatform");
     __name(assertRegistry, "assertRegistry");
     assertRegistry();
+    __name(resolvePlatformRoute, "resolvePlatformRoute");
+    __name(resolveCapabilityConflicts, "resolveCapabilityConflicts");
   }
 });
 
@@ -22082,6 +22222,140 @@ function validatePlanActionCompleteness(plan, options = {}) {
             } else if (raw < 3e4 || raw > 9e5) {
               failures.push(
                 `unit "${unitId}", action "${action.id}": parameters.timeoutMs must be between 30000 and 900000, got: ${raw}`
+              );
+            }
+          }
+        }
+        if (production) {
+          _checkRequired(action, "parameters.sourceCommit", action.parameters?.sourceCommit, frozen?.commit, unitId, failures);
+        }
+        if (requiresMarketplace) {
+          const sd = action.parameters?.sourceDescriptor;
+          const mf = action.parameters?.marketplaceForm;
+          if (sd === void 0 || sd === null) {
+            if (!options.legacyCompatibility) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.sourceDescriptor is missing; every marketplace install action must carry a complete source descriptor`
+              );
+            }
+          } else if (typeof sd === "object") {
+            if (mf === void 0 || mf === null) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.marketplaceForm is missing but sourceDescriptor is present; form must be explicitly declared`
+              );
+            }
+            if (sd.form !== mf) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": sourceDescriptor.form "${sd.form}" does not match parameters.marketplaceForm "${mf}"`
+              );
+            }
+            const BUNDLED_REQUIRED = ["form", "repo", "marketplaceEntry", "pluginSubpath"];
+            const STANDALONE_REQUIRED = ["form", "marketplaceRepo", "marketplaceEntry", "pluginRepo", "sourceType"];
+            const PROD_ONLY_FIELDS = ["marketplaceCommitSha", "ref", "payloadDigest"];
+            if (sd.form === "bundled-family") {
+              for (const field of BUNDLED_REQUIRED) {
+                if (sd[field] === void 0 || sd[field] === null) {
+                  failures.push(
+                    `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is missing or null; bundled-family form requires all identity fields to be non-null`
+                  );
+                }
+              }
+              if (production && (sd.commit === void 0 || sd.commit === null)) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.commit is missing or null; production bundled-family plans require a frozen commit`
+                );
+              }
+              if (production && sd.commit !== void 0 && sd.commit !== null && frozen?.commit !== void 0 && sd.commit !== frozen.commit) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.commit does not match frozenSnapshot.commit`
+                );
+              }
+              if (production && (sd.payloadDigest === void 0 || sd.payloadDigest === null)) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.payloadDigest is missing or null; production plans require a frozen payload digest`
+                );
+              }
+              const STANDALONE_ONLY = ["marketplaceRepo", "pluginRepo", "sourceType", "marketplaceCommitSha", "ref"];
+              for (const field of STANDALONE_ONLY) {
+                if (sd[field] !== void 0) {
+                  failures.push(
+                    `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is unexpected for bundled-family form; mixed fields are prohibited`
+                  );
+                }
+              }
+              if (sd.repo !== void 0 && sd.repo !== null && sd.repo !== publicRepo) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.repo "${sd.repo}" does not match unit publicRepo "${publicRepo}"`
+                );
+              }
+              if (sd.marketplaceEntry !== void 0 && sd.marketplaceEntry !== null && sd.marketplaceEntry !== plugin) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.marketplaceEntry "${sd.marketplaceEntry}" does not match action plugin "${plugin}"`
+                );
+              }
+              if (production && sd.payloadDigest !== void 0 && sd.payloadDigest !== null && frozen?.manifestDigest !== void 0 && sd.payloadDigest !== frozen.manifestDigest) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.payloadDigest does not match frozen manifestDigest`
+                );
+              }
+            } else if (sd.form === "standalone-index") {
+              for (const field of STANDALONE_REQUIRED) {
+                if (sd[field] === void 0 || sd[field] === null) {
+                  failures.push(
+                    `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is missing or null; standalone-index form requires all identity fields to be non-null`
+                  );
+                }
+              }
+              if (production) {
+                for (const field of PROD_ONLY_FIELDS) {
+                  if (sd[field] === void 0 || sd[field] === null) {
+                    failures.push(
+                      `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is missing or null; production standalone-index requires all fields to be non-null`
+                    );
+                  }
+                }
+              }
+              const BUNDLED_ONLY = ["repo", "commit", "pluginSubpath"];
+              for (const field of BUNDLED_ONLY) {
+                if (sd[field] !== void 0) {
+                  failures.push(
+                    `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is unexpected for standalone-index form; mixed fields are prohibited`
+                  );
+                }
+              }
+              if (sd.pluginRepo !== void 0 && sd.pluginRepo !== null && sd.marketplaceRepo !== void 0 && sd.marketplaceRepo !== null && sd.pluginRepo === sd.marketplaceRepo) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.pluginRepo must not equal marketplaceRepo; the plugin repo and marketplace repo are distinct repositories`
+                );
+              }
+              if (externalMarketplace && sd.marketplaceRepo !== void 0 && sd.marketplaceRepo !== null && sd.marketplaceRepo !== dist.marketplaceRepo) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.marketplaceRepo "${sd.marketplaceRepo}" does not match distribution marketplaceRepo "${dist.marketplaceRepo}"`
+                );
+              }
+              if (sd.pluginRepo !== void 0 && sd.pluginRepo !== null && sd.pluginRepo !== publicRepo) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.pluginRepo "${sd.pluginRepo}" does not match unit publicRepo "${publicRepo}"`
+                );
+              }
+              if (sd.marketplaceEntry !== void 0 && sd.marketplaceEntry !== null && sd.marketplaceEntry !== plugin) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.marketplaceEntry "${sd.marketplaceEntry}" does not match action plugin "${plugin}"`
+                );
+              }
+              if (sd.sourceType !== void 0 && sd.sourceType !== null && sd.sourceType !== "marketplace-entry") {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.sourceType "${sd.sourceType}" is unexpected; standalone-index sourceType must be "marketplace-entry"`
+                );
+              }
+              if (production && sd.payloadDigest !== void 0 && sd.payloadDigest !== null && frozen?.manifestDigest !== void 0 && sd.payloadDigest !== frozen.manifestDigest) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.payloadDigest does not match frozen manifestDigest`
+                );
+              }
+            } else {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": sourceDescriptor.form "${sd.form}" is unknown; expected "bundled-family" or "standalone-index"`
               );
             }
           }
@@ -75388,6 +75662,28 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
         const requiresMarketplace = platform.schemaRequiredFields.includes("marketplace");
         const timeoutMs = Number.isInteger(dist.timeoutMs) ? dist.timeoutMs : 3e5;
         const externalMarketplace = dist.marketplaceRepo !== void 0 && dist.marketplaceRepo !== null;
+        const marketplaceForm = requiresMarketplace ? externalMarketplace ? "standalone-index" : "bundled-family" : null;
+        const sourceDescriptor = marketplaceForm === "standalone-index" ? Object.freeze({
+          form: "standalone-index",
+          marketplaceRepo: dist.marketplaceRepo,
+          marketplaceEntry: dist.plugin,
+          // pluginRepo is the plugin's own public repo, NOT the external
+          // marketplace repo. The marketplace repo contains the index; the
+          // plugin repo contains the actual plugin code.
+          pluginRepo: unit.publicRepo,
+          sourceType: "marketplace-entry",
+          // Production-only fields: marketplaceCommitSha and ref are frozen
+          // by resolveExternalMarketplaceFreezes in the production path.
+          marketplaceCommitSha: null,
+          ref: null,
+          payloadDigest: null
+        }) : marketplaceForm === "bundled-family" ? Object.freeze({
+          form: "bundled-family",
+          repo: unit.publicRepo,
+          marketplaceEntry: dist.plugin,
+          pluginSubpath: ".",
+          payloadDigest: null
+        }) : null;
         actions.push({
           id: `${platform.actionType}-${unit.id}`,
           type: platform.actionType,
@@ -75408,7 +75704,9 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
             // External marketplace form uses the external-marketplace-v1
             // contract (whole-tree '.' containment; see plugin-marketplace).
             payloadContract: externalMarketplace ? "external-marketplace-v1" : "declared-manifest-v1",
-            ...externalMarketplace ? { marketplaceLocation: "external" } : {}
+            ...externalMarketplace ? { marketplaceLocation: "external" } : {},
+            ...marketplaceForm ? { marketplaceForm } : {},
+            ...sourceDescriptor ? { sourceDescriptor } : {}
           },
           expected: {
             installed: true,
@@ -75553,6 +75851,27 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
       const timeoutMs = Number.isInteger(dist.timeoutMs) ? dist.timeoutMs : 3e5;
       const externalMarketplace = dist.marketplaceRepo !== void 0 && dist.marketplaceRepo !== null;
       const freeze = externalMarketplace ? externalFreezes.get(`${unit.id} ${dist.type}`) : null;
+      const marketplaceForm = requiresMarketplace ? externalMarketplace ? "standalone-index" : "bundled-family" : null;
+      const sourceDescriptor = marketplaceForm === "standalone-index" ? Object.freeze({
+        form: "standalone-index",
+        marketplaceRepo: dist.marketplaceRepo,
+        marketplaceCommitSha: freeze?.marketplaceCommitSha ?? null,
+        marketplaceEntry: dist.plugin,
+        // pluginRepo is the plugin's own public repo, NOT the external
+        // marketplace repo. The marketplace repo contains the index; the
+        // plugin repo contains the actual plugin code.
+        pluginRepo: unit.publicRepo,
+        sourceType: "marketplace-entry",
+        ref: freeze?.ref ?? null,
+        payloadDigest: asset.manifestDigest
+      }) : marketplaceForm === "bundled-family" ? Object.freeze({
+        form: "bundled-family",
+        repo: unit.publicRepo,
+        commit: asset.commit,
+        marketplaceEntry: dist.plugin,
+        pluginSubpath: ".",
+        payloadDigest: asset.manifestDigest
+      }) : null;
       actions.push({
         id: `${platform.actionType}-${unit.id}`,
         type: platform.actionType,
@@ -75576,7 +75895,13 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
           // External marketplace form uses the external-marketplace-v1
           // contract (whole-tree '.' containment; see plugin-marketplace).
           payloadContract: externalMarketplace ? "external-marketplace-v1" : "declared-manifest-v1",
-          ...externalMarketplace ? { marketplaceLocation: "external", marketplaceCommitSha: freeze.marketplaceCommitSha } : {}
+          ...externalMarketplace ? { marketplaceLocation: "external", marketplaceCommitSha: freeze.marketplaceCommitSha } : {},
+          ...marketplaceForm ? { marketplaceForm } : {},
+          ...sourceDescriptor ? { sourceDescriptor } : {},
+          // 冻结的插件来源提交，用于 sourceDescriptor.commit 交叉校验。
+          // bundled-family: sourceDescriptor.commit 绑定到此值。
+          // standalone-index: 通过此值绑定插件载荷来源。
+          sourceCommit: asset.commit
         },
         expected: {
           installed: true,
@@ -78874,16 +79199,29 @@ async function resolveKimiEntrySkillFile(pluginRootReal, manifest, entrySkill) {
   return entryReal;
 }
 function normalizeCodeBuddySkillsRel(skillsRaw) {
-  if (typeof skillsRaw !== "string" || skillsRaw.length === 0) {
+  let skillsPath;
+  if (Array.isArray(skillsRaw)) {
+    if (skillsRaw.length !== 1) {
+      throw new Error(
+        `codebuddy manifest skills array must have exactly one element, got ${skillsRaw.length}`
+      );
+    }
+    skillsPath = skillsRaw[0];
+  } else if (typeof skillsRaw === "string") {
+    skillsPath = skillsRaw;
+  } else {
+    throw new Error("codebuddy manifest skills must be a string or single-element array when present");
+  }
+  if (typeof skillsPath !== "string" || skillsPath.length === 0) {
     throw new Error("codebuddy manifest skills must be a non-empty relative path when present");
   }
-  if (skillsRaw.startsWith("/") || skillsRaw.includes("..") || skillsRaw.includes("\\") || /^https?:\/\//i.test(skillsRaw)) {
-    throw new Error(`codebuddy manifest skills "${skillsRaw}" is not a safe relative path`);
+  if (skillsPath.startsWith("/") || skillsPath.includes("..") || skillsPath.includes("\\") || /^https?:\/\//i.test(skillsPath)) {
+    throw new Error(`codebuddy manifest skills "${skillsPath}" is not a safe relative path`);
   }
-  let rel = skillsRaw.replace(/^\.\//, "");
+  let rel = skillsPath.replace(/^\.\//, "");
   rel = rel.replace(/\/+$/, "");
   if (rel.split("/").some((segment) => segment === "" || segment === "." || segment === "..")) {
-    throw new Error(`codebuddy manifest skills "${skillsRaw}" is not a safe relative path`);
+    throw new Error(`codebuddy manifest skills "${skillsPath}" is not a safe relative path`);
   }
   return rel;
 }
@@ -78984,7 +79322,9 @@ function validateMarketplaceParams(params) {
   if (!plugin || !SAFE_ID_RE.test(plugin)) {
     return { valid: false, error: `unsafe plugin identifier: "${plugin}"` };
   }
-  if (!getPlatform(consumer).automatable) {
+  const consumerPlatform = getPlatform(consumer);
+  const consumerRoute = resolvePlatformRoute(consumerPlatform);
+  if (consumerRoute.route === "human-attestation") {
     if (marketplace !== void 0 && marketplace !== null && !SAFE_ID_RE.test(marketplace)) {
       return { valid: false, error: `unsafe marketplace identifier: "${marketplace}"` };
     }
@@ -79173,7 +79513,191 @@ function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
           const consumer = action.consumer;
+          const consumerPlatform = getPlatform(consumer);
+          const capabilityConflicts = resolveCapabilityConflicts(consumerPlatform);
+          if (capabilityConflicts.length > 0) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: `platform capability conflict: ${capabilityConflicts.join("; ")}`
+            });
+          }
+          const route = resolvePlatformRoute(consumerPlatform);
+          if (route.route === "structured-cli") {
+            const sd = action.sourceDescriptor;
+            if (!sd || typeof sd !== "object") {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: "sourceDescriptor is required for marketplace install"
+              });
+            }
+            if (sd.form !== action.marketplaceForm) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `sourceDescriptor.form "${sd.form}" does not match marketplaceForm "${action.marketplaceForm}"`
+              });
+            }
+            if (typeof sd.payloadDigest !== "string" || sd.payloadDigest.length === 0) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: "sourceDescriptor.payloadDigest is required"
+              });
+            }
+            if (!/^[a-f0-9]{64}$/.test(sd.payloadDigest)) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: "sourceDescriptor.payloadDigest must be a 64-char lowercase hex string"
+              });
+            }
+            if (sd.payloadDigest === "0".repeat(64)) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: "sourceDescriptor.payloadDigest must not be the null hash"
+              });
+            }
+            if (typeof sd.marketplaceEntry !== "string" || sd.marketplaceEntry.length === 0) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: "sourceDescriptor.marketplaceEntry is required"
+              });
+            }
+            if (sd.marketplaceEntry !== action.plugin) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `sourceDescriptor.marketplaceEntry "${sd.marketplaceEntry}" does not match action plugin "${action.plugin}"`
+              });
+            }
+            if (sd.form === "bundled-family") {
+              if (!sd.repo || !SAFE_REPO_RE.test(sd.repo)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.repo is required and must be a safe repo pattern`
+                });
+              }
+              if (sd.repo !== action.repo) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.repo "${sd.repo}" does not match action.repo "${action.repo}"`
+                });
+              }
+              if (sd.commit !== void 0 && (typeof sd.commit !== "string" || !/^[0-9a-f]{40}$/.test(sd.commit))) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.commit must be a 40-hex commit sha for bundled-family form"
+                });
+              }
+              if (sd.commit !== void 0 && action.sourceCommit && sd.commit !== action.sourceCommit) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.commit "${sd.commit}" does not match action.sourceCommit "${action.sourceCommit}"`
+                });
+              }
+              if (sd.payloadDigest !== void 0 && (!sd.payloadDigest || !SAFE_DIGEST_RE.test(sd.payloadDigest))) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.payloadDigest is required for bundled-family form"
+                });
+              }
+              if (sd.payloadDigest !== void 0 && action.manifestDigest && sd.payloadDigest !== action.manifestDigest) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.payloadDigest does not match action.manifestDigest`
+                });
+              }
+              if (typeof sd.pluginSubpath !== "string" || sd.pluginSubpath.length === 0) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.pluginSubpath is required for bundled-family form"
+                });
+              }
+            } else if (sd.form === "standalone-index") {
+              if (!sd.pluginRepo || !SAFE_REPO_RE.test(sd.pluginRepo)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.pluginRepo is required for standalone-index form`
+                });
+              }
+              if (!sd.marketplaceRepo || !SAFE_REPO_RE.test(sd.marketplaceRepo)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.marketplaceRepo is required for standalone-index form"
+                });
+              }
+              if (sd.marketplaceRepo !== action.repo) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.marketplaceRepo "${sd.marketplaceRepo}" does not match action.repo "${action.repo}"`
+                });
+              }
+              if (sd.pluginRepo === sd.marketplaceRepo) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.pluginRepo "${sd.pluginRepo}" must differ from marketplaceRepo "${sd.marketplaceRepo}"`
+                });
+              }
+              if (typeof sd.marketplaceCommitSha !== "string" || !/^[0-9a-f]{40}$/.test(sd.marketplaceCommitSha)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.marketplaceCommitSha must be a 40-hex commit sha for standalone-index form"
+                });
+              }
+              if (action.marketplaceCommitSha && sd.marketplaceCommitSha !== action.marketplaceCommitSha) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.marketplaceCommitSha "${sd.marketplaceCommitSha}" does not match action.marketplaceCommitSha "${action.marketplaceCommitSha}"`
+                });
+              }
+              if (typeof sd.ref !== "string" || sd.ref.length === 0) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.ref is required for standalone-index form"
+                });
+              }
+              if (sd.payloadDigest !== void 0 && (!sd.payloadDigest || !SAFE_DIGEST_RE.test(sd.payloadDigest))) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.payloadDigest must be a 64-hex digest for standalone-index form"
+                });
+              }
+              if (sd.payloadDigest !== void 0 && action.manifestDigest && sd.payloadDigest !== action.manifestDigest) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.payloadDigest does not match action.manifestDigest`
+                });
+              }
+            } else {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `sourceDescriptor.form "${sd.form}" is not a recognized form (expected "bundled-family" or "standalone-index")`
+              });
+            }
+          }
           const platform = getPlatform(consumer);
+          const platformRoute = resolvePlatformRoute(platform);
           let snapshotDirReal;
           let kimiSnapshotManifest = null;
           try {
@@ -79185,7 +79709,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
               error: `frozen snapshot validation failed: ${frozenErr.message}`
             });
           }
-          if (!platform.automatable) {
+          if (platformRoute.route === "human-attestation") {
             const manifestLabel = consumer === "codebuddy" ? "codebuddy" : "kimi";
             let kimiManifestResult;
             try {
@@ -79214,7 +79738,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
             }
             kimiSnapshotManifest = kimiManifest;
           }
-          if (platform.automatable) {
+          if (platformRoute.route === "structured-cli") {
             if (action.marketplaceLocation === "external") {
               if (typeof action.marketplaceCommitSha !== "string" || !/^[0-9a-f]{40}$/.test(action.marketplaceCommitSha)) {
                 return createResult({
@@ -79357,7 +79881,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
               }
             }
           }
-          if (!platform.automatable) {
+          if (platformRoute.route === "human-attestation") {
             const resolveEntrySkillFile = consumer === "codebuddy" ? resolveCodeBuddyEntrySkillFile : resolveKimiEntrySkillFile;
             try {
               await resolveEntrySkillFile(snapshotDirReal, kimiSnapshotManifest, action.entrySkill);
@@ -79528,7 +80052,8 @@ function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
           const platform = getPlatform(action.consumer);
-          if (!platform.automatable) {
+          const executeRoute = resolvePlatformRoute(platform);
+          if (executeRoute.route === "human-attestation") {
             return platform.strategy.buildManualRequirement(action, context);
           }
           const consumer = action.consumer;
@@ -79797,11 +80322,16 @@ function createPluginMarketplaceAdapter(deps = {}) {
           }
           const isolatedHome = resolve21(runDir, "consumers", `${consumer}-${action.plugin}`);
           const platform = PLATFORMS.find((p) => p.id === consumer) ?? null;
-          const cliCmd = platform ? platform.cli ? platform.cli.binary : null : "kimi";
+          if (!platform) {
+            throw new Error(
+              `Unknown consumer platform "${consumer}" for action "${actionType}". Registered platforms: ${PLATFORMS.map((p) => p.id).join(", ")}`
+            );
+          }
+          const cliCmd = platform.cli ? platform.cli.binary : null;
           const baseEnv = { ...process.env, ...context.env ?? {} };
           const env = {
             ...baseEnv,
-            ...platform ? platform.isolationEnv(isolatedHome) : { HOME: isolatedHome, KIMI_CODE_HOME: isolatedHome }
+            ...platform.isolationEnv(isolatedHome)
           };
           let frozenTimeoutMs;
           try {
@@ -79814,7 +80344,8 @@ function createPluginMarketplaceAdapter(deps = {}) {
               error: timeoutErr.message
             });
           }
-          if (platform && !platform.automatable && actionType === ActionType.KIMI_MARKETPLACE_INSTALL) {
+          const kimiRoute = platform ? resolvePlatformRoute(platform) : null;
+          if (platform && kimiRoute?.route === "human-attestation" && actionType === ActionType.KIMI_MARKETPLACE_INSTALL) {
             const expectedRef = action.ref ?? `v${action.version}`;
             let boundPlanDigest;
             try {
@@ -80047,7 +80578,8 @@ function createPluginMarketplaceAdapter(deps = {}) {
               observation: observation2
             });
           }
-          if (platform && !platform.automatable && actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL) {
+          const codebuddyRoute = platform ? resolvePlatformRoute(platform) : null;
+          if (platform && codebuddyRoute?.route === "human-attestation" && actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL) {
             const expectedRef = action.ref ?? `v${action.version}`;
             let boundPlanDigest;
             try {
@@ -80571,7 +81103,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
     }
   });
 }
-var execFile9, NAME4, PAYLOAD_CONTRACT_DECLARED_MANIFEST, PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE, EXTRA_INSTALLED_PATHS_CAP, PAYLOAD_CONFLICT_REPORT_CAP, SUPPORTED_TYPES, SAFE_REPO_RE, CONSUMER_IDS, STRICT_SEMVER_RE;
+var execFile9, NAME4, PAYLOAD_CONTRACT_DECLARED_MANIFEST, PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE, EXTRA_INSTALLED_PATHS_CAP, PAYLOAD_CONFLICT_REPORT_CAP, SUPPORTED_TYPES, SAFE_REPO_RE, SAFE_DIGEST_RE, CONSUMER_IDS, STRICT_SEMVER_RE;
 var init_plugin_marketplace = __esm({
   async "src/adapters/plugin-marketplace.mjs"() {
     init_contract();
@@ -80603,6 +81135,7 @@ var init_plugin_marketplace = __esm({
       ActionType.CODEBUDDY_MARKETPLACE_INSTALL
     ];
     SAFE_REPO_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*\/[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
+    SAFE_DIGEST_RE = /^[0-9a-f]{64}$/;
     CONSUMER_IDS = new Set(PLATFORMS.map((p) => p.id));
     STRICT_SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
     __name(validateSafeRef, "validateSafeRef");
@@ -81155,7 +81688,7 @@ async function verifyRelease(options) {
             { actionId: action.id, observation: verifyResult.observation }
           );
         }
-        const distribution = action.type === "claude-marketplace-install" ? "claude-plugin" : action.type === "codex-marketplace-install" ? "codex-plugin" : "kimi-plugin";
+        const distribution = action.type === "claude-marketplace-install" ? "claude-plugin" : action.type === "codex-marketplace-install" ? "codex-plugin" : action.type === "codebuddy-marketplace-install" ? "codebuddy-plugin" : "kimi-plugin";
         const installPath = verifyResult.observation?.installPath;
         consumerGateResults.push(...await runConsumerVerificationGates({
           plan,
@@ -81170,6 +81703,8 @@ async function verifyRelease(options) {
           } : action.type === "codex-marketplace-install" ? {
             HOME: resolve22(runDir, "consumers", `codex-${action.parameters.plugin}`),
             CODEX_HOME: resolve22(runDir, "consumers", `codex-${action.parameters.plugin}`)
+          } : action.type === "codebuddy-marketplace-install" ? {
+            HOME: resolve22(runDir, "consumers", `codebuddy-${action.parameters.plugin}`)
           } : {
             HOME: resolve22(runDir, "consumers", `kimi-${action.parameters.plugin}`),
             KIMI_CODE_HOME: resolve22(runDir, "consumers", `kimi-${action.parameters.plugin}`)

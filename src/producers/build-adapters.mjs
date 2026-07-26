@@ -438,9 +438,16 @@ async function generateAdapterFiles(platform, skills, templateJson, root, market
   if (typeof adapted.skills === 'string') {
     adapted.skills = platform.name === 'workbuddy' ? ['./skills/'] : './skills/';
   } else if (Array.isArray(adapted.skills)) {
-    for (const skill of adapted.skills) {
+    // Handle both string array and object array forms
+    adapted.skills = adapted.skills.map((skill) => {
+      if (typeof skill === 'string') {
+        // String array: transform to relative path for the adapter
+        return platform.name === 'workbuddy' ? './skills/' : skill;
+      }
+      // Object array: preserve existing behavior
       skill.source = `../skills/${skill.name}/SKILL.md`;
-    }
+      return skill;
+    });
   }
 
   const pluginJsonContent = JSON.stringify(adapted, null, 2) + '\n';

@@ -1,5 +1,24 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.2.3 locale=en baseline=sha256:1bc1839f9d2de5481a9edc7748722c02c5c9369d2034f8c6495f6dd00a392339 -->
+## [0.2.3] - 2026-07-26
+
+v0.2.3 is a fix-forward release that addresses platform verification, public artifact, and documentation issues discovered in v0.2.2. The release converges platform fact sources, fixes consumer gate mapping errors, and strengthens attestation validation.
+
+### Changed
+
+- **Version synchronized to 0.2.3**: all plugin manifests (9 files), package.json, INSTALL.md, INSTALL.zh-CN.md, README.md, and README.zh-CN.md updated.
+
+### Fixed
+
+- **CodeBuddy marketplace-install distribution mapping**: `verify.mjs` now correctly maps `codebuddy-marketplace-install` to `codebuddy-plugin` distribution (was incorrectly falling back to `kimi-plugin`). The `fixedEnv` for codebuddy now uses only `HOME` without `KIMI_CODE_HOME`.
+- **Unknown consumer fallback removed**: `plugin-marketplace.mjs` now throws an explicit error for unregistered consumer platforms instead of silently falling back to Kimi configuration. Error message includes the unknown consumer id and list of registered platforms.
+- **CodeBuddy attestation baseline exclusion**: `.release-skill/codebuddy-attestations/` is now properly excluded from workspace baseline digest calculation, preventing self-drift when codebuddy attestation files are written during the release lifecycle.
+- **CodeBuddy manifest skills field accepts array**: `normalizeCodeBuddySkillsRel()` now accepts both string and single-element array forms for the `skills` field, matching the real CodeBuddy validator's expected shape. The root `.codebuddy-plugin/plugin.json` now uses array form.
+- **CLI channel attestation path validation**: `validateCodeBuddyAttestation()` now validates that CLI channel `installPath` ends with the well-known `.codebuddy/plugins/marketplaces/<marketplace>/plugins/<plugin>` segment tail, closing a path-escape gap.
+<!-- release-skill:changelog:end version=0.2.3 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.2.2 locale=en baseline=sha256:3208d6a99e84307e77201bb42f88030caac232a3bcbf0942e5747e1934c5c658 -->
 ## [0.2.2] - 2026-07-26
 

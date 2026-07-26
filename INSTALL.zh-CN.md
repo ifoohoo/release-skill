@@ -2,7 +2,7 @@
 
 [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.2.2 -->
+<!-- release-skill:release-version: 0.2.3 -->
 ## 前置条件
 
 - Node.js 22.0.0 或更高版本
@@ -133,7 +133,7 @@ release-skill 把 Kimi 安装建模为“版本钉死的手动安装 + 可信观
    它会安装最新 release 或默认分支），确认信任提示后重新加载：
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.2
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.3
    /plugins reload
    ```
 
@@ -147,10 +147,10 @@ release-skill 把 Kimi 安装建模为“版本钉死的手动安装 + 可信观
 {
   "consumer": "kimi",
   "plugin": "release-skill",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "entrySkill": "release-help",
   "repo": "ifoohoo/release-skill",
-  "ref": "release-skill-v0.2.2",
+  "ref": "release-skill-v0.2.3",
   "installPath": "<kimiCodeHome>/plugins/managed/release-skill",
   "planDigest": "<64 位十六进制冻结计划摘要>",
   "payloadDigest": "<64 位十六进制冻结快照载荷摘要>",
@@ -218,7 +218,7 @@ codebuddy CLI 可以添加市场并安装插件，但 **`plugin marketplace add`
    插件落点为
    `<codebuddyHome>/.codebuddy/plugins/marketplaces/artifact-skill-set/plugins/release-skill/`。
 4. **ref 限制警告：** codebuddy 安装跟踪市场默认分支，**无法**钉死到冻结 ref。
-   写出证明之前，必须核实已安装插件清单版本等于冻结版本 `0.2.1`；否则**不得**
+   写出证明之前，必须核实已安装插件清单版本等于冻结版本 `0.2.3`；否则**不得**
    出具证明。
 5. 把证明 JSON 写入
    `<root>/.release-skill/codebuddy-attestations/<planDigest>/<plugin>/release-skill-codebuddy-attestation.json`。
@@ -232,10 +232,10 @@ codebuddy CLI 可以添加市场并安装插件，但 **`plugin marketplace add`
 {
   "consumer": "codebuddy",
   "plugin": "release-skill",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "entrySkill": "release-help",
   "repo": "ifoohoo/release-skill",
-  "ref": "release-skill-v0.2.2",
+  "ref": "release-skill-v0.2.3",
   "marketplace": "artifact-skill-set",
   "installChannel": "desktop",
   "installPath": "~/.workbuddy/plugins/marketplaces/artifact-skill-set/plugins/release-skill",

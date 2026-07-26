@@ -1258,6 +1258,39 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
         // but no frozen ref/marketplaceCommitSha (production-only bindings),
         // keeping the two loops' shapes aligned for plan completeness.
         const externalMarketplace = dist.marketplaceRepo !== undefined && dist.marketplaceRepo !== null;
+        // Normalized marketplace form: explicit mutually exclusive declaration.
+        // bundled-family: marketplace and plugin live in the same repo.
+        // standalone-index: external marketplace repo indexes a separate plugin repo.
+        // Non-automatable platforms (kimi, codebuddy) use human-attestation and
+        // carry no marketplace form.
+        const marketplaceForm = requiresMarketplace
+          ? (externalMarketplace ? 'standalone-index' : 'bundled-family')
+          : null;
+        const sourceDescriptor = marketplaceForm === 'standalone-index'
+          ? Object.freeze({
+            form: 'standalone-index',
+            marketplaceRepo: dist.marketplaceRepo,
+            marketplaceEntry: dist.plugin,
+            // pluginRepo is the plugin's own public repo, NOT the external
+            // marketplace repo. The marketplace repo contains the index; the
+            // plugin repo contains the actual plugin code.
+            pluginRepo: unit.publicRepo,
+            sourceType: 'marketplace-entry',
+            // Production-only fields: marketplaceCommitSha and ref are frozen
+            // by resolveExternalMarketplaceFreezes in the production path.
+            marketplaceCommitSha: null,
+            ref: null,
+            payloadDigest: null,
+          })
+          : marketplaceForm === 'bundled-family'
+            ? Object.freeze({
+              form: 'bundled-family',
+              repo: unit.publicRepo,
+              marketplaceEntry: dist.plugin,
+              pluginSubpath: '.',
+              payloadDigest: null,
+            })
+            : null;
         actions.push({
           id: `${platform.actionType}-${unit.id}`,
           type: platform.actionType,
@@ -1279,6 +1312,8 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
             // contract (whole-tree '.' containment; see plugin-marketplace).
             payloadContract: externalMarketplace ? 'external-marketplace-v1' : 'declared-manifest-v1',
             ...(externalMarketplace ? { marketplaceLocation: 'external' } : {}),
+            ...(marketplaceForm ? { marketplaceForm } : {}),
+            ...(sourceDescriptor ? { sourceDescriptor } : {}),
           },
           expected: {
             installed: true,
@@ -1450,6 +1485,34 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
       // snapshot, unchanged. Inline form (no marketplaceRepo) is byte-identical.
       const externalMarketplace = dist.marketplaceRepo !== undefined && dist.marketplaceRepo !== null;
       const freeze = externalMarketplace ? externalFreezes.get(`${unit.id} ${dist.type}`) : null;
+      // Normalized marketplace form: explicit mutually exclusive declaration.
+      const marketplaceForm = requiresMarketplace
+        ? (externalMarketplace ? 'standalone-index' : 'bundled-family')
+        : null;
+      const sourceDescriptor = marketplaceForm === 'standalone-index'
+        ? Object.freeze({
+          form: 'standalone-index',
+          marketplaceRepo: dist.marketplaceRepo,
+          marketplaceCommitSha: freeze?.marketplaceCommitSha ?? null,
+          marketplaceEntry: dist.plugin,
+          // pluginRepo is the plugin's own public repo, NOT the external
+          // marketplace repo. The marketplace repo contains the index; the
+          // plugin repo contains the actual plugin code.
+          pluginRepo: unit.publicRepo,
+          sourceType: 'marketplace-entry',
+          ref: freeze?.ref ?? null,
+          payloadDigest: asset.manifestDigest,
+        })
+        : marketplaceForm === 'bundled-family'
+          ? Object.freeze({
+            form: 'bundled-family',
+            repo: unit.publicRepo,
+            commit: asset.commit,
+            marketplaceEntry: dist.plugin,
+            pluginSubpath: '.',
+            payloadDigest: asset.manifestDigest,
+          })
+          : null;
       actions.push({
         id: `${platform.actionType}-${unit.id}`,
         type: platform.actionType,
@@ -1474,6 +1537,12 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
           // contract (whole-tree '.' containment; see plugin-marketplace).
           payloadContract: externalMarketplace ? 'external-marketplace-v1' : 'declared-manifest-v1',
           ...(externalMarketplace ? { marketplaceLocation: 'external', marketplaceCommitSha: freeze.marketplaceCommitSha } : {}),
+          ...(marketplaceForm ? { marketplaceForm } : {}),
+          ...(sourceDescriptor ? { sourceDescriptor } : {}),
+          // 冻结的插件来源提交，用于 sourceDescriptor.commit 交叉校验。
+          // bundled-family: sourceDescriptor.commit 绑定到此值。
+          // standalone-index: 通过此值绑定插件载荷来源。
+          sourceCommit: asset.commit,
         },
         expected: {
           installed: true,

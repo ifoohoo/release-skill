@@ -31,7 +31,7 @@ import {
 
 import { createHash } from 'node:crypto';
 import { computeFrozenSnapshot, resolveFrozenPath } from '../snapshot/frozen.mjs';
-import { PLATFORMS, getPlatform } from '../platforms/registry.mjs';
+import { PLATFORMS, getPlatform, resolvePlatformRoute, resolveCapabilityConflicts } from '../platforms/registry.mjs';
 import {
   KIMI_REQUIREMENT_FILE,
   KIMI_ATTESTATION_FILE,
@@ -448,21 +448,37 @@ async function resolveKimiEntrySkillFile(pluginRootReal, manifest, entrySkill) {
  * @returns {string} normalized relative path ('' for the plugin root itself)
  */
 function normalizeCodeBuddySkillsRel(skillsRaw) {
-  if (typeof skillsRaw !== 'string' || skillsRaw.length === 0) {
+  // CodeBuddy real validator accepts array form; extract first element for
+  // backward compatibility with string form.
+  let skillsPath;
+  if (Array.isArray(skillsRaw)) {
+    if (skillsRaw.length !== 1) {
+      throw new Error(
+        `codebuddy manifest skills array must have exactly one element, got ${skillsRaw.length}`,
+      );
+    }
+    skillsPath = skillsRaw[0];
+  } else if (typeof skillsRaw === 'string') {
+    skillsPath = skillsRaw;
+  } else {
+    throw new Error('codebuddy manifest skills must be a string or single-element array when present');
+  }
+
+  if (typeof skillsPath !== 'string' || skillsPath.length === 0) {
     throw new Error('codebuddy manifest skills must be a non-empty relative path when present');
   }
   if (
-    skillsRaw.startsWith('/') ||
-    skillsRaw.includes('..') ||
-    skillsRaw.includes('\\') ||
-    /^https?:\/\//i.test(skillsRaw)
+    skillsPath.startsWith('/') ||
+    skillsPath.includes('..') ||
+    skillsPath.includes('\\') ||
+    /^https?:\/\//i.test(skillsPath)
   ) {
-    throw new Error(`codebuddy manifest skills "${skillsRaw}" is not a safe relative path`);
+    throw new Error(`codebuddy manifest skills "${skillsPath}" is not a safe relative path`);
   }
-  let rel = skillsRaw.replace(/^\.\//, '');
+  let rel = skillsPath.replace(/^\.\//, '');
   rel = rel.replace(/\/+$/, '');
   if (rel.split('/').some((segment) => segment === '' || segment === '.' || segment === '..')) {
-    throw new Error(`codebuddy manifest skills "${skillsRaw}" is not a safe relative path`);
+    throw new Error(`codebuddy manifest skills "${skillsPath}" is not a safe relative path`);
   }
   return rel;
 }
@@ -551,6 +567,9 @@ const SUPPORTED_TYPES = [
 /** Safe repo pattern: owner/repo with alphanumeric, hyphens, dots, underscores. */
 const SAFE_REPO_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*\/[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 
+/** Safe digest pattern: 64-hex SHA-256. */
+const SAFE_DIGEST_RE = /^[0-9a-f]{64}$/;
+
 /** Valid consumer ids, derived from the platform registry (single source). */
 const CONSUMER_IDS = new Set(PLATFORMS.map((p) => p.id));
 
@@ -634,7 +653,9 @@ function validateMarketplaceParams(params) {
   // marketplace but NO non-interactive install API, so `marketplace` carries no
   // executable meaning for kimi and is optional (validated only if present); it
   // must not become a required identity condition for kimi execution/observe.
-  if (!getPlatform(consumer).automatable) {
+  const consumerPlatform = getPlatform(consumer);
+  const consumerRoute = resolvePlatformRoute(consumerPlatform);
+  if (consumerRoute.route === 'human-attestation') {
     if (marketplace !== undefined && marketplace !== null && !SAFE_ID_RE.test(marketplace)) {
       return { valid: false, error: `unsafe marketplace identifier: "${marketplace}"` };
     }
@@ -881,9 +902,224 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
 
-          // 6. Verify frozen snapshot exists and contains required marketplace files
+          // Capability conflict check (before sourceDescriptor validation).
+          // If the platform definition is internally inconsistent, fail closed.
           const consumer = action.consumer;
+          const consumerPlatform = getPlatform(consumer);
+          const capabilityConflicts = resolveCapabilityConflicts(consumerPlatform);
+          if (capabilityConflicts.length > 0) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: `platform capability conflict: ${capabilityConflicts.join('; ')}`,
+            });
+          }
+
+          // 6. sourceDescriptor validation (structured-cli route only).
+          // Human-attestation platforms (kimi, codebuddy) are exempt: they have no
+          // scriptable install CLI, so the source descriptor's conflict
+          // detection is irrelevant to their manual-requirement workflow.
+          const route = resolvePlatformRoute(consumerPlatform);
+          if (route.route === 'structured-cli') {
+            const sd = action.sourceDescriptor;
+            if (!sd || typeof sd !== 'object') {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: 'sourceDescriptor is required for marketplace install',
+              });
+            }
+
+            // Form consistency: marketplaceForm must agree with sourceDescriptor.form.
+            if (sd.form !== action.marketplaceForm) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `sourceDescriptor.form "${sd.form}" does not match marketplaceForm "${action.marketplaceForm}"`,
+              });
+            }
+
+            // payloadDigest: must be a valid 64-char lowercase hex string and
+            // must not be the null hash (all zeros).
+            if (typeof sd.payloadDigest !== 'string' || sd.payloadDigest.length === 0) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: 'sourceDescriptor.payloadDigest is required',
+              });
+            }
+            if (!/^[a-f0-9]{64}$/.test(sd.payloadDigest)) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: 'sourceDescriptor.payloadDigest must be a 64-char lowercase hex string',
+              });
+            }
+            if (sd.payloadDigest === '0'.repeat(64)) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: 'sourceDescriptor.payloadDigest must not be the null hash',
+              });
+            }
+
+            // marketplaceEntry: must match the action plugin name.
+            if (typeof sd.marketplaceEntry !== 'string' || sd.marketplaceEntry.length === 0) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: 'sourceDescriptor.marketplaceEntry is required',
+              });
+            }
+            if (sd.marketplaceEntry !== action.plugin) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `sourceDescriptor.marketplaceEntry "${sd.marketplaceEntry}" does not match action plugin "${action.plugin}"`,
+              });
+            }
+
+            // Form-specific field validation.
+            if (sd.form === 'bundled-family') {
+              if (!sd.repo || !SAFE_REPO_RE.test(sd.repo)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.repo is required and must be a safe repo pattern`,
+                });
+              }
+              if (sd.repo !== action.repo) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.repo "${sd.repo}" does not match action.repo "${action.repo}"`,
+                });
+              }
+              // commit 可选，但如果存在则必须是 40-hex 格式
+              if (sd.commit !== undefined && (typeof sd.commit !== 'string' || !/^[0-9a-f]{40}$/.test(sd.commit))) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: 'sourceDescriptor.commit must be a 40-hex commit sha for bundled-family form',
+                });
+              }
+              // commit 交叉校验：bundled sourceDescriptor.commit 必须与
+              // action.sourceCommit（冻结的插件来源提交）一致
+              if (sd.commit !== undefined && action.sourceCommit && sd.commit !== action.sourceCommit) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.commit "${sd.commit}" does not match action.sourceCommit "${action.sourceCommit}"`,
+                });
+              }
+              // payloadDigest 格式校验（可选，但如果存在则必须是 64-hex）
+              if (sd.payloadDigest !== undefined && (!sd.payloadDigest || !SAFE_DIGEST_RE.test(sd.payloadDigest))) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: 'sourceDescriptor.payloadDigest is required for bundled-family form',
+                });
+              }
+              // payloadDigest 交叉校验：必须与 action.manifestDigest（冻结的载荷摘要）一致
+              if (sd.payloadDigest !== undefined && action.manifestDigest && sd.payloadDigest !== action.manifestDigest) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.payloadDigest does not match action.manifestDigest`,
+                });
+              }
+              if (typeof sd.pluginSubpath !== 'string' || sd.pluginSubpath.length === 0) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: 'sourceDescriptor.pluginSubpath is required for bundled-family form',
+                });
+              }
+            } else if (sd.form === 'standalone-index') {
+              if (!sd.pluginRepo || !SAFE_REPO_RE.test(sd.pluginRepo)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.pluginRepo is required for standalone-index form`,
+                });
+              }
+              if (!sd.marketplaceRepo || !SAFE_REPO_RE.test(sd.marketplaceRepo)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: 'sourceDescriptor.marketplaceRepo is required for standalone-index form',
+                });
+              }
+              // 独立市场身份交叉校验：
+              // 1. marketplaceRepo 必须等于 action.repo（市场仓库身份）
+              if (sd.marketplaceRepo !== action.repo) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.marketplaceRepo "${sd.marketplaceRepo}" does not match action.repo "${action.repo}"`,
+                });
+              }
+              // 2. pluginRepo 必须与 marketplaceRepo 不同（发布单元仓库 ≠ 市场仓库）
+              if (sd.pluginRepo === sd.marketplaceRepo) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.pluginRepo "${sd.pluginRepo}" must differ from marketplaceRepo "${sd.marketplaceRepo}"`,
+                });
+              }
+              if (
+                typeof sd.marketplaceCommitSha !== 'string'
+                || !/^[0-9a-f]{40}$/.test(sd.marketplaceCommitSha)
+              ) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: 'sourceDescriptor.marketplaceCommitSha must be a 40-hex commit sha for standalone-index form',
+                });
+              }
+              // 3. marketplaceCommitSha 交叉校验（与 action 层一致）
+              if (action.marketplaceCommitSha && sd.marketplaceCommitSha !== action.marketplaceCommitSha) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.marketplaceCommitSha "${sd.marketplaceCommitSha}" does not match action.marketplaceCommitSha "${action.marketplaceCommitSha}"`,
+                });
+              }
+              if (typeof sd.ref !== 'string' || sd.ref.length === 0) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: 'sourceDescriptor.ref is required for standalone-index form',
+                });
+              }
+              // 4. payloadDigest 格式校验（可选，但如果存在则必须是 64-hex）
+              if (sd.payloadDigest !== undefined && (!sd.payloadDigest || !SAFE_DIGEST_RE.test(sd.payloadDigest))) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: 'sourceDescriptor.payloadDigest must be a 64-hex digest for standalone-index form',
+                });
+              }
+              // 5. payloadDigest 交叉校验：必须与 action.manifestDigest（冻结的载荷摘要）一致
+              if (sd.payloadDigest !== undefined && action.manifestDigest && sd.payloadDigest !== action.manifestDigest) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.payloadDigest does not match action.manifestDigest`,
+                });
+              }
+            } else {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `sourceDescriptor.form "${sd.form}" is not a recognized form (expected "bundled-family" or "standalone-index")`,
+              });
+            }
+          }
+
+          // 7. Verify frozen snapshot exists and contains required marketplace files
           const platform = getPlatform(consumer);
+          const platformRoute = resolvePlatformRoute(platform);
           let snapshotDirReal;
           // Authoritative kimi manifest (from the frozen snapshot), used to
           // resolve the entry skill via the manifest-declared skills root.
@@ -898,12 +1134,12 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
 
-          // A non-automatable platform (kimi, codebuddy) has no trustworthy
+          // A human-attestation platform (kimi, codebuddy) has no trustworthy
           // automated install: the whole repo is installed as one plugin. The
           // authoritative manifest is read from the verified snapshot root via
           // the platform strategy (kimi: kimi.plugin.json over
           // .kimi-plugin/plugin.json; codebuddy: .codebuddy-plugin/plugin.json).
-          if (!platform.automatable) {
+          if (platformRoute.route === 'human-attestation') {
             // Error-message label keeps the kimi wording byte-identical while
             // giving codebuddy its own wording.
             const manifestLabel = consumer === 'codebuddy' ? 'codebuddy' : 'kimi';
@@ -935,7 +1171,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             kimiSnapshotManifest = kimiManifest;
           }
 
-          if (platform.automatable) {
+          if (platformRoute.route === 'structured-cli') {
           if (action.marketplaceLocation === 'external') {
           // External independent marketplace form: the marketplace index lives
           // in the external repository (frozen by prepare), NOT in the unit
@@ -1128,13 +1364,13 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           }
 
           // Verify the entry skill exists in the snapshot.
-          // Automatable platforms' manifests always declare ./skills/, so the
+          // Structured-cli platforms' manifests always declare ./skills/, so the
           // fixed skills/<entrySkill>/SKILL.md layout is authoritative for
-          // them. A non-automatable platform (kimi, codebuddy) resolves the
+          // them. A human-attestation platform (kimi, codebuddy) resolves the
           // entry skill via the manifest-declared skills root (MAJOR-4): the
           // root is validated + realpath-contained, and omitted `skills` means
           // the official single-skill root SKILL.md.
-          if (!platform.automatable) {
+          if (platformRoute.route === 'human-attestation') {
             const resolveEntrySkillFile = consumer === 'codebuddy'
               ? resolveCodeBuddyEntrySkillFile
               : resolveKimiEntrySkillFile;
@@ -1341,10 +1577,11 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           // It is handled entirely by its manual-requirement strategy, which
           // uses a stable plan-digest-keyed home and deliberately SKIPS the
           // per-run isolated consumer dir and its runDir containment check
-          // (that model only fits automatable platforms, which exec a real
+          // (that model only fits structured-cli platforms, which exec a real
           // CLI into a per-run HOME).
           const platform = getPlatform(action.consumer);
-          if (!platform.automatable) {
+          const executeRoute = resolvePlatformRoute(platform);
+          if (executeRoute.route === 'human-attestation') {
             return platform.strategy.buildManualRequirement(action, context);
           }
 
@@ -1662,19 +1899,22 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
           const isolatedHome = resolve(runDir, 'consumers', `${consumer}-${action.plugin}`);
-          // Registry-driven platform data. observe historically applies no
-          // consumer validation gate (execute/preflight validate it), so an
-          // unregistered consumer keeps the legacy fall-through shape: a
-          // kimi-shaped env, no attestation branch, and no CLI binary — it
-          // still fails closed on the missing execute evidence below.
+          // Registry-driven platform data. An unregistered consumer is a hard
+          // error: the platform registry is the single source of truth for
+          // consumer-platform knowledge, and silently falling through to a
+          // kimi-shaped env would mask configuration mistakes.
           const platform = PLATFORMS.find((p) => p.id === consumer) ?? null;
-          const cliCmd = platform ? (platform.cli ? platform.cli.binary : null) : 'kimi';
+          if (!platform) {
+            throw new Error(
+              `Unknown consumer platform "${consumer}" for action "${actionType}". `
+              + `Registered platforms: ${PLATFORMS.map((p) => p.id).join(', ')}`,
+            );
+          }
+          const cliCmd = platform.cli ? platform.cli.binary : null;
           const baseEnv = { ...process.env, ...(context.env ?? {}) };
           const env = {
             ...baseEnv,
-            ...(platform
-              ? platform.isolationEnv(isolatedHome)
-              : { HOME: isolatedHome, KIMI_CODE_HOME: isolatedHome }),
+            ...platform.isolationEnv(isolatedHome),
           };
 
           // Resolve frozen timeoutMs from the expanded action (top-level).
@@ -1701,7 +1941,8 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           // root (MAJOR-4), and manifest name/version.
           // Missing/expired/mismatched/escaping proof fails closed so a kimi
           // unit can never reach VERIFIED without it.
-          if (platform && !platform.automatable && actionType === ActionType.KIMI_MARKETPLACE_INSTALL) {
+          const kimiRoute = platform ? resolvePlatformRoute(platform) : null;
+          if (platform && kimiRoute?.route === 'human-attestation' && actionType === ActionType.KIMI_MARKETPLACE_INSTALL) {
             const expectedRef = action.ref ?? `v${action.version}`;
 
             // Bind to the REAL frozen plan digest (A). Fail closed if the
@@ -1994,7 +2235,8 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           // manifest skills root, and manifest name/version. Missing/expired/
           // mismatched/escaping proof fails closed so a codebuddy unit can never
           // reach VERIFIED without it.
-          if (platform && !platform.automatable && actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL) {
+          const codebuddyRoute = platform ? resolvePlatformRoute(platform) : null;
+          if (platform && codebuddyRoute?.route === 'human-attestation' && actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL) {
             const expectedRef = action.ref ?? `v${action.version}`;
 
             // Bind to the REAL frozen plan digest (A). Fail closed if the

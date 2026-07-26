@@ -2,33 +2,31 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.2.2 -->
+<!-- release-skill:release-version: 0.2.3 -->
 面向 Claude Code、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它先冻结并供人工审阅，再从同一份冻结产物发布，不会在最后一步重新生成 README、重新打包当前工作区或覆盖人工内容。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.2.2** (2026-07-26)
+**0.2.3** (2026-07-26)
 
-v0.2.2 闭合 CodeBuddy 平台分发链路并新增外部独立市场分发形态。CodeBuddy/WorkBuddy 经与 kimi 同构的人工 attestation 闭环接入 publish/reconcile/verify 流水线：因 codebuddy CLI 无法钉死冻结 ref（无 ref 选项、安装跟踪默认分支/latest），execute 阶段写手动安装 requirement（绝不 exec CLI），observe/verify 消费结构化人工 attestation 并对安装点做只读校验——缺失、过期、不匹配、路径逃逸一律 fail-closed，严重级别与 kimi 一致（发布后验证不可豁免）。外部市场形态允许 distribution 声明 `marketplaceRepo`，prepare 在线冻结外部市场 HEAD（codex 强冻至 commit sha、claude 弱冻至默认分支名）并做冻结 sha 与索引条目完整性校验，plugin-marketplace 在 `external-marketplace-v1` 载荷契约下新增对应 preflight/observe 分支，inline/kimi/codebuddy/legacy 分支一字不变。安装说明（中英四份）统一以独立市场 `ifoohoo/artifact-skill-set` 为主路径。npm 包名（`release-skill`）、发布身份（`publisher: mzdbxqh`）、公开仓库（`ifoohoo/release-skill`）与公司维护主体保持不变。
-
-**新增**
-
-- **CodeBuddy 平台人工 attestation 闭环**：CodeBuddy/WorkBuddy 经与 kimi 同构的人工 attestation 闭环接入发布流水线（`publish`/`reconcile`/`verify`）。因 codebuddy CLI 的 marketplace add/install 均无法钉死冻结 ref（无 ref 选项、安装跟踪默认分支/`latest`，已实测），自动化安装检查点无法保证冻结产物同一性。execute 写手动安装 requirement，绝不 exec CLI；observe/verify 消费结构化人工 attestation 并对安装点做只读校验。缺失、过期、不匹配、路径逃逸的 attestation 一律 fail-closed，严重级别与 kimi 一致（发布后验证不可豁免）。双安装通道（均有实测落盘证据）：desktop 经 WorkBuddy 桌面端统一市场 `artifact-skill-set` 安装（`installPath` 须含 `/.workbuddy/plugins/marketplaces/artifact-skill-set/plugins/<plugin>` 尾段，段级检查）；cli 以隔离 `HOME=<authorityDir>/codebuddy-home` 运行捆绑 CLI（`installPath` 须 containment 于该隔离 home 的市场插件根）。attestation 增加 `installChannel` + `marketplace` 字段并按通道校验。管线路由：平台 id `codebuddy`，distributionType `codebuddy-plugin`，actionType `codebuddy-marketplace-install`，列于 Tier 3（与 kimi 同层）；build adapter 保留历史目录名 `workbuddy`（`adapters/workbuddy/`、`.codebuddy-plugin/plugin.json` 清单，字节不变）。
-- **外部独立市场分发形态**：distribution 声明 `marketplaceRepo` 时启用外部形态。prepare 生产循环经 `git ls-remote --symref` 在线冻结外部市场 HEAD（codex 强冻至 commit sha、claude 弱冻至默认分支名），并经 `gh api` 校验外部索引条目（name 匹配、恰一条、claude 形态 `entry.version == 目标版本`）；非在线声明外部形态 fail-closed，外部仓库严格只读。冻结动作携带 `repo=marketplaceRepo`、`ref=add-ref`、`marketplaceCommitSha`、`marketplaceLocation=external`、`payloadContract=external-marketplace-v1`；`snapshotPath`/`manifestDigest` 仍绑本单元冻结快照（载荷权威不变）。plan 完整性校验增加外部分支（repo 匹配、`marketplaceLocation`、40-hex `marketplaceCommitSha`、ref 结构安全）；kimi/codebuddy 携带 `marketplaceRepo` fail-closed。`plugin-marketplace` 新增外部形态 preflight/observe 分支：`external-marketplace-v1` 走与 `declared-manifest-v1` 相同的整树包含语义（权威为 `.`，宿主新增路径记 `extraInstalledPaths` 而非失败）；preflight 跳过快照内市场段，从快照根读 plugin manifest 校验 name/version 与冻结字段；observe 复用既有 strategy 做安装侧条目观察比对（弱冻 claude 版本漂移 fail-closed）。inline/kimi/codebuddy/legacy/`declared-manifest-v1` 分支一字不变。
+v0.2.3 是修复版本，解决 v0.2.2 中发现的平台验证、公共生成物和文档问题。本版本收敛平台事实源、修复消费端门禁映射错误并加强证明验证。
 
 **变更**
 
-- **安装说明统一市场主路径（中英四份）**：README 与 INSTALL（四份文档）将插件安装统一改为以独立市场 `ifoohoo/artifact-skill-set` 为主路径，README 增补工作流概览与平台分发说明。标准与公开参考（`standards/06-adapter-contract.md`、`references/06-adapter-contract.md`）同步至 codebuddy attestation 形态与外部独立市场形态及其时序约束。
+- **版本同步到 0.2.3**：所有插件清单（9个文件）、package.json、INSTALL.md、INSTALL.zh-CN.md、README.md 和 README.zh-CN.md 已更新。
 
 **修复**
 
-- **CodeBuddy 插件 manifest `skills` 字段改为数组**：`.codebuddy-plugin/plugin.json` 清单的 `skills` 字段改为数组输出，与 CodeBuddy 宿主期望的形状一致。
-- **`verificationGate` 作用域 distribution 枚举补 `codebuddy-plugin`**：`release-project.schema.json` 的 `verificationGate.scope.distribution` 枚举补入 `codebuddy-plugin`（镜像既有 `kimi-plugin` 规则），保持 schema 与运行时门白名单一致；四个适配器内嵌的 schema 副本同步重建。
+- **CodeBuddy marketplace-install 分发映射**：`verify.mjs` 现在正确将 `codebuddy-marketplace-install` 映射到 `codebuddy-plugin` distribution（之前错误回落到 `kimi-plugin`）。codebuddy 的 `fixedEnv` 现在只使用 `HOME`，不再包含 `KIMI_CODE_HOME`。
+- **移除未知消费端回落**：`plugin-marketplace.mjs` 现在对未注册的消费端平台抛出明确错误，而非静默回落到 Kimi 配置。错误消息包含未知消费端标识和已注册平台列表。
+- **CodeBuddy 证明基线排除**：`.release-skill/codebuddy-attestations/` 现在正确排除在工作区基线摘要计算之外，防止在发布生命周期中写入 codebuddy 证明文件时产生自漂移。
+- **CodeBuddy 清单 skills 字段支持数组**：`normalizeCodeBuddySkillsRel()` 现在同时支持字符串和单元素数组形式的 `skills` 字段，与真实 CodeBuddy 验证器期望的形状一致。根 `.codebuddy-plugin/plugin.json` 现在使用数组形式。
+- **CLI 通道证明路径验证**：`validateCodeBuddyAttestation()` 现在验证 CLI 通道的 `installPath` 以已知的 `.codebuddy/plugins/marketplaces/<marketplace>/plugins/<plugin>` 段尾结尾，关闭路径逃逸缺口。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.2.2 是当前发布版本（v0.1.9 曾处于已发布、待独立验证状态）。
+> **当前边界：** v0.2.3 是当前发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；“当前发布版本”与“首次生产验证里程碑”

@@ -38,11 +38,24 @@ const CONTROL_PLANE_PREFIXES = [
   '.release-skill/runs',
   '.release-skill/transactions',
   '.release-skill/kimi-attestations',
+  // codebuddy-attestations: same rationale as kimi-attestations above.
+  // Holds CodeBuddy's closure-protocol lifecycle artifacts: manual install
+  // requirements and human attestations bound to planDigest, payloadDigest,
+  // version, install path, responsible person, and expiry. Neither is
+  // publishable source or project configuration — they never enter the frozen
+  // snapshot — so excluding them keeps reconcile's own requirement output and
+  // the flow-required attestation from invalidating the baseline.
+  '.release-skill/codebuddy-attestations',
   // T3.2 incremental hook cache: a pure local optimisation written by prepare.
   // Excluding it keeps cache records from destabilising workspaceDigest on
   // every prepare (and hook-cache.mjs also skips this prefix when fingerprinting
   // inputs, so records never hash themselves).
   '.release-skill/cache',
+  // waivers: exception records with reason, responsible person, and expiry.
+  // Like attestations, they are runtime closure artifacts — not publishable
+  // source or project configuration — so excluding them keeps waiver writes
+  // from invalidating the workspace baseline.
+  '.release-skill/waivers',
 ];
 const RESERVED_CONTROL_PREFIXES = [
   ...CONTROL_PLANE_PREFIXES,

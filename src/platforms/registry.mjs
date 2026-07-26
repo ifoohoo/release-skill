@@ -137,6 +137,12 @@ const CLAUDE = Object.freeze({
   // actionType -> adapter map from it (T2.2 step 3).
   adapter: 'plugin-marketplace',
   automatable: true,
+  // --- capability contract (平台能力契约) ------------------------------------
+  installMethod: 'structured-cli',
+  refStrength: 'name-ref',
+  outputProtocol: 'text',
+  identityEvidence: 'list-record',
+  degradationPolicy: 'block',
   cli: Object.freeze({
     binary: 'claude',
     marketplaceAdd: (repo, ref) => ['plugin', 'marketplace', 'add', `${repo}@${ref}`],
@@ -190,6 +196,12 @@ const CODEX = Object.freeze({
   actionType: 'codex-marketplace-install',
   adapter: 'plugin-marketplace',
   automatable: true,
+  // --- capability contract (平台能力契约) ------------------------------------
+  installMethod: 'structured-cli',
+  refStrength: 'commit-sha',
+  outputProtocol: 'structured',
+  identityEvidence: 'install-output',
+  degradationPolicy: 'block',
   cli: Object.freeze({
     binary: 'codex',
     marketplaceAdd: (repo, ref) => ['plugin', 'marketplace', 'add', repo, '--ref', ref, '--json'],
@@ -242,6 +254,12 @@ const KIMI = Object.freeze({
   actionType: 'kimi-marketplace-install',
   adapter: 'plugin-marketplace',
   automatable: false,
+  // --- capability contract (平台能力契约) ------------------------------------
+  installMethod: 'interactive-only',
+  refStrength: 'unfixable',
+  outputProtocol: 'none',
+  identityEvidence: 'filesystem-payload',
+  degradationPolicy: 'human-attestation',
   cli: null,
   jsonProtocol: Object.freeze({
     listOutput: null,
@@ -307,6 +325,12 @@ const CODEBUDDY = Object.freeze({
   actionType: 'codebuddy-marketplace-install',
   adapter: 'plugin-marketplace',
   automatable: false,
+  // --- capability contract (平台能力契约) ------------------------------------
+  installMethod: 'human-attestation',
+  refStrength: 'unfixable',
+  outputProtocol: 'none',
+  identityEvidence: 'human-attestation',
+  degradationPolicy: 'human-attestation',
   cli: null,
   jsonProtocol: Object.freeze({
     listOutput: null,
@@ -373,6 +397,11 @@ const VALID_MARKETPLACE_REF_FORMS = new Set(['sha', 'name', null]);
 const VALID_LIST_OUTPUTS = new Set(['array', 'installed-object', null]);
 const VALID_CLI_OUTPUTS = new Set(['json', null]);
 const VALID_ENTRY_VERSION_BINDING = new Set([true, false, null]);
+const VALID_INSTALL_METHODS = new Set(['structured-cli', 'interactive-only', 'human-attestation']);
+const VALID_REF_STRENGTHS = new Set(['commit-sha', 'name-ref', 'unfixable']);
+const VALID_OUTPUT_PROTOCOLS = new Set(['structured', 'text', 'none']);
+const VALID_IDENTITY_EVIDENCE = new Set(['list-record', 'install-output', 'filesystem-payload', 'human-attestation']);
+const VALID_DEGRADATION_POLICIES = new Set(['block', 'human-attestation']);
 
 /**
  * Look up a platform descriptor by id.
@@ -453,6 +482,23 @@ export function assertRegistry(registry = PLATFORMS) {
       throw new Error(`platform registry: ${label} isolationSubdirs must be an array`);
     }
 
+    // --- capability contract validation (能力契约验证) -----------------------
+    if (!VALID_INSTALL_METHODS.has(platform.installMethod)) {
+      throw new Error(`platform registry: ${label} has illegal installMethod "${platform.installMethod}"`);
+    }
+    if (!VALID_REF_STRENGTHS.has(platform.refStrength)) {
+      throw new Error(`platform registry: ${label} has illegal refStrength "${platform.refStrength}"`);
+    }
+    if (!VALID_OUTPUT_PROTOCOLS.has(platform.outputProtocol)) {
+      throw new Error(`platform registry: ${label} has illegal outputProtocol "${platform.outputProtocol}"`);
+    }
+    if (!VALID_IDENTITY_EVIDENCE.has(platform.identityEvidence)) {
+      throw new Error(`platform registry: ${label} has illegal identityEvidence "${platform.identityEvidence}"`);
+    }
+    if (!VALID_DEGRADATION_POLICIES.has(platform.degradationPolicy)) {
+      throw new Error(`platform registry: ${label} has illegal degradationPolicy "${platform.degradationPolicy}"`);
+    }
+
     if (platform.automatable) {
       if (!platform.cli || typeof platform.cli.marketplaceAdd !== 'function'
           || typeof platform.cli.install !== 'function' || typeof platform.cli.list !== 'function') {
@@ -481,8 +527,120 @@ export function assertRegistry(registry = PLATFORMS) {
         throw new Error(`platform registry: non-automatable platform ${label} needs strategy.readManifest`);
       }
     }
+
+    // --- capability contract consistency rules (能力契约一致性规则) -----------
+    // automatable === true 必须有 installMethod === 'structured-cli'
+    if (platform.automatable === true && platform.installMethod !== 'structured-cli') {
+      throw new Error(`platform registry: ${label} is automatable but installMethod is "${platform.installMethod}" (expected "structured-cli")`);
+    }
+    // automatable === false 必须有 installMethod !== 'structured-cli'
+    if (platform.automatable === false && platform.installMethod === 'structured-cli') {
+      throw new Error(`platform registry: ${label} is not automatable but installMethod is "structured-cli"`);
+    }
+    // installMethod === 'structured-cli' 必须有 refStrength !== 'unfixable'
+    if (platform.installMethod === 'structured-cli' && platform.refStrength === 'unfixable') {
+      throw new Error(`platform registry: ${label} has structured-cli install but unfixable refStrength`);
+    }
+    // installMethod === 'human-attestation' 必须有 identityEvidence === 'human-attestation'
+    if (platform.installMethod === 'human-attestation' && platform.identityEvidence !== 'human-attestation') {
+      throw new Error(`platform registry: ${label} has human-attestation install but identityEvidence is "${platform.identityEvidence}"`);
+    }
   }
 }
 
 // Self-validate at import time: a malformed registry never reaches runtime.
 assertRegistry();
+
+// --- capability-driven routing & conflict detection (能力驱动路由与矛盾检测) --
+
+/**
+ * 根据平台描述符的 installMethod 决定执行路由。
+ *
+ * @param {object} platform - 平台描述符
+ * @returns {{ route: string, reason: string }}
+ * @throws {Error} 无法路由时抛出
+ */
+export function resolvePlatformRoute(platform) {
+  const { installMethod } = platform;
+  if (installMethod === 'structured-cli') {
+    return { route: 'structured-cli', reason: `installMethod is structured-cli` };
+  }
+  if (installMethod === 'interactive-only' || installMethod === 'human-attestation') {
+    return { route: 'human-attestation', reason: `installMethod is ${installMethod}` };
+  }
+  throw new Error(
+    `platform "${platform?.id ?? '<unknown>'}" with installMethod="${installMethod}" cannot be routed`,
+  );
+}
+
+/**
+ * 检测平台能力描述符中的矛盾。
+ *
+ * @param {object} platform - 平台描述符
+ * @returns {{ hasConflict: boolean, conflicts: string[] }}
+ * @throws {Error} 发现矛盾时抛出
+ */
+export function resolveCapabilityConflicts(platform) {
+  const conflicts = [];
+  const { id, automatable, installMethod, refStrength, identityEvidence, cli, strategy } = platform;
+
+  // automatable <-> installMethod 一致性
+  if (automatable === true && installMethod !== 'structured-cli') {
+    conflicts.push(`automatable=true but installMethod="${installMethod}"`);
+  }
+  if (automatable === false && installMethod === 'structured-cli') {
+    conflicts.push(`automatable=false but installMethod="structured-cli"`);
+  }
+
+  // installMethod <-> refStrength 一致性
+  if (installMethod === 'structured-cli' && refStrength === 'unfixable') {
+    conflicts.push(`structured-cli with unfixable refStrength`);
+  }
+
+  // installMethod <-> identityEvidence 一致性
+  if (installMethod === 'human-attestation' && identityEvidence !== 'human-attestation') {
+    conflicts.push(`human-attestation install but identityEvidence="${identityEvidence}"`);
+  }
+
+  // 自动化平台必须有 cli 和策略解析函数
+  if (automatable === true) {
+    if (!cli || typeof cli !== 'object') {
+      conflicts.push(`automatable=true but cli is missing`);
+    }
+    if (!strategy || typeof strategy.parseListOutput !== 'function') {
+      conflicts.push(`automatable=true but strategy.parseListOutput is missing`);
+    }
+    if (!strategy || typeof strategy.extractInstallPath !== 'function') {
+      conflicts.push(`automatable=true but strategy.extractInstallPath is missing`);
+    }
+  }
+
+  // 非自动化平台必须 cli === null，且有手动策略函数
+  if (automatable === false) {
+    if (cli !== null) {
+      conflicts.push(`automatable=false but cli is not null`);
+    }
+    if (!strategy || typeof strategy.buildManualRequirement !== 'function') {
+      conflicts.push(`automatable=false but strategy.buildManualRequirement is missing`);
+    }
+    if (!strategy || typeof strategy.readManifest !== 'function') {
+      conflicts.push(`automatable=false but strategy.readManifest is missing`);
+    }
+  }
+
+  if (conflicts.length > 0) {
+    throw new Error(`capability conflict in platform "${id}": ${conflicts.join('; ')}`);
+  }
+
+  return { hasConflict: false, conflicts: [] };
+}
+
+/**
+ * 从 installMethod 派生 automatable 标志。
+ *
+ * @param {object} platform - 平台描述符
+ * @returns {boolean}
+ */
+export function deriveAutomatable(platform) {
+  return platform.installMethod === 'structured-cli';
+}
