@@ -50,6 +50,15 @@ import { assertPreviousPublicBaselineTarget, observePreviousPublicBaseline } fro
 import { verifyFrozenNpmTarballIdentity } from '../adapters/npm.mjs';
 import { createProductionPrepareRunDir } from '../core/run.mjs';
 import { PLATFORMS } from '../platforms/registry.mjs';
+import { validateMarketplaceSourceSelection, MARKETPLACE_SOURCE_TYPES, resolvePluginManifestFromMarketplaceEntrySource, resolveMarketplaceRoot } from '../adapters/plugin-marketplace.mjs';
+import { buildInstallationContract, computeInstallationContractDigest, INSTALLATION_CONTRACT_ALGORITHM_VERSION } from '../core/installation-contract.mjs';
+
+// ---------------------------------------------------------------------------
+// 安装契约常量
+// ---------------------------------------------------------------------------
+
+/** 消费端安装验证配方版本。算法变更时递增。 */
+const CONSUMER_INSTALL_RECIPE_VERSION = 'consumer-install-v1';
 
 // ---------------------------------------------------------------------------
 // Version resolution
@@ -1085,12 +1094,15 @@ export async function resolveExternalMarketplaceFreezes({
     const version = resolvedVersions[index];
     const githubHost = unit.production?.githubHost ?? 'github.com';
     for (const dist of unit.distributions ?? []) {
-      if (dist.marketplaceRepo === undefined || dist.marketplaceRepo === null) continue;
+      // 只处理 standalone-index 来源；bundled-family 不需要外部冻结。
+      if (dist.marketplaceSourceType !== 'standalone-index') continue;
+      // standalone-index 必须有 marketplaceRepo；没有则跳过（兼容旧配置）。
+      if (!dist.marketplaceRepo) continue;
       const platform = PLATFORMS.find((p) => p.distributionType === dist.type);
-      if (!platform || platform.marketplaceRefForm === null) {
+      if (!platform) {
         throw new ReleaseError(
           GATE_FAILED,
-          `unit "${unit.id}" ${dist.type} distribution declares marketplaceRepo but the platform has no marketplace add capability`,
+          `unit "${unit.id}" ${dist.type} distribution declares standalone-index but the platform is unknown`,
           { unitId: unit.id, distributionType: dist.type },
         );
       }
@@ -1098,7 +1110,7 @@ export async function resolveExternalMarketplaceFreezes({
         throw new ReleaseError(
           GATE_FAILED,
           `unit "${unit.id}" ${dist.type} external marketplace form requires online production prepare to freeze the marketplace commit sha`,
-          { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo },
+          { unitId: unit.id, marketplaceSourceType: dist.marketplaceSourceType },
         );
       }
       const observed = await observeHeadFn(dist.marketplaceRepo, { githubHost });
@@ -1110,7 +1122,16 @@ export async function resolveExternalMarketplaceFreezes({
         );
       }
       const sha = observed.sha;
-      const manifestPath = platform.manifestPaths.marketplace;
+      // 索引路径：distribution 显式声明优先，否则使用平台默认路径。
+      // 平台注册表没有默认路径时（kimi、codebuddy），必须显式提供。
+      const manifestPath = dist.marketplaceIndexPath ?? platform.manifestPaths.marketplace;
+      if (!manifestPath) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" ${dist.type} cannot determine marketplace index path: neither marketplaceIndexPath nor platform.manifestPaths.marketplace is set`,
+          { unitId: unit.id, distributionType: dist.type },
+        );
+      }
       const fetched = await fetchIndexFn(dist.marketplaceRepo, manifestPath, sha, { githubHost });
       if (fetched.status !== 'fetched' || !fetched.index || typeof fetched.index !== 'object') {
         throw new ReleaseError(
@@ -1120,7 +1141,8 @@ export async function resolveExternalMarketplaceFreezes({
         );
       }
       const marketplaceIndex = fetched.index;
-      if (marketplaceIndex.name !== dist.marketplace) {
+      // 校验市场名称（仅当 distribution 显式声明 marketplace 时）
+      if (dist.marketplace && marketplaceIndex.name !== dist.marketplace) {
         throw new ReleaseError(
           GATE_FAILED,
           `unit "${unit.id}" external marketplace index name "${marketplaceIndex.name}" does not match distribution marketplace "${dist.marketplace}"`,
@@ -1144,12 +1166,21 @@ export async function resolveExternalMarketplaceFreezes({
           { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo },
         );
       }
-      const ref = platform.marketplaceRefForm === 'sha' ? sha : observed.defaultBranch;
+      // marketplaceRef：Claude 使用默认分支名（name-ref），其余平台使用提交 SHA。
+      // 无 CLI 的平台（kimi、codebuddy）也必须能冻结，ref 用 SHA。
+      const marketplaceRef = platform.marketplaceRefForm === 'name' ? observed.defaultBranch : sha;
       freezes.set(`${unit.id} ${dist.type}`, {
+        // 向后兼容字段（buildExternalActions 使用 repo / ref / marketplace）
         repo: dist.marketplaceRepo,
-        ref,
+        ref: marketplaceRef,
         marketplaceCommitSha: sha,
         marketplace: dist.marketplace,
+        // B3B 完整冻结字段
+        marketplaceRepo: dist.marketplaceRepo,
+        marketplaceRef,
+        marketplaceIndexPath: manifestPath,
+        marketplaceName: marketplaceIndex.name,
+        selectedEntry: pluginEntries[0],
       });
       await evidence.append({
         phase: 'external-marketplace-freeze',
@@ -1158,8 +1189,11 @@ export async function resolveExternalMarketplaceFreezes({
         status: 'completed',
         marketplaceRepo: dist.marketplaceRepo,
         marketplaceCommitSha: sha,
+        marketplaceRef,
+        marketplaceIndexPath: manifestPath,
+        marketplaceName: marketplaceIndex.name,
+        selectedEntry: pluginEntries[0],
         defaultBranch: observed.defaultBranch,
-        addRef: ref,
       });
     }
   }
@@ -1181,7 +1215,7 @@ export async function resolveExternalMarketplaceFreezes({
  * @param {string} realRoot - The project root for relative path calculation.
  * @returns {object[]} Array of external action descriptors.
  */
-export function buildExternalActions(unitResults, resolvedVersions, productionAssets, externalFreezes = new Map()) {
+export function buildExternalActions(unitResults, resolvedVersions, productionAssets, externalFreezes = new Map(), frozenDistributions = null) {
   const actions = [];
 
   if (!productionAssets) {
@@ -1246,8 +1280,11 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
       // carry: Kimi Code has no non-interactive install/marketplace API, so
       // the kimi action carries no marketplace identity (MINOR-1); plugin +
       // entrySkill are the meaningful identity fields there).
+      const frozenUnitDists = frozenDistributions?.get(unit.id) ?? null;
       for (const platform of PLATFORMS) {
-        const dist = (unit.distributions ?? []).find((d) => d.type === platform.distributionType);
+        const dist = frozenUnitDists
+          ? frozenUnitDists.find((d) => d.type === platform.distributionType)
+          : (unit.distributions ?? []).find((d) => d.type === platform.distributionType);
         if (!dist) continue;
         const requiresMarketplace = platform.schemaRequiredFields.includes('marketplace');
         const timeoutMs = Number.isInteger(dist.timeoutMs) ? dist.timeoutMs : 300000;
@@ -1261,11 +1298,10 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
         // Normalized marketplace form: explicit mutually exclusive declaration.
         // bundled-family: marketplace and plugin live in the same repo.
         // standalone-index: external marketplace repo indexes a separate plugin repo.
-        // Non-automatable platforms (kimi, codebuddy) use human-attestation and
-        // carry no marketplace form.
-        const marketplaceForm = requiresMarketplace
-          ? (externalMarketplace ? 'standalone-index' : 'bundled-family')
-          : null;
+        // All four platforms carry marketplaceForm and sourceDescriptor when a
+        // marketplace source type is declared (bundled-family or standalone-index).
+        const marketplaceSourceType = dist.marketplaceSourceType ?? (externalMarketplace ? 'standalone-index' : 'bundled-family');
+        const marketplaceForm = marketplaceSourceType;
         const sourceDescriptor = marketplaceForm === 'standalone-index'
           ? Object.freeze({
             form: 'standalone-index',
@@ -1314,6 +1350,14 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
             ...(externalMarketplace ? { marketplaceLocation: 'external' } : {}),
             ...(marketplaceForm ? { marketplaceForm } : {}),
             ...(sourceDescriptor ? { sourceDescriptor } : {}),
+            // 安装契约摘要、算法版本和来源类型，用于完整性交叉校验
+            ...(dist.installationContractDigest ? {
+              installationContractDigest: dist.installationContractDigest,
+              algorithmVersion: INSTALLATION_CONTRACT_ALGORITHM_VERSION,
+              marketplaceSourceType: dist.marketplaceSourceType,
+            } : {}),
+            // standalone-index 审计字段仅在生产在线冻结成功后出现；
+            // 非生产 action 不携带这三个字段（未冻结时无真实值可用）。
           },
           expected: {
             installed: true,
@@ -1336,6 +1380,7 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
     const asset = productionAssets[index];
     const tagTemplate = unit.version?.tagTemplate ?? `${unit.id}-v{version}`;
     const resolvedTag = asset.tag;
+    const frozenUnitDists = frozenDistributions?.get(unit.id) ?? null;
 
     // Push snapshot
     actions.push({
@@ -1474,7 +1519,9 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
     // entrySkillFound/manifestDigest expected). Marketplace identity follows
     // the registry's schema required fields — kimi carries none (MINOR-1).
     for (const platform of PLATFORMS) {
-      const dist = (unit.distributions ?? []).find((d) => d.type === platform.distributionType);
+      const dist = frozenUnitDists
+        ? frozenUnitDists.find((d) => d.type === platform.distributionType)
+        : (unit.distributions ?? []).find((d) => d.type === platform.distributionType);
       if (!dist) continue;
       const requiresMarketplace = platform.schemaRequiredFields.includes('marketplace');
       const timeoutMs = Number.isInteger(dist.timeoutMs) ? dist.timeoutMs : 300000;
@@ -1486,9 +1533,9 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
       const externalMarketplace = dist.marketplaceRepo !== undefined && dist.marketplaceRepo !== null;
       const freeze = externalMarketplace ? externalFreezes.get(`${unit.id} ${dist.type}`) : null;
       // Normalized marketplace form: explicit mutually exclusive declaration.
-      const marketplaceForm = requiresMarketplace
-        ? (externalMarketplace ? 'standalone-index' : 'bundled-family')
-        : null;
+      // All four platforms carry marketplaceForm and sourceDescriptor.
+      const marketplaceSourceType = dist.marketplaceSourceType ?? (externalMarketplace ? 'standalone-index' : 'bundled-family');
+      const marketplaceForm = marketplaceSourceType;
       const sourceDescriptor = marketplaceForm === 'standalone-index'
         ? Object.freeze({
           form: 'standalone-index',
@@ -1543,6 +1590,18 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
           // bundled-family: sourceDescriptor.commit 绑定到此值。
           // standalone-index: 通过此值绑定插件载荷来源。
           sourceCommit: asset.commit,
+          // 安装契约摘要、算法版本和来源类型，用于完整性交叉校验
+          ...(dist.installationContractDigest ? {
+            installationContractDigest: dist.installationContractDigest,
+            algorithmVersion: INSTALLATION_CONTRACT_ALGORITHM_VERSION,
+            marketplaceSourceType: dist.marketplaceSourceType,
+          } : {}),
+          // standalone-index 审计字段：供后续静态预检使用
+          ...(externalMarketplace && freeze ? {
+            marketplaceIndexPath: freeze.marketplaceIndexPath,
+            marketplaceName: freeze.marketplaceName,
+            selectedEntry: freeze.selectedEntry,
+          } : {}),
         },
         expected: {
           installed: true,
@@ -2175,9 +2234,304 @@ export async function prepareRelease(options) {
         )
       : null;
 
-    const units = unitResults.map(({ unit, manifest }, idx) => {
+    // Freeze external independent marketplace HEADs (production + online only):
+    // for each claude/codex/codebuddy distribution declaring marketplaceRepo,
+    // resolve the external repo's HEAD sha + default branch and validate the
+    // marketplace index entry at that sha before freezing the add-ref. This
+    // MUST happen before installation contract construction so that standalone-index
+    // contracts can use the frozen external entries. Offline production with a
+    // declared marketplaceRepo fails closed inside the resolver. The remote is
+    // only ever read (git ls-remote / gh api), never written.
+    const externalMarketplaceFreezes = production
+      ? await resolveExternalMarketplaceFreezes({
+          unitResults,
+          resolvedVersions,
+          offline,
+          evidence,
+          observeHeadFn: options.observeExternalMarketplaceHeadFn ?? defaultObserveExternalMarketplaceHead,
+          fetchIndexFn: options.fetchExternalMarketplaceIndexFn ?? defaultFetchExternalMarketplaceIndex,
+        })
+      : new Map();
+
+    // 为每个分发渠道校验 marketplaceSourceType 并冻结安装契约。
+    // 对每个插件 distribution：
+    // 1. 从 unitResults[].manifest.outputDir 的真实快照读取 manifest
+    // 2. manifest 读取：若平台 strategy.readManifest 存在则调用它，否则读 platform.manifestPaths.plugin
+    // 3. 确定 includeMarketplaceEntry：
+    //    - bundled-family: Kimi=false, Claude/Codex/CodeBuddy=true（从快照读取）
+    //    - standalone-index: Kimi=false, Claude/Codex/CodeBuddy=true（使用外部冻结条目）
+    // 4. 需要条目时：
+    //    - bundled-family: 从 dist.marketplaceIndexPath ?? platform.manifestPaths.marketplace 读取 bundled 索引
+    //    - standalone-index: 从 externalMarketplaceFreezes 获取冻结的 selectedEntry 和 marketplaceIndexPath
+    // 5. 使用 buildInstallationContract 构建完整可审计契约对象
+    // 6. 在 distribution 中冻结 marketplaceSourceType / installationContract / installationContractDigest
+    //    以及独立市场审计字段
+    const units = await Promise.all(unitResults.map(async ({ unit, manifest }, idx) => {
       const unitVersion = resolvedVersions[idx];
       const unitBaseline = unitBaselineResults.get(unit.id);
+      const snapshotDir = manifest.outputDir;
+
+      const distributionsWithSource = await Promise.all((unit.distributions ?? []).map(async (dist) => {
+        const platform = PLATFORMS.find((p) => p.distributionType === dist.type);
+        if (!platform) return dist;
+
+        // 校验 marketplaceSourceType：从配置读取，不允许硬编码默认值
+        const sourceTypeResult = validateMarketplaceSourceSelection(
+          platform.id,
+          dist,  // config
+          dist,  // plan (same source at prepare time)
+        );
+        if (!sourceTypeResult.valid) {
+          throw new ReleaseError(
+            CONFIG_INVALID,
+            `unit "${unit.id}" ${dist.type} marketplace source validation failed: ${sourceTypeResult.error}`,
+            { unitId: unit.id, distributionType: dist.type },
+          );
+        }
+
+        // 仅插件 distribution 需要安装契约
+        if (dist.type === 'npm') {
+          return dist;
+        }
+
+        // 1. 确定 marketplaceSourceType（防御性归一化：旧配置可能仍缺少字段）
+        let marketplaceSourceType = sourceTypeResult.selectedSource;
+        if (!marketplaceSourceType) {
+          marketplaceSourceType = dist.marketplaceRepo ? 'standalone-index' : 'bundled-family';
+        }
+
+        // 2. 确定 includeMarketplaceEntry 和 selectedMarketplaceEntry
+        // bundled-family: 从快照中的 bundled 索引读取唯一选中条目。
+        // standalone-index: 从 externalMarketplaceFreezes 获取冻结的 selectedEntry 和 marketplaceIndexPath。
+        // Kimi 不纳入市场条目（platform.manifestPaths.marketplace === null 且无显式路径）；
+        // Claude/Codex/CodeBuddy 使用默认或显式路径。
+        const hasDefaultMarketplace = platform.manifestPaths.marketplace !== null;
+        const hasExplicitMarketplacePath = dist.marketplaceIndexPath != null;
+        const isBundledFamily = marketplaceSourceType === 'bundled-family';
+        const isStandaloneIndex = marketplaceSourceType === 'standalone-index';
+
+        // includeMarketplaceEntry 代表"契约实际包含一条市场条目"，
+        // 不能只代表平台理论上支持市场条目。
+        // bundled-family: 平台支持市场时即包含（从快照读取）
+        // standalone-index: 只有拿到冻结条目且非 Kimi 时才包含
+        // Kimi 不纳入市场条目：Kimi 无市场 CLI，selectedEntry 仅供静态校验。
+        let includeMarketplaceEntry;
+        if (isBundledFamily) {
+          includeMarketplaceEntry = hasDefaultMarketplace || hasExplicitMarketplacePath;
+        } else if (isStandaloneIndex) {
+          if (platform.id === 'kimi') {
+            // Kimi standalone: 安装契约不纳入市场条目
+            includeMarketplaceEntry = false;
+          } else {
+            const freezeKey = `${unit.id} ${dist.type}`;
+            const freeze = externalMarketplaceFreezes.get(freezeKey);
+            if (freeze) {
+              includeMarketplaceEntry = true;
+            } else {
+              // 生产在线的独立市场缺冻结结果必须失败关闭
+              if (production && !offline) {
+                throw new ReleaseError(
+                  GATE_FAILED,
+                  `unit "${unit.id}" ${dist.type} standalone-index requires external marketplace freeze but no freeze result found`,
+                  { unitId: unit.id, distributionType: dist.type },
+                );
+              }
+              // 非生产/离线没有冻结结果时，契约仍记录来源形态，但不包含空条目
+              includeMarketplaceEntry = false;
+            }
+          }
+        } else {
+          includeMarketplaceEntry = false;
+        }
+
+        // 3. 需要条目时，根据来源类型获取
+        let selectedMarketplaceEntry = null;
+        let marketplaceIndexRelative = null;
+        let bundledMarketIndex = null;
+        if (includeMarketplaceEntry) {
+          if (isStandaloneIndex) {
+            // standalone-index: 从外部冻结结果获取条目和路径（freeze 已确认存在）
+            const freezeKey = `${unit.id} ${dist.type}`;
+            const freeze = externalMarketplaceFreezes.get(freezeKey);
+            selectedMarketplaceEntry = freeze.selectedEntry;
+            marketplaceIndexRelative = freeze.marketplaceIndexPath;
+          } else {
+            // bundled-family: 从快照中的 bundled 索引读取
+            marketplaceIndexRelative = dist.marketplaceIndexPath ?? platform.manifestPaths.marketplace;
+            if (!marketplaceIndexRelative) {
+              throw new ReleaseError(
+                GATE_FAILED,
+                `unit "${unit.id}" ${dist.type} cannot determine marketplace index path: neither marketplaceIndexPath nor platform.manifestPaths.marketplace is set`,
+                { unitId: unit.id, distributionType: dist.type },
+              );
+            }
+            const marketplaceIndexPath = resolve(snapshotDir, marketplaceIndexRelative);
+            let marketplaceIndexRaw;
+            try {
+              marketplaceIndexRaw = await readFile(marketplaceIndexPath, 'utf8');
+            } catch (err) {
+              throw new ReleaseError(
+                GATE_FAILED,
+                `unit "${unit.id}" ${dist.type} cannot read bundled marketplace index "${marketplaceIndexRelative}": ${err.message}`,
+                { unitId: unit.id, distributionType: dist.type, cause: err.code },
+              );
+            }
+            let marketplaceIndex;
+            try {
+              marketplaceIndex = JSON.parse(marketplaceIndexRaw);
+            } catch (err) {
+              throw new ReleaseError(
+                GATE_FAILED,
+                `unit "${unit.id}" ${dist.type} invalid JSON in bundled marketplace index "${marketplaceIndexRelative}": ${err.message}`,
+                { unitId: unit.id, distributionType: dist.type },
+              );
+            }
+            if (!marketplaceIndex || typeof marketplaceIndex !== 'object' || !Array.isArray(marketplaceIndex.plugins)) {
+              throw new ReleaseError(
+                GATE_FAILED,
+                `unit "${unit.id}" ${dist.type} bundled marketplace index "${marketplaceIndexRelative}" must be an object with a plugins array`,
+                { unitId: unit.id, distributionType: dist.type },
+              );
+            }
+            const matchingEntries = marketplaceIndex.plugins.filter(
+              (entry) => entry && entry.name === dist.plugin,
+            );
+            if (matchingEntries.length !== 1) {
+              throw new ReleaseError(
+                GATE_FAILED,
+                `unit "${unit.id}" ${dist.type} bundled marketplace index must contain exactly one plugin entry named "${dist.plugin}", found ${matchingEntries.length}`,
+                { unitId: unit.id, distributionType: dist.type },
+              );
+            }
+            // 传完整解析条目给 buildInstallationContract，不得只取名字
+            selectedMarketplaceEntry = matchingEntries[0];
+            bundledMarketIndex = marketplaceIndex;
+          }
+        }
+
+        // 4. 从真实快照读取插件 manifest
+        //    bundled-family + 有市场索引：使用 resolvePluginManifestFromMarketplaceEntrySource
+        //    从条目 source 安全解析插件根并读取 manifest（支持子目录布局）。
+        //    其他路径：保留原有策略。
+        let pluginManifestRelative;
+        let pluginManifestParsed;
+        if (isBundledFamily && bundledMarketIndex && platform.marketplaceSourceForm !== null) {
+          // bundled-family 有市场索引且平台支持市场来源解析（Claude/Codex）：
+          // 通过条目 source 路径解析 manifest。
+          // 计算市场根：从 marketplaceIndexRelative 推断（精确后缀匹配）。
+          const mktRoot = resolveMarketplaceRoot(platform, marketplaceIndexRelative);
+          try {
+            const resolved = await resolvePluginManifestFromMarketplaceEntrySource(
+              bundledMarketIndex, dist.plugin, platform, snapshotDir, mktRoot,
+            );
+            pluginManifestParsed = resolved.manifest;
+            pluginManifestRelative = resolved.manifestRelativePath;
+          } catch (err) {
+            throw new ReleaseError(
+              GATE_FAILED,
+              `unit "${unit.id}" ${dist.type} cannot resolve plugin manifest from marketplace entry source: ${err.message}`,
+              { unitId: unit.id, distributionType: dist.type },
+            );
+          }
+        } else if (platform.strategy.readManifest) {
+          // Kimi/Codex/CodeBuddy 有自定义 manifest 读取策略
+          const readResult = await platform.strategy.readManifest(snapshotDir);
+          pluginManifestParsed = readResult.manifest;
+          pluginManifestRelative = readResult.manifestRelative ?? platform.manifestPaths.plugin;
+        } else {
+          // Claude fallback（standalone-index 或无市场索引时）
+          pluginManifestRelative = platform.manifestPaths.plugin;
+          const pluginManifestPath = resolve(snapshotDir, pluginManifestRelative);
+          let raw;
+          try {
+            raw = await readFile(pluginManifestPath, 'utf8');
+          } catch (err) {
+            throw new ReleaseError(
+              GATE_FAILED,
+              `unit "${unit.id}" ${dist.type} cannot read plugin manifest "${pluginManifestRelative}": ${err.message}`,
+              { unitId: unit.id, distributionType: dist.type, cause: err.code },
+            );
+          }
+          try {
+            pluginManifestParsed = JSON.parse(raw);
+          } catch (err) {
+            throw new ReleaseError(
+              GATE_FAILED,
+              `unit "${unit.id}" ${dist.type} invalid JSON in plugin manifest "${pluginManifestRelative}": ${err.message}`,
+              { unitId: unit.id, distributionType: dist.type },
+            );
+          }
+        }
+
+        // 静态校验 manifest 名称和版本（被摘要剔除不等于不校验）
+        if (pluginManifestParsed.name !== dist.plugin) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}" ${dist.type} plugin manifest name "${pluginManifestParsed.name}" does not match distribution plugin "${dist.plugin}"`,
+            { unitId: unit.id, distributionType: dist.type },
+          );
+        }
+        if (typeof pluginManifestParsed.version === 'string' && pluginManifestParsed.version !== unitVersion) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}" ${dist.type} plugin manifest version "${pluginManifestParsed.version}" does not match target version "${unitVersion}"`,
+            { unitId: unit.id, distributionType: dist.type },
+          );
+        }
+
+        // 5. 使用 buildInstallationContract 构建完整可审计契约对象
+        const installationContract = buildInstallationContract({
+          distributionType: dist.type,
+          manifestRelativePath: pluginManifestRelative,
+          manifest: pluginManifestParsed,
+          marketplaceSourceType,
+          includeMarketplaceEntry,
+          ...(includeMarketplaceEntry ? {
+            marketplaceIndexRelativePath: marketplaceIndexRelative,
+            selectedMarketplaceEntry,
+          } : {}),
+          verificationRecipeVersion: CONSUMER_INSTALL_RECIPE_VERSION,
+        });
+
+        // 6. 计算摘要（使用权威算法入口，保证契约对象与摘要一致）
+        const installationContractDigest = computeInstallationContractDigest({
+          distributionType: dist.type,
+          manifestRelativePath: pluginManifestRelative,
+          manifest: pluginManifestParsed,
+          marketplaceSourceType,
+          includeMarketplaceEntry,
+          ...(includeMarketplaceEntry ? {
+            marketplaceIndexRelativePath: marketplaceIndexRelative,
+            selectedMarketplaceEntry,
+          } : {}),
+          verificationRecipeVersion: CONSUMER_INSTALL_RECIPE_VERSION,
+        });
+
+        // 7. 构建返回对象，包含冻结的审计字段
+        const frozenDist = {
+          ...dist,
+          marketplaceSourceType,
+          installationContract,
+          installationContractDigest,
+        };
+
+        // standalone-index 审计字段：来自外部冻结结果
+        if (isStandaloneIndex) {
+          const freezeKey = `${unit.id} ${dist.type}`;
+          const freeze = externalMarketplaceFreezes.get(freezeKey);
+          if (freeze) {
+            frozenDist.marketplaceRepo = freeze.marketplaceRepo;
+            frozenDist.marketplaceCommitSha = freeze.marketplaceCommitSha;
+            frozenDist.marketplaceRef = freeze.marketplaceRef;
+            frozenDist.marketplaceIndexPath = freeze.marketplaceIndexPath;
+            frozenDist.marketplaceName = freeze.marketplaceName;
+            frozenDist.selectedEntry = freeze.selectedEntry;
+          }
+        }
+
+        return frozenDist;
+      }));
+
       return {
         id: unit.id,
         targetVersion: unitVersion,
@@ -2202,29 +2556,15 @@ export async function prepareRelease(options) {
             npm: productionAssets[idx].npm,
           },
         } : {}),
-        distributions: unit.distributions,
+        distributions: distributionsWithSource,
         ...(unitBaseline ? { previousPublicBaseline: unitBaseline } : {}),
       };
-    });
+    }));
 
-    // Freeze external independent marketplace HEADs (production + online only):
-    // for each claude/codex distribution declaring marketplaceRepo, resolve the
-    // external repo's HEAD sha + default branch and validate the marketplace
-    // index entry at that sha before freezing the add-ref. Offline production
-    // with a declared marketplaceRepo fails closed inside the resolver. The
-    // remote is only ever read (git ls-remote / gh api), never written.
-    const externalMarketplaceFreezes = production
-      ? await resolveExternalMarketplaceFreezes({
-          unitResults,
-          resolvedVersions,
-          offline,
-          evidence,
-          observeHeadFn: options.observeExternalMarketplaceHeadFn ?? defaultObserveExternalMarketplaceHead,
-          fetchIndexFn: options.fetchExternalMarketplaceIndexFn ?? defaultFetchExternalMarketplaceIndex,
-        })
-      : new Map();
+    // 构建冻结分发映射：unitId -> frozen distributions
+    const frozenDistributionsMap = new Map(units.map((u) => [u.id, u.distributions]));
 
-    const externalActions = buildExternalActions(unitResults, resolvedVersions, productionAssets, externalMarketplaceFreezes);
+    const externalActions = buildExternalActions(unitResults, resolvedVersions, productionAssets, externalMarketplaceFreezes, frozenDistributionsMap);
 
     // Compute overall snapshot digest
     const overallSnapshotDigest = sha256Hex(snapshotDigests.join(':'));

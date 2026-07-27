@@ -213,6 +213,20 @@
                   "minimum": 30000,
                   "maximum": 900000,
                   "description": "Timeout in milliseconds for plugin marketplace install commands (claude-plugin, codex-plugin). Kimi Code has no scriptable install command, so for kimi-plugin this bounds the read-only observation/verification only, not an install command. CodeBuddy/WorkBuddy has no scriptable install command that can pin a frozen ref, so for codebuddy-plugin this likewise bounds the read-only observation/verification only. Only valid for claude-plugin, codex-plugin, kimi-plugin, and codebuddy-plugin distributions."
+                },
+                "marketplaceSourceType": {
+                  "type": "string",
+                  "enum": [
+                    "bundled-family",
+                    "standalone-index"
+                  ],
+                  "description": "市场来源类型：bundled-family（技能族自带市场文件）或 standalone-index（独立市场仓库）；每个平台每次发布只冻结一种来源"
+                },
+                "marketplaceIndexPath": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$",
+                  "description": "Bundled marketplace index relative path override；仅插件 distribution 允许"
                 }
               },
               "allOf": [
@@ -305,6 +319,8 @@
                     "properties": {
                       "type": {
                         "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
                           "kimi-plugin",
                           "codebuddy-plugin"
                         ]
@@ -312,11 +328,88 @@
                     }
                   },
                   "then": {
+                    "required": [
+                      "marketplaceSourceType"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
+                          "kimi-plugin",
+                          "codebuddy-plugin"
+                        ]
+                      },
+                      "marketplaceSourceType": {
+                        "const": "bundled-family"
+                      }
+                    },
+                    "required": [
+                      "marketplaceSourceType"
+                    ]
+                  },
+                  "then": {
                     "not": {
                       "required": [
                         "marketplaceRepo"
                       ]
                     }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
+                          "kimi-plugin",
+                          "codebuddy-plugin"
+                        ]
+                      },
+                      "marketplaceSourceType": {
+                        "const": "bundled-family"
+                      }
+                    },
+                    "required": [
+                      "marketplaceSourceType"
+                    ]
+                  },
+                  "then": {
+                    "not": {
+                      "required": [
+                        "marketplaceRepo"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
+                          "kimi-plugin",
+                          "codebuddy-plugin"
+                        ]
+                      },
+                      "marketplaceSourceType": {
+                        "const": "standalone-index"
+                      }
+                    },
+                    "required": [
+                      "marketplaceSourceType"
+                    ]
+                  },
+                  "then": {
+                    "required": [
+                      "marketplaceRepo"
+                    ]
                   }
                 },
                 {

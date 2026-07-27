@@ -139,9 +139,13 @@
               "failed",
               "skipped",
               "pending",
-              "uncertain"
+              "uncertain",
+              "deferred",
+              "PASSED_AUTOMATIC",
+              "PASSED_MANUAL",
+              "NOT_REQUIRED_UNCHANGED"
             ],
-            "description": "Result status of this checkpoint (uncertain = started, result unknown)"
+            "description": "Result status of this checkpoint (uncertain = started, result unknown; deferred = marketplace action postponed to verify phase; PASSED_AUTOMATIC/PASSED_MANUAL/NOT_REQUIRED_UNCHANGED 为验证阶段专用状态)"
           },
           "preObserve": {
             "type": "string",
@@ -211,6 +215,70 @@
                 "type": "string"
               }
             }
+          },
+          "reason": {
+            "type": "string",
+            "description": "Stable reason code for deferred checkpoints (e.g. CONSUMER_VERIFICATION_DEFERRED)"
+          },
+          "phase": {
+            "type": "string",
+            "description": "Phase identifier for deferred checkpoints (e.g. post-publish-verification)"
+          }
+        }
+      }
+    },
+    "consumerVerificationReceipts": {
+      "type": "array",
+      "description": "消费端验证收据，每个 marketplace action 一条记录",
+      "items": {
+        "type": "object",
+        "required": [
+          "actionId",
+          "unitId",
+          "platform",
+          "result",
+          "installationContractDigest",
+          "algorithmVersion",
+          "planDigest",
+          "verifiedAt"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "actionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "unitId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "platform": {
+            "type": "string",
+            "minLength": 1
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "PASSED_AUTOMATIC",
+              "PASSED_MANUAL",
+              "NOT_REQUIRED_UNCHANGED"
+            ]
+          },
+          "installationContractDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "algorithmVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "planDigest": {
+            "type": "string",
+            "minLength": 1
+          },
+          "verifiedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       }

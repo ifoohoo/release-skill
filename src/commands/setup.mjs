@@ -23,6 +23,7 @@ import addFormats from 'ajv-formats';
 
 import { canonicalJson, sha256Hex } from '../core/digest.mjs';
 import { acquireProjectLock } from '../artifacts/project-lock.mjs';
+import { getPlatform, PLATFORMS } from '../platforms/registry.mjs';
 import {
   CONFIG_EXISTS,
   CONFIG_INVALID,
@@ -38,6 +39,57 @@ const SKIP_DIRS = new Set([
   'node_modules', 'dist', 'coverage', 'build', 'out', 'tmp', 'temp',
   'runs', 'test', 'tests', 'test-fixtures', 'fixtures', 'examples',
 ]);
+// Registry-driven discovery: derive marketplace and plugin manifest paths
+// from the platform registry. This replaces hardcoded path checks so that
+// new platforms (e.g. Codex's .agents/plugins/marketplace.json) are
+// automatically discovered without editing setup.mjs.
+const DISCOVERY_MANIFEST_SUFFIXES = new Set(
+  PLATFORMS.flatMap((p) => {
+    const paths = [p.manifestPaths.plugin];
+    if (p.manifestPaths.marketplace) paths.push(p.manifestPaths.marketplace);
+    // Kimi has pluginCandidates (kimi.plugin.json, .kimi-plugin/plugin.json)
+    if (p.manifestPaths.pluginCandidates) paths.push(...p.manifestPaths.pluginCandidates);
+    return paths;
+  }),
+);
+
+// Build a map from manifest path suffix → host platform id(s).
+// For marketplace and plugin files, this allows deterministic host detection
+// without hardcoded path.includes() checks.
+// Multi-value: Claude and CodeBuddy share .claude-plugin/marketplace.json;
+// a single-value Map would overwrite one platform's identity with the other.
+const MANIFEST_SUFFIX_HOST_MAP = new Map();
+for (const platform of PLATFORMS) {
+  const mp = platform.manifestPaths.marketplace;
+  if (mp) {
+    const existing = MANIFEST_SUFFIX_HOST_MAP.get(mp);
+    if (existing) {
+      existing.push(platform.id);
+    } else {
+      MANIFEST_SUFFIX_HOST_MAP.set(mp, [platform.id]);
+    }
+  }
+  const pp = platform.manifestPaths.plugin;
+  if (pp) {
+    const existing = MANIFEST_SUFFIX_HOST_MAP.get(pp);
+    if (existing) {
+      existing.push(platform.id);
+    } else {
+      MANIFEST_SUFFIX_HOST_MAP.set(pp, [platform.id]);
+    }
+  }
+  if (platform.manifestPaths.pluginCandidates) {
+    for (const candidate of platform.manifestPaths.pluginCandidates) {
+      const existing = MANIFEST_SUFFIX_HOST_MAP.get(candidate);
+      if (existing) {
+        existing.push(platform.id);
+      } else {
+        MANIFEST_SUFFIX_HOST_MAP.set(candidate, [platform.id]);
+      }
+    }
+  }
+}
+
 const MAX_JSON_BYTES = 1024 * 1024;
 const schema = JSON.parse((await readTrustedPackageResource(
   'schemas/release-project.schema.json',
@@ -86,12 +138,7 @@ async function walkDiscoveryFiles(root, maxDepth = 8) {
           /^README(?:\.|$)/i.test(child.name) ||
           /^LICENSE(?:\.|$)/i.test(child.name) ||
           /^CHANGELOG(?:\.|$)/i.test(child.name) ||
-          absolute.endsWith('/.claude-plugin/plugin.json') ||
-          absolute.endsWith('/.codex-plugin/plugin.json') ||
-          absolute.endsWith('/.kimi-plugin/plugin.json') ||
-          absolute.endsWith('/.codebuddy-plugin/plugin.json') ||
-          absolute.endsWith('/.claude-plugin/marketplace.json') ||
-          absolute.endsWith('/.codex-plugin/marketplace.json'))
+          [...DISCOVERY_MANIFEST_SUFFIXES].some((suffix) => absolute.endsWith(`/${suffix}`)))
       ) {
         found.push(absolute);
       }
@@ -458,16 +505,25 @@ async function discoverFacts(root) {
   const manifests = [];
   for (const path of [...pluginFiles, ...marketplaceFiles].sort()) {
     const value = await readJsonBounded(path, 'discovered plugin manifest');
-    manifests.push({
-      path: safeRelative(root, path),
-      host: path.includes('/.claude-plugin/') ? 'claude'
-        : path.includes('/.kimi-plugin/') ? 'kimi'
-          : path.includes('/.codebuddy-plugin/') ? 'codebuddy'
-            : 'codex',
-      kind: path.endsWith('/marketplace.json') ? 'marketplace' : 'plugin',
-      name: typeof value.name === 'string' ? value.name : null,
-      version: typeof value.version === 'string' ? value.version : null,
-    });
+    // Registry-driven host detection: find all platforms whose manifest path
+    // suffix matches this file. Falls back to 'codex' for unknown paths
+    // (preserving legacy behavior for edge cases).
+    // Multi-value: Claude and CodeBuddy share .claude-plugin/marketplace.json,
+    // so a single file may be claimed by multiple hosts.
+    let detectedHosts = ['codex'];
+    for (const [suffix, hostIds] of MANIFEST_SUFFIX_HOST_MAP) {
+      if (path.endsWith(`/${suffix}`)) {
+        detectedHosts = hostIds;
+        break;
+      }
+    }
+    const relPath = safeRelative(root, path);
+    const kind = path.endsWith('/marketplace.json') ? 'marketplace' : 'plugin';
+    const name = typeof value.name === 'string' ? value.name : null;
+    const version = typeof value.version === 'string' ? value.version : null;
+    for (const host of detectedHosts) {
+      manifests.push({ path: relPath, host, kind, name, version });
+    }
   }
 
   const legacyReleaseConfigs = [];
@@ -657,9 +713,20 @@ function buildCandidates(facts) {
   const gates = [];
   const ids = new Set();
   const knownFiles = new Set(facts.fileDigests.map((file) => file.path));
+  // Extract manifest root from path using registry-driven suffix matching.
+  // This handles all platform paths including Codex's .agents/plugins/marketplace.json,
+  // not just the hardcoded .{platform}-plugin/ pattern.
   const manifestRoots = facts.manifests.map((manifest) => {
-    const match = manifest.path.match(/^(.*?)(?:\/)?(?:\.claude-plugin|\.codex-plugin|\.kimi-plugin|\.codebuddy-plugin)\/(?:plugin|marketplace)\.json$/);
-    return { ...manifest, root: match?.[1] || '.' };
+    let root = '.';
+    for (const suffix of MANIFEST_SUFFIX_HOST_MAP.keys()) {
+      const fullSuffix = `/${suffix}`;
+      const idx = manifest.path.lastIndexOf(fullSuffix);
+      if (idx >= 0) {
+        root = manifest.path.slice(0, idx) || '.';
+        break;
+      }
+    }
+    return { ...manifest, root };
   });
   const manifestOwners = new Map();
   const legacyUnits = facts.legacyReleaseConfigs.flatMap((config) => config.releaseUnits);
@@ -968,6 +1035,17 @@ function buildRecommendedProposal(facts, candidates) {
       };
     }
 
+    // Discover marketplace index candidates for this unit's plugin hosts.
+    //
+    // 单一权威来源：平台注册表的 manifestPaths.marketplace 是默认索引路径；
+    // publicFileMappingCandidates 是该 unit 唯一可发现的公开文件 to 路径集。
+    // 按"等于默认索引路径或以 /<默认索引路径> 精确结尾"筛选候选。
+    // 1 个候选：根布局省略显式路径，嵌套布局写 marketplaceIndexPath；
+    // 0 个候选：产生 MARKETPLACE_ASSET_MISSING；
+    // 多个候选：产生 MARKETPLACE_ASSET_AMBIGUOUS。
+    // Kimi 默认路径为 null，不要求候选；CodeBuddy 复用 Claude 市场索引。
+    const unitPrefix = unit.source === '.' ? '' : `${unit.source}/`;
+    const marketplaceConflicts = [];
     const distributions = unit.distributionCandidates.map((type) => {
       if (type === 'npm') {
         return {
@@ -978,19 +1056,69 @@ function buildRecommendedProposal(facts, candidates) {
         };
       }
       const entrySkill = unit.entrySkillCandidates?.[0];
-      return {
+      const host = type.replace(/-plugin$/, '');
+      const platform = getPlatform(host);
+      const defaultMktPath = platform.manifestPaths.marketplace;
+      const dist = {
         type,
         plugin: unit.id,
         marketplace: unit.id,
         entrySkill,
+        marketplaceSourceType: 'bundled-family',
       };
+      // Kimi 的 manifestPaths.marketplace 为 null，不要求候选
+      if (defaultMktPath !== null) {
+        const mappingCandidates = unit.publicFileMappingCandidates ?? [];
+        const suffix = `/${defaultMktPath}`;
+        const candidates = mappingCandidates.filter((m) => (
+          m.to === defaultMktPath || m.to.endsWith(suffix)
+        ));
+        if (candidates.length === 0) {
+          marketplaceConflicts.push({
+            code: 'MARKETPLACE_ASSET_MISSING',
+            unit: unit.id,
+            platform: host,
+            expectedSuffix: defaultMktPath,
+          });
+          return null;
+        }
+        if (candidates.length > 1) {
+          marketplaceConflicts.push({
+            code: 'MARKETPLACE_ASSET_AMBIGUOUS',
+            unit: unit.id,
+            platform: host,
+            candidates: candidates.map((m) => m.to).sort(),
+          });
+          return null;
+        }
+        // 1 个候选
+        const candidateTo = candidates[0].to;
+        if (candidateTo === defaultMktPath) {
+          // 根布局：marketplace index 在平台默认路径，省略显式 marketplaceIndexPath
+        } else {
+          // 嵌套布局：candidateTo 以 /<defaultMktPath> 精确结尾。
+          // 市场文件仍在同一发布快照内，属于 bundled-family 来源；
+          // marketplaceIndexPath 标记索引在快照内的相对位置。
+          // 不得伪造 marketplaceRepo（那是 standalone-index 独有字段）。
+          dist.marketplaceIndexPath = candidateTo;
+        }
+      }
+      return dist;
     }).filter(Boolean);
+
+    // Marketplace asset conflicts: missing or ambiguous marketplace index
+    if (marketplaceConflicts.length > 0) {
+      return {
+        answers: null,
+        conflicts: marketplaceConflicts,
+        assumptions,
+      };
+    }
 
     // If any distribution failed to construct, bail
     if (distributions.length !== unit.distributionCandidates.length) return null;
 
     const tagTemplate = unit.tagTemplateCandidates[0] ?? 'v{version}';
-    const unitPrefix = unit.source === '.' ? '' : `${unit.source}/`;
     const versionSource = unit.packagePath?.startsWith(unitPrefix)
       ? unit.packagePath.slice(unitPrefix.length)
       : unit.packagePath;

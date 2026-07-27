@@ -19,6 +19,33 @@ Thank you for your interest in contributing to release-skill.
 - `references/` - Rendered reference documentation.
 - `test/` - Test suite.
 
+## Do not edit generated files
+
+The following directories contain **generated artifacts** whose authoritative
+source lives elsewhere. Do not edit them directly; changes will be overwritten
+on the next regeneration.
+
+| Generated directory | Authoritative source | Regeneration command |
+|---|---|---|
+| `references/` | `standards/` (workspace root) | `pnpm public:render` (workspace root) |
+| `schemas/` | `standards/` (workspace root) | `pnpm public:render` (workspace root) |
+| `adapters/` | `src/` + `skills-src/` | `npm run build:adapters` (this directory) |
+| `skills/` | `skills-src/` | `npm run sync:skills` (this directory) |
+
+To update a generated artifact:
+
+1. Edit the authoritative source (e.g., `standards/01-state-machine.md` for
+   `references/01-state-machine.md`, or `skills-src/release-help/SKILL.md` for
+   `skills/release-help/SKILL.md`).
+2. Run the regeneration command.
+3. Verify with `pnpm public:verify` (workspace root) or
+   `npm run build:adapters:check` / `npm run sync:skills:check` (this directory).
+
+**README.md**, **INSTALL.md**, and **CHANGELOG.md** are human-maintained source
+files. Their managed regions are refreshed by the `docs refresh` command using
+structured release-notes YAML; do not hand-edit content between managed-region
+markers.
+
 ## Development Guidelines
 
 - All code uses ESM (`.mjs` extension) on Node.js 22+.

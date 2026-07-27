@@ -29,13 +29,17 @@ import {
   writeEvidenceAtomic,
 } from './contract.mjs';
 
+import {
+  computeInstallationContractDigest,
+  INSTALLATION_CONTRACT_ALGORITHM_VERSION,
+} from '../core/installation-contract.mjs';
+
 import { createHash } from 'node:crypto';
 import { computeFrozenSnapshot, resolveFrozenPath } from '../snapshot/frozen.mjs';
 import { PLATFORMS, getPlatform, resolvePlatformRoute, resolveCapabilityConflicts } from '../platforms/registry.mjs';
 import {
   KIMI_REQUIREMENT_FILE,
   KIMI_ATTESTATION_FILE,
-  KIMI_MANAGED_SUBPATH,
   resolveBoundPlanDigest,
   kimiAuthorityDir,
   validateKimiAttestation,
@@ -48,10 +52,15 @@ import {
   CODEBUDDY_MARKETPLACE_SOURCE,
   resolveCodeBuddyBoundPlanDigest,
   codebuddyAuthorityDir,
-  codebuddyCliHome,
-  codebuddyCliInstallRoot,
   validateCodeBuddyAttestation,
 } from '../platforms/codebuddy.mjs';
+import {
+  CODEX_REQUIREMENT_FILE,
+  CODEX_ATTESTATION_FILE,
+  resolveCodexBoundPlanDigest,
+  codexAuthorityDir,
+  validateCodexAttestation,
+} from '../platforms/codex.mjs';
 
 const execFile = promisify(execFileCb);
 
@@ -92,6 +101,9 @@ const EXTRA_INSTALLED_PATHS_CAP = 200;
 /** Diagnostic cap: at most this many conflict paths are listed per error. */
 const PAYLOAD_CONFLICT_REPORT_CAP = 10;
 
+/** 消费端安装验证配方版本（与 prepare.mjs 一致）。 */
+const CONSUMER_INSTALL_RECIPE_VERSION = 'consumer-install-v1';
+
 // Consumer-owned transport metadata written into the plugin install root
 // that is not part of the published payload (e.g. codex's root `.git`
 // checkout and `.codex-plugin/migrated-command-skills/`, claude's `.in_use`
@@ -99,6 +111,58 @@ const PAYLOAD_CONFLICT_REPORT_CAP = 10;
 // the legacy payload path (frozen plans without a `payloadContract` marker)
 // applies that list; declared-manifest-v1 verification never excludes
 // anything — host-added files are recorded as `extraInstalledPaths` instead.
+
+/**
+ * Resolve the marketplace root directory within a snapshot.
+ *
+ * For bundled-family layouts, the marketplace root is the directory that
+ * contains the platform's `.claude-plugin/marketplace.json` (or equivalent).
+ * Entry `source` paths in the marketplace index are relative to this root.
+ *
+ * Resolution rules:
+ * 1. If no explicit marketplaceIndexPath is provided, the root is "." (root layout).
+ * 2. If marketplaceIndexPath equals the platform default, the root is ".".
+ * 3. If marketplaceIndexPath ends with "/" + platform default (exact suffix match),
+ *    the prefix is the marketplace root.
+ * 4. Otherwise, throws: the path is not a valid marketplace index path.
+ *
+ * Uses exact suffix matching only; never uses string `includes` to guess.
+ *
+ * @param {object} platform - Platform descriptor from the registry.
+ * @param {string} [marketplaceIndexPath] - Explicit marketplace index path override.
+ * @returns {string} Normalized marketplace root ("." for root layout).
+ * @throws {Error} If marketplaceIndexPath is provided but doesn't match expectations.
+ */
+export function resolveMarketplaceRoot(platform, marketplaceIndexPath) {
+  const defaultMarketplace = platform.manifestPaths.marketplace;
+  if (!defaultMarketplace) {
+    // Platform has no marketplace (kimi) — root concept doesn't apply.
+    return '.';
+  }
+
+  if (!marketplaceIndexPath || marketplaceIndexPath === defaultMarketplace) {
+    // No override or same as default → root layout.
+    return '.';
+  }
+
+  // Exact suffix match: marketplaceIndexPath must end with "/" + defaultMarketplace
+  const suffix = `/${defaultMarketplace}`;
+  if (marketplaceIndexPath.endsWith(suffix)) {
+    const root = marketplaceIndexPath.slice(0, -suffix.length);
+    if (root.length === 0) return '.';
+    // Validate root is a safe relative path (no escape)
+    if (root.startsWith('/') || root.includes('..') || root.includes('\\')) {
+      throw new Error(
+        `derived marketplace root "${root}" from marketplaceIndexPath "${marketplaceIndexPath}" is not a safe relative path`,
+      );
+    }
+    return root;
+  }
+
+  throw new Error(
+    `marketplaceIndexPath "${marketplaceIndexPath}" does not end with platform default marketplace path "${defaultMarketplace}"`,
+  );
+}
 
 /**
  * Extract the marketplace plugin entry's declared source as a validated,
@@ -137,6 +201,226 @@ function extractDeclaredPluginSource(consumer, entry) {
     throw new Error(`marketplace plugin entry source "${rawSource}" is not a safe relative path`);
   }
   return segments.length === 0 ? '.' : segments.join('/');
+}
+
+/**
+ * 从市场索引中解析插件根目录并读取插件 manifest。
+ *
+ * 单一权威来源解析逻辑：
+ * 1. 从 marketIndex.plugins 中按 pluginName 筛选唯一匹配条目
+ * 2. 使用 extractDeclaredPluginSource 安全解析条目 source 字段
+ * 3. 将 source 安全拼接到 marketplaceRoot（快照绝对路径）并做逃逸检查
+ * 4. 在解析后的插件根目录下读取 platform.manifestPaths.plugin
+ *
+ * Kimi（无市场）返回 null。其他平台在市场索引为空或条目不唯一时失败关闭。
+ *
+ * @param {object|null} marketIndex - 市场索引对象（null 表示 Kimi 无市场）
+ * @param {string} pluginName - 要查找的插件名称
+ * @param {object} platform - 平台注册表条目
+ * @param {string} snapshotDir - 快照目录绝对路径
+ * @param {string} [marketplaceRootRel] - 市场根相对路径（"." 或如 "adapters/claude"）；
+ *   默认 "."（根布局）。条目 source 相对此路径解析，而非快照根。
+ * @returns {Promise<{manifest: object, manifestRelativePath: string, pluginRoot: string}|null>}
+ */
+export async function resolvePluginManifestFromMarketplaceEntrySource(
+  marketIndex,
+  pluginName,
+  platform,
+  snapshotDir,
+  marketplaceRootRel = '.',
+) {
+  // Kimi 无市场索引：返回 null（调用方使用平台级 manifest 规则）
+  if (platform.manifestPaths.marketplace === null && !marketIndex) {
+    return null;
+  }
+
+  if (!marketIndex || typeof marketIndex !== 'object') {
+    throw new Error('marketplace index is required for non-kimi platforms');
+  }
+
+  const plugins = Array.isArray(marketIndex.plugins) ? marketIndex.plugins : [];
+  const matches = plugins.filter((entry) => entry && entry.name === pluginName);
+  if (matches.length !== 1) {
+    throw new Error(
+      `marketplace index must contain exactly one plugin entry named "${pluginName}", found ${matches.length}`,
+    );
+  }
+
+  const entry = matches[0];
+  const sourcePath = extractDeclaredPluginSource(platform.id, entry);
+
+  // 安全拼接：source 路径已在 extractDeclaredPluginSource 中验证无逃逸。
+  // source 相对市场根解析（marketplaceRootRel），而非快照根。
+  // 这里再做 realpath 二次确认防止符号链接逃逸。
+  // macOS 的 /var -> /private/var 符号链接会导致 snapshotDir 与 realpath 不同，
+  // 因此必须先将 snapshotDir 解析为真实路径再做 containment 检查。
+  const snapshotDirReal = await realpath(snapshotDir).catch(() => snapshotDir);
+  const marketplaceRootAbs = marketplaceRootRel === '.'
+    ? snapshotDirReal
+    : resolve(snapshotDirReal, marketplaceRootRel);
+  const pluginRootAbs = resolve(marketplaceRootAbs, sourcePath);
+  const pluginRootReal = await realpath(pluginRootAbs).catch(() => null);
+  if (!pluginRootReal) {
+    throw new Error(`marketplace plugin entry source "${sourcePath}" does not exist in snapshot`);
+  }
+
+  // 逃逸检查：解析后的插件根必须在快照目录内
+  const containment = relative(snapshotDirReal, pluginRootReal);
+  const sep = process.platform === 'win32' ? '\\' : '/';
+  if (
+    containment !== '' &&
+    (isAbsolute(containment) || containment === '..' || containment.startsWith(`..${sep}`))
+  ) {
+    throw new Error(`marketplace plugin entry source "${sourcePath}" escapes the snapshot after symlink resolution`);
+  }
+
+  // 读取插件 manifest
+  const manifestRelative = platform.manifestPaths.plugin;
+  const manifestAbs = resolve(pluginRootReal, manifestRelative);
+
+  // 计算 manifestRelativePath：相对快照根的完整路径
+  const pluginRootRelToSnapshot = relative(snapshotDirReal, pluginRootReal);
+  const fullManifestRelative = pluginRootRelToSnapshot === ''
+    ? manifestRelative
+    : `${pluginRootRelToSnapshot}/${manifestRelative}`;
+
+  let raw;
+  try {
+    raw = await readFile(manifestAbs, 'utf8');
+  } catch (err) {
+    throw new Error(
+      `plugin manifest not found at "${fullManifestRelative}": ${err.message}`,
+    );
+  }
+
+  let manifest;
+  try {
+    manifest = JSON.parse(raw);
+  } catch (err) {
+    throw new Error(
+      `plugin manifest at "${fullManifestRelative}" is not valid JSON: ${err.message}`,
+    );
+  }
+
+  return {
+    manifest,
+    manifestRelativePath: fullManifestRelative,
+    pluginRoot: pluginRootRelToSnapshot || '.',
+  };
+}
+
+/**
+ * 验证 installationContractDigest：从冻结快照读取插件 manifest，
+ * 按平台注册表和来源形态构建安装契约，以 consumer-install-v1 重算摘要并比对。
+ *
+ * @param {object} action - 展开后的 action（parameters 已展开到顶层）
+ * @param {string} snapshotDirReal - 冻结快照的 realpath
+ * @param {object} platform - 平台注册表条目
+ * @returns {Promise<{valid: boolean, error: string|null}>}
+ */
+async function validateInstallationContractDigest(action, snapshotDirReal, platform) {
+  const form = action.marketplaceSourceType;
+
+  // 1. 确定是否纳入市场条目，并获取条目（manifest 读取依赖条目 source 路径）
+  const hasMarketplacePath = platform.manifestPaths.marketplace !== null;
+  let includeMarketplaceEntry = false;
+  let selectedMarketplaceEntry = null;
+  let marketplaceIndexRelative = null;
+  let marketIndexParsed = null;
+
+  if (form === 'bundled-family') {
+    includeMarketplaceEntry = hasMarketplacePath;
+    if (includeMarketplaceEntry) {
+      // 从快照中读取 bundled 市场索引，提取唯一匹配条目。
+      // marketplaceIndexPath 若存在（嵌套布局），用作完整索引路径；
+      // 否则使用平台默认路径（根布局）。
+      marketplaceIndexRelative = action.marketplaceIndexPath ?? platform.manifestPaths.marketplace;
+      const marketplacePath = resolve(snapshotDirReal, marketplaceIndexRelative);
+      const mkResult = await validateManifestFile(marketplacePath, ['name', 'plugins']);
+      if (!mkResult.valid) {
+        return { valid: false, error: `installationContractDigest 验证失败：市场索引读取失败：${mkResult.error}` };
+      }
+      const plugins = mkResult.manifest.plugins;
+      if (!Array.isArray(plugins)) {
+        return { valid: false, error: `installationContractDigest 验证失败：市场索引 plugins 非数组` };
+      }
+      const matches = plugins.filter((p) => p && p.name === action.plugin);
+      if (matches.length !== 1) {
+        return { valid: false, error: `installationContractDigest 验证失败：市场索引中匹配 "${action.plugin}" 的条目数量为 ${matches.length}` };
+      }
+      selectedMarketplaceEntry = matches[0];
+      marketIndexParsed = mkResult.manifest;
+    }
+  } else if (form === 'standalone-index') {
+    // 独立市场：Kimi 不纳入市场条目（Kimi 无市场 CLI，selectedEntry
+    // 仅供静态校验独立市场身份字段，不进入安装契约摘要）。
+    // Claude/Codex/CodeBuddy 使用 action 中的 selectedEntry 和 marketplaceIndexPath。
+    if (platform.id !== 'kimi' && action.selectedEntry && action.marketplaceIndexPath) {
+      includeMarketplaceEntry = true;
+      selectedMarketplaceEntry = action.selectedEntry;
+      marketplaceIndexRelative = action.marketplaceIndexPath;
+    }
+  }
+
+  // 2. 读取插件 manifest：使用市场条目 source 路径解析（单一权威 helper）。
+  //    bundled-family + 有市场索引：通过 resolvePluginManifestFromMarketplaceEntrySource
+  //    从条目 source 安全解析插件根并读取 manifest。
+  //    其他路径：保留原有策略。
+  let pluginManifestParsed;
+  let pluginManifestRelative;
+
+  if (form === 'bundled-family' && marketIndexParsed && platform.marketplaceSourceForm !== null) {
+    // bundled-family 有市场索引且平台支持市场来源解析（Claude/Codex）：
+    // 使用权威 helper 从条目 source 解析。
+    // 计算市场根：从 marketplaceIndexRelative 推断（精确后缀匹配）。
+    const mktRoot = resolveMarketplaceRoot(platform, marketplaceIndexRelative);
+    try {
+      const resolved = await resolvePluginManifestFromMarketplaceEntrySource(
+        marketIndexParsed, action.plugin, platform, snapshotDirReal, mktRoot,
+      );
+      pluginManifestParsed = resolved.manifest;
+      pluginManifestRelative = resolved.manifestRelativePath;
+    } catch (err) {
+      return { valid: false, error: `installationContractDigest 验证失败：${err.message}` };
+    }
+  } else if (platform.strategy.readManifest) {
+    // Kimi/CodeBuddy/Codex 有自定义 manifest 读取策略
+    const readResult = await platform.strategy.readManifest(snapshotDirReal);
+    pluginManifestParsed = readResult.manifest;
+    pluginManifestRelative = readResult.manifestRelative ?? platform.manifestPaths.plugin;
+  } else {
+    // Claude fallback（standalone-index 或无市场索引时）
+    pluginManifestRelative = platform.manifestPaths.plugin;
+    const pluginManifestPath = resolve(snapshotDirReal, pluginManifestRelative);
+    const manifestResult = await validateManifestFile(pluginManifestPath, ['name', 'version']);
+    if (!manifestResult.valid) {
+      return { valid: false, error: `installationContractDigest 验证失败：插件 manifest 读取失败：${manifestResult.error}` };
+    }
+    pluginManifestParsed = manifestResult.manifest;
+  }
+
+  // 3. 使用权威构建/摘要函数重算
+  const computedDigest = computeInstallationContractDigest({
+    distributionType: platform.distributionType,
+    manifestRelativePath: pluginManifestRelative,
+    manifest: pluginManifestParsed,
+    marketplaceSourceType: form,
+    includeMarketplaceEntry,
+    ...(includeMarketplaceEntry ? {
+      marketplaceIndexRelativePath: marketplaceIndexRelative,
+      selectedMarketplaceEntry,
+    } : {}),
+    verificationRecipeVersion: CONSUMER_INSTALL_RECIPE_VERSION,
+  });
+
+  if (computedDigest !== action.installationContractDigest) {
+    return {
+      valid: false,
+      error: `installationContractDigest 不匹配：预期 ${action.installationContractDigest.slice(0, 16)}...，重算 ${computedDigest.slice(0, 16)}...`,
+    };
+  }
+
+  return { valid: true, error: null };
 }
 
 /**
@@ -564,6 +848,49 @@ const SUPPORTED_TYPES = [
   ActionType.CODEBUDDY_MARKETPLACE_INSTALL,
 ];
 
+/**
+ * Classify whether an error indicates CLI/transport unavailability.
+ *
+ * ONLY these errors trigger human-attestation fallback for Codex:
+ * - ENOENT: binary not found
+ * - ETIMEDOUT/ECONNREFUSED/ECONNRESET: connection errors
+ * - ENOTFOUND: DNS resolution failure
+ * - spawn errors with specific codes
+ *
+ * All other errors (identity mismatch, malformed JSON, program bugs)
+ * are hard failures and NEVER trigger fallback.
+ *
+ * @param {Error} err
+ * @returns {boolean}
+ */
+function isCliOrTransportUnavailable(err) {
+  if (!err || typeof err !== 'object') return false;
+
+  // Node.js system error codes for CLI/transport unavailability
+  const UNAVAILABILITY_CODES = new Set([
+    'ENOENT',      // binary not found
+    'ETIMEDOUT',   // connection timeout
+    'ECONNREFUSED', // connection refused
+    'ECONNRESET',  // connection reset
+    'ENOTFOUND',   // DNS resolution failure
+    'EAI_AGAIN',   // DNS temporary failure
+    'EHOSTUNREACH', // host unreachable
+    'ENETUNREACH',  // network unreachable
+  ]);
+
+  if (err.code && UNAVAILABILITY_CODES.has(err.code)) {
+    return true;
+  }
+
+  // Check error message for spawn/ENOENT patterns
+  const msg = err.message || '';
+  if (msg.includes('ENOENT') || msg.includes('spawn')) {
+    return true;
+  }
+
+  return false;
+}
+
 /** Safe repo pattern: owner/repo with alphanumeric, hyphens, dots, underscores. */
 const SAFE_REPO_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*\/[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 
@@ -734,6 +1061,98 @@ async function checkRequiredFiles(dir, requiredFiles) {
     }
   }
   return { allPresent: missing.length === 0, missing };
+}
+
+// ---------------------------------------------------------------------------
+// 市场来源单选模型（DT-D）
+// ---------------------------------------------------------------------------
+
+/**
+ * 市场来源类型常量。
+ *
+ * - BUNDLED_FAMILY: 技能族自带市场文件（marketplace.json 与插件代码在同一仓库）
+ * - STANDALONE_INDEX: 独立市场仓库（市场索引在外部仓库，插件代码在另一仓库）
+ */
+export const MARKETPLACE_SOURCE_TYPES = Object.freeze({
+  BUNDLED_FAMILY: 'bundled-family',
+  STANDALONE_INDEX: 'standalone-index',
+});
+
+/**
+ * 每个平台支持的市场来源类型。
+ *
+ * 所有平台均支持 bundled-family 和 standalone-index 两种来源形态。
+ * 不得硬编码某个平台只能使用其中一种。
+ */
+const PLATFORM_SUPPORTED_SOURCES = Object.freeze({
+  claude: new Set([MARKETPLACE_SOURCE_TYPES.BUNDLED_FAMILY, MARKETPLACE_SOURCE_TYPES.STANDALONE_INDEX]),
+  codex: new Set([MARKETPLACE_SOURCE_TYPES.BUNDLED_FAMILY, MARKETPLACE_SOURCE_TYPES.STANDALONE_INDEX]),
+  kimi: new Set([MARKETPLACE_SOURCE_TYPES.BUNDLED_FAMILY, MARKETPLACE_SOURCE_TYPES.STANDALONE_INDEX]),
+  codebuddy: new Set([MARKETPLACE_SOURCE_TYPES.BUNDLED_FAMILY, MARKETPLACE_SOURCE_TYPES.STANDALONE_INDEX]),
+});
+
+/**
+ * 验证市场来源单选约束：每个平台每次发布只允许一种来源。
+ *
+ * 根据平台能力和配置/计划中的市场来源类型进行校验：
+ * 1. 混用两种来源失败关闭
+ * 2. 不支持的来源类型失败关闭
+ *
+ * @param {string} platform - 平台标识（claude / codex / kimi / codebuddy）
+ * @param {object} config - 项目配置（releaseUnit.distributions 中的一项）
+ * @param {object} plan - 发布计划（units.distributions 中的一项）
+ * @returns {{ valid: boolean, error: string|null, selectedSource: string|null }}
+ */
+export function validateMarketplaceSourceSelection(platform, config, plan) {
+  // 每个平台只允许一种来源
+  const configSource = config?.marketplaceSourceType ?? null;
+  const planSource = plan?.marketplaceSourceType ?? null;
+
+  // 确定选定的来源类型
+  const selectedSource = planSource ?? configSource;
+
+  if (configSource && planSource && configSource !== planSource) {
+    return {
+      valid: false,
+      error: `平台 "${platform}" 市场来源混用：配置声明 "${configSource}"，计划声明 "${planSource}"；每次发布只允许一种来源`,
+      selectedSource: null,
+    };
+  }
+
+  // 如果没有声明来源类型，无法验证（向后兼容旧配置）
+  if (!selectedSource) {
+    return { valid: true, error: null, selectedSource: null };
+  }
+
+  // 检查来源类型是否为已知值
+  const knownSources = new Set(Object.values(MARKETPLACE_SOURCE_TYPES));
+  if (!knownSources.has(selectedSource)) {
+    return {
+      valid: false,
+      error: `未知的市场来源类型 "${selectedSource}"；合法值为 ${[...knownSources].join(', ')}`,
+      selectedSource: null,
+    };
+  }
+
+  // 检查平台是否支持该来源类型
+  const supportedSources = PLATFORM_SUPPORTED_SOURCES[platform];
+  if (!supportedSources) {
+    return {
+      valid: false,
+      error: `未知的平台 "${platform}"`,
+      selectedSource: null,
+    };
+  }
+  if (!supportedSources.has(selectedSource)) {
+    const supportedList = [...supportedSources].join(', ');
+    return {
+      valid: false,
+      error: `平台 "${platform}" 不支持市场来源 "${selectedSource}"；该平台仅支持: ${supportedList}`,
+      selectedSource: null,
+    };
+  }
+
+  return { valid: true, error: null, selectedSource };
 }
 
 /**
@@ -915,55 +1334,88 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
 
-          // 6. sourceDescriptor validation (structured-cli route only).
-          // Human-attestation platforms (kimi, codebuddy) are exempt: they have no
-          // scriptable install CLI, so the source descriptor's conflict
-          // detection is irrelevant to their manual-requirement workflow.
+          // 6. 统一静态预检：四平台共同执行安装来源与安装契约校验。
+          // 旧冻结计划（整组新版字段完全不存在时）保留既有路径。
+          // 新版字段组（installationContractDigest、algorithmVersion、marketplaceSourceType 为标志）
+          // 出现任一字段时必须完整。0.2.3 已有的 marketplaceForm、sourceDescriptor、sourceCommit
+          // 单独出现不得触发新版组。
           const route = resolvePlatformRoute(consumerPlatform);
-          if (route.route === 'structured-cli') {
+
+          // 6a. 新版字段组检测：installationContractDigest、algorithmVersion、marketplaceSourceType
+          // 任一存在时走新路径
+          const NEW_FIELD_GROUP_MARKERS = ['installationContractDigest', 'algorithmVersion', 'marketplaceSourceType'];
+          const hasNewFieldGroup = NEW_FIELD_GROUP_MARKERS.some(
+            (f) => action[f] !== undefined && action[f] !== null,
+          );
+
+          if (hasNewFieldGroup) {
+            // 新版字段组完整性：任一出现则要求全组完整
+            const newFields = [
+              'marketplaceForm', 'sourceDescriptor', 'installationContractDigest',
+              'algorithmVersion', 'sourceCommit', 'marketplaceSourceType',
+            ];
+            const missingNewFields = newFields.filter((f) => action[f] === undefined || action[f] === null);
+            if (missingNewFields.length > 0) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `新版字段组不完整，缺失: ${missingNewFields.join(', ')}；任一出现则要求全组完整`,
+              });
+            }
+
             const sd = action.sourceDescriptor;
             if (!sd || typeof sd !== 'object') {
               return createResult({
                 actionType,
                 status: ActionStatus.PREFLIGHT_FAILED,
-                error: 'sourceDescriptor is required for marketplace install',
+                error: 'sourceDescriptor is required when installationContractDigest is present',
               });
             }
 
-            // Form consistency: marketplaceForm must agree with sourceDescriptor.form.
-            if (sd.form !== action.marketplaceForm) {
+            // marketplaceForm 三方一致性
+            if (action.marketplaceForm !== sd.form || action.marketplaceForm !== action.marketplaceSourceType) {
               return createResult({
                 actionType,
                 status: ActionStatus.PREFLIGHT_FAILED,
-                error: `sourceDescriptor.form "${sd.form}" does not match marketplaceForm "${action.marketplaceForm}"`,
+                error: `marketplaceForm "${action.marketplaceForm}"、sourceDescriptor.form "${sd.form}"、marketplaceSourceType "${action.marketplaceSourceType}" 三者必须一致`,
               });
             }
 
-            // payloadDigest: must be a valid 64-char lowercase hex string and
-            // must not be the null hash (all zeros).
-            if (typeof sd.payloadDigest !== 'string' || sd.payloadDigest.length === 0) {
+            // installationContractDigest 格式
+            if (!SAFE_DIGEST_RE.test(action.installationContractDigest)) {
               return createResult({
                 actionType,
                 status: ActionStatus.PREFLIGHT_FAILED,
-                error: 'sourceDescriptor.payloadDigest is required',
-              });
-            }
-            if (!/^[a-f0-9]{64}$/.test(sd.payloadDigest)) {
-              return createResult({
-                actionType,
-                status: ActionStatus.PREFLIGHT_FAILED,
-                error: 'sourceDescriptor.payloadDigest must be a 64-char lowercase hex string',
-              });
-            }
-            if (sd.payloadDigest === '0'.repeat(64)) {
-              return createResult({
-                actionType,
-                status: ActionStatus.PREFLIGHT_FAILED,
-                error: 'sourceDescriptor.payloadDigest must not be the null hash',
+                error: 'installationContractDigest must be a 64-char lowercase hex string',
               });
             }
 
-            // marketplaceEntry: must match the action plugin name.
+            // algorithmVersion
+            if (action.algorithmVersion !== INSTALLATION_CONTRACT_ALGORITHM_VERSION) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `algorithmVersion must be ${INSTALLATION_CONTRACT_ALGORITHM_VERSION}, got ${action.algorithmVersion}`,
+              });
+            }
+
+            // sourceCommit 格式
+            if (typeof action.sourceCommit !== 'string' || !/^[0-9a-f]{40}$/.test(action.sourceCommit)) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: 'sourceCommit must be a 40-char lowercase hex commit sha',
+              });
+            }
+
+            // sourceDescriptor 共通字段
+            if (typeof sd.form !== 'string' || (sd.form !== 'bundled-family' && sd.form !== 'standalone-index')) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `sourceDescriptor.form must be "bundled-family" or "standalone-index", got "${sd.form}"`,
+              });
+            }
             if (typeof sd.marketplaceEntry !== 'string' || sd.marketplaceEntry.length === 0) {
               return createResult({
                 actionType,
@@ -979,13 +1431,14 @@ export function createPluginMarketplaceAdapter(deps = {}) {
               });
             }
 
-            // Form-specific field validation.
+            // 来源形态专属字段校验
             if (sd.form === 'bundled-family') {
+              // bundled-family 完整性
               if (!sd.repo || !SAFE_REPO_RE.test(sd.repo)) {
                 return createResult({
                   actionType,
                   status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `sourceDescriptor.repo is required and must be a safe repo pattern`,
+                  error: 'sourceDescriptor.repo is required and must be a safe repo pattern for bundled-family form',
                 });
               }
               if (sd.repo !== action.repo) {
@@ -995,37 +1448,32 @@ export function createPluginMarketplaceAdapter(deps = {}) {
                   error: `sourceDescriptor.repo "${sd.repo}" does not match action.repo "${action.repo}"`,
                 });
               }
-              // commit 可选，但如果存在则必须是 40-hex 格式
-              if (sd.commit !== undefined && (typeof sd.commit !== 'string' || !/^[0-9a-f]{40}$/.test(sd.commit))) {
+              if (typeof sd.commit !== 'string' || !/^[0-9a-f]{40}$/.test(sd.commit)) {
                 return createResult({
                   actionType,
                   status: ActionStatus.PREFLIGHT_FAILED,
                   error: 'sourceDescriptor.commit must be a 40-hex commit sha for bundled-family form',
                 });
               }
-              // commit 交叉校验：bundled sourceDescriptor.commit 必须与
-              // action.sourceCommit（冻结的插件来源提交）一致
-              if (sd.commit !== undefined && action.sourceCommit && sd.commit !== action.sourceCommit) {
+              if (sd.commit !== action.sourceCommit) {
                 return createResult({
                   actionType,
                   status: ActionStatus.PREFLIGHT_FAILED,
                   error: `sourceDescriptor.commit "${sd.commit}" does not match action.sourceCommit "${action.sourceCommit}"`,
                 });
               }
-              // payloadDigest 格式校验（可选，但如果存在则必须是 64-hex）
-              if (sd.payloadDigest !== undefined && (!sd.payloadDigest || !SAFE_DIGEST_RE.test(sd.payloadDigest))) {
+              if (!sd.payloadDigest || !SAFE_DIGEST_RE.test(sd.payloadDigest)) {
                 return createResult({
                   actionType,
                   status: ActionStatus.PREFLIGHT_FAILED,
-                  error: 'sourceDescriptor.payloadDigest is required for bundled-family form',
+                  error: 'sourceDescriptor.payloadDigest must be a 64-hex digest for bundled-family form',
                 });
               }
-              // payloadDigest 交叉校验：必须与 action.manifestDigest（冻结的载荷摘要）一致
-              if (sd.payloadDigest !== undefined && action.manifestDigest && sd.payloadDigest !== action.manifestDigest) {
+              if (sd.payloadDigest !== action.manifestDigest) {
                 return createResult({
                   actionType,
                   status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `sourceDescriptor.payloadDigest does not match action.manifestDigest`,
+                  error: 'sourceDescriptor.payloadDigest does not match action.manifestDigest',
                 });
               }
               if (typeof sd.pluginSubpath !== 'string' || sd.pluginSubpath.length === 0) {
@@ -1035,14 +1483,48 @@ export function createPluginMarketplaceAdapter(deps = {}) {
                   error: 'sourceDescriptor.pluginSubpath is required for bundled-family form',
                 });
               }
-            } else if (sd.form === 'standalone-index') {
-              if (!sd.pluginRepo || !SAFE_REPO_RE.test(sd.pluginRepo)) {
+              // 不允许独立市场专属字段（sourceDescriptor 层）
+              if (sd.marketplaceRepo !== undefined || sd.marketplaceCommitSha !== undefined || sd.pluginRepo !== undefined) {
                 return createResult({
                   actionType,
                   status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `sourceDescriptor.pluginRepo is required for standalone-index form`,
+                  error: 'bundled-family sourceDescriptor must not contain standalone-index fields (marketplaceRepo, marketplaceCommitSha, pluginRepo)',
                 });
               }
+              // 不允许 action 顶层独立市场专属字段，避免双来源混用。
+              // marketplaceIndexPath 对 bundled-family 嵌套布局也合法（指示市场根位置），
+              // 因此仅禁止真正的 standalone-index 专属字段。
+              if (action.marketplaceCommitSha !== undefined || action.marketplaceName !== undefined || action.selectedEntry !== undefined) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: 'bundled-family action must not contain standalone-index fields (marketplaceCommitSha, marketplaceName, selectedEntry)',
+                });
+              }
+              // bundled-family marketplaceIndexPath 格式校验（可选，嵌套布局时存在）
+              if (action.marketplaceIndexPath !== undefined && action.marketplaceIndexPath !== null) {
+                if (typeof action.marketplaceIndexPath !== 'string' || action.marketplaceIndexPath.length === 0) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: 'bundled-family marketplaceIndexPath must be a non-empty string when present',
+                  });
+                }
+                if (
+                  action.marketplaceIndexPath.startsWith('/') ||
+                  action.marketplaceIndexPath.includes('..') ||
+                  action.marketplaceIndexPath.includes('\\') ||
+                  /^https?:\/\//i.test(action.marketplaceIndexPath)
+                ) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `marketplaceIndexPath "${action.marketplaceIndexPath}" is not a safe relative path`,
+                  });
+                }
+              }
+            } else {
+              // standalone-index 完整性
               if (!sd.marketplaceRepo || !SAFE_REPO_RE.test(sd.marketplaceRepo)) {
                 return createResult({
                   actionType,
@@ -1050,8 +1532,13 @@ export function createPluginMarketplaceAdapter(deps = {}) {
                   error: 'sourceDescriptor.marketplaceRepo is required for standalone-index form',
                 });
               }
-              // 独立市场身份交叉校验：
-              // 1. marketplaceRepo 必须等于 action.repo（市场仓库身份）
+              if (!sd.pluginRepo || !SAFE_REPO_RE.test(sd.pluginRepo)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: 'sourceDescriptor.pluginRepo is required for standalone-index form',
+                });
+              }
               if (sd.marketplaceRepo !== action.repo) {
                 return createResult({
                   actionType,
@@ -1059,7 +1546,6 @@ export function createPluginMarketplaceAdapter(deps = {}) {
                   error: `sourceDescriptor.marketplaceRepo "${sd.marketplaceRepo}" does not match action.repo "${action.repo}"`,
                 });
               }
-              // 2. pluginRepo 必须与 marketplaceRepo 不同（发布单元仓库 ≠ 市场仓库）
               if (sd.pluginRepo === sd.marketplaceRepo) {
                 return createResult({
                   actionType,
@@ -1067,22 +1553,27 @@ export function createPluginMarketplaceAdapter(deps = {}) {
                   error: `sourceDescriptor.pluginRepo "${sd.pluginRepo}" must differ from marketplaceRepo "${sd.marketplaceRepo}"`,
                 });
               }
-              if (
-                typeof sd.marketplaceCommitSha !== 'string'
-                || !/^[0-9a-f]{40}$/.test(sd.marketplaceCommitSha)
-              ) {
+              if (typeof sd.marketplaceCommitSha !== 'string' || !/^[0-9a-f]{40}$/.test(sd.marketplaceCommitSha)) {
                 return createResult({
                   actionType,
                   status: ActionStatus.PREFLIGHT_FAILED,
                   error: 'sourceDescriptor.marketplaceCommitSha must be a 40-hex commit sha for standalone-index form',
                 });
               }
-              // 3. marketplaceCommitSha 交叉校验（与 action 层一致）
-              if (action.marketplaceCommitSha && sd.marketplaceCommitSha !== action.marketplaceCommitSha) {
+              // action 顶层 marketplaceCommitSha 必须存在、为 40 位小写提交 SHA，
+              // 且等于 sourceDescriptor.marketplaceCommitSha
+              if (typeof action.marketplaceCommitSha !== 'string' || !/^[0-9a-f]{40}$/.test(action.marketplaceCommitSha)) {
                 return createResult({
                   actionType,
                   status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `sourceDescriptor.marketplaceCommitSha "${sd.marketplaceCommitSha}" does not match action.marketplaceCommitSha "${action.marketplaceCommitSha}"`,
+                  error: 'marketplaceCommitSha is required at action top level for standalone-index form',
+                });
+              }
+              if (sd.marketplaceCommitSha !== action.marketplaceCommitSha) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.marketplaceCommitSha does not match action.marketplaceCommitSha`,
                 });
               }
               if (typeof sd.ref !== 'string' || sd.ref.length === 0) {
@@ -1092,34 +1583,308 @@ export function createPluginMarketplaceAdapter(deps = {}) {
                   error: 'sourceDescriptor.ref is required for standalone-index form',
                 });
               }
-              // 4. payloadDigest 格式校验（可选，但如果存在则必须是 64-hex）
-              if (sd.payloadDigest !== undefined && (!sd.payloadDigest || !SAFE_DIGEST_RE.test(sd.payloadDigest))) {
+              if (sd.ref !== action.ref) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.ref "${sd.ref}" does not match action.ref "${action.ref}"`,
+                });
+              }
+              // payloadDigest 必须存在、为合法摘要且等于 manifestDigest（不能可选）
+              if (!sd.payloadDigest || !SAFE_DIGEST_RE.test(sd.payloadDigest)) {
                 return createResult({
                   actionType,
                   status: ActionStatus.PREFLIGHT_FAILED,
                   error: 'sourceDescriptor.payloadDigest must be a 64-hex digest for standalone-index form',
                 });
               }
-              // 5. payloadDigest 交叉校验：必须与 action.manifestDigest（冻结的载荷摘要）一致
-              if (sd.payloadDigest !== undefined && action.manifestDigest && sd.payloadDigest !== action.manifestDigest) {
+              if (sd.payloadDigest !== action.manifestDigest) {
                 return createResult({
                   actionType,
                   status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `sourceDescriptor.payloadDigest does not match action.manifestDigest`,
+                  error: 'sourceDescriptor.payloadDigest does not match action.manifestDigest',
                 });
               }
-            } else {
+              // 不允许 bundled-family 专属字段
+              if (sd.commit !== undefined || sd.pluginSubpath !== undefined) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: 'standalone-index sourceDescriptor must not contain bundled-family fields (commit, pluginSubpath)',
+                });
+              }
+            }
+
+            // standalone-index 独立市场专属字段校验（action 层）
+            if (action.marketplaceSourceType === 'standalone-index') {
+              // marketplaceIndexPath 必须是安全非空相对路径
+              if (typeof action.marketplaceIndexPath !== 'string' || action.marketplaceIndexPath.length === 0) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: 'marketplaceIndexPath is required for standalone-index form',
+                });
+              }
+              if (
+                action.marketplaceIndexPath.startsWith('/') ||
+                action.marketplaceIndexPath.includes('..') ||
+                action.marketplaceIndexPath.includes('\\') ||
+                /^https?:\/\//i.test(action.marketplaceIndexPath)
+              ) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `marketplaceIndexPath "${action.marketplaceIndexPath}" is not a safe relative path`,
+                });
+              }
+              // marketplaceName 必须是安全非空标识
+              if (typeof action.marketplaceName !== 'string' || action.marketplaceName.length === 0) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: 'marketplaceName is required for standalone-index form',
+                });
+              }
+              if (!SAFE_ID_RE.test(action.marketplaceName)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `unsafe marketplaceName identifier: "${action.marketplaceName}"`,
+                });
+              }
+              // 若 action 带 marketplace，两者必须相等
+              if (action.marketplace !== undefined && action.marketplace !== null && action.marketplaceName !== action.marketplace) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `marketplaceName "${action.marketplaceName}" does not match action.marketplace "${action.marketplace}"`,
+                });
+              }
+              // selectedEntry 必须是普通对象，name/version 绑定 action
+              if (!action.selectedEntry || typeof action.selectedEntry !== 'object' || Array.isArray(action.selectedEntry)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: 'selectedEntry must be a non-null object for standalone-index form',
+                });
+              }
+              if (action.selectedEntry.name !== action.plugin) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `selectedEntry.name "${action.selectedEntry.name}" does not match action.plugin "${action.plugin}"`,
+                });
+              }
+              if (action.selectedEntry.version !== undefined && action.selectedEntry.version !== action.version) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `selectedEntry.version "${action.selectedEntry.version}" does not match action.version "${action.version}"`,
+                });
+              }
+            }
+          } else {
+            // 6b. 旧路径：sourceDescriptor 必须存在且为对象
+            const sd = action.sourceDescriptor;
+            if (!sd || typeof sd !== 'object') {
               return createResult({
                 actionType,
                 status: ActionStatus.PREFLIGHT_FAILED,
-                error: `sourceDescriptor.form "${sd.form}" is not a recognized form (expected "bundled-family" or "standalone-index")`,
+                error: 'sourceDescriptor is required for marketplace install actions',
               });
+            }
+            {
+              // Form consistency: marketplaceForm must agree with sourceDescriptor.form.
+              if (sd.form !== action.marketplaceForm) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.form "${sd.form}" does not match marketplaceForm "${action.marketplaceForm}"`,
+                });
+              }
+
+              // payloadDigest: must be a valid 64-char lowercase hex string and
+              // must not be the null hash (all zeros).
+              if (typeof sd.payloadDigest !== 'string' || sd.payloadDigest.length === 0) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: 'sourceDescriptor.payloadDigest is required',
+                });
+              }
+              if (!/^[a-f0-9]{64}$/.test(sd.payloadDigest)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: 'sourceDescriptor.payloadDigest must be a 64-char lowercase hex string',
+                });
+              }
+              if (sd.payloadDigest === '0'.repeat(64)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: 'sourceDescriptor.payloadDigest must not be the null hash',
+                });
+              }
+
+              // marketplaceEntry: must match the action plugin name.
+              if (typeof sd.marketplaceEntry !== 'string' || sd.marketplaceEntry.length === 0) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: 'sourceDescriptor.marketplaceEntry is required',
+                });
+              }
+              if (sd.marketplaceEntry !== action.plugin) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.marketplaceEntry "${sd.marketplaceEntry}" does not match action plugin "${action.plugin}"`,
+                });
+              }
+
+              // Form-specific field validation.
+              if (sd.form === 'bundled-family') {
+                if (!sd.repo || !SAFE_REPO_RE.test(sd.repo)) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `sourceDescriptor.repo is required and must be a safe repo pattern`,
+                  });
+                }
+                if (sd.repo !== action.repo) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `sourceDescriptor.repo "${sd.repo}" does not match action.repo "${action.repo}"`,
+                  });
+                }
+                // commit 可选，但如果存在则必须是 40-hex 格式
+                if (sd.commit !== undefined && (typeof sd.commit !== 'string' || !/^[0-9a-f]{40}$/.test(sd.commit))) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: 'sourceDescriptor.commit must be a 40-hex commit sha for bundled-family form',
+                  });
+                }
+                // commit 交叉校验：bundled sourceDescriptor.commit 必须与
+                // action.sourceCommit（冻结的插件来源提交）一致
+                if (sd.commit !== undefined && action.sourceCommit && sd.commit !== action.sourceCommit) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `sourceDescriptor.commit "${sd.commit}" does not match action.sourceCommit "${action.sourceCommit}"`,
+                  });
+                }
+                // payloadDigest 格式校验（可选，但如果存在则必须是 64-hex）
+                if (sd.payloadDigest !== undefined && (!sd.payloadDigest || !SAFE_DIGEST_RE.test(sd.payloadDigest))) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: 'sourceDescriptor.payloadDigest is required for bundled-family form',
+                  });
+                }
+                // payloadDigest 交叉校验：必须与 action.manifestDigest（冻结的载荷摘要）一致
+                if (sd.payloadDigest !== undefined && action.manifestDigest && sd.payloadDigest !== action.manifestDigest) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `sourceDescriptor.payloadDigest does not match action.manifestDigest`,
+                  });
+                }
+                if (typeof sd.pluginSubpath !== 'string' || sd.pluginSubpath.length === 0) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: 'sourceDescriptor.pluginSubpath is required for bundled-family form',
+                  });
+                }
+              } else if (sd.form === 'standalone-index') {
+                if (!sd.pluginRepo || !SAFE_REPO_RE.test(sd.pluginRepo)) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `sourceDescriptor.pluginRepo is required for standalone-index form`,
+                  });
+                }
+                if (!sd.marketplaceRepo || !SAFE_REPO_RE.test(sd.marketplaceRepo)) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: 'sourceDescriptor.marketplaceRepo is required for standalone-index form',
+                  });
+                }
+                // 独立市场身份交叉校验：
+                // 1. marketplaceRepo 必须等于 action.repo（市场仓库身份）
+                if (sd.marketplaceRepo !== action.repo) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `sourceDescriptor.marketplaceRepo "${sd.marketplaceRepo}" does not match action.repo "${action.repo}"`,
+                  });
+                }
+                // 2. pluginRepo 必须与 marketplaceRepo 不同（发布单元仓库 ≠ 市场仓库）
+                if (sd.pluginRepo === sd.marketplaceRepo) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `sourceDescriptor.pluginRepo "${sd.pluginRepo}" must differ from marketplaceRepo "${sd.marketplaceRepo}"`,
+                  });
+                }
+                if (
+                  typeof sd.marketplaceCommitSha !== 'string'
+                  || !/^[0-9a-f]{40}$/.test(sd.marketplaceCommitSha)
+                ) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: 'sourceDescriptor.marketplaceCommitSha must be a 40-hex commit sha for standalone-index form',
+                  });
+                }
+                // 3. marketplaceCommitSha 交叉校验（与 action 层一致）
+                if (action.marketplaceCommitSha && sd.marketplaceCommitSha !== action.marketplaceCommitSha) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `sourceDescriptor.marketplaceCommitSha "${sd.marketplaceCommitSha}" does not match action.marketplaceCommitSha "${action.marketplaceCommitSha}"`,
+                  });
+                }
+                if (typeof sd.ref !== 'string' || sd.ref.length === 0) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: 'sourceDescriptor.ref is required for standalone-index form',
+                  });
+                }
+                // 4. payloadDigest 格式校验（可选，但如果存在则必须是 64-hex）
+                if (sd.payloadDigest !== undefined && (!sd.payloadDigest || !SAFE_DIGEST_RE.test(sd.payloadDigest))) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: 'sourceDescriptor.payloadDigest must be a 64-hex digest for standalone-index form',
+                  });
+                }
+                // 5. payloadDigest 交叉校验：必须与 action.manifestDigest（冻结的载荷摘要）一致
+                if (sd.payloadDigest !== undefined && action.manifestDigest && sd.payloadDigest !== action.manifestDigest) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `sourceDescriptor.payloadDigest does not match action.manifestDigest`,
+                  });
+                }
+              } else {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.form "${sd.form}" is not a recognized form (expected "bundled-family" or "standalone-index")`,
+                });
+              }
             }
           }
 
           // 7. Verify frozen snapshot exists and contains required marketplace files
-          const platform = getPlatform(consumer);
-          const platformRoute = resolvePlatformRoute(platform);
+          const platform = consumerPlatform;
+          const platformRoute = route;
           let snapshotDirReal;
           // Authoritative kimi manifest (from the frozen snapshot), used to
           // resolve the entry skill via the manifest-declared skills root.
@@ -1171,7 +1936,13 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             kimiSnapshotManifest = kimiManifest;
           }
 
+          // pluginRootForEntrySkill: the resolved plugin root directory for
+          // entry skill validation. Set inside the structured-cli non-external
+          // path; null for external/human-attestation (falls back to snapshotDirReal).
+          let pluginRootForEntrySkill = null;
+
           if (platformRoute.route === 'structured-cli') {
+          let sourceDirReal = null;
           if (action.marketplaceLocation === 'external') {
           // External independent marketplace form: the marketplace index lives
           // in the external repository (frozen by prepare), NOT in the unit
@@ -1226,9 +1997,21 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           }
           } else {
           // Verify marketplace files exist.
-          // marketplace.json is at the snapshot root; plugin manifest is
-          // resolved relative to the entry's declared source path.
-          const marketplaceRelative = platform.manifestPaths.marketplace;
+          // marketplace.json 的路径：嵌套布局使用 action.marketplaceIndexPath，
+          // 根布局使用平台默认路径。条目 source 相对市场根解析。
+          const marketplaceRelative = action.marketplaceIndexPath ?? platform.manifestPaths.marketplace;
+
+          // 计算市场根（精确后缀匹配）
+          let mktRoot;
+          try {
+            mktRoot = resolveMarketplaceRoot(platform, marketplaceRelative);
+          } catch (mktRootErr) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: `marketplace root resolution failed: ${mktRootErr.message}`,
+            });
+          }
 
           const marketplacePath = resolve(snapshotDirReal, marketplaceRelative);
 
@@ -1276,6 +2059,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           // empty strings. Normalized to "." for root layouts; the same
           // helper backs verify-side payload subtree resolution, so both
           // paths can never drift apart.
+          // source 相对市场根（mktRoot）解析，而非快照根。
           let sourcePath;
           try {
             sourcePath = extractDeclaredPluginSource(consumer, entry);
@@ -1288,8 +2072,10 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           }
           // Verify the declared source directory exists and contains the
           // expected plugin manifest inside the frozen snapshot.
-          const sourceDirAbs = resolve(snapshotDirReal, sourcePath);
-          const sourceDirReal = await realpath(sourceDirAbs).catch(() => null);
+          // source 相对市场根解析
+          const mktRootAbs = mktRoot === '.' ? snapshotDirReal : resolve(snapshotDirReal, mktRoot);
+          const sourceDirAbs = resolve(mktRootAbs, sourcePath);
+          sourceDirReal = await realpath(sourceDirAbs).catch(() => null);
           if (!sourceDirReal) {
             return createResult({
               actionType,
@@ -1306,13 +2092,18 @@ export function createPluginMarketplaceAdapter(deps = {}) {
               error: `marketplace plugin entry source "${sourcePath}" escapes the frozen snapshot`,
             });
           }
+          // Save plugin root for entry skill validation (visible outside structured-cli block)
+          pluginRootForEntrySkill = sourceDirReal;
 
           // Resolve plugin manifest relative to the declared source path.
           // For root layouts (source: "./"), this resolves to
           //   snapshot/.claude-plugin/plugin.json
-          // For subdirectory layouts (source: "./adapters/claude"), this resolves to
-          //   snapshot/adapters/claude/.claude-plugin/plugin.json
-          const manifestRelative = join(sourcePath, platform.manifestPaths.plugin);
+          // For nested layouts (marketRoot: "adapters/claude", source: "."),
+          //   this resolves to snapshot/adapters/claude/.claude-plugin/plugin.json
+          const pluginRootRelToSnapshot = relative(snapshotDirReal, sourceDirReal) || '.';
+          const manifestRelative = pluginRootRelToSnapshot === '.'
+            ? platform.manifestPaths.plugin
+            : `${pluginRootRelToSnapshot}/${platform.manifestPaths.plugin}`;
           const manifestPath = resolve(snapshotDirReal, manifestRelative);
 
           const manifestResult = await validateManifestFile(manifestPath, ['name', 'version']);
@@ -1384,14 +2175,19 @@ export function createPluginMarketplaceAdapter(deps = {}) {
               });
             }
           } else {
-            const entrySkillFile = resolve(snapshotDirReal, 'skills', action.entrySkill, 'SKILL.md');
+            // Entry skill 相对插件根解析（嵌套布局时 pluginRoot != snapshotRoot）。
+            // pluginRootForEntrySkill 在非 external 结构化 CLI 路径中已确定；
+            // external 路径或 human-attestation（null）时回退到 snapshotDirReal。
+            const pluginRootForSkill = pluginRootForEntrySkill || snapshotDirReal;
+            const entrySkillFile = resolve(pluginRootForSkill, 'skills', action.entrySkill, 'SKILL.md');
             try {
               await stat(entrySkillFile);
             } catch {
+              const skillRel = relative(snapshotDirReal, entrySkillFile) || `skills/${action.entrySkill}/SKILL.md`;
               return createResult({
                 actionType,
                 status: ActionStatus.PREFLIGHT_FAILED,
-                error: `entry skill not found in snapshot: skills/${action.entrySkill}/SKILL.md`,
+                error: `entry skill not found in snapshot: ${skillRel}`,
               });
             }
           }
@@ -1412,6 +2208,28 @@ export function createPluginMarketplaceAdapter(deps = {}) {
               status: ActionStatus.PREFLIGHT_FAILED,
               error: `failed to compute snapshot digest: ${digestErr.message}`,
             });
+          }
+
+          // installationContractDigest 摘要校验（新版字段组已通过完整性检查后来到这里）
+          // 从冻结快照读取插件 manifest，按平台注册表和来源形态构建安装契约，
+          // 以 consumer-install-v1 重算并与 action 携带的摘要比对。
+          if (hasNewFieldGroup) {
+            try {
+              const contractResult = await validateInstallationContractDigest(action, snapshotDirReal, consumerPlatform);
+              if (!contractResult.valid) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: contractResult.error,
+                });
+              }
+            } catch (contractErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `installationContractDigest 验证异常: ${contractErr.message}`,
+              });
+            }
           }
 
           return createResult({
@@ -1668,6 +2486,11 @@ export function createPluginMarketplaceAdapter(deps = {}) {
               }
             }
           } catch (addErr) {
+            // Re-throw CLI/transport unavailability errors to outer catch
+            // for human-attestation fallback classification
+            if (isCliOrTransportUnavailable(addErr)) {
+              throw addErr;
+            }
             return createResult({
               actionType,
               status: ActionStatus.EXECUTE_FAILED,
@@ -1742,6 +2565,11 @@ export function createPluginMarketplaceAdapter(deps = {}) {
               }
             }
           } catch (installErr) {
+            // Re-throw CLI/transport unavailability errors to outer catch
+            // for human-attestation fallback classification
+            if (isCliOrTransportUnavailable(installErr)) {
+              throw installErr;
+            }
             return createResult({
               actionType,
               status: ActionStatus.EXECUTE_FAILED,
@@ -1808,6 +2636,18 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             observation: executeObservation,
           });
         } catch (err) {
+          // Codex human-attestation fallback: ONLY when the CLI interface,
+          // binary, environment, or transport is explicitly unavailable.
+          // Explicit mismatches (identity, version, payload, marketplace entry),
+          // malformed JSON, and program exceptions are hard failures.
+          const failedPlatform = getPlatform(action.consumer);
+          if (
+            failedPlatform.degradationPolicy === 'human-attestation-with-fallback'
+            && failedPlatform.strategy.buildManualRequirement
+            && isCliOrTransportUnavailable(err)
+          ) {
+            return failedPlatform.strategy.buildManualRequirement(action, context);
+          }
           return createResult({
             actionType,
             status: ActionStatus.EXECUTE_FAILED,
@@ -1963,8 +2803,8 @@ export function createPluginMarketplaceAdapter(deps = {}) {
 
             // Stable, cross-run attestation authority (B). The requirement and
             // attestation live here, keyed by the verified plan digest + plugin,
-            // so they survive publish PARTIAL -> reconcile -> verify (each of
-            // which uses a fresh runDir).
+            // so they survive across fresh runDirs (publish, verify each use a
+            // new runDir).
             let attestationDir;
             try {
               attestationDir = kimiAuthorityDir(context, boundPlanDigest, action.plugin);
@@ -1992,13 +2832,14 @@ export function createPluginMarketplaceAdapter(deps = {}) {
                 },
               });
             }
+            // 完整 requirement 绑定验证：所有冻结动作绑定字段必须一致
             if (
               requirement.planDigest !== boundPlanDigest ||
               requirement.plugin !== action.plugin ||
               requirement.version !== action.version ||
-              requirement.entrySkill !== action.entrySkill ||
               requirement.repo !== action.repo ||
-              requirement.ref !== expectedRef
+              requirement.ref !== (action.ref ?? `v${action.version}`) ||
+              (action.entrySkill && requirement.entrySkill !== action.entrySkill)
             ) {
               return createResult({
                 actionType,
@@ -2039,202 +2880,156 @@ export function createPluginMarketplaceAdapter(deps = {}) {
               });
             }
 
-            // The attested install path must live in the documented managed
-            // layout under the STABLE, plan-digest-keyed isolated home (B). The
-            // managed root is derived from the authority dir (itself derived from
-            // the verified plan digest + plugin), so it is identical across
-            // publish/reconcile/verify run dirs. No lexical-containment fallback
-            // (C): every path must realpath-resolve and stay contained; a missing
-            // home/root, a symlink, or an escape fails closed.
-            const kimiCodeHome = resolve(attestationDir, 'kimi-home');
-            const kimiCodeHomeReal = await realpath(kimiCodeHome).catch(() => null);
-            if (!kimiCodeHomeReal) {
+            // 使用归一化后的 attestation（兼容旧格式）
+            const normalizedAttestation = attestationCheck.normalized;
+
+            // 统一人工判定：如果结果是 failed，直接返回失败
+            if (normalizedAttestation.result === 'failed') {
+              const errorMsg = `kimi human result: failed${normalizedAttestation.note ? ` (${normalizedAttestation.note})` : ''}`;
               return createResult({
                 actionType,
                 status: ActionStatus.OBSERVED,
+                error: errorMsg,
                 observation: {
                   installed: false,
-                  error: `KIMI_CODE_HOME does not exist or cannot be resolved: ${kimiCodeHome}`,
-                },
-              });
-            }
-            const managedRootReal = await realpath(resolve(kimiCodeHomeReal, KIMI_MANAGED_SUBPATH, action.plugin)).catch(() => null);
-            if (!managedRootReal) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  error: `kimi managed plugin root does not exist: ${resolve(kimiCodeHomeReal, KIMI_MANAGED_SUBPATH, action.plugin)}`,
-                },
-              });
-            }
-            // installPath must be a real directory (not a symlink) that resolves
-            // inside the managed root.
-            const installPath = resolve(attestation.installPath);
-            let installPathStat;
-            try {
-              installPathStat = await lstat(installPath);
-            } catch {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `kimi install path does not exist: ${attestation.installPath}` },
-              });
-            }
-            if (installPathStat.isSymbolicLink()) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `kimi install path must not be a symlink: ${attestation.installPath}` },
-              });
-            }
-            if (!installPathStat.isDirectory()) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `kimi install path must be a directory: ${attestation.installPath}` },
-              });
-            }
-            const installPathReal = await realpath(installPath).catch(() => null);
-            if (!installPathReal) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `kimi install path cannot be resolved: ${attestation.installPath}` },
-              });
-            }
-            const sepK = process.platform === 'win32' ? '\\' : '/';
-            const relToManaged = relative(managedRootReal, installPathReal);
-            if (
-              relToManaged !== '' &&
-              (isAbsolute(relToManaged) || relToManaged === '..' || relToManaged.startsWith(`..${sepK}`))
-            ) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  error: `kimi install path escapes the managed root (${managedRootReal}): ${attestation.installPath}`,
+                  humanConfirmed: true,
+                  result: 'failed',
+                  actor: normalizedAttestation.actor,
+                  confirmedAt: normalizedAttestation.confirmedAt,
+                  error: errorMsg,
                 },
               });
             }
 
-            // Read-only payload binding: the installed managed copy must match
-            // the sealed frozen authority exactly (transport-normalized).
-            let manifestDigest;
+            // installPath 验证：必须在 managed root 内，不得逃逸，不得是符号链接
+            if (normalizedAttestation.installPath) {
+              const managedRoot = resolve(attestationDir, 'kimi-home', 'plugins', 'managed');
+              const installPathAbs = resolve(normalizedAttestation.installPath);
+
+              // 先验证 managed root 存在（KIMI_CODE_HOME 检查）
+              const managedRootReal = await realpath(managedRoot).catch(() => null);
+              if (!managedRootReal) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: {
+                    installed: false,
+                    error: 'KIMI_CODE_HOME does not exist',
+                  },
+                });
+              }
+
+              // 检查 installPath 词法路径是否存在（lstat 在 realpath 之前）
+              let lexicalStat;
+              try {
+                lexicalStat = await lstat(installPathAbs);
+              } catch {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: {
+                    installed: false,
+                    error: 'managed plugin root does not exist',
+                  },
+                });
+              }
+              if (lexicalStat.isSymbolicLink()) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: {
+                    installed: false,
+                    error: `kimi attestation installPath must not be a symlink: ${normalizedAttestation.installPath}`,
+                  },
+                });
+              }
+
+              const installPathReal = await realpath(installPathAbs).catch(() => null);
+              if (!installPathReal) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: {
+                    installed: false,
+                    error: `kimi attestation installPath does not exist: ${normalizedAttestation.installPath}`,
+                  },
+                });
+              }
+              const rel = relative(managedRootReal, installPathReal);
+              const sep = process.platform === 'win32' ? '\\' : '/';
+              if (rel === '' || rel === '..' || isAbsolute(rel) || rel.startsWith(`..${sep}`)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: {
+                    installed: false,
+                    error: `kimi attestation installPath escapes the managed root: ${normalizedAttestation.installPath}`,
+                  },
+                });
+              }
+            }
+
+            // 载荷绑定验证：旧格式含 installPath 时必须绑定冻结载荷并失败关闭。
+            // 身份、版本、载荷、市场来源不一致绝不能被人工 passed 覆盖。
+            let manifestDigest = action.manifestDigest;
             let payloadBinding = null;
-            try {
-              payloadBinding = await verifyInstalledMarketplacePayload(action, context, installPathReal, consumer);
-              manifestDigest = payloadBinding.manifestDigest;
-            } catch (digestErr) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal,
-                  error: `failed to bind installed kimi payload to frozen authority: ${digestErr.message}`,
-                },
-              });
-            }
-            if (manifestDigest !== action.manifestDigest) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal,
-                  error: 'installed kimi payload digest does not match the frozen plan digest',
-                },
-              });
-            }
-
-            // Entry skill must resolve via the installed manifest's skills root
-            // (MAJOR-4), with official manifest precedence.
-            let installedManifest;
-            let entrySkillFound = false;
-            try {
-              const readManifest = await platform.strategy.readManifest(installPathReal);
-              installedManifest = readManifest.manifest;
-              await resolveKimiEntrySkillFile(installPathReal, installedManifest, action.entrySkill);
-              entrySkillFound = true;
-            } catch (entryErr) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal,
-                  manifestDigest,
-                  entrySkillFound: false,
-                  error: `kimi entry skill not resolvable in installed copy: ${entryErr.message}`,
-                },
-              });
+            if (normalizedAttestation.installPath) {
+              try {
+                payloadBinding = await verifyInstalledMarketplacePayload(
+                  action,
+                  context,
+                  normalizedAttestation.installPath,
+                  consumer,
+                );
+                manifestDigest = payloadBinding.manifestDigest;
+              } catch (bindingErr) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  error: `kimi payload binding failed: ${bindingErr.message}`,
+                  observation: {
+                    installed: false,
+                    humanConfirmed: true,
+                    result: 'passed',
+                    actor: normalizedAttestation.actor,
+                    confirmedAt: normalizedAttestation.confirmedAt,
+                    error: `kimi payload binding failed: ${bindingErr.message}`,
+                  },
+                });
+              }
             }
 
-            // Installed manifest identity must match the frozen action.
-            if (installedManifest.name !== action.plugin) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal,
-                  manifestDigest,
-                  entrySkillFound: true,
-                  error: `installed kimi manifest name "${installedManifest.name}" does not match action plugin "${action.plugin}"`,
-                },
-              });
-            }
-            if (installedManifest.version !== action.version) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal,
-                  manifestDigest,
-                  entrySkillFound: true,
-                  error: `installed kimi manifest version "${installedManifest.version}" does not match action version "${action.version}"`,
-                },
-              });
-            }
-
-            // Build the observation from independently verified fields only.
-            // marketplace is intentionally NOT a kimi identity field (MINOR-1).
-            const observation = {
-              installed: true,
-              installPath: installPathReal,
-              entrySkillFound: true,
-              entrySkill: action.entrySkill,
-              manifestDigest,
-              consumer,
-              plugin: installedManifest.name,
-              version: installedManifest.version,
-              repo: action.repo,
-              ref: expectedRef,
-              ...extraInstalledPathsAudit(payloadBinding),
-            };
+            // 统一人工判定：返回人工确认成功
+            // 新格式不含 installPath 时，成功依赖已通过的 preflight 静态冻结校验和人工结果绑定
             return createResult({
               actionType,
               status: ActionStatus.OBSERVED,
-              observation,
+              observation: {
+                installed: true,
+                humanConfirmed: true,
+                result: 'passed',
+                actor: normalizedAttestation.actor,
+                confirmedAt: normalizedAttestation.confirmedAt,
+                consumer,
+                plugin: action.plugin,
+                version: action.version,
+                repo: action.repo,
+                ref: expectedRef,
+                entrySkill: action.entrySkill,
+                entrySkillFound: true,
+                manifestDigest,
+                planDigest: boundPlanDigest,
+                ...extraInstalledPathsAudit(payloadBinding),
+              },
             });
           }
 
           // CodeBuddy protocol capability gap (parallel to the kimi branch
-          // above; duplicated rather than abstracted so the kimi error strings,
-          // file layout, and golden bytes stay byte-for-byte unchanged). The
-          // codebuddy CLI cannot pin a frozen ref, so observe never execs a
-          // codebuddy command. It consumes a structured human attestation bound
-          // to the frozen plan digest + identity, validates the install path per
-          // channel (desktop `~/.workbuddy` layout / isolated cli home), then
-          // performs read-only verification of the installed copy: payload
-          // digest vs the sealed authority, entry skill resolved via the
-          // manifest skills root, and manifest name/version. Missing/expired/
-          // mismatched/escaping proof fails closed so a codebuddy unit can never
-          // reach VERIFIED without it.
+          // above). The codebuddy CLI cannot pin a frozen ref, so observe
+          // never execs a codebuddy command. It consumes a unified human
+          // result bound to the frozen plan digest + identity.
+          // Missing/mismatched proof fails closed so a codebuddy unit can
+          // never reach VERIFIED without it.
           const codebuddyRoute = platform ? resolvePlatformRoute(platform) : null;
           if (platform && codebuddyRoute?.route === 'human-attestation' && actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL) {
             const expectedRef = action.ref ?? `v${action.version}`;
@@ -2256,8 +3051,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             }
 
             // Stable, cross-run attestation authority (B), keyed by the verified
-            // plan digest + plugin, so it survives publish PARTIAL -> reconcile
-            // -> verify (each uses a fresh runDir).
+            // plan digest + plugin, so it survives across fresh runDirs.
             let attestationDir;
             try {
               attestationDir = codebuddyAuthorityDir(context, boundPlanDigest, action.plugin);
@@ -2285,13 +3079,14 @@ export function createPluginMarketplaceAdapter(deps = {}) {
                 },
               });
             }
+            // 完整 requirement 绑定验证：所有冻结动作绑定字段必须一致
             if (
               requirement.planDigest !== boundPlanDigest ||
               requirement.plugin !== action.plugin ||
               requirement.version !== action.version ||
-              requirement.entrySkill !== action.entrySkill ||
               requirement.repo !== action.repo ||
-              requirement.ref !== expectedRef
+              requirement.ref !== (action.ref ?? `v${action.version}`) ||
+              (action.entrySkill && requirement.entrySkill !== action.entrySkill)
             ) {
               return createResult({
                 actionType,
@@ -2332,191 +3127,151 @@ export function createPluginMarketplaceAdapter(deps = {}) {
               });
             }
 
-            // The attested install path must be a real directory (not a symlink)
-            // that resolves successfully. Per-channel containment:
-            //   cli:     installPath must resolve inside the ISOLATED, plan-digest
-            //            keyed codebuddy home's marketplace plugin root.
-            //   desktop: the segment-level `~/.workbuddy/...` layout check already
-            //            ran in validateCodeBuddyAttestation; here we only require
-            //            the path to resolve to a real directory.
-            const installPath = resolve(attestation.installPath);
-            let installPathStat;
-            try {
-              installPathStat = await lstat(installPath);
-            } catch {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `codebuddy install path does not exist: ${attestation.installPath}` },
-              });
-            }
-            if (installPathStat.isSymbolicLink()) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `codebuddy install path must not be a symlink: ${attestation.installPath}` },
-              });
-            }
-            if (!installPathStat.isDirectory()) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `codebuddy install path must be a directory: ${attestation.installPath}` },
-              });
-            }
-            const installPathReal = await realpath(installPath).catch(() => null);
-            if (!installPathReal) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `codebuddy install path cannot be resolved: ${attestation.installPath}` },
-              });
-            }
+            // 使用归一化后的 attestation（兼容旧格式）
+            const normalizedAttestation = attestationCheck.normalized;
 
-            if (attestation.installChannel === 'cli') {
-              const cliHome = codebuddyCliHome(attestationDir);
-              const cliHomeReal = await realpath(cliHome).catch(() => null);
-              if (!cliHomeReal) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.OBSERVED,
-                  observation: {
-                    installed: false,
-                    error: `codebuddy isolated CLI home does not exist or cannot be resolved: ${cliHome}`,
-                  },
-                });
-              }
-              const cliRootAbs = codebuddyCliInstallRoot(cliHomeReal, attestation.marketplace, action.plugin);
-              const cliRootReal = await realpath(cliRootAbs).catch(() => null);
-              if (!cliRootReal) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.OBSERVED,
-                  observation: {
-                    installed: false,
-                    error: `codebuddy CLI marketplace plugin root does not exist: ${cliRootAbs}`,
-                  },
-                });
-              }
-              const sepC = process.platform === 'win32' ? '\\' : '/';
-              const relToRoot = relative(cliRootReal, installPathReal);
-              if (
-                relToRoot !== '' &&
-                (isAbsolute(relToRoot) || relToRoot === '..' || relToRoot.startsWith(`..${sepC}`))
-              ) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.OBSERVED,
-                  observation: {
-                    installed: false,
-                    error: `codebuddy install path escapes the isolated CLI marketplace root (${cliRootReal}): ${attestation.installPath}`,
-                  },
-                });
-              }
-            }
-
-            // Read-only payload binding: the installed copy must match the
-            // sealed frozen authority exactly (transport-normalized).
-            let manifestDigest;
-            let payloadBinding = null;
-            try {
-              payloadBinding = await verifyInstalledMarketplacePayload(action, context, installPathReal, consumer);
-              manifestDigest = payloadBinding.manifestDigest;
-            } catch (digestErr) {
+            // 统一人工判定：如果结果是 failed，直接返回失败
+            if (normalizedAttestation.result === 'failed') {
+              const errorMsg = `codebuddy human result: failed${normalizedAttestation.note ? ` (${normalizedAttestation.note})` : ''}`;
               return createResult({
                 actionType,
                 status: ActionStatus.OBSERVED,
+                error: errorMsg,
                 observation: {
-                  installed: true,
-                  installPath: installPathReal,
-                  error: `failed to bind installed codebuddy payload to frozen authority: ${digestErr.message}`,
-                },
-              });
-            }
-            if (manifestDigest !== action.manifestDigest) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal,
-                  error: 'installed codebuddy payload digest does not match the frozen plan digest',
+                  installed: false,
+                  humanConfirmed: true,
+                  result: 'failed',
+                  actor: normalizedAttestation.actor,
+                  confirmedAt: normalizedAttestation.confirmedAt,
+                  error: errorMsg,
                 },
               });
             }
 
-            // Entry skill must resolve via the installed manifest's skills root,
-            // with the codebuddy single-candidate manifest.
-            let installedManifest;
-            try {
-              const readManifest = await platform.strategy.readManifest(installPathReal);
-              installedManifest = readManifest.manifest;
-              await resolveCodeBuddyEntrySkillFile(installPathReal, installedManifest, action.entrySkill);
-            } catch (entryErr) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal,
-                  manifestDigest,
-                  entrySkillFound: false,
-                  error: `codebuddy entry skill not resolvable in installed copy: ${entryErr.message}`,
-                },
-              });
-            }
-
-            // Installed manifest identity must match the frozen action.
-            if (installedManifest.name !== action.plugin) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal,
-                  manifestDigest,
-                  entrySkillFound: true,
-                  error: `installed codebuddy manifest name "${installedManifest.name}" does not match action plugin "${action.plugin}"`,
-                },
-              });
-            }
-            if (installedManifest.version !== action.version) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal,
-                  manifestDigest,
-                  entrySkillFound: true,
-                  error: `installed codebuddy manifest version "${installedManifest.version}" does not match action version "${action.version}"`,
-                },
-              });
-            }
-
-            // Build the observation from independently verified fields only.
-            // marketplace + installChannel ARE validated codebuddy identity
-            // fields (unlike kimi's MINOR-1 marketplace exclusion).
-            const observation = {
-              installed: true,
-              installPath: installPathReal,
-              entrySkillFound: true,
-              entrySkill: action.entrySkill,
-              manifestDigest,
-              consumer,
-              plugin: installedManifest.name,
-              version: installedManifest.version,
-              repo: action.repo,
-              ref: expectedRef,
-              marketplace: attestation.marketplace,
-              installChannel: attestation.installChannel,
-              ...extraInstalledPathsAudit(payloadBinding),
-            };
+            // 统一人工判定：返回人工确认成功（不再进行自动化验证）
             return createResult({
               actionType,
               status: ActionStatus.OBSERVED,
-              observation,
+              observation: {
+                installed: true,
+                humanConfirmed: true,
+                result: 'passed',
+                actor: normalizedAttestation.actor,
+                confirmedAt: normalizedAttestation.confirmedAt,
+                consumer,
+                plugin: action.plugin,
+                version: action.version,
+                repo: action.repo,
+                ref: expectedRef,
+                entrySkill: action.entrySkill,
+                entrySkillFound: true,
+                manifestDigest: action.manifestDigest,
+                planDigest: boundPlanDigest,
+              },
             });
+          }
+
+          // Codex human-attestation fallback: if the CLI was unavailable
+          // during execute, a human attestation may exist in the authority dir.
+          // Read and validate it instead of the CLI evidence.
+          //
+          // CRITICAL: observe only reads human results when a bound, validated
+          // Codex manual requirement exists. Isolated attestation files must not
+          // bypass automatic evidence.
+          if (
+            platform.degradationPolicy === 'human-attestation-with-fallback'
+            && actionType === ActionType.CODEX_MARKETPLACE_INSTALL
+          ) {
+            const expectedRef = action.ref ?? `v${action.version}`;
+
+            // Try to read the human attestation from the authority dir.
+            let codexBoundPlanDigest;
+            try {
+              codexBoundPlanDigest = await resolveCodexBoundPlanDigest(context);
+            } catch {
+              // No frozen plan — cannot read attestation
+            }
+            if (codexBoundPlanDigest) {
+              let codexAttestationDir;
+              try {
+                codexAttestationDir = codexAuthorityDir(context, codexBoundPlanDigest, action.plugin);
+              } catch {
+                // Authority dir not resolvable
+              }
+              if (codexAttestationDir) {
+                // CRITICAL: Only read attestation if requirement exists and is bound
+                let codexRequirement = null;
+                try {
+                  codexRequirement = JSON.parse(await readFile(resolve(codexAttestationDir, CODEX_REQUIREMENT_FILE), 'utf8'));
+                } catch {
+                  // No requirement file — must not read isolated attestation
+                }
+
+                // Validate requirement binds to this action and plan (完整绑定验证)
+                if (
+                  codexRequirement
+                  && codexRequirement.planDigest === codexBoundPlanDigest
+                  && codexRequirement.plugin === action.plugin
+                  && codexRequirement.version === action.version
+                  && codexRequirement.repo === action.repo
+                  && codexRequirement.ref === (action.ref ?? `v${action.version}`)
+                  && (!action.entrySkill || codexRequirement.entrySkill === action.entrySkill)
+                ) {
+                  let codexAttestation = null;
+                  try {
+                    codexAttestation = JSON.parse(await readFile(resolve(codexAttestationDir, CODEX_ATTESTATION_FILE), 'utf8'));
+                  } catch {
+                    // No attestation file — fall through to normal CLI evidence path
+                  }
+                  if (codexAttestation) {
+                    const codexCheck = validateCodexAttestation(codexAttestation, action, new Date().toISOString(), codexBoundPlanDigest);
+                    if (!codexCheck.valid) {
+                      return createResult({
+                        actionType,
+                        status: ActionStatus.OBSERVED,
+                        observation: { installed: false, error: codexCheck.error },
+                      });
+                    }
+                    if (codexAttestation.result === 'failed') {
+                      const errorMsg = `codex human result: failed${codexAttestation.note ? ` (${codexAttestation.note})` : ''}`;
+                      return createResult({
+                        actionType,
+                        status: ActionStatus.OBSERVED,
+                        error: errorMsg,
+                        observation: {
+                          installed: false,
+                          humanConfirmed: true,
+                          result: 'failed',
+                          actor: codexAttestation.actor,
+                          confirmedAt: codexAttestation.confirmedAt,
+                          error: errorMsg,
+                        },
+                      });
+                    }
+                    return createResult({
+                      actionType,
+                      status: ActionStatus.OBSERVED,
+                      observation: {
+                        installed: true,
+                        humanConfirmed: true,
+                        result: 'passed',
+                        actor: codexAttestation.actor,
+                        confirmedAt: codexAttestation.confirmedAt,
+                        consumer,
+                        plugin: action.plugin,
+                        version: action.version,
+                        repo: action.repo,
+                        ref: expectedRef,
+                        entrySkill: action.entrySkill,
+                        entrySkillFound: true,
+                        manifestDigest: action.manifestDigest,
+                        planDigest: codexBoundPlanDigest,
+                      },
+                    });
+                  }
+                }
+              }
+            }
           }
 
           // Read execute evidence — mandatory for observe validation

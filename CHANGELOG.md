@@ -1,5 +1,27 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.2.4 locale=en baseline=sha256:b0ad6c897df808a11a2630d1565327ff5092e407dd004dc71bc43b954cbf88a6 -->
+## [0.2.4] - 2026-07-28
+
+v0.2.4 is a documentation and marketplace-source remediation release. It corrects the default marketplace source to the bundled-family repository (ifoohoo/release-skill), eliminates stale v0.1.9 residuals, improves README bilingual consistency and navigation, and strengthens anti-regression gates for version drift.
+
+### Changed
+
+- **Default marketplace source corrected**: all installation documentation now uses the bundled-family repository `ifoohoo/release-skill` instead of the external marketplace `ifoohoo/artifact-skill-set`. Claude Code install command is now `/plugin marketplace add ifoohoo/release-skill` with `release-skill@release-skill`.
+- **README restructured for readability**: both EN and ZH READMEs now include a table of contents, Documentation navigation section, and reorganized chapter flow (Quick start moved before preservation contract). Significantly shorter than before.
+- **Positioning sentences completed**: README and root workspace README now list all supported platforms (Claude Code, CodeBuddy, WorkBuddy, Codex, Kimi Code).
+- **Anti-regression gate expanded**: `sync-version.mjs` TEXT_TARGETS now covers the safe-first-command version statement in both EN and ZH READMEs, preventing future v0.1.9-type drift.
+
+### Fixed
+
+- **v0.1.9 residual eliminated**: the safe-first-command block in both READMEs now correctly references the current version (was stuck at v0.1.9).
+- **Stale counting removed**: replaced fragile 'All four plugin hosts' / '四种插件宿主' with 'All supported plugin hosts' / '各插件宿主'.
+- **Root README boundary corrected**: clarified that README/INSTALL/CHANGELOG are human-maintained source files, while references/schemas/adapters/skills are generated artifacts.
+- **CONTRIBUTING updated**: added 'Do not edit generated files' section documenting the authority source and regeneration workflow for references/, schemas/, adapters/, and skills/.
+- **AGENTS.md language rule adjusted**: governance rules file may use English; user-facing documentation remains Chinese.
+<!-- release-skill:changelog:end version=0.2.4 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.2.3 locale=en baseline=sha256:1bc1839f9d2de5481a9edc7748722c02c5c9369d2034f8c6495f6dd00a392339 -->
 ## [0.2.3] - 2026-07-26
 

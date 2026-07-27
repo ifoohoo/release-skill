@@ -46,6 +46,8 @@ import {
   TIER_TABLE,
   groupActionsByTier,
   sortActionsByCheckpointOrder,
+  isRemoteWriteAction,
+  isMarketplaceAction,
 } from '../core/checkpoints.mjs';
 import { appendRunState, createProductionRunDir, writeRunAtomic, resolveDefaultRunDir } from '../core/run.mjs';
 import {
@@ -53,6 +55,7 @@ import {
   GATE_FAILED,
   BASELINE_CHANGED,
   PARTIAL_RELEASE,
+  CONSUMER_VERIFICATION_DEFERRED,
 } from '../core/errors.mjs';
 import { assertTransition, PUBLISHING, PUBLISHED, PARTIAL } from '../core/state-machine.mjs';
 import { matchObservation } from '../adapters/contract.mjs';
@@ -80,13 +83,6 @@ const ACTION_NOT_ALLOWED = 'ACTION_NOT_ALLOWED';
 
 // CHECKPOINT_ORDER, ADAPTER_ACTION_TYPE_MAP and TIER_TABLE live in
 // ../core/checkpoints.mjs (single source shared with reconcile.mjs; T3.1 §4.7).
-
-const MARKETPLACE_TYPES = new Set([
-  'claude-marketplace-install',
-  'codex-marketplace-install',
-  'kimi-marketplace-install',
-  'codebuddy-marketplace-install',
-]);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -359,7 +355,7 @@ async function executeCheckpoint(action, adapterRegistry, context) {
     // (T1.1 PROPAGATING handling). A present-but-mismatched
     // observation (CONFLICTING) is never retried — it is an
     // authoritative conflict that must fail closed for human review.
-    const observePolicy = MARKETPLACE_TYPES.has(planActionType)
+    const observePolicy = isMarketplaceAction(planActionType)
       ? clampPolicyToTimeout(DEFAULT_OBSERVE_RETRY_POLICY, action.parameters?.timeoutMs)
       : DEFAULT_OBSERVE_RETRY_POLICY;
     const retryOutcome = await observeWithRetry({
@@ -892,21 +888,27 @@ export async function publishRelease(options) {
     const orderedActions = sortActionsByCheckpointOrder(publishingPlan.externalActions);
 
     // =======================================================================
-    // Safety Gate 10: Global preflight - validate all actions before any execute
+    // Partition: marketplace actions are deferred to verify phase.
+    // They get a stable CONSUMER_VERIFICATION_DEFERRED checkpoint immediately;
+    // they never call marketplace adapter preflight/execute/observe/verify.
+    // =======================================================================
+    const remoteWriteActions = orderedActions.filter((a) => !isMarketplaceAction(a.type));
+
+    // =======================================================================
+    // Safety Gate 10: Global preflight - validate all non-marketplace actions
+    // before any execute. Marketplace actions are deferred and skip preflight.
     // =======================================================================
     await evidence.append({ phase: 'safety-gate', gate: 'global-preflight', status: 'started' });
 
-    for (const action of orderedActions) {
+    for (const action of remoteWriteActions) {
       if (action.type === 'write-remote-identifier') continue;
 
       const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
       if (!adapterActionType) continue;
 
       const adapter = adapterRegistry.getAdapter(adapterActionType);
-      const isMarketplace = MARKETPLACE_TYPES.has(action.type);
       const preflightContext = {
         externalWritesAuthorized: false,
-        isolatedConsumerWritesAuthorized: isMarketplace,
         plan: publishingPlan,
         baseline: plan.baseline,
         root,
@@ -918,15 +920,11 @@ export async function publishRelease(options) {
       );
       if (preflightResult.status === 'PREFLIGHT_FAILED') {
         // T3.3 §4.6: an "occupied" preflight failure overlaps semantically with
-        // "already consistent". For NON-marketplace action types, arbitrate with
-        // a single read-only pre-observe using the SAME classifier as the
-        // per-checkpoint path: CONSISTENT means the remote already satisfies the
-        // frozen plan, so let the action through to its SKIPPED path instead of
-        // failing the whole gate. Anything else (MISSING/CONFLICTING/UNOBSERVABLE)
-        // keeps the fail-closed GATE_FAILED. Marketplace preflights are local
-        // integrity checks, never remote occupation, so they are NEVER arbitrated
-        // -- a CONSISTENT observation must not bypass their completeness gate.
-        if (!isMarketplace && hasExpected(action.expected)) {
+        // "already consistent". Arbitrate with a single read-only pre-observe
+        // using the SAME classifier as the per-checkpoint path: CONSISTENT means
+        // the remote already satisfies the frozen plan, so let the action through
+        // to its SKIPPED path instead of failing the whole gate.
+        if (hasExpected(action.expected)) {
           let arbitration;
           try {
             arbitration = await adapter.observe(
@@ -961,15 +959,27 @@ export async function publishRelease(options) {
     await evidence.append({ phase: 'safety-gate', gate: 'global-preflight', status: 'passed' });
 
     // =======================================================================
-    // Persist an append-only initial state before the first adapter execute.
+    // Build checkpoints: marketplace actions get a deferred result immediately;
+    // non-marketplace actions start as PENDING and are executed by tiers.
     // =======================================================================
     const runPath = join(runDir, 'release-run.json');
-    const checkpoints = orderedActions.map((action) => ({
-      actionId: action.id,
-      actionType: action.type,
-      status: 'PENDING',
-      error: null,
-    }));
+    const checkpoints = orderedActions.map((action) => {
+      if (isMarketplaceAction(action.type)) {
+        return {
+          actionId: action.id,
+          actionType: action.type,
+          status: 'DEFERRED',
+          phase: 'post-publish-verification',
+          reason: CONSUMER_VERIFICATION_DEFERRED,
+        };
+      }
+      return {
+        actionId: action.id,
+        actionType: action.type,
+        status: 'PENDING',
+        error: null,
+      };
+    });
 
     const startedAt = clockFn();
     const buildPersistedState = (status = PUBLISHING, finishedAt) => ({
@@ -987,10 +997,14 @@ export async function publishRelease(options) {
           : checkpoint.status === 'FAILED' ? 'failed'
           : checkpoint.status === 'UNCERTAIN' ? 'uncertain'
           : checkpoint.status === 'SKIPPED' ? 'skipped'
+          : checkpoint.status === 'DEFERRED' ? 'deferred'
           : 'pending',
         ...(checkpoint.preObserve ? { preObserve: checkpoint.preObserve } : {}),
         ...(checkpoint.postObserve ? { postObserve: checkpoint.postObserve } : {}),
         ...(checkpoint.error ? { error: { code: 'GATE_FAILED', message: checkpoint.error } } : {}),
+        ...(checkpoint.reason === CONSUMER_VERIFICATION_DEFERRED
+          ? { reason: CONSUMER_VERIFICATION_DEFERRED, phase: checkpoint.phase ?? 'post-publish-verification' }
+          : {}),
       })),
       startedAt,
       ...(finishedAt ? { finishedAt } : {}),
@@ -1023,7 +1037,9 @@ export async function publishRelease(options) {
     // order). appendRunState's seq chain (run.mjs) is unchanged.
     // =======================================================================
     const checkpointByActionId = new Map(checkpoints.map((cp) => [cp.actionId, cp]));
-    const { tiers, unknown } = groupActionsByTier(orderedActions);
+    // Only non-marketplace actions participate in tier execution.
+    // Marketplace actions are already deferred and excluded from tiers.
+    const { tiers, unknown } = groupActionsByTier(remoteWriteActions);
     let stopped = false;
 
     // Fail closed on any action type the tier table does not recognize. Such a
@@ -1075,7 +1091,7 @@ export async function publishRelease(options) {
 
       // --- Tier execute: concurrent, allSettled semantics (no fail-fast).
       const results = await Promise.all(tierActions.map(async (action) => {
-        const isMarketplace = MARKETPLACE_TYPES.has(action.type);
+        const isMarketplace = isMarketplaceAction(action.type);
         const actionContext = {
           externalWritesAuthorized: !isMarketplace,
           isolatedConsumerWritesAuthorized: isMarketplace,
@@ -1136,60 +1152,76 @@ export async function publishRelease(options) {
     // consistency pass. Both the branch tip and default-branch name are bound
     // in the frozen action expectations. A late change keeps the saga PARTIAL
     // and must be resolved by reconcile/human review.
-    if (checkpoints.every((cp) => cp.status === 'SUCCEEDED' || cp.status === 'SKIPPED')) {
-      await evidence.append({ phase: 'safety-gate', gate: 'final-branch-consistency', status: 'started' });
-      for (let index = 0; index < orderedActions.length; index += 1) {
-        const action = orderedActions[index];
-        if (!['push-snapshot', 'set-default-branch'].includes(action.type)) continue;
-        const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
-        const adapter = adapterRegistry.getAdapter(adapterActionType);
-        let observed;
-        try {
-          observed = await adapter.observe(
-            { actionType: adapterActionType, ...action.parameters, expected: action.expected },
-            { externalWritesAuthorized: false, plan: publishingPlan, baseline: plan.baseline, root, runDir },
-          );
-        } catch (error) {
-          observed = { observation: null, error: error.message };
+    //
+    // IMPORTANT: the final status determination must read the LATEST checkpoint
+    // state AFTER this consistency check, not use any previously cached boolean.
+    // A late consistency failure that changes a checkpoint from SUCCEEDED to
+    // FAILED must cause PARTIAL, not stale PUBLISHED.
+    {
+      // Build fresh remote-write checkpoint view (reads latest state)
+      const remoteWriteCps = checkpoints.filter((cp) => isRemoteWriteAction(cp.actionType));
+      const allRemoteConsistent = remoteWriteCps.every(
+        (cp) => cp.status === 'SUCCEEDED' || cp.status === 'SKIPPED',
+      );
+      if (allRemoteConsistent) {
+        await evidence.append({ phase: 'safety-gate', gate: 'final-branch-consistency', status: 'started' });
+        for (let index = 0; index < orderedActions.length; index += 1) {
+          const action = orderedActions[index];
+          if (!['push-snapshot', 'set-default-branch'].includes(action.type)) continue;
+          const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
+          const adapter = adapterRegistry.getAdapter(adapterActionType);
+          let observed;
+          try {
+            observed = await adapter.observe(
+              { actionType: adapterActionType, ...action.parameters, expected: action.expected },
+              { externalWritesAuthorized: false, plan: publishingPlan, baseline: plan.baseline, root, runDir },
+            );
+          } catch (error) {
+            observed = { observation: null, error: error.message };
+          }
+          const observation = observed?.observation;
+          const observable = observation && !(observed.error && Object.keys(observation).length === 0);
+          const comparison = observable ? matchObservation(action.expected ?? {}, observation) : { matches: false, mismatches: [] };
+          if (!comparison.matches) {
+            checkpoints[index].status = observable ? 'FAILED' : 'UNCERTAIN';
+            checkpoints[index].error = observable
+              ? `final branch consistency mismatch: ${comparison.mismatches.join('; ')}`
+              : `final branch consistency unobservable: ${observed?.error ?? 'empty observation'}`;
+            await evidence.append({
+              phase: 'safety-gate',
+              gate: 'final-branch-consistency',
+              status: 'failed',
+              actionId: action.id,
+              error: checkpoints[index].error,
+            });
+            break;
+          }
         }
-        const observation = observed?.observation;
-        const observable = observation && !(observed.error && Object.keys(observation).length === 0);
-        const comparison = observable ? matchObservation(action.expected ?? {}, observation) : { matches: false, mismatches: [] };
-        if (!comparison.matches) {
-          checkpoints[index].status = observable ? 'FAILED' : 'UNCERTAIN';
-          checkpoints[index].error = observable
-            ? `final branch consistency mismatch: ${comparison.mismatches.join('; ')}`
-            : `final branch consistency unobservable: ${observed?.error ?? 'empty observation'}`;
-          await evidence.append({
-            phase: 'safety-gate',
-            gate: 'final-branch-consistency',
-            status: 'failed',
-            actionId: action.id,
-            error: checkpoints[index].error,
-          });
-          break;
+        // Re-read fresh state after consistency check
+        const freshRemoteCps = checkpoints.filter((cp) => isRemoteWriteAction(cp.actionType));
+        if (freshRemoteCps.every((cp) => cp.status === 'SUCCEEDED' || cp.status === 'SKIPPED')) {
+          await evidence.append({ phase: 'safety-gate', gate: 'final-branch-consistency', status: 'passed' });
         }
-      }
-      if (checkpoints.every((cp) => cp.status === 'SUCCEEDED' || cp.status === 'SKIPPED')) {
-        await evidence.append({ phase: 'safety-gate', gate: 'final-branch-consistency', status: 'passed' });
       }
     }
 
-    // Determine overall status
-    const hasFailure = checkpoints.some((cp) => cp.status === 'FAILED' || cp.status === 'UNCERTAIN');
-    // SKIPPED counts as success: the remote was already consistent with the
-    // frozen plan, so an all-SKIPPED/SUCCEEDED run is a clean PUBLISHED (the
-    // idempotent ideal -- zero writes were even needed).
-    const allSucceeded = checkpoints.every((cp) => cp.status === 'SUCCEEDED' || cp.status === 'SKIPPED');
+    // Determine overall status from the LATEST checkpoint state.
+    // Never use a cached boolean computed before the consistency check.
+    // 远端写入动作的状态决定整体发布状态
+    // 市场安装动作的结果记录在 run 中，但不阻止 PUBLISHED
+    const remoteWriteCheckpointsFinal = checkpoints.filter((cp) => isRemoteWriteAction(cp.actionType));
+    const remoteWriteAllSucceeded = remoteWriteCheckpointsFinal.every(
+      (cp) => cp.status === 'SUCCEEDED' || cp.status === 'SKIPPED',
+    );
+    const remoteWriteHasFailure = remoteWriteCheckpointsFinal.some(
+      (cp) => cp.status === 'FAILED' || cp.status === 'UNCERTAIN',
+    );
 
     let overallStatus;
-    if (allSucceeded) {
+    if (remoteWriteAllSucceeded) {
       overallStatus = PUBLISHED;
       publishingPlan.status = PUBLISHED;
-    } else if (hasFailure) {
-      // Once any execute was attempted, recovery must go through reconcile,
-      // even when no success was observed. Re-running publish could duplicate
-      // a write accepted just before a transport failure.
+    } else if (remoteWriteHasFailure) {
       overallStatus = PARTIAL;
       publishingPlan.status = overallStatus;
     } else {

@@ -15,6 +15,11 @@
  *     the installed managed copy. Missing/expired/mismatched/escaping proof
  *     fails closed, so a kimi unit can never reach VERIFIED without it.
  *
+ * 统一人工结果：收据仅需 platform, version, planDigest,
+ * result(passed|failed), actor, confirmedAt 和可选 note。
+ * 不再要求 consumer, plugin, conclusion, confirmedBy、隔离 HOME、
+ * 安装路径证明、载荷摘要手填或 24 小时过期。
+ *
  * This module is the kimi half of the platform registry's strategy table
  * (registry.mjs references these functions); the plugin-marketplace adapter
  * consumes the attestation path from here. The shared adapter primitives
@@ -29,7 +34,7 @@
  * @module platforms/kimi
  */
 
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { join, resolve, relative, isAbsolute } from 'node:path';
 
 import {
@@ -47,10 +52,6 @@ import { canonicalJson } from '../core/digest.mjs';
 export const KIMI_REQUIREMENT_FILE = 'release-skill-kimi-manual-install.json';
 /** Structured human attestation consumed by kimi observe. */
 export const KIMI_ATTESTATION_FILE = 'release-skill-kimi-attestation.json';
-/** Kimi Code managed install layout: $KIMI_CODE_HOME/plugins/managed/<id>/. */
-export const KIMI_MANAGED_SUBPATH = join('plugins', 'managed');
-/** Maximum attestation validity window (mirrors the 24h approval expiry). */
-export const KIMI_MAX_ATTESTATION_VALIDITY_MS = 24 * 60 * 60 * 1000;
 
 /** 64-char lowercase hex plan/payload digest pattern. */
 export const HEX_DIGEST_RE = /^[a-f0-9]{64}$/;
@@ -184,21 +185,20 @@ function buildKimiInstallUrl(repo, ref) {
 }
 
 /**
- * Human-facing, actionable manual-install closed-loop instructions for Kimi Code.
+ * 统一人工安装说明：面向 Kimi Code 的人工结果流程。
  *
- * @param {{installUrl:string, plugin:string, version:string, ref:string, isolatedHome:string, attestationDir:string}} p
+ * @param {{installUrl:string, plugin:string, version:string, ref:string, attestationDir:string}} p
  * @returns {string[]}
  */
-function buildKimiManualInstructions({ installUrl, plugin, version, ref, isolatedHome, attestationDir }) {
+function buildKimiManualInstructions({ installUrl, plugin, version, ref, attestationDir }) {
   return [
-    `Kimi Code has no scriptable plugin-install CLI; installation is a manual, interactive step.`,
-    `1) publish fails closed at this kimi checkpoint and leaves the run PARTIAL (the automated Git branch/tag, npm, and GitHub Release writes still complete first).`,
-    `2) Launch Kimi Code with the ISOLATED home from this requirement so the managed copy lands inside it: set HOME="${isolatedHome}" and KIMI_CODE_HOME="${isolatedHome}". The plugin installs to "${isolatedHome}/plugins/managed/${plugin}/".`,
-    `3) In that isolated Kimi Code session run: /plugins install ${installUrl}  (pinned to frozen ref "${ref}", version ${version}; never install the bare repository URL). Confirm the trust prompt for plugin "${plugin}", then run /plugins reload (or /new).`,
-    `4) Write the attestation JSON to: ${attestationDir}/${KIMI_ATTESTATION_FILE}. planDigest MUST be the frozen plan digest; payloadDigest MUST be the frozen snapshot payload digest; installPath MUST be the isolated managed directory above. attestedAt must not be in the future and expiresAt must be within 24 hours of attestedAt.`,
-    `   Required fields: consumer="kimi", plugin, version, entrySkill, repo, ref, installPath, planDigest, payloadDigest, attestedBy, attestedAt, expiresAt.`,
-    `5) Re-run release-skill reconcile (promotes PARTIAL -> PUBLISHED) and then verify (-> VERIFIED). Both read the attestation from this same plan-digest-keyed authority directory, so a fresh run directory does not lose the proof.`,
-    `An install into the ordinary ~/.kimi-code is NOT acceptable proof: the attested installPath must resolve inside this requirement's isolated KIMI_CODE_HOME managed root, otherwise verification fails closed.`,
+    `Kimi Code 没有可脚本化的插件安装命令行工具；安装是手动交互步骤。`,
+    `1) publish 完成所有远端写入后进入 PUBLISHED 状态（自动化 Git 分支/标签、npm 和 GitHub Release 写入已完成）。此 kimi 检查点标记为需要人工安装。`,
+    `2) 在 Kimi Code 中运行: /plugins install ${installUrl}（锁定到冻结 ref "${ref}"，版本 ${version}）。确认插件 "${plugin}" 的信任提示，然后运行 /plugins reload（或 /new）。`,
+    `3) 将人工结果 JSON 写入: ${attestationDir}/${KIMI_ATTESTATION_FILE}`,
+    `   必填字段: platform="kimi", version, planDigest（冻结计划摘要）, result("passed" 或 "failed"), actor（确认人）, confirmedAt（ISO 8601 时间戳）`,
+    `   可选字段: note（备注）`,
+    `4) 运行 release-skill reconcile（对账远端状态并跳过已完成步骤），然后 release-skill verify（从同一个计划摘要索引的权威目录读取结果，成功后 -> VERIFIED）。`,
   ];
 }
 
@@ -236,82 +236,144 @@ export async function readKimiManifest(pluginRootReal) {
 }
 
 /**
- * Validate a structured kimi manual-install attestation against the frozen
- * action and the verified frozen plan digest.
+ * 统一人工结果验证：验证 kimi 人工结果是否匹配冻结计划。
  *
- * Bindings (fail closed on any mismatch):
- * - `planDigest` binds to the REAL frozen plan digest (`boundPlanDigest`, from
- *   `context.plan.digest`) — NOT to `action.manifestDigest`.
- * - `payloadDigest` binds separately to `action.manifestDigest` (the sealed
- *   snapshot payload digest).
- * - plugin identity, version, entry skill, repo, and frozen ref must match.
- * - Time bounds: `attestedAt` must not be in the future, the validity window
- *   (`expiresAt - attestedAt`) must not exceed 24h, and the attestation must
- *   not be expired relative to `isoNow`.
+ * 统一后的结果只需：
+ * - 必填：platform, version, planDigest, result(passed|failed), actor, confirmedAt
+ * - 可选：note
  *
- * @param {object} attestation - parsed attestation JSON.
- * @param {object} action - the expanded kimi action (top-level fields).
- * @param {string} isoNow - current ISO timestamp.
- * @param {string} boundPlanDigest - verified frozen plan digest.
- * @returns {{valid:boolean, error:string|null}}
+ * 旧格式兼容（0.2.3 及更早）：
+ * - consumer → platform (必须是 'kimi')
+ * - attestedBy → actor
+ * - attestedAt → confirmedAt
+ * - payloadDigest → 载荷绑定验证（如果存在）
+ *
+ * 绑定验证（任何不匹配都失败）：
+ * - planDigest 绑定到真正的冻结计划摘要（boundPlanDigest）
+ * - version 静态一致性检查
+ * - result 只接受 passed 或 failed
+ *
+ * @param {object} attestation - 解析后的人工结果 JSON。
+ * @param {object} action - 展开的 kimi 动作（顶层字段）。
+ * @param {string} isoNow - 当前 ISO 时间戳（保留签名兼容，不再用于过期检查）。
+ * @param {string} boundPlanDigest - 验证过的冻结计划摘要。
+ * @returns {{valid:boolean, error:string|null, normalized:object|null}}
  */
 export function validateKimiAttestation(attestation, action, isoNow, boundPlanDigest) {
   if (!attestation || typeof attestation !== 'object' || Array.isArray(attestation)) {
-    return { valid: false, error: 'kimi attestation is not an object' };
+    return { valid: false, error: 'kimi attestation is not an object', normalized: null };
   }
-  const requiredStrings = ['plugin', 'version', 'entrySkill', 'repo', 'ref', 'installPath', 'payloadDigest', 'planDigest', 'attestedBy', 'attestedAt', 'expiresAt'];
+
+  // 旧格式归一化：将旧字段映射到新字段
+  const normalized = { ...attestation };
+
+  // 旧格式识别：完整旧标识组（consumer, attestedBy, attestedAt）全部存在，
+  // 且新格式字段组（result, actor, confirmedAt）未混入。
+  // 不能通过随意添加一个旧标识字段绕过新格式 result 必填。
+  const hasCompleteOldMarkers = !!(normalized.consumer && normalized.attestedBy && normalized.attestedAt);
+  const hasNewFormatFields = !!(normalized.result || normalized.actor || normalized.confirmedAt);
+  const isOldFormat = hasCompleteOldMarkers && !hasNewFormatFields;
+
+  // 新格式严格要求 result 字段；仅当确认为旧格式时才允许缺省
+  if (!normalized.result && isOldFormat) {
+    normalized.result = 'passed';
+  }
+
+  // consumer → platform (旧格式使用 consumer)
+  if (!normalized.platform && normalized.consumer) {
+    normalized.platform = normalized.consumer;
+  }
+  // attestedBy → actor (旧格式使用 attestedBy)
+  if (!normalized.actor && normalized.attestedBy) {
+    normalized.actor = normalized.attestedBy;
+  }
+  // attestedAt → confirmedAt (旧格式使用 attestedAt)
+  if (!normalized.confirmedAt && normalized.attestedAt) {
+    normalized.confirmedAt = normalized.attestedAt;
+  }
+
+  // 统一必填字段
+  const requiredStrings = ['platform', 'version', 'planDigest', 'result', 'actor', 'confirmedAt'];
   for (const field of requiredStrings) {
-    if (typeof attestation[field] !== 'string' || attestation[field].length === 0) {
-      return { valid: false, error: `kimi attestation missing required field "${field}"` };
+    if (typeof normalized[field] !== 'string' || normalized[field].length === 0) {
+      return { valid: false, error: `kimi attestation missing required field "${field}"`, normalized: null };
     }
   }
-  if (attestation.consumer !== 'kimi') {
-    return { valid: false, error: `kimi attestation consumer "${attestation.consumer}" must be "kimi"` };
+  if (normalized.platform !== 'kimi') {
+    return { valid: false, error: `kimi attestation platform "${normalized.platform}" must be "kimi"`, normalized: null };
   }
-  if (!HEX_DIGEST_RE.test(attestation.planDigest)) {
-    return { valid: false, error: 'kimi attestation planDigest must be a 64-char lowercase hex digest' };
+  // result 只接受 passed 或 failed
+  if (normalized.result !== 'passed' && normalized.result !== 'failed') {
+    return { valid: false, error: `kimi attestation result "${normalized.result}" must be "passed" or "failed"`, normalized: null };
   }
-  if (attestation.planDigest !== boundPlanDigest) {
-    return { valid: false, error: 'kimi attestation planDigest does not match the frozen plan digest' };
+  // planDigest 绑定验证
+  if (!HEX_DIGEST_RE.test(normalized.planDigest)) {
+    return { valid: false, error: 'kimi attestation planDigest must be a 64-char lowercase hex digest', normalized: null };
   }
-  if (attestation.plugin !== action.plugin) {
-    return { valid: false, error: `kimi attestation plugin "${attestation.plugin}" does not match action plugin "${action.plugin}"` };
+  if (normalized.planDigest !== boundPlanDigest) {
+    return { valid: false, error: 'kimi attestation planDigest does not match the frozen plan digest', normalized: null };
   }
-  if (attestation.version !== action.version) {
-    return { valid: false, error: `kimi attestation version "${attestation.version}" does not match action version "${action.version}"` };
+  // version 静态一致性检查
+  if (normalized.version !== action.version) {
+    return { valid: false, error: `kimi attestation version "${normalized.version}" does not match action version "${action.version}"`, normalized: null };
   }
-  if (attestation.entrySkill !== action.entrySkill) {
-    return { valid: false, error: `kimi attestation entrySkill "${attestation.entrySkill}" does not match action entrySkill "${action.entrySkill}"` };
+
+  // 旧格式额外绑定字段校验：plugin, repo, ref, entrySkill, payloadDigest, installPath
+  // 旧格式必须包含完整旧字段组；缺任一旧必填字段失败。
+  if (isOldFormat) {
+    // plugin 必须匹配
+    if (normalized.plugin !== action.plugin) {
+      return { valid: false, error: `kimi attestation plugin "${normalized.plugin}" does not match action plugin "${action.plugin}"`, normalized: null };
+    }
+    // repo 必须匹配
+    if (normalized.repo !== action.repo) {
+      return { valid: false, error: `kimi attestation repo "${normalized.repo}" does not match action repo "${action.repo}"`, normalized: null };
+    }
+    // ref 必须匹配
+    const expectedRef = action.ref ?? `v${action.version}`;
+    if (normalized.ref !== expectedRef) {
+      return { valid: false, error: `kimi attestation ref "${normalized.ref}" does not match action ref "${expectedRef}"`, normalized: null };
+    }
+    // entrySkill 必须匹配
+    if (normalized.entrySkill !== action.entrySkill) {
+      return { valid: false, error: `kimi attestation entrySkill "${normalized.entrySkill}" does not match action entrySkill "${action.entrySkill}"`, normalized: null };
+    }
+    // payloadDigest 旧格式必填、格式合法且等于冻结动作 manifestDigest
+    if (typeof normalized.payloadDigest !== 'string' || normalized.payloadDigest.length === 0) {
+      return { valid: false, error: 'kimi attestation payloadDigest is required for old-format receipts', normalized: null };
+    }
+    // installPath 旧格式必填：旧格式用 installPath 证明实际安装
+    if (typeof normalized.installPath !== 'string' || normalized.installPath.length === 0) {
+      return { valid: false, error: 'kimi attestation installPath is required for old-format receipts', normalized: null };
+    }
+    if (!HEX_DIGEST_RE.test(normalized.payloadDigest)) {
+      return { valid: false, error: 'kimi attestation payloadDigest must be a 64-char lowercase hex digest', normalized: null };
+    }
+    if (action.manifestDigest && normalized.payloadDigest !== action.manifestDigest) {
+      return { valid: false, error: 'kimi attestation payloadDigest does not match the frozen manifest digest', normalized: null };
+    }
+  } else {
+    // 新格式 payloadDigest 可选，但如果存在则必须合法
+    if (normalized.payloadDigest !== undefined) {
+      if (!HEX_DIGEST_RE.test(normalized.payloadDigest)) {
+        return { valid: false, error: 'kimi attestation payloadDigest must be a 64-char lowercase hex digest when present', normalized: null };
+      }
+      if (action.manifestDigest && normalized.payloadDigest !== action.manifestDigest) {
+        return { valid: false, error: 'kimi attestation payloadDigest does not match the frozen manifest digest', normalized: null };
+      }
+    }
   }
-  if (attestation.repo !== action.repo) {
-    return { valid: false, error: `kimi attestation repo "${attestation.repo}" does not match action repo "${action.repo}"` };
+
+  // confirmedAt 必须是有效的时间戳
+  const confirmedMs = Date.parse(normalized.confirmedAt);
+  if (!Number.isFinite(confirmedMs)) {
+    return { valid: false, error: 'kimi attestation confirmedAt must be a valid ISO timestamp', normalized: null };
   }
-  const expectedRef = action.ref ?? `v${action.version}`;
-  if (attestation.ref !== expectedRef) {
-    return { valid: false, error: `kimi attestation ref "${attestation.ref}" does not match frozen ref "${expectedRef}"` };
+  // 可选字段 note 如果存在必须是字符串
+  if (normalized.note !== undefined && typeof normalized.note !== 'string') {
+    return { valid: false, error: 'kimi attestation note must be a string when present', normalized: null };
   }
-  if (attestation.payloadDigest !== action.manifestDigest) {
-    return { valid: false, error: 'kimi attestation payloadDigest does not match the frozen payload digest' };
-  }
-  const attestedMs = Date.parse(attestation.attestedAt);
-  const expiresMs = Date.parse(attestation.expiresAt);
-  const nowMs = Date.parse(isoNow);
-  if (!Number.isFinite(attestedMs) || !Number.isFinite(expiresMs) || !Number.isFinite(nowMs)) {
-    return { valid: false, error: 'kimi attestation attestedAt/expiresAt must be valid ISO timestamps' };
-  }
-  if (attestedMs > nowMs) {
-    return { valid: false, error: 'kimi attestation attestedAt is in the future' };
-  }
-  if (expiresMs <= attestedMs) {
-    return { valid: false, error: 'kimi attestation expiresAt must be after attestedAt' };
-  }
-  if (expiresMs - attestedMs > KIMI_MAX_ATTESTATION_VALIDITY_MS) {
-    return { valid: false, error: 'kimi attestation validity must not exceed 24 hours' };
-  }
-  if (nowMs > expiresMs) {
-    return { valid: false, error: 'kimi attestation has expired' };
-  }
-  return { valid: true, error: null };
+  return { valid: true, error: null, normalized };
 }
 
 /**
@@ -323,15 +385,8 @@ export function validateKimiAttestation(attestation, action, isoNow, boundPlanDi
  * read-only verification. Without that proof the checkpoint fails closed and can
  * never reach VERIFIED.
  *
- * Isolation model (B/C): the kimi home is a STABLE, plan-digest-keyed directory
- * under the attestation authority (`<authorityDir>/kimi-home`), not the per-run
- * runDir consumer dir. The operator launches Kimi Code with that KIMI_CODE_HOME
- * so the managed copy lands at `<kimiHome>/plugins/managed/<plugin>/`, a
- * location that is identical across publish/reconcile/verify run dirs. execute
- * creates ONLY the managed parent (`plugins/managed`), never `managed/<plugin>`
- * (the operator's interactive install creates that). The requirement write is
- * idempotent: an identical existing requirement is left untouched, a divergent
- * one fails closed.
+ * 统一人工判定：不再创建隔离目录，不再要求隔离 HOME。
+ * 人工结果只需 platform, version, planDigest, result, actor, confirmedAt。
  *
  * Referenced from the registry as the kimi strategy.buildManualRequirement —
  * the automatable=false manual-requirement path.
@@ -370,8 +425,8 @@ export async function executeKimiManualRequirement(action, context) {
   const ref = action.ref ?? `v${action.version}`;
   const installUrl = buildKimiInstallUrl(action.repo, ref);
 
-  // (B) Stable, plan-digest-keyed authority dir — the ONLY kimi home, shared
-  // across publish/reconcile/verify run dirs.
+  // (B) Stable, plan-digest-keyed authority dir, shared across
+  // publish/reconcile/verify run dirs.
   let attestationDir;
   try {
     attestationDir = kimiAuthorityDir(context, planDigest, action.plugin);
@@ -382,66 +437,60 @@ export async function executeKimiManualRequirement(action, context) {
       error: dirErr.message,
     });
   }
-  const kimiHome = resolve(attestationDir, 'kimi-home');
-  const managedParent = resolve(kimiHome, KIMI_MANAGED_SUBPATH); // plugins/managed
-  // plugins/managed/<plugin> — created by the operator's interactive install.
-  const managedInstallRoot = resolve(managedParent, action.plugin);
 
   const instructions = buildKimiManualInstructions({
     installUrl,
     plugin: action.plugin,
     version: action.version,
     ref,
-    isolatedHome: kimiHome,
     attestationDir,
   });
 
+  // 统一 requirement 结构：不再包含隔离目录信息
   const requirement = {
     kind: 'kimi-manual-install-requirement',
-    consumer: 'kimi',
+    platform: 'kimi',
     plugin: action.plugin,
     version: action.version,
-    entrySkill: action.entrySkill,
     repo: action.repo,
     ref,
+    entrySkill: action.entrySkill,
     installUrl,
-    // (A) planDigest binds to the real frozen plan digest;
-    // expectedPayloadDigest binds separately to the snapshot payload digest.
     planDigest,
-    expectedPayloadDigest: action.manifestDigest,
-    isolatedHome: kimiHome,
-    kimiCodeHome: kimiHome,
-    managedInstallRoot,
     attestationDir,
     attestationFile: KIMI_ATTESTATION_FILE,
     attestationTemplate: {
-      consumer: 'kimi',
-      plugin: action.plugin,
+      platform: 'kimi',
       version: action.version,
-      entrySkill: action.entrySkill,
-      repo: action.repo,
-      ref,
-      installPath: managedInstallRoot,
       planDigest,
-      payloadDigest: action.manifestDigest,
-      attestedBy: '<person responsible for the manual install>',
-      attestedAt: '<ISO 8601 now; must not be in the future>',
-      expiresAt: '<ISO 8601; within 24h of attestedAt>',
+      result: '<"passed" or "failed">',
+      actor: '<person who confirmed the install>',
+      confirmedAt: '<ISO 8601 timestamp>',
+      note: '<optional note>',
     },
     instructions,
   };
 
-  // Create ONLY the managed parent (plugins/managed); never pre-create
-  // managed/<plugin> — the operator's interactive install creates that.
+  // Ensure the authority directory exists (no isolated home creation needed).
+  const { mkdir } = await import('node:fs/promises');
   try {
-    await mkdir(managedParent, { recursive: true, mode: 0o700 });
+    await mkdir(attestationDir, { recursive: true, mode: 0o700 });
   } catch (mkdirErr) {
-    return createResult({
-      actionType,
-      status: ActionStatus.EXECUTE_FAILED,
-      error: `cannot create kimi managed parent directory: ${mkdirErr.message}`,
-    });
+    // EEXIST is fine; other errors are fatal.
+    if (mkdirErr?.code !== 'EEXIST') {
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: `cannot create kimi attestation directory: ${mkdirErr.message}`,
+      });
+    }
   }
+
+  // New manual format: execute only writes the requirement file.
+  // The managed home directory (kimi-home/plugins/managed) is NOT created here.
+  // Only old-format attestations with installPath trigger managed home verification
+  // in the observe path. Creating it unconditionally would violate the invariant
+  // that new-format receipts do not create isolated installation artifacts.
 
   // Idempotent requirement write: an identical existing requirement is left
   // untouched; a divergent existing requirement fails closed (never silently
@@ -500,14 +549,10 @@ export async function executeKimiManualRequirement(action, context) {
       consumer: 'kimi',
       plugin: action.plugin,
       version: action.version,
-      entrySkill: action.entrySkill,
-      repo: action.repo,
       ref,
       installUrl,
       planDigest,
       attestationDir,
-      kimiCodeHome: kimiHome,
-      managedInstallRoot,
       instructions,
     },
   });

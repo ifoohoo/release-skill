@@ -2,7 +2,7 @@
 
 [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.2.3 -->
+<!-- release-skill:release-version: 0.2.4 -->
 ## 前置条件
 
 - Node.js 22.0.0 或更高版本
@@ -32,39 +32,32 @@ release-skill help
 
 输出中应包含版本号和可用命令列表。
 
-## 安装为插件（统一市场——推荐）
+## 安装为插件（bundled-family 市场——推荐）
 
-四种受支持的插件宿主都从统一市场
-[ifoohoo/artifact-skill-set](https://github.com/ifoohoo/artifact-skill-set)
-安装 release-skill；该市场为同一发布版本提供 Claude Code、
-CodeBuddy/WorkBuddy、Codex 与 Kimi Code 四份清单。先添加一次市场，再安装
+Claude Code、CodeBuddy、WorkBuddy 和 Codex 从 bundled-family 市场
+[ifoohoo/release-skill](https://github.com/ifoohoo/release-skill)
+安装 release-skill。插件仓库自身携带市场清单
+（`.claude-plugin/marketplace.json`），无需外部市场。Kimi Code 没有市场安装
+接口——见 [Kimi Code 小节](#安装为-kimi-code-插件)。先添加一次市场，再安装
 插件：
 
-> **外部独立市场形态。** `ifoohoo/artifact-skill-set` 是一个外部独立市场：
-> 插件仓库（`ifoohoo/release-skill`）只含 plugin 清单
->（`.claude-plugin/plugin.json`、`.codex-plugin/plugin.json` 等），marketplace
-> 索引（`marketplace.json`）则集中于外部市场仓库。当发布单元的插件 distribution
-> 声明 `marketplaceRepo` 时，`prepare --online --production` 会冻结外部市场
-> HEAD——Codex 钉 commit sha（强冻结）、Claude 钉默认分支名（弱冻结）——并以
-> 本单元自身冻结快照整树校验安装载荷（契约 `external-marketplace-v1`）。
->
-> **发布时序（先市场后插件）。** 由于安装目标是外部市场，marketplace 索引必须
-> **先**定版并发布——其 `release-skill` 条目版本须等于目标发布版本（claude 形态
-> 会校验该条目）——之后 `prepare --online --production` 才能冻结到含该条目的市场
-> sha。详见 `references/06-adapter-contract.md` §2.3/§2.4。
+> **前置条件：GitHub 访问。** `owner/repo` 简写会让 Claude Code 通过
+> `git@github.com:...`（SSH）克隆，需要本机配置 GitHub 公钥。如不使用 SSH，
+> 可传完整 HTTPS 地址——`/plugin marketplace add https://github.com/ifoohoo/release-skill`——
+> 或设置 `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1`。
 
 **Claude Code**（交互会话中）：
 
 ```
-/plugin marketplace add ifoohoo/artifact-skill-set
-/plugin install release-skill@artifact-skill-set
+/plugin marketplace add ifoohoo/release-skill
+/plugin install release-skill@release-skill
 ```
 
 **CodeBuddy / WorkBuddy：**
 
 ```bash
-codebuddy plugin marketplace add ifoohoo/artifact-skill-set
-codebuddy plugin install release-skill@artifact-skill-set
+codebuddy plugin marketplace add ifoohoo/release-skill
+codebuddy plugin install release-skill@release-skill
 ```
 
 WorkBuddy 桌面端只能通过已注册的市场安装：执行上面的 `marketplace add`
@@ -73,19 +66,15 @@ WorkBuddy 桌面端只能通过已注册的市场安装：执行上面的 `marke
 **OpenAI Codex：**
 
 ```bash
-codex plugin marketplace add ifoohoo/artifact-skill-set
+codex plugin marketplace add ifoohoo/release-skill
 ```
 
 然后在交互式 `/plugins` 浏览器中安装 `release-skill`。
 
 **Kimi Code**（交互会话中）：
 
-```
-/plugins marketplace https://raw.githubusercontent.com/ifoohoo/artifact-skill-set/main/kimi-marketplace.json
-```
-
-或在启动前把 `KIMI_CODE_PLUGIN_MARKETPLACE_URL` 指向同一 URL。然后在
-`/plugins` 面板中安装 `release-skill`。
+Kimi Code 没有市场安装接口，需手动安装并钉死到特定 release tag。详见
+[Kimi Code 小节](#安装为-kimi-code-插件)的版本钉死手动安装与证明闭环。
 
 ### 备选：直接从仓库安装（进阶）
 
@@ -114,60 +103,43 @@ Kimi Code 有交互式插件市场，但**没有可脚本化的非交互安装�
 release-skill 把 Kimi 安装建模为“版本钉死的手动安装 + 可信观测/人工证明”：
 `publish`/`verify` 从不对 Kimi 执行自动安装。完整闭环如下：
 
-1. `publish` 先完成自动化写入（Git branch/tag、npm、GitHub Release），随后
-   到达 `kimi-marketplace-install` 检查点。由于没有可脚本化安装接口，该检查点
-   **失败关闭**，整个 run 落入 `PARTIAL`——已成功的自动化写入**不会**被撤销。
-   检查点输出（以及下面的 requirement 文件）会给出隔离的 `KIMI_CODE_HOME`、
-   钉死的安装 URL 与证明写入路径。
+1. `publish` 先完成自动化远端写入（Git branch/tag、npm、GitHub Release）。
+   `kimi-marketplace-install` 动作在 publish 阶段记录为 `DEFERRED`，不调用市场适配器，自动化安装路径失败关闭。全部远端永久写入一致后运行进入 `PUBLISHED`。运行记录会给出钉死的安装 URL 与证明写入路径。
 2. 读取 requirement：
    `<root>/.release-skill/kimi-attestations/<planDigest>/<plugin>/release-skill-kimi-manual-install.json`。
-3. 用该**隔离** home 启动 Kimi Code，使 managed 副本落在其中（不要使用你日常的
-   `~/.kimi-code`）：
+3. 启动 Kimi Code，从钉死到精确版本的 release tag 安装（切勿使用裸仓库地址，
+   它会安装最新 release 或默认分支），确认信任提示后重新加载。写出证明之前，
+   必须核实已安装插件清单版本等于冻结版本；否则**不得**出具证明。
 
    ```
-   HOME=<kimiCodeHome> KIMI_CODE_HOME=<kimiCodeHome> kimi
-   ```
-
-   插件会安装到 `<kimiCodeHome>/plugins/managed/<plugin>/`。
-4. 在该隔离会话中，从钉死到精确版本的 release tag 安装（切勿使用裸仓库地址，
-   它会安装最新 release 或默认分支），确认信任提示后重新加载：
-
-   ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.3
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.4
    /plugins reload
    ```
 
-5. 把证明 JSON 写入
+4. 把人工结果 JSON 写入
    `<root>/.release-skill/kimi-attestations/<planDigest>/<plugin>/release-skill-kimi-attestation.json`。
-   `planDigest` 必须是冻结**计划**摘要；`payloadDigest` 必须是冻结快照**载荷**
-   摘要；`installPath` 必须是上面的隔离 managed 目录；`attestedAt` 不得为未来
-   时间，`expiresAt` 必须在 `attestedAt` 之后 24 小时内。示例：
+   `planDigest` 必须是冻结**计划**摘要；`result` 只接受 `"passed"` 或 `"failed"`。
+   示例：
 
 ```json
 {
-  "consumer": "kimi",
-  "plugin": "release-skill",
-  "version": "0.2.3",
-  "entrySkill": "release-help",
-  "repo": "ifoohoo/release-skill",
-  "ref": "release-skill-v0.2.3",
-  "installPath": "<kimiCodeHome>/plugins/managed/release-skill",
+  "platform": "kimi",
+  "version": "0.2.4",
   "planDigest": "<64 位十六进制冻结计划摘要>",
-  "payloadDigest": "<64 位十六进制冻结快照载荷摘要>",
-  "attestedBy": "<责任人>",
-  "attestedAt": "2026-07-23T00:00:00.000Z",
-  "expiresAt": "2026-07-23T12:00:00.000Z"
+  "result": "passed",
+  "actor": "<确认人>",
+  "confirmedAt": "2026-07-23T00:00:00.000Z",
+  "note": "<可选备注>"
 }
 ```
 
-6. 运行 `release-skill reconcile --run <publish-run>`（把 `PARTIAL` 提升为
-   `PUBLISHED`），再运行 `release-skill verify --run <reconcile-run>`（→
-   `VERIFIED`）。两者都从同一个按计划摘要命名的目录读取证明，因此它们各自的
-   新 run 目录不会丢失该证明。
+5. 运行 `release-skill verify --run <publish-run>`（→
+   `VERIFIED`）。verify 命令从同一个按计划摘要命名的目录读取证明，因此新的
+   run 目录不会丢失该证明。
 
-把插件安装到日常的 `~/.kimi-code` **不**构成有效证明：证明中的 `installPath`
-必须解析到 requirement 给出的隔离 `KIMI_CODE_HOME` managed 根之内，否则验证
-失败关闭，Kimi 单元绝不进入 `VERIFIED`。
+当平台没有可靠的自动化验证时，绑定后的人工 `passed`/`failed` 结果即为权威判定。
+`verify` 命令消费人工结果，成功后进入 `VERIFIED`。但身份、版本、载荷、市场来源
+或安装契约不一致时，不可被人工 `passed` 结果覆盖。
 
 ## 安装为 CodeBuddy/WorkBuddy 插件
 
@@ -190,75 +162,52 @@ codebuddy CLI 可以添加市场并安装插件，但 **`plugin marketplace add`
 “**手动**安装 + 可信观测/人工证明”（与 Kimi Code 相同的能力缺口与闭环）：
 `publish`/`verify` 从不对 CodeBuddy 执行自动安装。完整闭环如下：
 
-1. `publish` 先完成自动化写入（Git branch/tag、npm、GitHub Release），随后
-   到达 `codebuddy-marketplace-install` 检查点。由于安装无法钉死冻结 ref，该
-   检查点**失败关闭**，整个 run 落入 `PARTIAL`——已成功的自动化写入**不会**被撤销。
-   检查点输出（以及下面的 requirement 文件）会给出两个安装通道、统一市场、
-   隔离的 CLI home 与证明写入路径。
+1. `publish` 先完成自动化远端写入（Git branch/tag、npm、GitHub Release）。
+   `codebuddy-marketplace-install` 动作在 publish 阶段记录为 `DEFERRED`，不调用
+   市场适配器，自动化安装路径失败关闭。全部远端永久写入一致后运行进入 `PUBLISHED`。运行记录会给出证明写入路径。
 2. 读取 requirement：
    `<root>/.release-skill/codebuddy-attestations/<planDigest>/<plugin>/release-skill-codebuddy-manual-install.json`。
-3. 经**两个通道之一**从统一市场 `artifact-skill-set`
-   （https://github.com/ifoohoo/artifact-skill-set）安装 release-skill：
-
-   **主路径（WorkBuddy 桌面端）：** 从插件面板安装 release-skill，然后确认
-   `~/.workbuddy/settings.json` 的 `enabledPlugins` 含
-   `"release-skill@artifact-skill-set": true`。插件落点为
-   `~/.workbuddy/plugins/marketplaces/artifact-skill-set/plugins/release-skill/`。
-
-   **备选路径（捆绑的 codebuddy CLI，可隔离）：** 用 requirement 给出的**隔离**
-   home 运行 CLI，使克隆落在其中（不要使用你日常的 `~/.codebuddy`）：
-
-   ```
-   HOME="<codebuddyHome>" <codebuddy 二进制> plugin marketplace add https://github.com/ifoohoo/artifact-skill-set
-   HOME="<codebuddyHome>" <codebuddy 二进制> plugin install release-skill@artifact-skill-set
-   ```
-
-   CLI 随 WorkBuddy.app 捆绑（macOS 已知路径
-   `/Applications/WorkBuddy.app/Contents/Resources/app.asar.unpacked/cli/bin/codebuddy`）。
-   插件落点为
-   `<codebuddyHome>/.codebuddy/plugins/marketplaces/artifact-skill-set/plugins/release-skill/`。
-4. **ref 限制警告：** codebuddy 安装跟踪市场默认分支，**无法**钉死到冻结 ref。
-   写出证明之前，必须核实已安装插件清单版本等于冻结版本 `0.2.3`；否则**不得**
-   出具证明。
-5. 把证明 JSON 写入
+3. 从 bundled-family 市场 `ifoohoo/release-skill`
+   （https://github.com/ifoohoo/release-skill）安装 release-skill。
+   写出证明之前，必须核实已安装插件清单版本等于冻结版本；否则**不得**出具证明。
+4. 把人工结果 JSON 写入
    `<root>/.release-skill/codebuddy-attestations/<planDigest>/<plugin>/release-skill-codebuddy-attestation.json`。
-   `planDigest` 必须是冻结**计划**摘要；`payloadDigest` 必须是冻结快照**载荷**
-   摘要；`installChannel` 必须是 `"desktop"` 或 `"cli"`；`marketplace` 必须是
-   `artifact-skill-set`；`installPath` 必须是所选通道的实际安装目录；
-   `attestedAt` 不得为未来时间，`expiresAt` 必须在 `attestedAt` 之后 24 小时内。
+   `planDigest` 必须是冻结**计划**摘要；`result` 只接受 `"passed"` 或 `"failed"`。
    示例：
 
 ```json
 {
-  "consumer": "codebuddy",
-  "plugin": "release-skill",
-  "version": "0.2.3",
-  "entrySkill": "release-help",
-  "repo": "ifoohoo/release-skill",
-  "ref": "release-skill-v0.2.3",
-  "marketplace": "artifact-skill-set",
-  "installChannel": "desktop",
-  "installPath": "~/.workbuddy/plugins/marketplaces/artifact-skill-set/plugins/release-skill",
+  "platform": "codebuddy",
+  "version": "0.2.4",
   "planDigest": "<64 位十六进制冻结计划摘要>",
-  "payloadDigest": "<64 位十六进制冻结快照载荷摘要>",
-  "attestedBy": "<责任人>",
-  "attestedAt": "2026-07-23T00:00:00.000Z",
-  "expiresAt": "2026-07-23T12:00:00.000Z"
+  "result": "passed",
+  "actor": "<确认人>",
+  "confirmedAt": "2026-07-23T00:00:00.000Z",
+  "note": "<可选备注>"
 }
 ```
 
-6. 运行 `release-skill reconcile --run <publish-run>`（把 `PARTIAL` 提升为
-   `PUBLISHED`），再运行 `release-skill verify --run <reconcile-run>`（→
-   `VERIFIED`）。两者都从同一个按计划摘要命名的目录读取证明，因此它们各自的
-   新 run 目录不会丢失该证明。
+5. 运行 `release-skill verify --run <publish-run>`（→
+   `VERIFIED`）。verify 命令从同一个按计划摘要命名的目录读取证明，因此新的
+   run 目录不会丢失该证明。
 
-对 cli 通道而言，把插件安装到日常的 `~/.codebuddy` **不**构成有效证明：证明中的
-`installPath` 必须解析到 requirement 给出的隔离 `<codebuddyHome>` managed 根之内，
-否则验证失败关闭，CodeBuddy 单元绝不进入 `VERIFIED`。（desktop 通道使用上文真实的
-`~/.workbuddy` 市场布局，那本身就是公认的有效证明布局。）
+当平台没有可靠的自动化验证时，绑定后的人工 `passed`/`failed` 结果即为权威判定。
+`verify` 命令消费人工结果，成功后进入 `VERIFIED`。但身份、版本、载荷、市场来源
+或安装契约不一致时，不可被人工 `passed` 结果覆盖。
 
 源码检出后也可以用 `--plugin-dir <path>/adapters/workbuddy` 把 CodeBuddy 指向
 生成的插件目录做单会话使用；适配器不引用自身目录之外的任何文件。
+
+## 消费端安装验证边界
+
+**何时执行验证。** 消费端安装验证仅在安装契约关键文件相对已确认公开基线发生变化时执行；
+关键文件未变化时结果为 `NOT_REQUIRED_UNCHANGED`，不得追加重复安装验证。
+
+**市场来源选择。** 每个平台、每次发布只能选择一种市场来源：
+`bundled-family`（技能族自带市场文件）或 `standalone-index`（独立市场索引），不能同时使用。
+
+**Codex 自动验证优先。** Codex 优先自动验证；仅当 CLI/接口、运行环境或传输通道不可用时，
+才允许降级为人工判定。身份、版本、载荷、市场来源或安装契约不一致属于失败，不能人工覆盖。
 
 ## 开发安装（本地源码）
 

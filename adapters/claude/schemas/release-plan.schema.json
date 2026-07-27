@@ -420,6 +420,95 @@
                 },
                 "smokeExpectedJson": {
                   "type": "object"
+                },
+                "installationContract": {
+                  "type": "object",
+                  "description": "可审计的安装契约规范对象",
+                  "additionalProperties": false,
+                  "properties": {
+                    "algorithmVersion": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "distributionType": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "manifestRelativePath": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "normalizedManifest": {
+                      "type": "object"
+                    },
+                    "marketplaceSourceType": {
+                      "type": "string",
+                      "enum": [
+                        "bundled-family",
+                        "standalone-index"
+                      ]
+                    },
+                    "includeMarketplaceEntry": {
+                      "type": "boolean"
+                    },
+                    "marketplaceIndexRelativePath": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "normalizedSelectedEntry": {
+                      "type": "object"
+                    },
+                    "verificationRecipeVersion": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "algorithmVersion",
+                    "distributionType",
+                    "manifestRelativePath",
+                    "normalizedManifest",
+                    "marketplaceSourceType",
+                    "includeMarketplaceEntry",
+                    "verificationRecipeVersion"
+                  ]
+                },
+                "installationContractDigest": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$",
+                  "description": "安装契约摘要，用于在远端状态未变化时跳过重复验证"
+                },
+                "marketplaceSourceType": {
+                  "type": "string",
+                  "enum": [
+                    "bundled-family",
+                    "standalone-index"
+                  ],
+                  "description": "市场来源类型：bundled-family（技能族自带市场文件）或 standalone-index（独立市场仓库）；每个平台每次发布只冻结一种来源"
+                },
+                "marketplaceCommitSha": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{40}$",
+                  "description": "独立市场仓库冻结提交 SHA（standalone-index 专用）"
+                },
+                "marketplaceRef": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "独立市场仓库冻结引用（standalone-index 专用）"
+                },
+                "marketplaceIndexPath": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "独立市场索引相对路径（standalone-index 专用）"
+                },
+                "marketplaceName": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "独立市场名称（standalone-index 专用）"
+                },
+                "selectedEntry": {
+                  "type": "object",
+                  "description": "冻结的唯一选中市场条目（standalone-index 专用）"
                 }
               },
               "allOf": [
@@ -493,11 +582,34 @@
                     "properties": {
                       "type": {
                         "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
                           "kimi-plugin",
                           "codebuddy-plugin"
                         ]
                       }
                     }
+                  },
+                  "then": {}
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
+                          "kimi-plugin",
+                          "codebuddy-plugin"
+                        ]
+                      },
+                      "marketplaceSourceType": {
+                        "const": "bundled-family"
+                      }
+                    },
+                    "required": [
+                      "marketplaceSourceType"
+                    ]
                   },
                   "then": {
                     "not": {
@@ -505,6 +617,31 @@
                         "marketplaceRepo"
                       ]
                     }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
+                          "kimi-plugin",
+                          "codebuddy-plugin"
+                        ]
+                      },
+                      "marketplaceSourceType": {
+                        "const": "standalone-index"
+                      }
+                    },
+                    "required": [
+                      "marketplaceSourceType"
+                    ]
+                  },
+                  "then": {
+                    "required": [
+                      "marketplaceRepo"
+                    ]
                   }
                 },
                 {

@@ -346,6 +346,21 @@ export async function loadProjectConfig({ root, configPath } = {}) {
   }
   } // end of contextual prevalidation else block
 
+  // --- Normalize marketplaceSourceType for old configs ---
+  // Old configs may lack marketplaceSourceType; determine by marketplaceRepo existence.
+  // This runs before schema validation so the required rule passes.
+  if (Array.isArray(config.releaseUnits)) {
+    for (const unit of config.releaseUnits) {
+      if (!unit?.distributions) continue;
+      for (const dist of unit.distributions) {
+        if (dist.type === 'npm') continue;
+        if (dist.marketplaceSourceType === undefined || dist.marketplaceSourceType === null) {
+          dist.marketplaceSourceType = dist.marketplaceRepo ? 'standalone-index' : 'bundled-family';
+        }
+      }
+    }
+  }
+
   // --- Schema validation (using formal JSON schema) ---
   const valid = validateConfig(config);
   if (!valid) {

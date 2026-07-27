@@ -42,6 +42,10 @@ import {
   executeCodeBuddyManualRequirement,
   readCodeBuddyManifest,
 } from './codebuddy.mjs';
+import {
+  executeCodexManualRequirement,
+  readCodexManifest,
+} from './codex.mjs';
 
 // --- claude strategy -------------------------------------------------------
 
@@ -201,7 +205,7 @@ const CODEX = Object.freeze({
   refStrength: 'commit-sha',
   outputProtocol: 'structured',
   identityEvidence: 'install-output',
-  degradationPolicy: 'block',
+  degradationPolicy: 'human-attestation-with-fallback',
   cli: Object.freeze({
     binary: 'codex',
     marketplaceAdd: (repo, ref) => ['plugin', 'marketplace', 'add', repo, '--ref', ref, '--json'],
@@ -243,8 +247,9 @@ const CODEX = Object.freeze({
     extractInstallPath: codexExtractInstallPath,
     extractListIdentity: codexExtractListIdentity,
     crossValidateListEntry: codexCrossValidateListEntry,
-    buildManualRequirement: null,
-    readManifest: null,
+    // codex's human-attestation fallback strategy lives in ./codex.mjs
+    buildManualRequirement: executeCodexManualRequirement,
+    readManifest: readCodexManifest,
   }),
 });
 
@@ -267,7 +272,7 @@ const KIMI = Object.freeze({
     marketplaceAddOutput: null,
     pluginInstallOutput: null,
   }),
-  isolationEnv: (home) => ({ HOME: home, KIMI_CODE_HOME: home }),
+  isolationEnv: (home) => ({ HOME: home }),
   // kimi never execs a CLI; its stable home is created by the
   // manual-requirement strategy under the attestation authority.
   isolationSubdirs: Object.freeze([]),
@@ -348,7 +353,10 @@ const CODEBUDDY = Object.freeze({
   manifestPaths: Object.freeze({
     // Single authoritative manifest (no precedence chain, unlike kimi).
     plugin: '.codebuddy-plugin/plugin.json',
-    marketplace: null,
+    // CodeBuddy bundled-family uses the skill-family marketplace path.
+    // This ensures bundled-family installation contracts always include a
+    // marketplace entry without requiring an explicit marketplaceIndexPath.
+    marketplace: '.claude-plugin/marketplace.json',
   }),
   marketplaceSourceForm: null,
   // codebuddy installs from a unified marketplace but carries no marketplace
@@ -401,7 +409,7 @@ const VALID_INSTALL_METHODS = new Set(['structured-cli', 'interactive-only', 'hu
 const VALID_REF_STRENGTHS = new Set(['commit-sha', 'name-ref', 'unfixable']);
 const VALID_OUTPUT_PROTOCOLS = new Set(['structured', 'text', 'none']);
 const VALID_IDENTITY_EVIDENCE = new Set(['list-record', 'install-output', 'filesystem-payload', 'human-attestation']);
-const VALID_DEGRADATION_POLICIES = new Set(['block', 'human-attestation']);
+const VALID_DEGRADATION_POLICIES = new Set(['block', 'human-attestation', 'human-attestation-with-fallback']);
 
 /**
  * Look up a platform descriptor by id.
@@ -512,6 +520,16 @@ export function assertRegistry(registry = PLATFORMS) {
       }
       if (typeof platform.strategy.extractInstallPath !== 'function') {
         throw new Error(`platform registry: automatable platform ${label} needs strategy.extractInstallPath`);
+      }
+      // Platforms with degradationPolicy 'human-attestation-with-fallback'
+      // (codex) also need manual-requirement strategies for the fallback path.
+      if (platform.degradationPolicy === 'human-attestation-with-fallback') {
+        if (typeof platform.strategy.buildManualRequirement !== 'function') {
+          throw new Error(`platform registry: ${label} with human-attestation-with-fallback needs strategy.buildManualRequirement`);
+        }
+        if (typeof platform.strategy.readManifest !== 'function') {
+          throw new Error(`platform registry: ${label} with human-attestation-with-fallback needs strategy.readManifest`);
+        }
       }
     } else {
       if (platform.cli !== null) {

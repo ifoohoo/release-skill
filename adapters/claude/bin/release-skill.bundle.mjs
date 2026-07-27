@@ -9,7 +9,7 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.2.3"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.2.4"});
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -177,6 +177,7 @@ __export(errors_exports, {
   BASE_UNAVAILABLE: () => BASE_UNAVAILABLE,
   CONFIG_EXISTS: () => CONFIG_EXISTS,
   CONFIG_INVALID: () => CONFIG_INVALID,
+  CONSUMER_VERIFICATION_DEFERRED: () => CONSUMER_VERIFICATION_DEFERRED,
   DIRTY_SCOPE_CONFLICT: () => DIRTY_SCOPE_CONFLICT,
   EXIT_CODE_MAP: () => EXIT_CODE_MAP,
   FORBIDDEN_CONTENT_DETECTED: () => FORBIDDEN_CONTENT_DETECTED,
@@ -214,7 +215,7 @@ __export(errors_exports, {
 function registerPathRedactor(fn) {
   if (typeof fn === "function") redactSensitivePaths2 = fn;
 }
-var redactSensitivePaths2, EXIT_CODE_MAP, CONFIG_INVALID, BASELINE_CHANGED, DIRTY_SCOPE_CONFLICT, GATE_FAILED, AUTH_MISSING, REMOTE_CONFLICT, HOOK_TIMEOUT, PARTIAL_RELEASE, POST_PUBLISH_VERIFY_FAILED, INVALID_STATE_TRANSITION, PLAN_DIGEST_MISMATCH, SECRET_DETECTED, PUBLIC_PATH_FORBIDDEN, STALE_BUILD_ARTIFACT, MISSING_PARAMETERS, PUBLIC_FILE_MISSING, SNAPSHOT_FIDELITY_FAILED, FORBIDDEN_CONTENT_DETECTED, PATH_UNSAFE, STRUCTURE_INVALID, LOCK_MIGRATION_REQUIRED, ARTIFACT_POLICY_INVALID, BASE_UNAVAILABLE, PRODUCER_NONDETERMINISTIC, PRODUCER_SCOPE_VIOLATION, ADOPTION_AMBIGUOUS, PLAN_STALE, SENSITIVE_CONFLICT, TRANSACTION_INCOMPLETE, SAFE_WRITE_UNAVAILABLE, SETUP_DIGEST_MISMATCH, CONFIG_EXISTS, RELEASE_DOCS_INVALID, RELEASE_DOCS_TRANSLATION_MISSING, RELEASE_DOCS_CONFLICT, RELEASE_DOCS_REFRESH_STALE, RELEASE_DOCS_STALE, ReleaseError, ALL_ERROR_CODES;
+var redactSensitivePaths2, EXIT_CODE_MAP, CONFIG_INVALID, BASELINE_CHANGED, DIRTY_SCOPE_CONFLICT, GATE_FAILED, AUTH_MISSING, REMOTE_CONFLICT, HOOK_TIMEOUT, PARTIAL_RELEASE, POST_PUBLISH_VERIFY_FAILED, INVALID_STATE_TRANSITION, PLAN_DIGEST_MISMATCH, SECRET_DETECTED, PUBLIC_PATH_FORBIDDEN, STALE_BUILD_ARTIFACT, MISSING_PARAMETERS, PUBLIC_FILE_MISSING, SNAPSHOT_FIDELITY_FAILED, FORBIDDEN_CONTENT_DETECTED, PATH_UNSAFE, STRUCTURE_INVALID, LOCK_MIGRATION_REQUIRED, ARTIFACT_POLICY_INVALID, BASE_UNAVAILABLE, PRODUCER_NONDETERMINISTIC, PRODUCER_SCOPE_VIOLATION, ADOPTION_AMBIGUOUS, PLAN_STALE, SENSITIVE_CONFLICT, TRANSACTION_INCOMPLETE, SAFE_WRITE_UNAVAILABLE, SETUP_DIGEST_MISMATCH, CONFIG_EXISTS, RELEASE_DOCS_INVALID, RELEASE_DOCS_TRANSLATION_MISSING, RELEASE_DOCS_CONFLICT, RELEASE_DOCS_REFRESH_STALE, RELEASE_DOCS_STALE, CONSUMER_VERIFICATION_DEFERRED, ReleaseError, ALL_ERROR_CODES;
 var init_errors = __esm({
   "src/core/errors.mjs"() {
     redactSensitivePaths2 = /* @__PURE__ */ __name((value) => value, "redactSensitivePaths");
@@ -261,7 +262,8 @@ var init_errors = __esm({
       RELEASE_DOCS_TRANSLATION_MISSING: 43,
       RELEASE_DOCS_CONFLICT: 44,
       RELEASE_DOCS_REFRESH_STALE: 45,
-      RELEASE_DOCS_STALE: 46
+      RELEASE_DOCS_STALE: 46,
+      CONSUMER_VERIFICATION_DEFERRED: 47
     });
     CONFIG_INVALID = "CONFIG_INVALID";
     BASELINE_CHANGED = "BASELINE_CHANGED";
@@ -300,6 +302,7 @@ var init_errors = __esm({
     RELEASE_DOCS_CONFLICT = "RELEASE_DOCS_CONFLICT";
     RELEASE_DOCS_REFRESH_STALE = "RELEASE_DOCS_REFRESH_STALE";
     RELEASE_DOCS_STALE = "RELEASE_DOCS_STALE";
+    CONSUMER_VERIFICATION_DEFERRED = "CONSUMER_VERIFICATION_DEFERRED";
     ReleaseError = class _ReleaseError extends Error {
       static {
         __name(this, "ReleaseError");
@@ -11041,7 +11044,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve25.call(this, root, ref);
+      let _sch = resolve26.call(this, root, ref);
       if (_sch === void 0) {
         const schema2 = (_a = root.localRefs) === null || _a === void 0 ? void 0 : _a[ref];
         const { schemaId } = this.opts;
@@ -11072,13 +11075,13 @@ var require_compile = __commonJS({
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
     __name(sameSchemaEnv, "sameSchemaEnv");
-    function resolve25(root, ref) {
+    function resolve26(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
       return sch || this.schemas[ref] || resolveSchema.call(this, root, ref);
     }
-    __name(resolve25, "resolve");
+    __name(resolve26, "resolve");
     function resolveSchema(root, ref) {
       const p = this.opts.uriResolver.parse(ref);
       const refPath = (0, resolve_1._getFullPath)(this.opts.uriResolver, p);
@@ -11730,56 +11733,56 @@ var require_fast_uri = __commonJS({
       return uri;
     }
     __name(normalize4, "normalize");
-    function resolve25(baseURI, relativeURI, options) {
+    function resolve26(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const resolved = resolveComponent(parse2(baseURI, schemelessOptions), parse2(relativeURI, schemelessOptions), schemelessOptions, true);
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    __name(resolve25, "resolve");
-    function resolveComponent(base, relative22, options, skipNormalization) {
+    __name(resolve26, "resolve");
+    function resolveComponent(base, relative23, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
         base = parse2(serialize(base, options), options);
-        relative22 = parse2(serialize(relative22, options), options);
+        relative23 = parse2(serialize(relative23, options), options);
       }
       options = options || {};
-      if (!options.tolerant && relative22.scheme) {
-        target.scheme = relative22.scheme;
-        target.userinfo = relative22.userinfo;
-        target.host = relative22.host;
-        target.port = relative22.port;
-        target.path = removeDotSegments(relative22.path || "");
-        target.query = relative22.query;
+      if (!options.tolerant && relative23.scheme) {
+        target.scheme = relative23.scheme;
+        target.userinfo = relative23.userinfo;
+        target.host = relative23.host;
+        target.port = relative23.port;
+        target.path = removeDotSegments(relative23.path || "");
+        target.query = relative23.query;
       } else {
-        if (relative22.userinfo !== void 0 || relative22.host !== void 0 || relative22.port !== void 0) {
-          target.userinfo = relative22.userinfo;
-          target.host = relative22.host;
-          target.port = relative22.port;
-          target.path = removeDotSegments(relative22.path || "");
-          target.query = relative22.query;
+        if (relative23.userinfo !== void 0 || relative23.host !== void 0 || relative23.port !== void 0) {
+          target.userinfo = relative23.userinfo;
+          target.host = relative23.host;
+          target.port = relative23.port;
+          target.path = removeDotSegments(relative23.path || "");
+          target.query = relative23.query;
         } else {
-          if (!relative22.path) {
+          if (!relative23.path) {
             target.path = base.path;
-            if (relative22.query !== void 0) {
-              target.query = relative22.query;
+            if (relative23.query !== void 0) {
+              target.query = relative23.query;
             } else {
               target.query = base.query;
             }
           } else {
-            if (relative22.path[0] === "/") {
-              target.path = removeDotSegments(relative22.path);
+            if (relative23.path[0] === "/") {
+              target.path = removeDotSegments(relative23.path);
             } else {
               if ((base.userinfo !== void 0 || base.host !== void 0 || base.port !== void 0) && !base.path) {
-                target.path = "/" + relative22.path;
+                target.path = "/" + relative23.path;
               } else if (!base.path) {
-                target.path = relative22.path;
+                target.path = relative23.path;
               } else {
-                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative22.path;
+                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative23.path;
               }
               target.path = removeDotSegments(target.path);
             }
-            target.query = relative22.query;
+            target.query = relative23.query;
           }
           target.userinfo = base.userinfo;
           target.host = base.host;
@@ -11787,7 +11790,7 @@ var require_fast_uri = __commonJS({
         }
         target.scheme = base.scheme;
       }
-      target.fragment = relative22.fragment;
+      target.fragment = relative23.fragment;
       return target;
     }
     __name(resolveComponent, "resolveComponent");
@@ -11998,7 +12001,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize: normalize4,
-      resolve: resolve25,
+      resolve: resolve26,
       resolveComponent,
       equal,
       serialize,
@@ -15584,6 +15587,170 @@ var init_project_lock = __esm({
   }
 });
 
+// src/adapters/contract.mjs
+var contract_exports = {};
+__export(contract_exports, {
+  ActionStatus: () => ActionStatus,
+  ActionType: () => ActionType,
+  SAFE_ID_RE: () => SAFE_ID_RE,
+  assertIsolatedConsumerWritesAuthorized: () => assertIsolatedConsumerWritesAuthorized,
+  assertWritesAuthorized: () => assertWritesAuthorized,
+  createAdapterRegistry: () => createAdapterRegistry,
+  createResult: () => createResult,
+  matchObservation: () => matchObservation,
+  resolveTimeoutMs: () => resolveTimeoutMs,
+  writeEvidenceAtomic: () => writeEvidenceAtomic
+});
+import { writeFile as writeFile2, rename, rm as rm2 } from "node:fs/promises";
+function createResult({ actionType, status, observation, error, details }) {
+  return Object.freeze({
+    actionType,
+    status,
+    observation: observation ?? null,
+    error: error ?? null,
+    details: details ?? null
+  });
+}
+function assertWritesAuthorized(context, actionType) {
+  if (context.externalWritesAuthorized !== true) {
+    throw new ReleaseError(
+      AUTH_MISSING,
+      `External write action '${actionType}' requires externalWritesAuthorized === true`,
+      { actionType }
+    );
+  }
+}
+function assertIsolatedConsumerWritesAuthorized(context, actionType) {
+  if (context.isolatedConsumerWritesAuthorized !== true) {
+    throw new ReleaseError(
+      AUTH_MISSING,
+      `Marketplace install action '${actionType}' requires isolatedConsumerWritesAuthorized === true`,
+      { actionType }
+    );
+  }
+}
+function matchObservation(expected, observation) {
+  if (!expected || !observation) {
+    return { matches: false, mismatches: ["missing expected or observation"] };
+  }
+  const mismatches = [];
+  for (const [key, expectedValue] of Object.entries(expected)) {
+    if (observation[key] !== expectedValue) {
+      mismatches.push(`${key}: expected ${JSON.stringify(expectedValue)}, got ${JSON.stringify(observation[key])}`);
+    }
+  }
+  return { matches: mismatches.length === 0, mismatches };
+}
+function resolveTimeoutMs(action) {
+  const raw = action?.timeoutMs;
+  if (raw === void 0) {
+    return 3e5;
+  }
+  if (raw === null || typeof raw !== "number" || !Number.isFinite(raw) || !Number.isInteger(raw)) {
+    throw new Error(
+      `action.timeoutMs must be a finite integer, got: ${JSON.stringify(raw)}`
+    );
+  }
+  if (raw < 3e4 || raw > 9e5) {
+    throw new Error(
+      `action.timeoutMs must be between 30000 and 900000, got: ${raw}`
+    );
+  }
+  return raw;
+}
+async function writeEvidenceAtomic(filePath, value) {
+  const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    await writeFile2(tempPath, `${JSON.stringify(value, null, 2)}
+`, { encoding: "utf8", mode: 384, flag: "wx" });
+    await rename(tempPath, filePath);
+  } catch (err) {
+    await rm2(tempPath, { force: true }).catch(() => {
+    });
+    throw err;
+  }
+}
+function createAdapterRegistry(adapters) {
+  const actionMap = /* @__PURE__ */ new Map();
+  for (const adapter of adapters) {
+    for (const actionType of adapter.actionTypes) {
+      if (actionMap.has(actionType)) {
+        throw new Error(
+          `Duplicate action type '${actionType}' registered by both '${actionMap.get(actionType).name}' and '${adapter.name}'`
+        );
+      }
+      actionMap.set(actionType, adapter);
+    }
+  }
+  return Object.freeze({
+    /**
+     * Get the adapter responsible for a given action type.
+     * @param {string} actionType
+     * @returns {Adapter}
+     * @throws {Error} if no adapter handles this action type.
+     */
+    getAdapter(actionType) {
+      const adapter = actionMap.get(actionType);
+      if (!adapter) {
+        throw new Error(`No adapter registered for action type '${actionType}'`);
+      }
+      return adapter;
+    },
+    /** Get all registered adapters. */
+    getAll() {
+      return [...new Set(actionMap.values())];
+    }
+  });
+}
+var ActionStatus, ActionType, SAFE_ID_RE;
+var init_contract = __esm({
+  "src/adapters/contract.mjs"() {
+    init_errors();
+    ActionStatus = Object.freeze({
+      PENDING: "PENDING",
+      PREFLIGHT_PASSED: "PREFLIGHT_PASSED",
+      PREFLIGHT_FAILED: "PREFLIGHT_FAILED",
+      EXECUTING: "EXECUTING",
+      EXECUTED: "EXECUTED",
+      EXECUTE_FAILED: "EXECUTE_FAILED",
+      OBSERVED: "OBSERVED",
+      OBSERVE_MISMATCH: "OBSERVE_MISMATCH",
+      VERIFIED: "VERIFIED",
+      VERIFY_FAILED: "VERIFY_FAILED",
+      SKIPPED: "SKIPPED"
+    });
+    ActionType = Object.freeze({
+      // git-github adapter
+      GIT_PUSH: "git-push",
+      GIT_TAG: "git-tag",
+      GITHUB_RELEASE: "github-release",
+      // npm adapter
+      NPM_PACK: "npm-pack",
+      NPM_PUBLISH: "npm-publish",
+      // snapshot push
+      PUSH_SNAPSHOT: "push-snapshot",
+      // plugin-marketplace adapter
+      PLUGIN_MANIFEST_VALIDATE: "plugin-manifest-validate",
+      PLUGIN_INSTALL_CHECK: "plugin-install-check",
+      // consumer marketplace install (production)
+      CLAUDE_MARKETPLACE_INSTALL: "claude-marketplace-install",
+      CODEX_MARKETPLACE_INSTALL: "codex-marketplace-install",
+      KIMI_MARKETPLACE_INSTALL: "kimi-marketplace-install",
+      CODEBUDDY_MARKETPLACE_INSTALL: "codebuddy-marketplace-install",
+      // default branch management
+      SET_DEFAULT_BRANCH: "set-default-branch"
+    });
+    __name(createResult, "createResult");
+    __name(assertWritesAuthorized, "assertWritesAuthorized");
+    __name(assertIsolatedConsumerWritesAuthorized, "assertIsolatedConsumerWritesAuthorized");
+    __name(matchObservation, "matchObservation");
+    SAFE_ID_RE = /^[a-z0-9][a-z0-9._-]*$/;
+    __name(resolveTimeoutMs, "resolveTimeoutMs");
+    __name(writeEvidenceAtomic, "writeEvidenceAtomic");
+    __name(createAdapterRegistry, "createAdapterRegistry");
+  }
+});
+
 // src/core/pkg-root.mjs
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15688,9 +15855,2602 @@ var init_trusted_resource = __esm({
   }
 });
 
+// src/core/installation-contract.mjs
+function stripDisplayFields(obj) {
+  if (obj === null || typeof obj !== "object") {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map((item) => stripDisplayFields(item));
+  }
+  const result = {};
+  for (const key of Object.keys(obj)) {
+    if (DISPLAY_FIELDS_TO_STRIP.has(key)) {
+      continue;
+    }
+    result[key] = stripDisplayFields(obj[key]);
+  }
+  return result;
+}
+function deepFreeze(obj) {
+  if (obj === null || typeof obj !== "object") {
+    return obj;
+  }
+  Object.freeze(obj);
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      deepFreeze(item);
+    }
+  } else {
+    for (const value of Object.values(obj)) {
+      deepFreeze(value);
+    }
+  }
+  return obj;
+}
+function assertRelativePath(path3, fieldName) {
+  if (typeof path3 !== "string") {
+    throw new Error(`${fieldName} must be a string`);
+  }
+  if (path3 === "") {
+    throw new Error(`${fieldName} must be a non-empty string`);
+  }
+  if (path3.startsWith("/")) {
+    throw new Error(`${fieldName} must be a relative path, got absolute path: ${path3}`);
+  }
+  if (/^[a-zA-Z]:\\/.test(path3) || /^[a-zA-Z]:\//.test(path3)) {
+    throw new Error(`${fieldName} must be a relative path, got absolute path: ${path3}`);
+  }
+  if (path3.startsWith("\\\\")) {
+    throw new Error(`${fieldName} must be a relative path, got UNC path: ${path3}`);
+  }
+  const segments = path3.split("/");
+  for (const seg of segments) {
+    if (seg === "..") {
+      throw new Error(`${fieldName} must not contain ".." traversal, got: ${path3}`);
+    }
+    if (seg === ".") {
+      throw new Error(`${fieldName} must not contain "." component, got: ${path3}`);
+    }
+  }
+}
+function isValidDigest(digest) {
+  return typeof digest === "string" && /^[a-f0-9]{64}$/.test(digest);
+}
+function buildInstallationContract({
+  distributionType,
+  manifestRelativePath,
+  manifest,
+  marketplaceSourceType,
+  includeMarketplaceEntry,
+  marketplaceIndexRelativePath,
+  selectedMarketplaceEntry,
+  verificationRecipeVersion
+} = {}) {
+  if (!distributionType || typeof distributionType !== "string") {
+    throw new Error("buildInstallationContract: distributionType must be a non-empty string");
+  }
+  if (!manifestRelativePath || typeof manifestRelativePath !== "string") {
+    throw new Error("buildInstallationContract: manifestRelativePath must be a non-empty string");
+  }
+  assertRelativePath(manifestRelativePath, "manifestRelativePath");
+  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
+    throw new Error("buildInstallationContract: manifest must be a non-null plain object");
+  }
+  if (!marketplaceSourceType || typeof marketplaceSourceType !== "string") {
+    throw new Error("buildInstallationContract: marketplaceSourceType must be a non-empty string");
+  }
+  if (!VALID_MARKETPLACE_SOURCE_TYPES.has(marketplaceSourceType)) {
+    throw new Error(
+      `buildInstallationContract: invalid marketplaceSourceType "${marketplaceSourceType}", must be one of: ${[...VALID_MARKETPLACE_SOURCE_TYPES].join(", ")}`
+    );
+  }
+  if (!verificationRecipeVersion || typeof verificationRecipeVersion !== "string") {
+    throw new Error("buildInstallationContract: verificationRecipeVersion must be a non-empty string");
+  }
+  if (typeof includeMarketplaceEntry !== "boolean") {
+    throw new Error("buildInstallationContract: includeMarketplaceEntry must be a boolean");
+  }
+  if (includeMarketplaceEntry) {
+    if (!selectedMarketplaceEntry || typeof selectedMarketplaceEntry !== "object" || Array.isArray(selectedMarketplaceEntry)) {
+      throw new Error(
+        "buildInstallationContract: selectedMarketplaceEntry is required when includeMarketplaceEntry is true"
+      );
+    }
+    if (!marketplaceIndexRelativePath || typeof marketplaceIndexRelativePath !== "string") {
+      throw new Error(
+        "buildInstallationContract: marketplaceIndexRelativePath is required when includeMarketplaceEntry is true"
+      );
+    }
+    assertRelativePath(marketplaceIndexRelativePath, "marketplaceIndexRelativePath");
+  }
+  const contract = {
+    algorithmVersion: INSTALLATION_CONTRACT_ALGORITHM_VERSION,
+    distributionType,
+    manifestRelativePath,
+    normalizedManifest: stripDisplayFields(manifest),
+    marketplaceSourceType,
+    includeMarketplaceEntry,
+    verificationRecipeVersion
+  };
+  if (includeMarketplaceEntry) {
+    contract.marketplaceIndexRelativePath = marketplaceIndexRelativePath;
+    contract.normalizedSelectedEntry = stripDisplayFields(selectedMarketplaceEntry);
+  }
+  return deepFreeze(contract);
+}
+function computeInstallationContractDigest(params) {
+  const contract = buildInstallationContract(params);
+  return sha256Hex(canonicalJson(contract));
+}
+function shouldSkipVerification({
+  currentDigest,
+  previousDigest,
+  previousReceipt,
+  algorithmVersion
+} = {}) {
+  if (!isValidDigest(currentDigest)) {
+    return "REQUIRE_VERIFICATION";
+  }
+  if (!previousDigest || currentDigest !== previousDigest) {
+    return "REQUIRE_VERIFICATION";
+  }
+  if (!previousReceipt || typeof previousReceipt !== "object") {
+    return "REQUIRE_VERIFICATION";
+  }
+  if (!VALID_CONSUMER_VERIFICATION_STATUSES.has(previousReceipt.result)) {
+    return "REQUIRE_VERIFICATION";
+  }
+  const previousAlgorithmVersion = previousReceipt.algorithmVersion ?? previousReceipt.installationContractAlgorithmVersion;
+  if (previousAlgorithmVersion !== algorithmVersion) {
+    return "REQUIRE_VERIFICATION";
+  }
+  if (!isValidDigest(previousReceipt.installationContractDigest)) {
+    return "REQUIRE_VERIFICATION";
+  }
+  if (previousReceipt.installationContractDigest !== currentDigest) {
+    return "REQUIRE_VERIFICATION";
+  }
+  return "NOT_REQUIRED_UNCHANGED";
+}
+var INSTALLATION_CONTRACT_ALGORITHM_VERSION, VALID_MARKETPLACE_SOURCE_TYPES, VALID_CONSUMER_VERIFICATION_STATUSES, DISPLAY_FIELDS_TO_STRIP;
+var init_installation_contract = __esm({
+  "src/core/installation-contract.mjs"() {
+    init_digest();
+    INSTALLATION_CONTRACT_ALGORITHM_VERSION = 1;
+    VALID_MARKETPLACE_SOURCE_TYPES = /* @__PURE__ */ new Set([
+      "bundled-family",
+      "standalone-index"
+    ]);
+    VALID_CONSUMER_VERIFICATION_STATUSES = /* @__PURE__ */ new Set([
+      "PASSED_AUTOMATIC",
+      "PASSED_MANUAL",
+      "NOT_REQUIRED_UNCHANGED"
+    ]);
+    DISPLAY_FIELDS_TO_STRIP = /* @__PURE__ */ new Set([
+      "version",
+      "description",
+      "shortDescription",
+      "longDescription",
+      "defaultPrompt",
+      "tag",
+      "commit",
+      "commitSha",
+      "marketplaceCommitSha",
+      "sha"
+    ]);
+    __name(stripDisplayFields, "stripDisplayFields");
+    __name(deepFreeze, "deepFreeze");
+    __name(assertRelativePath, "assertRelativePath");
+    __name(isValidDigest, "isValidDigest");
+    __name(buildInstallationContract, "buildInstallationContract");
+    __name(computeInstallationContractDigest, "computeInstallationContractDigest");
+    __name(shouldSkipVerification, "shouldSkipVerification");
+  }
+});
+
+// src/core/plan.mjs
+var plan_exports = {};
+__export(plan_exports, {
+  assertAuthorityFileTarget: () => assertAuthorityFileTarget,
+  assertImmutablePlanAuthority: () => assertImmutablePlanAuthority,
+  computePlanDigest: () => computePlanDigest,
+  prepareAuthorityDirectory: () => prepareAuthorityDirectory,
+  validatePlan: () => validatePlan,
+  validatePlanActionCompleteness: () => validatePlanActionCompleteness,
+  writePlanAtomic: () => writePlanAtomic,
+  writePlanImmutable: () => writePlanImmutable
+});
+import { readFile as readFile3, writeFile as writeFile3, rename as rename2, mkdir as mkdir2, open as open2, link, unlink, lstat as lstat3 } from "node:fs/promises";
+import { basename, dirname as dirname2, join as join2, resolve as resolve3, parse, sep as sep2 } from "node:path";
+async function assertNoSymlinkAncestors(directory) {
+  const absolute = resolve3(directory);
+  const parsed = parse(absolute);
+  const segments = absolute.slice(parsed.root.length).split(sep2).filter(Boolean);
+  const releaseIndex = segments.lastIndexOf(".release-skill");
+  const firstChecked = releaseIndex >= 0 ? releaseIndex : Math.max(0, segments.length - 1);
+  let current = join2(parsed.root, ...segments.slice(0, firstChecked));
+  for (const segment of segments.slice(firstChecked)) {
+    current = join2(current, segment);
+    let stat9;
+    try {
+      stat9 = await lstat3(current);
+    } catch (error) {
+      if (error.code === "ENOENT") continue;
+      throw error;
+    }
+    if (stat9.isSymbolicLink() || !stat9.isDirectory()) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        "release authority path contains a symlink or non-directory ancestor",
+        { directory: absolute, unsafeAncestor: current }
+      );
+    }
+  }
+}
+async function prepareAuthorityDirectory(directory) {
+  const absolute = resolve3(directory);
+  await assertNoSymlinkAncestors(absolute);
+  await mkdir2(absolute, { recursive: true });
+  await assertNoSymlinkAncestors(absolute);
+  return absolute;
+}
+async function assertAuthorityFileTarget(filePath) {
+  const absolute = resolve3(filePath);
+  await prepareAuthorityDirectory(dirname2(absolute));
+  try {
+    const stat9 = await lstat3(absolute);
+    if (stat9.isSymbolicLink() || !stat9.isFile()) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        "release authority target must be a regular file, never a symlink or special file",
+        { filePath: absolute }
+      );
+    }
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  return absolute;
+}
+function assertImmutablePlanAuthority(planPath, plan) {
+  if (!plan?.production) return;
+  const digest = computePlanDigest(plan);
+  const absolute = resolve3(planPath);
+  if (basename(dirname2(absolute)) !== "plans" || basename(absolute) !== `${digest}.json`) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "production commands require plans/<planDigest>.json immutable authority; mutable release-plan.json aliases are not accepted",
+      { planPath, expectedFile: `plans/${digest}.json` }
+    );
+  }
+}
+function validatePlan(plan) {
+  const valid = validatePlanSchema(plan);
+  if (!valid) {
+    const errors = validatePlanSchema.errors ?? [];
+    const summary = errors.map((e) => `${e.instancePath || "/"}: ${e.message}`).join("; ");
+    throw new ReleaseError(
+      GATE_FAILED,
+      `release plan schema validation failed: ${summary}`,
+      { validationErrors: errors }
+    );
+  }
+  const unitsById = new Map((plan.units ?? []).map((unit) => [unit.id, unit]));
+  const gateIds = /* @__PURE__ */ new Set();
+  for (const gate of plan.verificationGates ?? []) {
+    if (gateIds.has(gate.id)) {
+      throw new ReleaseError(GATE_FAILED, `duplicate verification gate id: "${gate.id}"`);
+    }
+    gateIds.add(gate.id);
+    const unit = unitsById.get(gate.scope.unit);
+    if (!unit) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `verification gate "${gate.id}" references unknown unit "${gate.scope.unit}"`
+      );
+    }
+    if (gate.phase === "consumer-verify" && !(unit.distributions ?? []).some((distribution) => distribution.type === gate.scope.distribution)) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `verification gate "${gate.id}" references undeclared distribution "${gate.scope.distribution}"`
+      );
+    }
+  }
+}
+function stripRecordLayerV2(plan) {
+  const {
+    digest: _digest,
+    status: _status,
+    createdAt: _createdAt,
+    baseline: _baseline,
+    ...rest
+  } = plan;
+  return {
+    ...rest,
+    externalActions: (plan.externalActions ?? []).map(
+      ({ status: _actionStatus, ...action }) => action
+    )
+  };
+}
+function computePlanDigest(plan) {
+  if (plan.planVersion === 2) {
+    return sha256Hex(canonicalJson(stripRecordLayerV2(plan)));
+  }
+  const { digest: _digest, ...rest } = plan;
+  return sha256Hex(canonicalJson(rest));
+}
+async function writePlanAtomic(planPath, plan) {
+  const planDigest = computePlanDigest(plan);
+  const augmented = { ...plan, digest: planDigest };
+  validatePlan(augmented);
+  const json = JSON.stringify(augmented, null, 2);
+  const dir = dirname2(planPath);
+  await prepareAuthorityDirectory(dir);
+  await assertAuthorityFileTarget(planPath);
+  const tmpPath = `${dir}/.release-plan-${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`;
+  await writeFile3(tmpPath, json, "utf8");
+  await rename2(tmpPath, planPath);
+  return { planPath, planDigest };
+}
+async function writePlanImmutable(planPath, plan) {
+  const planDigest = computePlanDigest(plan);
+  const augmented = { ...plan, digest: planDigest };
+  validatePlan(augmented);
+  const json = JSON.stringify(augmented, null, 2);
+  if (!planPath.endsWith(`${planDigest}.json`)) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "immutable plan path must be named with the plan digest",
+      { planPath, planDigest }
+    );
+  }
+  const dir = dirname2(planPath);
+  await prepareAuthorityDirectory(dir);
+  await assertAuthorityFileTarget(planPath);
+  const tmpPath = join2(dir, `.release-plan-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`);
+  const handle = await open2(tmpPath, "wx", 384);
+  try {
+    await handle.writeFile(json, "utf8");
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  try {
+    await link(tmpPath, planPath);
+  } catch (error) {
+    if (error.code !== "EEXIST") throw error;
+    const existing = await readFile3(planPath, "utf8");
+    if (existing !== json) {
+      if (plan.planVersion === 2) {
+        let existingPlan = null;
+        try {
+          existingPlan = JSON.parse(existing);
+        } catch {
+          existingPlan = null;
+        }
+        if (existingPlan && typeof existingPlan === "object" && existingPlan.digest === planDigest && computePlanDigest(existingPlan) === planDigest) {
+          return { planPath, planDigest };
+        }
+      }
+      throw new ReleaseError(
+        GATE_FAILED,
+        "immutable plan authority already exists with different bytes",
+        { planPath, planDigest }
+      );
+    }
+  } finally {
+    await unlink(tmpPath).catch(() => {
+    });
+  }
+  return { planPath, planDigest };
+}
+function buildExpectedAdapterMap() {
+  return {
+    "push-snapshot": "git-github",
+    "create-tag": "git-github",
+    "github-release": "github",
+    "npm-publish": "npm",
+    ...Object.fromEntries(PLATFORMS.map((p) => [p.actionType, p.adapter])),
+    "set-default-branch": "git-github"
+  };
+}
+function validatePlanActionCompleteness(plan, options = {}) {
+  const failures = [];
+  if (!plan || typeof plan !== "object") {
+    return { passed: false, details: { failures: ["plan is null or not an object"], expectedCount: 0, actualCount: 0 } };
+  }
+  const units = Array.isArray(plan.units) ? plan.units : [];
+  const actions = Array.isArray(plan.externalActions) ? plan.externalActions : [];
+  const expectedAdapterMap = buildExpectedAdapterMap();
+  if (actions.length === 0) {
+    failures.push("plan has no external actions; at least one is required");
+    return { passed: false, details: { failures, expectedCount: 0, actualCount: 0 } };
+  }
+  let expectedCount = 0;
+  const seenUnitIds = /* @__PURE__ */ new Set();
+  for (const unit of units) {
+    const unitId = unit.id;
+    const targetVersion = unit.targetVersion;
+    const publicRepo = unit.publicRepo;
+    const tagTemplate = unit.tagTemplate;
+    const distributions = unit.distributions ?? [];
+    const production = plan.production?.mode === "github-npm-v1";
+    const frozen = unit.frozenSnapshot;
+    const productionConfig = unit.productionConfig ?? {};
+    const branchStrategy = productionConfig.branchStrategy;
+    const expectedTag = tagTemplate ? tagTemplate.replace("{version}", targetVersion ?? "") : null;
+    if (!unitId) {
+      failures.push(`unit is missing id`);
+      continue;
+    }
+    if (seenUnitIds.has(unitId)) {
+      failures.push(`duplicate unit id "${unitId}"`);
+      continue;
+    }
+    seenUnitIds.add(unitId);
+    if (!targetVersion) {
+      failures.push(`unit "${unitId}" is missing targetVersion`);
+    }
+    if (!publicRepo) {
+      failures.push(`unit "${unitId}" is missing publicRepo`);
+    }
+    if (!tagTemplate) {
+      failures.push(`unit "${unitId}" is missing tagTemplate`);
+    }
+    if (production && !frozen) {
+      failures.push(`unit "${unitId}" is missing frozenSnapshot for production publish`);
+    }
+    if (production && frozen) {
+      if (!["create-release-branch", "advance-existing-branch", "initialize-default-branch"].includes(branchStrategy)) {
+        failures.push(`unit "${unitId}" productionConfig.branchStrategy is missing or invalid`);
+      }
+      const expectedBranch = (productionConfig.branchTemplate ?? "release/{tag}").replaceAll("{tag}", expectedTag ?? "").replaceAll("{version}", targetVersion ?? "").replaceAll("{unit}", unitId);
+      if (frozen.branch !== expectedBranch) {
+        failures.push(`unit "${unitId}" frozen branch does not match productionConfig.branchTemplate`);
+      }
+      if (frozen.branchStrategy !== branchStrategy) {
+        failures.push(`unit "${unitId}" frozenSnapshot.branchStrategy does not match productionConfig.branchStrategy`);
+      }
+      if (!frozen.commitTimestamp || typeof frozen.commitTimestamp !== "string") {
+        failures.push(`unit "${unitId}" frozenSnapshot.commitTimestamp is missing; legacy production plans without a freeze timestamp are rejected, never silently backfilled`);
+      } else if (plan.planVersion === 2) {
+        if (!CANONICAL_COMMIT_TIMESTAMP_RE.test(frozen.commitTimestamp)) {
+          failures.push(`unit "${unitId}" frozenSnapshot.commitTimestamp is not a canonical normalized timestamp (expected YYYY-MM-DDTHH:MM:SS+00:00)`);
+        }
+      } else if (plan.createdAt !== frozen.commitTimestamp) {
+        failures.push(`unit "${unitId}" frozenSnapshot.commitTimestamp must equal plan.createdAt`);
+      }
+      if (["advance-existing-branch", "initialize-default-branch"].includes(branchStrategy)) {
+        if (unit.previousPublicBaseline?.mode !== "bound") {
+          failures.push(`unit "${unitId}" branch strategy "${branchStrategy}" requires a bound previous public baseline`);
+        }
+        if (!frozen.parentCommit || frozen.parentCommit !== unit.previousPublicBaseline?.commit) {
+          failures.push(`unit "${unitId}" frozenSnapshot.parentCommit does not match previous public baseline commit`);
+        }
+      } else if (frozen.parentCommit) {
+        failures.push(`unit "${unitId}" create-release-branch must not freeze a parentCommit`);
+      }
+      if (branchStrategy === "advance-existing-branch" && unit.previousPublicBaseline?.ref !== `refs/heads/${expectedBranch}`) {
+        failures.push(`unit "${unitId}" advance-existing-branch baseline ref does not match the target branch`);
+      }
+      if (branchStrategy === "initialize-default-branch") {
+        if (productionConfig.setAsDefaultBranch !== true || !productionConfig.expectedCurrentDefaultBranch) {
+          failures.push(`unit "${unitId}" initialize-default-branch requires explicit default branch settings`);
+        }
+      } else if (productionConfig.setAsDefaultBranch === true) {
+        failures.push(`unit "${unitId}" setAsDefaultBranch is only valid for initialize-default-branch`);
+      }
+    }
+    for (const actionType of REQUIRED_ACTION_TYPES) {
+      expectedCount++;
+      const expectedAdapter = expectedAdapterMap[actionType];
+      const expectedActionId = `${actionType}-${unitId}`;
+      const matchingActions = actions.filter(
+        (a) => a.unitId === unitId && a.type === actionType
+      );
+      if (matchingActions.length === 0) {
+        failures.push(
+          `unit "${unitId}": required action type "${actionType}" is missing (expected adapter "${expectedAdapter}")`
+        );
+      } else if (matchingActions.length > 1) {
+        failures.push(
+          `unit "${unitId}": duplicate action type "${actionType}" (${matchingActions.length} found, expected 1)`
+        );
+      } else {
+        const action = matchingActions[0];
+        if (action.id !== expectedActionId) {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": id is "${action.id}", expected "${expectedActionId}"`
+          );
+        }
+        if (action.unitId !== unitId) {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": unitId is "${action.unitId}", expected "${unitId}"`
+          );
+        }
+        if (action.adapter !== expectedAdapter) {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": adapter is "${action.adapter}", expected "${expectedAdapter}"`
+          );
+        }
+        if (action.status !== "PENDING") {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": status is "${action.status ?? "(missing)"}", expected "PENDING"`
+          );
+        }
+        if (actionType === "push-snapshot") {
+          _checkRequired(action, "parameters.version", action.parameters?.version, targetVersion, unitId, failures);
+          _checkRequired(action, "parameters.source", action.parameters?.source, unit.source, unitId, failures);
+          _checkRequired(action, "parameters.cwd", action.parameters?.cwd, unit.source, unitId, failures);
+          _checkRequired(action, "parameters.publicRepo", action.parameters?.publicRepo, publicRepo, unitId, failures);
+          if (production) {
+            _checkRequired(action, "parameters.snapshotPath", action.parameters?.snapshotPath, frozen?.path, unitId, failures);
+            _checkRequired(action, "parameters.manifestDigest", action.parameters?.manifestDigest, frozen?.manifestDigest, unitId, failures);
+            _checkRequired(action, "parameters.gitObjectDir", action.parameters?.gitObjectDir, frozen?.gitObjectDir, unitId, failures);
+            _checkRequired(action, "parameters.branch", action.parameters?.branch, frozen?.branch, unitId, failures);
+            _checkRequired(action, "parameters.commit", action.parameters?.commit, frozen?.commit, unitId, failures);
+            _checkRequired(action, "parameters.tree", action.parameters?.tree, frozen?.tree, unitId, failures);
+            _checkRequired(action, "parameters.branchStrategy", action.parameters?.branchStrategy, branchStrategy, unitId, failures);
+            _checkRequired(action, "parameters.githubHost", action.parameters?.githubHost, productionConfig.githubHost ?? "github.com", unitId, failures);
+            _checkRequired(action, "expected.commit", action.expected?.commit, frozen?.commit, unitId, failures);
+            _checkRequired(action, "expected.tree", action.expected?.tree, frozen?.tree, unitId, failures);
+            _checkRequired(action, "expected.manifestDigest", action.expected?.manifestDigest, frozen?.manifestDigest, unitId, failures);
+            if (["advance-existing-branch", "initialize-default-branch"].includes(branchStrategy)) {
+              _checkRequired(action, "parameters.parentCommit", action.parameters?.parentCommit, frozen?.parentCommit, unitId, failures);
+            }
+            if (branchStrategy === "advance-existing-branch") {
+              _checkRequired(action, "parameters.expectedBaselineCommit", action.parameters?.expectedBaselineCommit, frozen?.parentCommit, unitId, failures);
+            } else if (action.parameters?.expectedBaselineCommit !== void 0) {
+              failures.push(`unit "${unitId}", action "${action.id}": unexpected parameters.expectedBaselineCommit`);
+            }
+          } else {
+            _checkRequired(action, "expected.tag", action.expected?.tag, expectedTag, unitId, failures);
+          }
+        }
+        if (actionType === "create-tag") {
+          _checkRequired(action, "parameters.tagTemplate", action.parameters?.tagTemplate, tagTemplate, unitId, failures);
+          _checkRequired(action, "parameters.publicRepo", action.parameters?.publicRepo, publicRepo, unitId, failures);
+          _checkRequired(action, "parameters.version", action.parameters?.version, targetVersion, unitId, failures);
+          if (production) {
+            _checkRequired(action, "parameters.tag", action.parameters?.tag, expectedTag, unitId, failures);
+            _checkRequired(action, "parameters.repo", action.parameters?.repo, publicRepo, unitId, failures);
+            _checkRequired(action, "parameters.gitObjectDir", action.parameters?.gitObjectDir, frozen?.gitObjectDir, unitId, failures);
+            _checkRequired(action, "parameters.commit", action.parameters?.commit, frozen?.commit, unitId, failures);
+            _checkRequired(action, "parameters.githubHost", action.parameters?.githubHost, productionConfig.githubHost ?? "github.com", unitId, failures);
+            _checkRequired(action, "expected.commit", action.expected?.commit, frozen?.commit, unitId, failures);
+          }
+        }
+        if (actionType === "github-release") {
+          _checkRequired(action, "parameters.publicRepo", action.parameters?.publicRepo, publicRepo, unitId, failures);
+          _checkRequired(action, "parameters.version", action.parameters?.version, targetVersion, unitId, failures);
+          if (production) {
+            _checkRequired(action, "parameters.tag", action.parameters?.tag, expectedTag, unitId, failures);
+            _checkRequired(action, "parameters.repo", action.parameters?.repo, publicRepo, unitId, failures);
+            _checkRequired(action, "parameters.commit", action.parameters?.commit, frozen?.commit, unitId, failures);
+            _checkRequired(action, "parameters.githubHost", action.parameters?.githubHost, productionConfig.githubHost ?? "github.com", unitId, failures);
+            const expectedName = (productionConfig.releaseTitleTemplate ?? "Release {tag}").replaceAll("{tag}", expectedTag ?? "").replaceAll("{version}", targetVersion ?? "").replaceAll("{unit}", unitId);
+            _checkRequired(action, "parameters.name", action.parameters?.name, expectedName, unitId, failures);
+            _checkRequired(action, "parameters.notes", action.parameters?.notes, productionConfig.releaseNotes ?? `Release ${expectedTag}`, unitId, failures);
+            _checkRequired(action, "expected.tag", action.expected?.tag, expectedTag, unitId, failures);
+            _checkRequired(action, "expected.commit", action.expected?.commit, frozen?.commit, unitId, failures);
+          }
+        }
+      }
+    }
+    const npmDist = distributions.find((d) => d.type === "npm");
+    if (npmDist) {
+      if (!npmDist.package || typeof npmDist.package !== "string") {
+        failures.push(
+          `unit "${unitId}": npm distribution is missing "package" name`
+        );
+      }
+      expectedCount++;
+      const expectedPkg = npmDist.package;
+      const npmActions = actions.filter(
+        (a) => a.unitId === unitId && a.type === "npm-publish"
+      );
+      if (npmActions.length === 0) {
+        failures.push(
+          `unit "${unitId}": npm distribution declared but "npm-publish" action is missing`
+        );
+      } else if (npmActions.length > 1) {
+        failures.push(
+          `unit "${unitId}": duplicate npm-publish actions (${npmActions.length} found, expected 1)`
+        );
+      } else {
+        const action = npmActions[0];
+        const expectedActionId = `npm-publish-${unitId}`;
+        if (action.id !== expectedActionId) {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": id is "${action.id}", expected "${expectedActionId}"`
+          );
+        }
+        if (action.unitId !== unitId) {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": unitId is "${action.unitId}", expected "${unitId}"`
+          );
+        }
+        if (action.adapter !== "npm") {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": adapter is "${action.adapter}", expected "npm"`
+          );
+        }
+        if (action.status !== "PENDING") {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": status is "${action.status ?? "(missing)"}", expected "PENDING"`
+          );
+        }
+        _checkRequired(action, "parameters.package", action.parameters?.package, expectedPkg, unitId, failures);
+        _checkRequired(action, "parameters.version", action.parameters?.version, targetVersion, unitId, failures);
+        _checkRequired(action, "parameters.cwd", action.parameters?.cwd, unit.source, unitId, failures);
+        _checkRequired(action, "expected.package", action.expected?.package, expectedPkg, unitId, failures);
+        _checkRequired(action, "expected.version", action.expected?.version, targetVersion, unitId, failures);
+        const expectedRegistry = npmDist.registry;
+        const expectedPublisher = npmDist.publisher;
+        if (!expectedRegistry || typeof expectedRegistry !== "string") {
+          failures.push(`unit "${unitId}": npm distribution is missing "registry"`);
+        } else {
+          _checkRequired(action, "parameters.registry", action.parameters?.registry, expectedRegistry, unitId, failures);
+          _checkRequired(action, "expected.registry", action.expected?.registry, expectedRegistry, unitId, failures);
+        }
+        if (!expectedPublisher || typeof expectedPublisher !== "string") {
+          failures.push(`unit "${unitId}": npm distribution is missing "publisher"`);
+        } else {
+          _checkRequired(action, "parameters.publisher", action.parameters?.publisher, expectedPublisher, unitId, failures);
+          _checkRequired(action, "expected.publisher", action.expected?.publisher, expectedPublisher, unitId, failures);
+        }
+        if (production) {
+          _checkRequired(action, "parameters.tarballPath", action.parameters?.tarballPath, frozen?.npm?.tarballPath, unitId, failures);
+          _checkRequired(action, "parameters.tarballSha256", action.parameters?.tarballSha256, frozen?.npm?.tarballSha256, unitId, failures);
+          _checkRequired(action, "parameters.integrity", action.parameters?.integrity, frozen?.npm?.integrity, unitId, failures);
+          _checkRequired(action, "parameters.access", action.parameters?.access, npmDist.access, unitId, failures);
+          _checkRequired(action, "parameters.provenance", action.parameters?.provenance, npmDist.provenance === true, unitId, failures);
+          if ((action.parameters?.tag ?? null) !== (npmDist.tag ?? null)) {
+            failures.push(`unit "${unitId}", action "${action.id}": parameters.tag does not match npm distribution tag`);
+          }
+          _checkRequired(action, "expected.integrity", action.expected?.integrity, frozen?.npm?.integrity, unitId, failures);
+        }
+      }
+    }
+    for (const platform of PLATFORMS) {
+      const dist = distributions.find((d) => d.type === platform.distributionType);
+      if (!dist) continue;
+      const plugin = dist.plugin;
+      const marketplace = dist.marketplace;
+      const entrySkill = dist.entrySkill;
+      const requiresMarketplace = platform.schemaRequiredFields.includes("marketplace");
+      if (requiresMarketplace) {
+        if (!plugin || !marketplace || !entrySkill) {
+          failures.push(`unit "${unitId}": ${platform.distributionType} distribution requires plugin, marketplace, and entrySkill`);
+        }
+      } else if (!plugin || !entrySkill) {
+        failures.push(`unit "${unitId}": ${platform.distributionType} distribution requires plugin and entrySkill`);
+      }
+      expectedCount++;
+      const expectedActionId = `${platform.actionType}-${unitId}`;
+      const matchingActions = actions.filter(
+        (a) => a.unitId === unitId && a.type === platform.actionType
+      );
+      if (matchingActions.length === 0) {
+        failures.push(
+          `unit "${unitId}": ${platform.distributionType} distribution declared but "${platform.actionType}" action is missing`
+        );
+      } else if (matchingActions.length > 1) {
+        failures.push(
+          `unit "${unitId}": duplicate ${platform.actionType} actions (${matchingActions.length} found, expected 1)`
+        );
+      } else {
+        const action = matchingActions[0];
+        if (action.id !== expectedActionId) {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": id is "${action.id}", expected "${expectedActionId}"`
+          );
+        }
+        if (action.unitId !== unitId) {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": unitId is "${action.unitId}", expected "${unitId}"`
+          );
+        }
+        if (action.adapter !== platform.adapter) {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": adapter is "${action.adapter}", expected "${platform.adapter}"`
+          );
+        }
+        if (action.status !== "PENDING") {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": status is "${action.status ?? "(missing)"}", expected "PENDING"`
+          );
+        }
+        const externalMarketplace = dist.marketplaceRepo !== void 0 && dist.marketplaceRepo !== null;
+        if (externalMarketplace && dist.marketplaceSourceType && dist.marketplaceSourceType !== "standalone-index") {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": ${platform.distributionType} distribution declares marketplaceRepo but marketplaceSourceType is "${dist.marketplaceSourceType}"; marketplaceRepo requires standalone-index`
+          );
+        }
+        const distHasFieldGroup = dist.installationContract !== void 0 && dist.installationContract !== null || dist.installationContractDigest !== void 0 && dist.installationContractDigest !== null || dist.marketplaceSourceType !== void 0 && dist.marketplaceSourceType !== null;
+        const actionHasFieldGroup = action.parameters?.installationContractDigest !== void 0 && action.parameters?.installationContractDigest !== null || action.parameters?.algorithmVersion !== void 0 && action.parameters?.algorithmVersion !== null;
+        const hasFieldGroup = distHasFieldGroup || actionHasFieldGroup;
+        if (hasFieldGroup) {
+          if (dist.marketplaceSourceType === void 0 || dist.marketplaceSourceType === null) {
+            failures.push(`unit "${unitId}", action "${action.id}": distribution missing marketplaceSourceType; new-version field group requires all fields`);
+          }
+          if (dist.installationContract === void 0 || dist.installationContract === null) {
+            failures.push(`unit "${unitId}", action "${action.id}": distribution missing installationContract; new-version field group requires all fields`);
+          }
+          if (dist.installationContractDigest === void 0 || dist.installationContractDigest === null) {
+            failures.push(`unit "${unitId}", action "${action.id}": distribution missing installationContractDigest; new-version field group requires all fields`);
+          }
+          if (action.parameters?.marketplaceForm === void 0 || action.parameters?.marketplaceForm === null) {
+            failures.push(`unit "${unitId}", action "${action.id}": parameters.marketplaceForm missing; new-version field group requires all fields`);
+          }
+          if (action.parameters?.sourceDescriptor === void 0 || action.parameters?.sourceDescriptor === null) {
+            failures.push(`unit "${unitId}", action "${action.id}": parameters.sourceDescriptor missing; new-version field group requires all fields`);
+          }
+          if (action.parameters?.installationContractDigest === void 0 || action.parameters?.installationContractDigest === null) {
+            failures.push(`unit "${unitId}", action "${action.id}": parameters.installationContractDigest missing; new-version field group requires all fields`);
+          }
+          if (action.parameters?.algorithmVersion === void 0 || action.parameters?.algorithmVersion === null) {
+            failures.push(`unit "${unitId}", action "${action.id}": parameters.algorithmVersion missing; new-version field group requires all fields`);
+          }
+          if (production && (action.parameters?.sourceCommit === void 0 || action.parameters?.sourceCommit === null)) {
+            failures.push(`unit "${unitId}", action "${action.id}": parameters.sourceCommit missing; production plan requires sourceCommit`);
+          }
+          const mf = action.parameters?.marketplaceForm;
+          const sdForm = action.parameters?.sourceDescriptor?.form;
+          const distSourceType = dist.marketplaceSourceType;
+          if (mf && distSourceType && mf !== distSourceType) {
+            failures.push(`unit "${unitId}", action "${action.id}": marketplaceForm "${mf}" does not match distribution marketplaceSourceType "${distSourceType}"`);
+          }
+          if (sdForm && distSourceType && sdForm !== distSourceType) {
+            failures.push(`unit "${unitId}", action "${action.id}": sourceDescriptor.form "${sdForm}" does not match distribution marketplaceSourceType "${distSourceType}"`);
+          }
+        }
+        _checkRequired(action, "parameters.consumer", action.parameters?.consumer, platform.id, unitId, failures);
+        _checkRequired(action, "parameters.plugin", action.parameters?.plugin, plugin, unitId, failures);
+        if (requiresMarketplace) {
+          _checkRequired(action, "parameters.marketplace", action.parameters?.marketplace, marketplace, unitId, failures);
+        } else if (action.parameters?.marketplace !== void 0 && marketplace !== void 0 && action.parameters.marketplace !== marketplace) {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": parameters.marketplace is "${action.parameters.marketplace}", expected optional legacy value "${marketplace}"`
+          );
+        }
+        if (externalMarketplace) {
+          _checkRequired(action, "parameters.repo", action.parameters?.repo, dist.marketplaceRepo, unitId, failures);
+          _checkRequired(action, "parameters.marketplaceLocation", action.parameters?.marketplaceLocation, "external", unitId, failures);
+        } else {
+          _checkRequired(action, "parameters.repo", action.parameters?.repo, publicRepo, unitId, failures);
+        }
+        _checkRequired(action, "parameters.version", action.parameters?.version, targetVersion, unitId, failures);
+        _checkRequired(action, "parameters.entrySkill", action.parameters?.entrySkill, entrySkill, unitId, failures);
+        if (production) {
+          _checkRequired(action, "parameters.snapshotPath", action.parameters?.snapshotPath, frozen?.path, unitId, failures);
+          if (externalMarketplace) {
+            const ref = action.parameters?.ref;
+            if (ref === void 0 || ref === null) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.ref is missing, expected the frozen external marketplace add-ref`
+              );
+            } else if (!_isStructurallySafeExternalRef(ref)) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.ref is not a structurally safe ref: ${JSON.stringify(ref)}`
+              );
+            } else if (ref !== action.expected?.ref) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.ref is "${ref}", expected self-consistent expected.ref "${action.expected?.ref}"`
+              );
+            }
+            const sha = action.parameters?.marketplaceCommitSha;
+            if (sha === void 0 || sha === null) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.marketplaceCommitSha is missing, expected a frozen 40-hex commit sha`
+              );
+            } else if (typeof sha !== "string" || !EXTERNAL_MARKETPLACE_SHA_RE.test(sha)) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.marketplaceCommitSha must be a 40-hex commit sha, got: ${JSON.stringify(sha)}`
+              );
+            }
+          } else {
+            _checkRequired(action, "parameters.ref", action.parameters?.ref, expectedTag, unitId, failures);
+          }
+          _checkRequired(action, "parameters.manifestDigest", action.parameters?.manifestDigest, frozen?.manifestDigest, unitId, failures);
+        }
+        {
+          const raw = action.parameters?.timeoutMs;
+          if (raw === void 0) {
+            if (!options.legacyCompatibility) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.timeoutMs is missing, expected a valid timeout (30000-900000)`
+              );
+            }
+          } else {
+            if (typeof raw !== "number" || !Number.isFinite(raw) || !Number.isInteger(raw)) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.timeoutMs must be a finite integer, got: ${JSON.stringify(raw)}`
+              );
+            } else if (raw < 3e4 || raw > 9e5) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.timeoutMs must be between 30000 and 900000, got: ${raw}`
+              );
+            }
+          }
+        }
+        if (production) {
+          _checkRequired(action, "parameters.sourceCommit", action.parameters?.sourceCommit, frozen?.commit, unitId, failures);
+        }
+        if (requiresMarketplace) {
+          const sd = action.parameters?.sourceDescriptor;
+          const mf = action.parameters?.marketplaceForm;
+          if (sd === void 0 || sd === null) {
+            if (!options.legacyCompatibility) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.sourceDescriptor is missing; every marketplace install action must carry a complete source descriptor`
+              );
+            }
+          } else if (typeof sd === "object") {
+            if (mf === void 0 || mf === null) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.marketplaceForm is missing but sourceDescriptor is present; form must be explicitly declared`
+              );
+            }
+            if (sd.form !== mf) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": sourceDescriptor.form "${sd.form}" does not match parameters.marketplaceForm "${mf}"`
+              );
+            }
+            const BUNDLED_REQUIRED = ["form", "repo", "marketplaceEntry", "pluginSubpath"];
+            const STANDALONE_REQUIRED = ["form", "marketplaceRepo", "marketplaceEntry", "pluginRepo", "sourceType"];
+            const PROD_ONLY_FIELDS = ["marketplaceCommitSha", "ref", "payloadDigest"];
+            if (sd.form === "bundled-family") {
+              for (const field of BUNDLED_REQUIRED) {
+                if (sd[field] === void 0 || sd[field] === null) {
+                  failures.push(
+                    `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is missing or null; bundled-family form requires all identity fields to be non-null`
+                  );
+                }
+              }
+              if (production && (sd.commit === void 0 || sd.commit === null)) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.commit is missing or null; production bundled-family plans require a frozen commit`
+                );
+              }
+              if (production && sd.commit !== void 0 && sd.commit !== null && frozen?.commit !== void 0 && sd.commit !== frozen.commit) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.commit does not match frozenSnapshot.commit`
+                );
+              }
+              if (production && (sd.payloadDigest === void 0 || sd.payloadDigest === null)) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.payloadDigest is missing or null; production plans require a frozen payload digest`
+                );
+              }
+              const STANDALONE_ONLY = ["marketplaceRepo", "pluginRepo", "sourceType", "marketplaceCommitSha", "ref"];
+              for (const field of STANDALONE_ONLY) {
+                if (sd[field] !== void 0) {
+                  failures.push(
+                    `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is unexpected for bundled-family form; mixed fields are prohibited`
+                  );
+                }
+              }
+              if (sd.repo !== void 0 && sd.repo !== null && sd.repo !== publicRepo) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.repo "${sd.repo}" does not match unit publicRepo "${publicRepo}"`
+                );
+              }
+              if (sd.marketplaceEntry !== void 0 && sd.marketplaceEntry !== null && sd.marketplaceEntry !== plugin) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.marketplaceEntry "${sd.marketplaceEntry}" does not match action plugin "${plugin}"`
+                );
+              }
+              if (production && sd.payloadDigest !== void 0 && sd.payloadDigest !== null && frozen?.manifestDigest !== void 0 && sd.payloadDigest !== frozen.manifestDigest) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.payloadDigest does not match frozen manifestDigest`
+                );
+              }
+            } else if (sd.form === "standalone-index") {
+              for (const field of STANDALONE_REQUIRED) {
+                if (sd[field] === void 0 || sd[field] === null) {
+                  failures.push(
+                    `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is missing or null; standalone-index form requires all identity fields to be non-null`
+                  );
+                }
+              }
+              if (production) {
+                for (const field of PROD_ONLY_FIELDS) {
+                  if (sd[field] === void 0 || sd[field] === null) {
+                    failures.push(
+                      `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is missing or null; production standalone-index requires all fields to be non-null`
+                    );
+                  }
+                }
+              }
+              const BUNDLED_ONLY = ["repo", "commit", "pluginSubpath"];
+              for (const field of BUNDLED_ONLY) {
+                if (sd[field] !== void 0) {
+                  failures.push(
+                    `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is unexpected for standalone-index form; mixed fields are prohibited`
+                  );
+                }
+              }
+              if (sd.pluginRepo !== void 0 && sd.pluginRepo !== null && sd.marketplaceRepo !== void 0 && sd.marketplaceRepo !== null && sd.pluginRepo === sd.marketplaceRepo) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.pluginRepo must not equal marketplaceRepo; the plugin repo and marketplace repo are distinct repositories`
+                );
+              }
+              if (externalMarketplace && sd.marketplaceRepo !== void 0 && sd.marketplaceRepo !== null && sd.marketplaceRepo !== dist.marketplaceRepo) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.marketplaceRepo "${sd.marketplaceRepo}" does not match distribution marketplaceRepo "${dist.marketplaceRepo}"`
+                );
+              }
+              if (sd.pluginRepo !== void 0 && sd.pluginRepo !== null && sd.pluginRepo !== publicRepo) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.pluginRepo "${sd.pluginRepo}" does not match unit publicRepo "${publicRepo}"`
+                );
+              }
+              if (sd.marketplaceEntry !== void 0 && sd.marketplaceEntry !== null && sd.marketplaceEntry !== plugin) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.marketplaceEntry "${sd.marketplaceEntry}" does not match action plugin "${plugin}"`
+                );
+              }
+              if (sd.sourceType !== void 0 && sd.sourceType !== null && sd.sourceType !== "marketplace-entry") {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.sourceType "${sd.sourceType}" is unexpected; standalone-index sourceType must be "marketplace-entry"`
+                );
+              }
+              if (production && sd.payloadDigest !== void 0 && sd.payloadDigest !== null && frozen?.manifestDigest !== void 0 && sd.payloadDigest !== frozen.manifestDigest) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": sourceDescriptor.payloadDigest does not match frozen manifestDigest`
+                );
+              }
+            } else {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": sourceDescriptor.form "${sd.form}" is unknown; expected "bundled-family" or "standalone-index"`
+              );
+            }
+          }
+        }
+        if (hasFieldGroup && dist.installationContract) {
+          const recomputedDigest = sha256Hex(canonicalJson(dist.installationContract));
+          const actionDigest = action.parameters?.installationContractDigest;
+          const distDigest = dist.installationContractDigest;
+          if (distDigest && recomputedDigest !== distDigest) {
+            failures.push(
+              `unit "${unitId}", action "${action.id}": recomputed installationContractDigest "${recomputedDigest.slice(0, 16)}..." does not match distribution digest "${(distDigest ?? "").slice(0, 16)}..."; contract may have been tampered`
+            );
+          }
+          if (actionDigest && recomputedDigest !== actionDigest) {
+            failures.push(
+              `unit "${unitId}", action "${action.id}": recomputed installationContractDigest "${recomputedDigest.slice(0, 16)}..." does not match action digest "${(actionDigest ?? "").slice(0, 16)}..."; contract may have been tampered`
+            );
+          }
+          if (action.parameters?.algorithmVersion !== void 0 && action.parameters?.algorithmVersion !== INSTALLATION_CONTRACT_ALGORITHM_VERSION) {
+            failures.push(
+              `unit "${unitId}", action "${action.id}": algorithmVersion is "${action.parameters?.algorithmVersion}", expected "${INSTALLATION_CONTRACT_ALGORITHM_VERSION}"`
+            );
+          }
+        }
+        if (production && externalMarketplace && dist.marketplaceSourceType === "standalone-index") {
+          const params = action.parameters;
+          if (params) {
+            if (!params.marketplaceIndexPath) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.marketplaceIndexPath is required for production standalone-index`
+              );
+            }
+            if (!params.marketplaceName) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.marketplaceName is required for production standalone-index`
+              );
+            }
+            if (!params.selectedEntry) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.selectedEntry is required for production standalone-index`
+              );
+            }
+          }
+        }
+        if (!externalMarketplace && dist.marketplaceSourceType === "bundled-family") {
+          const params = action.parameters;
+          if (params) {
+            const STANDALONE_ONLY = ["marketplaceIndexPath", "marketplaceName", "selectedEntry"];
+            for (const field of STANDALONE_ONLY) {
+              if (params[field] !== void 0) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": parameters.${field} is unexpected for bundled-family form; mixed fields are prohibited`
+                );
+              }
+            }
+          }
+        }
+        _checkRequired(action, "expected.installed", action.expected?.installed, true, unitId, failures);
+        _checkRequired(action, "expected.plugin", action.expected?.plugin, plugin, unitId, failures);
+        if (requiresMarketplace) {
+          _checkRequired(action, "expected.marketplace", action.expected?.marketplace, marketplace, unitId, failures);
+        }
+        _checkRequired(action, "expected.version", action.expected?.version, targetVersion, unitId, failures);
+        _checkRequired(action, "expected.entrySkill", action.expected?.entrySkill, entrySkill, unitId, failures);
+        if (production) {
+          _checkRequired(action, "expected.consumer", action.expected?.consumer, platform.id, unitId, failures);
+          if (externalMarketplace) {
+            _checkRequired(action, "expected.repo", action.expected?.repo, dist.marketplaceRepo, unitId, failures);
+            _checkRequired(action, "expected.ref", action.expected?.ref, action.parameters?.ref, unitId, failures);
+            _checkRequired(action, "expected.marketplaceLocation", action.expected?.marketplaceLocation, "external", unitId, failures);
+            _checkRequired(action, "expected.marketplaceCommitSha", action.expected?.marketplaceCommitSha, action.parameters?.marketplaceCommitSha, unitId, failures);
+          } else {
+            _checkRequired(action, "expected.repo", action.expected?.repo, publicRepo, unitId, failures);
+            _checkRequired(action, "expected.ref", action.expected?.ref, expectedTag, unitId, failures);
+          }
+          _checkRequired(action, "expected.entrySkillFound", action.expected?.entrySkillFound, true, unitId, failures);
+          _checkRequired(action, "expected.manifestDigest", action.expected?.manifestDigest, frozen?.manifestDigest, unitId, failures);
+        }
+      }
+    }
+    if (branchStrategy === "initialize-default-branch") {
+      const oldBranch = productionConfig.expectedCurrentDefaultBranch;
+      const newBranch = frozen?.branch;
+      expectedCount++;
+      const expectedActionId = `set-default-branch-${unitId}`;
+      const branchActions = actions.filter(
+        (a) => a.unitId === unitId && a.type === "set-default-branch"
+      );
+      if (branchActions.length === 0) {
+        failures.push(
+          `unit "${unitId}": productionConfig.setAsDefaultBranch is true but "set-default-branch" action is missing`
+        );
+      } else if (branchActions.length > 1) {
+        failures.push(
+          `unit "${unitId}": duplicate set-default-branch actions (${branchActions.length} found, expected 1)`
+        );
+      } else {
+        const action = branchActions[0];
+        if (action.id !== expectedActionId) {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": id is "${action.id}", expected "${expectedActionId}"`
+          );
+        }
+        if (action.unitId !== unitId) {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": unitId is "${action.unitId}", expected "${unitId}"`
+          );
+        }
+        if (action.adapter !== "git-github") {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": adapter is "${action.adapter}", expected "git-github"`
+          );
+        }
+        if (action.status !== "PENDING") {
+          failures.push(
+            `unit "${unitId}", action "${action.id}": status is "${action.status ?? "(missing)"}", expected "PENDING"`
+          );
+        }
+        _checkRequired(action, "parameters.repo", action.parameters?.repo, publicRepo, unitId, failures);
+        _checkRequired(action, "parameters.oldBranch", action.parameters?.oldBranch, oldBranch, unitId, failures);
+        _checkRequired(action, "parameters.newBranch", action.parameters?.newBranch, newBranch, unitId, failures);
+        _checkRequired(action, "parameters.expectedNewBranchCommit", action.parameters?.expectedNewBranchCommit, frozen?.commit, unitId, failures);
+        _checkRequired(action, "parameters.githubHost", action.parameters?.githubHost, productionConfig.githubHost ?? "github.com", unitId, failures);
+        _checkRequired(action, "expected.defaultBranch", action.expected?.defaultBranch, newBranch, unitId, failures);
+        _checkRequired(action, "expected.newBranchCommit", action.expected?.newBranchCommit, frozen?.commit, unitId, failures);
+        if (Object.keys(action.expected ?? {}).some((key) => !["defaultBranch", "newBranchCommit"].includes(key))) {
+          failures.push(`unit "${unitId}", action "${action.id}": expected may only contain defaultBranch and newBranchCommit`);
+        }
+      }
+    }
+  }
+  const actualCount = actions.length;
+  if (actualCount !== expectedCount) {
+    const diff = actualCount > expectedCount ? `${actualCount - expectedCount} extra action(s) detected` : `${expectedCount - actualCount} action(s) missing from plan`;
+    failures.push(
+      `plan has ${actualCount} action(s) but exactly ${expectedCount} expected from unit definitions; ${diff}`
+    );
+  }
+  return {
+    passed: failures.length === 0,
+    details: { failures, expectedCount, actualCount }
+  };
+}
+function _checkRequired(action, fieldPath, actual, expected, unitId, failures) {
+  if (actual === void 0 || actual === null) {
+    failures.push(
+      `unit "${unitId}", action "${action.id}": ${fieldPath} is missing, expected "${expected}"`
+    );
+  } else if (actual !== expected) {
+    failures.push(
+      `unit "${unitId}", action "${action.id}": ${fieldPath} is "${actual}", expected "${expected}"`
+    );
+  }
+}
+function _isStructurallySafeExternalRef(ref) {
+  if (typeof ref !== "string" || ref.length === 0) return false;
+  if (/[\x00-\x1f]/.test(ref)) return false;
+  if (ref.startsWith("-")) return false;
+  if (ref.includes("\\")) return false;
+  if (ref.includes("//")) return false;
+  if (ref.startsWith("/") || ref.endsWith("/")) return false;
+  if (ref.endsWith(".")) return false;
+  if (ref.endsWith(".lock")) return false;
+  if (ref.includes("@{")) return false;
+  if (ref === "@") return false;
+  if (ref.includes("..")) return false;
+  if (/[;|&`$(){}]/.test(ref)) return false;
+  return /^[a-zA-Z0-9][a-zA-Z0-9._/-]*$/.test(ref);
+}
+var import_ajv, import_ajv_formats, RELEASE_PLAN_SCHEMA, ajv, validatePlanSchema, CANONICAL_COMMIT_TIMESTAMP_RE, REQUIRED_ACTION_TYPES, EXTERNAL_MARKETPLACE_SHA_RE;
+var init_plan = __esm({
+  async "src/core/plan.mjs"() {
+    import_ajv = __toESM(require_ajv(), 1);
+    import_ajv_formats = __toESM(require_dist2(), 1);
+    init_digest();
+    init_errors();
+    init_trusted_resource();
+    init_installation_contract();
+    await init_registry();
+    RELEASE_PLAN_SCHEMA = JSON.parse((await readTrustedPackageResource(
+      "schemas/release-plan.schema.json"
+    )).toString("utf8"));
+    ajv = new import_ajv.default({ allErrors: true, strict: false });
+    (0, import_ajv_formats.default)(ajv);
+    validatePlanSchema = ajv.compile(RELEASE_PLAN_SCHEMA);
+    __name(assertNoSymlinkAncestors, "assertNoSymlinkAncestors");
+    __name(prepareAuthorityDirectory, "prepareAuthorityDirectory");
+    __name(assertAuthorityFileTarget, "assertAuthorityFileTarget");
+    __name(assertImmutablePlanAuthority, "assertImmutablePlanAuthority");
+    __name(validatePlan, "validatePlan");
+    __name(stripRecordLayerV2, "stripRecordLayerV2");
+    __name(computePlanDigest, "computePlanDigest");
+    __name(writePlanAtomic, "writePlanAtomic");
+    __name(writePlanImmutable, "writePlanImmutable");
+    CANONICAL_COMMIT_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00$/;
+    __name(buildExpectedAdapterMap, "buildExpectedAdapterMap");
+    REQUIRED_ACTION_TYPES = ["push-snapshot", "create-tag", "github-release"];
+    __name(validatePlanActionCompleteness, "validatePlanActionCompleteness");
+    __name(_checkRequired, "_checkRequired");
+    EXTERNAL_MARKETPLACE_SHA_RE = /^[0-9a-f]{40}$/;
+    __name(_isStructurallySafeExternalRef, "_isStructurallySafeExternalRef");
+  }
+});
+
+// src/platforms/kimi.mjs
+import { readFile as readFile4 } from "node:fs/promises";
+import { join as join3, resolve as resolve4, relative as relative2, isAbsolute as isAbsolute2 } from "node:path";
+function normalizePlanForDigest(plan) {
+  const normalized = { ...plan, status: "PREPARED" };
+  if (Array.isArray(plan.externalActions)) {
+    normalized.externalActions = plan.externalActions.map((action) => action && typeof action === "object" && !Array.isArray(action) ? { ...action, status: "PENDING" } : action);
+  }
+  return normalized;
+}
+function resolveBoundPlanDigest(context) {
+  const plan = context?.plan;
+  if (!plan || typeof plan !== "object" || Array.isArray(plan)) {
+    throw new Error("context.plan is required to bind the kimi plan digest");
+  }
+  const carried = plan.digest;
+  if (typeof carried !== "string" || !HEX_DIGEST_RE.test(carried)) {
+    throw new Error("context.plan.digest must be a 64-char lowercase hex frozen plan digest");
+  }
+  const normalized = normalizePlanForDigest(plan);
+  if (computePlanDigest(normalized) !== carried) {
+    throw new Error("context.plan.digest does not match the normalized frozen plan (a non-lifecycle field was tampered)");
+  }
+  return carried;
+}
+function kimiAuthorityDir(context, planDigest, plugin) {
+  if (!context?.root) {
+    throw new Error("context.root is required for the kimi attestation authority");
+  }
+  if (!HEX_DIGEST_RE.test(planDigest)) {
+    throw new Error("kimi attestation authority requires a 64-hex plan digest");
+  }
+  if (!SAFE_ID_RE.test(plugin)) {
+    throw new Error(`kimi attestation authority requires a safe plugin id: "${plugin}"`);
+  }
+  const base = resolve4(context.root, ".release-skill", "kimi-attestations");
+  const dir = resolve4(base, planDigest, plugin);
+  const rel = relative2(base, dir);
+  const sep4 = process.platform === "win32" ? "\\" : "/";
+  if (rel === "" || rel === ".." || isAbsolute2(rel) || rel.startsWith(`..${sep4}`) || rel.split(sep4).some((segment) => segment === ".." || segment === "")) {
+    throw new Error("kimi attestation authority path escapes its base");
+  }
+  return dir;
+}
+function buildKimiInstallUrl(repo, ref) {
+  return `https://github.com/${repo}/releases/tag/${ref}`;
+}
+function buildKimiManualInstructions({ installUrl, plugin, version, ref, attestationDir }) {
+  return [
+    `Kimi Code \u6CA1\u6709\u53EF\u811A\u672C\u5316\u7684\u63D2\u4EF6\u5B89\u88C5\u547D\u4EE4\u884C\u5DE5\u5177\uFF1B\u5B89\u88C5\u662F\u624B\u52A8\u4EA4\u4E92\u6B65\u9AA4\u3002`,
+    `1) publish \u5B8C\u6210\u6240\u6709\u8FDC\u7AEF\u5199\u5165\u540E\u8FDB\u5165 PUBLISHED \u72B6\u6001\uFF08\u81EA\u52A8\u5316 Git \u5206\u652F/\u6807\u7B7E\u3001npm \u548C GitHub Release \u5199\u5165\u5DF2\u5B8C\u6210\uFF09\u3002\u6B64 kimi \u68C0\u67E5\u70B9\u6807\u8BB0\u4E3A\u9700\u8981\u4EBA\u5DE5\u5B89\u88C5\u3002`,
+    `2) \u5728 Kimi Code \u4E2D\u8FD0\u884C: /plugins install ${installUrl}\uFF08\u9501\u5B9A\u5230\u51BB\u7ED3 ref "${ref}"\uFF0C\u7248\u672C ${version}\uFF09\u3002\u786E\u8BA4\u63D2\u4EF6 "${plugin}" \u7684\u4FE1\u4EFB\u63D0\u793A\uFF0C\u7136\u540E\u8FD0\u884C /plugins reload\uFF08\u6216 /new\uFF09\u3002`,
+    `3) \u5C06\u4EBA\u5DE5\u7ED3\u679C JSON \u5199\u5165: ${attestationDir}/${KIMI_ATTESTATION_FILE}`,
+    `   \u5FC5\u586B\u5B57\u6BB5: platform="kimi", version, planDigest\uFF08\u51BB\u7ED3\u8BA1\u5212\u6458\u8981\uFF09, result("passed" \u6216 "failed"), actor\uFF08\u786E\u8BA4\u4EBA\uFF09, confirmedAt\uFF08ISO 8601 \u65F6\u95F4\u6233\uFF09`,
+    `   \u53EF\u9009\u5B57\u6BB5: note\uFF08\u5907\u6CE8\uFF09`,
+    `4) \u8FD0\u884C release-skill reconcile\uFF08\u5BF9\u8D26\u8FDC\u7AEF\u72B6\u6001\u5E76\u8DF3\u8FC7\u5DF2\u5B8C\u6210\u6B65\u9AA4\uFF09\uFF0C\u7136\u540E release-skill verify\uFF08\u4ECE\u540C\u4E00\u4E2A\u8BA1\u5212\u6458\u8981\u7D22\u5F15\u7684\u6743\u5A01\u76EE\u5F55\u8BFB\u53D6\u7ED3\u679C\uFF0C\u6210\u529F\u540E -> VERIFIED\uFF09\u3002`
+  ];
+}
+async function readKimiManifest(pluginRootReal) {
+  for (const manifestRelative of KIMI_MANIFEST_CANDIDATES) {
+    const manifestPath = resolve4(pluginRootReal, manifestRelative);
+    let content;
+    try {
+      content = await readFile4(manifestPath, "utf8");
+    } catch {
+      continue;
+    }
+    let manifest;
+    try {
+      manifest = JSON.parse(content);
+    } catch {
+      throw new Error(`kimi plugin manifest ${manifestRelative} is not valid JSON`);
+    }
+    if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
+      throw new Error(`kimi plugin manifest ${manifestRelative} is not an object`);
+    }
+    return { manifest, manifestRelative };
+  }
+  throw new Error("no kimi plugin manifest found (expected kimi.plugin.json or .kimi-plugin/plugin.json)");
+}
+function validateKimiAttestation(attestation, action, isoNow, boundPlanDigest) {
+  if (!attestation || typeof attestation !== "object" || Array.isArray(attestation)) {
+    return { valid: false, error: "kimi attestation is not an object", normalized: null };
+  }
+  const normalized = { ...attestation };
+  const hasCompleteOldMarkers = !!(normalized.consumer && normalized.attestedBy && normalized.attestedAt);
+  const hasNewFormatFields = !!(normalized.result || normalized.actor || normalized.confirmedAt);
+  const isOldFormat = hasCompleteOldMarkers && !hasNewFormatFields;
+  if (!normalized.result && isOldFormat) {
+    normalized.result = "passed";
+  }
+  if (!normalized.platform && normalized.consumer) {
+    normalized.platform = normalized.consumer;
+  }
+  if (!normalized.actor && normalized.attestedBy) {
+    normalized.actor = normalized.attestedBy;
+  }
+  if (!normalized.confirmedAt && normalized.attestedAt) {
+    normalized.confirmedAt = normalized.attestedAt;
+  }
+  const requiredStrings = ["platform", "version", "planDigest", "result", "actor", "confirmedAt"];
+  for (const field of requiredStrings) {
+    if (typeof normalized[field] !== "string" || normalized[field].length === 0) {
+      return { valid: false, error: `kimi attestation missing required field "${field}"`, normalized: null };
+    }
+  }
+  if (normalized.platform !== "kimi") {
+    return { valid: false, error: `kimi attestation platform "${normalized.platform}" must be "kimi"`, normalized: null };
+  }
+  if (normalized.result !== "passed" && normalized.result !== "failed") {
+    return { valid: false, error: `kimi attestation result "${normalized.result}" must be "passed" or "failed"`, normalized: null };
+  }
+  if (!HEX_DIGEST_RE.test(normalized.planDigest)) {
+    return { valid: false, error: "kimi attestation planDigest must be a 64-char lowercase hex digest", normalized: null };
+  }
+  if (normalized.planDigest !== boundPlanDigest) {
+    return { valid: false, error: "kimi attestation planDigest does not match the frozen plan digest", normalized: null };
+  }
+  if (normalized.version !== action.version) {
+    return { valid: false, error: `kimi attestation version "${normalized.version}" does not match action version "${action.version}"`, normalized: null };
+  }
+  if (isOldFormat) {
+    if (normalized.plugin !== action.plugin) {
+      return { valid: false, error: `kimi attestation plugin "${normalized.plugin}" does not match action plugin "${action.plugin}"`, normalized: null };
+    }
+    if (normalized.repo !== action.repo) {
+      return { valid: false, error: `kimi attestation repo "${normalized.repo}" does not match action repo "${action.repo}"`, normalized: null };
+    }
+    const expectedRef = action.ref ?? `v${action.version}`;
+    if (normalized.ref !== expectedRef) {
+      return { valid: false, error: `kimi attestation ref "${normalized.ref}" does not match action ref "${expectedRef}"`, normalized: null };
+    }
+    if (normalized.entrySkill !== action.entrySkill) {
+      return { valid: false, error: `kimi attestation entrySkill "${normalized.entrySkill}" does not match action entrySkill "${action.entrySkill}"`, normalized: null };
+    }
+    if (typeof normalized.payloadDigest !== "string" || normalized.payloadDigest.length === 0) {
+      return { valid: false, error: "kimi attestation payloadDigest is required for old-format receipts", normalized: null };
+    }
+    if (typeof normalized.installPath !== "string" || normalized.installPath.length === 0) {
+      return { valid: false, error: "kimi attestation installPath is required for old-format receipts", normalized: null };
+    }
+    if (!HEX_DIGEST_RE.test(normalized.payloadDigest)) {
+      return { valid: false, error: "kimi attestation payloadDigest must be a 64-char lowercase hex digest", normalized: null };
+    }
+    if (action.manifestDigest && normalized.payloadDigest !== action.manifestDigest) {
+      return { valid: false, error: "kimi attestation payloadDigest does not match the frozen manifest digest", normalized: null };
+    }
+  } else {
+    if (normalized.payloadDigest !== void 0) {
+      if (!HEX_DIGEST_RE.test(normalized.payloadDigest)) {
+        return { valid: false, error: "kimi attestation payloadDigest must be a 64-char lowercase hex digest when present", normalized: null };
+      }
+      if (action.manifestDigest && normalized.payloadDigest !== action.manifestDigest) {
+        return { valid: false, error: "kimi attestation payloadDigest does not match the frozen manifest digest", normalized: null };
+      }
+    }
+  }
+  const confirmedMs = Date.parse(normalized.confirmedAt);
+  if (!Number.isFinite(confirmedMs)) {
+    return { valid: false, error: "kimi attestation confirmedAt must be a valid ISO timestamp", normalized: null };
+  }
+  if (normalized.note !== void 0 && typeof normalized.note !== "string") {
+    return { valid: false, error: "kimi attestation note must be a string when present", normalized: null };
+  }
+  return { valid: true, error: null, normalized };
+}
+async function executeKimiManualRequirement(action, context) {
+  const actionType = ActionType.KIMI_MARKETPLACE_INSTALL;
+  let planDigest;
+  try {
+    planDigest = resolveBoundPlanDigest(context);
+  } catch (planErr) {
+    return createResult({
+      actionType,
+      status: ActionStatus.EXECUTE_FAILED,
+      error: `cannot bind kimi requirement to the frozen plan: ${planErr.message}`
+    });
+  }
+  try {
+    resolveTimeoutMs(action);
+  } catch (timeoutErr) {
+    return createResult({
+      actionType,
+      status: ActionStatus.EXECUTE_FAILED,
+      error: timeoutErr.message
+    });
+  }
+  const ref = action.ref ?? `v${action.version}`;
+  const installUrl = buildKimiInstallUrl(action.repo, ref);
+  let attestationDir;
+  try {
+    attestationDir = kimiAuthorityDir(context, planDigest, action.plugin);
+  } catch (dirErr) {
+    return createResult({
+      actionType,
+      status: ActionStatus.EXECUTE_FAILED,
+      error: dirErr.message
+    });
+  }
+  const instructions = buildKimiManualInstructions({
+    installUrl,
+    plugin: action.plugin,
+    version: action.version,
+    ref,
+    attestationDir
+  });
+  const requirement = {
+    kind: "kimi-manual-install-requirement",
+    platform: "kimi",
+    plugin: action.plugin,
+    version: action.version,
+    repo: action.repo,
+    ref,
+    entrySkill: action.entrySkill,
+    installUrl,
+    planDigest,
+    attestationDir,
+    attestationFile: KIMI_ATTESTATION_FILE,
+    attestationTemplate: {
+      platform: "kimi",
+      version: action.version,
+      planDigest,
+      result: '<"passed" or "failed">',
+      actor: "<person who confirmed the install>",
+      confirmedAt: "<ISO 8601 timestamp>",
+      note: "<optional note>"
+    },
+    instructions
+  };
+  const { mkdir: mkdir18 } = await import("node:fs/promises");
+  try {
+    await mkdir18(attestationDir, { recursive: true, mode: 448 });
+  } catch (mkdirErr) {
+    if (mkdirErr?.code !== "EEXIST") {
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: `cannot create kimi attestation directory: ${mkdirErr.message}`
+      });
+    }
+  }
+  const requirementPath = resolve4(attestationDir, KIMI_REQUIREMENT_FILE);
+  let existing = null;
+  let requirementMissing = false;
+  try {
+    const existingRaw = await readFile4(requirementPath, "utf8");
+    try {
+      existing = JSON.parse(existingRaw);
+    } catch (parseErr) {
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: `existing kimi manual-install requirement is invalid JSON; refusing to overwrite: ${parseErr.message}`
+      });
+    }
+  } catch (readErr) {
+    if (readErr?.code === "ENOENT") {
+      requirementMissing = true;
+    } else {
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: `existing kimi manual-install requirement cannot be read; refusing to overwrite: ${readErr.message}`
+      });
+    }
+  }
+  if (!requirementMissing) {
+    if (!existing || typeof existing !== "object" || Array.isArray(existing)) {
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: "existing kimi manual-install requirement is not an object; refusing to overwrite"
+      });
+    }
+    const { createdAt: _existingCreatedAt, ...existingBody } = existing;
+    if (canonicalJson(existingBody) !== canonicalJson(requirement)) {
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: "existing kimi manual-install requirement conflicts with the current frozen action; refusing to overwrite"
+      });
+    }
+  } else {
+    await writeEvidenceAtomic(requirementPath, { ...requirement, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+  }
+  return createResult({
+    actionType,
+    status: ActionStatus.EXECUTED,
+    observation: {
+      installed: false,
+      manualInstallRequired: true,
+      consumer: "kimi",
+      plugin: action.plugin,
+      version: action.version,
+      ref,
+      installUrl,
+      planDigest,
+      attestationDir,
+      instructions
+    }
+  });
+}
+var KIMI_REQUIREMENT_FILE, KIMI_ATTESTATION_FILE, HEX_DIGEST_RE, KIMI_MANIFEST_CANDIDATES;
+var init_kimi = __esm({
+  async "src/platforms/kimi.mjs"() {
+    init_contract();
+    await init_plan();
+    init_digest();
+    KIMI_REQUIREMENT_FILE = "release-skill-kimi-manual-install.json";
+    KIMI_ATTESTATION_FILE = "release-skill-kimi-attestation.json";
+    HEX_DIGEST_RE = /^[a-f0-9]{64}$/;
+    KIMI_MANIFEST_CANDIDATES = Object.freeze([
+      "kimi.plugin.json",
+      join3(".kimi-plugin", "plugin.json")
+    ]);
+    __name(normalizePlanForDigest, "normalizePlanForDigest");
+    __name(resolveBoundPlanDigest, "resolveBoundPlanDigest");
+    __name(kimiAuthorityDir, "kimiAuthorityDir");
+    __name(buildKimiInstallUrl, "buildKimiInstallUrl");
+    __name(buildKimiManualInstructions, "buildKimiManualInstructions");
+    __name(readKimiManifest, "readKimiManifest");
+    __name(validateKimiAttestation, "validateKimiAttestation");
+    __name(executeKimiManualRequirement, "executeKimiManualRequirement");
+  }
+});
+
+// src/platforms/codebuddy.mjs
+import { readFile as readFile5 } from "node:fs/promises";
+import { join as join4, resolve as resolve5, relative as relative3, isAbsolute as isAbsolute3 } from "node:path";
+function normalizePlanForDigest2(plan) {
+  const normalized = { ...plan, status: "PREPARED" };
+  if (Array.isArray(plan.externalActions)) {
+    normalized.externalActions = plan.externalActions.map((action) => action && typeof action === "object" && !Array.isArray(action) ? { ...action, status: "PENDING" } : action);
+  }
+  return normalized;
+}
+async function resolveCodeBuddyBoundPlanDigest(context) {
+  const plan = context?.plan;
+  if (!plan || typeof plan !== "object" || Array.isArray(plan)) {
+    throw new Error("context.plan is required to bind the codebuddy plan digest");
+  }
+  const carried = plan.digest;
+  if (typeof carried !== "string" || !HEX_DIGEST_RE2.test(carried)) {
+    throw new Error("context.plan.digest must be a 64-char lowercase hex frozen plan digest");
+  }
+  const { computePlanDigest: computePlanDigest2 } = await init_plan().then(() => plan_exports);
+  const normalized = normalizePlanForDigest2(plan);
+  if (computePlanDigest2(normalized) !== carried) {
+    throw new Error("context.plan.digest does not match the normalized frozen plan (a non-lifecycle field was tampered)");
+  }
+  return carried;
+}
+function codebuddyAuthorityDir(context, planDigest, plugin) {
+  if (!context?.root) {
+    throw new Error("context.root is required for the codebuddy attestation authority");
+  }
+  if (!HEX_DIGEST_RE2.test(planDigest)) {
+    throw new Error("codebuddy attestation authority requires a 64-hex plan digest");
+  }
+  if (!SAFE_ID_RE.test(plugin)) {
+    throw new Error(`codebuddy attestation authority requires a safe plugin id: "${plugin}"`);
+  }
+  const base = resolve5(context.root, ".release-skill", "codebuddy-attestations");
+  const dir = resolve5(base, planDigest, plugin);
+  const rel = relative3(base, dir);
+  const sep4 = process.platform === "win32" ? "\\" : "/";
+  if (rel === "" || rel === ".." || isAbsolute3(rel) || rel.startsWith(`..${sep4}`) || rel.split(sep4).some((segment) => segment === ".." || segment === "")) {
+    throw new Error("codebuddy attestation authority path escapes its base");
+  }
+  return dir;
+}
+function buildCodeBuddyManualInstructions({ plugin, version, ref, attestationDir }) {
+  return [
+    `CodeBuddy/WorkBuddy \u63D2\u4EF6\u5B89\u88C5\u65E0\u6CD5\u9501\u5B9A\u51BB\u7ED3 ref\uFF08codebuddy CLI marketplace add/install \u6CA1\u6709 ref \u9009\u9879\uFF0C\u8DDF\u8E2A\u9ED8\u8BA4\u5206\u652F\uFF09\uFF0C\u56E0\u6B64\u5B89\u88C5\u662F\u9700\u8981\u4EBA\u5DE5\u7ED3\u679C\u8BC1\u660E\u7684\u624B\u52A8\u6B65\u9AA4\u3002`,
+    `1) publish \u5B8C\u6210\u6240\u6709\u8FDC\u7AEF\u5199\u5165\u540E\u8FDB\u5165 PUBLISHED \u72B6\u6001\uFF08\u81EA\u52A8\u5316 Git \u5206\u652F/\u6807\u7B7E\u3001npm \u548C GitHub Release \u5199\u5165\u5DF2\u5B8C\u6210\uFF09\u3002\u6B64 codebuddy \u68C0\u67E5\u70B9\u6807\u8BB0\u4E3A\u9700\u8981\u4EBA\u5DE5\u5B89\u88C5\u3002`,
+    `2) \u4ECE\u7EDF\u4E00\u5E02\u573A "${CODEBUDDY_MARKETPLACE_NAME}" (${CODEBUDDY_MARKETPLACE_SOURCE}) \u5B89\u88C5 release-skill\u3002\u786E\u8BA4\u5B89\u88C5\u7684\u63D2\u4EF6\u7248\u672C\u7B49\u4E8E\u51BB\u7ED3\u7248\u672C ${version}\u3002`,
+    `3) \u5C06\u4EBA\u5DE5\u7ED3\u679C JSON \u5199\u5165: ${attestationDir}/${CODEBUDDY_ATTESTATION_FILE}`,
+    `   \u5FC5\u586B\u5B57\u6BB5: platform="codebuddy", version, planDigest\uFF08\u51BB\u7ED3\u8BA1\u5212\u6458\u8981\uFF09, result("passed" \u6216 "failed"), actor\uFF08\u786E\u8BA4\u4EBA\uFF09, confirmedAt\uFF08ISO 8601 \u65F6\u95F4\u6233\uFF09`,
+    `   \u53EF\u9009\u5B57\u6BB5: note\uFF08\u5907\u6CE8\uFF09`,
+    `4) \u8FD0\u884C release-skill verify\uFF08\u4ECE\u540C\u4E00\u4E2A\u8BA1\u5212\u6458\u8981\u7D22\u5F15\u7684\u6743\u5A01\u76EE\u5F55\u8BFB\u53D6\u7ED3\u679C\uFF0C\u6210\u529F\u540E -> VERIFIED\uFF09\u3002`
+  ];
+}
+async function readCodeBuddyManifest(pluginRootReal) {
+  const manifestRelative = CODEBUDDY_PLUGIN_MANIFEST_RELATIVE;
+  const manifestPath = resolve5(pluginRootReal, manifestRelative);
+  let content;
+  try {
+    content = await readFile5(manifestPath, "utf8");
+  } catch {
+    throw new Error(`no codebuddy plugin manifest found (expected ${manifestRelative})`);
+  }
+  let manifest;
+  try {
+    manifest = JSON.parse(content);
+  } catch {
+    throw new Error(`codebuddy plugin manifest ${manifestRelative} is not valid JSON`);
+  }
+  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
+    throw new Error(`codebuddy plugin manifest ${manifestRelative} is not an object`);
+  }
+  return { manifest, manifestRelative };
+}
+function validateCodeBuddyAttestation(attestation, action, isoNow, boundPlanDigest) {
+  if (!attestation || typeof attestation !== "object" || Array.isArray(attestation)) {
+    return { valid: false, error: "codebuddy attestation is not an object", normalized: null };
+  }
+  const normalized = { ...attestation };
+  const hasCompleteOldMarkers = !!(normalized.consumer && normalized.attestedBy && normalized.attestedAt);
+  const hasNewFormatFields = !!(normalized.result || normalized.actor || normalized.confirmedAt);
+  const isOldFormat = hasCompleteOldMarkers && !hasNewFormatFields;
+  if (!normalized.result && isOldFormat) {
+    normalized.result = "passed";
+  }
+  if (!normalized.platform && normalized.consumer) {
+    normalized.platform = normalized.consumer;
+  }
+  if (!normalized.actor && normalized.attestedBy) {
+    normalized.actor = normalized.attestedBy;
+  }
+  if (!normalized.confirmedAt && normalized.attestedAt) {
+    normalized.confirmedAt = normalized.attestedAt;
+  }
+  const requiredStrings = ["platform", "version", "planDigest", "result", "actor", "confirmedAt"];
+  for (const field of requiredStrings) {
+    if (typeof normalized[field] !== "string" || normalized[field].length === 0) {
+      return { valid: false, error: `codebuddy attestation missing required field "${field}"`, normalized: null };
+    }
+  }
+  if (normalized.platform !== "codebuddy") {
+    return { valid: false, error: `codebuddy attestation platform "${normalized.platform}" must be "codebuddy"`, normalized: null };
+  }
+  if (normalized.installPath !== void 0) {
+    if (typeof normalized.installPath !== "string" || normalized.installPath.length === 0) {
+      return { valid: false, error: "codebuddy attestation installPath must be a non-empty string when present", normalized: null };
+    }
+    if (normalized.installPath.includes("..")) {
+      return { valid: false, error: 'codebuddy attestation installPath must not contain path traversal ("..")', normalized: null };
+    }
+    if (normalized.installChannel === "cli") {
+      const expectedSuffix = `.workbuddy/plugins/marketplaces/${CODEBUDDY_MARKETPLACE_NAME}/plugins/${action.plugin}`;
+      if (!normalized.installPath.endsWith(expectedSuffix)) {
+        return { valid: false, error: `codebuddy CLI attestation installPath must end with "${expectedSuffix}", got "${normalized.installPath}"`, normalized: null };
+      }
+    }
+  }
+  if (normalized.result !== "passed" && normalized.result !== "failed") {
+    return { valid: false, error: `codebuddy attestation result "${normalized.result}" must be "passed" or "failed"`, normalized: null };
+  }
+  if (!HEX_DIGEST_RE2.test(normalized.planDigest)) {
+    return { valid: false, error: "codebuddy attestation planDigest must be a 64-char lowercase hex digest", normalized: null };
+  }
+  if (normalized.planDigest !== boundPlanDigest) {
+    return { valid: false, error: "codebuddy attestation planDigest does not match the frozen plan digest", normalized: null };
+  }
+  if (normalized.version !== action.version) {
+    return { valid: false, error: `codebuddy attestation version "${normalized.version}" does not match action version "${action.version}"`, normalized: null };
+  }
+  if (isOldFormat) {
+    if (normalized.plugin !== action.plugin) {
+      return { valid: false, error: `codebuddy attestation plugin "${normalized.plugin}" does not match action plugin "${action.plugin}"`, normalized: null };
+    }
+    if (normalized.repo !== action.repo) {
+      return { valid: false, error: `codebuddy attestation repo "${normalized.repo}" does not match action repo "${action.repo}"`, normalized: null };
+    }
+    const expectedRef = action.ref ?? `v${action.version}`;
+    if (normalized.ref !== expectedRef) {
+      return { valid: false, error: `codebuddy attestation ref "${normalized.ref}" does not match action ref "${expectedRef}"`, normalized: null };
+    }
+    if (normalized.entrySkill !== action.entrySkill) {
+      return { valid: false, error: `codebuddy attestation entrySkill "${normalized.entrySkill}" does not match action entrySkill "${action.entrySkill}"`, normalized: null };
+    }
+    if (typeof normalized.payloadDigest !== "string" || normalized.payloadDigest.length === 0) {
+      return { valid: false, error: "codebuddy attestation payloadDigest is required for old-format receipts", normalized: null };
+    }
+    if (!HEX_DIGEST_RE2.test(normalized.payloadDigest)) {
+      return { valid: false, error: "codebuddy attestation payloadDigest must be a 64-char lowercase hex digest", normalized: null };
+    }
+    if (action.manifestDigest && normalized.payloadDigest !== action.manifestDigest) {
+      return { valid: false, error: "codebuddy attestation payloadDigest does not match the frozen manifest digest", normalized: null };
+    }
+  } else {
+    if (normalized.payloadDigest !== void 0) {
+      if (!HEX_DIGEST_RE2.test(normalized.payloadDigest)) {
+        return { valid: false, error: "codebuddy attestation payloadDigest must be a 64-char lowercase hex digest when present", normalized: null };
+      }
+      if (action.manifestDigest && normalized.payloadDigest !== action.manifestDigest) {
+        return { valid: false, error: "codebuddy attestation payloadDigest does not match the frozen manifest digest", normalized: null };
+      }
+    }
+  }
+  const confirmedMs = Date.parse(normalized.confirmedAt);
+  if (!Number.isFinite(confirmedMs)) {
+    return { valid: false, error: "codebuddy attestation confirmedAt must be a valid ISO timestamp", normalized: null };
+  }
+  const nowMs = Date.parse(isoNow);
+  if (Number.isFinite(nowMs) && confirmedMs > nowMs) {
+    return { valid: false, error: "codebuddy attestation confirmedAt must not be in the future", normalized: null };
+  }
+  if (normalized.expiresAt !== void 0) {
+    const expiresMs = Date.parse(normalized.expiresAt);
+    if (!Number.isFinite(expiresMs)) {
+      return { valid: false, error: "codebuddy attestation expiresAt must be a valid ISO timestamp", normalized: null };
+    }
+    if (Number.isFinite(nowMs) && expiresMs < nowMs) {
+      return { valid: false, error: "codebuddy attestation has expired", normalized: null };
+    }
+    if (expiresMs - confirmedMs > CODEBUDDY_MAX_ATTESTATION_VALIDITY_MS) {
+      return { valid: false, error: "codebuddy attestation validity exceeds 24 hours", normalized: null };
+    }
+  }
+  if (normalized.note !== void 0 && typeof normalized.note !== "string") {
+    return { valid: false, error: "codebuddy attestation note must be a string when present", normalized: null };
+  }
+  return { valid: true, error: null, normalized };
+}
+async function executeCodeBuddyManualRequirement(action, context) {
+  const actionType = ActionType.CODEBUDDY_MARKETPLACE_INSTALL;
+  let planDigest;
+  try {
+    planDigest = await resolveCodeBuddyBoundPlanDigest(context);
+  } catch (planErr) {
+    return createResult({
+      actionType,
+      status: ActionStatus.EXECUTE_FAILED,
+      error: `cannot bind codebuddy requirement to the frozen plan: ${planErr.message}`
+    });
+  }
+  try {
+    resolveTimeoutMs(action);
+  } catch (timeoutErr) {
+    return createResult({
+      actionType,
+      status: ActionStatus.EXECUTE_FAILED,
+      error: timeoutErr.message
+    });
+  }
+  const ref = action.ref ?? `v${action.version}`;
+  let attestationDir;
+  try {
+    attestationDir = codebuddyAuthorityDir(context, planDigest, action.plugin);
+  } catch (dirErr) {
+    return createResult({
+      actionType,
+      status: ActionStatus.EXECUTE_FAILED,
+      error: dirErr.message
+    });
+  }
+  const instructions = buildCodeBuddyManualInstructions({
+    plugin: action.plugin,
+    version: action.version,
+    ref,
+    attestationDir
+  });
+  const requirement = {
+    kind: "codebuddy-manual-install-requirement",
+    platform: "codebuddy",
+    plugin: action.plugin,
+    version: action.version,
+    repo: action.repo,
+    ref,
+    entrySkill: action.entrySkill,
+    planDigest,
+    attestationDir,
+    attestationFile: CODEBUDDY_ATTESTATION_FILE,
+    attestationTemplate: {
+      platform: "codebuddy",
+      version: action.version,
+      planDigest,
+      result: '<"passed" or "failed">',
+      actor: "<person who confirmed the install>",
+      confirmedAt: "<ISO 8601 timestamp>",
+      note: "<optional note>"
+    },
+    instructions
+  };
+  const { mkdir: mkdir18 } = await import("node:fs/promises");
+  try {
+    await mkdir18(attestationDir, { recursive: true, mode: 448 });
+  } catch (mkdirErr) {
+    if (mkdirErr?.code !== "EEXIST") {
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: `cannot create codebuddy attestation directory: ${mkdirErr.message}`
+      });
+    }
+  }
+  const requirementPath = resolve5(attestationDir, CODEBUDDY_REQUIREMENT_FILE);
+  let existing = null;
+  let requirementMissing = false;
+  try {
+    const existingRaw = await readFile5(requirementPath, "utf8");
+    try {
+      existing = JSON.parse(existingRaw);
+    } catch (parseErr) {
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: `existing codebuddy manual-install requirement is invalid JSON; refusing to overwrite: ${parseErr.message}`
+      });
+    }
+  } catch (readErr) {
+    if (readErr?.code === "ENOENT") {
+      requirementMissing = true;
+    } else {
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: `existing codebuddy manual-install requirement cannot be read; refusing to overwrite: ${readErr.message}`
+      });
+    }
+  }
+  if (!requirementMissing) {
+    if (!existing || typeof existing !== "object" || Array.isArray(existing)) {
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: "existing codebuddy manual-install requirement is not an object; refusing to overwrite"
+      });
+    }
+    const { createdAt: _existingCreatedAt, ...existingBody } = existing;
+    if (canonicalJson(existingBody) !== canonicalJson(requirement)) {
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: "existing codebuddy manual-install requirement conflicts with the current frozen action; refusing to overwrite"
+      });
+    }
+  } else {
+    await writeEvidenceAtomic(requirementPath, { ...requirement, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+  }
+  return createResult({
+    actionType,
+    status: ActionStatus.EXECUTED,
+    observation: {
+      installed: false,
+      manualInstallRequired: true,
+      platform: "codebuddy",
+      plugin: action.plugin,
+      version: action.version,
+      ref,
+      planDigest,
+      attestationDir,
+      instructions
+    }
+  });
+}
+var HEX_DIGEST_RE2, CODEBUDDY_REQUIREMENT_FILE, CODEBUDDY_ATTESTATION_FILE, CODEBUDDY_MARKETPLACE_NAME, CODEBUDDY_MARKETPLACE_SOURCE, CODEBUDDY_PLUGIN_MANIFEST_RELATIVE, CODEBUDDY_MAX_ATTESTATION_VALIDITY_MS;
+var init_codebuddy = __esm({
+  "src/platforms/codebuddy.mjs"() {
+    init_contract();
+    init_digest();
+    HEX_DIGEST_RE2 = /^[a-f0-9]{64}$/;
+    __name(normalizePlanForDigest2, "normalizePlanForDigest");
+    CODEBUDDY_REQUIREMENT_FILE = "release-skill-codebuddy-manual-install.json";
+    CODEBUDDY_ATTESTATION_FILE = "release-skill-codebuddy-attestation.json";
+    CODEBUDDY_MARKETPLACE_NAME = "artifact-skill-set";
+    CODEBUDDY_MARKETPLACE_SOURCE = "https://github.com/ifoohoo/artifact-skill-set";
+    CODEBUDDY_PLUGIN_MANIFEST_RELATIVE = join4(".codebuddy-plugin", "plugin.json");
+    CODEBUDDY_MAX_ATTESTATION_VALIDITY_MS = 24 * 60 * 60 * 1e3;
+    __name(resolveCodeBuddyBoundPlanDigest, "resolveCodeBuddyBoundPlanDigest");
+    __name(codebuddyAuthorityDir, "codebuddyAuthorityDir");
+    __name(buildCodeBuddyManualInstructions, "buildCodeBuddyManualInstructions");
+    __name(readCodeBuddyManifest, "readCodeBuddyManifest");
+    __name(validateCodeBuddyAttestation, "validateCodeBuddyAttestation");
+    __name(executeCodeBuddyManualRequirement, "executeCodeBuddyManualRequirement");
+  }
+});
+
+// src/platforms/codex.mjs
+import { readFile as readFile6 } from "node:fs/promises";
+import { join as join5, resolve as resolve6, relative as relative4, isAbsolute as isAbsolute4 } from "node:path";
+function normalizePlanForDigest3(plan) {
+  const normalized = { ...plan, status: "PREPARED" };
+  if (Array.isArray(plan.externalActions)) {
+    normalized.externalActions = plan.externalActions.map((action) => action && typeof action === "object" && !Array.isArray(action) ? { ...action, status: "PENDING" } : action);
+  }
+  return normalized;
+}
+async function resolveCodexBoundPlanDigest(context) {
+  const plan = context?.plan;
+  if (!plan || typeof plan !== "object" || Array.isArray(plan)) {
+    throw new Error("context.plan is required to bind the codex plan digest");
+  }
+  const carried = plan.digest;
+  if (typeof carried !== "string" || !HEX_DIGEST_RE3.test(carried)) {
+    throw new Error("context.plan.digest must be a 64-char lowercase hex frozen plan digest");
+  }
+  const { computePlanDigest: computePlanDigest2 } = await init_plan().then(() => plan_exports);
+  const normalized = normalizePlanForDigest3(plan);
+  if (computePlanDigest2(normalized) !== carried) {
+    throw new Error("context.plan.digest does not match the normalized frozen plan (a non-lifecycle field was tampered)");
+  }
+  return carried;
+}
+function codexAuthorityDir(context, planDigest, plugin) {
+  if (!context?.root) {
+    throw new Error("context.root is required for the codex attestation authority");
+  }
+  if (!HEX_DIGEST_RE3.test(planDigest)) {
+    throw new Error("codex attestation authority requires a 64-hex plan digest");
+  }
+  if (!SAFE_ID_RE.test(plugin)) {
+    throw new Error(`codex attestation authority requires a safe plugin id: "${plugin}"`);
+  }
+  const base = resolve6(context.root, ".release-skill", "codex-attestations");
+  const dir = resolve6(base, planDigest, plugin);
+  const rel = relative4(base, dir);
+  const sep4 = process.platform === "win32" ? "\\" : "/";
+  if (rel === "" || rel === ".." || isAbsolute4(rel) || rel.startsWith(`..${sep4}`) || rel.split(sep4).some((segment) => segment === ".." || segment === "")) {
+    throw new Error("codex attestation authority path escapes its base");
+  }
+  return dir;
+}
+function validateCodexAttestation(attestation, action, isoNow, boundPlanDigest) {
+  if (!attestation || typeof attestation !== "object" || Array.isArray(attestation)) {
+    return { valid: false, error: "codex attestation is not an object" };
+  }
+  const requiredStrings = ["platform", "version", "planDigest", "result", "actor", "confirmedAt"];
+  for (const field of requiredStrings) {
+    if (typeof attestation[field] !== "string" || attestation[field].length === 0) {
+      return { valid: false, error: `codex attestation missing required field "${field}"` };
+    }
+  }
+  if (attestation.platform !== "codex") {
+    return { valid: false, error: `codex attestation platform "${attestation.platform}" must be "codex"` };
+  }
+  if (attestation.result !== "passed" && attestation.result !== "failed") {
+    return { valid: false, error: `codex attestation result "${attestation.result}" must be "passed" or "failed"` };
+  }
+  if (!HEX_DIGEST_RE3.test(attestation.planDigest)) {
+    return { valid: false, error: "codex attestation planDigest must be a 64-char lowercase hex digest" };
+  }
+  if (attestation.planDigest !== boundPlanDigest) {
+    return { valid: false, error: "codex attestation planDigest does not match the frozen plan digest" };
+  }
+  if (attestation.version !== action.version) {
+    return { valid: false, error: `codex attestation version "${attestation.version}" does not match action version "${action.version}"` };
+  }
+  const confirmedMs = Date.parse(attestation.confirmedAt);
+  if (!Number.isFinite(confirmedMs)) {
+    return { valid: false, error: "codex attestation confirmedAt must be a valid ISO timestamp" };
+  }
+  if (attestation.note !== void 0 && typeof attestation.note !== "string") {
+    return { valid: false, error: "codex attestation note must be a string when present" };
+  }
+  return { valid: true, error: null };
+}
+async function readCodexManifest(pluginRootReal) {
+  const manifestRelative = join5(".codex-plugin", "plugin.json");
+  const manifestPath = resolve6(pluginRootReal, manifestRelative);
+  let content;
+  try {
+    content = await readFile6(manifestPath, "utf8");
+  } catch {
+    throw new Error(`no codex plugin manifest found (expected ${manifestRelative})`);
+  }
+  let manifest;
+  try {
+    manifest = JSON.parse(content);
+  } catch {
+    throw new Error(`codex plugin manifest ${manifestRelative} is not valid JSON`);
+  }
+  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
+    throw new Error(`codex plugin manifest ${manifestRelative} is not an object`);
+  }
+  return { manifest, manifestRelative };
+}
+async function executeCodexManualRequirement(action, context) {
+  const actionType = ActionType.CODEX_MARKETPLACE_INSTALL;
+  let planDigest;
+  try {
+    planDigest = await resolveCodexBoundPlanDigest(context);
+  } catch (planErr) {
+    return createResult({
+      actionType,
+      status: ActionStatus.EXECUTE_FAILED,
+      error: `cannot bind codex requirement to the frozen plan: ${planErr.message}`
+    });
+  }
+  try {
+    resolveTimeoutMs(action);
+  } catch (timeoutErr) {
+    return createResult({
+      actionType,
+      status: ActionStatus.EXECUTE_FAILED,
+      error: timeoutErr.message
+    });
+  }
+  const ref = action.ref ?? `v${action.version}`;
+  let attestationDir;
+  try {
+    attestationDir = codexAuthorityDir(context, planDigest, action.plugin);
+  } catch (dirErr) {
+    return createResult({
+      actionType,
+      status: ActionStatus.EXECUTE_FAILED,
+      error: dirErr.message
+    });
+  }
+  const instructions = [
+    `Codex CLI \u4E0D\u53EF\u7528\uFF08\u63A5\u53E3\u3001\u73AF\u5883\u6216\u4F20\u8F93\u95EE\u9898\uFF09\uFF0C\u964D\u7EA7\u4E3A\u4EBA\u5DE5\u7ED3\u679C\u8DEF\u5F84\u3002`,
+    `1) publish \u5B8C\u6210\u6240\u6709\u8FDC\u7AEF\u5199\u5165\u540E\u8FDB\u5165 PUBLISHED \u72B6\u6001\uFF08\u81EA\u52A8\u5316 Git \u5206\u652F/\u6807\u7B7E\u3001npm \u548C GitHub Release \u5199\u5165\u5DF2\u5B8C\u6210\uFF09\u3002\u6B64 codex \u68C0\u67E5\u70B9\u6807\u8BB0\u4E3A\u9700\u8981\u4EBA\u5DE5\u5B89\u88C5\u3002`,
+    `2) \u624B\u52A8\u5B89\u88C5\u63D2\u4EF6 "${action.plugin}" \u7248\u672C ${action.version}\uFF08ref: ${ref}\uFF09\u3002`,
+    `3) \u5C06\u4EBA\u5DE5\u7ED3\u679C JSON \u5199\u5165: ${attestationDir}/${CODEX_ATTESTATION_FILE}`,
+    `   \u5FC5\u586B\u5B57\u6BB5: platform="codex", version, planDigest\uFF08\u51BB\u7ED3\u8BA1\u5212\u6458\u8981\uFF09, result("passed" \u6216 "failed"), actor\uFF08\u786E\u8BA4\u4EBA\uFF09, confirmedAt\uFF08ISO 8601 \u65F6\u95F4\u6233\uFF09`,
+    `   \u53EF\u9009\u5B57\u6BB5: note\uFF08\u5907\u6CE8\uFF09`,
+    `4) \u8FD0\u884C release-skill verify\uFF08\u4ECE\u540C\u4E00\u4E2A\u8BA1\u5212\u6458\u8981\u7D22\u5F15\u7684\u6743\u5A01\u76EE\u5F55\u8BFB\u53D6\u7ED3\u679C\uFF0C\u6210\u529F\u540E -> VERIFIED\uFF09\u3002`
+  ];
+  const requirement = {
+    kind: "codex-manual-install-requirement",
+    platform: "codex",
+    plugin: action.plugin,
+    version: action.version,
+    repo: action.repo,
+    ref,
+    entrySkill: action.entrySkill,
+    planDigest,
+    attestationDir,
+    attestationFile: CODEX_ATTESTATION_FILE,
+    attestationTemplate: {
+      platform: "codex",
+      version: action.version,
+      planDigest,
+      result: '<"passed" or "failed">',
+      actor: "<person who confirmed the install>",
+      confirmedAt: "<ISO 8601 timestamp>",
+      note: "<optional note>"
+    },
+    instructions
+  };
+  const { mkdir: mkdir18 } = await import("node:fs/promises");
+  try {
+    await mkdir18(attestationDir, { recursive: true, mode: 448 });
+  } catch (mkdirErr) {
+    if (mkdirErr?.code !== "EEXIST") {
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: `cannot create codex attestation directory: ${mkdirErr.message}`
+      });
+    }
+  }
+  const requirementPath = resolve6(attestationDir, CODEX_REQUIREMENT_FILE);
+  let existing = null;
+  let requirementMissing = false;
+  try {
+    const existingRaw = await readFile6(requirementPath, "utf8");
+    try {
+      existing = JSON.parse(existingRaw);
+    } catch (parseErr) {
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: `existing codex manual-install requirement is invalid JSON; refusing to overwrite: ${parseErr.message}`
+      });
+    }
+  } catch (readErr) {
+    if (readErr?.code === "ENOENT") {
+      requirementMissing = true;
+    } else {
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: `existing codex manual-install requirement cannot be read; refusing to overwrite: ${readErr.message}`
+      });
+    }
+  }
+  if (!requirementMissing) {
+    if (!existing || typeof existing !== "object" || Array.isArray(existing)) {
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: "existing codex manual-install requirement is not an object; refusing to overwrite"
+      });
+    }
+    const { createdAt: _existingCreatedAt, ...existingBody } = existing;
+    if (canonicalJson(existingBody) !== canonicalJson(requirement)) {
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: "existing codex manual-install requirement conflicts with the current frozen action; refusing to overwrite"
+      });
+    }
+  } else {
+    await writeEvidenceAtomic(requirementPath, { ...requirement, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
+  }
+  return createResult({
+    actionType,
+    status: ActionStatus.EXECUTED,
+    observation: {
+      installed: false,
+      manualInstallRequired: true,
+      platform: "codex",
+      plugin: action.plugin,
+      version: action.version,
+      ref,
+      planDigest,
+      attestationDir,
+      instructions
+    }
+  });
+}
+var HEX_DIGEST_RE3, CODEX_REQUIREMENT_FILE, CODEX_ATTESTATION_FILE;
+var init_codex = __esm({
+  "src/platforms/codex.mjs"() {
+    init_contract();
+    init_digest();
+    HEX_DIGEST_RE3 = /^[a-f0-9]{64}$/;
+    __name(normalizePlanForDigest3, "normalizePlanForDigest");
+    CODEX_REQUIREMENT_FILE = "release-skill-codex-manual-install.json";
+    CODEX_ATTESTATION_FILE = "release-skill-codex-attestation.json";
+    __name(resolveCodexBoundPlanDigest, "resolveCodexBoundPlanDigest");
+    __name(codexAuthorityDir, "codexAuthorityDir");
+    __name(validateCodexAttestation, "validateCodexAttestation");
+    __name(readCodexManifest, "readCodexManifest");
+    __name(executeCodexManualRequirement, "executeCodexManualRequirement");
+  }
+});
+
+// src/platforms/registry.mjs
+import { join as join6 } from "node:path";
+function claudeParseListOutput(listOutput, pluginId) {
+  if (!Array.isArray(listOutput)) {
+    return { ok: false, error: "Claude plugin list did not return an array" };
+  }
+  const found = listOutput.find((p) => p.id === pluginId);
+  if (!found) {
+    return { ok: false, error: `plugin "${pluginId}" not found in Claude plugin list` };
+  }
+  if (!found.installPath) {
+    return { ok: false, error: `plugin "${pluginId}" found but missing installPath` };
+  }
+  return { ok: true, found, installPath: found.installPath };
+}
+function claudeExtractInstallPath({ listParsed }) {
+  return { ok: true, installPath: listParsed?.installPath };
+}
+function claudeExtractListIdentity(found) {
+  const idParts = found.id.split("@");
+  const identity = { plugin: idParts[0], marketplace: idParts.slice(1).join("@") };
+  if (found.version) identity.version = found.version;
+  return identity;
+}
+function codexParseListOutput(listOutput, pluginId) {
+  const installed = listOutput?.installed;
+  if (!Array.isArray(installed)) {
+    return { ok: false, error: "Codex plugin list did not return {installed: [...]}" };
+  }
+  const found = installed.find((p) => p.pluginId === pluginId);
+  if (!found) {
+    return { ok: false, error: `plugin "${pluginId}" not found in Codex installed list` };
+  }
+  return { ok: true, found };
+}
+function codexExtractInstallPath({ execEvidence }) {
+  const installPath = execEvidence?.installOutput?.installedPath;
+  if (!installPath) {
+    return { ok: false, error: "evidence install JSON missing installedPath" };
+  }
+  return { ok: true, installPath };
+}
+function codexExtractListIdentity(found) {
+  const identity = {};
+  if (found.name) identity.plugin = found.name;
+  if (found.marketplaceName) identity.marketplace = found.marketplaceName;
+  if (found.version) identity.version = found.version;
+  return identity;
+}
+function codexCrossValidateListEntry(found, action) {
+  if (found.name !== action.plugin) {
+    return { ok: false, error: `list name "${found.name}" does not match action plugin "${action.plugin}"` };
+  }
+  if (found.marketplaceName !== action.marketplace) {
+    return { ok: false, error: `list marketplaceName "${found.marketplaceName}" does not match action marketplace "${action.marketplace}"` };
+  }
+  if (found.version !== action.version) {
+    return { ok: false, error: `list version "${found.version}" does not match action version "${action.version}"` };
+  }
+  return { ok: true };
+}
+function getPlatform(id) {
+  const platform = PLATFORMS.find((p) => p.id === id);
+  if (!platform) throw new Error(`unknown platform: ${id}`);
+  return platform;
+}
+function assertRegistry(registry = PLATFORMS) {
+  const seen = /* @__PURE__ */ new Set();
+  for (const platform of registry) {
+    const label = platform?.id ?? "<missing id>";
+    if (typeof platform?.id !== "string" || platform.id.length === 0) {
+      throw new Error("platform registry: every platform needs a string id");
+    }
+    if (seen.has(platform.id)) {
+      throw new Error(`platform registry: ids must be unique, found duplicate "${platform.id}"`);
+    }
+    seen.add(platform.id);
+    if (!VALID_DISTRIBUTION_TYPES.has(platform.distributionType)) {
+      throw new Error(`platform registry: ${label} has illegal distributionType "${platform.distributionType}"`);
+    }
+    if (!VALID_ACTION_TYPES.has(platform.actionType)) {
+      throw new Error(`platform registry: ${label} has illegal actionType "${platform.actionType}"`);
+    }
+    if (typeof platform.adapter !== "string" || platform.adapter.length === 0) {
+      throw new Error(`platform registry: ${label} needs a non-empty adapter id`);
+    }
+    if (!VALID_ENTRY_VERSION_BINDING.has(platform.marketplaceEntryCarriesVersion)) {
+      throw new Error(`platform registry: ${label} has illegal marketplaceEntryCarriesVersion "${platform.marketplaceEntryCarriesVersion}"`);
+    }
+    if (typeof platform.automatable !== "boolean") {
+      throw new Error(`platform registry: ${label} automatable must be boolean`);
+    }
+    if (typeof platform.isolationEnv !== "function") {
+      throw new Error(`platform registry: ${label} isolationEnv must be a function`);
+    }
+    if (!VALID_SOURCE_FORMS.has(platform.marketplaceSourceForm)) {
+      throw new Error(`platform registry: ${label} has illegal marketplaceSourceForm "${platform.marketplaceSourceForm}"`);
+    }
+    if (!VALID_MARKETPLACE_REF_FORMS.has(platform.marketplaceRefForm)) {
+      throw new Error(`platform registry: ${label} has illegal marketplaceRefForm "${platform.marketplaceRefForm}"`);
+    }
+    if (!Array.isArray(platform.knownHostArtifacts)) {
+      throw new Error(`platform registry: ${label} knownHostArtifacts must be an array`);
+    }
+    if (!Array.isArray(platform.schemaRequiredFields)) {
+      throw new Error(`platform registry: ${label} schemaRequiredFields must be an array`);
+    }
+    if (!platform.manifestPaths || typeof platform.manifestPaths !== "object") {
+      throw new Error(`platform registry: ${label} manifestPaths must be an object`);
+    }
+    if (!platform.buildAdapter || typeof platform.buildAdapter !== "object") {
+      throw new Error(`platform registry: ${label} buildAdapter must be an object`);
+    }
+    if (!VALID_LIST_OUTPUTS.has(platform.jsonProtocol?.listOutput)) {
+      throw new Error(`platform registry: ${label} has illegal jsonProtocol.listOutput "${platform.jsonProtocol?.listOutput}"`);
+    }
+    if (!VALID_CLI_OUTPUTS.has(platform.jsonProtocol?.marketplaceAddOutput)) {
+      throw new Error(`platform registry: ${label} has illegal jsonProtocol.marketplaceAddOutput "${platform.jsonProtocol?.marketplaceAddOutput}"`);
+    }
+    if (!VALID_CLI_OUTPUTS.has(platform.jsonProtocol?.pluginInstallOutput)) {
+      throw new Error(`platform registry: ${label} has illegal jsonProtocol.pluginInstallOutput "${platform.jsonProtocol?.pluginInstallOutput}"`);
+    }
+    if (!Array.isArray(platform.isolationSubdirs)) {
+      throw new Error(`platform registry: ${label} isolationSubdirs must be an array`);
+    }
+    if (!VALID_INSTALL_METHODS.has(platform.installMethod)) {
+      throw new Error(`platform registry: ${label} has illegal installMethod "${platform.installMethod}"`);
+    }
+    if (!VALID_REF_STRENGTHS.has(platform.refStrength)) {
+      throw new Error(`platform registry: ${label} has illegal refStrength "${platform.refStrength}"`);
+    }
+    if (!VALID_OUTPUT_PROTOCOLS.has(platform.outputProtocol)) {
+      throw new Error(`platform registry: ${label} has illegal outputProtocol "${platform.outputProtocol}"`);
+    }
+    if (!VALID_IDENTITY_EVIDENCE.has(platform.identityEvidence)) {
+      throw new Error(`platform registry: ${label} has illegal identityEvidence "${platform.identityEvidence}"`);
+    }
+    if (!VALID_DEGRADATION_POLICIES.has(platform.degradationPolicy)) {
+      throw new Error(`platform registry: ${label} has illegal degradationPolicy "${platform.degradationPolicy}"`);
+    }
+    if (platform.automatable) {
+      if (!platform.cli || typeof platform.cli.marketplaceAdd !== "function" || typeof platform.cli.install !== "function" || typeof platform.cli.list !== "function") {
+        throw new Error(`platform registry: automatable platform ${label} needs cli template functions`);
+      }
+      if (typeof platform.cli.binary !== "string" || platform.cli.binary.length === 0) {
+        throw new Error(`platform registry: automatable platform ${label} needs a non-empty cli.binary executable name`);
+      }
+      if (!platform.strategy || typeof platform.strategy.parseListOutput !== "function") {
+        throw new Error(`platform registry: automatable platform ${label} needs strategy.parseListOutput`);
+      }
+      if (typeof platform.strategy.extractInstallPath !== "function") {
+        throw new Error(`platform registry: automatable platform ${label} needs strategy.extractInstallPath`);
+      }
+      if (platform.degradationPolicy === "human-attestation-with-fallback") {
+        if (typeof platform.strategy.buildManualRequirement !== "function") {
+          throw new Error(`platform registry: ${label} with human-attestation-with-fallback needs strategy.buildManualRequirement`);
+        }
+        if (typeof platform.strategy.readManifest !== "function") {
+          throw new Error(`platform registry: ${label} with human-attestation-with-fallback needs strategy.readManifest`);
+        }
+      }
+    } else {
+      if (platform.cli !== null) {
+        throw new Error(`platform registry: non-automatable platform ${label} must have cli === null`);
+      }
+      if (!platform.strategy || typeof platform.strategy.buildManualRequirement !== "function") {
+        throw new Error(`platform registry: non-automatable platform ${label} needs strategy.buildManualRequirement`);
+      }
+      if (typeof platform.strategy.readManifest !== "function") {
+        throw new Error(`platform registry: non-automatable platform ${label} needs strategy.readManifest`);
+      }
+    }
+    if (platform.automatable === true && platform.installMethod !== "structured-cli") {
+      throw new Error(`platform registry: ${label} is automatable but installMethod is "${platform.installMethod}" (expected "structured-cli")`);
+    }
+    if (platform.automatable === false && platform.installMethod === "structured-cli") {
+      throw new Error(`platform registry: ${label} is not automatable but installMethod is "structured-cli"`);
+    }
+    if (platform.installMethod === "structured-cli" && platform.refStrength === "unfixable") {
+      throw new Error(`platform registry: ${label} has structured-cli install but unfixable refStrength`);
+    }
+    if (platform.installMethod === "human-attestation" && platform.identityEvidence !== "human-attestation") {
+      throw new Error(`platform registry: ${label} has human-attestation install but identityEvidence is "${platform.identityEvidence}"`);
+    }
+  }
+}
+function resolvePlatformRoute(platform) {
+  const { installMethod } = platform;
+  if (installMethod === "structured-cli") {
+    return { route: "structured-cli", reason: `installMethod is structured-cli` };
+  }
+  if (installMethod === "interactive-only" || installMethod === "human-attestation") {
+    return { route: "human-attestation", reason: `installMethod is ${installMethod}` };
+  }
+  throw new Error(
+    `platform "${platform?.id ?? "<unknown>"}" with installMethod="${installMethod}" cannot be routed`
+  );
+}
+function resolveCapabilityConflicts(platform) {
+  const conflicts = [];
+  const { id, automatable, installMethod, refStrength, identityEvidence, cli, strategy } = platform;
+  if (automatable === true && installMethod !== "structured-cli") {
+    conflicts.push(`automatable=true but installMethod="${installMethod}"`);
+  }
+  if (automatable === false && installMethod === "structured-cli") {
+    conflicts.push(`automatable=false but installMethod="structured-cli"`);
+  }
+  if (installMethod === "structured-cli" && refStrength === "unfixable") {
+    conflicts.push(`structured-cli with unfixable refStrength`);
+  }
+  if (installMethod === "human-attestation" && identityEvidence !== "human-attestation") {
+    conflicts.push(`human-attestation install but identityEvidence="${identityEvidence}"`);
+  }
+  if (automatable === true) {
+    if (!cli || typeof cli !== "object") {
+      conflicts.push(`automatable=true but cli is missing`);
+    }
+    if (!strategy || typeof strategy.parseListOutput !== "function") {
+      conflicts.push(`automatable=true but strategy.parseListOutput is missing`);
+    }
+    if (!strategy || typeof strategy.extractInstallPath !== "function") {
+      conflicts.push(`automatable=true but strategy.extractInstallPath is missing`);
+    }
+  }
+  if (automatable === false) {
+    if (cli !== null) {
+      conflicts.push(`automatable=false but cli is not null`);
+    }
+    if (!strategy || typeof strategy.buildManualRequirement !== "function") {
+      conflicts.push(`automatable=false but strategy.buildManualRequirement is missing`);
+    }
+    if (!strategy || typeof strategy.readManifest !== "function") {
+      conflicts.push(`automatable=false but strategy.readManifest is missing`);
+    }
+  }
+  if (conflicts.length > 0) {
+    throw new Error(`capability conflict in platform "${id}": ${conflicts.join("; ")}`);
+  }
+  return { hasConflict: false, conflicts: [] };
+}
+var CLAUDE, CODEX, KIMI, CODEBUDDY, PLATFORMS, VALID_DISTRIBUTION_TYPES, VALID_ACTION_TYPES, VALID_SOURCE_FORMS, VALID_MARKETPLACE_REF_FORMS, VALID_LIST_OUTPUTS, VALID_CLI_OUTPUTS, VALID_ENTRY_VERSION_BINDING, VALID_INSTALL_METHODS, VALID_REF_STRENGTHS, VALID_OUTPUT_PROTOCOLS, VALID_IDENTITY_EVIDENCE, VALID_DEGRADATION_POLICIES;
+var init_registry = __esm({
+  async "src/platforms/registry.mjs"() {
+    await init_kimi();
+    init_codebuddy();
+    init_codex();
+    __name(claudeParseListOutput, "claudeParseListOutput");
+    __name(claudeExtractInstallPath, "claudeExtractInstallPath");
+    __name(claudeExtractListIdentity, "claudeExtractListIdentity");
+    __name(codexParseListOutput, "codexParseListOutput");
+    __name(codexExtractInstallPath, "codexExtractInstallPath");
+    __name(codexExtractListIdentity, "codexExtractListIdentity");
+    __name(codexCrossValidateListEntry, "codexCrossValidateListEntry");
+    CLAUDE = Object.freeze({
+      id: "claude",
+      distributionType: "claude-plugin",
+      actionType: "claude-marketplace-install",
+      // Runtime adapter implementing this platform's marketplace-install action.
+      // prepare.mjs stamps it onto generated actions; plan.mjs derives its
+      // actionType -> adapter map from it (T2.2 step 3).
+      adapter: "plugin-marketplace",
+      automatable: true,
+      // --- capability contract (平台能力契约) ------------------------------------
+      installMethod: "structured-cli",
+      refStrength: "name-ref",
+      outputProtocol: "text",
+      identityEvidence: "list-record",
+      degradationPolicy: "block",
+      cli: Object.freeze({
+        binary: "claude",
+        marketplaceAdd: /* @__PURE__ */ __name((repo, ref) => ["plugin", "marketplace", "add", `${repo}@${ref}`], "marketplaceAdd"),
+        install: /* @__PURE__ */ __name((plugin, marketplace) => ["plugin", "install", `${plugin}@${marketplace}`], "install"),
+        list: /* @__PURE__ */ __name(() => ["plugin", "list", "--json"], "list")
+      }),
+      jsonProtocol: Object.freeze({
+        listOutput: "array",
+        installPathSource: "list",
+        // claude marketplace add / plugin install emit no validated JSON output.
+        marketplaceAddOutput: null,
+        pluginInstallOutput: null
+      }),
+      isolationEnv: /* @__PURE__ */ __name((home) => ({ HOME: home, CLAUDE_CONFIG_DIR: join6(home, ".claude") }), "isolationEnv"),
+      // execute pre-creates the claude config dir under the isolated HOME.
+      isolationSubdirs: Object.freeze([".claude"]),
+      manifestPaths: Object.freeze({
+        plugin: ".claude-plugin/plugin.json",
+        marketplace: ".claude-plugin/marketplace.json"
+      }),
+      marketplaceSourceForm: "string",
+      // Claude carries the authoritative version in the marketplace entry: the
+      // preflight binds entry.version to the action version.
+      marketplaceEntryCarriesVersion: true,
+      // External marketplace form: `claude plugin marketplace add repo@<ref>` can
+      // only pin a branch/tag NAME (a bare commit sha fails to clone and the
+      // resolved sha is not recorded locally) — name-form weak freeze.
+      marketplaceRefForm: "name",
+      knownHostArtifacts: Object.freeze([".in_use"]),
+      schemaRequiredFields: Object.freeze(["plugin", "marketplace", "entrySkill"]),
+      skillRendering: Object.freeze({ mode: "verbatim", preamble: null, placeholder: "${CLAUDE_PLUGIN_ROOT}" }),
+      buildAdapter: Object.freeze({
+        pluginDirName: ".claude-plugin",
+        templateFileName: "plugin.json",
+        marketplaceFileName: "marketplace.json",
+        hasMarketplace: true
+      }),
+      strategy: Object.freeze({
+        parseListOutput: claudeParseListOutput,
+        extractInstallPath: claudeExtractInstallPath,
+        extractListIdentity: claudeExtractListIdentity,
+        crossValidateListEntry: null,
+        buildManualRequirement: null,
+        readManifest: null
+      })
+    });
+    CODEX = Object.freeze({
+      id: "codex",
+      distributionType: "codex-plugin",
+      actionType: "codex-marketplace-install",
+      adapter: "plugin-marketplace",
+      automatable: true,
+      // --- capability contract (平台能力契约) ------------------------------------
+      installMethod: "structured-cli",
+      refStrength: "commit-sha",
+      outputProtocol: "structured",
+      identityEvidence: "install-output",
+      degradationPolicy: "human-attestation-with-fallback",
+      cli: Object.freeze({
+        binary: "codex",
+        marketplaceAdd: /* @__PURE__ */ __name((repo, ref) => ["plugin", "marketplace", "add", repo, "--ref", ref, "--json"], "marketplaceAdd"),
+        install: /* @__PURE__ */ __name((plugin, marketplace) => ["plugin", "add", `${plugin}@${marketplace}`, "--json"], "install"),
+        list: /* @__PURE__ */ __name(() => ["plugin", "list", "--json"], "list")
+      }),
+      jsonProtocol: Object.freeze({
+        listOutput: "installed-object",
+        installPathSource: "install-output",
+        // codex emits validated JSON for both marketplace add and plugin add.
+        marketplaceAddOutput: "json",
+        pluginInstallOutput: "json"
+      }),
+      isolationEnv: /* @__PURE__ */ __name((home) => ({ HOME: home, CODEX_HOME: home }), "isolationEnv"),
+      // execute pre-creates the codex state dir under the isolated HOME.
+      isolationSubdirs: Object.freeze([".codex"]),
+      manifestPaths: Object.freeze({
+        plugin: ".codex-plugin/plugin.json",
+        marketplace: ".agents/plugins/marketplace.json"
+      }),
+      marketplaceSourceForm: "local-path-object",
+      // Codex keeps the authoritative version in .codex-plugin/plugin.json; the
+      // marketplace entry version is not bound to the action version.
+      marketplaceEntryCarriesVersion: false,
+      // External marketplace form: `codex plugin marketplace add repo --ref <ref>`
+      // accepts a bare commit sha — sha-form strong freeze.
+      marketplaceRefForm: "sha",
+      knownHostArtifacts: Object.freeze([".git", ".codex-plugin/migrated-command-skills"]),
+      schemaRequiredFields: Object.freeze(["plugin", "marketplace", "entrySkill"]),
+      skillRendering: Object.freeze({ mode: "substitute", preamble: "codex", placeholder: "${CLAUDE_PLUGIN_ROOT}" }),
+      buildAdapter: Object.freeze({
+        pluginDirName: ".codex-plugin",
+        templateFileName: "plugin.json",
+        marketplaceFileName: null,
+        hasMarketplace: false
+      }),
+      strategy: Object.freeze({
+        parseListOutput: codexParseListOutput,
+        extractInstallPath: codexExtractInstallPath,
+        extractListIdentity: codexExtractListIdentity,
+        crossValidateListEntry: codexCrossValidateListEntry,
+        // codex's human-attestation fallback strategy lives in ./codex.mjs
+        buildManualRequirement: executeCodexManualRequirement,
+        readManifest: readCodexManifest
+      })
+    });
+    KIMI = Object.freeze({
+      id: "kimi",
+      distributionType: "kimi-plugin",
+      actionType: "kimi-marketplace-install",
+      adapter: "plugin-marketplace",
+      automatable: false,
+      // --- capability contract (平台能力契约) ------------------------------------
+      installMethod: "interactive-only",
+      refStrength: "unfixable",
+      outputProtocol: "none",
+      identityEvidence: "filesystem-payload",
+      degradationPolicy: "human-attestation",
+      cli: null,
+      jsonProtocol: Object.freeze({
+        listOutput: null,
+        installPathSource: null,
+        marketplaceAddOutput: null,
+        pluginInstallOutput: null
+      }),
+      isolationEnv: /* @__PURE__ */ __name((home) => ({ HOME: home }), "isolationEnv"),
+      // kimi never execs a CLI; its stable home is created by the
+      // manual-requirement strategy under the attestation authority.
+      isolationSubdirs: Object.freeze([]),
+      manifestPaths: Object.freeze({
+        // kimi.plugin.json takes precedence over .kimi-plugin/plugin.json
+        // (strategy.readManifest / readKimiManifest in ./kimi.mjs).
+        pluginCandidates: KIMI_MANIFEST_CANDIDATES,
+        marketplace: null
+      }),
+      marketplaceSourceForm: null,
+      // kimi has no marketplace at all, so the entry-version binding does not
+      // apply (null = N/A, never consulted: kimi preflight reads its manifest via
+      // strategy.readManifest).
+      marketplaceEntryCarriesVersion: null,
+      // kimi has no marketplace add at all, so the marketplace ref form does not
+      // apply (null = N/A, never consulted).
+      marketplaceRefForm: null,
+      knownHostArtifacts: Object.freeze([".git"]),
+      schemaRequiredFields: Object.freeze(["plugin", "entrySkill"]),
+      skillRendering: Object.freeze({ mode: "substitute", preamble: "kimi", placeholder: "${CLAUDE_PLUGIN_ROOT}" }),
+      buildAdapter: Object.freeze({
+        pluginDirName: ".kimi-plugin",
+        templateFileName: "plugin.json",
+        marketplaceFileName: null,
+        hasMarketplace: false
+      }),
+      strategy: Object.freeze({
+        parseListOutput: null,
+        extractInstallPath: null,
+        extractListIdentity: null,
+        crossValidateListEntry: null,
+        // kimi's side-effecting manual-requirement builder and manifest reader
+        // live in ./kimi.mjs (§4.2 per-platform-module option).
+        buildManualRequirement: executeKimiManualRequirement,
+        readManifest: readKimiManifest
+      })
+    });
+    CODEBUDDY = Object.freeze({
+      id: "codebuddy",
+      distributionType: "codebuddy-plugin",
+      actionType: "codebuddy-marketplace-install",
+      adapter: "plugin-marketplace",
+      automatable: false,
+      // --- capability contract (平台能力契约) ------------------------------------
+      installMethod: "human-attestation",
+      refStrength: "unfixable",
+      outputProtocol: "none",
+      identityEvidence: "human-attestation",
+      degradationPolicy: "human-attestation",
+      cli: null,
+      jsonProtocol: Object.freeze({
+        listOutput: null,
+        installPathSource: null,
+        marketplaceAddOutput: null,
+        pluginInstallOutput: null
+      }),
+      // The closed loop never execs the codebuddy CLI; HOME is the only isolation
+      // input and exists solely so the attestation's isolated cli-channel home has
+      // a base. No unverified host env vars are fabricated.
+      isolationEnv: /* @__PURE__ */ __name((home) => ({ HOME: home }), "isolationEnv"),
+      // codebuddy never execs a CLI; its isolated cli home is created by the
+      // manual-requirement strategy under the attestation authority.
+      isolationSubdirs: Object.freeze([]),
+      manifestPaths: Object.freeze({
+        // Single authoritative manifest (no precedence chain, unlike kimi).
+        plugin: ".codebuddy-plugin/plugin.json",
+        // CodeBuddy bundled-family uses the skill-family marketplace path.
+        // This ensures bundled-family installation contracts always include a
+        // marketplace entry without requiring an explicit marketplaceIndexPath.
+        marketplace: ".claude-plugin/marketplace.json"
+      }),
+      marketplaceSourceForm: null,
+      // codebuddy installs from a unified marketplace but carries no marketplace
+      // identity in the action (the marketplace is a fixed constant in
+      // ./codebuddy.mjs); the entry-version binding does not apply (null = N/A).
+      marketplaceEntryCarriesVersion: null,
+      // codebuddy has no marketplace add that can pin a frozen ref (attestation
+      // loop instead), so the marketplace ref form does not apply (null = N/A).
+      marketplaceRefForm: null,
+      knownHostArtifacts: Object.freeze([".git"]),
+      schemaRequiredFields: Object.freeze(["plugin", "entrySkill"]),
+      // Declarative rendering intent (the build-adapters producer keys on
+      // buildAdapter.name = 'workbuddy'): pure ${CLAUDE_PLUGIN_ROOT} ->
+      // ${CODEBUDDY_PLUGIN_ROOT} substitution, no entry-resolution preamble
+      // (CodeBuddy expands the variable inline in skill content).
+      skillRendering: Object.freeze({ mode: "substitute", preamble: null, placeholder: "${CODEBUDDY_PLUGIN_ROOT}" }),
+      buildAdapter: Object.freeze({
+        // Build adapter keeps the historical `workbuddy` directory name; the fields
+        // are byte-for-byte the legacy BUILD_ONLY workbuddy entry so the generated
+        // adapters/workbuddy/ tree is unchanged.
+        name: "workbuddy",
+        pluginDirName: ".codebuddy-plugin",
+        templateFileName: "plugin.json",
+        marketplaceFileName: null,
+        hasMarketplace: false
+      }),
+      strategy: Object.freeze({
+        parseListOutput: null,
+        extractInstallPath: null,
+        extractListIdentity: null,
+        crossValidateListEntry: null,
+        // codebuddy's side-effecting manual-requirement builder and manifest reader
+        // live in ./codebuddy.mjs (per-platform-module option, mirroring kimi).
+        buildManualRequirement: executeCodeBuddyManualRequirement,
+        readManifest: readCodeBuddyManifest
+      })
+    });
+    PLATFORMS = Object.freeze([CLAUDE, CODEX, KIMI, CODEBUDDY]);
+    VALID_DISTRIBUTION_TYPES = /* @__PURE__ */ new Set(["claude-plugin", "codex-plugin", "kimi-plugin", "codebuddy-plugin"]);
+    VALID_ACTION_TYPES = /* @__PURE__ */ new Set(["claude-marketplace-install", "codex-marketplace-install", "kimi-marketplace-install", "codebuddy-marketplace-install"]);
+    VALID_SOURCE_FORMS = /* @__PURE__ */ new Set(["string", "local-path-object", null]);
+    VALID_MARKETPLACE_REF_FORMS = /* @__PURE__ */ new Set(["sha", "name", null]);
+    VALID_LIST_OUTPUTS = /* @__PURE__ */ new Set(["array", "installed-object", null]);
+    VALID_CLI_OUTPUTS = /* @__PURE__ */ new Set(["json", null]);
+    VALID_ENTRY_VERSION_BINDING = /* @__PURE__ */ new Set([true, false, null]);
+    VALID_INSTALL_METHODS = /* @__PURE__ */ new Set(["structured-cli", "interactive-only", "human-attestation"]);
+    VALID_REF_STRENGTHS = /* @__PURE__ */ new Set(["commit-sha", "name-ref", "unfixable"]);
+    VALID_OUTPUT_PROTOCOLS = /* @__PURE__ */ new Set(["structured", "text", "none"]);
+    VALID_IDENTITY_EVIDENCE = /* @__PURE__ */ new Set(["list-record", "install-output", "filesystem-payload", "human-attestation"]);
+    VALID_DEGRADATION_POLICIES = /* @__PURE__ */ new Set(["block", "human-attestation", "human-attestation-with-fallback"]);
+    __name(getPlatform, "getPlatform");
+    __name(assertRegistry, "assertRegistry");
+    assertRegistry();
+    __name(resolvePlatformRoute, "resolvePlatformRoute");
+    __name(resolveCapabilityConflicts, "resolveCapabilityConflicts");
+  }
+});
+
 // src/artifacts/safe-fs-backend-internal.mjs
 import { createRequire } from "node:module";
-import { dirname as dirname2, resolve as resolve3 } from "node:path";
+import { dirname as dirname3, resolve as resolve7 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 import { realpath as realpath2 } from "node:fs/promises";
 import { readFileSync as readFileSync3, realpathSync as realpathSync2, lstatSync as lstatSync2 } from "node:fs";
@@ -15747,8 +18507,8 @@ function sanitizeError(err) {
   return "native addon error";
 }
 function isWithinPackageBuildDir(addonPath) {
-  const buildDir = resolve3(NATIVE_BASE, "build/");
-  const resolved = resolve3(addonPath);
+  const buildDir = resolve7(NATIVE_BASE, "build/");
+  const resolved = resolve7(addonPath);
   if (!resolved.startsWith(buildDir + "/") && resolved !== buildDir) {
     return null;
   }
@@ -15785,7 +18545,7 @@ function validateManifestEntry(entry, key) {
   if (typeof entry.exports !== "object" || !Array.isArray(entry.exports)) {
     throw new ReleaseError(SAFE_WRITE_UNAVAILABLE, `manifest entry missing exports for ${key}`);
   }
-  const resolved = resolve3(NATIVE_BASE, entry.path);
+  const resolved = resolve7(NATIVE_BASE, entry.path);
   const baseDir = NATIVE_BASE;
   if (!resolved.startsWith(baseDir + "/") && resolved !== baseDir) {
     throw new ReleaseError(SAFE_WRITE_UNAVAILABLE, `manifest path escapes base directory for ${key}`);
@@ -15798,7 +18558,7 @@ function validateManifestEntry(entry, key) {
 }
 function requireAddon(addonPath) {
   try {
-    const require2 = createRequire(resolve3(PKG_ROOT2, "package.json"));
+    const require2 = createRequire(resolve7(PKG_ROOT2, "package.json"));
     return require2(addonPath);
   } catch (err) {
     throw new ReleaseError(SAFE_WRITE_UNAVAILABLE, sanitizeError(err));
@@ -15819,7 +18579,7 @@ function readStableAddon(options = {}) {
     );
   }
   validateManifestEntry(entry, key);
-  const addonFile = resolve3(NATIVE_BASE, entry.path);
+  const addonFile = resolve7(NATIVE_BASE, entry.path);
   const lstatFn = hooks.lstatSync || lstatSync2;
   const lstatOpts = { bigint: true };
   let preStat;
@@ -16228,11 +18988,11 @@ var PKG_ROOT2, NATIVE_BASE, PREBUILDS_PATH, PREBUILDS_RESOURCE, DEFAULT_ADDON_PA
 var init_safe_fs_backend_internal = __esm({
   "src/artifacts/safe-fs-backend-internal.mjs"() {
     init_errors();
-    PKG_ROOT2 = typeof __bundlePkgRoot !== "undefined" ? __bundlePkgRoot : resolve3(dirname2(fileURLToPath2(import.meta.url)), "..", "..");
-    NATIVE_BASE = resolve3(PKG_ROOT2, "native/safe-write");
-    PREBUILDS_PATH = resolve3(NATIVE_BASE, "prebuilds.json");
+    PKG_ROOT2 = typeof __bundlePkgRoot !== "undefined" ? __bundlePkgRoot : resolve7(dirname3(fileURLToPath2(import.meta.url)), "..", "..");
+    NATIVE_BASE = resolve7(PKG_ROOT2, "native/safe-write");
+    PREBUILDS_PATH = resolve7(NATIVE_BASE, "prebuilds.json");
     PREBUILDS_RESOURCE = "native/safe-write/prebuilds.json";
-    DEFAULT_ADDON_PATH = resolve3(NATIVE_BASE, "build/Release/safe_write.node");
+    DEFAULT_ADDON_PATH = resolve7(NATIVE_BASE, "build/Release/safe_write.node");
     EXPECTED_EXPORTS = Object.freeze([
       "openRoot",
       "openDir",
@@ -16309,26 +19069,26 @@ import { createHash as createHash3 } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { promisify } from "node:util";
 import {
-  lstat as lstat3,
-  readFile as readFile3,
+  lstat as lstat4,
+  readFile as readFile7,
   readdir as readdir2,
   realpath as realpath4
 } from "node:fs/promises";
-import { basename, dirname as dirname3, isAbsolute as isAbsolute2, join as join2, relative as relative2, resolve as resolve4 } from "node:path";
+import { basename as basename2, dirname as dirname4, isAbsolute as isAbsolute5, join as join7, relative as relative5, resolve as resolve8 } from "node:path";
 function setupError(code, message, details = {}) {
   return new ReleaseError(code, message, details);
 }
 function safeRelative(root, path3) {
-  const rel = relative2(root, path3).split("\\").join("/");
+  const rel = relative5(root, path3).split("\\").join("/");
   return rel || ".";
 }
 async function readJsonBounded(path3, label) {
-  const stat9 = await lstat3(path3);
+  const stat9 = await lstat4(path3);
   if (!stat9.isFile() || stat9.isSymbolicLink() || stat9.size > MAX_JSON_BYTES) {
     throw setupError(CONFIG_INVALID, `${label} must be a regular JSON file no larger than 1 MiB`, { path: path3 });
   }
   try {
-    return JSON.parse(await readFile3(path3, "utf8"));
+    return JSON.parse(await readFile7(path3, "utf8"));
   } catch (error) {
     throw setupError(CONFIG_INVALID, `${label} is not valid JSON: ${error.message}`, { path: path3 });
   }
@@ -16341,10 +19101,10 @@ async function walkDiscoveryFiles(root, maxDepth = 8) {
     children.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
     for (const child of children) {
       if (child.isSymbolicLink()) continue;
-      const absolute = join2(directory, child.name);
+      const absolute = join7(directory, child.name);
       if (child.isDirectory()) {
         if (!SKIP_DIRS.has(child.name)) await walk(absolute, depth + 1);
-      } else if (child.isFile() && (child.name === "package.json" || child.name === "public-release.json" || child.name === "SKILL.md" || /^README(?:\.|$)/i.test(child.name) || /^LICENSE(?:\.|$)/i.test(child.name) || /^CHANGELOG(?:\.|$)/i.test(child.name) || absolute.endsWith("/.claude-plugin/plugin.json") || absolute.endsWith("/.codex-plugin/plugin.json") || absolute.endsWith("/.kimi-plugin/plugin.json") || absolute.endsWith("/.codebuddy-plugin/plugin.json") || absolute.endsWith("/.claude-plugin/marketplace.json") || absolute.endsWith("/.codex-plugin/marketplace.json"))) {
+      } else if (child.isFile() && (child.name === "package.json" || child.name === "public-release.json" || child.name === "SKILL.md" || /^README(?:\.|$)/i.test(child.name) || /^LICENSE(?:\.|$)/i.test(child.name) || /^CHANGELOG(?:\.|$)/i.test(child.name) || [...DISCOVERY_MANIFEST_SUFFIXES].some((suffix) => absolute.endsWith(`/${suffix}`)))) {
         found.push(absolute);
       }
     }
@@ -16354,11 +19114,11 @@ async function walkDiscoveryFiles(root, maxDepth = 8) {
   return found;
 }
 async function digestFile(path3) {
-  const before = await lstat3(path3);
+  const before = await lstat4(path3);
   if (!before.isFile() || before.isSymbolicLink()) throw setupError(CONFIG_INVALID, "discovered file must be regular", { path: path3 });
   const hash = createHash3("sha256");
   for await (const chunk of createReadStream(path3)) hash.update(chunk);
-  const after = await lstat3(path3);
+  const after = await lstat4(path3);
   if (before.size !== after.size || before.mtimeMs !== after.mtimeMs || before.ino !== after.ino) {
     throw setupError(CONFIG_INVALID, "discovered file changed while setup was reading it", { path: path3 });
   }
@@ -16373,7 +19133,7 @@ function parseGithubRepo(value) {
 }
 function safeUnitId(pkg, relDir) {
   const fromName = typeof pkg.name === "string" ? pkg.name.replace(/^@[^/]+\//, "") : "";
-  const fallback = relDir === "." ? "root" : basename(relDir);
+  const fallback = relDir === "." ? "root" : basename2(relDir);
   const candidate = (fromName || fallback).toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
   return candidate || "release-unit";
 }
@@ -16405,7 +19165,7 @@ function summarizeLegacyReleaseConfig(value, path3) {
     const plugins = Array.isArray(value.plugins) ? value.plugins : [];
     const pluginName = plugins.filter((plugin) => plugin && typeof plugin === "object" && !Array.isArray(plugin)).map((plugin) => optionalString(plugin.name)).find(Boolean);
     releaseUnits.push({
-      id: pluginName ?? basename(topLevelSource),
+      id: pluginName ?? basename2(topLevelSource),
       source: topLevelSource,
       publicRepo: topLevelRepo,
       tagPrefix: optionalString(value.tagPrefix),
@@ -16448,7 +19208,7 @@ function classifyScript(name, command2, unitId, distributionTypes) {
   const normalizedName = name.toLowerCase();
   const inspectedArgv = normalizeLegacyCommand(command2);
   const argv = inspectedArgv?.map((token) => token.toLowerCase()) ?? [];
-  const executable = basename(argv[0] ?? "");
+  const executable = basename2(argv[0] ?? "");
   const subcommand = argv[1] ?? "";
   const isSmoke = /smoke/.test(normalizedName);
   const llmLikely = /(?:^|[:_-])llm(?:$|[:_-])/.test(normalizedName) || argv.some((token) => /(?:^|[-_/])(?:llm|claude|openai)(?:[-_.\/]|$)/.test(token));
@@ -16569,10 +19329,10 @@ async function discoverUnitGit(unitAbsDir, parentRoot) {
 }
 async function discoverFacts(root) {
   const files = await walkDiscoveryFiles(root);
-  const packageFiles = files.filter((path3) => basename(path3) === "package.json" && !/[\\/]adapters[\\/](?:claude|codex|kimi)[\\/]package\.json$/.test(path3));
+  const packageFiles = files.filter((path3) => basename2(path3) === "package.json" && !/[\\/]adapters[\\/](?:claude|codex|kimi)[\\/]package\.json$/.test(path3));
   const pluginFiles = files.filter((path3) => path3.endsWith("/plugin.json"));
   const marketplaceFiles = files.filter((path3) => path3.endsWith("/marketplace.json"));
-  const legacyReleaseFiles = files.filter((path3) => basename(path3) === "public-release.json");
+  const legacyReleaseFiles = files.filter((path3) => basename2(path3) === "public-release.json");
   const fileDigests = [];
   for (const path3 of files) {
     fileDigests.push({ path: safeRelative(root, path3), ...await digestFile(path3) });
@@ -16582,7 +19342,7 @@ async function discoverFacts(root) {
   for (const path3 of packageFiles) {
     const pkg = await readJsonBounded(path3, "discovered package.json");
     const relPath = safeRelative(root, path3);
-    const relDir = safeRelative(root, dirname3(path3));
+    const relDir = safeRelative(root, dirname4(path3));
     packages.push({
       path: relPath,
       directory: relDir,
@@ -16599,13 +19359,20 @@ async function discoverFacts(root) {
   const manifests = [];
   for (const path3 of [...pluginFiles, ...marketplaceFiles].sort()) {
     const value = await readJsonBounded(path3, "discovered plugin manifest");
-    manifests.push({
-      path: safeRelative(root, path3),
-      host: path3.includes("/.claude-plugin/") ? "claude" : path3.includes("/.kimi-plugin/") ? "kimi" : path3.includes("/.codebuddy-plugin/") ? "codebuddy" : "codex",
-      kind: path3.endsWith("/marketplace.json") ? "marketplace" : "plugin",
-      name: typeof value.name === "string" ? value.name : null,
-      version: typeof value.version === "string" ? value.version : null
-    });
+    let detectedHosts = ["codex"];
+    for (const [suffix, hostIds] of MANIFEST_SUFFIX_HOST_MAP) {
+      if (path3.endsWith(`/${suffix}`)) {
+        detectedHosts = hostIds;
+        break;
+      }
+    }
+    const relPath = safeRelative(root, path3);
+    const kind = path3.endsWith("/marketplace.json") ? "marketplace" : "plugin";
+    const name = typeof value.name === "string" ? value.name : null;
+    const version = typeof value.version === "string" ? value.version : null;
+    for (const host of detectedHosts) {
+      manifests.push({ path: relPath, host, kind, name, version });
+    }
   }
   const legacyReleaseConfigs = [];
   for (const path3 of legacyReleaseFiles.sort()) {
@@ -16613,7 +19380,7 @@ async function discoverFacts(root) {
     legacyReleaseConfigs.push(summarizeLegacyReleaseConfig(value, safeRelative(root, path3)));
   }
   const git2 = await discoverGit(root);
-  const skills = files.filter((path3) => basename(path3) === "SKILL.md").map((path3) => {
+  const skills = files.filter((path3) => basename2(path3) === "SKILL.md").map((path3) => {
     const relPath = safeRelative(root, path3);
     const segments = relPath.split("/");
     const skillIndex = segments.lastIndexOf("skills");
@@ -16625,7 +19392,7 @@ async function discoverFacts(root) {
   }).filter((item) => item.name).sort((a, b) => canonicalJson(a).localeCompare(canonicalJson(b)));
   const unitGit = {};
   for (const pkg of packages) {
-    const unitAbsDir = resolve4(root, pkg.directory);
+    const unitAbsDir = resolve8(root, pkg.directory);
     unitGit[pkg.directory] = await discoverUnitGit(unitAbsDir, root);
   }
   return { git: git2, packages, manifests, skills, legacyReleaseConfigs, fileDigests, unitGit };
@@ -16764,8 +19531,16 @@ function buildCandidates(facts) {
   const ids = /* @__PURE__ */ new Set();
   const knownFiles = new Set(facts.fileDigests.map((file) => file.path));
   const manifestRoots = facts.manifests.map((manifest) => {
-    const match = manifest.path.match(/^(.*?)(?:\/)?(?:\.claude-plugin|\.codex-plugin|\.kimi-plugin|\.codebuddy-plugin)\/(?:plugin|marketplace)\.json$/);
-    return { ...manifest, root: match?.[1] || "." };
+    let root = ".";
+    for (const suffix of MANIFEST_SUFFIX_HOST_MAP.keys()) {
+      const fullSuffix = `/${suffix}`;
+      const idx = manifest.path.lastIndexOf(fullSuffix);
+      if (idx >= 0) {
+        root = manifest.path.slice(0, idx) || ".";
+        break;
+      }
+    }
+    return { ...manifest, root };
   });
   const manifestOwners = /* @__PURE__ */ new Map();
   const legacyUnits = facts.legacyReleaseConfigs.flatMap((config) => config.releaseUnits);
@@ -16781,7 +19556,7 @@ function buildCandidates(facts) {
     let suffix = 2;
     while (ids.has(id)) id = `${safeUnitId(pkg, pkg.directory)}-${suffix++}`;
     ids.add(id);
-    const matchingLegacyUnits = legacyUnits.filter((unit) => unit.id === id || unit.source === pkg.directory || unit.source === dirname3(pkg.path));
+    const matchingLegacyUnits = legacyUnits.filter((unit) => unit.id === id || unit.source === pkg.directory || unit.source === dirname4(pkg.path));
     const pluginHosts = facts.manifests.filter((manifest) => manifestOwners.get(manifest.path) === pkg.path).filter((manifest) => manifest.kind === "plugin").map((manifest) => manifest.host);
     const distributions = [];
     const legacyChannelsAreAuthoritative = matchingLegacyUnits.length > 0;
@@ -16893,7 +19668,7 @@ function buildCandidates(facts) {
   const unownedPluginRoots = [...new Set(manifestRoots.filter((manifest) => manifest.kind === "plugin" && !manifestOwners.has(manifest.path)).map((manifest) => manifest.root))];
   for (const pluginRoot of unownedPluginRoots.sort()) {
     const rootManifests = manifestRoots.filter((manifest) => manifest.root === pluginRoot && manifest.kind === "plugin");
-    const name = rootManifests.map((manifest) => manifest.name).find(Boolean) || basename(pluginRoot);
+    const name = rootManifests.map((manifest) => manifest.name).find(Boolean) || basename2(pluginRoot);
     const baseId = String(name).toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "plugin";
     let id = baseId;
     let suffix = 2;
@@ -16979,6 +19754,8 @@ function buildRecommendedProposal(facts, candidates) {
         assumptions
       };
     }
+    const unitPrefix = unit.source === "." ? "" : `${unit.source}/`;
+    const marketplaceConflicts = [];
     const distributions = unit.distributionCandidates.map((type) => {
       if (type === "npm") {
         return {
@@ -16989,16 +19766,55 @@ function buildRecommendedProposal(facts, candidates) {
         };
       }
       const entrySkill = unit.entrySkillCandidates?.[0];
-      return {
+      const host = type.replace(/-plugin$/, "");
+      const platform = getPlatform(host);
+      const defaultMktPath = platform.manifestPaths.marketplace;
+      const dist = {
         type,
         plugin: unit.id,
         marketplace: unit.id,
-        entrySkill
+        entrySkill,
+        marketplaceSourceType: "bundled-family"
       };
+      if (defaultMktPath !== null) {
+        const mappingCandidates = unit.publicFileMappingCandidates ?? [];
+        const suffix = `/${defaultMktPath}`;
+        const candidates2 = mappingCandidates.filter((m) => m.to === defaultMktPath || m.to.endsWith(suffix));
+        if (candidates2.length === 0) {
+          marketplaceConflicts.push({
+            code: "MARKETPLACE_ASSET_MISSING",
+            unit: unit.id,
+            platform: host,
+            expectedSuffix: defaultMktPath
+          });
+          return null;
+        }
+        if (candidates2.length > 1) {
+          marketplaceConflicts.push({
+            code: "MARKETPLACE_ASSET_AMBIGUOUS",
+            unit: unit.id,
+            platform: host,
+            candidates: candidates2.map((m) => m.to).sort()
+          });
+          return null;
+        }
+        const candidateTo = candidates2[0].to;
+        if (candidateTo === defaultMktPath) {
+        } else {
+          dist.marketplaceIndexPath = candidateTo;
+        }
+      }
+      return dist;
     }).filter(Boolean);
+    if (marketplaceConflicts.length > 0) {
+      return {
+        answers: null,
+        conflicts: marketplaceConflicts,
+        assumptions
+      };
+    }
     if (distributions.length !== unit.distributionCandidates.length) return null;
     const tagTemplate = unit.tagTemplateCandidates[0] ?? "v{version}";
-    const unitPrefix = unit.source === "." ? "" : `${unit.source}/`;
     const versionSource = unit.packagePath?.startsWith(unitPrefix) ? unit.packagePath.slice(unitPrefix.length) : unit.packagePath;
     units.push({
       id: unit.id,
@@ -17225,8 +20041,8 @@ async function assertConfigDirectoryStillBound(root, safeFs, expected) {
 async function createConfigOnce(root, config, { beforeRename } = {}) {
   const { loadSafeFs: loadSafeFs2 } = await Promise.resolve().then(() => (init_safe_fs(), safe_fs_exports));
   const safeFs = await loadSafeFs2();
-  const releaseDir = join2(root, ".release-skill");
-  const target = join2(releaseDir, "project.yaml");
+  const releaseDir = join7(root, ".release-skill");
+  const target = join7(releaseDir, "project.yaml");
   const bound = await openBoundConfigDirectory(root, safeFs);
   let tempToken;
   const bytes = Buffer.from(import_yaml.default.stringify(config, { lineWidth: 0 }), "utf8");
@@ -17280,16 +20096,16 @@ async function createConfigOnce(root, config, { beforeRename } = {}) {
   }
 }
 async function setupProject({ root, answersPath, write = false, confirmSetup, faultInjector } = {}) {
-  if (!root || typeof root !== "string" || !isAbsolute2(root)) {
+  if (!root || typeof root !== "string" || !isAbsolute5(root)) {
     throw setupError(CONFIG_INVALID, "setup root must be an absolute path");
   }
   const rootReal = await realpath4(root).catch((error) => {
     throw setupError(CONFIG_INVALID, `cannot resolve setup root: ${error.message}`);
   });
-  const configPath = join2(rootReal, ".release-skill", "project.yaml");
+  const configPath = join7(rootReal, ".release-skill", "project.yaml");
   let configExists = false;
   try {
-    const stat9 = await lstat3(configPath);
+    const stat9 = await lstat4(configPath);
     configExists = true;
     if (!stat9.isFile() || stat9.isSymbolicLink()) {
       throw setupError(CONFIG_INVALID, "existing project.yaml must be a regular file");
@@ -17301,7 +20117,7 @@ async function setupProject({ root, answersPath, write = false, confirmSetup, fa
     if (write) throw setupError(CONFIG_EXISTS, "configuration already exists; setup never overwrites it", { configPath });
     const [facts2, configBytes] = await Promise.all([
       discoverFacts(rootReal),
-      readFile3(configPath, "utf8")
+      readFile7(configPath, "utf8")
     ]);
     const candidates2 = buildCandidates(facts2);
     let configuredUnitIds = [];
@@ -17361,7 +20177,7 @@ async function setupProject({ root, answersPath, write = false, confirmSetup, fa
   const candidates = buildCandidates(facts);
   let answers = null;
   if (answersPath) {
-    const resolvedAnswers = isAbsolute2(answersPath) ? answersPath : resolve4(rootReal, answersPath);
+    const resolvedAnswers = isAbsolute5(answersPath) ? answersPath : resolve8(rootReal, answersPath);
     answers = await readJsonBounded(resolvedAnswers, "setup answers");
     validateAnswers(answers, candidates.gates);
   }
@@ -17414,7 +20230,7 @@ async function setupProject({ root, answersPath, write = false, confirmSetup, fa
       if (faultInjector) await faultInjector("before-config-commit");
       const lockedFacts = await discoverFacts(rootReal);
       const lockedCandidates = buildCandidates(lockedFacts);
-      const resolvedAnswers = isAbsolute2(answersPath) ? answersPath : resolve4(rootReal, answersPath);
+      const resolvedAnswers = isAbsolute5(answersPath) ? answersPath : resolve8(rootReal, answersPath);
       const lockedAnswers = await readJsonBounded(resolvedAnswers, "setup answers");
       validateAnswers(lockedAnswers, lockedCandidates.gates);
       const lockedAuthority = {
@@ -17481,14 +20297,15 @@ async function setupProject({ root, answersPath, write = false, confirmSetup, fa
   createdReport.compactSummary = buildCompactSummary(createdReport);
   return createdReport;
 }
-var import_yaml, import_ajv, import_ajv_formats, execFile, SKIP_DIRS, MAX_JSON_BYTES, schema, ajv, validateProjectConfig;
+var import_yaml, import_ajv2, import_ajv_formats2, execFile, SKIP_DIRS, DISCOVERY_MANIFEST_SUFFIXES, MANIFEST_SUFFIX_HOST_MAP, MAX_JSON_BYTES, schema, ajv2, validateProjectConfig;
 var init_setup = __esm({
   async "src/commands/setup.mjs"() {
     import_yaml = __toESM(require_dist(), 1);
-    import_ajv = __toESM(require_ajv(), 1);
-    import_ajv_formats = __toESM(require_dist2(), 1);
+    import_ajv2 = __toESM(require_ajv(), 1);
+    import_ajv_formats2 = __toESM(require_dist2(), 1);
     init_digest();
     init_project_lock();
+    await init_registry();
     init_errors();
     init_trusted_resource();
     execFile = promisify(execFileCb);
@@ -17521,13 +20338,52 @@ var init_setup = __esm({
       "fixtures",
       "examples"
     ]);
+    DISCOVERY_MANIFEST_SUFFIXES = new Set(
+      PLATFORMS.flatMap((p) => {
+        const paths = [p.manifestPaths.plugin];
+        if (p.manifestPaths.marketplace) paths.push(p.manifestPaths.marketplace);
+        if (p.manifestPaths.pluginCandidates) paths.push(...p.manifestPaths.pluginCandidates);
+        return paths;
+      })
+    );
+    MANIFEST_SUFFIX_HOST_MAP = /* @__PURE__ */ new Map();
+    for (const platform of PLATFORMS) {
+      const mp = platform.manifestPaths.marketplace;
+      if (mp) {
+        const existing = MANIFEST_SUFFIX_HOST_MAP.get(mp);
+        if (existing) {
+          existing.push(platform.id);
+        } else {
+          MANIFEST_SUFFIX_HOST_MAP.set(mp, [platform.id]);
+        }
+      }
+      const pp = platform.manifestPaths.plugin;
+      if (pp) {
+        const existing = MANIFEST_SUFFIX_HOST_MAP.get(pp);
+        if (existing) {
+          existing.push(platform.id);
+        } else {
+          MANIFEST_SUFFIX_HOST_MAP.set(pp, [platform.id]);
+        }
+      }
+      if (platform.manifestPaths.pluginCandidates) {
+        for (const candidate of platform.manifestPaths.pluginCandidates) {
+          const existing = MANIFEST_SUFFIX_HOST_MAP.get(candidate);
+          if (existing) {
+            existing.push(platform.id);
+          } else {
+            MANIFEST_SUFFIX_HOST_MAP.set(candidate, [platform.id]);
+          }
+        }
+      }
+    }
     MAX_JSON_BYTES = 1024 * 1024;
     schema = JSON.parse((await readTrustedPackageResource(
       "schemas/release-project.schema.json"
     )).toString("utf8"));
-    ajv = new import_ajv.default({ allErrors: true, strict: false });
-    (0, import_ajv_formats.default)(ajv);
-    validateProjectConfig = ajv.compile(schema);
+    ajv2 = new import_ajv2.default({ allErrors: true, strict: false });
+    (0, import_ajv_formats2.default)(ajv2);
+    validateProjectConfig = ajv2.compile(schema);
     __name(setupError, "setupError");
     __name(safeRelative, "safeRelative");
     __name(readJsonBounded, "readJsonBounded");
@@ -17603,7 +20459,7 @@ var init_path_key = __esm({
 });
 
 // src/snapshot/public-path.mjs
-import { isAbsolute as isAbsolute3, relative as relative3, resolve as resolve5 } from "node:path";
+import { isAbsolute as isAbsolute6, relative as relative6, resolve as resolve9 } from "node:path";
 function canonicalPublicPath(raw, { allowDot = false } = {}) {
   if (allowDot && raw === ".") {
     return { path: "." };
@@ -17633,11 +20489,11 @@ function resolveUnitScopedPath(baseDir, unitId, { suffix = "" } = {}) {
       { unitId }
     );
   }
-  const base = resolve5(baseDir);
-  const candidate = resolve5(base, `${unitId}${suffix}`);
-  const rel = relative3(base, candidate);
+  const base = resolve9(baseDir);
+  const candidate = resolve9(base, `${unitId}${suffix}`);
+  const rel = relative6(base, candidate);
   const separator = process.platform === "win32" ? "\\" : "/";
-  if (rel === "" || isAbsolute3(rel) || rel === ".." || rel.startsWith(`..${separator}`)) {
+  if (rel === "" || isAbsolute6(rel) || rel === ".." || rel.startsWith(`..${separator}`)) {
     throw new ReleaseError(
       PUBLIC_PATH_FORBIDDEN,
       `release unit path escapes its trusted base: "${unitId}"`,
@@ -17662,7 +20518,7 @@ var init_public_path = __esm({
 import { execFile as execFileCb2 } from "node:child_process";
 import { promisify as promisify2 } from "node:util";
 import { createHash as createHash4 } from "node:crypto";
-import { lstat as lstat4, open as open2, readlink } from "node:fs/promises";
+import { lstat as lstat5, open as open3, readlink } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import path from "node:path";
 function isControlPlanePath(p) {
@@ -17720,12 +20576,14 @@ async function computeWorkspaceDigest(root) {
     if (filePath && isControlPlanePath(filePath)) continue;
     parts.push(record);
   }
+  const DIFF_MAX_BUFFER = 64 * 1024 * 1024;
+  const diffOpts = { ...opts, maxBuffer: DIFF_MAX_BUFFER };
   const changedPaths = splitNul(changedOut).filter((p) => !isControlPlanePath(p));
   for (const changedPath of changedPaths) {
     const { stdout: patch } = await execFile2(
       "git",
       ["diff", "--no-ext-diff", "--no-textconv", "--binary", "--no-color", "--", changedPath],
-      opts
+      diffOpts
     );
     parts.push(`UNSTAGED:${changedPath}\0${patch}`);
   }
@@ -17739,7 +20597,7 @@ async function computeWorkspaceDigest(root) {
           `Refusing to read path outside repository root: ${relPath} resolves to ${absPath}`
         );
       }
-      const stat9 = await lstat4(absPath);
+      const stat9 = await lstat5(absPath);
       let type;
       if (stat9.isSymbolicLink()) {
         type = "symlink";
@@ -17753,7 +20611,7 @@ async function computeWorkspaceDigest(root) {
       const typeMarker = `TYPE:${type}`;
       let content;
       if (stat9.isFile()) {
-        const handle = await open2(absPath, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+        const handle = await open3(absPath, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
         try {
           const fdStat = await handle.stat();
           if (fdStat.ino !== stat9.ino) {
@@ -17862,8 +20720,8 @@ var init_baseline = __esm({
 });
 
 // src/core/config.mjs
-import { readFile as readFile4 } from "node:fs/promises";
-import { resolve as resolve6, isAbsolute as isAbsolute4, relative as relative4, normalize as normalize2 } from "node:path";
+import { readFile as readFile8 } from "node:fs/promises";
+import { resolve as resolve10, isAbsolute as isAbsolute7, relative as relative7, normalize as normalize2 } from "node:path";
 function containsAlias(node) {
   if (!node || typeof node !== "object") {
     return false;
@@ -17888,9 +20746,9 @@ function containsAlias(node) {
 }
 function resolveConfigPath(root, configPath) {
   const rootNorm = normalize2(root);
-  const resolved = isAbsolute4(configPath) ? normalize2(configPath) : resolve6(rootNorm, configPath);
-  const rel = relative4(rootNorm, resolved);
-  if (rel.startsWith("..") || rel === ".." || isAbsolute4(rel)) {
+  const resolved = isAbsolute7(configPath) ? normalize2(configPath) : resolve10(rootNorm, configPath);
+  const rel = relative7(rootNorm, resolved);
+  if (rel.startsWith("..") || rel === ".." || isAbsolute7(rel)) {
     throw new ReleaseError(
       CONFIG_INVALID,
       `config path "${configPath}" resolves outside project root "${root}"`,
@@ -17907,7 +20765,7 @@ async function loadProjectConfig({ root, configPath } = {}) {
   const absConfigPath = resolveConfigPath(root, effectivePath);
   let content;
   try {
-    content = await readFile4(absConfigPath, "utf8");
+    content = await readFile8(absConfigPath, "utf8");
   } catch (err) {
     throw new ReleaseError(
       CONFIG_INVALID,
@@ -18029,6 +20887,17 @@ async function loadProjectConfig({ root, configPath } = {}) {
       }
     }
   }
+  if (Array.isArray(config.releaseUnits)) {
+    for (const unit of config.releaseUnits) {
+      if (!unit?.distributions) continue;
+      for (const dist of unit.distributions) {
+        if (dist.type === "npm") continue;
+        if (dist.marketplaceSourceType === void 0 || dist.marketplaceSourceType === null) {
+          dist.marketplaceSourceType = dist.marketplaceRepo ? "standalone-index" : "bundled-family";
+        }
+      }
+    }
+  }
   const valid = validateConfig(config);
   if (!valid) {
     const errors = validateConfig.errors ?? [];
@@ -18134,12 +21003,12 @@ async function loadProjectConfig({ root, configPath } = {}) {
     configDigest
   };
 }
-var import_yaml2, import_ajv2, import_ajv_formats2, DEFAULT_CONFIG_REL, RELEASE_PROJECT_SCHEMA, ajv2, validateConfig;
+var import_yaml2, import_ajv3, import_ajv_formats3, DEFAULT_CONFIG_REL, RELEASE_PROJECT_SCHEMA, ajv3, validateConfig;
 var init_config = __esm({
   async "src/core/config.mjs"() {
     import_yaml2 = __toESM(require_dist(), 1);
-    import_ajv2 = __toESM(require_ajv(), 1);
-    import_ajv_formats2 = __toESM(require_dist2(), 1);
+    import_ajv3 = __toESM(require_ajv(), 1);
+    import_ajv_formats3 = __toESM(require_dist2(), 1);
     init_digest();
     init_errors();
     init_public_path();
@@ -18159,9 +21028,9 @@ var init_config = __esm({
         { resource: "schemas/release-project.schema.json", cause: err.code ?? "PARSE_FAILED" }
       );
     }
-    ajv2 = new import_ajv2.default({ allErrors: true, strict: false });
-    (0, import_ajv_formats2.default)(ajv2);
-    validateConfig = ajv2.compile(RELEASE_PROJECT_SCHEMA);
+    ajv3 = new import_ajv3.default({ allErrors: true, strict: false });
+    (0, import_ajv_formats3.default)(ajv3);
+    validateConfig = ajv3.compile(RELEASE_PROJECT_SCHEMA);
     __name(containsAlias, "containsAlias");
     __name(resolveConfigPath, "resolveConfigPath");
     __name(loadProjectConfig, "loadProjectConfig");
@@ -18176,8 +21045,8 @@ __export(assess_exports, {
   Severity: () => Severity,
   assessProject: () => assessProject
 });
-import { readFile as readFile5, stat as stat2, writeFile as writeFile2, mkdir as mkdir2 } from "node:fs/promises";
-import { resolve as resolve7, dirname as dirname4, relative as relative5 } from "node:path";
+import { readFile as readFile9, stat as stat2, writeFile as writeFile4, mkdir as mkdir3 } from "node:fs/promises";
+import { resolve as resolve11, dirname as dirname5, relative as relative8 } from "node:path";
 import { execFile as execFileCb3 } from "node:child_process";
 import { promisify as promisify3 } from "node:util";
 async function fileExists(filePath) {
@@ -18278,9 +21147,9 @@ async function checkCommonDocs(root, config) {
     { file: "LICENSE", code: "LICENSE_MISSING", message: "\u7F3A\u5C11 LICENSE \u6587\u4EF6" }
   ];
   for (const unit of units) {
-    const unitRoot = resolve7(root, unit.source);
+    const unitRoot = resolve11(root, unit.source);
     for (const doc of requiredDocs) {
-      const exists = await fileExists(resolve7(unitRoot, doc.file));
+      const exists = await fileExists(resolve11(unitRoot, doc.file));
       if (!exists) {
         gaps.push(
           createGap({
@@ -18301,9 +21170,9 @@ async function checkCommonDocs(root, config) {
     { file: "CONTRIBUTING.md", code: "CONTRIBUTING_MISSING", message: "\u5EFA\u8BAE\u6DFB\u52A0 CONTRIBUTING.md" }
   ];
   for (const unit of units) {
-    const unitRoot = resolve7(root, unit.source);
+    const unitRoot = resolve11(root, unit.source);
     for (const doc of recommendedDocs) {
-      const exists = await fileExists(resolve7(unitRoot, doc.file));
+      const exists = await fileExists(resolve11(unitRoot, doc.file));
       if (!exists) {
         gaps.push(
           createGap({
@@ -18325,9 +21194,9 @@ async function checkPluginManifests(root, config) {
   const units = config.releaseUnits ?? [];
   for (const unit of units) {
     const distributionTypes = new Set((unit.distributions ?? []).map((dist) => dist.type));
-    const unitRoot = resolve7(root, unit.source);
+    const unitRoot = resolve11(root, unit.source);
     if (distributionTypes.has("claude-plugin")) {
-      const manifestPath = resolve7(unitRoot, ".claude-plugin", "plugin.json");
+      const manifestPath = resolve11(unitRoot, ".claude-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".claude-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -18343,7 +21212,7 @@ async function checkPluginManifests(root, config) {
         );
       } else {
         try {
-          const content = await readFile5(manifestPath, "utf8");
+          const content = await readFile9(manifestPath, "utf8");
           const manifest = JSON.parse(content);
           const requiredFields = ["name", "version", "description"];
           const missingFields = requiredFields.filter((f) => !(f in manifest));
@@ -18374,7 +21243,7 @@ async function checkPluginManifests(root, config) {
       }
     }
     if (distributionTypes.has("codex-plugin")) {
-      const manifestPath = resolve7(unitRoot, ".codex-plugin", "plugin.json");
+      const manifestPath = resolve11(unitRoot, ".codex-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".codex-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -18390,7 +21259,7 @@ async function checkPluginManifests(root, config) {
         );
       } else {
         try {
-          const content = await readFile5(manifestPath, "utf8");
+          const content = await readFile9(manifestPath, "utf8");
           const manifest = JSON.parse(content);
           const requiredFields = ["name", "version", "description"];
           const missingFields = requiredFields.filter((f) => !(f in manifest));
@@ -18421,7 +21290,7 @@ async function checkPluginManifests(root, config) {
       }
     }
     if (distributionTypes.has("kimi-plugin")) {
-      const manifestPath = resolve7(unitRoot, ".kimi-plugin", "plugin.json");
+      const manifestPath = resolve11(unitRoot, ".kimi-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".kimi-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -18437,7 +21306,7 @@ async function checkPluginManifests(root, config) {
         );
       } else {
         try {
-          const content = await readFile5(manifestPath, "utf8");
+          const content = await readFile9(manifestPath, "utf8");
           const manifest = JSON.parse(content);
           const requiredFields = ["name", "version", "description"];
           const missingFields = requiredFields.filter((f) => !(f in manifest));
@@ -18468,7 +21337,7 @@ async function checkPluginManifests(root, config) {
       }
     }
     if (distributionTypes.has("codebuddy-plugin")) {
-      const manifestPath = resolve7(unitRoot, ".codebuddy-plugin", "plugin.json");
+      const manifestPath = resolve11(unitRoot, ".codebuddy-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".codebuddy-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -18484,7 +21353,7 @@ async function checkPluginManifests(root, config) {
         );
       } else {
         try {
-          const content = await readFile5(manifestPath, "utf8");
+          const content = await readFile9(manifestPath, "utf8");
           const manifest = JSON.parse(content);
           const requiredFields = ["name", "version", "description"];
           const missingFields = requiredFields.filter((f) => !(f in manifest));
@@ -18534,8 +21403,8 @@ async function checkPackageMetadata(root, config) {
   for (const unit of units) {
     const hasNpmDist = (unit.distributions ?? []).some((d) => d.type === "npm");
     if (!hasNpmDist) continue;
-    const unitRoot = resolve7(root, unit.source);
-    const pkgPath = resolve7(unitRoot, "package.json");
+    const unitRoot = resolve11(root, unit.source);
+    const pkgPath = resolve11(unitRoot, "package.json");
     const exists = await fileExists(pkgPath);
     if (!exists) {
       gaps.push(
@@ -18551,7 +21420,7 @@ async function checkPackageMetadata(root, config) {
       continue;
     }
     try {
-      const content = await readFile5(pkgPath, "utf8");
+      const content = await readFile9(pkgPath, "utf8");
       const pkg = JSON.parse(content);
       const requiredFields = ["name", "version"];
       const missingFields = requiredFields.filter((f) => !(f in pkg));
@@ -18618,10 +21487,10 @@ async function checkRemotePrerequisites(root, config, offline) {
   for (const unit of units) {
     const npmDist = (unit.distributions ?? []).find((d) => d.type === "npm");
     if (!npmDist?.package) continue;
-    const pkgPath = resolve7(root, unit.source, "package.json");
+    const pkgPath = resolve11(root, unit.source, "package.json");
     let version;
     try {
-      const content = await readFile5(pkgPath, "utf8");
+      const content = await readFile9(pkgPath, "utf8");
       const pkg = JSON.parse(content);
       version = pkg.version;
     } catch {
@@ -18652,12 +21521,12 @@ async function checkReadmeStructure(root, config) {
   const gaps = [];
   const units = config.releaseUnits ?? [];
   for (const unit of units) {
-    const readmePath = resolve7(root, unit.source, "README.md");
+    const readmePath = resolve11(root, unit.source, "README.md");
     const displayPath = unitFile(unit, "README.md");
     const exists = await fileExists(readmePath);
     if (!exists) continue;
     try {
-      const content = await readFile5(readmePath, "utf8");
+      const content = await readFile9(readmePath, "utf8");
       const hasHeading = /^#\s+/m.test(content);
       if (!hasHeading) {
         gaps.push(
@@ -18828,9 +21697,9 @@ async function assessProject(options) {
   return report;
 }
 async function writeReport(outputPath, report) {
-  const dir = dirname4(outputPath);
-  await mkdir2(dir, { recursive: true });
-  await writeFile2(outputPath, JSON.stringify(report, null, 2), "utf8");
+  const dir = dirname5(outputPath);
+  await mkdir3(dir, { recursive: true });
+  await writeFile4(outputPath, JSON.stringify(report, null, 2), "utf8");
 }
 var execFile3, Severity, GapScope, GapCategory;
 var init_assess = __esm({
@@ -18875,7 +21744,7 @@ var init_assess = __esm({
 // src/core/hooks.mjs
 import { execFile as execFileCb4 } from "node:child_process";
 import { promisify as promisify4 } from "node:util";
-import { resolve as resolve8, relative as relative6, isAbsolute as isAbsolute5 } from "node:path";
+import { resolve as resolve12, relative as relative9, isAbsolute as isAbsolute8 } from "node:path";
 import { realpath as realpath5 } from "node:fs/promises";
 function validateHook(hook) {
   if (!hook || typeof hook !== "object" || Array.isArray(hook)) {
@@ -18959,13 +21828,13 @@ async function runHook(hook, context) {
   if (!context || typeof context !== "object" || Array.isArray(context)) {
     throw new ReleaseError("INVALID_HOOK", "context must be a non-null object");
   }
-  if (typeof context.root !== "string" || !isAbsolute5(context.root)) {
+  if (typeof context.root !== "string" || !isAbsolute8(context.root)) {
     throw new ReleaseError("INVALID_HOOK", "context.root must be an absolute path");
   }
   const { command: command2, cwd, timeoutMs, envAllowlist = [] } = hook;
   const rootReal = await realpath5(context.root);
-  const resolvedCwd = cwd ? await realpath5(resolve8(rootReal, cwd)) : rootReal;
-  const rel = relative6(rootReal, resolvedCwd);
+  const resolvedCwd = cwd ? await realpath5(resolve12(rootReal, cwd)) : rootReal;
+  const rel = relative9(rootReal, resolvedCwd);
   if (rel.startsWith("..") || rel === "..") {
     throw new ReleaseError(
       "INVALID_HOOK",
@@ -19031,8 +21900,8 @@ var init_hooks = __esm({
 });
 
 // src/core/hook-cache.mjs
-import { readdir as readdir3, readFile as readFile6, mkdir as mkdir3, writeFile as writeFile3 } from "node:fs/promises";
-import { join as join3 } from "node:path";
+import { readdir as readdir3, readFile as readFile10, mkdir as mkdir4, writeFile as writeFile5 } from "node:fs/promises";
+import { join as join8 } from "node:path";
 function globToRegExp(glob) {
   let source = "";
   let i = 0;
@@ -19069,7 +21938,7 @@ async function listInputFiles(root) {
       if (entry.isDirectory()) {
         if (SKIPPED_DIRS.has(entry.name)) continue;
         const rel = dirRel ? `${dirRel}/${entry.name}` : entry.name;
-        await walk(join3(dirAbs, entry.name), rel);
+        await walk(join8(dirAbs, entry.name), rel);
       } else if (entry.isFile()) {
         out.push(dirRel ? `${dirRel}/${entry.name}` : entry.name);
       }
@@ -19108,21 +21977,21 @@ async function computeHookCacheKey(hook, root) {
   matched.sort();
   const fileEntries = [];
   for (const relPath of matched) {
-    const content = await readFile6(join3(root, relPath));
+    const content = await readFile10(join8(root, relPath));
     fileEntries.push({ path: relPath, sha256: sha256Hex(content) });
   }
   const cacheKey = sha256Hex(canonicalJson(hook) + canonicalJson(fileEntries));
   return { cacheKey, matchedFiles: matched };
 }
 function hookCacheDir(root, hookName) {
-  return join3(root, ...CACHE_BASE, hookName);
+  return join8(root, ...CACHE_BASE, hookName);
 }
 function hookCachePath(root, hookName, cacheKey) {
-  return join3(hookCacheDir(root, hookName), `${cacheKey}.json`);
+  return join8(hookCacheDir(root, hookName), `${cacheKey}.json`);
 }
 async function readHookCache(root, hookName, cacheKey) {
   try {
-    const raw = await readFile6(hookCachePath(root, hookName, cacheKey), "utf8");
+    const raw = await readFile10(hookCachePath(root, hookName, cacheKey), "utf8");
     const record = JSON.parse(raw);
     if (record && record.cacheKey === cacheKey && record.exitCode === 0) {
       return record;
@@ -19137,7 +22006,7 @@ async function writeHookCache(root, hookName, cacheKey, result) {
     return { ok: false, error: "refusing to cache a non-zero exit result" };
   }
   try {
-    await mkdir3(hookCacheDir(root, hookName), { recursive: true });
+    await mkdir4(hookCacheDir(root, hookName), { recursive: true });
     const record = {
       cacheKey,
       exitCode: 0,
@@ -19145,7 +22014,7 @@ async function writeHookCache(root, hookName, cacheKey, result) {
       stderrTail: String(result.stderrTail ?? "").slice(-TAIL_LENGTH),
       createdAt: result.createdAt ?? (/* @__PURE__ */ new Date()).toISOString()
     };
-    await writeFile3(hookCachePath(root, hookName, cacheKey), `${JSON.stringify(record, null, 2)}
+    await writeFile5(hookCachePath(root, hookName, cacheKey), `${JSON.stringify(record, null, 2)}
 `, "utf8");
     return { ok: true };
   } catch (err) {
@@ -19176,34 +22045,34 @@ import { execFile as execFileCb5, spawn } from "node:child_process";
 import { promisify as promisify5 } from "node:util";
 import {
   chmod,
-  lstat as lstat5,
-  mkdir as mkdir4,
+  lstat as lstat6,
+  mkdir as mkdir5,
   mkdtemp,
-  open as open3,
+  open as open4,
   readdir as readdir4,
   realpath as realpath6,
-  rm as rm2,
-  unlink
+  rm as rm3,
+  unlink as unlink2
 } from "node:fs/promises";
 import { constants as fsConstants2 } from "node:fs";
-import { isAbsolute as isAbsolute6, join as join4, relative as relative7, resolve as resolve9 } from "node:path";
+import { isAbsolute as isAbsolute9, join as join9, relative as relative10, resolve as resolve13 } from "node:path";
 function frozenError(message, details = {}) {
   return new ReleaseError(GATE_FAILED, message, details);
 }
 function isInside(parent, candidate) {
-  const rel = relative7(parent, candidate);
-  return rel === "" || !isAbsolute6(rel) && rel !== ".." && !rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`);
+  const rel = relative10(parent, candidate);
+  return rel === "" || !isAbsolute9(rel) && rel !== ".." && !rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`);
 }
 async function resolveFrozenPath(root, relativePath, label = "frozen path") {
-  if (!relativePath || typeof relativePath !== "string" || isAbsolute6(relativePath)) {
+  if (!relativePath || typeof relativePath !== "string" || isAbsolute9(relativePath)) {
     throw frozenError(`${label} must be a non-empty project-relative path`);
   }
   const rootReal = await realpath6(root);
-  const lexical = resolve9(rootReal, relativePath);
+  const lexical = resolve13(rootReal, relativePath);
   if (!isInside(rootReal, lexical)) {
     throw frozenError(`${label} escapes project root`, { relativePath });
   }
-  const lexicalStat = await lstat5(lexical).catch((err) => {
+  const lexicalStat = await lstat6(lexical).catch((err) => {
     throw frozenError(`${label} is missing`, { relativePath, cause: err.code });
   });
   if (lexicalStat.isSymbolicLink()) {
@@ -19218,11 +22087,11 @@ async function resolveFrozenPath(root, relativePath, label = "frozen path") {
   return physical;
 }
 async function readStableRegularFile(filePath, displayPath) {
-  const before = await lstat5(filePath);
+  const before = await lstat6(filePath);
   if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1) {
     throw frozenError(`frozen snapshot entry is not a single-link regular file: ${displayPath}`);
   }
-  const handle = await open3(filePath, fsConstants2.O_RDONLY | fsConstants2.O_NOFOLLOW);
+  const handle = await open4(filePath, fsConstants2.O_RDONLY | fsConstants2.O_NOFOLLOW);
   try {
     const opened = await handle.stat();
     if (!opened.isFile() || opened.nlink !== 1 || opened.dev !== before.dev || opened.ino !== before.ino) {
@@ -19240,7 +22109,7 @@ async function readStableRegularFile(filePath, displayPath) {
 }
 async function computeFrozenSnapshot(snapshotDir, { excludeRootEntries = [] } = {}) {
   const root = await realpath6(snapshotDir);
-  const rootStat = await lstat5(root);
+  const rootStat = await lstat6(root);
   if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
     throw frozenError("frozen snapshot root must be a real directory");
   }
@@ -19266,10 +22135,10 @@ async function computeFrozenSnapshot(snapshotDir, { excludeRootEntries = [] } = 
     children.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
     for (const child of children) {
       if (dir === root && excludedRootNames.has(child.name)) continue;
-      const absolute = join4(dir, child.name);
-      const rel = relative7(root, absolute).split("\\").join("/");
+      const absolute = join9(dir, child.name);
+      const rel = relative10(root, absolute).split("\\").join("/");
       if (excludedPathPrefixes.some((prefix) => rel === prefix || rel.startsWith(`${prefix}/`))) continue;
-      const st = await lstat5(absolute);
+      const st = await lstat6(absolute);
       if (st.isSymbolicLink()) {
         throw frozenError(`frozen snapshot contains symlink: ${rel}`);
       }
@@ -19317,8 +22186,8 @@ async function verifyFrozenDirectoryStructure(directory, label = "frozen directo
   async function walk(current) {
     const children = await readdir4(current, { withFileTypes: true });
     for (const child of children) {
-      const absolute = join4(current, child.name);
-      const st = await lstat5(absolute);
+      const absolute = join9(current, child.name);
+      const st = await lstat6(absolute);
       if (st.isSymbolicLink()) {
         throw frozenError(`${label} contains a symlink`);
       }
@@ -19493,7 +22362,7 @@ async function buildFrozenGitRepository({
 }) {
   const canonicalTimestamp = normalizeGitTimestamp(commitTimestamp, "frozen commit timestamp");
   if (!expectedSnapshotDigest) throw frozenError("Git object build requires the sealed snapshot digest");
-  await mkdir4(repositoryDir, { recursive: true });
+  await mkdir5(repositoryDir, { recursive: true });
   await exec("git", ["init", "--bare", repositoryDir], { shell: false });
   let parentCommit = null;
   if (parent) {
@@ -19523,7 +22392,7 @@ async function buildFrozenGitRepository({
     }
     parentCommit = parent.commit;
   }
-  const indexPath = join4(repositoryDir, "release-index");
+  const indexPath = join9(repositoryDir, "release-index");
   const env = { ...process.env, GIT_INDEX_FILE: indexPath };
   await exec("git", [
     "--git-dir",
@@ -19581,25 +22450,25 @@ function contentEntries(entries) {
   return entries.map(({ path: path3, size, contentDigest }) => ({ path: path3, size, contentDigest }));
 }
 async function createDetachedReadHandle(bytes, directory) {
-  const tempDir = await mkdtemp(join4(directory, ".tar-fd-"));
-  const tempPath = join4(tempDir, "package.tgz");
+  const tempDir = await mkdtemp(join9(directory, ".tar-fd-"));
+  const tempPath = join9(tempDir, "package.tgz");
   let handle;
   try {
-    const writer = await open3(tempPath, "wx", 256);
+    const writer = await open4(tempPath, "wx", 256);
     try {
       await writer.writeFile(bytes);
       await writer.sync();
     } finally {
       await writer.close();
     }
-    handle = await open3(tempPath, fsConstants2.O_RDONLY | fsConstants2.O_NOFOLLOW);
-    await unlink(tempPath);
-    await rm2(tempDir, { recursive: true, force: true });
+    handle = await open4(tempPath, fsConstants2.O_RDONLY | fsConstants2.O_NOFOLLOW);
+    await unlink2(tempPath);
+    await rm3(tempDir, { recursive: true, force: true });
     return handle;
   } catch (err) {
     await handle?.close().catch(() => {
     });
-    await rm2(tempDir, { recursive: true, force: true });
+    await rm3(tempDir, { recursive: true, force: true });
     throw err;
   }
 }
@@ -19640,7 +22509,7 @@ async function verifyNpmTarballContent({ snapshotDir, tarballBytes, tarballDir, 
   if (listed.length === 0 || listed.some((entry) => !entry.startsWith("package/") || entry.startsWith("/") || entry.includes("\\") || entry.split("/").some((segment) => segment === ".."))) {
     throw frozenError("npm tarball contains an unsafe or unexpected path");
   }
-  const verifyDir = await mkdtemp(join4(tarballDir, ".verify-"));
+  const verifyDir = await mkdtemp(join9(tarballDir, ".verify-"));
   try {
     const extractHandle = await createDetachedReadHandle(tarballBytes, tarballDir);
     try {
@@ -19655,16 +22524,16 @@ async function verifyNpmTarballContent({ snapshotDir, tarballBytes, tarballDir, 
         observedDigest: original.digest
       });
     }
-    const packed = await computeFrozenSnapshot(join4(verifyDir, "package"));
+    const packed = await computeFrozenSnapshot(join9(verifyDir, "package"));
     if (JSON.stringify(contentEntries(packed.entries)) !== JSON.stringify(contentEntries(original.entries))) {
       throw frozenError("npm tarball bytes do not match the sealed public snapshot");
     }
   } finally {
-    await rm2(verifyDir, { recursive: true, force: true });
+    await rm3(verifyDir, { recursive: true, force: true });
   }
 }
 async function buildFrozenNpmTarball({ snapshotDir, tarballDir, expectedSnapshotDigest, exec = execFile4 }) {
-  await mkdir4(tarballDir, { recursive: true });
+  await mkdir5(tarballDir, { recursive: true });
   const { stdout } = await exec(
     "npm",
     ["pack", snapshotDir, "--pack-destination", tarballDir, "--json", "--ignore-scripts"],
@@ -19680,7 +22549,7 @@ async function buildFrozenNpmTarball({ snapshotDir, tarballDir, expectedSnapshot
   if (!info?.filename || !info?.integrity) {
     throw frozenError("npm pack did not return filename and integrity");
   }
-  const tarballPath = join4(tarballDir, info.filename);
+  const tarballPath = join9(tarballDir, info.filename);
   const { bytes } = await readStableRegularFile(tarballPath, info.filename);
   if (!expectedSnapshotDigest) throw frozenError("npm tarball build requires the sealed snapshot digest");
   await verifyNpmTarballContent({
@@ -19700,8 +22569,8 @@ async function sealFrozenSnapshot(snapshotDir) {
   async function walk(dir) {
     const children = await readdir4(dir, { withFileTypes: true });
     for (const child of children) {
-      const absolute = join4(dir, child.name);
-      const st = await lstat5(absolute);
+      const absolute = join9(dir, child.name);
+      const st = await lstat6(absolute);
       if (st.isDirectory()) {
         await walk(absolute);
         await chmod(absolute, 365);
@@ -19745,8 +22614,8 @@ var init_frozen = __esm({
 // src/core/verification-gates.mjs
 import { createHash as createHash6 } from "node:crypto";
 import { spawn as spawn2 } from "node:child_process";
-import { chmod as chmod2, cp, lstat as lstat6, mkdir as mkdir5, readdir as readdir5, realpath as realpath7, rm as rm3 } from "node:fs/promises";
-import { isAbsolute as isAbsolute7, join as join5, relative as relative8, resolve as resolve10 } from "node:path";
+import { chmod as chmod2, cp, lstat as lstat7, mkdir as mkdir6, readdir as readdir5, realpath as realpath7, rm as rm4 } from "node:fs/promises";
+import { isAbsolute as isAbsolute10, join as join10, relative as relative11, resolve as resolve14 } from "node:path";
 function gateError(gate, message, details = {}) {
   return new ReleaseError(GATE_FAILED, `verification gate "${gate?.id ?? "unknown"}" ${message}`, {
     gateId: gate?.id,
@@ -19754,9 +22623,9 @@ function gateError(gate, message, details = {}) {
   });
 }
 function isInside2(parent, candidate) {
-  const rel = relative8(parent, candidate);
+  const rel = relative11(parent, candidate);
   const separator = process.platform === "win32" ? "\\" : "/";
-  return rel === "" || !isAbsolute7(rel) && rel !== ".." && !rel.startsWith(`..${separator}`);
+  return rel === "" || !isAbsolute10(rel) && rel !== ".." && !rel.startsWith(`..${separator}`);
 }
 function matchesSubset(actual, expected) {
   if (expected === null || typeof expected !== "object" || Array.isArray(expected)) {
@@ -19811,20 +22680,20 @@ function filteredEnv(allowlist, suppliedEnv, fixedEnv = {}) {
   return result;
 }
 async function resolveSafeCwd(executionRoot, cwd, gate) {
-  const rootStat = await lstat6(executionRoot).catch((error) => {
+  const rootStat = await lstat7(executionRoot).catch((error) => {
     throw gateError(gate, "execution root is missing", { cause: error.code });
   });
   if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
     throw gateError(gate, "execution root must be a real directory");
   }
   const rootReal = await realpath7(executionRoot);
-  const lexical = resolve10(rootReal, cwd ?? ".");
+  const lexical = resolve14(rootReal, cwd ?? ".");
   if (!isInside2(rootReal, lexical)) throw gateError(gate, "cwd escapes the execution root");
-  const rel = relative8(rootReal, lexical);
+  const rel = relative11(rootReal, lexical);
   let current = rootReal;
   for (const segment of rel.split(/[\\/]/).filter(Boolean)) {
-    current = join5(current, segment);
-    const stat9 = await lstat6(current).catch((error) => {
+    current = join10(current, segment);
+    const stat9 = await lstat7(current).catch((error) => {
       throw gateError(gate, "cwd does not exist", { cause: error.code });
     });
     if (stat9.isSymbolicLink()) throw gateError(gate, "cwd contains a symlink");
@@ -20068,12 +22937,12 @@ async function runVerificationGate({
   return result;
 }
 async function makeTreeWritable(root) {
-  const stat9 = await lstat6(root);
+  const stat9 = await lstat7(root);
   if (!stat9.isDirectory() || stat9.isSymbolicLink()) throw new Error("gate copy root must be a real directory");
   await chmod2(root, stat9.mode | 448);
   for (const child of await readdir5(root, { withFileTypes: true })) {
-    const absolute = join5(root, child.name);
-    const childStat = await lstat6(absolute);
+    const absolute = join10(root, child.name);
+    const childStat = await lstat7(absolute);
     if (childStat.isSymbolicLink()) throw new Error("gate copy must not contain symlinks");
     if (childStat.isDirectory()) await makeTreeWritable(absolute);
     else if (childStat.isFile() && childStat.nlink === 1) await chmod2(absolute, childStat.mode | 384);
@@ -20091,8 +22960,8 @@ async function runSnapshotVerificationGates({
   const snapshotGates = gates.filter((item) => item.phase === "snapshot-verify");
   if (snapshotGates.length === 0) return [];
   const byUnit = new Map(unitResults.map((item) => [item.unit.id, item]));
-  const gateRoot = join5(runDir, "snapshot-gates");
-  await mkdir5(gateRoot, { recursive: true });
+  const gateRoot = join10(runDir, "snapshot-gates");
+  await mkdir6(gateRoot, { recursive: true });
   const results = [];
   for (const gate of snapshotGates) {
     validateGate(gate);
@@ -20139,7 +23008,7 @@ async function runSnapshotVerificationGates({
         });
       }
     } finally {
-      await rm3(copyDir, { recursive: true, force: true }).catch(() => {
+      await rm4(copyDir, { recursive: true, force: true }).catch(() => {
       });
     }
   }
@@ -20191,8 +23060,8 @@ var init_verification_gates = __esm({
 });
 
 // src/core/evidence.mjs
-import { open as open4, mkdir as mkdir6, writeFile as writeFile4 } from "node:fs/promises";
-import { basename as basename2 } from "node:path";
+import { open as open5, mkdir as mkdir7, writeFile as writeFile6 } from "node:fs/promises";
+import { basename as basename3 } from "node:path";
 function redact(obj) {
   if (obj === null || obj === void 0) {
     return obj;
@@ -20222,7 +23091,7 @@ function redact(obj) {
 }
 function createEvidenceWriter({ runDir, command: command2, clock }) {
   const clockFn = typeof clock === "function" ? clock : () => (/* @__PURE__ */ new Date()).toISOString();
-  const runId = basename2(runDir);
+  const runId = basename3(runDir);
   const evidencePath = `${runDir}/evidence.jsonl`;
   const summaryPath = `${runDir}/summary.json`;
   let sequence = 1;
@@ -20230,8 +23099,8 @@ function createEvidenceWriter({ runDir, command: command2, clock }) {
   let appendChain = Promise.resolve();
   async function ensureHandle() {
     if (handle === null) {
-      await mkdir6(runDir, { recursive: true });
-      handle = await open4(evidencePath, "a");
+      await mkdir7(runDir, { recursive: true });
+      handle = await open5(evidencePath, "a");
     }
   }
   __name(ensureHandle, "ensureHandle");
@@ -20262,7 +23131,7 @@ function createEvidenceWriter({ runDir, command: command2, clock }) {
     await appendChain;
     await ensureHandle();
     const redacted = redact(summary);
-    await writeFile4(summaryPath, JSON.stringify(redacted, null, 2), "utf8");
+    await writeFile6(summaryPath, JSON.stringify(redacted, null, 2), "utf8");
     if (handle !== null) {
       await handle.close();
       handle = null;
@@ -20288,2228 +23157,10 @@ var init_evidence = __esm({
   }
 });
 
-// src/adapters/contract.mjs
-var contract_exports = {};
-__export(contract_exports, {
-  ActionStatus: () => ActionStatus,
-  ActionType: () => ActionType,
-  SAFE_ID_RE: () => SAFE_ID_RE,
-  assertIsolatedConsumerWritesAuthorized: () => assertIsolatedConsumerWritesAuthorized,
-  assertWritesAuthorized: () => assertWritesAuthorized,
-  createAdapterRegistry: () => createAdapterRegistry,
-  createResult: () => createResult,
-  matchObservation: () => matchObservation,
-  resolveTimeoutMs: () => resolveTimeoutMs,
-  writeEvidenceAtomic: () => writeEvidenceAtomic
-});
-import { writeFile as writeFile5, rename, rm as rm4 } from "node:fs/promises";
-function createResult({ actionType, status, observation, error, details }) {
-  return Object.freeze({
-    actionType,
-    status,
-    observation: observation ?? null,
-    error: error ?? null,
-    details: details ?? null
-  });
-}
-function assertWritesAuthorized(context, actionType) {
-  if (context.externalWritesAuthorized !== true) {
-    throw new ReleaseError(
-      AUTH_MISSING,
-      `External write action '${actionType}' requires externalWritesAuthorized === true`,
-      { actionType }
-    );
-  }
-}
-function assertIsolatedConsumerWritesAuthorized(context, actionType) {
-  if (context.isolatedConsumerWritesAuthorized !== true) {
-    throw new ReleaseError(
-      AUTH_MISSING,
-      `Marketplace install action '${actionType}' requires isolatedConsumerWritesAuthorized === true`,
-      { actionType }
-    );
-  }
-}
-function matchObservation(expected, observation) {
-  if (!expected || !observation) {
-    return { matches: false, mismatches: ["missing expected or observation"] };
-  }
-  const mismatches = [];
-  for (const [key, expectedValue] of Object.entries(expected)) {
-    if (observation[key] !== expectedValue) {
-      mismatches.push(`${key}: expected ${JSON.stringify(expectedValue)}, got ${JSON.stringify(observation[key])}`);
-    }
-  }
-  return { matches: mismatches.length === 0, mismatches };
-}
-function resolveTimeoutMs(action) {
-  const raw = action?.timeoutMs;
-  if (raw === void 0) {
-    return 3e5;
-  }
-  if (raw === null || typeof raw !== "number" || !Number.isFinite(raw) || !Number.isInteger(raw)) {
-    throw new Error(
-      `action.timeoutMs must be a finite integer, got: ${JSON.stringify(raw)}`
-    );
-  }
-  if (raw < 3e4 || raw > 9e5) {
-    throw new Error(
-      `action.timeoutMs must be between 30000 and 900000, got: ${raw}`
-    );
-  }
-  return raw;
-}
-async function writeEvidenceAtomic(filePath, value) {
-  const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-  try {
-    await writeFile5(tempPath, `${JSON.stringify(value, null, 2)}
-`, { encoding: "utf8", mode: 384, flag: "wx" });
-    await rename(tempPath, filePath);
-  } catch (err) {
-    await rm4(tempPath, { force: true }).catch(() => {
-    });
-    throw err;
-  }
-}
-function createAdapterRegistry(adapters) {
-  const actionMap = /* @__PURE__ */ new Map();
-  for (const adapter of adapters) {
-    for (const actionType of adapter.actionTypes) {
-      if (actionMap.has(actionType)) {
-        throw new Error(
-          `Duplicate action type '${actionType}' registered by both '${actionMap.get(actionType).name}' and '${adapter.name}'`
-        );
-      }
-      actionMap.set(actionType, adapter);
-    }
-  }
-  return Object.freeze({
-    /**
-     * Get the adapter responsible for a given action type.
-     * @param {string} actionType
-     * @returns {Adapter}
-     * @throws {Error} if no adapter handles this action type.
-     */
-    getAdapter(actionType) {
-      const adapter = actionMap.get(actionType);
-      if (!adapter) {
-        throw new Error(`No adapter registered for action type '${actionType}'`);
-      }
-      return adapter;
-    },
-    /** Get all registered adapters. */
-    getAll() {
-      return [...new Set(actionMap.values())];
-    }
-  });
-}
-var ActionStatus, ActionType, SAFE_ID_RE;
-var init_contract = __esm({
-  "src/adapters/contract.mjs"() {
-    init_errors();
-    ActionStatus = Object.freeze({
-      PENDING: "PENDING",
-      PREFLIGHT_PASSED: "PREFLIGHT_PASSED",
-      PREFLIGHT_FAILED: "PREFLIGHT_FAILED",
-      EXECUTING: "EXECUTING",
-      EXECUTED: "EXECUTED",
-      EXECUTE_FAILED: "EXECUTE_FAILED",
-      OBSERVED: "OBSERVED",
-      OBSERVE_MISMATCH: "OBSERVE_MISMATCH",
-      VERIFIED: "VERIFIED",
-      VERIFY_FAILED: "VERIFY_FAILED",
-      SKIPPED: "SKIPPED"
-    });
-    ActionType = Object.freeze({
-      // git-github adapter
-      GIT_PUSH: "git-push",
-      GIT_TAG: "git-tag",
-      GITHUB_RELEASE: "github-release",
-      // npm adapter
-      NPM_PACK: "npm-pack",
-      NPM_PUBLISH: "npm-publish",
-      // snapshot push
-      PUSH_SNAPSHOT: "push-snapshot",
-      // plugin-marketplace adapter
-      PLUGIN_MANIFEST_VALIDATE: "plugin-manifest-validate",
-      PLUGIN_INSTALL_CHECK: "plugin-install-check",
-      // consumer marketplace install (production)
-      CLAUDE_MARKETPLACE_INSTALL: "claude-marketplace-install",
-      CODEX_MARKETPLACE_INSTALL: "codex-marketplace-install",
-      KIMI_MARKETPLACE_INSTALL: "kimi-marketplace-install",
-      CODEBUDDY_MARKETPLACE_INSTALL: "codebuddy-marketplace-install",
-      // default branch management
-      SET_DEFAULT_BRANCH: "set-default-branch"
-    });
-    __name(createResult, "createResult");
-    __name(assertWritesAuthorized, "assertWritesAuthorized");
-    __name(assertIsolatedConsumerWritesAuthorized, "assertIsolatedConsumerWritesAuthorized");
-    __name(matchObservation, "matchObservation");
-    SAFE_ID_RE = /^[a-z0-9][a-z0-9._-]*$/;
-    __name(resolveTimeoutMs, "resolveTimeoutMs");
-    __name(writeEvidenceAtomic, "writeEvidenceAtomic");
-    __name(createAdapterRegistry, "createAdapterRegistry");
-  }
-});
-
-// src/platforms/kimi.mjs
-import { readFile as readFile7, mkdir as mkdir7 } from "node:fs/promises";
-import { join as join6, resolve as resolve11, relative as relative9, isAbsolute as isAbsolute8 } from "node:path";
-function normalizePlanForDigest(plan) {
-  const normalized = { ...plan, status: "PREPARED" };
-  if (Array.isArray(plan.externalActions)) {
-    normalized.externalActions = plan.externalActions.map((action) => action && typeof action === "object" && !Array.isArray(action) ? { ...action, status: "PENDING" } : action);
-  }
-  return normalized;
-}
-function resolveBoundPlanDigest(context) {
-  const plan = context?.plan;
-  if (!plan || typeof plan !== "object" || Array.isArray(plan)) {
-    throw new Error("context.plan is required to bind the kimi plan digest");
-  }
-  const carried = plan.digest;
-  if (typeof carried !== "string" || !HEX_DIGEST_RE.test(carried)) {
-    throw new Error("context.plan.digest must be a 64-char lowercase hex frozen plan digest");
-  }
-  const normalized = normalizePlanForDigest(plan);
-  if (computePlanDigest(normalized) !== carried) {
-    throw new Error("context.plan.digest does not match the normalized frozen plan (a non-lifecycle field was tampered)");
-  }
-  return carried;
-}
-function kimiAuthorityDir(context, planDigest, plugin) {
-  if (!context?.root) {
-    throw new Error("context.root is required for the kimi attestation authority");
-  }
-  if (!HEX_DIGEST_RE.test(planDigest)) {
-    throw new Error("kimi attestation authority requires a 64-hex plan digest");
-  }
-  if (!SAFE_ID_RE.test(plugin)) {
-    throw new Error(`kimi attestation authority requires a safe plugin id: "${plugin}"`);
-  }
-  const base = resolve11(context.root, ".release-skill", "kimi-attestations");
-  const dir = resolve11(base, planDigest, plugin);
-  const rel = relative9(base, dir);
-  const sep4 = process.platform === "win32" ? "\\" : "/";
-  if (rel === "" || rel === ".." || isAbsolute8(rel) || rel.startsWith(`..${sep4}`) || rel.split(sep4).some((segment) => segment === ".." || segment === "")) {
-    throw new Error("kimi attestation authority path escapes its base");
-  }
-  return dir;
-}
-function buildKimiInstallUrl(repo, ref) {
-  return `https://github.com/${repo}/releases/tag/${ref}`;
-}
-function buildKimiManualInstructions({ installUrl, plugin, version, ref, isolatedHome, attestationDir }) {
-  return [
-    `Kimi Code has no scriptable plugin-install CLI; installation is a manual, interactive step.`,
-    `1) publish fails closed at this kimi checkpoint and leaves the run PARTIAL (the automated Git branch/tag, npm, and GitHub Release writes still complete first).`,
-    `2) Launch Kimi Code with the ISOLATED home from this requirement so the managed copy lands inside it: set HOME="${isolatedHome}" and KIMI_CODE_HOME="${isolatedHome}". The plugin installs to "${isolatedHome}/plugins/managed/${plugin}/".`,
-    `3) In that isolated Kimi Code session run: /plugins install ${installUrl}  (pinned to frozen ref "${ref}", version ${version}; never install the bare repository URL). Confirm the trust prompt for plugin "${plugin}", then run /plugins reload (or /new).`,
-    `4) Write the attestation JSON to: ${attestationDir}/${KIMI_ATTESTATION_FILE}. planDigest MUST be the frozen plan digest; payloadDigest MUST be the frozen snapshot payload digest; installPath MUST be the isolated managed directory above. attestedAt must not be in the future and expiresAt must be within 24 hours of attestedAt.`,
-    `   Required fields: consumer="kimi", plugin, version, entrySkill, repo, ref, installPath, planDigest, payloadDigest, attestedBy, attestedAt, expiresAt.`,
-    `5) Re-run release-skill reconcile (promotes PARTIAL -> PUBLISHED) and then verify (-> VERIFIED). Both read the attestation from this same plan-digest-keyed authority directory, so a fresh run directory does not lose the proof.`,
-    `An install into the ordinary ~/.kimi-code is NOT acceptable proof: the attested installPath must resolve inside this requirement's isolated KIMI_CODE_HOME managed root, otherwise verification fails closed.`
-  ];
-}
-async function readKimiManifest(pluginRootReal) {
-  for (const manifestRelative of KIMI_MANIFEST_CANDIDATES) {
-    const manifestPath = resolve11(pluginRootReal, manifestRelative);
-    let content;
-    try {
-      content = await readFile7(manifestPath, "utf8");
-    } catch {
-      continue;
-    }
-    let manifest;
-    try {
-      manifest = JSON.parse(content);
-    } catch {
-      throw new Error(`kimi plugin manifest ${manifestRelative} is not valid JSON`);
-    }
-    if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
-      throw new Error(`kimi plugin manifest ${manifestRelative} is not an object`);
-    }
-    return { manifest, manifestRelative };
-  }
-  throw new Error("no kimi plugin manifest found (expected kimi.plugin.json or .kimi-plugin/plugin.json)");
-}
-function validateKimiAttestation(attestation, action, isoNow, boundPlanDigest) {
-  if (!attestation || typeof attestation !== "object" || Array.isArray(attestation)) {
-    return { valid: false, error: "kimi attestation is not an object" };
-  }
-  const requiredStrings = ["plugin", "version", "entrySkill", "repo", "ref", "installPath", "payloadDigest", "planDigest", "attestedBy", "attestedAt", "expiresAt"];
-  for (const field of requiredStrings) {
-    if (typeof attestation[field] !== "string" || attestation[field].length === 0) {
-      return { valid: false, error: `kimi attestation missing required field "${field}"` };
-    }
-  }
-  if (attestation.consumer !== "kimi") {
-    return { valid: false, error: `kimi attestation consumer "${attestation.consumer}" must be "kimi"` };
-  }
-  if (!HEX_DIGEST_RE.test(attestation.planDigest)) {
-    return { valid: false, error: "kimi attestation planDigest must be a 64-char lowercase hex digest" };
-  }
-  if (attestation.planDigest !== boundPlanDigest) {
-    return { valid: false, error: "kimi attestation planDigest does not match the frozen plan digest" };
-  }
-  if (attestation.plugin !== action.plugin) {
-    return { valid: false, error: `kimi attestation plugin "${attestation.plugin}" does not match action plugin "${action.plugin}"` };
-  }
-  if (attestation.version !== action.version) {
-    return { valid: false, error: `kimi attestation version "${attestation.version}" does not match action version "${action.version}"` };
-  }
-  if (attestation.entrySkill !== action.entrySkill) {
-    return { valid: false, error: `kimi attestation entrySkill "${attestation.entrySkill}" does not match action entrySkill "${action.entrySkill}"` };
-  }
-  if (attestation.repo !== action.repo) {
-    return { valid: false, error: `kimi attestation repo "${attestation.repo}" does not match action repo "${action.repo}"` };
-  }
-  const expectedRef = action.ref ?? `v${action.version}`;
-  if (attestation.ref !== expectedRef) {
-    return { valid: false, error: `kimi attestation ref "${attestation.ref}" does not match frozen ref "${expectedRef}"` };
-  }
-  if (attestation.payloadDigest !== action.manifestDigest) {
-    return { valid: false, error: "kimi attestation payloadDigest does not match the frozen payload digest" };
-  }
-  const attestedMs = Date.parse(attestation.attestedAt);
-  const expiresMs = Date.parse(attestation.expiresAt);
-  const nowMs = Date.parse(isoNow);
-  if (!Number.isFinite(attestedMs) || !Number.isFinite(expiresMs) || !Number.isFinite(nowMs)) {
-    return { valid: false, error: "kimi attestation attestedAt/expiresAt must be valid ISO timestamps" };
-  }
-  if (attestedMs > nowMs) {
-    return { valid: false, error: "kimi attestation attestedAt is in the future" };
-  }
-  if (expiresMs <= attestedMs) {
-    return { valid: false, error: "kimi attestation expiresAt must be after attestedAt" };
-  }
-  if (expiresMs - attestedMs > KIMI_MAX_ATTESTATION_VALIDITY_MS) {
-    return { valid: false, error: "kimi attestation validity must not exceed 24 hours" };
-  }
-  if (nowMs > expiresMs) {
-    return { valid: false, error: "kimi attestation has expired" };
-  }
-  return { valid: true, error: null };
-}
-async function executeKimiManualRequirement(action, context) {
-  const actionType = ActionType.KIMI_MARKETPLACE_INSTALL;
-  let planDigest;
-  try {
-    planDigest = resolveBoundPlanDigest(context);
-  } catch (planErr) {
-    return createResult({
-      actionType,
-      status: ActionStatus.EXECUTE_FAILED,
-      error: `cannot bind kimi requirement to the frozen plan: ${planErr.message}`
-    });
-  }
-  try {
-    resolveTimeoutMs(action);
-  } catch (timeoutErr) {
-    return createResult({
-      actionType,
-      status: ActionStatus.EXECUTE_FAILED,
-      error: timeoutErr.message
-    });
-  }
-  const ref = action.ref ?? `v${action.version}`;
-  const installUrl = buildKimiInstallUrl(action.repo, ref);
-  let attestationDir;
-  try {
-    attestationDir = kimiAuthorityDir(context, planDigest, action.plugin);
-  } catch (dirErr) {
-    return createResult({
-      actionType,
-      status: ActionStatus.EXECUTE_FAILED,
-      error: dirErr.message
-    });
-  }
-  const kimiHome = resolve11(attestationDir, "kimi-home");
-  const managedParent = resolve11(kimiHome, KIMI_MANAGED_SUBPATH);
-  const managedInstallRoot = resolve11(managedParent, action.plugin);
-  const instructions = buildKimiManualInstructions({
-    installUrl,
-    plugin: action.plugin,
-    version: action.version,
-    ref,
-    isolatedHome: kimiHome,
-    attestationDir
-  });
-  const requirement = {
-    kind: "kimi-manual-install-requirement",
-    consumer: "kimi",
-    plugin: action.plugin,
-    version: action.version,
-    entrySkill: action.entrySkill,
-    repo: action.repo,
-    ref,
-    installUrl,
-    // (A) planDigest binds to the real frozen plan digest;
-    // expectedPayloadDigest binds separately to the snapshot payload digest.
-    planDigest,
-    expectedPayloadDigest: action.manifestDigest,
-    isolatedHome: kimiHome,
-    kimiCodeHome: kimiHome,
-    managedInstallRoot,
-    attestationDir,
-    attestationFile: KIMI_ATTESTATION_FILE,
-    attestationTemplate: {
-      consumer: "kimi",
-      plugin: action.plugin,
-      version: action.version,
-      entrySkill: action.entrySkill,
-      repo: action.repo,
-      ref,
-      installPath: managedInstallRoot,
-      planDigest,
-      payloadDigest: action.manifestDigest,
-      attestedBy: "<person responsible for the manual install>",
-      attestedAt: "<ISO 8601 now; must not be in the future>",
-      expiresAt: "<ISO 8601; within 24h of attestedAt>"
-    },
-    instructions
-  };
-  try {
-    await mkdir7(managedParent, { recursive: true, mode: 448 });
-  } catch (mkdirErr) {
-    return createResult({
-      actionType,
-      status: ActionStatus.EXECUTE_FAILED,
-      error: `cannot create kimi managed parent directory: ${mkdirErr.message}`
-    });
-  }
-  const requirementPath = resolve11(attestationDir, KIMI_REQUIREMENT_FILE);
-  let existing = null;
-  let requirementMissing = false;
-  try {
-    const existingRaw = await readFile7(requirementPath, "utf8");
-    try {
-      existing = JSON.parse(existingRaw);
-    } catch (parseErr) {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: `existing kimi manual-install requirement is invalid JSON; refusing to overwrite: ${parseErr.message}`
-      });
-    }
-  } catch (readErr) {
-    if (readErr?.code === "ENOENT") {
-      requirementMissing = true;
-    } else {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: `existing kimi manual-install requirement cannot be read; refusing to overwrite: ${readErr.message}`
-      });
-    }
-  }
-  if (!requirementMissing) {
-    if (!existing || typeof existing !== "object" || Array.isArray(existing)) {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: "existing kimi manual-install requirement is not an object; refusing to overwrite"
-      });
-    }
-    const { createdAt: _existingCreatedAt, ...existingBody } = existing;
-    if (canonicalJson(existingBody) !== canonicalJson(requirement)) {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: "existing kimi manual-install requirement conflicts with the current frozen action; refusing to overwrite"
-      });
-    }
-  } else {
-    await writeEvidenceAtomic(requirementPath, { ...requirement, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
-  }
-  return createResult({
-    actionType,
-    status: ActionStatus.EXECUTED,
-    observation: {
-      installed: false,
-      manualInstallRequired: true,
-      consumer: "kimi",
-      plugin: action.plugin,
-      version: action.version,
-      entrySkill: action.entrySkill,
-      repo: action.repo,
-      ref,
-      installUrl,
-      planDigest,
-      attestationDir,
-      kimiCodeHome: kimiHome,
-      managedInstallRoot,
-      instructions
-    }
-  });
-}
-var KIMI_REQUIREMENT_FILE, KIMI_ATTESTATION_FILE, KIMI_MANAGED_SUBPATH, KIMI_MAX_ATTESTATION_VALIDITY_MS, HEX_DIGEST_RE, KIMI_MANIFEST_CANDIDATES;
-var init_kimi = __esm({
-  async "src/platforms/kimi.mjs"() {
-    init_contract();
-    await init_plan();
-    init_digest();
-    KIMI_REQUIREMENT_FILE = "release-skill-kimi-manual-install.json";
-    KIMI_ATTESTATION_FILE = "release-skill-kimi-attestation.json";
-    KIMI_MANAGED_SUBPATH = join6("plugins", "managed");
-    KIMI_MAX_ATTESTATION_VALIDITY_MS = 24 * 60 * 60 * 1e3;
-    HEX_DIGEST_RE = /^[a-f0-9]{64}$/;
-    KIMI_MANIFEST_CANDIDATES = Object.freeze([
-      "kimi.plugin.json",
-      join6(".kimi-plugin", "plugin.json")
-    ]);
-    __name(normalizePlanForDigest, "normalizePlanForDigest");
-    __name(resolveBoundPlanDigest, "resolveBoundPlanDigest");
-    __name(kimiAuthorityDir, "kimiAuthorityDir");
-    __name(buildKimiInstallUrl, "buildKimiInstallUrl");
-    __name(buildKimiManualInstructions, "buildKimiManualInstructions");
-    __name(readKimiManifest, "readKimiManifest");
-    __name(validateKimiAttestation, "validateKimiAttestation");
-    __name(executeKimiManualRequirement, "executeKimiManualRequirement");
-  }
-});
-
-// src/platforms/codebuddy.mjs
-import { readFile as readFile8, mkdir as mkdir8 } from "node:fs/promises";
-import { join as join7, resolve as resolve12, relative as relative10, isAbsolute as isAbsolute9 } from "node:path";
-function normalizePlanForDigest2(plan) {
-  const normalized = { ...plan, status: "PREPARED" };
-  if (Array.isArray(plan.externalActions)) {
-    normalized.externalActions = plan.externalActions.map((action) => action && typeof action === "object" && !Array.isArray(action) ? { ...action, status: "PENDING" } : action);
-  }
-  return normalized;
-}
-async function resolveCodeBuddyBoundPlanDigest(context) {
-  const plan = context?.plan;
-  if (!plan || typeof plan !== "object" || Array.isArray(plan)) {
-    throw new Error("context.plan is required to bind the codebuddy plan digest");
-  }
-  const carried = plan.digest;
-  if (typeof carried !== "string" || !HEX_DIGEST_RE2.test(carried)) {
-    throw new Error("context.plan.digest must be a 64-char lowercase hex frozen plan digest");
-  }
-  const { computePlanDigest: computePlanDigest2 } = await init_plan().then(() => plan_exports);
-  const normalized = normalizePlanForDigest2(plan);
-  if (computePlanDigest2(normalized) !== carried) {
-    throw new Error("context.plan.digest does not match the normalized frozen plan (a non-lifecycle field was tampered)");
-  }
-  return carried;
-}
-function codebuddyAuthorityDir(context, planDigest, plugin) {
-  if (!context?.root) {
-    throw new Error("context.root is required for the codebuddy attestation authority");
-  }
-  if (!HEX_DIGEST_RE2.test(planDigest)) {
-    throw new Error("codebuddy attestation authority requires a 64-hex plan digest");
-  }
-  if (!SAFE_ID_RE.test(plugin)) {
-    throw new Error(`codebuddy attestation authority requires a safe plugin id: "${plugin}"`);
-  }
-  const base = resolve12(context.root, ".release-skill", "codebuddy-attestations");
-  const dir = resolve12(base, planDigest, plugin);
-  const rel = relative10(base, dir);
-  const sep4 = process.platform === "win32" ? "\\" : "/";
-  if (rel === "" || rel === ".." || isAbsolute9(rel) || rel.startsWith(`..${sep4}`) || rel.split(sep4).some((segment) => segment === ".." || segment === "")) {
-    throw new Error("codebuddy attestation authority path escapes its base");
-  }
-  return dir;
-}
-function codebuddyCliHome(attestationDir) {
-  return resolve12(attestationDir, "codebuddy-home");
-}
-function codebuddyCliInstallRoot(cliHome, marketplace, plugin) {
-  return resolve12(cliHome, CODEBUDDY_CLI_STATE_DIR, "plugins", "marketplaces", marketplace, "plugins", plugin);
-}
-function codebuddyDesktopTailSegments(marketplace, plugin) {
-  return [CODEBUDDY_DESKTOP_HOME_DIR, "plugins", "marketplaces", marketplace, "plugins", plugin];
-}
-function codebuddyCliTailSegments(marketplace, plugin) {
-  return [CODEBUDDY_CLI_STATE_DIR, "plugins", "marketplaces", marketplace, "plugins", plugin];
-}
-function matchesDesktopLayout(installPath, marketplace, plugin) {
-  const segments = installPath.split(/[\\/]+/).filter((s) => s !== "" && s !== ".");
-  const tail = codebuddyDesktopTailSegments(marketplace, plugin);
-  if (segments.length < tail.length) return false;
-  const offset = segments.length - tail.length;
-  return tail.every((segment, index) => segments[offset + index] === segment);
-}
-function matchesCliLayout(installPath, marketplace, plugin) {
-  const segments = installPath.split(/[\\/]+/).filter((s) => s !== "" && s !== ".");
-  const tail = codebuddyCliTailSegments(marketplace, plugin);
-  if (segments.length < tail.length) return false;
-  const offset = segments.length - tail.length;
-  return tail.every((segment, index) => segments[offset + index] === segment);
-}
-function buildCodeBuddyManualInstructions({ plugin, version, ref, cliHome, attestationDir }) {
-  const cliInstallRoot = codebuddyCliInstallRoot(cliHome, CODEBUDDY_MARKETPLACE_NAME, plugin);
-  const desktopInstallRoot = `~/${CODEBUDDY_DESKTOP_HOME_DIR}/plugins/marketplaces/${CODEBUDDY_MARKETPLACE_NAME}/plugins/${plugin}`;
-  return [
-    `CodeBuddy/WorkBuddy plugin install cannot pin a frozen ref (the codebuddy CLI marketplace add/install have no ref option and track the default branch), so installation is a manual step proven by a human attestation.`,
-    `1) publish fails closed at this codebuddy checkpoint and leaves the run PARTIAL (the automated Git branch/tag, npm, and GitHub Release writes still complete first).`,
-    `2) PRIMARY PATH (WorkBuddy desktop): install release-skill from the unified marketplace "${CODEBUDDY_MARKETPLACE_NAME}" (${CODEBUDDY_MARKETPLACE_SOURCE}). Confirm "~/.workbuddy/settings.json" enabledPlugins contains "${plugin}@${CODEBUDDY_MARKETPLACE_NAME}": true. The plugin lands at "${desktopInstallRoot}/".`,
-    `3) ALTERNATE PATH (bundled codebuddy CLI, isolatable): run the CLI with the ISOLATED home from this requirement so the clone lands inside it: HOME="${cliHome}" <codebuddy binary> plugin marketplace add ${CODEBUDDY_MARKETPLACE_SOURCE} ; then HOME="${cliHome}" <codebuddy binary> plugin install ${plugin}@${CODEBUDDY_MARKETPLACE_NAME}. The CLI ships with WorkBuddy.app (macOS known path /Applications/WorkBuddy.app/Contents/Resources/app.asar.unpacked/cli/bin/codebuddy). The plugin lands at "${cliInstallRoot}/".`,
-    `4) REF LIMITATION WARNING: a codebuddy install tracks the marketplace default branch and CANNOT be pinned to frozen ref "${ref}". Before writing the attestation you MUST confirm the installed plugin manifest version equals the frozen version ${version}; otherwise do NOT issue an attestation.`,
-    `5) Write the attestation JSON to: ${attestationDir}/${CODEBUDDY_ATTESTATION_FILE}. planDigest MUST be the frozen plan digest; payloadDigest MUST be the frozen snapshot payload digest; installChannel MUST be "desktop" or "cli"; marketplace MUST be "${CODEBUDDY_MARKETPLACE_NAME}"; installPath MUST be the actual installed plugin directory for the chosen channel. attestedAt must not be in the future and expiresAt must be within 24 hours of attestedAt.`,
-    `   Required fields: consumer="codebuddy", plugin, version, entrySkill, repo, ref, marketplace, installChannel, installPath, planDigest, payloadDigest, attestedBy, attestedAt, expiresAt.`,
-    `6) Re-run release-skill reconcile (promotes PARTIAL -> PUBLISHED) and then verify (-> VERIFIED). Both read the attestation from this same plan-digest-keyed authority directory, so a fresh run directory does not lose the proof.`
-  ];
-}
-async function readCodeBuddyManifest(pluginRootReal) {
-  const manifestRelative = CODEBUDDY_PLUGIN_MANIFEST_RELATIVE;
-  const manifestPath = resolve12(pluginRootReal, manifestRelative);
-  let content;
-  try {
-    content = await readFile8(manifestPath, "utf8");
-  } catch {
-    throw new Error(`no codebuddy plugin manifest found (expected ${manifestRelative})`);
-  }
-  let manifest;
-  try {
-    manifest = JSON.parse(content);
-  } catch {
-    throw new Error(`codebuddy plugin manifest ${manifestRelative} is not valid JSON`);
-  }
-  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
-    throw new Error(`codebuddy plugin manifest ${manifestRelative} is not an object`);
-  }
-  return { manifest, manifestRelative };
-}
-function validateCodeBuddyAttestation(attestation, action, isoNow, boundPlanDigest) {
-  if (!attestation || typeof attestation !== "object" || Array.isArray(attestation)) {
-    return { valid: false, error: "codebuddy attestation is not an object" };
-  }
-  const requiredStrings = ["plugin", "version", "entrySkill", "repo", "ref", "installPath", "payloadDigest", "planDigest", "attestedBy", "attestedAt", "expiresAt", "marketplace", "installChannel"];
-  for (const field of requiredStrings) {
-    if (typeof attestation[field] !== "string" || attestation[field].length === 0) {
-      return { valid: false, error: `codebuddy attestation missing required field "${field}"` };
-    }
-  }
-  if (attestation.consumer !== "codebuddy") {
-    return { valid: false, error: `codebuddy attestation consumer "${attestation.consumer}" must be "codebuddy"` };
-  }
-  if (!CODEBUDDY_INSTALL_CHANNELS.has(attestation.installChannel)) {
-    return { valid: false, error: `codebuddy attestation installChannel "${attestation.installChannel}" must be "desktop" or "cli"` };
-  }
-  if (attestation.marketplace !== CODEBUDDY_MARKETPLACE_NAME) {
-    return { valid: false, error: `codebuddy attestation marketplace "${attestation.marketplace}" must be "${CODEBUDDY_MARKETPLACE_NAME}"` };
-  }
-  if (!HEX_DIGEST_RE2.test(attestation.planDigest)) {
-    return { valid: false, error: "codebuddy attestation planDigest must be a 64-char lowercase hex digest" };
-  }
-  if (attestation.planDigest !== boundPlanDigest) {
-    return { valid: false, error: "codebuddy attestation planDigest does not match the frozen plan digest" };
-  }
-  if (attestation.plugin !== action.plugin) {
-    return { valid: false, error: `codebuddy attestation plugin "${attestation.plugin}" does not match action plugin "${action.plugin}"` };
-  }
-  if (attestation.version !== action.version) {
-    return { valid: false, error: `codebuddy attestation version "${attestation.version}" does not match action version "${action.version}"` };
-  }
-  if (attestation.entrySkill !== action.entrySkill) {
-    return { valid: false, error: `codebuddy attestation entrySkill "${attestation.entrySkill}" does not match action entrySkill "${action.entrySkill}"` };
-  }
-  if (attestation.repo !== action.repo) {
-    return { valid: false, error: `codebuddy attestation repo "${attestation.repo}" does not match action repo "${action.repo}"` };
-  }
-  const expectedRef = action.ref ?? `v${action.version}`;
-  if (attestation.ref !== expectedRef) {
-    return { valid: false, error: `codebuddy attestation ref "${attestation.ref}" does not match frozen ref "${expectedRef}"` };
-  }
-  if (attestation.payloadDigest !== action.manifestDigest) {
-    return { valid: false, error: "codebuddy attestation payloadDigest does not match the frozen payload digest" };
-  }
-  const attestedMs = Date.parse(attestation.attestedAt);
-  const expiresMs = Date.parse(attestation.expiresAt);
-  const nowMs = Date.parse(isoNow);
-  if (!Number.isFinite(attestedMs) || !Number.isFinite(expiresMs) || !Number.isFinite(nowMs)) {
-    return { valid: false, error: "codebuddy attestation attestedAt/expiresAt must be valid ISO timestamps" };
-  }
-  if (attestedMs > nowMs) {
-    return { valid: false, error: "codebuddy attestation attestedAt is in the future" };
-  }
-  if (expiresMs <= attestedMs) {
-    return { valid: false, error: "codebuddy attestation expiresAt must be after attestedAt" };
-  }
-  if (expiresMs - attestedMs > CODEBUDDY_MAX_ATTESTATION_VALIDITY_MS) {
-    return { valid: false, error: "codebuddy attestation validity must not exceed 24 hours" };
-  }
-  if (nowMs > expiresMs) {
-    return { valid: false, error: "codebuddy attestation has expired" };
-  }
-  if (attestation.installChannel === "desktop" && !matchesDesktopLayout(attestation.installPath, attestation.marketplace, attestation.plugin)) {
-    return { valid: false, error: `codebuddy attestation installPath does not match the WorkBuddy desktop marketplace layout (.workbuddy/plugins/marketplaces/${attestation.marketplace}/plugins/${attestation.plugin})` };
-  }
-  if (attestation.installChannel === "cli" && !matchesCliLayout(attestation.installPath, attestation.marketplace, attestation.plugin)) {
-    return { valid: false, error: `codebuddy attestation installPath does not match the CodeBuddy CLI marketplace layout (.codebuddy/plugins/marketplaces/${attestation.marketplace}/plugins/${attestation.plugin})` };
-  }
-  return { valid: true, error: null };
-}
-async function executeCodeBuddyManualRequirement(action, context) {
-  const actionType = ActionType.CODEBUDDY_MARKETPLACE_INSTALL;
-  let planDigest;
-  try {
-    planDigest = await resolveCodeBuddyBoundPlanDigest(context);
-  } catch (planErr) {
-    return createResult({
-      actionType,
-      status: ActionStatus.EXECUTE_FAILED,
-      error: `cannot bind codebuddy requirement to the frozen plan: ${planErr.message}`
-    });
-  }
-  try {
-    resolveTimeoutMs(action);
-  } catch (timeoutErr) {
-    return createResult({
-      actionType,
-      status: ActionStatus.EXECUTE_FAILED,
-      error: timeoutErr.message
-    });
-  }
-  const ref = action.ref ?? `v${action.version}`;
-  let attestationDir;
-  try {
-    attestationDir = codebuddyAuthorityDir(context, planDigest, action.plugin);
-  } catch (dirErr) {
-    return createResult({
-      actionType,
-      status: ActionStatus.EXECUTE_FAILED,
-      error: dirErr.message
-    });
-  }
-  const cliHome = codebuddyCliHome(attestationDir);
-  const cliInstallRoot = codebuddyCliInstallRoot(cliHome, CODEBUDDY_MARKETPLACE_NAME, action.plugin);
-  const desktopInstallRoot = `~/${CODEBUDDY_DESKTOP_HOME_DIR}/plugins/marketplaces/${CODEBUDDY_MARKETPLACE_NAME}/plugins/${action.plugin}`;
-  const instructions = buildCodeBuddyManualInstructions({
-    plugin: action.plugin,
-    version: action.version,
-    ref,
-    cliHome,
-    attestationDir
-  });
-  const requirement = {
-    kind: "codebuddy-manual-install-requirement",
-    consumer: "codebuddy",
-    plugin: action.plugin,
-    version: action.version,
-    entrySkill: action.entrySkill,
-    repo: action.repo,
-    ref,
-    marketplace: CODEBUDDY_MARKETPLACE_NAME,
-    marketplaceSource: CODEBUDDY_MARKETPLACE_SOURCE,
-    installChannels: ["desktop", "cli"],
-    // (A) planDigest binds to the real frozen plan digest;
-    // expectedPayloadDigest binds separately to the snapshot payload digest.
-    planDigest,
-    expectedPayloadDigest: action.manifestDigest,
-    isolatedHome: cliHome,
-    codebuddyHome: cliHome,
-    cliInstallRoot,
-    desktopInstallRoot,
-    attestationDir,
-    attestationFile: CODEBUDDY_ATTESTATION_FILE,
-    attestationTemplate: {
-      consumer: "codebuddy",
-      plugin: action.plugin,
-      version: action.version,
-      entrySkill: action.entrySkill,
-      repo: action.repo,
-      ref,
-      marketplace: CODEBUDDY_MARKETPLACE_NAME,
-      installChannel: '<"desktop" or "cli">',
-      installPath: "<actual installed plugin directory for the chosen channel>",
-      planDigest,
-      payloadDigest: action.manifestDigest,
-      attestedBy: "<person responsible for the manual install>",
-      attestedAt: "<ISO 8601 now; must not be in the future>",
-      expiresAt: "<ISO 8601; within 24h of attestedAt>"
-    },
-    instructions
-  };
-  try {
-    await mkdir8(cliHome, { recursive: true, mode: 448 });
-  } catch (mkdirErr) {
-    return createResult({
-      actionType,
-      status: ActionStatus.EXECUTE_FAILED,
-      error: `cannot create codebuddy isolated home directory: ${mkdirErr.message}`
-    });
-  }
-  const requirementPath = resolve12(attestationDir, CODEBUDDY_REQUIREMENT_FILE);
-  let existing = null;
-  let requirementMissing = false;
-  try {
-    const existingRaw = await readFile8(requirementPath, "utf8");
-    try {
-      existing = JSON.parse(existingRaw);
-    } catch (parseErr) {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: `existing codebuddy manual-install requirement is invalid JSON; refusing to overwrite: ${parseErr.message}`
-      });
-    }
-  } catch (readErr) {
-    if (readErr?.code === "ENOENT") {
-      requirementMissing = true;
-    } else {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: `existing codebuddy manual-install requirement cannot be read; refusing to overwrite: ${readErr.message}`
-      });
-    }
-  }
-  if (!requirementMissing) {
-    if (!existing || typeof existing !== "object" || Array.isArray(existing)) {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: "existing codebuddy manual-install requirement is not an object; refusing to overwrite"
-      });
-    }
-    const { createdAt: _existingCreatedAt, ...existingBody } = existing;
-    if (canonicalJson(existingBody) !== canonicalJson(requirement)) {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: "existing codebuddy manual-install requirement conflicts with the current frozen action; refusing to overwrite"
-      });
-    }
-  } else {
-    await writeEvidenceAtomic(requirementPath, { ...requirement, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
-  }
-  return createResult({
-    actionType,
-    status: ActionStatus.EXECUTED,
-    observation: {
-      installed: false,
-      manualInstallRequired: true,
-      consumer: "codebuddy",
-      plugin: action.plugin,
-      version: action.version,
-      entrySkill: action.entrySkill,
-      repo: action.repo,
-      ref,
-      marketplace: CODEBUDDY_MARKETPLACE_NAME,
-      installChannels: ["desktop", "cli"],
-      planDigest,
-      attestationDir,
-      codebuddyHome: cliHome,
-      cliInstallRoot,
-      desktopInstallRoot,
-      instructions
-    }
-  });
-}
-var HEX_DIGEST_RE2, CODEBUDDY_REQUIREMENT_FILE, CODEBUDDY_ATTESTATION_FILE, CODEBUDDY_MAX_ATTESTATION_VALIDITY_MS, CODEBUDDY_MARKETPLACE_NAME, CODEBUDDY_MARKETPLACE_SOURCE, CODEBUDDY_PLUGIN_MANIFEST_RELATIVE, CODEBUDDY_INSTALL_CHANNELS, CODEBUDDY_DESKTOP_HOME_DIR, CODEBUDDY_CLI_STATE_DIR;
-var init_codebuddy = __esm({
-  "src/platforms/codebuddy.mjs"() {
-    init_contract();
-    init_digest();
-    HEX_DIGEST_RE2 = /^[a-f0-9]{64}$/;
-    __name(normalizePlanForDigest2, "normalizePlanForDigest");
-    CODEBUDDY_REQUIREMENT_FILE = "release-skill-codebuddy-manual-install.json";
-    CODEBUDDY_ATTESTATION_FILE = "release-skill-codebuddy-attestation.json";
-    CODEBUDDY_MAX_ATTESTATION_VALIDITY_MS = 24 * 60 * 60 * 1e3;
-    CODEBUDDY_MARKETPLACE_NAME = "artifact-skill-set";
-    CODEBUDDY_MARKETPLACE_SOURCE = "https://github.com/ifoohoo/artifact-skill-set";
-    CODEBUDDY_PLUGIN_MANIFEST_RELATIVE = join7(".codebuddy-plugin", "plugin.json");
-    CODEBUDDY_INSTALL_CHANNELS = /* @__PURE__ */ new Set(["desktop", "cli"]);
-    CODEBUDDY_DESKTOP_HOME_DIR = ".workbuddy";
-    CODEBUDDY_CLI_STATE_DIR = ".codebuddy";
-    __name(resolveCodeBuddyBoundPlanDigest, "resolveCodeBuddyBoundPlanDigest");
-    __name(codebuddyAuthorityDir, "codebuddyAuthorityDir");
-    __name(codebuddyCliHome, "codebuddyCliHome");
-    __name(codebuddyCliInstallRoot, "codebuddyCliInstallRoot");
-    __name(codebuddyDesktopTailSegments, "codebuddyDesktopTailSegments");
-    __name(codebuddyCliTailSegments, "codebuddyCliTailSegments");
-    __name(matchesDesktopLayout, "matchesDesktopLayout");
-    __name(matchesCliLayout, "matchesCliLayout");
-    __name(buildCodeBuddyManualInstructions, "buildCodeBuddyManualInstructions");
-    __name(readCodeBuddyManifest, "readCodeBuddyManifest");
-    __name(validateCodeBuddyAttestation, "validateCodeBuddyAttestation");
-    __name(executeCodeBuddyManualRequirement, "executeCodeBuddyManualRequirement");
-  }
-});
-
-// src/platforms/registry.mjs
-import { join as join8 } from "node:path";
-function claudeParseListOutput(listOutput, pluginId) {
-  if (!Array.isArray(listOutput)) {
-    return { ok: false, error: "Claude plugin list did not return an array" };
-  }
-  const found = listOutput.find((p) => p.id === pluginId);
-  if (!found) {
-    return { ok: false, error: `plugin "${pluginId}" not found in Claude plugin list` };
-  }
-  if (!found.installPath) {
-    return { ok: false, error: `plugin "${pluginId}" found but missing installPath` };
-  }
-  return { ok: true, found, installPath: found.installPath };
-}
-function claudeExtractInstallPath({ listParsed }) {
-  return { ok: true, installPath: listParsed?.installPath };
-}
-function claudeExtractListIdentity(found) {
-  const idParts = found.id.split("@");
-  const identity = { plugin: idParts[0], marketplace: idParts.slice(1).join("@") };
-  if (found.version) identity.version = found.version;
-  return identity;
-}
-function codexParseListOutput(listOutput, pluginId) {
-  const installed = listOutput?.installed;
-  if (!Array.isArray(installed)) {
-    return { ok: false, error: "Codex plugin list did not return {installed: [...]}" };
-  }
-  const found = installed.find((p) => p.pluginId === pluginId);
-  if (!found) {
-    return { ok: false, error: `plugin "${pluginId}" not found in Codex installed list` };
-  }
-  return { ok: true, found };
-}
-function codexExtractInstallPath({ execEvidence }) {
-  const installPath = execEvidence?.installOutput?.installedPath;
-  if (!installPath) {
-    return { ok: false, error: "evidence install JSON missing installedPath" };
-  }
-  return { ok: true, installPath };
-}
-function codexExtractListIdentity(found) {
-  const identity = {};
-  if (found.name) identity.plugin = found.name;
-  if (found.marketplaceName) identity.marketplace = found.marketplaceName;
-  if (found.version) identity.version = found.version;
-  return identity;
-}
-function codexCrossValidateListEntry(found, action) {
-  if (found.name !== action.plugin) {
-    return { ok: false, error: `list name "${found.name}" does not match action plugin "${action.plugin}"` };
-  }
-  if (found.marketplaceName !== action.marketplace) {
-    return { ok: false, error: `list marketplaceName "${found.marketplaceName}" does not match action marketplace "${action.marketplace}"` };
-  }
-  if (found.version !== action.version) {
-    return { ok: false, error: `list version "${found.version}" does not match action version "${action.version}"` };
-  }
-  return { ok: true };
-}
-function getPlatform(id) {
-  const platform = PLATFORMS.find((p) => p.id === id);
-  if (!platform) throw new Error(`unknown platform: ${id}`);
-  return platform;
-}
-function assertRegistry(registry = PLATFORMS) {
-  const seen = /* @__PURE__ */ new Set();
-  for (const platform of registry) {
-    const label = platform?.id ?? "<missing id>";
-    if (typeof platform?.id !== "string" || platform.id.length === 0) {
-      throw new Error("platform registry: every platform needs a string id");
-    }
-    if (seen.has(platform.id)) {
-      throw new Error(`platform registry: ids must be unique, found duplicate "${platform.id}"`);
-    }
-    seen.add(platform.id);
-    if (!VALID_DISTRIBUTION_TYPES.has(platform.distributionType)) {
-      throw new Error(`platform registry: ${label} has illegal distributionType "${platform.distributionType}"`);
-    }
-    if (!VALID_ACTION_TYPES.has(platform.actionType)) {
-      throw new Error(`platform registry: ${label} has illegal actionType "${platform.actionType}"`);
-    }
-    if (typeof platform.adapter !== "string" || platform.adapter.length === 0) {
-      throw new Error(`platform registry: ${label} needs a non-empty adapter id`);
-    }
-    if (!VALID_ENTRY_VERSION_BINDING.has(platform.marketplaceEntryCarriesVersion)) {
-      throw new Error(`platform registry: ${label} has illegal marketplaceEntryCarriesVersion "${platform.marketplaceEntryCarriesVersion}"`);
-    }
-    if (typeof platform.automatable !== "boolean") {
-      throw new Error(`platform registry: ${label} automatable must be boolean`);
-    }
-    if (typeof platform.isolationEnv !== "function") {
-      throw new Error(`platform registry: ${label} isolationEnv must be a function`);
-    }
-    if (!VALID_SOURCE_FORMS.has(platform.marketplaceSourceForm)) {
-      throw new Error(`platform registry: ${label} has illegal marketplaceSourceForm "${platform.marketplaceSourceForm}"`);
-    }
-    if (!VALID_MARKETPLACE_REF_FORMS.has(platform.marketplaceRefForm)) {
-      throw new Error(`platform registry: ${label} has illegal marketplaceRefForm "${platform.marketplaceRefForm}"`);
-    }
-    if (!Array.isArray(platform.knownHostArtifacts)) {
-      throw new Error(`platform registry: ${label} knownHostArtifacts must be an array`);
-    }
-    if (!Array.isArray(platform.schemaRequiredFields)) {
-      throw new Error(`platform registry: ${label} schemaRequiredFields must be an array`);
-    }
-    if (!platform.manifestPaths || typeof platform.manifestPaths !== "object") {
-      throw new Error(`platform registry: ${label} manifestPaths must be an object`);
-    }
-    if (!platform.buildAdapter || typeof platform.buildAdapter !== "object") {
-      throw new Error(`platform registry: ${label} buildAdapter must be an object`);
-    }
-    if (!VALID_LIST_OUTPUTS.has(platform.jsonProtocol?.listOutput)) {
-      throw new Error(`platform registry: ${label} has illegal jsonProtocol.listOutput "${platform.jsonProtocol?.listOutput}"`);
-    }
-    if (!VALID_CLI_OUTPUTS.has(platform.jsonProtocol?.marketplaceAddOutput)) {
-      throw new Error(`platform registry: ${label} has illegal jsonProtocol.marketplaceAddOutput "${platform.jsonProtocol?.marketplaceAddOutput}"`);
-    }
-    if (!VALID_CLI_OUTPUTS.has(platform.jsonProtocol?.pluginInstallOutput)) {
-      throw new Error(`platform registry: ${label} has illegal jsonProtocol.pluginInstallOutput "${platform.jsonProtocol?.pluginInstallOutput}"`);
-    }
-    if (!Array.isArray(platform.isolationSubdirs)) {
-      throw new Error(`platform registry: ${label} isolationSubdirs must be an array`);
-    }
-    if (!VALID_INSTALL_METHODS.has(platform.installMethod)) {
-      throw new Error(`platform registry: ${label} has illegal installMethod "${platform.installMethod}"`);
-    }
-    if (!VALID_REF_STRENGTHS.has(platform.refStrength)) {
-      throw new Error(`platform registry: ${label} has illegal refStrength "${platform.refStrength}"`);
-    }
-    if (!VALID_OUTPUT_PROTOCOLS.has(platform.outputProtocol)) {
-      throw new Error(`platform registry: ${label} has illegal outputProtocol "${platform.outputProtocol}"`);
-    }
-    if (!VALID_IDENTITY_EVIDENCE.has(platform.identityEvidence)) {
-      throw new Error(`platform registry: ${label} has illegal identityEvidence "${platform.identityEvidence}"`);
-    }
-    if (!VALID_DEGRADATION_POLICIES.has(platform.degradationPolicy)) {
-      throw new Error(`platform registry: ${label} has illegal degradationPolicy "${platform.degradationPolicy}"`);
-    }
-    if (platform.automatable) {
-      if (!platform.cli || typeof platform.cli.marketplaceAdd !== "function" || typeof platform.cli.install !== "function" || typeof platform.cli.list !== "function") {
-        throw new Error(`platform registry: automatable platform ${label} needs cli template functions`);
-      }
-      if (typeof platform.cli.binary !== "string" || platform.cli.binary.length === 0) {
-        throw new Error(`platform registry: automatable platform ${label} needs a non-empty cli.binary executable name`);
-      }
-      if (!platform.strategy || typeof platform.strategy.parseListOutput !== "function") {
-        throw new Error(`platform registry: automatable platform ${label} needs strategy.parseListOutput`);
-      }
-      if (typeof platform.strategy.extractInstallPath !== "function") {
-        throw new Error(`platform registry: automatable platform ${label} needs strategy.extractInstallPath`);
-      }
-    } else {
-      if (platform.cli !== null) {
-        throw new Error(`platform registry: non-automatable platform ${label} must have cli === null`);
-      }
-      if (!platform.strategy || typeof platform.strategy.buildManualRequirement !== "function") {
-        throw new Error(`platform registry: non-automatable platform ${label} needs strategy.buildManualRequirement`);
-      }
-      if (typeof platform.strategy.readManifest !== "function") {
-        throw new Error(`platform registry: non-automatable platform ${label} needs strategy.readManifest`);
-      }
-    }
-    if (platform.automatable === true && platform.installMethod !== "structured-cli") {
-      throw new Error(`platform registry: ${label} is automatable but installMethod is "${platform.installMethod}" (expected "structured-cli")`);
-    }
-    if (platform.automatable === false && platform.installMethod === "structured-cli") {
-      throw new Error(`platform registry: ${label} is not automatable but installMethod is "structured-cli"`);
-    }
-    if (platform.installMethod === "structured-cli" && platform.refStrength === "unfixable") {
-      throw new Error(`platform registry: ${label} has structured-cli install but unfixable refStrength`);
-    }
-    if (platform.installMethod === "human-attestation" && platform.identityEvidence !== "human-attestation") {
-      throw new Error(`platform registry: ${label} has human-attestation install but identityEvidence is "${platform.identityEvidence}"`);
-    }
-  }
-}
-function resolvePlatformRoute(platform) {
-  const { installMethod } = platform;
-  if (installMethod === "structured-cli") {
-    return { route: "structured-cli", reason: `installMethod is structured-cli` };
-  }
-  if (installMethod === "interactive-only" || installMethod === "human-attestation") {
-    return { route: "human-attestation", reason: `installMethod is ${installMethod}` };
-  }
-  throw new Error(
-    `platform "${platform?.id ?? "<unknown>"}" with installMethod="${installMethod}" cannot be routed`
-  );
-}
-function resolveCapabilityConflicts(platform) {
-  const conflicts = [];
-  const { id, automatable, installMethod, refStrength, identityEvidence, cli, strategy } = platform;
-  if (automatable === true && installMethod !== "structured-cli") {
-    conflicts.push(`automatable=true but installMethod="${installMethod}"`);
-  }
-  if (automatable === false && installMethod === "structured-cli") {
-    conflicts.push(`automatable=false but installMethod="structured-cli"`);
-  }
-  if (installMethod === "structured-cli" && refStrength === "unfixable") {
-    conflicts.push(`structured-cli with unfixable refStrength`);
-  }
-  if (installMethod === "human-attestation" && identityEvidence !== "human-attestation") {
-    conflicts.push(`human-attestation install but identityEvidence="${identityEvidence}"`);
-  }
-  if (automatable === true) {
-    if (!cli || typeof cli !== "object") {
-      conflicts.push(`automatable=true but cli is missing`);
-    }
-    if (!strategy || typeof strategy.parseListOutput !== "function") {
-      conflicts.push(`automatable=true but strategy.parseListOutput is missing`);
-    }
-    if (!strategy || typeof strategy.extractInstallPath !== "function") {
-      conflicts.push(`automatable=true but strategy.extractInstallPath is missing`);
-    }
-  }
-  if (automatable === false) {
-    if (cli !== null) {
-      conflicts.push(`automatable=false but cli is not null`);
-    }
-    if (!strategy || typeof strategy.buildManualRequirement !== "function") {
-      conflicts.push(`automatable=false but strategy.buildManualRequirement is missing`);
-    }
-    if (!strategy || typeof strategy.readManifest !== "function") {
-      conflicts.push(`automatable=false but strategy.readManifest is missing`);
-    }
-  }
-  if (conflicts.length > 0) {
-    throw new Error(`capability conflict in platform "${id}": ${conflicts.join("; ")}`);
-  }
-  return { hasConflict: false, conflicts: [] };
-}
-var CLAUDE, CODEX, KIMI, CODEBUDDY, PLATFORMS, VALID_DISTRIBUTION_TYPES, VALID_ACTION_TYPES, VALID_SOURCE_FORMS, VALID_MARKETPLACE_REF_FORMS, VALID_LIST_OUTPUTS, VALID_CLI_OUTPUTS, VALID_ENTRY_VERSION_BINDING, VALID_INSTALL_METHODS, VALID_REF_STRENGTHS, VALID_OUTPUT_PROTOCOLS, VALID_IDENTITY_EVIDENCE, VALID_DEGRADATION_POLICIES;
-var init_registry = __esm({
-  async "src/platforms/registry.mjs"() {
-    await init_kimi();
-    init_codebuddy();
-    __name(claudeParseListOutput, "claudeParseListOutput");
-    __name(claudeExtractInstallPath, "claudeExtractInstallPath");
-    __name(claudeExtractListIdentity, "claudeExtractListIdentity");
-    __name(codexParseListOutput, "codexParseListOutput");
-    __name(codexExtractInstallPath, "codexExtractInstallPath");
-    __name(codexExtractListIdentity, "codexExtractListIdentity");
-    __name(codexCrossValidateListEntry, "codexCrossValidateListEntry");
-    CLAUDE = Object.freeze({
-      id: "claude",
-      distributionType: "claude-plugin",
-      actionType: "claude-marketplace-install",
-      // Runtime adapter implementing this platform's marketplace-install action.
-      // prepare.mjs stamps it onto generated actions; plan.mjs derives its
-      // actionType -> adapter map from it (T2.2 step 3).
-      adapter: "plugin-marketplace",
-      automatable: true,
-      // --- capability contract (平台能力契约) ------------------------------------
-      installMethod: "structured-cli",
-      refStrength: "name-ref",
-      outputProtocol: "text",
-      identityEvidence: "list-record",
-      degradationPolicy: "block",
-      cli: Object.freeze({
-        binary: "claude",
-        marketplaceAdd: /* @__PURE__ */ __name((repo, ref) => ["plugin", "marketplace", "add", `${repo}@${ref}`], "marketplaceAdd"),
-        install: /* @__PURE__ */ __name((plugin, marketplace) => ["plugin", "install", `${plugin}@${marketplace}`], "install"),
-        list: /* @__PURE__ */ __name(() => ["plugin", "list", "--json"], "list")
-      }),
-      jsonProtocol: Object.freeze({
-        listOutput: "array",
-        installPathSource: "list",
-        // claude marketplace add / plugin install emit no validated JSON output.
-        marketplaceAddOutput: null,
-        pluginInstallOutput: null
-      }),
-      isolationEnv: /* @__PURE__ */ __name((home) => ({ HOME: home, CLAUDE_CONFIG_DIR: join8(home, ".claude") }), "isolationEnv"),
-      // execute pre-creates the claude config dir under the isolated HOME.
-      isolationSubdirs: Object.freeze([".claude"]),
-      manifestPaths: Object.freeze({
-        plugin: ".claude-plugin/plugin.json",
-        marketplace: ".claude-plugin/marketplace.json"
-      }),
-      marketplaceSourceForm: "string",
-      // Claude carries the authoritative version in the marketplace entry: the
-      // preflight binds entry.version to the action version.
-      marketplaceEntryCarriesVersion: true,
-      // External marketplace form: `claude plugin marketplace add repo@<ref>` can
-      // only pin a branch/tag NAME (a bare commit sha fails to clone and the
-      // resolved sha is not recorded locally) — name-form weak freeze.
-      marketplaceRefForm: "name",
-      knownHostArtifacts: Object.freeze([".in_use"]),
-      schemaRequiredFields: Object.freeze(["plugin", "marketplace", "entrySkill"]),
-      skillRendering: Object.freeze({ mode: "verbatim", preamble: null, placeholder: "${CLAUDE_PLUGIN_ROOT}" }),
-      buildAdapter: Object.freeze({
-        pluginDirName: ".claude-plugin",
-        templateFileName: "plugin.json",
-        marketplaceFileName: "marketplace.json",
-        hasMarketplace: true
-      }),
-      strategy: Object.freeze({
-        parseListOutput: claudeParseListOutput,
-        extractInstallPath: claudeExtractInstallPath,
-        extractListIdentity: claudeExtractListIdentity,
-        crossValidateListEntry: null,
-        buildManualRequirement: null,
-        readManifest: null
-      })
-    });
-    CODEX = Object.freeze({
-      id: "codex",
-      distributionType: "codex-plugin",
-      actionType: "codex-marketplace-install",
-      adapter: "plugin-marketplace",
-      automatable: true,
-      // --- capability contract (平台能力契约) ------------------------------------
-      installMethod: "structured-cli",
-      refStrength: "commit-sha",
-      outputProtocol: "structured",
-      identityEvidence: "install-output",
-      degradationPolicy: "block",
-      cli: Object.freeze({
-        binary: "codex",
-        marketplaceAdd: /* @__PURE__ */ __name((repo, ref) => ["plugin", "marketplace", "add", repo, "--ref", ref, "--json"], "marketplaceAdd"),
-        install: /* @__PURE__ */ __name((plugin, marketplace) => ["plugin", "add", `${plugin}@${marketplace}`, "--json"], "install"),
-        list: /* @__PURE__ */ __name(() => ["plugin", "list", "--json"], "list")
-      }),
-      jsonProtocol: Object.freeze({
-        listOutput: "installed-object",
-        installPathSource: "install-output",
-        // codex emits validated JSON for both marketplace add and plugin add.
-        marketplaceAddOutput: "json",
-        pluginInstallOutput: "json"
-      }),
-      isolationEnv: /* @__PURE__ */ __name((home) => ({ HOME: home, CODEX_HOME: home }), "isolationEnv"),
-      // execute pre-creates the codex state dir under the isolated HOME.
-      isolationSubdirs: Object.freeze([".codex"]),
-      manifestPaths: Object.freeze({
-        plugin: ".codex-plugin/plugin.json",
-        marketplace: ".agents/plugins/marketplace.json"
-      }),
-      marketplaceSourceForm: "local-path-object",
-      // Codex keeps the authoritative version in .codex-plugin/plugin.json; the
-      // marketplace entry version is not bound to the action version.
-      marketplaceEntryCarriesVersion: false,
-      // External marketplace form: `codex plugin marketplace add repo --ref <ref>`
-      // accepts a bare commit sha — sha-form strong freeze.
-      marketplaceRefForm: "sha",
-      knownHostArtifacts: Object.freeze([".git", ".codex-plugin/migrated-command-skills"]),
-      schemaRequiredFields: Object.freeze(["plugin", "marketplace", "entrySkill"]),
-      skillRendering: Object.freeze({ mode: "substitute", preamble: "codex", placeholder: "${CLAUDE_PLUGIN_ROOT}" }),
-      buildAdapter: Object.freeze({
-        pluginDirName: ".codex-plugin",
-        templateFileName: "plugin.json",
-        marketplaceFileName: null,
-        hasMarketplace: false
-      }),
-      strategy: Object.freeze({
-        parseListOutput: codexParseListOutput,
-        extractInstallPath: codexExtractInstallPath,
-        extractListIdentity: codexExtractListIdentity,
-        crossValidateListEntry: codexCrossValidateListEntry,
-        buildManualRequirement: null,
-        readManifest: null
-      })
-    });
-    KIMI = Object.freeze({
-      id: "kimi",
-      distributionType: "kimi-plugin",
-      actionType: "kimi-marketplace-install",
-      adapter: "plugin-marketplace",
-      automatable: false,
-      // --- capability contract (平台能力契约) ------------------------------------
-      installMethod: "interactive-only",
-      refStrength: "unfixable",
-      outputProtocol: "none",
-      identityEvidence: "filesystem-payload",
-      degradationPolicy: "human-attestation",
-      cli: null,
-      jsonProtocol: Object.freeze({
-        listOutput: null,
-        installPathSource: null,
-        marketplaceAddOutput: null,
-        pluginInstallOutput: null
-      }),
-      isolationEnv: /* @__PURE__ */ __name((home) => ({ HOME: home, KIMI_CODE_HOME: home }), "isolationEnv"),
-      // kimi never execs a CLI; its stable home is created by the
-      // manual-requirement strategy under the attestation authority.
-      isolationSubdirs: Object.freeze([]),
-      manifestPaths: Object.freeze({
-        // kimi.plugin.json takes precedence over .kimi-plugin/plugin.json
-        // (strategy.readManifest / readKimiManifest in ./kimi.mjs).
-        pluginCandidates: KIMI_MANIFEST_CANDIDATES,
-        marketplace: null
-      }),
-      marketplaceSourceForm: null,
-      // kimi has no marketplace at all, so the entry-version binding does not
-      // apply (null = N/A, never consulted: kimi preflight reads its manifest via
-      // strategy.readManifest).
-      marketplaceEntryCarriesVersion: null,
-      // kimi has no marketplace add at all, so the marketplace ref form does not
-      // apply (null = N/A, never consulted).
-      marketplaceRefForm: null,
-      knownHostArtifacts: Object.freeze([".git"]),
-      schemaRequiredFields: Object.freeze(["plugin", "entrySkill"]),
-      skillRendering: Object.freeze({ mode: "substitute", preamble: "kimi", placeholder: "${CLAUDE_PLUGIN_ROOT}" }),
-      buildAdapter: Object.freeze({
-        pluginDirName: ".kimi-plugin",
-        templateFileName: "plugin.json",
-        marketplaceFileName: null,
-        hasMarketplace: false
-      }),
-      strategy: Object.freeze({
-        parseListOutput: null,
-        extractInstallPath: null,
-        extractListIdentity: null,
-        crossValidateListEntry: null,
-        // kimi's side-effecting manual-requirement builder and manifest reader
-        // live in ./kimi.mjs (§4.2 per-platform-module option).
-        buildManualRequirement: executeKimiManualRequirement,
-        readManifest: readKimiManifest
-      })
-    });
-    CODEBUDDY = Object.freeze({
-      id: "codebuddy",
-      distributionType: "codebuddy-plugin",
-      actionType: "codebuddy-marketplace-install",
-      adapter: "plugin-marketplace",
-      automatable: false,
-      // --- capability contract (平台能力契约) ------------------------------------
-      installMethod: "human-attestation",
-      refStrength: "unfixable",
-      outputProtocol: "none",
-      identityEvidence: "human-attestation",
-      degradationPolicy: "human-attestation",
-      cli: null,
-      jsonProtocol: Object.freeze({
-        listOutput: null,
-        installPathSource: null,
-        marketplaceAddOutput: null,
-        pluginInstallOutput: null
-      }),
-      // The closed loop never execs the codebuddy CLI; HOME is the only isolation
-      // input and exists solely so the attestation's isolated cli-channel home has
-      // a base. No unverified host env vars are fabricated.
-      isolationEnv: /* @__PURE__ */ __name((home) => ({ HOME: home }), "isolationEnv"),
-      // codebuddy never execs a CLI; its isolated cli home is created by the
-      // manual-requirement strategy under the attestation authority.
-      isolationSubdirs: Object.freeze([]),
-      manifestPaths: Object.freeze({
-        // Single authoritative manifest (no precedence chain, unlike kimi).
-        plugin: ".codebuddy-plugin/plugin.json",
-        marketplace: null
-      }),
-      marketplaceSourceForm: null,
-      // codebuddy installs from a unified marketplace but carries no marketplace
-      // identity in the action (the marketplace is a fixed constant in
-      // ./codebuddy.mjs); the entry-version binding does not apply (null = N/A).
-      marketplaceEntryCarriesVersion: null,
-      // codebuddy has no marketplace add that can pin a frozen ref (attestation
-      // loop instead), so the marketplace ref form does not apply (null = N/A).
-      marketplaceRefForm: null,
-      knownHostArtifacts: Object.freeze([".git"]),
-      schemaRequiredFields: Object.freeze(["plugin", "entrySkill"]),
-      // Declarative rendering intent (the build-adapters producer keys on
-      // buildAdapter.name = 'workbuddy'): pure ${CLAUDE_PLUGIN_ROOT} ->
-      // ${CODEBUDDY_PLUGIN_ROOT} substitution, no entry-resolution preamble
-      // (CodeBuddy expands the variable inline in skill content).
-      skillRendering: Object.freeze({ mode: "substitute", preamble: null, placeholder: "${CODEBUDDY_PLUGIN_ROOT}" }),
-      buildAdapter: Object.freeze({
-        // Build adapter keeps the historical `workbuddy` directory name; the fields
-        // are byte-for-byte the legacy BUILD_ONLY workbuddy entry so the generated
-        // adapters/workbuddy/ tree is unchanged.
-        name: "workbuddy",
-        pluginDirName: ".codebuddy-plugin",
-        templateFileName: "plugin.json",
-        marketplaceFileName: null,
-        hasMarketplace: false
-      }),
-      strategy: Object.freeze({
-        parseListOutput: null,
-        extractInstallPath: null,
-        extractListIdentity: null,
-        crossValidateListEntry: null,
-        // codebuddy's side-effecting manual-requirement builder and manifest reader
-        // live in ./codebuddy.mjs (per-platform-module option, mirroring kimi).
-        buildManualRequirement: executeCodeBuddyManualRequirement,
-        readManifest: readCodeBuddyManifest
-      })
-    });
-    PLATFORMS = Object.freeze([CLAUDE, CODEX, KIMI, CODEBUDDY]);
-    VALID_DISTRIBUTION_TYPES = /* @__PURE__ */ new Set(["claude-plugin", "codex-plugin", "kimi-plugin", "codebuddy-plugin"]);
-    VALID_ACTION_TYPES = /* @__PURE__ */ new Set(["claude-marketplace-install", "codex-marketplace-install", "kimi-marketplace-install", "codebuddy-marketplace-install"]);
-    VALID_SOURCE_FORMS = /* @__PURE__ */ new Set(["string", "local-path-object", null]);
-    VALID_MARKETPLACE_REF_FORMS = /* @__PURE__ */ new Set(["sha", "name", null]);
-    VALID_LIST_OUTPUTS = /* @__PURE__ */ new Set(["array", "installed-object", null]);
-    VALID_CLI_OUTPUTS = /* @__PURE__ */ new Set(["json", null]);
-    VALID_ENTRY_VERSION_BINDING = /* @__PURE__ */ new Set([true, false, null]);
-    VALID_INSTALL_METHODS = /* @__PURE__ */ new Set(["structured-cli", "interactive-only", "human-attestation"]);
-    VALID_REF_STRENGTHS = /* @__PURE__ */ new Set(["commit-sha", "name-ref", "unfixable"]);
-    VALID_OUTPUT_PROTOCOLS = /* @__PURE__ */ new Set(["structured", "text", "none"]);
-    VALID_IDENTITY_EVIDENCE = /* @__PURE__ */ new Set(["list-record", "install-output", "filesystem-payload", "human-attestation"]);
-    VALID_DEGRADATION_POLICIES = /* @__PURE__ */ new Set(["block", "human-attestation"]);
-    __name(getPlatform, "getPlatform");
-    __name(assertRegistry, "assertRegistry");
-    assertRegistry();
-    __name(resolvePlatformRoute, "resolvePlatformRoute");
-    __name(resolveCapabilityConflicts, "resolveCapabilityConflicts");
-  }
-});
-
-// src/core/plan.mjs
-var plan_exports = {};
-__export(plan_exports, {
-  assertAuthorityFileTarget: () => assertAuthorityFileTarget,
-  assertImmutablePlanAuthority: () => assertImmutablePlanAuthority,
-  computePlanDigest: () => computePlanDigest,
-  prepareAuthorityDirectory: () => prepareAuthorityDirectory,
-  validatePlan: () => validatePlan,
-  validatePlanActionCompleteness: () => validatePlanActionCompleteness,
-  writePlanAtomic: () => writePlanAtomic,
-  writePlanImmutable: () => writePlanImmutable
-});
-import { readFile as readFile9, writeFile as writeFile6, rename as rename2, mkdir as mkdir9, open as open5, link, unlink as unlink2, lstat as lstat7 } from "node:fs/promises";
-import { basename as basename3, dirname as dirname5, join as join9, resolve as resolve13, parse, sep as sep2 } from "node:path";
-async function assertNoSymlinkAncestors(directory) {
-  const absolute = resolve13(directory);
-  const parsed = parse(absolute);
-  const segments = absolute.slice(parsed.root.length).split(sep2).filter(Boolean);
-  const releaseIndex = segments.lastIndexOf(".release-skill");
-  const firstChecked = releaseIndex >= 0 ? releaseIndex : Math.max(0, segments.length - 1);
-  let current = join9(parsed.root, ...segments.slice(0, firstChecked));
-  for (const segment of segments.slice(firstChecked)) {
-    current = join9(current, segment);
-    let stat9;
-    try {
-      stat9 = await lstat7(current);
-    } catch (error) {
-      if (error.code === "ENOENT") continue;
-      throw error;
-    }
-    if (stat9.isSymbolicLink() || !stat9.isDirectory()) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        "release authority path contains a symlink or non-directory ancestor",
-        { directory: absolute, unsafeAncestor: current }
-      );
-    }
-  }
-}
-async function prepareAuthorityDirectory(directory) {
-  const absolute = resolve13(directory);
-  await assertNoSymlinkAncestors(absolute);
-  await mkdir9(absolute, { recursive: true });
-  await assertNoSymlinkAncestors(absolute);
-  return absolute;
-}
-async function assertAuthorityFileTarget(filePath) {
-  const absolute = resolve13(filePath);
-  await prepareAuthorityDirectory(dirname5(absolute));
-  try {
-    const stat9 = await lstat7(absolute);
-    if (stat9.isSymbolicLink() || !stat9.isFile()) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        "release authority target must be a regular file, never a symlink or special file",
-        { filePath: absolute }
-      );
-    }
-  } catch (error) {
-    if (error.code !== "ENOENT") throw error;
-  }
-  return absolute;
-}
-function assertImmutablePlanAuthority(planPath, plan) {
-  if (!plan?.production) return;
-  const digest = computePlanDigest(plan);
-  const absolute = resolve13(planPath);
-  if (basename3(dirname5(absolute)) !== "plans" || basename3(absolute) !== `${digest}.json`) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      "production commands require plans/<planDigest>.json immutable authority; mutable release-plan.json aliases are not accepted",
-      { planPath, expectedFile: `plans/${digest}.json` }
-    );
-  }
-}
-function validatePlan(plan) {
-  const valid = validatePlanSchema(plan);
-  if (!valid) {
-    const errors = validatePlanSchema.errors ?? [];
-    const summary = errors.map((e) => `${e.instancePath || "/"}: ${e.message}`).join("; ");
-    throw new ReleaseError(
-      GATE_FAILED,
-      `release plan schema validation failed: ${summary}`,
-      { validationErrors: errors }
-    );
-  }
-  const unitsById = new Map((plan.units ?? []).map((unit) => [unit.id, unit]));
-  const gateIds = /* @__PURE__ */ new Set();
-  for (const gate of plan.verificationGates ?? []) {
-    if (gateIds.has(gate.id)) {
-      throw new ReleaseError(GATE_FAILED, `duplicate verification gate id: "${gate.id}"`);
-    }
-    gateIds.add(gate.id);
-    const unit = unitsById.get(gate.scope.unit);
-    if (!unit) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `verification gate "${gate.id}" references unknown unit "${gate.scope.unit}"`
-      );
-    }
-    if (gate.phase === "consumer-verify" && !(unit.distributions ?? []).some((distribution) => distribution.type === gate.scope.distribution)) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `verification gate "${gate.id}" references undeclared distribution "${gate.scope.distribution}"`
-      );
-    }
-  }
-}
-function stripRecordLayerV2(plan) {
-  const {
-    digest: _digest,
-    status: _status,
-    createdAt: _createdAt,
-    baseline: _baseline,
-    ...rest
-  } = plan;
-  return {
-    ...rest,
-    externalActions: (plan.externalActions ?? []).map(
-      ({ status: _actionStatus, ...action }) => action
-    )
-  };
-}
-function computePlanDigest(plan) {
-  if (plan.planVersion === 2) {
-    return sha256Hex(canonicalJson(stripRecordLayerV2(plan)));
-  }
-  const { digest: _digest, ...rest } = plan;
-  return sha256Hex(canonicalJson(rest));
-}
-async function writePlanAtomic(planPath, plan) {
-  const planDigest = computePlanDigest(plan);
-  const augmented = { ...plan, digest: planDigest };
-  validatePlan(augmented);
-  const json = JSON.stringify(augmented, null, 2);
-  const dir = dirname5(planPath);
-  await prepareAuthorityDirectory(dir);
-  await assertAuthorityFileTarget(planPath);
-  const tmpPath = `${dir}/.release-plan-${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`;
-  await writeFile6(tmpPath, json, "utf8");
-  await rename2(tmpPath, planPath);
-  return { planPath, planDigest };
-}
-async function writePlanImmutable(planPath, plan) {
-  const planDigest = computePlanDigest(plan);
-  const augmented = { ...plan, digest: planDigest };
-  validatePlan(augmented);
-  const json = JSON.stringify(augmented, null, 2);
-  if (!planPath.endsWith(`${planDigest}.json`)) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      "immutable plan path must be named with the plan digest",
-      { planPath, planDigest }
-    );
-  }
-  const dir = dirname5(planPath);
-  await prepareAuthorityDirectory(dir);
-  await assertAuthorityFileTarget(planPath);
-  const tmpPath = join9(dir, `.release-plan-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`);
-  const handle = await open5(tmpPath, "wx", 384);
-  try {
-    await handle.writeFile(json, "utf8");
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
-  try {
-    await link(tmpPath, planPath);
-  } catch (error) {
-    if (error.code !== "EEXIST") throw error;
-    const existing = await readFile9(planPath, "utf8");
-    if (existing !== json) {
-      if (plan.planVersion === 2) {
-        let existingPlan = null;
-        try {
-          existingPlan = JSON.parse(existing);
-        } catch {
-          existingPlan = null;
-        }
-        if (existingPlan && typeof existingPlan === "object" && existingPlan.digest === planDigest && computePlanDigest(existingPlan) === planDigest) {
-          return { planPath, planDigest };
-        }
-      }
-      throw new ReleaseError(
-        GATE_FAILED,
-        "immutable plan authority already exists with different bytes",
-        { planPath, planDigest }
-      );
-    }
-  } finally {
-    await unlink2(tmpPath).catch(() => {
-    });
-  }
-  return { planPath, planDigest };
-}
-function buildExpectedAdapterMap() {
-  return {
-    "push-snapshot": "git-github",
-    "create-tag": "git-github",
-    "github-release": "github",
-    "npm-publish": "npm",
-    ...Object.fromEntries(PLATFORMS.map((p) => [p.actionType, p.adapter])),
-    "set-default-branch": "git-github"
-  };
-}
-function validatePlanActionCompleteness(plan, options = {}) {
-  const failures = [];
-  if (!plan || typeof plan !== "object") {
-    return { passed: false, details: { failures: ["plan is null or not an object"], expectedCount: 0, actualCount: 0 } };
-  }
-  const units = Array.isArray(plan.units) ? plan.units : [];
-  const actions = Array.isArray(plan.externalActions) ? plan.externalActions : [];
-  const expectedAdapterMap = buildExpectedAdapterMap();
-  if (actions.length === 0) {
-    failures.push("plan has no external actions; at least one is required");
-    return { passed: false, details: { failures, expectedCount: 0, actualCount: 0 } };
-  }
-  let expectedCount = 0;
-  const seenUnitIds = /* @__PURE__ */ new Set();
-  for (const unit of units) {
-    const unitId = unit.id;
-    const targetVersion = unit.targetVersion;
-    const publicRepo = unit.publicRepo;
-    const tagTemplate = unit.tagTemplate;
-    const distributions = unit.distributions ?? [];
-    const production = plan.production?.mode === "github-npm-v1";
-    const frozen = unit.frozenSnapshot;
-    const productionConfig = unit.productionConfig ?? {};
-    const branchStrategy = productionConfig.branchStrategy;
-    const expectedTag = tagTemplate ? tagTemplate.replace("{version}", targetVersion ?? "") : null;
-    if (!unitId) {
-      failures.push(`unit is missing id`);
-      continue;
-    }
-    if (seenUnitIds.has(unitId)) {
-      failures.push(`duplicate unit id "${unitId}"`);
-      continue;
-    }
-    seenUnitIds.add(unitId);
-    if (!targetVersion) {
-      failures.push(`unit "${unitId}" is missing targetVersion`);
-    }
-    if (!publicRepo) {
-      failures.push(`unit "${unitId}" is missing publicRepo`);
-    }
-    if (!tagTemplate) {
-      failures.push(`unit "${unitId}" is missing tagTemplate`);
-    }
-    if (production && !frozen) {
-      failures.push(`unit "${unitId}" is missing frozenSnapshot for production publish`);
-    }
-    if (production && frozen) {
-      if (!["create-release-branch", "advance-existing-branch", "initialize-default-branch"].includes(branchStrategy)) {
-        failures.push(`unit "${unitId}" productionConfig.branchStrategy is missing or invalid`);
-      }
-      const expectedBranch = (productionConfig.branchTemplate ?? "release/{tag}").replaceAll("{tag}", expectedTag ?? "").replaceAll("{version}", targetVersion ?? "").replaceAll("{unit}", unitId);
-      if (frozen.branch !== expectedBranch) {
-        failures.push(`unit "${unitId}" frozen branch does not match productionConfig.branchTemplate`);
-      }
-      if (frozen.branchStrategy !== branchStrategy) {
-        failures.push(`unit "${unitId}" frozenSnapshot.branchStrategy does not match productionConfig.branchStrategy`);
-      }
-      if (!frozen.commitTimestamp || typeof frozen.commitTimestamp !== "string") {
-        failures.push(`unit "${unitId}" frozenSnapshot.commitTimestamp is missing; legacy production plans without a freeze timestamp are rejected, never silently backfilled`);
-      } else if (plan.planVersion === 2) {
-        if (!CANONICAL_COMMIT_TIMESTAMP_RE.test(frozen.commitTimestamp)) {
-          failures.push(`unit "${unitId}" frozenSnapshot.commitTimestamp is not a canonical normalized timestamp (expected YYYY-MM-DDTHH:MM:SS+00:00)`);
-        }
-      } else if (plan.createdAt !== frozen.commitTimestamp) {
-        failures.push(`unit "${unitId}" frozenSnapshot.commitTimestamp must equal plan.createdAt`);
-      }
-      if (["advance-existing-branch", "initialize-default-branch"].includes(branchStrategy)) {
-        if (unit.previousPublicBaseline?.mode !== "bound") {
-          failures.push(`unit "${unitId}" branch strategy "${branchStrategy}" requires a bound previous public baseline`);
-        }
-        if (!frozen.parentCommit || frozen.parentCommit !== unit.previousPublicBaseline?.commit) {
-          failures.push(`unit "${unitId}" frozenSnapshot.parentCommit does not match previous public baseline commit`);
-        }
-      } else if (frozen.parentCommit) {
-        failures.push(`unit "${unitId}" create-release-branch must not freeze a parentCommit`);
-      }
-      if (branchStrategy === "advance-existing-branch" && unit.previousPublicBaseline?.ref !== `refs/heads/${expectedBranch}`) {
-        failures.push(`unit "${unitId}" advance-existing-branch baseline ref does not match the target branch`);
-      }
-      if (branchStrategy === "initialize-default-branch") {
-        if (productionConfig.setAsDefaultBranch !== true || !productionConfig.expectedCurrentDefaultBranch) {
-          failures.push(`unit "${unitId}" initialize-default-branch requires explicit default branch settings`);
-        }
-      } else if (productionConfig.setAsDefaultBranch === true) {
-        failures.push(`unit "${unitId}" setAsDefaultBranch is only valid for initialize-default-branch`);
-      }
-    }
-    for (const actionType of REQUIRED_ACTION_TYPES) {
-      expectedCount++;
-      const expectedAdapter = expectedAdapterMap[actionType];
-      const expectedActionId = `${actionType}-${unitId}`;
-      const matchingActions = actions.filter(
-        (a) => a.unitId === unitId && a.type === actionType
-      );
-      if (matchingActions.length === 0) {
-        failures.push(
-          `unit "${unitId}": required action type "${actionType}" is missing (expected adapter "${expectedAdapter}")`
-        );
-      } else if (matchingActions.length > 1) {
-        failures.push(
-          `unit "${unitId}": duplicate action type "${actionType}" (${matchingActions.length} found, expected 1)`
-        );
-      } else {
-        const action = matchingActions[0];
-        if (action.id !== expectedActionId) {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": id is "${action.id}", expected "${expectedActionId}"`
-          );
-        }
-        if (action.unitId !== unitId) {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": unitId is "${action.unitId}", expected "${unitId}"`
-          );
-        }
-        if (action.adapter !== expectedAdapter) {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": adapter is "${action.adapter}", expected "${expectedAdapter}"`
-          );
-        }
-        if (action.status !== "PENDING") {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": status is "${action.status ?? "(missing)"}", expected "PENDING"`
-          );
-        }
-        if (actionType === "push-snapshot") {
-          _checkRequired(action, "parameters.version", action.parameters?.version, targetVersion, unitId, failures);
-          _checkRequired(action, "parameters.source", action.parameters?.source, unit.source, unitId, failures);
-          _checkRequired(action, "parameters.cwd", action.parameters?.cwd, unit.source, unitId, failures);
-          _checkRequired(action, "parameters.publicRepo", action.parameters?.publicRepo, publicRepo, unitId, failures);
-          if (production) {
-            _checkRequired(action, "parameters.snapshotPath", action.parameters?.snapshotPath, frozen?.path, unitId, failures);
-            _checkRequired(action, "parameters.manifestDigest", action.parameters?.manifestDigest, frozen?.manifestDigest, unitId, failures);
-            _checkRequired(action, "parameters.gitObjectDir", action.parameters?.gitObjectDir, frozen?.gitObjectDir, unitId, failures);
-            _checkRequired(action, "parameters.branch", action.parameters?.branch, frozen?.branch, unitId, failures);
-            _checkRequired(action, "parameters.commit", action.parameters?.commit, frozen?.commit, unitId, failures);
-            _checkRequired(action, "parameters.tree", action.parameters?.tree, frozen?.tree, unitId, failures);
-            _checkRequired(action, "parameters.branchStrategy", action.parameters?.branchStrategy, branchStrategy, unitId, failures);
-            _checkRequired(action, "parameters.githubHost", action.parameters?.githubHost, productionConfig.githubHost ?? "github.com", unitId, failures);
-            _checkRequired(action, "expected.commit", action.expected?.commit, frozen?.commit, unitId, failures);
-            _checkRequired(action, "expected.tree", action.expected?.tree, frozen?.tree, unitId, failures);
-            _checkRequired(action, "expected.manifestDigest", action.expected?.manifestDigest, frozen?.manifestDigest, unitId, failures);
-            if (["advance-existing-branch", "initialize-default-branch"].includes(branchStrategy)) {
-              _checkRequired(action, "parameters.parentCommit", action.parameters?.parentCommit, frozen?.parentCommit, unitId, failures);
-            }
-            if (branchStrategy === "advance-existing-branch") {
-              _checkRequired(action, "parameters.expectedBaselineCommit", action.parameters?.expectedBaselineCommit, frozen?.parentCommit, unitId, failures);
-            } else if (action.parameters?.expectedBaselineCommit !== void 0) {
-              failures.push(`unit "${unitId}", action "${action.id}": unexpected parameters.expectedBaselineCommit`);
-            }
-          } else {
-            _checkRequired(action, "expected.tag", action.expected?.tag, expectedTag, unitId, failures);
-          }
-        }
-        if (actionType === "create-tag") {
-          _checkRequired(action, "parameters.tagTemplate", action.parameters?.tagTemplate, tagTemplate, unitId, failures);
-          _checkRequired(action, "parameters.publicRepo", action.parameters?.publicRepo, publicRepo, unitId, failures);
-          _checkRequired(action, "parameters.version", action.parameters?.version, targetVersion, unitId, failures);
-          if (production) {
-            _checkRequired(action, "parameters.tag", action.parameters?.tag, expectedTag, unitId, failures);
-            _checkRequired(action, "parameters.repo", action.parameters?.repo, publicRepo, unitId, failures);
-            _checkRequired(action, "parameters.gitObjectDir", action.parameters?.gitObjectDir, frozen?.gitObjectDir, unitId, failures);
-            _checkRequired(action, "parameters.commit", action.parameters?.commit, frozen?.commit, unitId, failures);
-            _checkRequired(action, "parameters.githubHost", action.parameters?.githubHost, productionConfig.githubHost ?? "github.com", unitId, failures);
-            _checkRequired(action, "expected.commit", action.expected?.commit, frozen?.commit, unitId, failures);
-          }
-        }
-        if (actionType === "github-release") {
-          _checkRequired(action, "parameters.publicRepo", action.parameters?.publicRepo, publicRepo, unitId, failures);
-          _checkRequired(action, "parameters.version", action.parameters?.version, targetVersion, unitId, failures);
-          if (production) {
-            _checkRequired(action, "parameters.tag", action.parameters?.tag, expectedTag, unitId, failures);
-            _checkRequired(action, "parameters.repo", action.parameters?.repo, publicRepo, unitId, failures);
-            _checkRequired(action, "parameters.commit", action.parameters?.commit, frozen?.commit, unitId, failures);
-            _checkRequired(action, "parameters.githubHost", action.parameters?.githubHost, productionConfig.githubHost ?? "github.com", unitId, failures);
-            const expectedName = (productionConfig.releaseTitleTemplate ?? "Release {tag}").replaceAll("{tag}", expectedTag ?? "").replaceAll("{version}", targetVersion ?? "").replaceAll("{unit}", unitId);
-            _checkRequired(action, "parameters.name", action.parameters?.name, expectedName, unitId, failures);
-            _checkRequired(action, "parameters.notes", action.parameters?.notes, productionConfig.releaseNotes ?? `Release ${expectedTag}`, unitId, failures);
-            _checkRequired(action, "expected.tag", action.expected?.tag, expectedTag, unitId, failures);
-            _checkRequired(action, "expected.commit", action.expected?.commit, frozen?.commit, unitId, failures);
-          }
-        }
-      }
-    }
-    const npmDist = distributions.find((d) => d.type === "npm");
-    if (npmDist) {
-      if (!npmDist.package || typeof npmDist.package !== "string") {
-        failures.push(
-          `unit "${unitId}": npm distribution is missing "package" name`
-        );
-      }
-      expectedCount++;
-      const expectedPkg = npmDist.package;
-      const npmActions = actions.filter(
-        (a) => a.unitId === unitId && a.type === "npm-publish"
-      );
-      if (npmActions.length === 0) {
-        failures.push(
-          `unit "${unitId}": npm distribution declared but "npm-publish" action is missing`
-        );
-      } else if (npmActions.length > 1) {
-        failures.push(
-          `unit "${unitId}": duplicate npm-publish actions (${npmActions.length} found, expected 1)`
-        );
-      } else {
-        const action = npmActions[0];
-        const expectedActionId = `npm-publish-${unitId}`;
-        if (action.id !== expectedActionId) {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": id is "${action.id}", expected "${expectedActionId}"`
-          );
-        }
-        if (action.unitId !== unitId) {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": unitId is "${action.unitId}", expected "${unitId}"`
-          );
-        }
-        if (action.adapter !== "npm") {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": adapter is "${action.adapter}", expected "npm"`
-          );
-        }
-        if (action.status !== "PENDING") {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": status is "${action.status ?? "(missing)"}", expected "PENDING"`
-          );
-        }
-        _checkRequired(action, "parameters.package", action.parameters?.package, expectedPkg, unitId, failures);
-        _checkRequired(action, "parameters.version", action.parameters?.version, targetVersion, unitId, failures);
-        _checkRequired(action, "parameters.cwd", action.parameters?.cwd, unit.source, unitId, failures);
-        _checkRequired(action, "expected.package", action.expected?.package, expectedPkg, unitId, failures);
-        _checkRequired(action, "expected.version", action.expected?.version, targetVersion, unitId, failures);
-        const expectedRegistry = npmDist.registry;
-        const expectedPublisher = npmDist.publisher;
-        if (!expectedRegistry || typeof expectedRegistry !== "string") {
-          failures.push(`unit "${unitId}": npm distribution is missing "registry"`);
-        } else {
-          _checkRequired(action, "parameters.registry", action.parameters?.registry, expectedRegistry, unitId, failures);
-          _checkRequired(action, "expected.registry", action.expected?.registry, expectedRegistry, unitId, failures);
-        }
-        if (!expectedPublisher || typeof expectedPublisher !== "string") {
-          failures.push(`unit "${unitId}": npm distribution is missing "publisher"`);
-        } else {
-          _checkRequired(action, "parameters.publisher", action.parameters?.publisher, expectedPublisher, unitId, failures);
-          _checkRequired(action, "expected.publisher", action.expected?.publisher, expectedPublisher, unitId, failures);
-        }
-        if (production) {
-          _checkRequired(action, "parameters.tarballPath", action.parameters?.tarballPath, frozen?.npm?.tarballPath, unitId, failures);
-          _checkRequired(action, "parameters.tarballSha256", action.parameters?.tarballSha256, frozen?.npm?.tarballSha256, unitId, failures);
-          _checkRequired(action, "parameters.integrity", action.parameters?.integrity, frozen?.npm?.integrity, unitId, failures);
-          _checkRequired(action, "parameters.access", action.parameters?.access, npmDist.access, unitId, failures);
-          _checkRequired(action, "parameters.provenance", action.parameters?.provenance, npmDist.provenance === true, unitId, failures);
-          if ((action.parameters?.tag ?? null) !== (npmDist.tag ?? null)) {
-            failures.push(`unit "${unitId}", action "${action.id}": parameters.tag does not match npm distribution tag`);
-          }
-          _checkRequired(action, "expected.integrity", action.expected?.integrity, frozen?.npm?.integrity, unitId, failures);
-        }
-      }
-    }
-    for (const platform of PLATFORMS) {
-      const dist = distributions.find((d) => d.type === platform.distributionType);
-      if (!dist) continue;
-      const plugin = dist.plugin;
-      const marketplace = dist.marketplace;
-      const entrySkill = dist.entrySkill;
-      const requiresMarketplace = platform.schemaRequiredFields.includes("marketplace");
-      if (requiresMarketplace) {
-        if (!plugin || !marketplace || !entrySkill) {
-          failures.push(`unit "${unitId}": ${platform.distributionType} distribution requires plugin, marketplace, and entrySkill`);
-        }
-      } else if (!plugin || !entrySkill) {
-        failures.push(`unit "${unitId}": ${platform.distributionType} distribution requires plugin and entrySkill`);
-      }
-      expectedCount++;
-      const expectedActionId = `${platform.actionType}-${unitId}`;
-      const matchingActions = actions.filter(
-        (a) => a.unitId === unitId && a.type === platform.actionType
-      );
-      if (matchingActions.length === 0) {
-        failures.push(
-          `unit "${unitId}": ${platform.distributionType} distribution declared but "${platform.actionType}" action is missing`
-        );
-      } else if (matchingActions.length > 1) {
-        failures.push(
-          `unit "${unitId}": duplicate ${platform.actionType} actions (${matchingActions.length} found, expected 1)`
-        );
-      } else {
-        const action = matchingActions[0];
-        if (action.id !== expectedActionId) {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": id is "${action.id}", expected "${expectedActionId}"`
-          );
-        }
-        if (action.unitId !== unitId) {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": unitId is "${action.unitId}", expected "${unitId}"`
-          );
-        }
-        if (action.adapter !== platform.adapter) {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": adapter is "${action.adapter}", expected "${platform.adapter}"`
-          );
-        }
-        if (action.status !== "PENDING") {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": status is "${action.status ?? "(missing)"}", expected "PENDING"`
-          );
-        }
-        const externalMarketplace = dist.marketplaceRepo !== void 0 && dist.marketplaceRepo !== null;
-        if (externalMarketplace && platform.marketplaceRefForm === null) {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": ${platform.distributionType} distribution declares marketplaceRepo but the platform has no marketplace add capability`
-          );
-        }
-        _checkRequired(action, "parameters.consumer", action.parameters?.consumer, platform.id, unitId, failures);
-        _checkRequired(action, "parameters.plugin", action.parameters?.plugin, plugin, unitId, failures);
-        if (requiresMarketplace) {
-          _checkRequired(action, "parameters.marketplace", action.parameters?.marketplace, marketplace, unitId, failures);
-        } else if (action.parameters?.marketplace !== void 0 && marketplace !== void 0 && action.parameters.marketplace !== marketplace) {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": parameters.marketplace is "${action.parameters.marketplace}", expected optional legacy value "${marketplace}"`
-          );
-        }
-        if (externalMarketplace) {
-          _checkRequired(action, "parameters.repo", action.parameters?.repo, dist.marketplaceRepo, unitId, failures);
-          _checkRequired(action, "parameters.marketplaceLocation", action.parameters?.marketplaceLocation, "external", unitId, failures);
-        } else {
-          _checkRequired(action, "parameters.repo", action.parameters?.repo, publicRepo, unitId, failures);
-        }
-        _checkRequired(action, "parameters.version", action.parameters?.version, targetVersion, unitId, failures);
-        _checkRequired(action, "parameters.entrySkill", action.parameters?.entrySkill, entrySkill, unitId, failures);
-        if (production) {
-          _checkRequired(action, "parameters.snapshotPath", action.parameters?.snapshotPath, frozen?.path, unitId, failures);
-          if (externalMarketplace) {
-            const ref = action.parameters?.ref;
-            if (ref === void 0 || ref === null) {
-              failures.push(
-                `unit "${unitId}", action "${action.id}": parameters.ref is missing, expected the frozen external marketplace add-ref`
-              );
-            } else if (!_isStructurallySafeExternalRef(ref)) {
-              failures.push(
-                `unit "${unitId}", action "${action.id}": parameters.ref is not a structurally safe ref: ${JSON.stringify(ref)}`
-              );
-            } else if (ref !== action.expected?.ref) {
-              failures.push(
-                `unit "${unitId}", action "${action.id}": parameters.ref is "${ref}", expected self-consistent expected.ref "${action.expected?.ref}"`
-              );
-            }
-            const sha = action.parameters?.marketplaceCommitSha;
-            if (sha === void 0 || sha === null) {
-              failures.push(
-                `unit "${unitId}", action "${action.id}": parameters.marketplaceCommitSha is missing, expected a frozen 40-hex commit sha`
-              );
-            } else if (typeof sha !== "string" || !EXTERNAL_MARKETPLACE_SHA_RE.test(sha)) {
-              failures.push(
-                `unit "${unitId}", action "${action.id}": parameters.marketplaceCommitSha must be a 40-hex commit sha, got: ${JSON.stringify(sha)}`
-              );
-            }
-          } else {
-            _checkRequired(action, "parameters.ref", action.parameters?.ref, expectedTag, unitId, failures);
-          }
-          _checkRequired(action, "parameters.manifestDigest", action.parameters?.manifestDigest, frozen?.manifestDigest, unitId, failures);
-        }
-        {
-          const raw = action.parameters?.timeoutMs;
-          if (raw === void 0) {
-            if (!options.legacyCompatibility) {
-              failures.push(
-                `unit "${unitId}", action "${action.id}": parameters.timeoutMs is missing, expected a valid timeout (30000-900000)`
-              );
-            }
-          } else {
-            if (typeof raw !== "number" || !Number.isFinite(raw) || !Number.isInteger(raw)) {
-              failures.push(
-                `unit "${unitId}", action "${action.id}": parameters.timeoutMs must be a finite integer, got: ${JSON.stringify(raw)}`
-              );
-            } else if (raw < 3e4 || raw > 9e5) {
-              failures.push(
-                `unit "${unitId}", action "${action.id}": parameters.timeoutMs must be between 30000 and 900000, got: ${raw}`
-              );
-            }
-          }
-        }
-        if (production) {
-          _checkRequired(action, "parameters.sourceCommit", action.parameters?.sourceCommit, frozen?.commit, unitId, failures);
-        }
-        if (requiresMarketplace) {
-          const sd = action.parameters?.sourceDescriptor;
-          const mf = action.parameters?.marketplaceForm;
-          if (sd === void 0 || sd === null) {
-            if (!options.legacyCompatibility) {
-              failures.push(
-                `unit "${unitId}", action "${action.id}": parameters.sourceDescriptor is missing; every marketplace install action must carry a complete source descriptor`
-              );
-            }
-          } else if (typeof sd === "object") {
-            if (mf === void 0 || mf === null) {
-              failures.push(
-                `unit "${unitId}", action "${action.id}": parameters.marketplaceForm is missing but sourceDescriptor is present; form must be explicitly declared`
-              );
-            }
-            if (sd.form !== mf) {
-              failures.push(
-                `unit "${unitId}", action "${action.id}": sourceDescriptor.form "${sd.form}" does not match parameters.marketplaceForm "${mf}"`
-              );
-            }
-            const BUNDLED_REQUIRED = ["form", "repo", "marketplaceEntry", "pluginSubpath"];
-            const STANDALONE_REQUIRED = ["form", "marketplaceRepo", "marketplaceEntry", "pluginRepo", "sourceType"];
-            const PROD_ONLY_FIELDS = ["marketplaceCommitSha", "ref", "payloadDigest"];
-            if (sd.form === "bundled-family") {
-              for (const field of BUNDLED_REQUIRED) {
-                if (sd[field] === void 0 || sd[field] === null) {
-                  failures.push(
-                    `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is missing or null; bundled-family form requires all identity fields to be non-null`
-                  );
-                }
-              }
-              if (production && (sd.commit === void 0 || sd.commit === null)) {
-                failures.push(
-                  `unit "${unitId}", action "${action.id}": sourceDescriptor.commit is missing or null; production bundled-family plans require a frozen commit`
-                );
-              }
-              if (production && sd.commit !== void 0 && sd.commit !== null && frozen?.commit !== void 0 && sd.commit !== frozen.commit) {
-                failures.push(
-                  `unit "${unitId}", action "${action.id}": sourceDescriptor.commit does not match frozenSnapshot.commit`
-                );
-              }
-              if (production && (sd.payloadDigest === void 0 || sd.payloadDigest === null)) {
-                failures.push(
-                  `unit "${unitId}", action "${action.id}": sourceDescriptor.payloadDigest is missing or null; production plans require a frozen payload digest`
-                );
-              }
-              const STANDALONE_ONLY = ["marketplaceRepo", "pluginRepo", "sourceType", "marketplaceCommitSha", "ref"];
-              for (const field of STANDALONE_ONLY) {
-                if (sd[field] !== void 0) {
-                  failures.push(
-                    `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is unexpected for bundled-family form; mixed fields are prohibited`
-                  );
-                }
-              }
-              if (sd.repo !== void 0 && sd.repo !== null && sd.repo !== publicRepo) {
-                failures.push(
-                  `unit "${unitId}", action "${action.id}": sourceDescriptor.repo "${sd.repo}" does not match unit publicRepo "${publicRepo}"`
-                );
-              }
-              if (sd.marketplaceEntry !== void 0 && sd.marketplaceEntry !== null && sd.marketplaceEntry !== plugin) {
-                failures.push(
-                  `unit "${unitId}", action "${action.id}": sourceDescriptor.marketplaceEntry "${sd.marketplaceEntry}" does not match action plugin "${plugin}"`
-                );
-              }
-              if (production && sd.payloadDigest !== void 0 && sd.payloadDigest !== null && frozen?.manifestDigest !== void 0 && sd.payloadDigest !== frozen.manifestDigest) {
-                failures.push(
-                  `unit "${unitId}", action "${action.id}": sourceDescriptor.payloadDigest does not match frozen manifestDigest`
-                );
-              }
-            } else if (sd.form === "standalone-index") {
-              for (const field of STANDALONE_REQUIRED) {
-                if (sd[field] === void 0 || sd[field] === null) {
-                  failures.push(
-                    `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is missing or null; standalone-index form requires all identity fields to be non-null`
-                  );
-                }
-              }
-              if (production) {
-                for (const field of PROD_ONLY_FIELDS) {
-                  if (sd[field] === void 0 || sd[field] === null) {
-                    failures.push(
-                      `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is missing or null; production standalone-index requires all fields to be non-null`
-                    );
-                  }
-                }
-              }
-              const BUNDLED_ONLY = ["repo", "commit", "pluginSubpath"];
-              for (const field of BUNDLED_ONLY) {
-                if (sd[field] !== void 0) {
-                  failures.push(
-                    `unit "${unitId}", action "${action.id}": sourceDescriptor.${field} is unexpected for standalone-index form; mixed fields are prohibited`
-                  );
-                }
-              }
-              if (sd.pluginRepo !== void 0 && sd.pluginRepo !== null && sd.marketplaceRepo !== void 0 && sd.marketplaceRepo !== null && sd.pluginRepo === sd.marketplaceRepo) {
-                failures.push(
-                  `unit "${unitId}", action "${action.id}": sourceDescriptor.pluginRepo must not equal marketplaceRepo; the plugin repo and marketplace repo are distinct repositories`
-                );
-              }
-              if (externalMarketplace && sd.marketplaceRepo !== void 0 && sd.marketplaceRepo !== null && sd.marketplaceRepo !== dist.marketplaceRepo) {
-                failures.push(
-                  `unit "${unitId}", action "${action.id}": sourceDescriptor.marketplaceRepo "${sd.marketplaceRepo}" does not match distribution marketplaceRepo "${dist.marketplaceRepo}"`
-                );
-              }
-              if (sd.pluginRepo !== void 0 && sd.pluginRepo !== null && sd.pluginRepo !== publicRepo) {
-                failures.push(
-                  `unit "${unitId}", action "${action.id}": sourceDescriptor.pluginRepo "${sd.pluginRepo}" does not match unit publicRepo "${publicRepo}"`
-                );
-              }
-              if (sd.marketplaceEntry !== void 0 && sd.marketplaceEntry !== null && sd.marketplaceEntry !== plugin) {
-                failures.push(
-                  `unit "${unitId}", action "${action.id}": sourceDescriptor.marketplaceEntry "${sd.marketplaceEntry}" does not match action plugin "${plugin}"`
-                );
-              }
-              if (sd.sourceType !== void 0 && sd.sourceType !== null && sd.sourceType !== "marketplace-entry") {
-                failures.push(
-                  `unit "${unitId}", action "${action.id}": sourceDescriptor.sourceType "${sd.sourceType}" is unexpected; standalone-index sourceType must be "marketplace-entry"`
-                );
-              }
-              if (production && sd.payloadDigest !== void 0 && sd.payloadDigest !== null && frozen?.manifestDigest !== void 0 && sd.payloadDigest !== frozen.manifestDigest) {
-                failures.push(
-                  `unit "${unitId}", action "${action.id}": sourceDescriptor.payloadDigest does not match frozen manifestDigest`
-                );
-              }
-            } else {
-              failures.push(
-                `unit "${unitId}", action "${action.id}": sourceDescriptor.form "${sd.form}" is unknown; expected "bundled-family" or "standalone-index"`
-              );
-            }
-          }
-        }
-        _checkRequired(action, "expected.installed", action.expected?.installed, true, unitId, failures);
-        _checkRequired(action, "expected.plugin", action.expected?.plugin, plugin, unitId, failures);
-        if (requiresMarketplace) {
-          _checkRequired(action, "expected.marketplace", action.expected?.marketplace, marketplace, unitId, failures);
-        }
-        _checkRequired(action, "expected.version", action.expected?.version, targetVersion, unitId, failures);
-        _checkRequired(action, "expected.entrySkill", action.expected?.entrySkill, entrySkill, unitId, failures);
-        if (production) {
-          _checkRequired(action, "expected.consumer", action.expected?.consumer, platform.id, unitId, failures);
-          if (externalMarketplace) {
-            _checkRequired(action, "expected.repo", action.expected?.repo, dist.marketplaceRepo, unitId, failures);
-            _checkRequired(action, "expected.ref", action.expected?.ref, action.parameters?.ref, unitId, failures);
-            _checkRequired(action, "expected.marketplaceLocation", action.expected?.marketplaceLocation, "external", unitId, failures);
-            _checkRequired(action, "expected.marketplaceCommitSha", action.expected?.marketplaceCommitSha, action.parameters?.marketplaceCommitSha, unitId, failures);
-          } else {
-            _checkRequired(action, "expected.repo", action.expected?.repo, publicRepo, unitId, failures);
-            _checkRequired(action, "expected.ref", action.expected?.ref, expectedTag, unitId, failures);
-          }
-          _checkRequired(action, "expected.entrySkillFound", action.expected?.entrySkillFound, true, unitId, failures);
-          _checkRequired(action, "expected.manifestDigest", action.expected?.manifestDigest, frozen?.manifestDigest, unitId, failures);
-        }
-      }
-    }
-    if (branchStrategy === "initialize-default-branch") {
-      const oldBranch = productionConfig.expectedCurrentDefaultBranch;
-      const newBranch = frozen?.branch;
-      expectedCount++;
-      const expectedActionId = `set-default-branch-${unitId}`;
-      const branchActions = actions.filter(
-        (a) => a.unitId === unitId && a.type === "set-default-branch"
-      );
-      if (branchActions.length === 0) {
-        failures.push(
-          `unit "${unitId}": productionConfig.setAsDefaultBranch is true but "set-default-branch" action is missing`
-        );
-      } else if (branchActions.length > 1) {
-        failures.push(
-          `unit "${unitId}": duplicate set-default-branch actions (${branchActions.length} found, expected 1)`
-        );
-      } else {
-        const action = branchActions[0];
-        if (action.id !== expectedActionId) {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": id is "${action.id}", expected "${expectedActionId}"`
-          );
-        }
-        if (action.unitId !== unitId) {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": unitId is "${action.unitId}", expected "${unitId}"`
-          );
-        }
-        if (action.adapter !== "git-github") {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": adapter is "${action.adapter}", expected "git-github"`
-          );
-        }
-        if (action.status !== "PENDING") {
-          failures.push(
-            `unit "${unitId}", action "${action.id}": status is "${action.status ?? "(missing)"}", expected "PENDING"`
-          );
-        }
-        _checkRequired(action, "parameters.repo", action.parameters?.repo, publicRepo, unitId, failures);
-        _checkRequired(action, "parameters.oldBranch", action.parameters?.oldBranch, oldBranch, unitId, failures);
-        _checkRequired(action, "parameters.newBranch", action.parameters?.newBranch, newBranch, unitId, failures);
-        _checkRequired(action, "parameters.expectedNewBranchCommit", action.parameters?.expectedNewBranchCommit, frozen?.commit, unitId, failures);
-        _checkRequired(action, "parameters.githubHost", action.parameters?.githubHost, productionConfig.githubHost ?? "github.com", unitId, failures);
-        _checkRequired(action, "expected.defaultBranch", action.expected?.defaultBranch, newBranch, unitId, failures);
-        _checkRequired(action, "expected.newBranchCommit", action.expected?.newBranchCommit, frozen?.commit, unitId, failures);
-        if (Object.keys(action.expected ?? {}).some((key) => !["defaultBranch", "newBranchCommit"].includes(key))) {
-          failures.push(`unit "${unitId}", action "${action.id}": expected may only contain defaultBranch and newBranchCommit`);
-        }
-      }
-    }
-  }
-  const actualCount = actions.length;
-  if (actualCount !== expectedCount) {
-    const diff = actualCount > expectedCount ? `${actualCount - expectedCount} extra action(s) detected` : `${expectedCount - actualCount} action(s) missing from plan`;
-    failures.push(
-      `plan has ${actualCount} action(s) but exactly ${expectedCount} expected from unit definitions; ${diff}`
-    );
-  }
-  return {
-    passed: failures.length === 0,
-    details: { failures, expectedCount, actualCount }
-  };
-}
-function _checkRequired(action, fieldPath, actual, expected, unitId, failures) {
-  if (actual === void 0 || actual === null) {
-    failures.push(
-      `unit "${unitId}", action "${action.id}": ${fieldPath} is missing, expected "${expected}"`
-    );
-  } else if (actual !== expected) {
-    failures.push(
-      `unit "${unitId}", action "${action.id}": ${fieldPath} is "${actual}", expected "${expected}"`
-    );
-  }
-}
-function _isStructurallySafeExternalRef(ref) {
-  if (typeof ref !== "string" || ref.length === 0) return false;
-  if (/[\x00-\x1f]/.test(ref)) return false;
-  if (ref.startsWith("-")) return false;
-  if (ref.includes("\\")) return false;
-  if (ref.includes("//")) return false;
-  if (ref.startsWith("/") || ref.endsWith("/")) return false;
-  if (ref.endsWith(".")) return false;
-  if (ref.endsWith(".lock")) return false;
-  if (ref.includes("@{")) return false;
-  if (ref === "@") return false;
-  if (ref.includes("..")) return false;
-  if (/[;|&`$(){}]/.test(ref)) return false;
-  return /^[a-zA-Z0-9][a-zA-Z0-9._/-]*$/.test(ref);
-}
-var import_ajv3, import_ajv_formats3, RELEASE_PLAN_SCHEMA, ajv3, validatePlanSchema, CANONICAL_COMMIT_TIMESTAMP_RE, REQUIRED_ACTION_TYPES, EXTERNAL_MARKETPLACE_SHA_RE;
-var init_plan = __esm({
-  async "src/core/plan.mjs"() {
-    import_ajv3 = __toESM(require_ajv(), 1);
-    import_ajv_formats3 = __toESM(require_dist2(), 1);
-    init_digest();
-    init_errors();
-    init_trusted_resource();
-    await init_registry();
-    RELEASE_PLAN_SCHEMA = JSON.parse((await readTrustedPackageResource(
-      "schemas/release-plan.schema.json"
-    )).toString("utf8"));
-    ajv3 = new import_ajv3.default({ allErrors: true, strict: false });
-    (0, import_ajv_formats3.default)(ajv3);
-    validatePlanSchema = ajv3.compile(RELEASE_PLAN_SCHEMA);
-    __name(assertNoSymlinkAncestors, "assertNoSymlinkAncestors");
-    __name(prepareAuthorityDirectory, "prepareAuthorityDirectory");
-    __name(assertAuthorityFileTarget, "assertAuthorityFileTarget");
-    __name(assertImmutablePlanAuthority, "assertImmutablePlanAuthority");
-    __name(validatePlan, "validatePlan");
-    __name(stripRecordLayerV2, "stripRecordLayerV2");
-    __name(computePlanDigest, "computePlanDigest");
-    __name(writePlanAtomic, "writePlanAtomic");
-    __name(writePlanImmutable, "writePlanImmutable");
-    CANONICAL_COMMIT_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00$/;
-    __name(buildExpectedAdapterMap, "buildExpectedAdapterMap");
-    REQUIRED_ACTION_TYPES = ["push-snapshot", "create-tag", "github-release"];
-    __name(validatePlanActionCompleteness, "validatePlanActionCompleteness");
-    __name(_checkRequired, "_checkRequired");
-    EXTERNAL_MARKETPLACE_SHA_RE = /^[0-9a-f]{40}$/;
-    __name(_isStructurallySafeExternalRef, "_isStructurallySafeExternalRef");
-  }
-});
-
 // src/snapshot/public-map.mjs
-import { lstat as lstat8, readFile as readFile10, mkdir as mkdir10, readdir as readdir6, realpath as realpath8, chmod as fsChmod } from "node:fs/promises";
+import { lstat as lstat8, readFile as readFile11, mkdir as mkdir8, readdir as readdir6, realpath as realpath8, chmod as fsChmod } from "node:fs/promises";
 import { open as fsOpen } from "node:fs/promises";
-import { relative as relative11, resolve as resolve14, dirname as dirname6, sep as pathSep, isAbsolute as isAbsolute10 } from "node:path";
+import { relative as relative12, resolve as resolve15, dirname as dirname6, sep as pathSep, isAbsolute as isAbsolute11 } from "node:path";
 import { posix } from "node:path";
 import { constants as fsConstants3 } from "node:fs";
 import { createHash as createHash7 } from "node:crypto";
@@ -22518,14 +23169,14 @@ function _isContainedWith(relativeFn, isAbsoluteFn, root, candidate, relPathSep 
   return rel !== "" && rel !== ".." && !rel.startsWith(`..${relPathSep}`) && !isAbsoluteFn(rel);
 }
 function isContained(root, candidate) {
-  return _isContainedWith(relative11, isAbsolute10, root, candidate);
+  return _isContainedWith(relative12, isAbsolute11, root, candidate);
 }
 async function assertNoAncestorSymlinks(root, filePath, fs = { lstat: lstat8 }) {
-  const rel = relative11(root, filePath);
+  const rel = relative12(root, filePath);
   const segments = rel.split(/[/\\]/);
   let current = root;
   for (const segment of segments) {
-    current = resolve14(current, segment);
+    current = resolve15(current, segment);
     try {
       const st = await fs.lstat(current, { stage: "source-ancestor" });
       if (st.isSymbolicLink()) {
@@ -22582,11 +23233,11 @@ async function assertOutputAncestorsNoFollow(effectiveOutputDir, fs = { lstat: l
   }
 }
 async function assertDestAncestorsNoFollow(realOutputRoot, destPath, fs = { lstat: lstat8 }) {
-  const relDest = relative11(realOutputRoot, destPath);
+  const relDest = relative12(realOutputRoot, destPath);
   const segments = relDest.split(pathSep).filter(Boolean);
   let current = realOutputRoot;
   for (const segment of segments) {
-    current = resolve14(current, segment);
+    current = resolve15(current, segment);
     try {
       const st = await fs.lstat(current, { stage: "dest-ancestor" });
       if (st.isSymbolicLink()) {
@@ -22742,9 +23393,9 @@ async function buildPublicStaging({
   const fs = {
     lstat: _fsOps.lstat ? (p, ctx) => _fsOps.lstat({ operation: "lstat", path: p, ...ctx }) : lstat8,
     realpath: _fsOps.realpath ? (p, ctx) => _fsOps.realpath({ operation: "realpath", path: p, ...ctx }) : realpath8,
-    readFile: _fsOps.readFile ? (p, ctx) => _fsOps.readFile({ operation: "readFile", path: p, ...ctx }) : readFile10,
+    readFile: _fsOps.readFile ? (p, ctx) => _fsOps.readFile({ operation: "readFile", path: p, ...ctx }) : readFile11,
     open: _fsOps.open ? (p, flags, mode, ctx) => _fsOps.open({ operation: "open", path: p, flags, mode, ...ctx }) : fsOpen,
-    mkdir: _fsOps.mkdir ? (p, opts, ctx) => _fsOps.mkdir({ operation: "mkdir", path: p, opts, ...ctx }) : mkdir10,
+    mkdir: _fsOps.mkdir ? (p, opts, ctx) => _fsOps.mkdir({ operation: "mkdir", path: p, opts, ...ctx }) : mkdir8,
     readdir: _fsOps.readdir ? (p, ctx) => _fsOps.readdir({ operation: "readdir", path: p, ...ctx }) : readdir6,
     chmod: _fsOps.chmod ? (p, mode, ctx) => _fsOps.chmod({ operation: "chmod", path: p, mode, ...ctx }) : fsChmod
   };
@@ -22777,7 +23428,7 @@ async function buildPublicStaging({
       { count: mappings.length, limit: MAX_MAPPINGS }
     );
   }
-  const unitRootLexical = resolve14(sourceRoot, unit.source);
+  const unitRootLexical = resolve15(sourceRoot, unit.source);
   let realUnitRoot;
   try {
     realUnitRoot = await fs.realpath(unitRootLexical, { stage: "unit-root-realpath" });
@@ -22790,14 +23441,14 @@ async function buildPublicStaging({
       { sourceRoot, unitSource: unit.source, cause: code }
     );
   }
-  const effectiveOutputDir = resolve14(
-    outputDir ?? resolve14(sourceRoot, ".release-skill", "staging")
+  const effectiveOutputDir = resolve15(
+    outputDir ?? resolve15(sourceRoot, ".release-skill", "staging")
   );
   const preflightRecords = [];
   const requiredTargetSet = new Set(unit.requiredPublicFiles ?? []);
   for (const mapping of mappings) {
-    const srcPath = resolve14(sourceRoot, mapping.from);
-    const destPath = resolve14(effectiveOutputDir, mapping.to);
+    const srcPath = resolve15(sourceRoot, mapping.from);
+    const destPath = resolve15(effectiveOutputDir, mapping.to);
     if (srcPath.length > MAX_PATH_LENGTH || destPath.length > MAX_PATH_LENGTH) {
       preflightRecords.push({
         ok: false,
@@ -23284,11 +23935,11 @@ async function buildPublicStaging({
       );
     }
     const destDir = dirname6(destPath);
-    const relDest = relative11(realOutputRoot, destDir);
+    const relDest = relative12(realOutputRoot, destDir);
     const destSegments = relDest.split(pathSep).filter(Boolean);
     let accumulatedPath = realOutputRoot;
     for (const seg of destSegments) {
-      accumulatedPath = resolve14(accumulatedPath, seg);
+      accumulatedPath = resolve15(accumulatedPath, seg);
       try {
         const segStat = await fs.lstat(accumulatedPath, { stage: "dest-ancestor-pre-mkdir" });
         if (segStat.isSymbolicLink()) {
@@ -23587,8 +24238,8 @@ var init_public_map = __esm({
 });
 
 // src/snapshot/scan.mjs
-import { readFile as readFile11, readdir as readdir7, stat as stat3 } from "node:fs/promises";
-import { join as join10, relative as relative12, extname, posix as posix2, win32 } from "node:path";
+import { readFile as readFile12, readdir as readdir7, stat as stat3 } from "node:fs/promises";
+import { join as join11, relative as relative13, extname, posix as posix2, win32 } from "node:path";
 import { createHash as createHash8 } from "node:crypto";
 async function collectFiles(dir, base = dir) {
   const results = [];
@@ -23600,12 +24251,12 @@ async function collectFiles(dir, base = dir) {
   }
   for (const entry of entries) {
     if (entry.name === ".git") continue;
-    const abs = join10(dir, entry.name);
+    const abs = join11(dir, entry.name);
     if (entry.isDirectory()) {
       const sub = await collectFiles(abs, base);
       results.push(...sub);
     } else if (entry.isFile()) {
-      results.push(relative12(base, abs));
+      results.push(relative13(base, abs));
     }
   }
   return results;
@@ -23656,7 +24307,7 @@ async function scanFile(relPath, absPath, forbiddenPaths, forbiddenContentPatter
   }
   let content;
   try {
-    content = await readFile11(absPath, "utf8");
+    content = await readFile12(absPath, "utf8");
   } catch {
     return findings;
   }
@@ -23725,10 +24376,10 @@ async function scanFile(relPath, absPath, forbiddenPaths, forbiddenContentPatter
 }
 async function scanForStaleDist(snapshotDir) {
   const findings = [];
-  const manifestPath = join10(snapshotDir, "dist", "manifest.json");
+  const manifestPath = join11(snapshotDir, "dist", "manifest.json");
   let manifest;
   try {
-    const raw = await readFile11(manifestPath, "utf8");
+    const raw = await readFile12(manifestPath, "utf8");
     manifest = JSON.parse(raw);
   } catch {
     return findings;
@@ -23736,13 +24387,13 @@ async function scanForStaleDist(snapshotDir) {
   if (!manifest.files || typeof manifest.files !== "object") {
     return findings;
   }
-  const distDir = join10(snapshotDir, "dist");
+  const distDir = join11(snapshotDir, "dist");
   for (const [fileRel, expectedHash] of Object.entries(manifest.files)) {
     if (typeof expectedHash !== "string") continue;
-    const fileAbs = join10(distDir, fileRel);
+    const fileAbs = join11(distDir, fileRel);
     let actualContent;
     try {
-      actualContent = await readFile11(fileAbs);
+      actualContent = await readFile12(fileAbs);
     } catch {
       findings.push({
         kind: STALE_BUILD_ARTIFACT,
@@ -23783,7 +24434,7 @@ async function scanSnapshot({ snapshotDir, policy = {} } = {}) {
   const relFiles = await collectFiles(snapshotDir);
   const seenKinds = /* @__PURE__ */ new Set();
   for (const relPath of relFiles) {
-    const absPath = join10(snapshotDir, relPath);
+    const absPath = join11(snapshotDir, relPath);
     const normRel = relPath.replaceAll(win32.sep, posix2.sep);
     if (await isBinaryFile(relPath, absPath)) continue;
     const fileFindings = await scanFile(normRel, absPath, forbiddenPaths, forbiddenContentPatterns, seenKinds);
@@ -23874,7 +24525,7 @@ var init_scan = __esm({
 });
 
 // src/readme/contract.mjs
-import { readFile as readFile12 } from "node:fs/promises";
+import { readFile as readFile13 } from "node:fs/promises";
 import path2 from "node:path";
 function extractMarkers(content) {
   const regex = /<!--\s*release-skill:((?:[\w-]+:)*[\w-]+)\s*-->/g;
@@ -23904,7 +24555,7 @@ function extractExecBlocks(content) {
 }
 async function safeRead(filePath) {
   try {
-    return await readFile12(filePath, "utf8");
+    return await readFile13(filePath, "utf8");
   } catch {
     return null;
   }
@@ -24993,10 +25644,10 @@ var require_commonjs = __commonJS({
        * Return a void Promise that resolves once the stream ends.
        */
       async promise() {
-        return new Promise((resolve25, reject) => {
+        return new Promise((resolve26, reject) => {
           this.on(DESTROYED, () => reject(new Error("stream destroyed")));
           this.on("error", (er) => reject(er));
-          this.on("end", () => resolve25());
+          this.on("end", () => resolve26());
         });
       }
       /**
@@ -25020,7 +25671,7 @@ var require_commonjs = __commonJS({
             return Promise.resolve({ done: false, value: res });
           if (this[EOF])
             return stop();
-          let resolve25;
+          let resolve26;
           let reject;
           const onerr = /* @__PURE__ */ __name((er) => {
             this.off("data", ondata);
@@ -25034,19 +25685,19 @@ var require_commonjs = __commonJS({
             this.off("end", onend);
             this.off(DESTROYED, ondestroy);
             this.pause();
-            resolve25({ value, done: !!this[EOF] });
+            resolve26({ value, done: !!this[EOF] });
           }, "ondata");
           const onend = /* @__PURE__ */ __name(() => {
             this.off("error", onerr);
             this.off("data", ondata);
             this.off(DESTROYED, ondestroy);
             stop();
-            resolve25({ done: true, value: void 0 });
+            resolve26({ done: true, value: void 0 });
           }, "onend");
           const ondestroy = /* @__PURE__ */ __name(() => onerr(new Error("stream destroyed")), "ondestroy");
           return new Promise((res2, rej) => {
             reject = rej;
-            resolve25 = res2;
+            resolve26 = res2;
             this.once(DESTROYED, ondestroy);
             this.once("error", onerr);
             this.once("end", onend);
@@ -26137,10 +26788,10 @@ var require_minipass = __commonJS({
       }
       // stream.promise().then(() => done, er => emitted error)
       promise() {
-        return new Promise((resolve25, reject) => {
+        return new Promise((resolve26, reject) => {
           this.on(DESTROYED, () => reject(new Error("stream destroyed")));
           this.on("error", (er) => reject(er));
-          this.on("end", () => resolve25());
+          this.on("end", () => resolve26());
         });
       }
       // for await (let chunk of stream)
@@ -26151,7 +26802,7 @@ var require_minipass = __commonJS({
             return Promise.resolve({ done: false, value: res });
           if (this[EOF])
             return Promise.resolve({ done: true });
-          let resolve25 = null;
+          let resolve26 = null;
           let reject = null;
           const onerr = /* @__PURE__ */ __name((er) => {
             this.removeListener("data", ondata);
@@ -26162,17 +26813,17 @@ var require_minipass = __commonJS({
             this.removeListener("error", onerr);
             this.removeListener("end", onend);
             this.pause();
-            resolve25({ value, done: !!this[EOF] });
+            resolve26({ value, done: !!this[EOF] });
           }, "ondata");
           const onend = /* @__PURE__ */ __name(() => {
             this.removeListener("error", onerr);
             this.removeListener("data", ondata);
-            resolve25({ done: true });
+            resolve26({ done: true });
           }, "onend");
           const ondestroy = /* @__PURE__ */ __name(() => onerr(new Error("stream destroyed")), "ondestroy");
           return new Promise((res2, rej) => {
             reject = rej;
-            resolve25 = res2;
+            resolve26 = res2;
             this.once(DESTROYED, ondestroy);
             this.once("error", onerr);
             this.once("end", onend);
@@ -30211,12 +30862,12 @@ var require_body = __commonJS({
         if (resTimeout && resTimeout.unref) {
           resTimeout.unref();
         }
-        return new Promise((resolve25) => {
+        return new Promise((resolve26) => {
           if (stream !== upstream) {
             upstream.on("error", (er) => stream.emit("error", er));
             upstream.pipe(stream);
           }
-          resolve25();
+          resolve26();
         }).then(() => stream.concat()).then((buf) => {
           clearTimeout(resTimeout);
           return buf;
@@ -30981,7 +31632,7 @@ var require_lib2 = __commonJS({
     var fetch = /* @__PURE__ */ __name(async (url, opts) => {
       if (/^data:/.test(url)) {
         const request = new Request(url, opts);
-        return Promise.resolve().then(() => new Promise((resolve25, reject) => {
+        return Promise.resolve().then(() => new Promise((resolve26, reject) => {
           let type, data;
           try {
             const { pathname, search } = new URL2(url);
@@ -31005,10 +31656,10 @@ var require_lib2 = __commonJS({
           if (type) {
             headers["Content-Type"] = type;
           }
-          return resolve25(new Response(data, { headers }));
+          return resolve26(new Response(data, { headers }));
         }));
       }
-      return new Promise((resolve25, reject) => {
+      return new Promise((resolve26, reject) => {
         const request = new Request(url, opts);
         let options;
         try {
@@ -31127,7 +31778,7 @@ var require_lib2 = __commonJS({
                 requestOpts.body = void 0;
                 requestOpts.headers.delete("content-length");
               }
-              resolve25(fetch(new Request(locationURL, requestOpts)));
+              resolve26(fetch(new Request(locationURL, requestOpts)));
               finalize();
               return;
             }
@@ -31155,7 +31806,7 @@ var require_lib2 = __commonJS({
           const codings = headers.get("Content-Encoding");
           if (!request.compress || request.method === "HEAD" || codings === null || res.statusCode === 204 || res.statusCode === 304) {
             response = new Response(body, responseOptions);
-            resolve25(response);
+            resolve26(response);
             return;
           }
           const zlibOptions = {
@@ -31174,7 +31825,7 @@ var require_lib2 = __commonJS({
               ).pipe(unzip),
               responseOptions
             );
-            resolve25(response);
+            resolve26(response);
             return;
           }
           if (codings === "deflate" || codings === "x-deflate") {
@@ -31186,7 +31837,7 @@ var require_lib2 = __commonJS({
                 (er) => decoder2.emit("error", er)
               ).pipe(decoder2);
               response = new Response(decoder2, responseOptions);
-              resolve25(response);
+              resolve26(response);
             });
             return;
           }
@@ -31204,11 +31855,11 @@ var require_lib2 = __commonJS({
               (er) => decoder.emit("error", er)
             ).pipe(decoder);
             response = new Response(decoder, responseOptions);
-            resolve25(response);
+            resolve26(response);
             return;
           }
           response = new Response(body, responseOptions);
-          resolve25(response);
+          resolve26(response);
         });
         writeToStream(req, request);
       });
@@ -31462,12 +32113,12 @@ var require_lib3 = __commonJS({
           return process.emit("input", "end");
         }, "end"),
         read: /* @__PURE__ */ __name(function(...args2) {
-          let resolve25, reject;
+          let resolve26, reject;
           const promise = new Promise((_resolve, _reject) => {
-            resolve25 = _resolve;
+            resolve26 = _resolve;
             reject = _reject;
           });
-          process.emit("input", "read", resolve25, reject, ...args2);
+          process.emit("input", "read", resolve26, reject, ...args2);
           return promise;
         }, "read")
       }
@@ -35882,7 +36533,7 @@ var require_npa = __commonJS({
           spec = arg;
         }
       }
-      return resolve25(name, spec, where, arg);
+      return resolve26(name, spec, where, arg);
     }
     __name(npa, "npa");
     function isFileSpec(spec) {
@@ -35905,7 +36556,7 @@ var require_npa = __commonJS({
       return spec.toLowerCase().startsWith("npm:");
     }
     __name(isAliasSpec, "isAliasSpec");
-    function resolve25(name, spec, where, arg) {
+    function resolve26(name, spec, where, arg) {
       const res = new Result({
         raw: arg,
         name,
@@ -35937,7 +36588,7 @@ var require_npa = __commonJS({
         return fromRegistry(res);
       }
     }
-    __name(resolve25, "resolve");
+    __name(resolve26, "resolve");
     function toPurl(arg, reg = defaultRegistry) {
       const res = npa(arg);
       if (res.type !== "version") {
@@ -36238,7 +36889,7 @@ var require_npa = __commonJS({
     }
     __name(fromRegistry, "fromRegistry");
     module.exports = npa;
-    module.exports.resolve = resolve25;
+    module.exports.resolve = resolve26;
     module.exports.toPurl = toPurl;
     module.exports.Result = Result;
   }
@@ -38011,7 +38662,7 @@ var require_lib7 = __commonJS({
     module.exports.fromStream = fromStream;
     function fromStream(stream, opts) {
       const istream = integrityStream(opts);
-      return new Promise((resolve25, reject) => {
+      return new Promise((resolve26, reject) => {
         stream.pipe(istream);
         stream.on("error", reject);
         istream.on("error", reject);
@@ -38019,7 +38670,7 @@ var require_lib7 = __commonJS({
         istream.on("integrity", (s) => {
           sri = s;
         });
-        istream.on("end", () => resolve25(sri));
+        istream.on("end", () => resolve26(sri));
         istream.resume();
       });
     }
@@ -38080,7 +38731,7 @@ var require_lib7 = __commonJS({
         ));
       }
       const checker = integrityStream(opts);
-      return new Promise((resolve25, reject) => {
+      return new Promise((resolve26, reject) => {
         stream.pipe(checker);
         stream.on("error", reject);
         checker.on("error", reject);
@@ -38088,7 +38739,7 @@ var require_lib7 = __commonJS({
         checker.on("verified", (s) => {
           verified = s;
         });
-        checker.on("end", () => resolve25(verified));
+        checker.on("end", () => resolve26(verified));
         checker.resume();
       });
     }
@@ -38970,8 +39621,8 @@ var require_polyfill = __commonJS({
       chmod: chmod5,
       copyFile,
       lstat: lstat15,
-      mkdir: mkdir20,
-      readdir: readdir13,
+      mkdir: mkdir18,
+      readdir: readdir14,
       readlink: readlink2,
       stat: stat9,
       symlink,
@@ -38980,10 +39631,10 @@ var require_polyfill = __commonJS({
     } = __require("fs/promises");
     var {
       dirname: dirname15,
-      isAbsolute: isAbsolute19,
-      join: join26,
+      isAbsolute: isAbsolute20,
+      join: join27,
       parse: parse2,
-      resolve: resolve25,
+      resolve: resolve26,
       sep: sep4,
       toNamespacedPath
     } = __require("path");
@@ -39088,7 +39739,7 @@ var require_polyfill = __commonJS({
       if (dirExists) {
         return getStatsForCopy(destStat, src, dest, opts);
       }
-      await mkdir20(destParent, { recursive: true });
+      await mkdir18(destParent, { recursive: true });
       return getStatsForCopy(destStat, src, dest, opts);
     }
     __name(checkParentDir, "checkParentDir");
@@ -39101,8 +39752,8 @@ var require_polyfill = __commonJS({
     }
     __name(pathExists2, "pathExists");
     async function checkParentPaths(src, srcStat, dest) {
-      const srcParent = resolve25(dirname15(src));
-      const destParent = resolve25(dirname15(dest));
+      const srcParent = resolve26(dirname15(src));
+      const destParent = resolve26(dirname15(dest));
       if (destParent === srcParent || destParent === parse2(destParent).root) {
         return;
       }
@@ -39126,7 +39777,7 @@ var require_polyfill = __commonJS({
       return checkParentPaths(src, srcStat, destParent);
     }
     __name(checkParentPaths, "checkParentPaths");
-    var normalizePathToArray = /* @__PURE__ */ __name((path3) => resolve25(path3).split(sep4).filter(Boolean), "normalizePathToArray");
+    var normalizePathToArray = /* @__PURE__ */ __name((path3) => resolve26(path3).split(sep4).filter(Boolean), "normalizePathToArray");
     function isSrcSubdir(src, dest) {
       const srcArr = normalizePathToArray(src);
       const destArr = normalizePathToArray(dest);
@@ -39253,17 +39904,17 @@ var require_polyfill = __commonJS({
     }
     __name(onDir, "onDir");
     async function mkDirAndCopy(srcMode, src, dest, opts) {
-      await mkdir20(dest);
+      await mkdir18(dest);
       await copyDir(src, dest, opts);
       return setDestMode(dest, srcMode);
     }
     __name(mkDirAndCopy, "mkDirAndCopy");
     async function copyDir(src, dest, opts) {
-      const dir = await readdir13(src);
+      const dir = await readdir14(src);
       for (let i = 0; i < dir.length; i++) {
         const item = dir[i];
-        const srcItem = join26(src, item);
-        const destItem = join26(dest, item);
+        const srcItem = join27(src, item);
+        const destItem = join27(dest, item);
         const { destStat } = await checkPaths(srcItem, destItem, opts);
         await startCopy(destStat, srcItem, destItem, opts);
       }
@@ -39271,8 +39922,8 @@ var require_polyfill = __commonJS({
     __name(copyDir, "copyDir");
     async function onLink(destStat, src, dest) {
       let resolvedSrc = await readlink2(src);
-      if (!isAbsolute19(resolvedSrc)) {
-        resolvedSrc = resolve25(dirname15(src), resolvedSrc);
+      if (!isAbsolute20(resolvedSrc)) {
+        resolvedSrc = resolve26(dirname15(src), resolvedSrc);
       }
       if (!destStat) {
         return symlink(resolvedSrc, dest);
@@ -39286,8 +39937,8 @@ var require_polyfill = __commonJS({
         }
         throw err;
       }
-      if (!isAbsolute19(resolvedDest)) {
-        resolvedDest = resolve25(dirname15(dest), resolvedDest);
+      if (!isAbsolute20(resolvedDest)) {
+        resolvedDest = resolve26(dirname15(dest), resolvedDest);
       }
       if (isSrcSubdir(resolvedSrc, resolvedDest)) {
         throw new ERR_FS_CP_EINVAL({
@@ -39339,15 +39990,15 @@ var require_cp = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/with-temp-dir.js
 var require_with_temp_dir = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/with-temp-dir.js"(exports, module) {
-    var { join: join26, sep: sep4 } = __require("path");
+    var { join: join27, sep: sep4 } = __require("path");
     var getOptions = require_get_options();
-    var { mkdir: mkdir20, mkdtemp: mkdtemp5, rm: rm9 } = __require("fs/promises");
+    var { mkdir: mkdir18, mkdtemp: mkdtemp5, rm: rm9 } = __require("fs/promises");
     var withTempDir = /* @__PURE__ */ __name(async (root, fn, opts) => {
       const options = getOptions(opts, {
         copy: ["tmpPrefix"]
       });
-      await mkdir20(root, { recursive: true });
-      const target = await mkdtemp5(join26(`${root}${sep4}`, options.tmpPrefix || ""));
+      await mkdir18(root, { recursive: true });
+      const target = await mkdtemp5(join27(`${root}${sep4}`, options.tmpPrefix || ""));
       let err;
       let result;
       try {
@@ -39371,14 +40022,14 @@ var require_with_temp_dir = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/readdir-scoped.js
 var require_readdir_scoped = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/readdir-scoped.js"(exports, module) {
-    var { readdir: readdir13 } = __require("fs/promises");
-    var { join: join26 } = __require("path");
+    var { readdir: readdir14 } = __require("fs/promises");
+    var { join: join27 } = __require("path");
     var readdirScoped = /* @__PURE__ */ __name(async (dir) => {
       const results = [];
-      for (const item of await readdir13(dir)) {
+      for (const item of await readdir14(dir)) {
         if (item.startsWith("@")) {
-          for (const scopedItem of await readdir13(join26(dir, item))) {
-            results.push(join26(item, scopedItem));
+          for (const scopedItem of await readdir14(join27(dir, item))) {
+            results.push(join27(item, scopedItem));
           }
         } else {
           results.push(item);
@@ -39393,7 +40044,7 @@ var require_readdir_scoped = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/move-file.js
 var require_move_file = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/move-file.js"(exports, module) {
-    var { dirname: dirname15, join: join26, resolve: resolve25, relative: relative22, isAbsolute: isAbsolute19 } = __require("path");
+    var { dirname: dirname15, join: join27, resolve: resolve26, relative: relative23, isAbsolute: isAbsolute20 } = __require("path");
     var fs = __require("fs/promises");
     var pathExists2 = /* @__PURE__ */ __name(async (path3) => {
       try {
@@ -39423,7 +40074,7 @@ var require_move_file = __commonJS({
           if (sourceStat.isDirectory()) {
             const files = await fs.readdir(source);
             await Promise.all(files.map(
-              (file) => moveFile(join26(source, file), join26(destination, file), options, false, symlinks)
+              (file) => moveFile(join27(source, file), join27(destination, file), options, false, symlinks)
             ));
           } else if (sourceStat.isSymbolicLink()) {
             symlinks.push({ source, destination });
@@ -39437,12 +40088,12 @@ var require_move_file = __commonJS({
       if (root) {
         await Promise.all(symlinks.map(async ({ source: symSource, destination: symDestination }) => {
           let target = await fs.readlink(symSource);
-          if (isAbsolute19(target)) {
-            target = resolve25(symDestination, relative22(symSource, target));
+          if (isAbsolute20(target)) {
+            target = resolve26(symDestination, relative23(symSource, target));
           }
           let targetStat = "file";
           try {
-            targetStat = await fs.stat(resolve25(dirname15(symSource), target));
+            targetStat = await fs.stat(resolve26(dirname15(symSource), target));
             if (targetStat.isDirectory()) {
               targetStat = "junction";
             }
@@ -39515,7 +40166,7 @@ async function pMap(iterable, mapper, {
     const cleanup = /* @__PURE__ */ __name(() => {
       signal?.removeEventListener("abort", signalListener);
     }, "cleanup");
-    const resolve25 = /* @__PURE__ */ __name((value) => {
+    const resolve26 = /* @__PURE__ */ __name((value) => {
       resolve_(value);
       cleanup();
     }, "resolve");
@@ -39547,7 +40198,7 @@ async function pMap(iterable, mapper, {
           }
           isResolved = true;
           if (skippedIndexesMap.size === 0) {
-            resolve25(result);
+            resolve26(result);
             return;
           }
           const pureResult = [];
@@ -39557,7 +40208,7 @@ async function pMap(iterable, mapper, {
             }
             pureResult.push(value);
           }
-          resolve25(pureResult);
+          resolve26(pureResult);
         }
         return;
       }
@@ -39696,9 +40347,9 @@ var require_entry_index = __commonJS({
     var crypto = __require("crypto");
     var {
       appendFile,
-      mkdir: mkdir20,
-      readFile: readFile30,
-      readdir: readdir13,
+      mkdir: mkdir18,
+      readFile: readFile31,
+      readdir: readdir14,
       rm: rm9,
       writeFile: writeFile11
     } = __require("fs/promises");
@@ -39743,7 +40394,7 @@ var require_entry_index = __commonJS({
       }).join("\n");
       const setup = /* @__PURE__ */ __name(async () => {
         const target = uniqueFilename(path3.join(cache, "tmp"), opts.tmpPrefix);
-        await mkdir20(path3.dirname(target), { recursive: true });
+        await mkdir18(path3.dirname(target), { recursive: true });
         return {
           target,
           moved: false
@@ -39756,7 +40407,7 @@ var require_entry_index = __commonJS({
       }, "teardown");
       const write = /* @__PURE__ */ __name(async (tmp2) => {
         await writeFile11(tmp2.target, newIndex, { flag: "wx" });
-        await mkdir20(path3.dirname(bucket), { recursive: true });
+        await mkdir18(path3.dirname(bucket), { recursive: true });
         await moveFile(tmp2.target, bucket);
         tmp2.moved = true;
       }, "write");
@@ -39781,7 +40432,7 @@ var require_entry_index = __commonJS({
         metadata
       };
       try {
-        await mkdir20(path3.dirname(bucket), { recursive: true });
+        await mkdir18(path3.dirname(bucket), { recursive: true });
         const stringified = JSON.stringify(entry);
         await appendFile(bucket, `
 ${hashEntry(stringified)}	${stringified}`);
@@ -39889,7 +40540,7 @@ ${hashEntry(stringified)}	${stringified}`);
     __name(ls, "ls");
     module.exports.bucketEntries = bucketEntries;
     async function bucketEntries(bucket, filter) {
-      const data = await readFile30(bucket, "utf8");
+      const data = await readFile31(bucket, "utf8");
       return _bucketEntries(data, filter);
     }
     __name(bucketEntries, "bucketEntries");
@@ -39958,7 +40609,7 @@ ${hashEntry(stringified)}	${stringified}`);
     }
     __name(formatEntry, "formatEntry");
     function readdirOrEmpty(dir) {
-      return readdir13(dir).catch((err) => {
+      return readdir14(dir).catch((err) => {
         if (err.code === "ENOENT" || err.code === "ENOTDIR") {
           return [];
         }
@@ -42879,7 +43530,7 @@ var require_commonjs5 = __commonJS({
     var node_url_1 = __require("node:url");
     var fs_1 = __require("fs");
     var actualFS = __importStar(__require("node:fs"));
-    var realpathSync4 = fs_1.realpathSync.native;
+    var realpathSync5 = fs_1.realpathSync.native;
     var promises_1 = __require("node:fs/promises");
     var minipass_1 = require_commonjs();
     var defaultFS = {
@@ -42887,7 +43538,7 @@ var require_commonjs5 = __commonJS({
       readdir: fs_1.readdir,
       readdirSync: fs_1.readdirSync,
       readlinkSync: fs_1.readlinkSync,
-      realpathSync: realpathSync4,
+      realpathSync: realpathSync5,
       promises: {
         lstat: promises_1.lstat,
         readdir: promises_1.readdir,
@@ -43763,9 +44414,9 @@ var require_commonjs5 = __commonJS({
         if (this.#asyncReaddirInFlight) {
           await this.#asyncReaddirInFlight;
         } else {
-          let resolve25 = /* @__PURE__ */ __name(() => {
+          let resolve26 = /* @__PURE__ */ __name(() => {
           }, "resolve");
-          this.#asyncReaddirInFlight = new Promise((res) => resolve25 = res);
+          this.#asyncReaddirInFlight = new Promise((res) => resolve26 = res);
           try {
             for (const e of await this.#fs.promises.readdir(fullpath, {
               withFileTypes: true
@@ -43778,7 +44429,7 @@ var require_commonjs5 = __commonJS({
             children.provisional = 0;
           }
           this.#asyncReaddirInFlight = void 0;
-          resolve25();
+          resolve26();
         }
         return children.slice(0, children.provisional);
       }
@@ -44889,10 +45540,10 @@ var require_ignore = __commonJS({
       ignored(p) {
         const fullpath = p.fullpath();
         const fullpaths = `${fullpath}/`;
-        const relative22 = p.relative() || ".";
-        const relatives = `${relative22}/`;
+        const relative23 = p.relative() || ".";
+        const relatives = `${relative23}/`;
         for (const m of this.relative) {
-          if (m.match(relative22) || m.match(relatives))
+          if (m.match(relative23) || m.match(relatives))
             return true;
         }
         for (const m of this.absolute) {
@@ -44903,9 +45554,9 @@ var require_ignore = __commonJS({
       }
       childrenIgnored(p) {
         const fullpath = p.fullpath() + "/";
-        const relative22 = (p.relative() || ".") + "/";
+        const relative23 = (p.relative() || ".") + "/";
         for (const m of this.relativeChildren) {
-          if (m.match(relative22))
+          if (m.match(relative23))
             return true;
         }
         for (const m of this.absoluteChildren) {
@@ -45908,8 +46559,8 @@ var require_verify = __commonJS({
   "../../node_modules/.pnpm/cacache@19.0.1/node_modules/cacache/lib/verify.js"(exports, module) {
     "use strict";
     var {
-      mkdir: mkdir20,
-      readFile: readFile30,
+      mkdir: mkdir18,
+      readFile: readFile31,
       rm: rm9,
       stat: stat9,
       truncate,
@@ -45978,7 +46629,7 @@ var require_verify = __commonJS({
     __name(markEndTime, "markEndTime");
     async function fixPerms(cache, opts) {
       opts.log.silly("verify", "fixing cache permissions");
-      await mkdir20(cache, { recursive: true });
+      await mkdir18(cache, { recursive: true });
       return null;
     }
     __name(fixPerms, "fixPerms");
@@ -45996,8 +46647,8 @@ var require_verify = __commonJS({
           liveContent.add(integrity[algo].toString());
         }
       });
-      await new Promise((resolve25, reject) => {
-        indexStream.on("end", resolve25).on("error", reject);
+      await new Promise((resolve26, reject) => {
+        indexStream.on("end", resolve26).on("error", reject);
       });
       const contentDir = contentPath.contentDir(cache);
       const files = await glob(path3.join(contentDir, "**"), {
@@ -46136,7 +46787,7 @@ var require_verify = __commonJS({
     __name(writeVerifile, "writeVerifile");
     module.exports.lastRun = lastRun;
     async function lastRun(cache) {
-      const data = await readFile30(path3.join(cache, "_lastverified"), { encoding: "utf8" });
+      const data = await readFile31(path3.join(cache, "_lastverified"), { encoding: "utf8" });
       return /* @__PURE__ */ new Date(+data);
     }
     __name(lastRun, "lastRun");
@@ -46553,7 +47204,7 @@ var require_promise_retry = __commonJS({
         fn = temp;
       }
       operation = retry.operation(options);
-      return new Promise(function(resolve25, reject) {
+      return new Promise(function(resolve26, reject) {
         operation.attempt(function(number) {
           Promise.resolve().then(function() {
             return fn(function(err) {
@@ -46562,7 +47213,7 @@ var require_promise_retry = __commonJS({
               }
               throw errcode(new Error("Retrying"), "EPROMISERETRY", { retried: err });
             }, number);
-          }).then(resolve25, function(err) {
+          }).then(resolve26, function(err) {
             if (isRetryError(err)) {
               err = err.retried;
               if (operation.retry(err || new Error())) {
@@ -47447,8 +48098,8 @@ var require_helpers = __commonJS({
     function req(url, opts = {}) {
       const href = typeof url === "string" ? url : url.href;
       const req2 = (href.startsWith("https:") ? https : http).request(url, opts);
-      const promise = new Promise((resolve25, reject) => {
-        req2.once("response", resolve25).once("error", reject).end();
+      const promise = new Promise((resolve26, reject) => {
+        req2.once("response", resolve26).once("error", reject).end();
       });
       req2.then = promise.then.bind(promise);
       return req2;
@@ -47763,7 +48414,7 @@ var require_parse_proxy_response = __commonJS({
     var debug_1 = __importDefault(require_src());
     var debug = (0, debug_1.default)("https-proxy-agent:parse-proxy-response");
     function parseProxyResponse(socket) {
-      return new Promise((resolve25, reject) => {
+      return new Promise((resolve26, reject) => {
         let buffersLength = 0;
         const buffers = [];
         function read() {
@@ -47833,7 +48484,7 @@ var require_parse_proxy_response = __commonJS({
           }
           debug("got proxy server response: %o %o", firstLine, headers);
           cleanup();
-          resolve25({
+          resolve26({
             connect: {
               statusCode,
               statusText,
@@ -51512,12 +52163,12 @@ var require_socksclient = __commonJS({
     "use strict";
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve25) {
-          resolve25(value);
+        return value instanceof P ? value : new P(function(resolve26) {
+          resolve26(value);
         });
       }
       __name(adopt, "adopt");
-      return new (P || (P = Promise))(function(resolve25, reject) {
+      return new (P || (P = Promise))(function(resolve26, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -51535,7 +52186,7 @@ var require_socksclient = __commonJS({
         }
         __name(rejected, "rejected");
         function step(result) {
-          result.done ? resolve25(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve26(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         __name(step, "step");
         step((generator = generator.apply(thisArg, _arguments || [])).next());
@@ -51573,13 +52224,13 @@ var require_socksclient = __commonJS({
        * @returns { Promise }
        */
       static createConnection(options, callback) {
-        return new Promise((resolve25, reject) => {
+        return new Promise((resolve26, reject) => {
           try {
             (0, helpers_1.validateSocksClientOptions)(options, ["connect"]);
           } catch (err) {
             if (typeof callback === "function") {
               callback(err);
-              return resolve25(err);
+              return resolve26(err);
             } else {
               return reject(err);
             }
@@ -51590,16 +52241,16 @@ var require_socksclient = __commonJS({
             client.removeAllListeners();
             if (typeof callback === "function") {
               callback(null, info);
-              resolve25(info);
+              resolve26(info);
             } else {
-              resolve25(info);
+              resolve26(info);
             }
           });
           client.once("error", (err) => {
             client.removeAllListeners();
             if (typeof callback === "function") {
               callback(err);
-              resolve25(err);
+              resolve26(err);
             } else {
               reject(err);
             }
@@ -51616,13 +52267,13 @@ var require_socksclient = __commonJS({
        * @returns { Promise }
        */
       static createConnectionChain(options, callback) {
-        return new Promise((resolve25, reject) => __awaiter(this, void 0, void 0, function* () {
+        return new Promise((resolve26, reject) => __awaiter(this, void 0, void 0, function* () {
           try {
             (0, helpers_1.validateSocksClientChainOptions)(options);
           } catch (err) {
             if (typeof callback === "function") {
               callback(err);
-              return resolve25(err);
+              return resolve26(err);
             } else {
               return reject(err);
             }
@@ -51648,14 +52299,14 @@ var require_socksclient = __commonJS({
             }
             if (typeof callback === "function") {
               callback(null, { socket: sock });
-              resolve25({ socket: sock });
+              resolve26({ socket: sock });
             } else {
-              resolve25({ socket: sock });
+              resolve26({ socket: sock });
             }
           } catch (err) {
             if (typeof callback === "function") {
               callback(err);
-              resolve25(err);
+              resolve26(err);
             } else {
               reject(err);
             }
@@ -52343,12 +52994,12 @@ var require_dist6 = __commonJS({
         let { host } = opts;
         const { port, lookup: lookupFn = dns.lookup } = opts;
         if (shouldLookup) {
-          host = await new Promise((resolve25, reject) => {
+          host = await new Promise((resolve26, reject) => {
             lookupFn(host, {}, (err, res) => {
               if (err) {
                 reject(err);
               } else {
-                resolve25(res);
+                resolve26(res);
               }
             });
           });
@@ -53160,8 +53811,8 @@ var require_entry = __commonJS({
         let body = null;
         if (this.response.status === 200) {
           let cacheWriteResolve, cacheWriteReject;
-          const cacheWritePromise = new Promise((resolve25, reject) => {
-            cacheWriteResolve = resolve25;
+          const cacheWritePromise = new Promise((resolve26, reject) => {
+            cacheWriteResolve = resolve26;
             cacheWriteReject = reject;
           }).catch((err) => {
             body.emit("error", err);
@@ -54676,7 +55327,7 @@ var require_index_min = __commonJS({
 var require_lib17 = __commonJS({
   "../../node_modules/.pnpm/which@5.0.0/node_modules/which/lib/index.js"(exports, module) {
     var { isexe, sync: isexeSync } = require_index_min();
-    var { join: join26, delimiter, sep: sep4, posix: posix3 } = __require("path");
+    var { join: join27, delimiter, sep: sep4, posix: posix3 } = __require("path");
     var isWindows = process.platform === "win32";
     var rSlash = new RegExp(`[${posix3.sep}${sep4 === posix3.sep ? "" : sep4}]`.replace(/(\\)/g, "\\$1"));
     var rRel = new RegExp(`^\\.${rSlash.source}`);
@@ -54705,7 +55356,7 @@ var require_lib17 = __commonJS({
     var getPathPart = /* @__PURE__ */ __name((raw, cmd) => {
       const pathPart = /^".*"$/.test(raw) ? raw.slice(1, -1) : raw;
       const prefix = !pathPart && rRel.test(cmd) ? cmd.slice(0, 2) : "";
-      return prefix + join26(pathPart, cmd);
+      return prefix + join27(pathPart, cmd);
     }, "getPathPart");
     var which = /* @__PURE__ */ __name(async (cmd, opt = {}) => {
       const { pathEnv, pathExt, pathExtExe } = getPathInfo(cmd, opt);
@@ -54828,9 +55479,9 @@ var require_lib18 = __commonJS({
       if (opts.shell) {
         return spawnWithShell(cmd, args2, opts, extra);
       }
-      let resolve25, reject;
+      let resolve26, reject;
       const promise = new Promise((_resolve, _reject) => {
-        resolve25 = _resolve;
+        resolve26 = _resolve;
         reject = _reject;
       });
       const closeError = new Error("command failed");
@@ -54863,7 +55514,7 @@ var require_lib18 = __commonJS({
         if (code || signal) {
           rejectWithOpts(closeError, { code, signal });
         } else {
-          resolve25(getResult({ code, signal }));
+          resolve26(getResult({ code, signal }));
         }
       });
       return promise;
@@ -55844,7 +56495,7 @@ var require_lib19 = __commonJS({
 // ../../node_modules/.pnpm/npm-normalize-package-bin@4.0.0/node_modules/npm-normalize-package-bin/lib/index.js
 var require_lib20 = __commonJS({
   "../../node_modules/.pnpm/npm-normalize-package-bin@4.0.0/node_modules/npm-normalize-package-bin/lib/index.js"(exports, module) {
-    var { join: join26, basename: basename10 } = __require("path");
+    var { join: join27, basename: basename11 } = __require("path");
     var normalize4 = /* @__PURE__ */ __name((pkg) => !pkg.bin ? removeBin(pkg) : typeof pkg.bin === "string" ? normalizeString(pkg) : Array.isArray(pkg.bin) ? normalizeArray(pkg) : typeof pkg.bin === "object" ? normalizeObject(pkg) : removeBin(pkg), "normalize");
     var normalizeString = /* @__PURE__ */ __name((pkg) => {
       if (!pkg.name) {
@@ -55855,7 +56506,7 @@ var require_lib20 = __commonJS({
     }, "normalizeString");
     var normalizeArray = /* @__PURE__ */ __name((pkg) => {
       pkg.bin = pkg.bin.reduce((acc, k) => {
-        acc[basename10(k)] = k;
+        acc[basename11(k)] = k;
         return acc;
       }, {});
       return normalizeObject(pkg);
@@ -55869,11 +56520,11 @@ var require_lib20 = __commonJS({
       const clean = {};
       let hasBins = false;
       Object.keys(orig).forEach((binKey) => {
-        const base = join26("/", basename10(binKey.replace(/\\|:/g, "/"))).slice(1);
+        const base = join27("/", basename11(binKey.replace(/\\|:/g, "/"))).slice(1);
         if (typeof orig[binKey] !== "string" || !base) {
           return;
         }
-        const binTarget = join26("/", orig[binKey].replace(/\\/g, "/")).replace(/\\/g, "/").slice(1);
+        const binTarget = join27("/", orig[binKey].replace(/\\/g, "/")).replace(/\\/g, "/").slice(1);
         if (!binTarget) {
           return;
         }
@@ -58414,11 +59065,11 @@ var require_normalize = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+package-json@6.2.0/node_modules/@npmcli/package-json/lib/read-package.js
 var require_read_package = __commonJS({
   "../../node_modules/.pnpm/@npmcli+package-json@6.2.0/node_modules/@npmcli/package-json/lib/read-package.js"(exports, module) {
-    var { readFile: readFile30 } = __require("fs/promises");
+    var { readFile: readFile31 } = __require("fs/promises");
     var parseJSON = require_lib16();
     async function read(filename) {
       try {
-        const data = await readFile30(filename, "utf8");
+        const data = await readFile31(filename, "utf8");
         return data;
       } catch (err) {
         err.message = `Could not read package.json: ${err}`;
@@ -58551,8 +59202,8 @@ var require_sort2 = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+package-json@6.2.0/node_modules/@npmcli/package-json/lib/index.js
 var require_lib23 = __commonJS({
   "../../node_modules/.pnpm/@npmcli+package-json@6.2.0/node_modules/@npmcli/package-json/lib/index.js"(exports, module) {
-    var { readFile: readFile30, writeFile: writeFile11 } = __require("node:fs/promises");
-    var { resolve: resolve25 } = __require("node:path");
+    var { readFile: readFile31, writeFile: writeFile11 } = __require("node:fs/promises");
+    var { resolve: resolve26 } = __require("node:path");
     var parseJSON = require_lib16();
     var updateDeps = require_update_dependencies();
     var updateScripts = require_update_scripts();
@@ -58675,10 +59326,10 @@ var require_lib23 = __commonJS({
           parseErr = err;
         }
         if (parseErr) {
-          const indexFile = resolve25(this.path, "index.js");
+          const indexFile = resolve26(this.path, "index.js");
           let indexFileContent;
           try {
-            indexFileContent = await readFile30(indexFile, "utf8");
+            indexFileContent = await readFile31(indexFile, "utf8");
           } catch (err) {
             throw parseErr;
           }
@@ -58727,7 +59378,7 @@ var require_lib23 = __commonJS({
       }
       get filename() {
         if (this.path) {
-          return resolve25(this.path, "package.json");
+          return resolve26(this.path, "package.json");
         }
         return void 0;
       }
@@ -65653,12 +66304,12 @@ var require_fetcher = __commonJS({
     };
     exports.DefaultFetcher = DefaultFetcher;
     var writeBufferToStream = /* @__PURE__ */ __name(async (stream, buffer) => {
-      return new Promise((resolve25, reject) => {
+      return new Promise((resolve26, reject) => {
         stream.write(buffer, (err) => {
           if (err) {
             reject(err);
           }
-          resolve25(true);
+          resolve26(true);
         });
       });
     }, "writeBufferToStream");
@@ -65877,12 +66528,12 @@ var require_url = __commonJS({
   "../../node_modules/.pnpm/tuf-js@3.1.0/node_modules/tuf-js/dist/utils/url.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.join = join26;
+    exports.join = join27;
     var url_1 = __require("url");
-    function join26(base, path3) {
+    function join27(base, path3) {
       return new url_1.URL(ensureTrailingSlash(base) + removeLeadingSlash(path3)).toString();
     }
-    __name(join26, "join");
+    __name(join27, "join");
     function ensureTrailingSlash(path3) {
       return path3.endsWith("/") ? path3 : path3 + "/";
     }
@@ -66261,7 +66912,7 @@ var require_target = __commonJS({
     var error_1 = require_error8();
     async function readTarget(tuf, targetPath) {
       const path3 = await getTargetPath(tuf, targetPath);
-      return new Promise((resolve25, reject) => {
+      return new Promise((resolve26, reject) => {
         fs_1.default.readFile(path3, "utf-8", (err, data) => {
           if (err) {
             reject(new error_1.TUFError({
@@ -66270,7 +66921,7 @@ var require_target = __commonJS({
               cause: err
             }));
           } else {
-            resolve25(data);
+            resolve26(data);
           }
         });
       });
@@ -67987,7 +68638,7 @@ var require_dist15 = __commonJS({
 var require_provenance = __commonJS({
   "../../node_modules/.pnpm/libnpmpublish@11.1.0/node_modules/libnpmpublish/lib/provenance.js"(exports, module) {
     var sigstore = require_dist15();
-    var { readFile: readFile30 } = __require("node:fs/promises");
+    var { readFile: readFile31 } = __require("node:fs/promises");
     var ci = require_ci_info();
     var { env } = process;
     var INTOTO_PAYLOAD_TYPE = "application/vnd.in-toto+json";
@@ -68179,7 +68830,7 @@ var require_provenance = __commonJS({
     var verifyProvenance = /* @__PURE__ */ __name(async (subject, provenancePath) => {
       let provenanceBundle;
       try {
-        provenanceBundle = JSON.parse(await readFile30(provenancePath));
+        provenanceBundle = JSON.parse(await readFile31(provenancePath));
       } catch (err) {
         err.message = `Invalid provenance provided: ${err.message}`;
         throw err;
@@ -68518,9 +69169,9 @@ import { createHash as createHash9, randomUUID } from "node:crypto";
 import { execFile as execFileCb6, spawn as spawn3 } from "node:child_process";
 import { gunzipSync } from "node:zlib";
 import { promisify as promisify6 } from "node:util";
-import { dirname as dirname7, isAbsolute as isAbsolute11, join as join11, relative as relative13, resolve as resolve15 } from "node:path";
+import { dirname as dirname7, isAbsolute as isAbsolute12, join as join12, relative as relative14, resolve as resolve16 } from "node:path";
 import { constants as fsConstants4 } from "node:fs";
-import { chmod as chmod3, lstat as lstat9, mkdtemp as mkdtemp2, open as open6, readFile as readFile13, realpath as realpath9, rm as rm5 } from "node:fs/promises";
+import { chmod as chmod3, lstat as lstat9, mkdtemp as mkdtemp2, open as open6, readFile as readFile14, realpath as realpath9, rm as rm5 } from "node:fs/promises";
 function validatePackageName(value) {
   if (typeof value !== "string" || value.length > 214 || !SAFE_PACKAGE_NAME.test(value)) {
     throw new Error("npm package must be a safe lowercase package name or @scope/name");
@@ -68574,7 +69225,7 @@ function expandNpmrcValue(raw, env) {
 async function tokensFromNpmrc(path3, key, env) {
   let contents;
   try {
-    contents = await readFile13(path3, "utf8");
+    contents = await readFile14(path3, "utf8");
   } catch (err) {
     if (err?.code === "ENOENT") return [];
     throw new Error("cannot read npm authentication config");
@@ -68597,7 +69248,7 @@ async function defaultResolveAuthToken({ registry, cwd, exec, env = process.env 
     if (env[name]) candidates.push(env[name]);
   }
   const key = registryTokenKey(registry);
-  candidates.push(...await tokensFromNpmrc(join11(cwd, ".npmrc"), key, env));
+  candidates.push(...await tokensFromNpmrc(join12(cwd, ".npmrc"), key, env));
   const npmUserConfigKey = ["npm", "config", "userconfig"].join("_");
   const userConfig = env[npmUserConfigKey] ?? (await exec("npm", ["config", "get", "userconfig"], { cwd, shell: false })).stdout.trim();
   if (userConfig) candidates.push(...await tokensFromNpmrc(userConfig, key, env));
@@ -68626,10 +69277,10 @@ async function defaultWhoamiWithToken({ registry, token, cwd, exec }) {
 }
 function resolvePackageCwd(cwd, root) {
   if (!cwd || typeof cwd !== "string") throw new Error("NPM_PUBLISH requires a non-empty action.cwd (package directory)");
-  const rootPath = resolve15(root);
-  const packagePath = resolve15(root, cwd);
-  const rel = relative13(rootPath, packagePath);
-  if (isAbsolute11(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+  const rootPath = resolve16(root);
+  const packagePath = resolve16(root, cwd);
+  const rel = relative14(rootPath, packagePath);
+  if (isAbsolute12(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
     throw new Error(`cwd "${cwd}" is outside project root "${root}"`);
   }
   return packagePath;
@@ -68642,12 +69293,12 @@ ${error?.message ?? ""}`;
   return /\bE404\b|\b404\b.*not found|not found.*\b404\b/i.test(text);
 }
 async function readVerifiedTarballBytes(action, root) {
-  if (!action.tarballPath || isAbsolute11(action.tarballPath)) throw new Error("tarballPath must be project-relative");
+  if (!action.tarballPath || isAbsolute12(action.tarballPath)) throw new Error("tarballPath must be project-relative");
   if (!/^[a-f0-9]{64}$/.test(action.tarballSha256 ?? "")) throw new Error("tarballSha256 must be a lowercase SHA-256 digest");
   const rootReal = await realpath9(root);
-  const lexical = resolve15(rootReal, action.tarballPath);
-  const rel = relative13(rootReal, lexical);
-  if (isAbsolute11(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+  const lexical = resolve16(rootReal, action.tarballPath);
+  const rel = relative14(rootReal, lexical);
+  if (isAbsolute12(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
     throw new Error("tarballPath escapes project root");
   }
   const before = await lstat9(lexical);
@@ -68916,7 +69567,7 @@ function createNpmAdapter(deps = {}) {
             throw new Error("npm bearer authentication does not match the frozen registry and publisher");
           }
           if (typeof beforeBufferPublishHook === "function") {
-            await beforeBufferPublishHook(resolve15(context.root, action.tarballPath));
+            await beforeBufferPublishHook(resolve16(context.root, action.tarballPath));
           }
           try {
             await publishTarballBuffer({
@@ -69078,11 +69729,11 @@ var init_npm = __esm({
 });
 
 // src/core/run.mjs
-import { link as link2, lstat as lstat10, mkdir as mkdir11, open as open7, readFile as readFile14, unlink as unlink3 } from "node:fs/promises";
+import { link as link2, lstat as lstat10, mkdir as mkdir9, open as open7, readFile as readFile15, unlink as unlink3 } from "node:fs/promises";
 import { realpathSync as realpathSync3 } from "node:fs";
-import { dirname as dirname8, join as join12, resolve as resolve16, basename as basename4, relative as relative14, isAbsolute as isAbsolute12 } from "node:path";
+import { dirname as dirname8, join as join13, resolve as resolve17, basename as basename4, relative as relative15, isAbsolute as isAbsolute13 } from "node:path";
 function resolveDefaultRunDir(planPath, command2, runId = `${command2}-${Date.now()}`) {
-  const absolute = resolve16(planPath);
+  const absolute = resolve17(planPath);
   const fileName = basename4(absolute);
   const parentDir = dirname8(absolute);
   if (fileName === "release-plan.json") {
@@ -69090,7 +69741,7 @@ function resolveDefaultRunDir(planPath, command2, runId = `${command2}-${Date.no
   }
   if (basename4(parentDir) === "plans") {
     const releaseDir = dirname8(parentDir);
-    return join12(releaseDir, "runs", runId);
+    return join13(releaseDir, "runs", runId);
   }
   return `${parentDir}/runs/${runId}`;
 }
@@ -69130,7 +69781,7 @@ function validateRun(run5, options = {}) {
 async function loadRun(runPath, options = {}) {
   let raw;
   try {
-    raw = await readFile14(runPath, "utf8");
+    raw = await readFile15(runPath, "utf8");
   } catch (err) {
     throw new ReleaseError(
       GATE_FAILED,
@@ -69155,7 +69806,7 @@ async function loadRun(runPath, options = {}) {
   return run5;
 }
 function assertImmutableRunAuthority(runPath, planPath, run5) {
-  const absolutePlan = realpathSync3(resolve16(planPath));
+  const absolutePlan = realpathSync3(resolve17(planPath));
   const planDir = dirname8(absolutePlan);
   if (basename4(planDir) !== "plans") {
     throw new ReleaseError(GATE_FAILED, "run authority requires an immutable plans/<digest>.json plan path");
@@ -69169,10 +69820,10 @@ function assertImmutableRunAuthority(runPath, planPath, run5) {
     }
     cursor = dirname8(cursor);
   }
-  const runsDir = join12(authorityRoot, "runs");
-  const absoluteRun = realpathSync3(resolve16(runPath));
-  const rel = relative14(runsDir, absoluteRun);
-  if (isAbsolute12(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+  const runsDir = join13(authorityRoot, "runs");
+  const absoluteRun = realpathSync3(resolve17(runPath));
+  const rel = relative15(runsDir, absoluteRun);
+  if (isAbsolute13(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
     throw new ReleaseError(GATE_FAILED, "production run authority must be inside the plan sibling runs/ directory");
   }
   const fileName = basename4(absoluteRun);
@@ -69187,7 +69838,7 @@ function assertImmutableRunAuthority(runPath, planPath, run5) {
   }
 }
 async function createProductionRunDir(runDir, planPath) {
-  const absolutePlan = realpathSync3(resolve16(planPath));
+  const absolutePlan = realpathSync3(resolve17(planPath));
   const planDir = dirname8(absolutePlan);
   if (basename4(planDir) !== "plans") {
     throw new ReleaseError(GATE_FAILED, "production run directory requires an immutable plans/<digest>.json authority");
@@ -69196,7 +69847,7 @@ async function createProductionRunDir(runDir, planPath) {
   return createProductionRunDirWithinAuthority(runDir, authorityRoot);
 }
 async function createProductionPrepareRunDir(runDir, releaseDir) {
-  const authorityRoot = resolve16(releaseDir);
+  const authorityRoot = resolve17(releaseDir);
   let authorityStat;
   try {
     authorityStat = await lstat10(authorityRoot);
@@ -69224,7 +69875,7 @@ async function createProductionPrepareRunDir(runDir, releaseDir) {
   return createProductionRunDirWithinAuthority(runDir, physicalAuthorityRoot);
 }
 async function createProductionRunDirWithinAuthority(runDir, authorityRoot) {
-  const runsDir = join12(authorityRoot, "runs");
+  const runsDir = join13(authorityRoot, "runs");
   let runsStat;
   try {
     runsStat = await lstat10(runsDir);
@@ -69236,7 +69887,7 @@ async function createProductionRunDirWithinAuthority(runDir, authorityRoot) {
       });
     }
     try {
-      await mkdir11(runsDir, { mode: 448 });
+      await mkdir9(runsDir, { mode: 448 });
     } catch (mkdirError) {
       if (mkdirError.code !== "EEXIST") {
         throw new ReleaseError(GATE_FAILED, "cannot create production runs authority root", {
@@ -69262,7 +69913,7 @@ async function createProductionRunDirWithinAuthority(runDir, authorityRoot) {
       { runsDir, physicalRunsDir }
     );
   }
-  const requested = resolve16(runDir);
+  const requested = resolve17(runDir);
   let physicalParent;
   try {
     physicalParent = realpathSync3(dirname8(requested));
@@ -69292,7 +69943,7 @@ async function createProductionRunDirWithinAuthority(runDir, authorityRoot) {
     }
   }
   try {
-    await mkdir11(requested, { mode: 448 });
+    await mkdir9(requested, { mode: 448 });
   } catch (error) {
     throw new ReleaseError(GATE_FAILED, "cannot exclusively create production run directory", {
       runDir,
@@ -69313,7 +69964,7 @@ async function validateStatePredecessorChain(run5, runPath, options = {}) {
     return;
   }
   let current = run5;
-  let currentPath = realpathSync3(resolve16(runPath));
+  let currentPath = realpathSync3(resolve17(runPath));
   let traversed = 0;
   while (true) {
     const sequence = current.stateSequence;
@@ -69334,7 +69985,7 @@ async function validateStatePredecessorChain(run5, runPath, options = {}) {
     if (traversed > 1e5) {
       throw new ReleaseError(GATE_FAILED, "run state predecessor chain exceeds maximum depth");
     }
-    const previousPath = join12(dirname8(currentPath), `${String(sequence - 1).padStart(6, "0")}.json`);
+    const previousPath = join13(dirname8(currentPath), `${String(sequence - 1).padStart(6, "0")}.json`);
     const previous = await loadRun(previousPath, {
       requireDigest: true,
       ...options.production ? { authorityPlanPath: options.planPath } : {}
@@ -69427,7 +70078,7 @@ function validateRunPlanDigest(run5, plan, options = {}) {
       { runDigest: run5.planDigest, planDigest: expectedDigest }
     );
   }
-  if (plan.production && run5.planPath && options.planPath && resolve16(run5.planPath) !== resolve16(options.planPath)) {
+  if (plan.production && run5.planPath && options.planPath && resolve17(run5.planPath) !== resolve17(options.planPath)) {
     throw new ReleaseError(
       GATE_FAILED,
       "source run immutable plan path does not match the supplied plan authority",
@@ -69511,7 +70162,7 @@ async function writeRunAtomic(runPath, run5) {
   const json = JSON.stringify(sealed, null, 2);
   const dir = dirname8(runPath);
   const tmpPath = `${dir}/.release-run-${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`;
-  await mkdir11(dir, { recursive: true });
+  await mkdir9(dir, { recursive: true });
   const handle = await open7(tmpPath, "wx", 384);
   try {
     await handle.writeFile(json, "utf8");
@@ -69525,7 +70176,7 @@ async function writeRunAtomic(runPath, run5) {
       await syncDirectory(dir);
     } catch (error) {
       if (error.code !== "EEXIST") throw error;
-      const existing = await readFile14(runPath, "utf8");
+      const existing = await readFile15(runPath, "utf8");
       if (existing !== json) {
         throw new ReleaseError(
           GATE_FAILED,
@@ -69544,10 +70195,10 @@ async function appendRunState(runDir, sequence, run5) {
   if (!Number.isSafeInteger(sequence) || sequence < 0) {
     throw new ReleaseError(GATE_FAILED, "run state sequence must be a non-negative integer");
   }
-  const statesDir = join12(runDir, "states");
+  const statesDir = join13(runDir, "states");
   let previousStateDigest;
   if (sequence > 0) {
-    const previousPath = join12(statesDir, `${String(sequence - 1).padStart(6, "0")}.json`);
+    const previousPath = join13(statesDir, `${String(sequence - 1).padStart(6, "0")}.json`);
     const previous = await loadRun(previousPath, { requireDigest: true });
     if (previous.stateSequence !== sequence - 1 || previous.runId !== run5.runId || previous.command !== run5.command || previous.planDigest !== run5.planDigest) {
       throw new ReleaseError(
@@ -69564,7 +70215,7 @@ async function appendRunState(runDir, sequence, run5) {
     stateSequence: sequence,
     ...previousStateDigest ? { previousStateDigest } : {}
   });
-  const statePath = join12(statesDir, `${String(sequence).padStart(6, "0")}.json`);
+  const statePath = join13(statesDir, `${String(sequence).padStart(6, "0")}.json`);
   await writeRunAtomic(statePath, state);
   return Object.freeze({ state, statePath });
 }
@@ -69603,9 +70254,2677 @@ var init_run = __esm({
   }
 });
 
+// src/adapters/plugin-marketplace.mjs
+var plugin_marketplace_exports = {};
+__export(plugin_marketplace_exports, {
+  MARKETPLACE_SOURCE_TYPES: () => MARKETPLACE_SOURCE_TYPES,
+  createPluginMarketplaceAdapter: () => createPluginMarketplaceAdapter,
+  readKimiManifest: () => readKimiManifest,
+  resolveKimiEntrySkillFile: () => resolveKimiEntrySkillFile,
+  resolveMarketplaceRoot: () => resolveMarketplaceRoot,
+  resolvePluginManifestFromMarketplaceEntrySource: () => resolvePluginManifestFromMarketplaceEntrySource,
+  validateMarketplaceSourceSelection: () => validateMarketplaceSourceSelection
+});
+import { execFile as execFileCb7 } from "node:child_process";
+import { promisify as promisify7 } from "node:util";
+import { readFile as readFile16, stat as stat4, mkdir as mkdir10, readdir as readdir8, realpath as realpath10, lstat as lstat11 } from "node:fs/promises";
+import { join as join14, resolve as resolve18, relative as relative16, isAbsolute as isAbsolute14, basename as basename5 } from "node:path";
+import { createHash as createHash10 } from "node:crypto";
+function transportPayload(entries) {
+  return entries.map(({ path: path3, type, mode, size, contentDigest }) => ({
+    path: path3,
+    type,
+    // The local authority removes write bits when sealing. Git checkout and
+    // plugin installation restore owner-write permission, while preserving
+    // executable intent. Ignore only write bits; retain every other mode bit.
+    mode: mode & ~146,
+    size,
+    contentDigest
+  }));
+}
+function resolveMarketplaceRoot(platform, marketplaceIndexPath) {
+  const defaultMarketplace = platform.manifestPaths.marketplace;
+  if (!defaultMarketplace) {
+    return ".";
+  }
+  if (!marketplaceIndexPath || marketplaceIndexPath === defaultMarketplace) {
+    return ".";
+  }
+  const suffix = `/${defaultMarketplace}`;
+  if (marketplaceIndexPath.endsWith(suffix)) {
+    const root = marketplaceIndexPath.slice(0, -suffix.length);
+    if (root.length === 0) return ".";
+    if (root.startsWith("/") || root.includes("..") || root.includes("\\")) {
+      throw new Error(
+        `derived marketplace root "${root}" from marketplaceIndexPath "${marketplaceIndexPath}" is not a safe relative path`
+      );
+    }
+    return root;
+  }
+  throw new Error(
+    `marketplaceIndexPath "${marketplaceIndexPath}" does not end with platform default marketplace path "${defaultMarketplace}"`
+  );
+}
+function extractDeclaredPluginSource(consumer, entry) {
+  const platform = getPlatform(consumer);
+  const rawSource = platform.marketplaceSourceForm === "string" ? entry.source : platform.marketplaceSourceForm === "local-path-object" ? entry.source?.source === "local" ? entry.source?.path : null : null;
+  if (typeof rawSource !== "string" || rawSource.length === 0) {
+    throw new Error(`marketplace plugin entry source must be a non-empty relative path${platform.marketplaceSourceForm === "local-path-object" ? ' (object with source:"local")' : ""}, got ${JSON.stringify(entry.source)}`);
+  }
+  if (rawSource.startsWith("/") || rawSource.includes("..") || rawSource.includes("\\") || /^https?:\/\//i.test(rawSource)) {
+    throw new Error(`marketplace plugin entry source "${rawSource}" is not a safe relative path`);
+  }
+  const segments = rawSource.split("/").filter((segment) => segment !== "" && segment !== ".");
+  if (segments.some((segment) => segment === "..")) {
+    throw new Error(`marketplace plugin entry source "${rawSource}" is not a safe relative path`);
+  }
+  return segments.length === 0 ? "." : segments.join("/");
+}
+async function resolvePluginManifestFromMarketplaceEntrySource(marketIndex, pluginName, platform, snapshotDir, marketplaceRootRel = ".") {
+  if (platform.manifestPaths.marketplace === null && !marketIndex) {
+    return null;
+  }
+  if (!marketIndex || typeof marketIndex !== "object") {
+    throw new Error("marketplace index is required for non-kimi platforms");
+  }
+  const plugins = Array.isArray(marketIndex.plugins) ? marketIndex.plugins : [];
+  const matches = plugins.filter((entry2) => entry2 && entry2.name === pluginName);
+  if (matches.length !== 1) {
+    throw new Error(
+      `marketplace index must contain exactly one plugin entry named "${pluginName}", found ${matches.length}`
+    );
+  }
+  const entry = matches[0];
+  const sourcePath = extractDeclaredPluginSource(platform.id, entry);
+  const snapshotDirReal = await realpath10(snapshotDir).catch(() => snapshotDir);
+  const marketplaceRootAbs = marketplaceRootRel === "." ? snapshotDirReal : resolve18(snapshotDirReal, marketplaceRootRel);
+  const pluginRootAbs = resolve18(marketplaceRootAbs, sourcePath);
+  const pluginRootReal = await realpath10(pluginRootAbs).catch(() => null);
+  if (!pluginRootReal) {
+    throw new Error(`marketplace plugin entry source "${sourcePath}" does not exist in snapshot`);
+  }
+  const containment = relative16(snapshotDirReal, pluginRootReal);
+  const sep4 = process.platform === "win32" ? "\\" : "/";
+  if (containment !== "" && (isAbsolute14(containment) || containment === ".." || containment.startsWith(`..${sep4}`))) {
+    throw new Error(`marketplace plugin entry source "${sourcePath}" escapes the snapshot after symlink resolution`);
+  }
+  const manifestRelative = platform.manifestPaths.plugin;
+  const manifestAbs = resolve18(pluginRootReal, manifestRelative);
+  const pluginRootRelToSnapshot = relative16(snapshotDirReal, pluginRootReal);
+  const fullManifestRelative = pluginRootRelToSnapshot === "" ? manifestRelative : `${pluginRootRelToSnapshot}/${manifestRelative}`;
+  let raw;
+  try {
+    raw = await readFile16(manifestAbs, "utf8");
+  } catch (err) {
+    throw new Error(
+      `plugin manifest not found at "${fullManifestRelative}": ${err.message}`
+    );
+  }
+  let manifest;
+  try {
+    manifest = JSON.parse(raw);
+  } catch (err) {
+    throw new Error(
+      `plugin manifest at "${fullManifestRelative}" is not valid JSON: ${err.message}`
+    );
+  }
+  return {
+    manifest,
+    manifestRelativePath: fullManifestRelative,
+    pluginRoot: pluginRootRelToSnapshot || "."
+  };
+}
+async function validateInstallationContractDigest(action, snapshotDirReal, platform) {
+  const form = action.marketplaceSourceType;
+  const hasMarketplacePath = platform.manifestPaths.marketplace !== null;
+  let includeMarketplaceEntry = false;
+  let selectedMarketplaceEntry = null;
+  let marketplaceIndexRelative = null;
+  let marketIndexParsed = null;
+  if (form === "bundled-family") {
+    includeMarketplaceEntry = hasMarketplacePath;
+    if (includeMarketplaceEntry) {
+      marketplaceIndexRelative = action.marketplaceIndexPath ?? platform.manifestPaths.marketplace;
+      const marketplacePath = resolve18(snapshotDirReal, marketplaceIndexRelative);
+      const mkResult = await validateManifestFile(marketplacePath, ["name", "plugins"]);
+      if (!mkResult.valid) {
+        return { valid: false, error: `installationContractDigest \u9A8C\u8BC1\u5931\u8D25\uFF1A\u5E02\u573A\u7D22\u5F15\u8BFB\u53D6\u5931\u8D25\uFF1A${mkResult.error}` };
+      }
+      const plugins = mkResult.manifest.plugins;
+      if (!Array.isArray(plugins)) {
+        return { valid: false, error: `installationContractDigest \u9A8C\u8BC1\u5931\u8D25\uFF1A\u5E02\u573A\u7D22\u5F15 plugins \u975E\u6570\u7EC4` };
+      }
+      const matches = plugins.filter((p) => p && p.name === action.plugin);
+      if (matches.length !== 1) {
+        return { valid: false, error: `installationContractDigest \u9A8C\u8BC1\u5931\u8D25\uFF1A\u5E02\u573A\u7D22\u5F15\u4E2D\u5339\u914D "${action.plugin}" \u7684\u6761\u76EE\u6570\u91CF\u4E3A ${matches.length}` };
+      }
+      selectedMarketplaceEntry = matches[0];
+      marketIndexParsed = mkResult.manifest;
+    }
+  } else if (form === "standalone-index") {
+    if (platform.id !== "kimi" && action.selectedEntry && action.marketplaceIndexPath) {
+      includeMarketplaceEntry = true;
+      selectedMarketplaceEntry = action.selectedEntry;
+      marketplaceIndexRelative = action.marketplaceIndexPath;
+    }
+  }
+  let pluginManifestParsed;
+  let pluginManifestRelative;
+  if (form === "bundled-family" && marketIndexParsed && platform.marketplaceSourceForm !== null) {
+    const mktRoot = resolveMarketplaceRoot(platform, marketplaceIndexRelative);
+    try {
+      const resolved = await resolvePluginManifestFromMarketplaceEntrySource(
+        marketIndexParsed,
+        action.plugin,
+        platform,
+        snapshotDirReal,
+        mktRoot
+      );
+      pluginManifestParsed = resolved.manifest;
+      pluginManifestRelative = resolved.manifestRelativePath;
+    } catch (err) {
+      return { valid: false, error: `installationContractDigest \u9A8C\u8BC1\u5931\u8D25\uFF1A${err.message}` };
+    }
+  } else if (platform.strategy.readManifest) {
+    const readResult = await platform.strategy.readManifest(snapshotDirReal);
+    pluginManifestParsed = readResult.manifest;
+    pluginManifestRelative = readResult.manifestRelative ?? platform.manifestPaths.plugin;
+  } else {
+    pluginManifestRelative = platform.manifestPaths.plugin;
+    const pluginManifestPath = resolve18(snapshotDirReal, pluginManifestRelative);
+    const manifestResult = await validateManifestFile(pluginManifestPath, ["name", "version"]);
+    if (!manifestResult.valid) {
+      return { valid: false, error: `installationContractDigest \u9A8C\u8BC1\u5931\u8D25\uFF1A\u63D2\u4EF6 manifest \u8BFB\u53D6\u5931\u8D25\uFF1A${manifestResult.error}` };
+    }
+    pluginManifestParsed = manifestResult.manifest;
+  }
+  const computedDigest = computeInstallationContractDigest({
+    distributionType: platform.distributionType,
+    manifestRelativePath: pluginManifestRelative,
+    manifest: pluginManifestParsed,
+    marketplaceSourceType: form,
+    includeMarketplaceEntry,
+    ...includeMarketplaceEntry ? {
+      marketplaceIndexRelativePath: marketplaceIndexRelative,
+      selectedMarketplaceEntry
+    } : {},
+    verificationRecipeVersion: CONSUMER_INSTALL_RECIPE_VERSION
+  });
+  if (computedDigest !== action.installationContractDigest) {
+    return {
+      valid: false,
+      error: `installationContractDigest \u4E0D\u5339\u914D\uFF1A\u9884\u671F ${action.installationContractDigest.slice(0, 16)}...\uFF0C\u91CD\u7B97 ${computedDigest.slice(0, 16)}...`
+    };
+  }
+  return { valid: true, error: null };
+}
+async function resolveInstalledPayloadSubpath(snapshotDir, sourceEntries, action, consumer) {
+  if (action.payloadContract === PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE || action.marketplaceLocation === "external") {
+    return ".";
+  }
+  const marketplaceRelative = getPlatform(consumer).manifestPaths.marketplace;
+  if (marketplaceRelative === null) return ".";
+  const anchored = sourceEntries.some((entry) => entry.type === "file" && entry.path === marketplaceRelative);
+  if (!anchored) {
+    throw new Error(`frozen snapshot is missing the marketplace manifest ${marketplaceRelative}`);
+  }
+  const result = await validateManifestFile(resolve18(snapshotDir, marketplaceRelative), ["name", "plugins"]);
+  if (!result.valid) {
+    throw new Error(`frozen snapshot ${marketplaceRelative} invalid: ${result.error}`);
+  }
+  if (result.manifest.name !== action.marketplace) {
+    throw new Error(`marketplace manifest name "${result.manifest.name}" does not match action marketplace "${action.marketplace}"`);
+  }
+  const plugins = result.manifest.plugins;
+  if (!Array.isArray(plugins)) {
+    throw new Error(`${marketplaceRelative} must have a plugins[] array`);
+  }
+  const matches = plugins.filter((entry) => entry.name === action.plugin);
+  if (matches.length !== 1) {
+    throw new Error(`expected exactly one plugins[] entry with name "${action.plugin}", found ${matches.length}`);
+  }
+  return extractDeclaredPluginSource(consumer, matches[0]);
+}
+async function verifyInstalledMarketplacePayload(action, context, installPath, consumer) {
+  const sourcePath = await resolveFrozenPath(
+    context.root,
+    action.snapshotPath,
+    "frozen marketplace snapshot"
+  );
+  const sourceSnapshot = await computeFrozenSnapshot(sourcePath);
+  if (sourceSnapshot.digest !== action.manifestDigest) {
+    throw new Error("frozen marketplace snapshot digest no longer matches the plan");
+  }
+  const payloadSubpath = await resolveInstalledPayloadSubpath(
+    sourcePath,
+    sourceSnapshot.entries,
+    action,
+    consumer
+  );
+  const prefix = payloadSubpath === "." ? null : `${payloadSubpath}/`;
+  const authorityEntries = prefix === null ? sourceSnapshot.entries : sourceSnapshot.entries.filter((entry) => entry.path.startsWith(prefix)).map((entry) => ({ ...entry, path: entry.path.slice(prefix.length) }));
+  if (authorityEntries.length === 0) {
+    throw new Error("frozen snapshot contains no payload under the declared marketplace source");
+  }
+  const payloadContract = action.payloadContract;
+  if (payloadContract !== void 0 && payloadContract !== PAYLOAD_CONTRACT_DECLARED_MANIFEST && payloadContract !== PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE) {
+    throw new Error(`unsupported marketplace payload contract: ${JSON.stringify(payloadContract)}`);
+  }
+  if (payloadContract === PAYLOAD_CONTRACT_DECLARED_MANIFEST || payloadContract === PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE) {
+    const installedSnapshot2 = await computeFrozenSnapshot(installPath);
+    const authorityPayload = transportPayload(authorityEntries);
+    const installedByPath = new Map(
+      transportPayload(installedSnapshot2.entries).map((entry) => [entry.path, entry])
+    );
+    const conflicts = [];
+    for (const authorityEntry of authorityPayload) {
+      const installedEntry = installedByPath.get(authorityEntry.path);
+      if (!installedEntry) {
+        conflicts.push(`missing: ${authorityEntry.path}`);
+        continue;
+      }
+      if (installedEntry.type !== authorityEntry.type) {
+        conflicts.push(`type mismatch: ${authorityEntry.path}`);
+      } else if (installedEntry.size !== authorityEntry.size || installedEntry.contentDigest !== authorityEntry.contentDigest) {
+        conflicts.push(`content mismatch: ${authorityEntry.path}`);
+      } else if (installedEntry.mode !== authorityEntry.mode) {
+        conflicts.push(`mode mismatch: ${authorityEntry.path}`);
+      }
+    }
+    if (conflicts.length > 0) {
+      const listed = conflicts.slice(0, PAYLOAD_CONFLICT_REPORT_CAP).join("; ");
+      const overflow = conflicts.length > PAYLOAD_CONFLICT_REPORT_CAP ? `; and ${conflicts.length - PAYLOAD_CONFLICT_REPORT_CAP} more conflicting path(s)` : "";
+      throw new Error(
+        `installed marketplace payload differs in path, bytes, size, or non-write mode bits (${payloadContract}): ${listed}${overflow}`
+      );
+    }
+    const authorityPaths = new Set(authorityPayload.map((entry) => entry.path));
+    const extraPaths = installedSnapshot2.entries.map((entry) => entry.path).filter((path3) => !authorityPaths.has(path3));
+    const extraInstalledPaths = extraPaths.slice(0, EXTRA_INSTALLED_PATHS_CAP);
+    return {
+      manifestDigest: action.manifestDigest,
+      extraInstalledPaths,
+      ...extraPaths.length > EXTRA_INSTALLED_PATHS_CAP ? { extraInstalledPathsTotal: extraPaths.length } : {}
+    };
+  }
+  const installedSnapshot = await computeFrozenSnapshot(installPath, {
+    excludeRootEntries: getPlatform(consumer).knownHostArtifacts
+  });
+  if (JSON.stringify(transportPayload(authorityEntries)) !== JSON.stringify(transportPayload(installedSnapshot.entries))) {
+    throw new Error("installed marketplace payload differs in path, bytes, size, or non-write mode bits");
+  }
+  return { manifestDigest: action.manifestDigest };
+}
+function extraInstalledPathsAudit(binding) {
+  if (!binding || !Array.isArray(binding.extraInstalledPaths)) return {};
+  return {
+    extraInstalledPaths: binding.extraInstalledPaths,
+    ...binding.extraInstalledPathsTotal !== void 0 ? { extraInstalledPathsTotal: binding.extraInstalledPathsTotal } : {}
+  };
+}
+function normalizeKimiSkillsRel(skillsRaw) {
+  if (typeof skillsRaw !== "string" || skillsRaw.length === 0) {
+    throw new Error("kimi manifest skills must be a non-empty relative path when present");
+  }
+  if (skillsRaw.startsWith("/") || skillsRaw.includes("..") || skillsRaw.includes("\\") || /^https?:\/\//i.test(skillsRaw)) {
+    throw new Error(`kimi manifest skills "${skillsRaw}" is not a safe relative path`);
+  }
+  let rel = skillsRaw.replace(/^\.\//, "");
+  rel = rel.replace(/\/+$/, "");
+  if (rel.split("/").some((segment) => segment === "" || segment === "." || segment === "..")) {
+    throw new Error(`kimi manifest skills "${skillsRaw}" is not a safe relative path`);
+  }
+  return rel;
+}
+async function resolveKimiEntrySkillFile(pluginRootReal, manifest, entrySkill) {
+  if (!entrySkill || typeof entrySkill !== "string" || !SAFE_ID_RE.test(entrySkill)) {
+    throw new Error(`unsafe entrySkill: "${entrySkill}"`);
+  }
+  let entryAbs;
+  if (manifest.skills === void 0 || manifest.skills === null) {
+    entryAbs = resolve18(pluginRootReal, "SKILL.md");
+  } else {
+    const skillsRel = normalizeKimiSkillsRel(manifest.skills);
+    const skillsRootAbs = skillsRel === "" ? pluginRootReal : resolve18(pluginRootReal, skillsRel);
+    const skillsRootReal = await realpath10(skillsRootAbs).catch(() => null);
+    if (!skillsRootReal) {
+      throw new Error(`kimi manifest skills root does not exist: ${manifest.skills}`);
+    }
+    const skillsContainment = relative16(pluginRootReal, skillsRootReal);
+    const sepK = process.platform === "win32" ? "\\" : "/";
+    if (skillsContainment !== "" && (isAbsolute14(skillsContainment) || skillsContainment === ".." || skillsContainment.startsWith(`..${sepK}`))) {
+      throw new Error(`kimi manifest skills "${manifest.skills}" escapes the plugin root after symlink resolution`);
+    }
+    entryAbs = resolve18(skillsRootReal, entrySkill, "SKILL.md");
+  }
+  let entryLexicalStat;
+  try {
+    entryLexicalStat = await lstat11(entryAbs);
+  } catch {
+    throw new Error(`kimi entry skill not found: ${relative16(pluginRootReal, entryAbs) || "SKILL.md"}`);
+  }
+  if (entryLexicalStat.isSymbolicLink()) {
+    throw new Error("kimi entry skill must not be a symlink");
+  }
+  if (!entryLexicalStat.isFile()) {
+    throw new Error("kimi entry skill is not a regular file");
+  }
+  const entryReal = await realpath10(entryAbs).catch(() => null);
+  if (!entryReal) {
+    throw new Error(`kimi entry skill not found: ${relative16(pluginRootReal, entryAbs) || "SKILL.md"}`);
+  }
+  const entryContainment = relative16(pluginRootReal, entryReal);
+  const sepE = process.platform === "win32" ? "\\" : "/";
+  if (entryContainment !== "" && (isAbsolute14(entryContainment) || entryContainment === ".." || entryContainment.startsWith(`..${sepE}`))) {
+    throw new Error("kimi entry skill escapes the plugin root after symlink resolution");
+  }
+  return entryReal;
+}
+function normalizeCodeBuddySkillsRel(skillsRaw) {
+  let skillsPath;
+  if (Array.isArray(skillsRaw)) {
+    if (skillsRaw.length !== 1) {
+      throw new Error(
+        `codebuddy manifest skills array must have exactly one element, got ${skillsRaw.length}`
+      );
+    }
+    skillsPath = skillsRaw[0];
+  } else if (typeof skillsRaw === "string") {
+    skillsPath = skillsRaw;
+  } else {
+    throw new Error("codebuddy manifest skills must be a string or single-element array when present");
+  }
+  if (typeof skillsPath !== "string" || skillsPath.length === 0) {
+    throw new Error("codebuddy manifest skills must be a non-empty relative path when present");
+  }
+  if (skillsPath.startsWith("/") || skillsPath.includes("..") || skillsPath.includes("\\") || /^https?:\/\//i.test(skillsPath)) {
+    throw new Error(`codebuddy manifest skills "${skillsPath}" is not a safe relative path`);
+  }
+  let rel = skillsPath.replace(/^\.\//, "");
+  rel = rel.replace(/\/+$/, "");
+  if (rel.split("/").some((segment) => segment === "" || segment === "." || segment === "..")) {
+    throw new Error(`codebuddy manifest skills "${skillsPath}" is not a safe relative path`);
+  }
+  return rel;
+}
+async function resolveCodeBuddyEntrySkillFile(pluginRootReal, manifest, entrySkill) {
+  if (!entrySkill || typeof entrySkill !== "string" || !SAFE_ID_RE.test(entrySkill)) {
+    throw new Error(`unsafe entrySkill: "${entrySkill}"`);
+  }
+  let entryAbs;
+  if (manifest.skills === void 0 || manifest.skills === null) {
+    entryAbs = resolve18(pluginRootReal, "SKILL.md");
+  } else {
+    const skillsRel = normalizeCodeBuddySkillsRel(manifest.skills);
+    const skillsRootAbs = skillsRel === "" ? pluginRootReal : resolve18(pluginRootReal, skillsRel);
+    const skillsRootReal = await realpath10(skillsRootAbs).catch(() => null);
+    if (!skillsRootReal) {
+      throw new Error(`codebuddy manifest skills root does not exist: ${manifest.skills}`);
+    }
+    const skillsContainment = relative16(pluginRootReal, skillsRootReal);
+    const sepK = process.platform === "win32" ? "\\" : "/";
+    if (skillsContainment !== "" && (isAbsolute14(skillsContainment) || skillsContainment === ".." || skillsContainment.startsWith(`..${sepK}`))) {
+      throw new Error(`codebuddy manifest skills "${manifest.skills}" escapes the plugin root after symlink resolution`);
+    }
+    entryAbs = resolve18(skillsRootReal, entrySkill, "SKILL.md");
+  }
+  let entryLexicalStat;
+  try {
+    entryLexicalStat = await lstat11(entryAbs);
+  } catch {
+    throw new Error(`codebuddy entry skill not found: ${relative16(pluginRootReal, entryAbs) || "SKILL.md"}`);
+  }
+  if (entryLexicalStat.isSymbolicLink()) {
+    throw new Error("codebuddy entry skill must not be a symlink");
+  }
+  if (!entryLexicalStat.isFile()) {
+    throw new Error("codebuddy entry skill is not a regular file");
+  }
+  const entryReal = await realpath10(entryAbs).catch(() => null);
+  if (!entryReal) {
+    throw new Error(`codebuddy entry skill not found: ${relative16(pluginRootReal, entryAbs) || "SKILL.md"}`);
+  }
+  const entryContainment = relative16(pluginRootReal, entryReal);
+  const sepE = process.platform === "win32" ? "\\" : "/";
+  if (entryContainment !== "" && (isAbsolute14(entryContainment) || entryContainment === ".." || entryContainment.startsWith(`..${sepE}`))) {
+    throw new Error("codebuddy entry skill escapes the plugin root after symlink resolution");
+  }
+  return entryReal;
+}
+function isCliOrTransportUnavailable(err) {
+  if (!err || typeof err !== "object") return false;
+  const UNAVAILABILITY_CODES = /* @__PURE__ */ new Set([
+    "ENOENT",
+    // binary not found
+    "ETIMEDOUT",
+    // connection timeout
+    "ECONNREFUSED",
+    // connection refused
+    "ECONNRESET",
+    // connection reset
+    "ENOTFOUND",
+    // DNS resolution failure
+    "EAI_AGAIN",
+    // DNS temporary failure
+    "EHOSTUNREACH",
+    // host unreachable
+    "ENETUNREACH"
+    // network unreachable
+  ]);
+  if (err.code && UNAVAILABILITY_CODES.has(err.code)) {
+    return true;
+  }
+  const msg = err.message || "";
+  if (msg.includes("ENOENT") || msg.includes("spawn")) {
+    return true;
+  }
+  return false;
+}
+function validateSafeRef(ref) {
+  if (!ref || typeof ref !== "string") {
+    return { valid: false, error: "ref is required" };
+  }
+  if (/[\x00-\x1f]/.test(ref)) {
+    return { valid: false, error: "ref contains control characters" };
+  }
+  if (ref.startsWith("-")) {
+    return { valid: false, error: `ref must not start with '-': "${ref}"` };
+  }
+  if (ref.includes("\\")) {
+    return { valid: false, error: "ref contains backslash" };
+  }
+  if (ref.includes("//")) {
+    return { valid: false, error: "ref contains //" };
+  }
+  if (ref.startsWith("/") || ref.endsWith("/")) {
+    return { valid: false, error: "ref must not start or end with /" };
+  }
+  if (ref.endsWith(".")) {
+    return { valid: false, error: "ref must not end with ." };
+  }
+  if (ref.endsWith(".lock")) {
+    return { valid: false, error: "ref must not end with .lock" };
+  }
+  if (ref.includes("@{")) {
+    return { valid: false, error: "ref contains @{" };
+  }
+  if (ref === "@") {
+    return { valid: false, error: "ref must not be standalone @" };
+  }
+  if (ref.includes("..")) {
+    return { valid: false, error: "ref contains .." };
+  }
+  if (/[;|&`$(){}]/.test(ref)) {
+    return { valid: false, error: "ref contains shell metacharacters" };
+  }
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._/-]*$/.test(ref)) {
+    return { valid: false, error: `unsafe ref: "${ref}"` };
+  }
+  return { valid: true, error: null };
+}
+function validateMarketplaceParams(params) {
+  if (!params || typeof params !== "object") {
+    return { valid: false, error: "parameters must be an object" };
+  }
+  const { consumer, plugin, marketplace, repo, version, entrySkill } = params;
+  if (!CONSUMER_IDS.has(consumer)) {
+    return { valid: false, error: `invalid consumer: "${consumer}"` };
+  }
+  if (!plugin || !SAFE_ID_RE.test(plugin)) {
+    return { valid: false, error: `unsafe plugin identifier: "${plugin}"` };
+  }
+  const consumerPlatform = getPlatform(consumer);
+  const consumerRoute = resolvePlatformRoute(consumerPlatform);
+  if (consumerRoute.route === "human-attestation") {
+    if (marketplace !== void 0 && marketplace !== null && !SAFE_ID_RE.test(marketplace)) {
+      return { valid: false, error: `unsafe marketplace identifier: "${marketplace}"` };
+    }
+  } else if (!marketplace || !SAFE_ID_RE.test(marketplace)) {
+    return { valid: false, error: `unsafe marketplace identifier: "${marketplace}"` };
+  }
+  if (!repo || !SAFE_REPO_RE.test(repo)) {
+    return { valid: false, error: `unsafe repo identifier: "${repo}"` };
+  }
+  if (!version || !STRICT_SEMVER_RE.test(version)) {
+    return { valid: false, error: `unsafe version (must be valid semver): "${version}"` };
+  }
+  if (!entrySkill || !SAFE_ID_RE.test(entrySkill)) {
+    return { valid: false, error: `unsafe entrySkill: "${entrySkill}"` };
+  }
+  return { valid: true, error: null };
+}
+async function run2(cmd, args2, options = {}) {
+  return execFile6(cmd, args2, {
+    shell: false,
+    encoding: "utf8",
+    timeout: 3e4,
+    ...options
+  });
+}
+async function validateManifestFile(manifestPath, requiredFields) {
+  try {
+    const content = await readFile16(manifestPath, "utf8");
+    const manifest = JSON.parse(content);
+    const missing = requiredFields.filter((f) => !(f in manifest));
+    return {
+      valid: missing.length === 0,
+      manifest,
+      missing,
+      error: missing.length > 0 ? `Missing required fields: ${missing.join(", ")}` : null
+    };
+  } catch (err) {
+    return {
+      valid: false,
+      manifest: null,
+      missing: requiredFields,
+      error: `Failed to read manifest: ${err.message}`
+    };
+  }
+}
+async function checkRequiredFiles(dir, requiredFiles) {
+  const missing = [];
+  for (const file of requiredFiles) {
+    try {
+      await stat4(resolve18(dir, file));
+    } catch {
+      missing.push(file);
+    }
+  }
+  return { allPresent: missing.length === 0, missing };
+}
+function validateMarketplaceSourceSelection(platform, config, plan) {
+  const configSource = config?.marketplaceSourceType ?? null;
+  const planSource = plan?.marketplaceSourceType ?? null;
+  const selectedSource = planSource ?? configSource;
+  if (configSource && planSource && configSource !== planSource) {
+    return {
+      valid: false,
+      error: `\u5E73\u53F0 "${platform}" \u5E02\u573A\u6765\u6E90\u6DF7\u7528\uFF1A\u914D\u7F6E\u58F0\u660E "${configSource}"\uFF0C\u8BA1\u5212\u58F0\u660E "${planSource}"\uFF1B\u6BCF\u6B21\u53D1\u5E03\u53EA\u5141\u8BB8\u4E00\u79CD\u6765\u6E90`,
+      selectedSource: null
+    };
+  }
+  if (!selectedSource) {
+    return { valid: true, error: null, selectedSource: null };
+  }
+  const knownSources = new Set(Object.values(MARKETPLACE_SOURCE_TYPES));
+  if (!knownSources.has(selectedSource)) {
+    return {
+      valid: false,
+      error: `\u672A\u77E5\u7684\u5E02\u573A\u6765\u6E90\u7C7B\u578B "${selectedSource}"\uFF1B\u5408\u6CD5\u503C\u4E3A ${[...knownSources].join(", ")}`,
+      selectedSource: null
+    };
+  }
+  const supportedSources = PLATFORM_SUPPORTED_SOURCES[platform];
+  if (!supportedSources) {
+    return {
+      valid: false,
+      error: `\u672A\u77E5\u7684\u5E73\u53F0 "${platform}"`,
+      selectedSource: null
+    };
+  }
+  if (!supportedSources.has(selectedSource)) {
+    const supportedList = [...supportedSources].join(", ");
+    return {
+      valid: false,
+      error: `\u5E73\u53F0 "${platform}" \u4E0D\u652F\u6301\u5E02\u573A\u6765\u6E90 "${selectedSource}"\uFF1B\u8BE5\u5E73\u53F0\u4EC5\u652F\u6301: ${supportedList}`,
+      selectedSource: null
+    };
+  }
+  return { valid: true, error: null, selectedSource };
+}
+function createPluginMarketplaceAdapter(deps = {}) {
+  const exec = deps.exec ?? run2;
+  return Object.freeze({
+    name: NAME2,
+    actionTypes: SUPPORTED_TYPES,
+    /**
+     * Preflight: read-only checks before execution.
+     * Fail-closed: snapshotPath, ref, manifestDigest are required for
+     * marketplace install actions.
+     */
+    async preflight(action, context) {
+      const { actionType } = action;
+      try {
+        if (actionType === ActionType.PLUGIN_MANIFEST_VALIDATE) {
+          const manifestPath = action.manifestPath;
+          if (!manifestPath) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: "manifestPath is required"
+            });
+          }
+          const result = await validateManifestFile(manifestPath, [
+            "name",
+            "version",
+            "description"
+          ]);
+          if (!result.valid) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: result.error
+            });
+          }
+          return createResult({
+            actionType,
+            status: ActionStatus.PREFLIGHT_PASSED
+          });
+        }
+        if (actionType === ActionType.PLUGIN_INSTALL_CHECK) {
+          const pluginDir = action.pluginDir;
+          if (!pluginDir) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: "pluginDir is required"
+            });
+          }
+          try {
+            const s = await stat4(pluginDir);
+            if (!s.isDirectory()) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `pluginDir is not a directory: ${pluginDir}`
+              });
+            }
+          } catch {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: `pluginDir does not exist: ${pluginDir}`
+            });
+          }
+          return createResult({
+            actionType,
+            status: ActionStatus.PREFLIGHT_PASSED
+          });
+        }
+        if (actionType === ActionType.CLAUDE_MARKETPLACE_INSTALL || actionType === ActionType.CODEX_MARKETPLACE_INSTALL || actionType === ActionType.KIMI_MARKETPLACE_INSTALL || actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL) {
+          const validation = validateMarketplaceParams(action);
+          if (!validation.valid) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: validation.error
+            });
+          }
+          const ref = action.ref;
+          if (!ref) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: "ref is required for marketplace install"
+            });
+          }
+          const refValidation = validateSafeRef(ref);
+          if (!refValidation.valid) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: refValidation.error
+            });
+          }
+          const snapshotPath = action.snapshotPath;
+          if (!snapshotPath) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: "snapshotPath is required for marketplace install"
+            });
+          }
+          const manifestDigest = action.manifestDigest;
+          if (!manifestDigest || typeof manifestDigest !== "string") {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: "manifestDigest is required for marketplace install"
+            });
+          }
+          if (!/^[a-f0-9]{64}$/.test(manifestDigest)) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: `manifestDigest must be a 64-char lowercase hex string`
+            });
+          }
+          if (!context?.root) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: "context.root is required for marketplace install"
+            });
+          }
+          if (!context.runDir) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: "context.runDir is required for marketplace install"
+            });
+          }
+          const consumer = action.consumer;
+          const consumerPlatform = getPlatform(consumer);
+          const capabilityConflicts = resolveCapabilityConflicts(consumerPlatform);
+          if (capabilityConflicts.length > 0) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: `platform capability conflict: ${capabilityConflicts.join("; ")}`
+            });
+          }
+          const route = resolvePlatformRoute(consumerPlatform);
+          const NEW_FIELD_GROUP_MARKERS = ["installationContractDigest", "algorithmVersion", "marketplaceSourceType"];
+          const hasNewFieldGroup = NEW_FIELD_GROUP_MARKERS.some(
+            (f) => action[f] !== void 0 && action[f] !== null
+          );
+          if (hasNewFieldGroup) {
+            const newFields = [
+              "marketplaceForm",
+              "sourceDescriptor",
+              "installationContractDigest",
+              "algorithmVersion",
+              "sourceCommit",
+              "marketplaceSourceType"
+            ];
+            const missingNewFields = newFields.filter((f) => action[f] === void 0 || action[f] === null);
+            if (missingNewFields.length > 0) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `\u65B0\u7248\u5B57\u6BB5\u7EC4\u4E0D\u5B8C\u6574\uFF0C\u7F3A\u5931: ${missingNewFields.join(", ")}\uFF1B\u4EFB\u4E00\u51FA\u73B0\u5219\u8981\u6C42\u5168\u7EC4\u5B8C\u6574`
+              });
+            }
+            const sd = action.sourceDescriptor;
+            if (!sd || typeof sd !== "object") {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: "sourceDescriptor is required when installationContractDigest is present"
+              });
+            }
+            if (action.marketplaceForm !== sd.form || action.marketplaceForm !== action.marketplaceSourceType) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `marketplaceForm "${action.marketplaceForm}"\u3001sourceDescriptor.form "${sd.form}"\u3001marketplaceSourceType "${action.marketplaceSourceType}" \u4E09\u8005\u5FC5\u987B\u4E00\u81F4`
+              });
+            }
+            if (!SAFE_DIGEST_RE.test(action.installationContractDigest)) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: "installationContractDigest must be a 64-char lowercase hex string"
+              });
+            }
+            if (action.algorithmVersion !== INSTALLATION_CONTRACT_ALGORITHM_VERSION) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `algorithmVersion must be ${INSTALLATION_CONTRACT_ALGORITHM_VERSION}, got ${action.algorithmVersion}`
+              });
+            }
+            if (typeof action.sourceCommit !== "string" || !/^[0-9a-f]{40}$/.test(action.sourceCommit)) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: "sourceCommit must be a 40-char lowercase hex commit sha"
+              });
+            }
+            if (typeof sd.form !== "string" || sd.form !== "bundled-family" && sd.form !== "standalone-index") {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `sourceDescriptor.form must be "bundled-family" or "standalone-index", got "${sd.form}"`
+              });
+            }
+            if (typeof sd.marketplaceEntry !== "string" || sd.marketplaceEntry.length === 0) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: "sourceDescriptor.marketplaceEntry is required"
+              });
+            }
+            if (sd.marketplaceEntry !== action.plugin) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `sourceDescriptor.marketplaceEntry "${sd.marketplaceEntry}" does not match action plugin "${action.plugin}"`
+              });
+            }
+            if (sd.form === "bundled-family") {
+              if (!sd.repo || !SAFE_REPO_RE.test(sd.repo)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.repo is required and must be a safe repo pattern for bundled-family form"
+                });
+              }
+              if (sd.repo !== action.repo) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.repo "${sd.repo}" does not match action.repo "${action.repo}"`
+                });
+              }
+              if (typeof sd.commit !== "string" || !/^[0-9a-f]{40}$/.test(sd.commit)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.commit must be a 40-hex commit sha for bundled-family form"
+                });
+              }
+              if (sd.commit !== action.sourceCommit) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.commit "${sd.commit}" does not match action.sourceCommit "${action.sourceCommit}"`
+                });
+              }
+              if (!sd.payloadDigest || !SAFE_DIGEST_RE.test(sd.payloadDigest)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.payloadDigest must be a 64-hex digest for bundled-family form"
+                });
+              }
+              if (sd.payloadDigest !== action.manifestDigest) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.payloadDigest does not match action.manifestDigest"
+                });
+              }
+              if (typeof sd.pluginSubpath !== "string" || sd.pluginSubpath.length === 0) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.pluginSubpath is required for bundled-family form"
+                });
+              }
+              if (sd.marketplaceRepo !== void 0 || sd.marketplaceCommitSha !== void 0 || sd.pluginRepo !== void 0) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "bundled-family sourceDescriptor must not contain standalone-index fields (marketplaceRepo, marketplaceCommitSha, pluginRepo)"
+                });
+              }
+              if (action.marketplaceCommitSha !== void 0 || action.marketplaceName !== void 0 || action.selectedEntry !== void 0) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "bundled-family action must not contain standalone-index fields (marketplaceCommitSha, marketplaceName, selectedEntry)"
+                });
+              }
+              if (action.marketplaceIndexPath !== void 0 && action.marketplaceIndexPath !== null) {
+                if (typeof action.marketplaceIndexPath !== "string" || action.marketplaceIndexPath.length === 0) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: "bundled-family marketplaceIndexPath must be a non-empty string when present"
+                  });
+                }
+                if (action.marketplaceIndexPath.startsWith("/") || action.marketplaceIndexPath.includes("..") || action.marketplaceIndexPath.includes("\\") || /^https?:\/\//i.test(action.marketplaceIndexPath)) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `marketplaceIndexPath "${action.marketplaceIndexPath}" is not a safe relative path`
+                  });
+                }
+              }
+            } else {
+              if (!sd.marketplaceRepo || !SAFE_REPO_RE.test(sd.marketplaceRepo)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.marketplaceRepo is required for standalone-index form"
+                });
+              }
+              if (!sd.pluginRepo || !SAFE_REPO_RE.test(sd.pluginRepo)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.pluginRepo is required for standalone-index form"
+                });
+              }
+              if (sd.marketplaceRepo !== action.repo) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.marketplaceRepo "${sd.marketplaceRepo}" does not match action.repo "${action.repo}"`
+                });
+              }
+              if (sd.pluginRepo === sd.marketplaceRepo) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.pluginRepo "${sd.pluginRepo}" must differ from marketplaceRepo "${sd.marketplaceRepo}"`
+                });
+              }
+              if (typeof sd.marketplaceCommitSha !== "string" || !/^[0-9a-f]{40}$/.test(sd.marketplaceCommitSha)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.marketplaceCommitSha must be a 40-hex commit sha for standalone-index form"
+                });
+              }
+              if (typeof action.marketplaceCommitSha !== "string" || !/^[0-9a-f]{40}$/.test(action.marketplaceCommitSha)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "marketplaceCommitSha is required at action top level for standalone-index form"
+                });
+              }
+              if (sd.marketplaceCommitSha !== action.marketplaceCommitSha) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.marketplaceCommitSha does not match action.marketplaceCommitSha`
+                });
+              }
+              if (typeof sd.ref !== "string" || sd.ref.length === 0) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.ref is required for standalone-index form"
+                });
+              }
+              if (sd.ref !== action.ref) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.ref "${sd.ref}" does not match action.ref "${action.ref}"`
+                });
+              }
+              if (!sd.payloadDigest || !SAFE_DIGEST_RE.test(sd.payloadDigest)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.payloadDigest must be a 64-hex digest for standalone-index form"
+                });
+              }
+              if (sd.payloadDigest !== action.manifestDigest) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.payloadDigest does not match action.manifestDigest"
+                });
+              }
+              if (sd.commit !== void 0 || sd.pluginSubpath !== void 0) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "standalone-index sourceDescriptor must not contain bundled-family fields (commit, pluginSubpath)"
+                });
+              }
+            }
+            if (action.marketplaceSourceType === "standalone-index") {
+              if (typeof action.marketplaceIndexPath !== "string" || action.marketplaceIndexPath.length === 0) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "marketplaceIndexPath is required for standalone-index form"
+                });
+              }
+              if (action.marketplaceIndexPath.startsWith("/") || action.marketplaceIndexPath.includes("..") || action.marketplaceIndexPath.includes("\\") || /^https?:\/\//i.test(action.marketplaceIndexPath)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `marketplaceIndexPath "${action.marketplaceIndexPath}" is not a safe relative path`
+                });
+              }
+              if (typeof action.marketplaceName !== "string" || action.marketplaceName.length === 0) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "marketplaceName is required for standalone-index form"
+                });
+              }
+              if (!SAFE_ID_RE.test(action.marketplaceName)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `unsafe marketplaceName identifier: "${action.marketplaceName}"`
+                });
+              }
+              if (action.marketplace !== void 0 && action.marketplace !== null && action.marketplaceName !== action.marketplace) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `marketplaceName "${action.marketplaceName}" does not match action.marketplace "${action.marketplace}"`
+                });
+              }
+              if (!action.selectedEntry || typeof action.selectedEntry !== "object" || Array.isArray(action.selectedEntry)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "selectedEntry must be a non-null object for standalone-index form"
+                });
+              }
+              if (action.selectedEntry.name !== action.plugin) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `selectedEntry.name "${action.selectedEntry.name}" does not match action.plugin "${action.plugin}"`
+                });
+              }
+              if (action.selectedEntry.version !== void 0 && action.selectedEntry.version !== action.version) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `selectedEntry.version "${action.selectedEntry.version}" does not match action.version "${action.version}"`
+                });
+              }
+            }
+          } else {
+            const sd = action.sourceDescriptor;
+            if (!sd || typeof sd !== "object") {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: "sourceDescriptor is required for marketplace install actions"
+              });
+            }
+            {
+              if (sd.form !== action.marketplaceForm) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.form "${sd.form}" does not match marketplaceForm "${action.marketplaceForm}"`
+                });
+              }
+              if (typeof sd.payloadDigest !== "string" || sd.payloadDigest.length === 0) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.payloadDigest is required"
+                });
+              }
+              if (!/^[a-f0-9]{64}$/.test(sd.payloadDigest)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.payloadDigest must be a 64-char lowercase hex string"
+                });
+              }
+              if (sd.payloadDigest === "0".repeat(64)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.payloadDigest must not be the null hash"
+                });
+              }
+              if (typeof sd.marketplaceEntry !== "string" || sd.marketplaceEntry.length === 0) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: "sourceDescriptor.marketplaceEntry is required"
+                });
+              }
+              if (sd.marketplaceEntry !== action.plugin) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.marketplaceEntry "${sd.marketplaceEntry}" does not match action plugin "${action.plugin}"`
+                });
+              }
+              if (sd.form === "bundled-family") {
+                if (!sd.repo || !SAFE_REPO_RE.test(sd.repo)) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `sourceDescriptor.repo is required and must be a safe repo pattern`
+                  });
+                }
+                if (sd.repo !== action.repo) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `sourceDescriptor.repo "${sd.repo}" does not match action.repo "${action.repo}"`
+                  });
+                }
+                if (sd.commit !== void 0 && (typeof sd.commit !== "string" || !/^[0-9a-f]{40}$/.test(sd.commit))) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: "sourceDescriptor.commit must be a 40-hex commit sha for bundled-family form"
+                  });
+                }
+                if (sd.commit !== void 0 && action.sourceCommit && sd.commit !== action.sourceCommit) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `sourceDescriptor.commit "${sd.commit}" does not match action.sourceCommit "${action.sourceCommit}"`
+                  });
+                }
+                if (sd.payloadDigest !== void 0 && (!sd.payloadDigest || !SAFE_DIGEST_RE.test(sd.payloadDigest))) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: "sourceDescriptor.payloadDigest is required for bundled-family form"
+                  });
+                }
+                if (sd.payloadDigest !== void 0 && action.manifestDigest && sd.payloadDigest !== action.manifestDigest) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `sourceDescriptor.payloadDigest does not match action.manifestDigest`
+                  });
+                }
+                if (typeof sd.pluginSubpath !== "string" || sd.pluginSubpath.length === 0) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: "sourceDescriptor.pluginSubpath is required for bundled-family form"
+                  });
+                }
+              } else if (sd.form === "standalone-index") {
+                if (!sd.pluginRepo || !SAFE_REPO_RE.test(sd.pluginRepo)) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `sourceDescriptor.pluginRepo is required for standalone-index form`
+                  });
+                }
+                if (!sd.marketplaceRepo || !SAFE_REPO_RE.test(sd.marketplaceRepo)) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: "sourceDescriptor.marketplaceRepo is required for standalone-index form"
+                  });
+                }
+                if (sd.marketplaceRepo !== action.repo) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `sourceDescriptor.marketplaceRepo "${sd.marketplaceRepo}" does not match action.repo "${action.repo}"`
+                  });
+                }
+                if (sd.pluginRepo === sd.marketplaceRepo) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `sourceDescriptor.pluginRepo "${sd.pluginRepo}" must differ from marketplaceRepo "${sd.marketplaceRepo}"`
+                  });
+                }
+                if (typeof sd.marketplaceCommitSha !== "string" || !/^[0-9a-f]{40}$/.test(sd.marketplaceCommitSha)) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: "sourceDescriptor.marketplaceCommitSha must be a 40-hex commit sha for standalone-index form"
+                  });
+                }
+                if (action.marketplaceCommitSha && sd.marketplaceCommitSha !== action.marketplaceCommitSha) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `sourceDescriptor.marketplaceCommitSha "${sd.marketplaceCommitSha}" does not match action.marketplaceCommitSha "${action.marketplaceCommitSha}"`
+                  });
+                }
+                if (typeof sd.ref !== "string" || sd.ref.length === 0) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: "sourceDescriptor.ref is required for standalone-index form"
+                  });
+                }
+                if (sd.payloadDigest !== void 0 && (!sd.payloadDigest || !SAFE_DIGEST_RE.test(sd.payloadDigest))) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: "sourceDescriptor.payloadDigest must be a 64-hex digest for standalone-index form"
+                  });
+                }
+                if (sd.payloadDigest !== void 0 && action.manifestDigest && sd.payloadDigest !== action.manifestDigest) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `sourceDescriptor.payloadDigest does not match action.manifestDigest`
+                  });
+                }
+              } else {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `sourceDescriptor.form "${sd.form}" is not a recognized form (expected "bundled-family" or "standalone-index")`
+                });
+              }
+            }
+          }
+          const platform = consumerPlatform;
+          const platformRoute = route;
+          let snapshotDirReal;
+          let kimiSnapshotManifest = null;
+          try {
+            snapshotDirReal = await resolveFrozenPath(context.root, snapshotPath, "frozen snapshot path");
+          } catch (frozenErr) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: `frozen snapshot validation failed: ${frozenErr.message}`
+            });
+          }
+          if (platformRoute.route === "human-attestation") {
+            const manifestLabel = consumer === "codebuddy" ? "codebuddy" : "kimi";
+            let kimiManifestResult;
+            try {
+              kimiManifestResult = await platform.strategy.readManifest(snapshotDirReal);
+            } catch (manifestErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `frozen snapshot ${manifestLabel} manifest invalid: ${manifestErr.message}`
+              });
+            }
+            const kimiManifest = kimiManifestResult.manifest;
+            if (typeof kimiManifest.name !== "string" || kimiManifest.name !== action.plugin) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `plugin manifest name "${kimiManifest.name}" does not match action plugin "${action.plugin}"`
+              });
+            }
+            if (typeof kimiManifest.version !== "string" || kimiManifest.version !== action.version) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `plugin manifest version "${kimiManifest.version}" does not match action version "${action.version}"`
+              });
+            }
+            kimiSnapshotManifest = kimiManifest;
+          }
+          let pluginRootForEntrySkill = null;
+          if (platformRoute.route === "structured-cli") {
+            let sourceDirReal = null;
+            if (action.marketplaceLocation === "external") {
+              if (typeof action.marketplaceCommitSha !== "string" || !/^[0-9a-f]{40}$/.test(action.marketplaceCommitSha)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `external marketplace marketplaceCommitSha must be a 40-hex commit sha, got ${JSON.stringify(action.marketplaceCommitSha)}`
+                });
+              }
+              if (typeof action.repo !== "string" || !/^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/.test(action.repo)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `external marketplace repo must be an owner/name repository, got ${JSON.stringify(action.repo)}`
+                });
+              }
+              const externalManifestRelative = platform.manifestPaths.plugin;
+              const externalManifestPath = resolve18(snapshotDirReal, externalManifestRelative);
+              const externalManifestResult = await validateManifestFile(externalManifestPath, ["name", "version"]);
+              if (!externalManifestResult.valid) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `frozen snapshot ${externalManifestRelative} invalid: ${externalManifestResult.error}`
+                });
+              }
+              if (externalManifestResult.manifest.name !== action.plugin) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `plugin manifest name "${externalManifestResult.manifest.name}" does not match action plugin "${action.plugin}"`
+                });
+              }
+              if (externalManifestResult.manifest.version !== action.version) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `plugin manifest version "${externalManifestResult.manifest.version}" does not match action version "${action.version}"`
+                });
+              }
+            } else {
+              const marketplaceRelative = action.marketplaceIndexPath ?? platform.manifestPaths.marketplace;
+              let mktRoot;
+              try {
+                mktRoot = resolveMarketplaceRoot(platform, marketplaceRelative);
+              } catch (mktRootErr) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `marketplace root resolution failed: ${mktRootErr.message}`
+                });
+              }
+              const marketplacePath = resolve18(snapshotDirReal, marketplaceRelative);
+              const marketplaceResult = await validateManifestFile(marketplacePath, ["name"]);
+              if (!marketplaceResult.valid) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `frozen snapshot ${marketplaceRelative} invalid: ${marketplaceResult.error}`
+                });
+              }
+              if (marketplaceResult.manifest.name !== action.marketplace) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `marketplace.json name "${marketplaceResult.manifest.name}" does not match action marketplace "${action.marketplace}"`
+                });
+              }
+              const plugins = marketplaceResult.manifest.plugins;
+              if (!Array.isArray(plugins)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `${marketplaceRelative} must have a plugins[] array`
+                });
+              }
+              const pluginEntry = plugins.filter((p) => p.name === action.plugin);
+              if (pluginEntry.length !== 1) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `expected exactly one plugins[] entry with name "${action.plugin}", found ${pluginEntry.length}`
+                });
+              }
+              const entry = pluginEntry[0];
+              let sourcePath;
+              try {
+                sourcePath = extractDeclaredPluginSource(consumer, entry);
+              } catch (sourceErr) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: sourceErr.message
+                });
+              }
+              const mktRootAbs = mktRoot === "." ? snapshotDirReal : resolve18(snapshotDirReal, mktRoot);
+              const sourceDirAbs = resolve18(mktRootAbs, sourcePath);
+              sourceDirReal = await realpath10(sourceDirAbs).catch(() => null);
+              if (!sourceDirReal) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `marketplace plugin entry source directory does not exist: ${sourcePath}`
+                });
+              }
+              const sourceRelCheck = relative16(snapshotDirReal, sourceDirReal);
+              if (sourceRelCheck.startsWith("..") || isAbsolute14(sourceRelCheck)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `marketplace plugin entry source "${sourcePath}" escapes the frozen snapshot`
+                });
+              }
+              pluginRootForEntrySkill = sourceDirReal;
+              const pluginRootRelToSnapshot = relative16(snapshotDirReal, sourceDirReal) || ".";
+              const manifestRelative = pluginRootRelToSnapshot === "." ? platform.manifestPaths.plugin : `${pluginRootRelToSnapshot}/${platform.manifestPaths.plugin}`;
+              const manifestPath = resolve18(snapshotDirReal, manifestRelative);
+              const manifestResult = await validateManifestFile(manifestPath, ["name", "version"]);
+              if (!manifestResult.valid) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `frozen snapshot ${manifestRelative} invalid: ${manifestResult.error}`
+                });
+              }
+              if (platform.marketplaceEntryCarriesVersion && entry.version !== action.version) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `marketplace plugin entry version "${entry.version}" does not match action version "${action.version}"`
+                });
+              }
+              const pluginManifestResult = await validateManifestFile(manifestPath, ["name", "version"]);
+              if (!pluginManifestResult.valid) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `frozen snapshot ${manifestRelative} invalid: ${pluginManifestResult.error}`
+                });
+              }
+              if (pluginManifestResult.manifest.name !== entry.name) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `plugin manifest name "${pluginManifestResult.manifest.name}" does not match marketplace entry name "${entry.name}"`
+                });
+              }
+              if (pluginManifestResult.manifest.version !== action.version) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: `plugin manifest version "${pluginManifestResult.manifest.version}" does not match action version "${action.version}"`
+                });
+              }
+            }
+          }
+          if (platformRoute.route === "human-attestation") {
+            const resolveEntrySkillFile = consumer === "codebuddy" ? resolveCodeBuddyEntrySkillFile : resolveKimiEntrySkillFile;
+            try {
+              await resolveEntrySkillFile(snapshotDirReal, kimiSnapshotManifest, action.entrySkill);
+            } catch (entryErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `entry skill not resolvable in snapshot: ${entryErr.message}`
+              });
+            }
+          } else {
+            const pluginRootForSkill = pluginRootForEntrySkill || snapshotDirReal;
+            const entrySkillFile = resolve18(pluginRootForSkill, "skills", action.entrySkill, "SKILL.md");
+            try {
+              await stat4(entrySkillFile);
+            } catch {
+              const skillRel = relative16(snapshotDirReal, entrySkillFile) || `skills/${action.entrySkill}/SKILL.md`;
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `entry skill not found in snapshot: ${skillRel}`
+              });
+            }
+          }
+          try {
+            const { digest: actualDigest } = await computeFrozenSnapshot(snapshotDirReal);
+            if (actualDigest !== manifestDigest) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `manifestDigest mismatch: expected ${manifestDigest.slice(0, 16)}..., actual ${actualDigest.slice(0, 16)}...`
+              });
+            }
+          } catch (digestErr) {
+            return createResult({
+              actionType,
+              status: ActionStatus.PREFLIGHT_FAILED,
+              error: `failed to compute snapshot digest: ${digestErr.message}`
+            });
+          }
+          if (hasNewFieldGroup) {
+            try {
+              const contractResult = await validateInstallationContractDigest(action, snapshotDirReal, consumerPlatform);
+              if (!contractResult.valid) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.PREFLIGHT_FAILED,
+                  error: contractResult.error
+                });
+              }
+            } catch (contractErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `installationContractDigest \u9A8C\u8BC1\u5F02\u5E38: ${contractErr.message}`
+              });
+            }
+          }
+          return createResult({
+            actionType,
+            status: ActionStatus.PREFLIGHT_PASSED
+          });
+        }
+        return createResult({
+          actionType,
+          status: ActionStatus.PREFLIGHT_FAILED,
+          error: `Unsupported action type: ${actionType}`
+        });
+      } catch (err) {
+        return createResult({
+          actionType,
+          status: ActionStatus.PREFLIGHT_FAILED,
+          error: err.message
+        });
+      }
+    },
+    /**
+     * Execute: perform the validation/write action. For marketplace,
+     * "execute" means running structured validation.
+     * Some actions require authorization (e.g., updating remote metadata).
+     */
+    async execute(action, context) {
+      const { actionType } = action;
+      if (actionType === ActionType.PLUGIN_MANIFEST_VALIDATE) {
+        try {
+          const manifestPath = action.manifestPath;
+          const requiredFields = action.requiredFields ?? ["name", "version", "description"];
+          const result = await validateManifestFile(manifestPath, requiredFields);
+          if (!result.valid) {
+            return createResult({
+              actionType,
+              status: ActionStatus.EXECUTE_FAILED,
+              error: result.error,
+              observation: { valid: false, missing: result.missing }
+            });
+          }
+          if (action.entryPoint) {
+            try {
+              await exec(process.execPath, ["--check", action.entryPoint]);
+            } catch (checkErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.EXECUTE_FAILED,
+                error: `Entry point syntax check failed: ${checkErr.message}`
+              });
+            }
+          }
+          return createResult({
+            actionType,
+            status: ActionStatus.EXECUTED,
+            observation: {
+              valid: true,
+              manifest: result.manifest,
+              manifestPath
+            }
+          });
+        } catch (err) {
+          return createResult({
+            actionType,
+            status: ActionStatus.EXECUTE_FAILED,
+            error: err.message
+          });
+        }
+      }
+      if (actionType === ActionType.PLUGIN_INSTALL_CHECK) {
+        try {
+          const { pluginDir, requiredFiles } = action;
+          const check = await checkRequiredFiles(pluginDir, requiredFiles ?? []);
+          if (!check.allPresent) {
+            return createResult({
+              actionType,
+              status: ActionStatus.EXECUTE_FAILED,
+              error: `Missing required files: ${check.missing.join(", ")}`,
+              observation: { allPresent: false, missing: check.missing }
+            });
+          }
+          if (action.entryPoint) {
+            try {
+              await exec(process.execPath, ["--check", resolve18(pluginDir, action.entryPoint)]);
+            } catch (checkErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.EXECUTE_FAILED,
+                error: `Install smoke test failed: ${checkErr.message}`
+              });
+            }
+          }
+          return createResult({
+            actionType,
+            status: ActionStatus.EXECUTED,
+            observation: {
+              allPresent: true,
+              pluginDir,
+              checkedFiles: requiredFiles ?? []
+            }
+          });
+        } catch (err) {
+          return createResult({
+            actionType,
+            status: ActionStatus.EXECUTE_FAILED,
+            error: err.message
+          });
+        }
+      }
+      if (actionType === ActionType.CLAUDE_MARKETPLACE_INSTALL || actionType === ActionType.CODEX_MARKETPLACE_INSTALL || actionType === ActionType.KIMI_MARKETPLACE_INSTALL || actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL) {
+        try {
+          assertIsolatedConsumerWritesAuthorized(context, actionType);
+          const validation = validateMarketplaceParams(action);
+          if (!validation.valid) {
+            return createResult({
+              actionType,
+              status: ActionStatus.EXECUTE_FAILED,
+              error: validation.error
+            });
+          }
+          if (!context?.root) {
+            return createResult({
+              actionType,
+              status: ActionStatus.EXECUTE_FAILED,
+              error: "context.root is required for marketplace install"
+            });
+          }
+          if (!context.runDir) {
+            return createResult({
+              actionType,
+              status: ActionStatus.EXECUTE_FAILED,
+              error: "context.runDir is required for marketplace install"
+            });
+          }
+          const platform = getPlatform(action.consumer);
+          const executeRoute = resolvePlatformRoute(platform);
+          if (executeRoute.route === "human-attestation") {
+            return platform.strategy.buildManualRequirement(action, context);
+          }
+          const consumer = action.consumer;
+          const runDir = context.runDir;
+          const isolatedHome = resolve18(runDir, "consumers", `${consumer}-${action.plugin}`);
+          const runDirReal = await realpath10(runDir).catch(() => runDir);
+          const isolatedHomePreReal = await realpath10(isolatedHome).catch(() => isolatedHome);
+          const relToRun = relative16(runDirReal, isolatedHomePreReal);
+          const sepE = process.platform === "win32" ? "\\" : "/";
+          if (relToRun !== "" && (isAbsolute14(relToRun) || relToRun === ".." || relToRun.startsWith(`..${sepE}`))) {
+            return createResult({
+              actionType,
+              status: ActionStatus.EXECUTE_FAILED,
+              error: `consumer directory escapes runDir: ${isolatedHome}`
+            });
+          }
+          await mkdir10(isolatedHome, { recursive: true, mode: 448 });
+          for (const subdir of platform.isolationSubdirs) {
+            await mkdir10(resolve18(isolatedHome, subdir), { recursive: true, mode: 448 });
+          }
+          const cliCmd = platform.cli.binary;
+          const baseEnv = { ...process.env, ...context.env };
+          const env = {
+            ...baseEnv,
+            ...platform.isolationEnv(isolatedHome)
+          };
+          let frozenTimeoutMs;
+          try {
+            frozenTimeoutMs = resolveTimeoutMs(action);
+          } catch (timeoutErr) {
+            return createResult({
+              actionType,
+              status: ActionStatus.EXECUTE_FAILED,
+              error: timeoutErr.message
+            });
+          }
+          const ref = action.ref ?? `v${action.version}`;
+          let addOutput = null;
+          const marketplaceArgs = platform.cli.marketplaceAdd(action.repo, ref);
+          try {
+            const addResult = await exec(cliCmd, marketplaceArgs, { env, cwd: context.root, timeout: frozenTimeoutMs });
+            if (platform.jsonProtocol.marketplaceAddOutput === "json") {
+              try {
+                addOutput = JSON.parse(addResult.stdout);
+                if (!addOutput || typeof addOutput !== "object") {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.EXECUTE_FAILED,
+                    error: "marketplace add returned invalid JSON output"
+                  });
+                }
+                if (addOutput.marketplaceName !== action.marketplace) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.EXECUTE_FAILED,
+                    error: `marketplace add marketplaceName "${addOutput.marketplaceName}" does not match action marketplace "${action.marketplace}"`
+                  });
+                }
+              } catch {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.EXECUTE_FAILED,
+                  error: "marketplace add returned malformed JSON"
+                });
+              }
+            }
+          } catch (addErr) {
+            if (isCliOrTransportUnavailable(addErr)) {
+              throw addErr;
+            }
+            return createResult({
+              actionType,
+              status: ActionStatus.EXECUTE_FAILED,
+              error: `marketplace add failed: ${addErr.message}`
+            });
+          }
+          let installOutput;
+          const installArgs = platform.cli.install(action.plugin, action.marketplace);
+          try {
+            const installResult = await exec(cliCmd, installArgs, { env, cwd: context.root, timeout: frozenTimeoutMs });
+            if (platform.jsonProtocol.pluginInstallOutput === "json") {
+              try {
+                installOutput = JSON.parse(installResult.stdout);
+                if (!installOutput || typeof installOutput !== "object") {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.EXECUTE_FAILED,
+                    error: "plugin install returned invalid JSON output"
+                  });
+                }
+                const expectedPluginId = `${action.plugin}@${action.marketplace}`;
+                const installFields = {
+                  pluginId: installOutput.pluginId,
+                  name: installOutput.name,
+                  marketplaceName: installOutput.marketplaceName,
+                  version: installOutput.version,
+                  installedPath: installOutput.installedPath
+                };
+                const expectedFields = {
+                  pluginId: expectedPluginId,
+                  name: action.plugin,
+                  marketplaceName: action.marketplace,
+                  version: action.version,
+                  installedPath: void 0
+                  // must exist and be non-empty
+                };
+                for (const [field, expected] of Object.entries(expectedFields)) {
+                  if (field === "installedPath") {
+                    if (!installFields.installedPath) {
+                      return createResult({
+                        actionType,
+                        status: ActionStatus.EXECUTE_FAILED,
+                        error: `plugin install JSON missing installedPath`
+                      });
+                    }
+                    const installPathAbs = resolve18(installFields.installedPath);
+                    const installPathRel = relative16(isolatedHome, installPathAbs);
+                    if (isAbsolute14(installPathRel) || installPathRel === ".." || installPathRel.startsWith(`..${sepE}`)) {
+                      return createResult({
+                        actionType,
+                        status: ActionStatus.EXECUTE_FAILED,
+                        error: `plugin install installedPath escapes isolated HOME: ${installFields.installedPath}`
+                      });
+                    }
+                  } else if (installFields[field] !== expected) {
+                    return createResult({
+                      actionType,
+                      status: ActionStatus.EXECUTE_FAILED,
+                      error: `plugin install JSON ${field} "${installFields[field]}" does not match expected "${expected}"`
+                    });
+                  }
+                }
+              } catch {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.EXECUTE_FAILED,
+                  error: "plugin install returned malformed JSON"
+                });
+              }
+            }
+          } catch (installErr) {
+            if (isCliOrTransportUnavailable(installErr)) {
+              throw installErr;
+            }
+            return createResult({
+              actionType,
+              status: ActionStatus.EXECUTE_FAILED,
+              error: `plugin install failed: ${installErr.message}`
+            });
+          }
+          const installPath = installOutput?.installedPath;
+          let executeManifestDigest = null;
+          let executeBinding = null;
+          if (installPath) {
+            try {
+              executeBinding = await verifyInstalledMarketplacePayload(
+                action,
+                context,
+                installPath,
+                consumer
+              );
+              executeManifestDigest = executeBinding.manifestDigest;
+            } catch {
+            }
+          }
+          const evidence = {
+            isolatedHome,
+            consumer,
+            plugin: action.plugin,
+            marketplace: action.marketplace,
+            repo: action.repo,
+            ref,
+            version: action.version,
+            addOutput,
+            installOutput,
+            executedAt: (/* @__PURE__ */ new Date()).toISOString(),
+            ...extraInstalledPathsAudit(executeBinding)
+          };
+          const evidenceDir = resolve18(runDir, "evidence", `${consumer}-${action.plugin}`);
+          await mkdir10(evidenceDir, { recursive: true, mode: 448 });
+          const evidencePath = resolve18(evidenceDir, "release-skill-install-evidence.json");
+          await writeEvidenceAtomic(evidencePath, evidence);
+          const executeObservation = {
+            ...evidence,
+            installed: true,
+            entrySkill: action.entrySkill,
+            ...executeManifestDigest ? { manifestDigest: executeManifestDigest } : {}
+          };
+          return createResult({
+            actionType,
+            status: ActionStatus.EXECUTED,
+            observation: executeObservation
+          });
+        } catch (err) {
+          const failedPlatform = getPlatform(action.consumer);
+          if (failedPlatform.degradationPolicy === "human-attestation-with-fallback" && failedPlatform.strategy.buildManualRequirement && isCliOrTransportUnavailable(err)) {
+            return failedPlatform.strategy.buildManualRequirement(action, context);
+          }
+          return createResult({
+            actionType,
+            status: ActionStatus.EXECUTE_FAILED,
+            error: err.message
+          });
+        }
+      }
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: `Unsupported action type: ${actionType}`
+      });
+    },
+    /**
+     * Observe: read the current state of the plugin manifest and content.
+     * Never infers success from exit code alone.
+     *
+     * For Claude: uses id === "plugin@marketplace" match in list array,
+     * reads installPath from CLI output, verifies install dir is inside
+     * isolated HOME, computes real manifestDigest from installed content.
+     *
+     * For Codex: uses pluginId === "plugin@marketplace" match in installed array,
+     * reads installedPath from add/install output or list, verifies install dir
+     * is inside isolated HOME, computes real manifestDigest.
+     *
+     * For Kimi: uses name === plugin match in installed array, reads
+     * installedPath from validated install evidence, verifies install dir
+     * is inside isolated HOME, computes real manifestDigest.
+     */
+    async observe(action, context) {
+      const { actionType } = action;
+      try {
+        if (actionType === ActionType.PLUGIN_MANIFEST_VALIDATE) {
+          const manifestPath = action.manifestPath;
+          try {
+            const content = await readFile16(manifestPath, "utf8");
+            const manifest = JSON.parse(content);
+            return createResult({
+              actionType,
+              status: ActionStatus.OBSERVED,
+              observation: {
+                exists: true,
+                name: manifest.name,
+                version: manifest.version,
+                description: manifest.description
+              }
+            });
+          } catch {
+            return createResult({
+              actionType,
+              status: ActionStatus.OBSERVED,
+              observation: { exists: false }
+            });
+          }
+        }
+        if (actionType === ActionType.PLUGIN_INSTALL_CHECK) {
+          const { pluginDir, requiredFiles } = action;
+          const check = await checkRequiredFiles(pluginDir, requiredFiles ?? []);
+          return createResult({
+            actionType,
+            status: ActionStatus.OBSERVED,
+            observation: {
+              allPresent: check.allPresent,
+              missing: check.missing,
+              pluginDir
+            }
+          });
+        }
+        if (actionType === ActionType.CLAUDE_MARKETPLACE_INSTALL || actionType === ActionType.CODEX_MARKETPLACE_INSTALL || actionType === ActionType.KIMI_MARKETPLACE_INSTALL || actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL) {
+          const consumer = action.consumer;
+          const runDir = context.runDir;
+          if (!runDir) {
+            return createResult({
+              actionType,
+              status: ActionStatus.OBSERVED,
+              observation: { installed: false, error: "context.runDir is required" }
+            });
+          }
+          const isolatedHome = resolve18(runDir, "consumers", `${consumer}-${action.plugin}`);
+          const platform = PLATFORMS.find((p) => p.id === consumer) ?? null;
+          if (!platform) {
+            throw new Error(
+              `Unknown consumer platform "${consumer}" for action "${actionType}". Registered platforms: ${PLATFORMS.map((p) => p.id).join(", ")}`
+            );
+          }
+          const cliCmd = platform.cli ? platform.cli.binary : null;
+          const baseEnv = { ...process.env, ...context.env ?? {} };
+          const env = {
+            ...baseEnv,
+            ...platform.isolationEnv(isolatedHome)
+          };
+          let frozenTimeoutMs;
+          try {
+            frozenTimeoutMs = resolveTimeoutMs(action);
+          } catch (timeoutErr) {
+            return createResult({
+              actionType,
+              status: ActionStatus.OBSERVED,
+              observation: { installed: false, error: timeoutErr.message },
+              error: timeoutErr.message
+            });
+          }
+          const kimiRoute = platform ? resolvePlatformRoute(platform) : null;
+          if (platform && kimiRoute?.route === "human-attestation" && actionType === ActionType.KIMI_MARKETPLACE_INSTALL) {
+            const expectedRef = action.ref ?? `v${action.version}`;
+            let boundPlanDigest;
+            try {
+              boundPlanDigest = resolveBoundPlanDigest(context);
+            } catch (planErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: false,
+                  error: `cannot bind kimi observation to the frozen plan: ${planErr.message}`
+                }
+              });
+            }
+            let attestationDir;
+            try {
+              attestationDir = kimiAuthorityDir(context, boundPlanDigest, action.plugin);
+            } catch (dirErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: { installed: false, error: dirErr.message }
+              });
+            }
+            let requirement = null;
+            try {
+              requirement = JSON.parse(await readFile16(resolve18(attestationDir, KIMI_REQUIREMENT_FILE), "utf8"));
+            } catch {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: false,
+                  manualInstallRequired: true,
+                  error: "kimi manual-install requirement is missing; run execute first"
+                }
+              });
+            }
+            if (requirement.planDigest !== boundPlanDigest || requirement.plugin !== action.plugin || requirement.version !== action.version || requirement.repo !== action.repo || requirement.ref !== (action.ref ?? `v${action.version}`) || action.entrySkill && requirement.entrySkill !== action.entrySkill) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: false,
+                  error: "kimi manual-install requirement does not match the frozen plan/action"
+                }
+              });
+            }
+            let attestation = null;
+            try {
+              attestation = JSON.parse(await readFile16(resolve18(attestationDir, KIMI_ATTESTATION_FILE), "utf8"));
+            } catch {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: false,
+                  manualInstallRequired: true,
+                  installUrl: requirement.installUrl,
+                  attestationDir,
+                  error: `kimi attestation is missing; write ${resolve18(attestationDir, KIMI_ATTESTATION_FILE)} after the interactive install (${requirement.installUrl})`
+                }
+              });
+            }
+            const attestationCheck = validateKimiAttestation(attestation, action, (/* @__PURE__ */ new Date()).toISOString(), boundPlanDigest);
+            if (!attestationCheck.valid) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: { installed: false, error: attestationCheck.error }
+              });
+            }
+            const normalizedAttestation = attestationCheck.normalized;
+            if (normalizedAttestation.result === "failed") {
+              const errorMsg = `kimi human result: failed${normalizedAttestation.note ? ` (${normalizedAttestation.note})` : ""}`;
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                error: errorMsg,
+                observation: {
+                  installed: false,
+                  humanConfirmed: true,
+                  result: "failed",
+                  actor: normalizedAttestation.actor,
+                  confirmedAt: normalizedAttestation.confirmedAt,
+                  error: errorMsg
+                }
+              });
+            }
+            if (normalizedAttestation.installPath) {
+              const managedRoot = resolve18(attestationDir, "kimi-home", "plugins", "managed");
+              const installPathAbs = resolve18(normalizedAttestation.installPath);
+              const managedRootReal = await realpath10(managedRoot).catch(() => null);
+              if (!managedRootReal) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: {
+                    installed: false,
+                    error: "KIMI_CODE_HOME does not exist"
+                  }
+                });
+              }
+              let lexicalStat;
+              try {
+                lexicalStat = await lstat11(installPathAbs);
+              } catch {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: {
+                    installed: false,
+                    error: "managed plugin root does not exist"
+                  }
+                });
+              }
+              if (lexicalStat.isSymbolicLink()) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: {
+                    installed: false,
+                    error: `kimi attestation installPath must not be a symlink: ${normalizedAttestation.installPath}`
+                  }
+                });
+              }
+              const installPathReal2 = await realpath10(installPathAbs).catch(() => null);
+              if (!installPathReal2) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: {
+                    installed: false,
+                    error: `kimi attestation installPath does not exist: ${normalizedAttestation.installPath}`
+                  }
+                });
+              }
+              const rel = relative16(managedRootReal, installPathReal2);
+              const sep5 = process.platform === "win32" ? "\\" : "/";
+              if (rel === "" || rel === ".." || isAbsolute14(rel) || rel.startsWith(`..${sep5}`)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: {
+                    installed: false,
+                    error: `kimi attestation installPath escapes the managed root: ${normalizedAttestation.installPath}`
+                  }
+                });
+              }
+            }
+            let manifestDigest2 = action.manifestDigest;
+            let payloadBinding2 = null;
+            if (normalizedAttestation.installPath) {
+              try {
+                payloadBinding2 = await verifyInstalledMarketplacePayload(
+                  action,
+                  context,
+                  normalizedAttestation.installPath,
+                  consumer
+                );
+                manifestDigest2 = payloadBinding2.manifestDigest;
+              } catch (bindingErr) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  error: `kimi payload binding failed: ${bindingErr.message}`,
+                  observation: {
+                    installed: false,
+                    humanConfirmed: true,
+                    result: "passed",
+                    actor: normalizedAttestation.actor,
+                    confirmedAt: normalizedAttestation.confirmedAt,
+                    error: `kimi payload binding failed: ${bindingErr.message}`
+                  }
+                });
+              }
+            }
+            return createResult({
+              actionType,
+              status: ActionStatus.OBSERVED,
+              observation: {
+                installed: true,
+                humanConfirmed: true,
+                result: "passed",
+                actor: normalizedAttestation.actor,
+                confirmedAt: normalizedAttestation.confirmedAt,
+                consumer,
+                plugin: action.plugin,
+                version: action.version,
+                repo: action.repo,
+                ref: expectedRef,
+                entrySkill: action.entrySkill,
+                entrySkillFound: true,
+                manifestDigest: manifestDigest2,
+                planDigest: boundPlanDigest,
+                ...extraInstalledPathsAudit(payloadBinding2)
+              }
+            });
+          }
+          const codebuddyRoute = platform ? resolvePlatformRoute(platform) : null;
+          if (platform && codebuddyRoute?.route === "human-attestation" && actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL) {
+            const expectedRef = action.ref ?? `v${action.version}`;
+            let boundPlanDigest;
+            try {
+              boundPlanDigest = await resolveCodeBuddyBoundPlanDigest(context);
+            } catch (planErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: false,
+                  error: `cannot bind codebuddy observation to the frozen plan: ${planErr.message}`
+                }
+              });
+            }
+            let attestationDir;
+            try {
+              attestationDir = codebuddyAuthorityDir(context, boundPlanDigest, action.plugin);
+            } catch (dirErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: { installed: false, error: dirErr.message }
+              });
+            }
+            let requirement = null;
+            try {
+              requirement = JSON.parse(await readFile16(resolve18(attestationDir, CODEBUDDY_REQUIREMENT_FILE), "utf8"));
+            } catch {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: false,
+                  manualInstallRequired: true,
+                  error: "codebuddy manual-install requirement is missing; run execute first"
+                }
+              });
+            }
+            if (requirement.planDigest !== boundPlanDigest || requirement.plugin !== action.plugin || requirement.version !== action.version || requirement.repo !== action.repo || requirement.ref !== (action.ref ?? `v${action.version}`) || action.entrySkill && requirement.entrySkill !== action.entrySkill) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: false,
+                  error: "codebuddy manual-install requirement does not match the frozen plan/action"
+                }
+              });
+            }
+            let attestation = null;
+            try {
+              attestation = JSON.parse(await readFile16(resolve18(attestationDir, CODEBUDDY_ATTESTATION_FILE), "utf8"));
+            } catch {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: false,
+                  manualInstallRequired: true,
+                  marketplaceSource: CODEBUDDY_MARKETPLACE_SOURCE,
+                  attestationDir,
+                  error: `codebuddy attestation is missing; write ${resolve18(attestationDir, CODEBUDDY_ATTESTATION_FILE)} after the manual install (marketplace ${CODEBUDDY_MARKETPLACE_SOURCE})`
+                }
+              });
+            }
+            const attestationCheck = validateCodeBuddyAttestation(attestation, action, (/* @__PURE__ */ new Date()).toISOString(), boundPlanDigest);
+            if (!attestationCheck.valid) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: { installed: false, error: attestationCheck.error }
+              });
+            }
+            const normalizedAttestation = attestationCheck.normalized;
+            if (normalizedAttestation.result === "failed") {
+              const errorMsg = `codebuddy human result: failed${normalizedAttestation.note ? ` (${normalizedAttestation.note})` : ""}`;
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                error: errorMsg,
+                observation: {
+                  installed: false,
+                  humanConfirmed: true,
+                  result: "failed",
+                  actor: normalizedAttestation.actor,
+                  confirmedAt: normalizedAttestation.confirmedAt,
+                  error: errorMsg
+                }
+              });
+            }
+            return createResult({
+              actionType,
+              status: ActionStatus.OBSERVED,
+              observation: {
+                installed: true,
+                humanConfirmed: true,
+                result: "passed",
+                actor: normalizedAttestation.actor,
+                confirmedAt: normalizedAttestation.confirmedAt,
+                consumer,
+                plugin: action.plugin,
+                version: action.version,
+                repo: action.repo,
+                ref: expectedRef,
+                entrySkill: action.entrySkill,
+                entrySkillFound: true,
+                manifestDigest: action.manifestDigest,
+                planDigest: boundPlanDigest
+              }
+            });
+          }
+          if (platform.degradationPolicy === "human-attestation-with-fallback" && actionType === ActionType.CODEX_MARKETPLACE_INSTALL) {
+            const expectedRef = action.ref ?? `v${action.version}`;
+            let codexBoundPlanDigest;
+            try {
+              codexBoundPlanDigest = await resolveCodexBoundPlanDigest(context);
+            } catch {
+            }
+            if (codexBoundPlanDigest) {
+              let codexAttestationDir;
+              try {
+                codexAttestationDir = codexAuthorityDir(context, codexBoundPlanDigest, action.plugin);
+              } catch {
+              }
+              if (codexAttestationDir) {
+                let codexRequirement = null;
+                try {
+                  codexRequirement = JSON.parse(await readFile16(resolve18(codexAttestationDir, CODEX_REQUIREMENT_FILE), "utf8"));
+                } catch {
+                }
+                if (codexRequirement && codexRequirement.planDigest === codexBoundPlanDigest && codexRequirement.plugin === action.plugin && codexRequirement.version === action.version && codexRequirement.repo === action.repo && codexRequirement.ref === (action.ref ?? `v${action.version}`) && (!action.entrySkill || codexRequirement.entrySkill === action.entrySkill)) {
+                  let codexAttestation = null;
+                  try {
+                    codexAttestation = JSON.parse(await readFile16(resolve18(codexAttestationDir, CODEX_ATTESTATION_FILE), "utf8"));
+                  } catch {
+                  }
+                  if (codexAttestation) {
+                    const codexCheck = validateCodexAttestation(codexAttestation, action, (/* @__PURE__ */ new Date()).toISOString(), codexBoundPlanDigest);
+                    if (!codexCheck.valid) {
+                      return createResult({
+                        actionType,
+                        status: ActionStatus.OBSERVED,
+                        observation: { installed: false, error: codexCheck.error }
+                      });
+                    }
+                    if (codexAttestation.result === "failed") {
+                      const errorMsg = `codex human result: failed${codexAttestation.note ? ` (${codexAttestation.note})` : ""}`;
+                      return createResult({
+                        actionType,
+                        status: ActionStatus.OBSERVED,
+                        error: errorMsg,
+                        observation: {
+                          installed: false,
+                          humanConfirmed: true,
+                          result: "failed",
+                          actor: codexAttestation.actor,
+                          confirmedAt: codexAttestation.confirmedAt,
+                          error: errorMsg
+                        }
+                      });
+                    }
+                    return createResult({
+                      actionType,
+                      status: ActionStatus.OBSERVED,
+                      observation: {
+                        installed: true,
+                        humanConfirmed: true,
+                        result: "passed",
+                        actor: codexAttestation.actor,
+                        confirmedAt: codexAttestation.confirmedAt,
+                        consumer,
+                        plugin: action.plugin,
+                        version: action.version,
+                        repo: action.repo,
+                        ref: expectedRef,
+                        entrySkill: action.entrySkill,
+                        entrySkillFound: true,
+                        manifestDigest: action.manifestDigest,
+                        planDigest: codexBoundPlanDigest
+                      }
+                    });
+                  }
+                }
+              }
+            }
+          }
+          let evidence = null;
+          try {
+            const evidenceRaw = await readFile16(resolve18(runDir, "evidence", `${consumer}-${action.plugin}`, "release-skill-install-evidence.json"), "utf8");
+            evidence = JSON.parse(evidenceRaw);
+          } catch {
+            return createResult({
+              actionType,
+              status: ActionStatus.OBSERVED,
+              observation: {
+                installed: false,
+                error: "execute evidence file is missing or unreadable"
+              }
+            });
+          }
+          if (evidence.consumer !== consumer || evidence.plugin !== action.plugin || evidence.marketplace !== action.marketplace || evidence.version !== action.version || evidence.repo !== action.repo || evidence.ref !== action.ref || evidence.isolatedHome !== isolatedHome) {
+            return createResult({
+              actionType,
+              status: ActionStatus.OBSERVED,
+              observation: {
+                installed: false,
+                error: "execute evidence identity does not match the frozen action"
+              }
+            });
+          }
+          const listArgs = ["plugin", "list", "--json"];
+          let listOutput;
+          try {
+            const result = await exec(cliCmd, listArgs, { env, cwd: context.root, timeout: frozenTimeoutMs });
+            listOutput = JSON.parse(result.stdout);
+          } catch (listErr) {
+            return createResult({
+              actionType,
+              status: ActionStatus.OBSERVED,
+              observation: {
+                installed: false,
+                error: `list command failed: ${listErr.message}`
+              }
+            });
+          }
+          const pluginId = `${action.plugin}@${action.marketplace}`;
+          let found = null;
+          let installPath = null;
+          if (platform && platform.jsonProtocol.installPathSource === "install-output") {
+            const extracted = platform.strategy.extractInstallPath({ execEvidence: evidence });
+            if (!extracted.ok) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: { installed: false, error: extracted.error }
+              });
+            }
+            installPath = extracted.installPath;
+          }
+          if (platform && platform.strategy.parseListOutput) {
+            const listParsed = platform.strategy.parseListOutput(listOutput, pluginId);
+            if (!listParsed.ok) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: { installed: false, error: listParsed.error }
+              });
+            }
+            found = listParsed.found;
+            if (platform.jsonProtocol.installPathSource === "list") {
+              const extracted = platform.strategy.extractInstallPath({ listParsed });
+              if (!extracted.ok) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: { installed: false, error: extracted.error }
+                });
+              }
+              installPath = extracted.installPath;
+            }
+            if (platform.strategy.crossValidateListEntry) {
+              const crossCheck = platform.strategy.crossValidateListEntry(found, action);
+              if (!crossCheck.ok) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: { installed: false, error: crossCheck.error }
+                });
+              }
+            }
+          }
+          const isolatedHomeReal = await realpath10(isolatedHome).catch(() => isolatedHome);
+          const installPathReal = await realpath10(installPath).catch(() => installPath);
+          const relToHome = relative16(isolatedHomeReal, installPathReal);
+          const sep4 = process.platform === "win32" ? "\\" : "/";
+          if (relToHome !== "" && (isAbsolute14(relToHome) || relToHome === ".." || relToHome.startsWith(`..${sep4}`))) {
+            return createResult({
+              actionType,
+              status: ActionStatus.OBSERVED,
+              observation: {
+                installed: false,
+                error: `install path escapes isolated HOME: ${installPath}`
+              }
+            });
+          }
+          const entrySkillPath = resolve18(installPath, "skills", action.entrySkill, "SKILL.md");
+          let entrySkillFound = false;
+          try {
+            const skillStat = await lstat11(entrySkillPath);
+            if (skillStat.isFile() && !skillStat.isSymbolicLink()) {
+              entrySkillFound = true;
+            }
+          } catch {
+          }
+          if (!entrySkillFound) {
+            return createResult({
+              actionType,
+              status: ActionStatus.OBSERVED,
+              observation: {
+                installed: true,
+                installPath,
+                entrySkillFound: false,
+                error: `entry skill not found: skills/${action.entrySkill}/SKILL.md`
+              }
+            });
+          }
+          let manifestDigest;
+          let manifestError = null;
+          let payloadBinding = null;
+          try {
+            payloadBinding = await verifyInstalledMarketplacePayload(
+              action,
+              context,
+              installPath,
+              consumer
+            );
+            manifestDigest = payloadBinding.manifestDigest;
+          } catch (digestErr) {
+            try {
+              const installedSnapshot = await computeFrozenSnapshot(installPath, {
+                excludeRootEntries: action.payloadContract === void 0 ? getPlatform(consumer).knownHostArtifacts : []
+              });
+              manifestDigest = installedSnapshot.digest;
+            } catch {
+              manifestDigest = void 0;
+            }
+            manifestError = `failed to bind manifestDigest to frozen authority: ${digestErr.message}`;
+          }
+          const observation = {
+            installed: true,
+            installPath,
+            entrySkillFound: true,
+            entrySkill: action.entrySkill,
+            manifestDigest,
+            consumer,
+            ...extraInstalledPathsAudit(payloadBinding)
+          };
+          if (platform && platform.strategy.extractListIdentity) {
+            Object.assign(observation, platform.strategy.extractListIdentity(found));
+          }
+          if (evidence.version && observation.version && evidence.version !== observation.version) {
+            return createResult({
+              actionType,
+              status: ActionStatus.OBSERVED,
+              observation: {
+                installed: true,
+                installPath,
+                entrySkillFound: true,
+                manifestDigest,
+                error: `version mismatch: CLI reports ${observation.version}, evidence shows ${evidence.version}`
+              }
+            });
+          }
+          try {
+            const installedManifestPath = resolve18(installPath, platform.manifestPaths.plugin);
+            const installedManifestContent = await readFile16(installedManifestPath, "utf8");
+            const installedManifest = JSON.parse(installedManifestContent);
+            const expectedName = observation.plugin;
+            if (expectedName && installedManifest.name !== expectedName) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: true,
+                  installPath,
+                  entrySkillFound: true,
+                  manifestDigest,
+                  error: `installed manifest name "${installedManifest.name}" does not match CLI plugin "${expectedName}"`
+                }
+              });
+            }
+            if (observation.version && installedManifest.version !== observation.version) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: true,
+                  installPath,
+                  entrySkillFound: true,
+                  manifestDigest,
+                  error: `installed manifest version "${installedManifest.version}" does not match CLI version "${observation.version}"`
+                }
+              });
+            }
+          } catch (manifestErr) {
+            return createResult({
+              actionType,
+              status: ActionStatus.OBSERVED,
+              observation: {
+                installed: true,
+                installPath,
+                entrySkillFound: true,
+                manifestDigest,
+                error: `installed plugin manifest is missing or invalid: ${manifestErr.message}`
+              }
+            });
+          }
+          if (evidence.repo && evidence.repo !== action.repo) {
+            return createResult({
+              actionType,
+              status: ActionStatus.OBSERVED,
+              observation: {
+                installed: true,
+                installPath,
+                entrySkillFound: true,
+                manifestDigest,
+                error: `evidence repo "${evidence.repo}" does not match action repo "${action.repo}"`
+              }
+            });
+          }
+          if (evidence.ref && evidence.ref !== action.ref) {
+            return createResult({
+              actionType,
+              status: ActionStatus.OBSERVED,
+              observation: {
+                installed: true,
+                installPath,
+                entrySkillFound: true,
+                manifestDigest,
+                error: `evidence ref "${evidence.ref}" does not match action ref "${action.ref}"`
+              }
+            });
+          }
+          if (evidence.repo) observation.repo = evidence.repo;
+          if (evidence.ref) observation.ref = evidence.ref;
+          if (action.marketplaceLocation === "external") {
+            observation.marketplaceLocation = action.marketplaceLocation;
+            observation.marketplaceCommitSha = action.marketplaceCommitSha;
+          }
+          return createResult({
+            actionType,
+            status: ActionStatus.OBSERVED,
+            observation,
+            error: manifestError
+          });
+        }
+        return createResult({
+          actionType,
+          status: ActionStatus.OBSERVED,
+          observation: {}
+        });
+      } catch (err) {
+        return createResult({
+          actionType,
+          status: ActionStatus.OBSERVED,
+          error: err.message,
+          observation: {}
+        });
+      }
+    },
+    /**
+     * Verify: compare observed state against the frozen plan's expected state.
+     */
+    async verify(action, context) {
+      const observed = await this.observe(action, context);
+      if (observed.error) {
+        return createResult({
+          actionType: action.actionType,
+          status: ActionStatus.VERIFY_FAILED,
+          observation: observed.observation,
+          error: observed.error
+        });
+      }
+      const expected = action.expected ?? {};
+      const { matches, mismatches } = matchObservation(expected, observed.observation);
+      return createResult({
+        actionType: action.actionType,
+        status: matches ? ActionStatus.VERIFIED : ActionStatus.VERIFY_FAILED,
+        observation: observed.observation,
+        error: matches ? null : `Observation mismatch: ${mismatches.join("; ")}`
+      });
+    }
+  });
+}
+var execFile6, NAME2, PAYLOAD_CONTRACT_DECLARED_MANIFEST, PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE, EXTRA_INSTALLED_PATHS_CAP, PAYLOAD_CONFLICT_REPORT_CAP, CONSUMER_INSTALL_RECIPE_VERSION, SUPPORTED_TYPES, SAFE_REPO_RE, SAFE_DIGEST_RE, CONSUMER_IDS, STRICT_SEMVER_RE, MARKETPLACE_SOURCE_TYPES, PLATFORM_SUPPORTED_SOURCES;
+var init_plugin_marketplace = __esm({
+  async "src/adapters/plugin-marketplace.mjs"() {
+    init_contract();
+    init_installation_contract();
+    init_frozen();
+    await init_registry();
+    await init_kimi();
+    init_codebuddy();
+    init_codex();
+    execFile6 = promisify7(execFileCb7);
+    NAME2 = "plugin-marketplace";
+    __name(transportPayload, "transportPayload");
+    PAYLOAD_CONTRACT_DECLARED_MANIFEST = "declared-manifest-v1";
+    PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE = "external-marketplace-v1";
+    EXTRA_INSTALLED_PATHS_CAP = 200;
+    PAYLOAD_CONFLICT_REPORT_CAP = 10;
+    CONSUMER_INSTALL_RECIPE_VERSION = "consumer-install-v1";
+    __name(resolveMarketplaceRoot, "resolveMarketplaceRoot");
+    __name(extractDeclaredPluginSource, "extractDeclaredPluginSource");
+    __name(resolvePluginManifestFromMarketplaceEntrySource, "resolvePluginManifestFromMarketplaceEntrySource");
+    __name(validateInstallationContractDigest, "validateInstallationContractDigest");
+    __name(resolveInstalledPayloadSubpath, "resolveInstalledPayloadSubpath");
+    __name(verifyInstalledMarketplacePayload, "verifyInstalledMarketplacePayload");
+    __name(extraInstalledPathsAudit, "extraInstalledPathsAudit");
+    __name(normalizeKimiSkillsRel, "normalizeKimiSkillsRel");
+    __name(resolveKimiEntrySkillFile, "resolveKimiEntrySkillFile");
+    __name(normalizeCodeBuddySkillsRel, "normalizeCodeBuddySkillsRel");
+    __name(resolveCodeBuddyEntrySkillFile, "resolveCodeBuddyEntrySkillFile");
+    SUPPORTED_TYPES = [
+      ActionType.PLUGIN_MANIFEST_VALIDATE,
+      ActionType.PLUGIN_INSTALL_CHECK,
+      ActionType.CLAUDE_MARKETPLACE_INSTALL,
+      ActionType.CODEX_MARKETPLACE_INSTALL,
+      ActionType.KIMI_MARKETPLACE_INSTALL,
+      ActionType.CODEBUDDY_MARKETPLACE_INSTALL
+    ];
+    __name(isCliOrTransportUnavailable, "isCliOrTransportUnavailable");
+    SAFE_REPO_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*\/[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
+    SAFE_DIGEST_RE = /^[0-9a-f]{64}$/;
+    CONSUMER_IDS = new Set(PLATFORMS.map((p) => p.id));
+    STRICT_SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
+    __name(validateSafeRef, "validateSafeRef");
+    __name(validateMarketplaceParams, "validateMarketplaceParams");
+    __name(run2, "run");
+    __name(validateManifestFile, "validateManifestFile");
+    __name(checkRequiredFiles, "checkRequiredFiles");
+    MARKETPLACE_SOURCE_TYPES = Object.freeze({
+      BUNDLED_FAMILY: "bundled-family",
+      STANDALONE_INDEX: "standalone-index"
+    });
+    PLATFORM_SUPPORTED_SOURCES = Object.freeze({
+      claude: /* @__PURE__ */ new Set([MARKETPLACE_SOURCE_TYPES.BUNDLED_FAMILY, MARKETPLACE_SOURCE_TYPES.STANDALONE_INDEX]),
+      codex: /* @__PURE__ */ new Set([MARKETPLACE_SOURCE_TYPES.BUNDLED_FAMILY, MARKETPLACE_SOURCE_TYPES.STANDALONE_INDEX]),
+      kimi: /* @__PURE__ */ new Set([MARKETPLACE_SOURCE_TYPES.BUNDLED_FAMILY, MARKETPLACE_SOURCE_TYPES.STANDALONE_INDEX]),
+      codebuddy: /* @__PURE__ */ new Set([MARKETPLACE_SOURCE_TYPES.BUNDLED_FAMILY, MARKETPLACE_SOURCE_TYPES.STANDALONE_INDEX])
+    });
+    __name(validateMarketplaceSourceSelection, "validateMarketplaceSourceSelection");
+    __name(createPluginMarketplaceAdapter, "createPluginMarketplaceAdapter");
+  }
+});
+
 // src/artifacts/transaction-journal.mjs
-import { readdir as readdir8, readFile as readFile15, rm as rm6, stat as stat4 } from "node:fs/promises";
-import { join as join13 } from "node:path";
+import { readdir as readdir9, readFile as readFile17, rm as rm6, stat as stat5 } from "node:fs/promises";
+import { join as join15 } from "node:path";
 function failSchema(message, details) {
   throw new ReleaseError(TRANSACTION_INCOMPLETE, message, details);
 }
@@ -70602,7 +73921,7 @@ async function pruneTerminalTransactionRecords(transactionsRoot, {
     if (!Number.isInteger(retentionMax) || retentionMax < 0) return summary;
     let entries;
     try {
-      entries = await readdir8(transactionsRoot, { withFileTypes: true });
+      entries = await readdir9(transactionsRoot, { withFileTypes: true });
     } catch (scanErr) {
       summary.errors.push(`scan: ${scanErr?.code || scanErr?.message || "readdir-failed"}`);
       return summary;
@@ -70612,11 +73931,11 @@ async function pruneTerminalTransactionRecords(transactionsRoot, {
     if (txnDirs.length <= retentionMax) return summary;
     const terminal = [];
     for (const entry of txnDirs) {
-      const recordDir = join13(transactionsRoot, entry.name);
+      const recordDir = join15(transactionsRoot, entry.name);
       let state = null;
       let createdAt = null;
       try {
-        const raw = await readFile15(join13(recordDir, "journal.json"), "utf8");
+        const raw = await readFile17(join15(recordDir, "journal.json"), "utf8");
         const journal = JSON.parse(raw);
         if (journal && typeof journal === "object") {
           state = typeof journal.state === "string" ? journal.state : null;
@@ -70629,7 +73948,7 @@ async function pruneTerminalTransactionRecords(transactionsRoot, {
       let sortTime = Date.parse(createdAt);
       if (!Number.isFinite(sortTime)) {
         try {
-          const dirStat = await stat4(recordDir);
+          const dirStat = await stat5(recordDir);
           sortTime = dirStat.mtimeMs;
         } catch {
           sortTime = Number.MAX_SAFE_INTEGER;
@@ -70680,7 +73999,7 @@ async function createTransactionJournal({
     );
     if (typeof root === "string" && root.length > 0) {
       await pruneTerminalTransactionRecords(
-        join13(root, ".release-skill", "transactions"),
+        join15(root, ".release-skill", "transactions"),
         { retentionMax }
       );
     }
@@ -71044,7 +74363,7 @@ __export(transaction_exports, {
   applyWriteSetUnderLock: () => applyWriteSetUnderLock
 });
 import { randomBytes as randomBytes2 } from "node:crypto";
-import { relative as relative15 } from "node:path";
+import { relative as relative17 } from "node:path";
 function computeCanonicalPlanDigest(plan) {
   const { planDigest: _ignored, ...content } = plan;
   return `sha256:${sha256Hex(canonicalJson(content))}`;
@@ -71957,7 +75276,7 @@ async function applyArtifactPlanUnderLock({
   }
   const handle = await safeFs.openRoot(root);
   try {
-    const relPlanPath = canonicalArtifactPath(relative15(root, planPath)).path;
+    const relPlanPath = canonicalArtifactPath(relative17(root, planPath)).path;
     const planFileData = await withParentHandle(handle, relPlanPath, async (parent, leaf) => {
       const planEntry = await parent.readEntry(leaf);
       if (!planEntry || planEntry.kind === "absent") {
@@ -72140,13 +75459,13 @@ function assertVersionPattern(pattern, where) {
     invalid("releaseDocuments: versionMarker pattern must have non-empty bytes after {version}", { where });
   }
 }
-function deepFreeze(value) {
+function deepFreeze2(value) {
   if (Array.isArray(value)) {
-    for (const item of value) deepFreeze(item);
+    for (const item of value) deepFreeze2(item);
     return Object.freeze(value);
   }
   if (value !== null && typeof value === "object") {
-    for (const item of Object.values(value)) deepFreeze(item);
+    for (const item of Object.values(value)) deepFreeze2(item);
     return Object.freeze(value);
   }
   return value;
@@ -72250,7 +75569,7 @@ function normalizeReleaseDocumentsConfig(config) {
     }
     return canonical;
   });
-  return deepFreeze({
+  return deepFreeze2({
     notesSource: canonicalNotesSource,
     locales: [...locales],
     changelogs: canonicalChangelogs,
@@ -72310,7 +75629,7 @@ var init_config2 = __esm({
     };
     __name(canonicalPath, "canonicalPath");
     __name(assertVersionPattern, "assertVersionPattern");
-    __name(deepFreeze, "deepFreeze");
+    __name(deepFreeze2, "deepFreeze");
     __name(normalizeReleaseDocumentsConfig, "normalizeReleaseDocumentsConfig");
   }
 });
@@ -72329,13 +75648,13 @@ function translationMissing(missingLocales) {
 function isPlainObject2(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
-function deepFreeze2(value) {
+function deepFreeze3(value) {
   if (Array.isArray(value)) {
-    for (const item of value) deepFreeze2(item);
+    for (const item of value) deepFreeze3(item);
     return Object.freeze(value);
   }
   if (value !== null && typeof value === "object") {
-    for (const item of Object.values(value)) deepFreeze2(item);
+    for (const item of Object.values(value)) deepFreeze3(item);
     return Object.freeze(value);
   }
   return value;
@@ -72667,7 +75986,7 @@ function parseReleaseNotes(bytes, options = {}) {
   }
   const parsed = format === "json" ? parseStrictJson(text) : parseStrictYaml(text);
   const canonical = validateNotesModel(parsed, { expectedVersion, locales: [...localeSet] });
-  return deepFreeze2(canonical);
+  return deepFreeze3(canonical);
 }
 var import_yaml3, RELEASE_NOTES_CATEGORIES, DEFAULT_MAX_NOTES_BYTES, CATEGORY_SET, ROOT_KEYS2, ENTRY_KEYS, DATE_PATTERN, SUPPORTED_FORMATS, YAML_VIOLATION_ORDER;
 var init_notes = __esm({
@@ -72692,7 +76011,7 @@ var init_notes = __esm({
     __name(invalid2, "invalid");
     __name(translationMissing, "translationMissing");
     __name(isPlainObject2, "isPlainObject");
-    __name(deepFreeze2, "deepFreeze");
+    __name(deepFreeze3, "deepFreeze");
     __name(isValidCalendarDate, "isValidCalendarDate");
     __name(normalizeDate, "normalizeDate");
     __name(collectYamlViolations, "collectYamlViolations");
@@ -72982,14 +76301,14 @@ function conflictError(message, details = {}) {
 function isPlainObject3(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
-function deepFreeze3(value) {
+function deepFreeze4(value) {
   if (Array.isArray(value)) {
-    for (const item of value) deepFreeze3(item);
+    for (const item of value) deepFreeze4(item);
     return Object.freeze(value);
   }
   if (value !== null && typeof value === "object") {
     if (ArrayBuffer.isView(value)) return value;
-    for (const item of Object.values(value)) deepFreeze3(item);
+    for (const item of Object.values(value)) deepFreeze4(item);
     return Object.freeze(value);
   }
   return value;
@@ -73430,7 +76749,7 @@ function renderChangelogRelease({ bytes, target, notes } = {}) {
     out = Buffer.concat([input.subarray(0, current.start), entryBytes, input.subarray(current.end)]);
   }
   const changed = !input.equals(out);
-  return deepFreeze3({
+  return deepFreeze4({
     kind: "changelog",
     locale,
     version,
@@ -73483,7 +76802,7 @@ var init_changelog_renderer = __esm({
     __name(translationMissing2, "translationMissing");
     __name(conflictError, "conflictError");
     __name(isPlainObject3, "isPlainObject");
-    __name(deepFreeze3, "deepFreeze");
+    __name(deepFreeze4, "deepFreeze");
     __name(valueLines, "valueLines");
     __name(escapeRegExp, "escapeRegExp");
     __name(validateTarget, "validateTarget");
@@ -73622,14 +76941,14 @@ function translationMissing3(locale) {
 function isPlainObject4(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
-function deepFreeze4(value) {
+function deepFreeze5(value) {
   if (Array.isArray(value)) {
-    for (const item of value) deepFreeze4(item);
+    for (const item of value) deepFreeze5(item);
     return Object.freeze(value);
   }
   if (value !== null && typeof value === "object") {
     if (ArrayBuffer.isView(value)) return value;
-    for (const item of Object.values(value)) deepFreeze4(item);
+    for (const item of Object.values(value)) deepFreeze5(item);
     return Object.freeze(value);
   }
   return value;
@@ -73964,7 +77283,7 @@ function renderReadmeRelease({ bytes, target, notes } = {}) {
     out = Buffer.concat([out.subarray(0, edit.start), edit.replacement, out.subarray(edit.end)]);
   }
   const changed = !input.equals(out);
-  return deepFreeze4({
+  return deepFreeze5({
     kind: "readme",
     locale,
     version,
@@ -74015,7 +77334,7 @@ var init_readme_renderer = __esm({
     __name(docsError2, "docsError");
     __name(translationMissing3, "translationMissing");
     __name(isPlainObject4, "isPlainObject");
-    __name(deepFreeze4, "deepFreeze");
+    __name(deepFreeze5, "deepFreeze");
     __name(valueLines2, "valueLines");
     __name(validateTarget2, "validateTarget");
     __name(validateNotes2, "validateNotes");
@@ -74036,14 +77355,14 @@ function invalid4(message, details = {}) {
 function isPlainObject5(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
-function deepFreeze5(value) {
+function deepFreeze6(value) {
   if (Array.isArray(value)) {
-    for (const item of value) deepFreeze5(item);
+    for (const item of value) deepFreeze6(item);
     return Object.freeze(value);
   }
   if (value !== null && typeof value === "object") {
     if (ArrayBuffer.isView(value)) return value;
-    for (const item of Object.values(value)) deepFreeze5(item);
+    for (const item of Object.values(value)) deepFreeze6(item);
     return Object.freeze(value);
   }
   return value;
@@ -74260,7 +77579,7 @@ function createReleaseDocsRefreshPlan({
     })
   )}`;
   const status = files.some((file) => file.changed) ? "changes" : "clean";
-  return deepFreeze5({ status, unitId, version, locales, inputDigest, refreshDigest, files });
+  return deepFreeze6({ status, unitId, version, locales, inputDigest, refreshDigest, files });
 }
 function projectReleaseDocsRefreshDisplay(plan) {
   if (!isPlainObject5(plan)) {
@@ -74330,7 +77649,7 @@ function projectReleaseDocsRefreshDisplay(plan) {
   });
   const argv = ["release-skill", "docs", "refresh", "--unit", plan.unitId];
   const writeArgv = plan.status === "changes" ? [...argv, "--write", "--confirm-refresh", plan.refreshDigest, "--ack-local-document-write"] : null;
-  return deepFreeze5({
+  return deepFreeze6({
     status: plan.status,
     unitId: plan.unitId,
     version: plan.version,
@@ -74356,7 +77675,7 @@ var init_refresh_planner = __esm({
     CHANGES = /* @__PURE__ */ new Set(["insert", "update", "none"]);
     __name(invalid4, "invalid");
     __name(isPlainObject5, "isPlainObject");
-    __name(deepFreeze5, "deepFreeze");
+    __name(deepFreeze6, "deepFreeze");
     __name(assertDigest, "assertDigest");
     __name(comparePaths, "comparePaths");
     __name(validateConfig2, "validateConfig");
@@ -74372,15 +77691,15 @@ __export(refresh_service_exports, {
   planReleaseDocsRefreshForUnit: () => planReleaseDocsRefreshForUnit,
   runReleaseDocsRefresh: () => runReleaseDocsRefresh
 });
-import { isAbsolute as isAbsolute13, relative as relative16, resolve as resolve17, sep as sep3 } from "node:path";
-function deepFreeze6(value) {
+import { isAbsolute as isAbsolute15, relative as relative18, resolve as resolve19, sep as sep3 } from "node:path";
+function deepFreeze7(value) {
   if (Array.isArray(value)) {
-    for (const item of value) deepFreeze6(item);
+    for (const item of value) deepFreeze7(item);
     return Object.freeze(value);
   }
   if (value !== null && typeof value === "object") {
     if (ArrayBuffer.isView(value)) return value;
-    for (const item of Object.values(value)) deepFreeze6(item);
+    for (const item of Object.values(value)) deepFreeze7(item);
     return Object.freeze(value);
   }
   return value;
@@ -74455,7 +77774,7 @@ async function planReleaseDocsRefreshForUnit({
       field: "unit.source"
     });
   }
-  const unitRoot = resolve17(root, unit.source);
+  const unitRoot = resolve19(root, unit.source);
   const backend = await (backendFactory ?? loadSafeFs)();
   const sharedFactory = /* @__PURE__ */ __name(async () => backend, "sharedFactory");
   const notesSource = await loadReleaseNotesSource({
@@ -74497,7 +77816,7 @@ async function planReleaseDocsRefreshForUnit({
     oldFiles
   });
   const display = projectReleaseDocsRefreshDisplay(plan);
-  return deepFreeze6({ plan, display, modes });
+  return deepFreeze7({ plan, display, modes });
 }
 async function restoreOneTarget(backend, unitRoot, file, mode) {
   const segments = file.path.split("/");
@@ -74665,9 +77984,9 @@ async function runReleaseDocsRefresh({
         });
       }
       const changedFiles = plan.files.filter((file) => file.changed);
-      const unitRoot = resolve17(root, unit.source);
-      const unitLocation = relative16(root, unitRoot);
-      if (unitLocation === ".." || unitLocation.startsWith(`..${sep3}`) || isAbsolute13(unitLocation)) {
+      const unitRoot = resolve19(root, unit.source);
+      const unitLocation = relative18(root, unitRoot);
+      if (unitLocation === ".." || unitLocation.startsWith(`..${sep3}`) || isAbsolute15(unitLocation)) {
         throw new ReleaseError(
           PATH_UNSAFE,
           "release unit source escapes the project root",
@@ -74725,7 +78044,7 @@ async function runReleaseDocsRefresh({
         if (err instanceof ReleaseError && err.code === TRANSACTION_INCOMPLETE && typeof err.details?.recover === "string") {
           const restored = await tryRestoreOldBytes(
             backend,
-            resolve17(root, unit.source),
+            resolve19(root, unit.source),
             changedFiles,
             modes
           );
@@ -74802,7 +78121,7 @@ var init_refresh_service = __esm({
     init_notes_loader();
     init_notes();
     init_refresh_planner();
-    __name(deepFreeze6, "deepFreeze");
+    __name(deepFreeze7, "deepFreeze");
     __name(modeToString, "modeToString");
     __name(selectUnit, "selectUnit");
     __name(planReleaseDocsRefreshForUnit, "planReleaseDocsRefreshForUnit");
@@ -74825,10 +78144,10 @@ __export(prepare_exports, {
   resolveUnitVersion: () => resolveUnitVersion,
   runDeclaredHooks: () => runDeclaredHooks
 });
-import { resolve as resolve18, relative as relative17, isAbsolute as isAbsolute14, normalize as normalize3, dirname as dirname9 } from "node:path";
-import { readFile as readFile16, mkdir as mkdir12, realpath as realpath10 } from "node:fs/promises";
-import { execFile as execFileCb7 } from "node:child_process";
-import { promisify as promisify7 } from "node:util";
+import { resolve as resolve20, relative as relative19, isAbsolute as isAbsolute16, normalize as normalize3, dirname as dirname9 } from "node:path";
+import { readFile as readFile18, mkdir as mkdir11, realpath as realpath11 } from "node:fs/promises";
+import { execFile as execFileCb8 } from "node:child_process";
+import { promisify as promisify8 } from "node:util";
 async function resolveUnitVersion(unit, root, explicitVersion) {
   const versionSource = unit.version?.source;
   if (!versionSource || typeof versionSource !== "string") {
@@ -74838,18 +78157,18 @@ async function resolveUnitVersion(unit, root, explicitVersion) {
       { unitId: unit.id }
     );
   }
-  if (isAbsolute14(versionSource)) {
+  if (isAbsolute16(versionSource)) {
     throw new ReleaseError(
       CONFIG_INVALID,
       `unit "${unit.id}" version.source must be a relative path, got absolute: "${versionSource}"`,
       { unitId: unit.id, versionSource }
     );
   }
-  const unitRoot = resolve18(root, unit.source);
-  const resolvedPath = resolve18(unitRoot, versionSource);
+  const unitRoot = resolve20(root, unit.source);
+  const resolvedPath = resolve20(unitRoot, versionSource);
   const normalizedPath = normalize3(resolvedPath);
-  const rel = relative17(unitRoot, normalizedPath);
-  if (rel.startsWith("..") || rel === ".." || isAbsolute14(rel)) {
+  const rel = relative19(unitRoot, normalizedPath);
+  if (rel.startsWith("..") || rel === ".." || isAbsolute16(rel)) {
     throw new ReleaseError(
       CONFIG_INVALID,
       `unit "${unit.id}" version.source escapes unit root: "${versionSource}"`,
@@ -74858,7 +78177,7 @@ async function resolveUnitVersion(unit, root, explicitVersion) {
   }
   let content;
   try {
-    content = await readFile16(normalizedPath, "utf8");
+    content = await readFile18(normalizedPath, "utf8");
   } catch (err) {
     throw new ReleaseError(
       CONFIG_INVALID,
@@ -75148,7 +78467,7 @@ async function processSnapshots(config, root, evidence, runDir, production = fal
   const unitResults = [];
   const snapshotDigests = [];
   for (const unit of units) {
-    const outputDir = resolveUnitScopedPath(resolve18(runDir, "snapshots"), unit.id);
+    const outputDir = resolveUnitScopedPath(resolve20(runDir, "snapshots"), unit.id);
     await evidence.append({
       phase: "snapshot",
       status: "started",
@@ -75335,7 +78654,7 @@ function normalizedProductionConfig(unit) {
     branchStrategy: unit.production?.branchStrategy ?? "create-release-branch"
   };
 }
-async function readHeadCommitTimestamp(root, headCommit, exec = execFile6) {
+async function readHeadCommitTimestamp(root, headCommit, exec = execFile7) {
   try {
     const { stdout } = await exec(
       "git",
@@ -75376,7 +78695,7 @@ async function buildProductionAssets(unitResults, resolvedVersions, root, runDir
     const { unit, manifest } = unitResults[index];
     const version = resolvedVersions[index];
     const { tag, branch, branchStrategy } = resolveProductionBranch(unit, version);
-    const snapshotPath = relative17(root, manifest.outputDir);
+    const snapshotPath = relative19(root, manifest.outputDir);
     const observed = await computeFrozenSnapshot(manifest.outputDir);
     if (observed.digest !== manifest.snapshotDigest) {
       throw new ReleaseError(
@@ -75387,7 +78706,7 @@ async function buildProductionAssets(unitResults, resolvedVersions, root, runDir
     }
     await sealFrozenSnapshot(manifest.outputDir);
     const sealed = await computeFrozenSnapshot(manifest.outputDir);
-    const repositoryDir = resolveUnitScopedPath(resolve18(runDir, "git"), unit.id, { suffix: ".git" });
+    const repositoryDir = resolveUnitScopedPath(resolve20(runDir, "git"), unit.id, { suffix: ".git" });
     const unitBaseline = unitBaselineResults.get(unit.id);
     const parent = branchStrategy === "create-release-branch" ? void 0 : {
       githubHost: unitBaseline.githubHost,
@@ -75408,13 +78727,13 @@ async function buildProductionAssets(unitResults, resolvedVersions, root, runDir
     if (npmDistribution) {
       npm = await buildFrozenNpmTarball({
         snapshotDir: manifest.outputDir,
-        tarballDir: resolveUnitScopedPath(resolve18(runDir, "tarballs"), unit.id),
+        tarballDir: resolveUnitScopedPath(resolve20(runDir, "tarballs"), unit.id),
         expectedSnapshotDigest: sealed.digest
       });
       await verifyFrozenNpmTarballIdentity({
         package: npmDistribution.package,
         version,
-        tarballPath: relative17(root, npm.tarballPath),
+        tarballPath: relative19(root, npm.tarballPath),
         tarballSha256: npm.sha256,
         integrity: npm.integrity
       }, root);
@@ -75422,7 +78741,7 @@ async function buildProductionAssets(unitResults, resolvedVersions, root, runDir
     assets.push({
       snapshotPath,
       manifestDigest: sealed.digest,
-      gitObjectDir: relative17(root, repositoryDir),
+      gitObjectDir: relative19(root, repositoryDir),
       commit: git2.commit,
       tree: git2.tree,
       commitTimestamp: canonicalFreezeTimestamp,
@@ -75431,7 +78750,7 @@ async function buildProductionAssets(unitResults, resolvedVersions, root, runDir
       branch,
       tag,
       npm: npm ? {
-        tarballPath: relative17(root, npm.tarballPath),
+        tarballPath: relative19(root, npm.tarballPath),
         tarballSha256: npm.sha256,
         integrity: npm.integrity,
         size: npm.size
@@ -75473,7 +78792,7 @@ function decodeExternalMarketplaceIndex(base64Content) {
 }
 async function defaultObserveExternalMarketplaceHead(repo, { githubHost = "github.com" } = {}) {
   try {
-    const { stdout } = await execFile6(
+    const { stdout } = await execFile7(
       "git",
       ["ls-remote", "--symref", `https://${githubHost}/${repo}.git`, "HEAD"],
       { shell: false, encoding: "utf8", timeout: 3e4 }
@@ -75489,7 +78808,7 @@ async function defaultObserveExternalMarketplaceHead(repo, { githubHost = "githu
 }
 async function defaultFetchExternalMarketplaceIndex(repo, manifestPath, ref, { githubHost = "github.com" } = {}) {
   try {
-    const { stdout } = await execFile6(
+    const { stdout } = await execFile7(
       "gh",
       ["api", `repos/${repo}/contents/${manifestPath}?ref=${ref}`, "--jq", ".content"],
       {
@@ -75522,12 +78841,13 @@ async function resolveExternalMarketplaceFreezes({
     const version = resolvedVersions[index];
     const githubHost = unit.production?.githubHost ?? "github.com";
     for (const dist of unit.distributions ?? []) {
-      if (dist.marketplaceRepo === void 0 || dist.marketplaceRepo === null) continue;
+      if (dist.marketplaceSourceType !== "standalone-index") continue;
+      if (!dist.marketplaceRepo) continue;
       const platform = PLATFORMS.find((p) => p.distributionType === dist.type);
-      if (!platform || platform.marketplaceRefForm === null) {
+      if (!platform) {
         throw new ReleaseError(
           GATE_FAILED,
-          `unit "${unit.id}" ${dist.type} distribution declares marketplaceRepo but the platform has no marketplace add capability`,
+          `unit "${unit.id}" ${dist.type} distribution declares standalone-index but the platform is unknown`,
           { unitId: unit.id, distributionType: dist.type }
         );
       }
@@ -75535,7 +78855,7 @@ async function resolveExternalMarketplaceFreezes({
         throw new ReleaseError(
           GATE_FAILED,
           `unit "${unit.id}" ${dist.type} external marketplace form requires online production prepare to freeze the marketplace commit sha`,
-          { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo }
+          { unitId: unit.id, marketplaceSourceType: dist.marketplaceSourceType }
         );
       }
       const observed = await observeHeadFn(dist.marketplaceRepo, { githubHost });
@@ -75547,7 +78867,14 @@ async function resolveExternalMarketplaceFreezes({
         );
       }
       const sha = observed.sha;
-      const manifestPath = platform.manifestPaths.marketplace;
+      const manifestPath = dist.marketplaceIndexPath ?? platform.manifestPaths.marketplace;
+      if (!manifestPath) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" ${dist.type} cannot determine marketplace index path: neither marketplaceIndexPath nor platform.manifestPaths.marketplace is set`,
+          { unitId: unit.id, distributionType: dist.type }
+        );
+      }
       const fetched = await fetchIndexFn(dist.marketplaceRepo, manifestPath, sha, { githubHost });
       if (fetched.status !== "fetched" || !fetched.index || typeof fetched.index !== "object") {
         throw new ReleaseError(
@@ -75557,7 +78884,7 @@ async function resolveExternalMarketplaceFreezes({
         );
       }
       const marketplaceIndex = fetched.index;
-      if (marketplaceIndex.name !== dist.marketplace) {
+      if (dist.marketplace && marketplaceIndex.name !== dist.marketplace) {
         throw new ReleaseError(
           GATE_FAILED,
           `unit "${unit.id}" external marketplace index name "${marketplaceIndex.name}" does not match distribution marketplace "${dist.marketplace}"`,
@@ -75579,12 +78906,19 @@ async function resolveExternalMarketplaceFreezes({
           { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo }
         );
       }
-      const ref = platform.marketplaceRefForm === "sha" ? sha : observed.defaultBranch;
+      const marketplaceRef = platform.marketplaceRefForm === "name" ? observed.defaultBranch : sha;
       freezes.set(`${unit.id} ${dist.type}`, {
+        // 向后兼容字段（buildExternalActions 使用 repo / ref / marketplace）
         repo: dist.marketplaceRepo,
-        ref,
+        ref: marketplaceRef,
         marketplaceCommitSha: sha,
-        marketplace: dist.marketplace
+        marketplace: dist.marketplace,
+        // B3B 完整冻结字段
+        marketplaceRepo: dist.marketplaceRepo,
+        marketplaceRef,
+        marketplaceIndexPath: manifestPath,
+        marketplaceName: marketplaceIndex.name,
+        selectedEntry: pluginEntries[0]
       });
       await evidence.append({
         phase: "external-marketplace-freeze",
@@ -75593,14 +78927,17 @@ async function resolveExternalMarketplaceFreezes({
         status: "completed",
         marketplaceRepo: dist.marketplaceRepo,
         marketplaceCommitSha: sha,
-        defaultBranch: observed.defaultBranch,
-        addRef: ref
+        marketplaceRef,
+        marketplaceIndexPath: manifestPath,
+        marketplaceName: marketplaceIndex.name,
+        selectedEntry: pluginEntries[0],
+        defaultBranch: observed.defaultBranch
       });
     }
   }
   return freezes;
 }
-function buildExternalActions(unitResults, resolvedVersions, productionAssets, externalFreezes = /* @__PURE__ */ new Map()) {
+function buildExternalActions(unitResults, resolvedVersions, productionAssets, externalFreezes = /* @__PURE__ */ new Map(), frozenDistributions = null) {
   const actions = [];
   if (!productionAssets) {
     for (let index = 0; index < unitResults.length; index += 1) {
@@ -75656,13 +78993,15 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
         parameters: { publicRepo: unit.publicRepo, version },
         status: "PENDING"
       });
+      const frozenUnitDists = frozenDistributions?.get(unit.id) ?? null;
       for (const platform of PLATFORMS) {
-        const dist = (unit.distributions ?? []).find((d) => d.type === platform.distributionType);
+        const dist = frozenUnitDists ? frozenUnitDists.find((d) => d.type === platform.distributionType) : (unit.distributions ?? []).find((d) => d.type === platform.distributionType);
         if (!dist) continue;
         const requiresMarketplace = platform.schemaRequiredFields.includes("marketplace");
         const timeoutMs = Number.isInteger(dist.timeoutMs) ? dist.timeoutMs : 3e5;
         const externalMarketplace = dist.marketplaceRepo !== void 0 && dist.marketplaceRepo !== null;
-        const marketplaceForm = requiresMarketplace ? externalMarketplace ? "standalone-index" : "bundled-family" : null;
+        const marketplaceSourceType = dist.marketplaceSourceType ?? (externalMarketplace ? "standalone-index" : "bundled-family");
+        const marketplaceForm = marketplaceSourceType;
         const sourceDescriptor = marketplaceForm === "standalone-index" ? Object.freeze({
           form: "standalone-index",
           marketplaceRepo: dist.marketplaceRepo,
@@ -75706,7 +79045,15 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
             payloadContract: externalMarketplace ? "external-marketplace-v1" : "declared-manifest-v1",
             ...externalMarketplace ? { marketplaceLocation: "external" } : {},
             ...marketplaceForm ? { marketplaceForm } : {},
-            ...sourceDescriptor ? { sourceDescriptor } : {}
+            ...sourceDescriptor ? { sourceDescriptor } : {},
+            // 安装契约摘要、算法版本和来源类型，用于完整性交叉校验
+            ...dist.installationContractDigest ? {
+              installationContractDigest: dist.installationContractDigest,
+              algorithmVersion: INSTALLATION_CONTRACT_ALGORITHM_VERSION,
+              marketplaceSourceType: dist.marketplaceSourceType
+            } : {}
+            // standalone-index 审计字段仅在生产在线冻结成功后出现；
+            // 非生产 action 不携带这三个字段（未冻结时无真实值可用）。
           },
           expected: {
             installed: true,
@@ -75728,6 +79075,7 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
     const asset = productionAssets[index];
     const tagTemplate = unit.version?.tagTemplate ?? `${unit.id}-v{version}`;
     const resolvedTag = asset.tag;
+    const frozenUnitDists = frozenDistributions?.get(unit.id) ?? null;
     actions.push({
       id: `push-snapshot-${unit.id}`,
       type: "push-snapshot",
@@ -75845,13 +79193,14 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
       status: "PENDING"
     });
     for (const platform of PLATFORMS) {
-      const dist = (unit.distributions ?? []).find((d) => d.type === platform.distributionType);
+      const dist = frozenUnitDists ? frozenUnitDists.find((d) => d.type === platform.distributionType) : (unit.distributions ?? []).find((d) => d.type === platform.distributionType);
       if (!dist) continue;
       const requiresMarketplace = platform.schemaRequiredFields.includes("marketplace");
       const timeoutMs = Number.isInteger(dist.timeoutMs) ? dist.timeoutMs : 3e5;
       const externalMarketplace = dist.marketplaceRepo !== void 0 && dist.marketplaceRepo !== null;
       const freeze = externalMarketplace ? externalFreezes.get(`${unit.id} ${dist.type}`) : null;
-      const marketplaceForm = requiresMarketplace ? externalMarketplace ? "standalone-index" : "bundled-family" : null;
+      const marketplaceSourceType = dist.marketplaceSourceType ?? (externalMarketplace ? "standalone-index" : "bundled-family");
+      const marketplaceForm = marketplaceSourceType;
       const sourceDescriptor = marketplaceForm === "standalone-index" ? Object.freeze({
         form: "standalone-index",
         marketplaceRepo: dist.marketplaceRepo,
@@ -75901,7 +79250,19 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
           // 冻结的插件来源提交，用于 sourceDescriptor.commit 交叉校验。
           // bundled-family: sourceDescriptor.commit 绑定到此值。
           // standalone-index: 通过此值绑定插件载荷来源。
-          sourceCommit: asset.commit
+          sourceCommit: asset.commit,
+          // 安装契约摘要、算法版本和来源类型，用于完整性交叉校验
+          ...dist.installationContractDigest ? {
+            installationContractDigest: dist.installationContractDigest,
+            algorithmVersion: INSTALLATION_CONTRACT_ALGORITHM_VERSION,
+            marketplaceSourceType: dist.marketplaceSourceType
+          } : {},
+          // standalone-index 审计字段：供后续静态预检使用
+          ...externalMarketplace && freeze ? {
+            marketplaceIndexPath: freeze.marketplaceIndexPath,
+            marketplaceName: freeze.marketplaceName,
+            selectedEntry: freeze.selectedEntry
+          } : {}
         },
         expected: {
           installed: true,
@@ -75940,7 +79301,7 @@ async function prepareRelease(options) {
   }
   let realRoot;
   try {
-    realRoot = await realpath10(root);
+    realRoot = await realpath11(root);
   } catch (err) {
     throw new ReleaseError(
       CONFIG_INVALID,
@@ -75949,26 +79310,26 @@ async function prepareRelease(options) {
     );
   }
   if (production) {
-    const canonicalOutput = resolve18(realRoot, ".release-skill", "release-plan.json");
-    if (output && resolve18(output) !== canonicalOutput) {
+    const canonicalOutput = resolve20(realRoot, ".release-skill", "release-plan.json");
+    if (output && resolve20(output) !== canonicalOutput) {
       throw new ReleaseError(
         GATE_FAILED,
         "production prepare requires the canonical .release-skill/release-plan.json output; custom --output is supported only outside production",
-        { output: resolve18(output), expected: canonicalOutput }
+        { output: resolve20(output), expected: canonicalOutput }
       );
     }
   }
   const lock = await acquireProjectLock({ root: realRoot, command: "prepare", mode: "exclusive" });
-  const releaseDir = resolve18(realRoot, ".release-skill");
+  const releaseDir = resolve20(realRoot, ".release-skill");
   const runId = `prepare-${Date.now()}`;
-  const rawRunDir = runDirOpt ?? resolve18(releaseDir, "runs", runId);
+  const rawRunDir = runDirOpt ?? resolve20(releaseDir, "runs", runId);
   let runDir;
   try {
     if (production) {
       runDir = await createProductionPrepareRunDir(rawRunDir, releaseDir);
     } else {
-      await mkdir12(rawRunDir, { recursive: true });
-      runDir = await realpath10(rawRunDir);
+      await mkdir11(rawRunDir, { recursive: true });
+      runDir = await realpath11(rawRunDir);
     }
   } catch (error) {
     await lock.release();
@@ -75982,7 +79343,7 @@ async function prepareRelease(options) {
     await evidence.append({
       phase: "config",
       status: "completed",
-      configPath: relative17(realRoot, configPath),
+      configPath: relative19(realRoot, configPath),
       configDigest
     });
     const configUnits = config.releaseUnits ?? [];
@@ -76125,7 +79486,7 @@ To proceed, pass --acknowledge-hook-side-effects (CLI) or hooksAuthorized=true (
     });
     const defaultObserveFn = /* @__PURE__ */ __name(async (repo, ref, expectedCommit, { githubHost = "github.com" } = {}) => {
       try {
-        const { stdout } = await execFile6("git", ["ls-remote", `https://${githubHost}/${repo}.git`, ref], {
+        const { stdout } = await execFile7("git", ["ls-remote", `https://${githubHost}/${repo}.git`, ref], {
           shell: false,
           encoding: "utf8",
           timeout: 3e4
@@ -76142,7 +79503,7 @@ To proceed, pass --acknowledge-hook-side-effects (CLI) or hooksAuthorized=true (
     const observeFn = options.observePreviousPublicBaselineFn ?? defaultObserveFn;
     const defaultObserveDefaultBranchFn = /* @__PURE__ */ __name(async (repo, { githubHost = "github.com" } = {}) => {
       try {
-        const { stdout } = await execFile6(
+        const { stdout } = await execFile7(
           "gh",
           ["api", `repos/${repo}`, "--jq", ".default_branch"],
           {
@@ -76370,9 +79731,237 @@ To proceed, pass --acknowledge-hook-side-effects (CLI) or hooksAuthorized=true (
       options.buildFrozenGitRepositoryFn ?? buildFrozenGitRepository,
       freezeTimestamp
     ) : null;
-    const units = unitResults.map(({ unit, manifest }, idx) => {
+    const externalMarketplaceFreezes = production ? await resolveExternalMarketplaceFreezes({
+      unitResults,
+      resolvedVersions,
+      offline,
+      evidence,
+      observeHeadFn: options.observeExternalMarketplaceHeadFn ?? defaultObserveExternalMarketplaceHead,
+      fetchIndexFn: options.fetchExternalMarketplaceIndexFn ?? defaultFetchExternalMarketplaceIndex
+    }) : /* @__PURE__ */ new Map();
+    const units = await Promise.all(unitResults.map(async ({ unit, manifest }, idx) => {
       const unitVersion = resolvedVersions[idx];
       const unitBaseline = unitBaselineResults.get(unit.id);
+      const snapshotDir = manifest.outputDir;
+      const distributionsWithSource = await Promise.all((unit.distributions ?? []).map(async (dist) => {
+        const platform = PLATFORMS.find((p) => p.distributionType === dist.type);
+        if (!platform) return dist;
+        const sourceTypeResult = validateMarketplaceSourceSelection(
+          platform.id,
+          dist,
+          // config
+          dist
+          // plan (same source at prepare time)
+        );
+        if (!sourceTypeResult.valid) {
+          throw new ReleaseError(
+            CONFIG_INVALID,
+            `unit "${unit.id}" ${dist.type} marketplace source validation failed: ${sourceTypeResult.error}`,
+            { unitId: unit.id, distributionType: dist.type }
+          );
+        }
+        if (dist.type === "npm") {
+          return dist;
+        }
+        let marketplaceSourceType = sourceTypeResult.selectedSource;
+        if (!marketplaceSourceType) {
+          marketplaceSourceType = dist.marketplaceRepo ? "standalone-index" : "bundled-family";
+        }
+        const hasDefaultMarketplace = platform.manifestPaths.marketplace !== null;
+        const hasExplicitMarketplacePath = dist.marketplaceIndexPath != null;
+        const isBundledFamily = marketplaceSourceType === "bundled-family";
+        const isStandaloneIndex = marketplaceSourceType === "standalone-index";
+        let includeMarketplaceEntry;
+        if (isBundledFamily) {
+          includeMarketplaceEntry = hasDefaultMarketplace || hasExplicitMarketplacePath;
+        } else if (isStandaloneIndex) {
+          if (platform.id === "kimi") {
+            includeMarketplaceEntry = false;
+          } else {
+            const freezeKey = `${unit.id} ${dist.type}`;
+            const freeze = externalMarketplaceFreezes.get(freezeKey);
+            if (freeze) {
+              includeMarketplaceEntry = true;
+            } else {
+              if (production && !offline) {
+                throw new ReleaseError(
+                  GATE_FAILED,
+                  `unit "${unit.id}" ${dist.type} standalone-index requires external marketplace freeze but no freeze result found`,
+                  { unitId: unit.id, distributionType: dist.type }
+                );
+              }
+              includeMarketplaceEntry = false;
+            }
+          }
+        } else {
+          includeMarketplaceEntry = false;
+        }
+        let selectedMarketplaceEntry = null;
+        let marketplaceIndexRelative = null;
+        let bundledMarketIndex = null;
+        if (includeMarketplaceEntry) {
+          if (isStandaloneIndex) {
+            const freezeKey = `${unit.id} ${dist.type}`;
+            const freeze = externalMarketplaceFreezes.get(freezeKey);
+            selectedMarketplaceEntry = freeze.selectedEntry;
+            marketplaceIndexRelative = freeze.marketplaceIndexPath;
+          } else {
+            marketplaceIndexRelative = dist.marketplaceIndexPath ?? platform.manifestPaths.marketplace;
+            if (!marketplaceIndexRelative) {
+              throw new ReleaseError(
+                GATE_FAILED,
+                `unit "${unit.id}" ${dist.type} cannot determine marketplace index path: neither marketplaceIndexPath nor platform.manifestPaths.marketplace is set`,
+                { unitId: unit.id, distributionType: dist.type }
+              );
+            }
+            const marketplaceIndexPath = resolve20(snapshotDir, marketplaceIndexRelative);
+            let marketplaceIndexRaw;
+            try {
+              marketplaceIndexRaw = await readFile18(marketplaceIndexPath, "utf8");
+            } catch (err) {
+              throw new ReleaseError(
+                GATE_FAILED,
+                `unit "${unit.id}" ${dist.type} cannot read bundled marketplace index "${marketplaceIndexRelative}": ${err.message}`,
+                { unitId: unit.id, distributionType: dist.type, cause: err.code }
+              );
+            }
+            let marketplaceIndex;
+            try {
+              marketplaceIndex = JSON.parse(marketplaceIndexRaw);
+            } catch (err) {
+              throw new ReleaseError(
+                GATE_FAILED,
+                `unit "${unit.id}" ${dist.type} invalid JSON in bundled marketplace index "${marketplaceIndexRelative}": ${err.message}`,
+                { unitId: unit.id, distributionType: dist.type }
+              );
+            }
+            if (!marketplaceIndex || typeof marketplaceIndex !== "object" || !Array.isArray(marketplaceIndex.plugins)) {
+              throw new ReleaseError(
+                GATE_FAILED,
+                `unit "${unit.id}" ${dist.type} bundled marketplace index "${marketplaceIndexRelative}" must be an object with a plugins array`,
+                { unitId: unit.id, distributionType: dist.type }
+              );
+            }
+            const matchingEntries = marketplaceIndex.plugins.filter(
+              (entry) => entry && entry.name === dist.plugin
+            );
+            if (matchingEntries.length !== 1) {
+              throw new ReleaseError(
+                GATE_FAILED,
+                `unit "${unit.id}" ${dist.type} bundled marketplace index must contain exactly one plugin entry named "${dist.plugin}", found ${matchingEntries.length}`,
+                { unitId: unit.id, distributionType: dist.type }
+              );
+            }
+            selectedMarketplaceEntry = matchingEntries[0];
+            bundledMarketIndex = marketplaceIndex;
+          }
+        }
+        let pluginManifestRelative;
+        let pluginManifestParsed;
+        if (isBundledFamily && bundledMarketIndex && platform.marketplaceSourceForm !== null) {
+          const mktRoot = resolveMarketplaceRoot(platform, marketplaceIndexRelative);
+          try {
+            const resolved = await resolvePluginManifestFromMarketplaceEntrySource(
+              bundledMarketIndex,
+              dist.plugin,
+              platform,
+              snapshotDir,
+              mktRoot
+            );
+            pluginManifestParsed = resolved.manifest;
+            pluginManifestRelative = resolved.manifestRelativePath;
+          } catch (err) {
+            throw new ReleaseError(
+              GATE_FAILED,
+              `unit "${unit.id}" ${dist.type} cannot resolve plugin manifest from marketplace entry source: ${err.message}`,
+              { unitId: unit.id, distributionType: dist.type }
+            );
+          }
+        } else if (platform.strategy.readManifest) {
+          const readResult = await platform.strategy.readManifest(snapshotDir);
+          pluginManifestParsed = readResult.manifest;
+          pluginManifestRelative = readResult.manifestRelative ?? platform.manifestPaths.plugin;
+        } else {
+          pluginManifestRelative = platform.manifestPaths.plugin;
+          const pluginManifestPath = resolve20(snapshotDir, pluginManifestRelative);
+          let raw;
+          try {
+            raw = await readFile18(pluginManifestPath, "utf8");
+          } catch (err) {
+            throw new ReleaseError(
+              GATE_FAILED,
+              `unit "${unit.id}" ${dist.type} cannot read plugin manifest "${pluginManifestRelative}": ${err.message}`,
+              { unitId: unit.id, distributionType: dist.type, cause: err.code }
+            );
+          }
+          try {
+            pluginManifestParsed = JSON.parse(raw);
+          } catch (err) {
+            throw new ReleaseError(
+              GATE_FAILED,
+              `unit "${unit.id}" ${dist.type} invalid JSON in plugin manifest "${pluginManifestRelative}": ${err.message}`,
+              { unitId: unit.id, distributionType: dist.type }
+            );
+          }
+        }
+        if (pluginManifestParsed.name !== dist.plugin) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}" ${dist.type} plugin manifest name "${pluginManifestParsed.name}" does not match distribution plugin "${dist.plugin}"`,
+            { unitId: unit.id, distributionType: dist.type }
+          );
+        }
+        if (typeof pluginManifestParsed.version === "string" && pluginManifestParsed.version !== unitVersion) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}" ${dist.type} plugin manifest version "${pluginManifestParsed.version}" does not match target version "${unitVersion}"`,
+            { unitId: unit.id, distributionType: dist.type }
+          );
+        }
+        const installationContract = buildInstallationContract({
+          distributionType: dist.type,
+          manifestRelativePath: pluginManifestRelative,
+          manifest: pluginManifestParsed,
+          marketplaceSourceType,
+          includeMarketplaceEntry,
+          ...includeMarketplaceEntry ? {
+            marketplaceIndexRelativePath: marketplaceIndexRelative,
+            selectedMarketplaceEntry
+          } : {},
+          verificationRecipeVersion: CONSUMER_INSTALL_RECIPE_VERSION2
+        });
+        const installationContractDigest = computeInstallationContractDigest({
+          distributionType: dist.type,
+          manifestRelativePath: pluginManifestRelative,
+          manifest: pluginManifestParsed,
+          marketplaceSourceType,
+          includeMarketplaceEntry,
+          ...includeMarketplaceEntry ? {
+            marketplaceIndexRelativePath: marketplaceIndexRelative,
+            selectedMarketplaceEntry
+          } : {},
+          verificationRecipeVersion: CONSUMER_INSTALL_RECIPE_VERSION2
+        });
+        const frozenDist = {
+          ...dist,
+          marketplaceSourceType,
+          installationContract,
+          installationContractDigest
+        };
+        if (isStandaloneIndex) {
+          const freezeKey = `${unit.id} ${dist.type}`;
+          const freeze = externalMarketplaceFreezes.get(freezeKey);
+          if (freeze) {
+            frozenDist.marketplaceRepo = freeze.marketplaceRepo;
+            frozenDist.marketplaceCommitSha = freeze.marketplaceCommitSha;
+            frozenDist.marketplaceRef = freeze.marketplaceRef;
+            frozenDist.marketplaceIndexPath = freeze.marketplaceIndexPath;
+            frozenDist.marketplaceName = freeze.marketplaceName;
+            frozenDist.selectedEntry = freeze.selectedEntry;
+          }
+        }
+        return frozenDist;
+      }));
       return {
         id: unit.id,
         targetVersion: unitVersion,
@@ -76395,19 +79984,12 @@ To proceed, pass --acknowledge-hook-side-effects (CLI) or hooksAuthorized=true (
             npm: productionAssets[idx].npm
           }
         } : {},
-        distributions: unit.distributions,
+        distributions: distributionsWithSource,
         ...unitBaseline ? { previousPublicBaseline: unitBaseline } : {}
       };
-    });
-    const externalMarketplaceFreezes = production ? await resolveExternalMarketplaceFreezes({
-      unitResults,
-      resolvedVersions,
-      offline,
-      evidence,
-      observeHeadFn: options.observeExternalMarketplaceHeadFn ?? defaultObserveExternalMarketplaceHead,
-      fetchIndexFn: options.fetchExternalMarketplaceIndexFn ?? defaultFetchExternalMarketplaceIndex
-    }) : /* @__PURE__ */ new Map();
-    const externalActions = buildExternalActions(unitResults, resolvedVersions, productionAssets, externalMarketplaceFreezes);
+    }));
+    const frozenDistributionsMap = new Map(units.map((u) => [u.id, u.distributions]));
+    const externalActions = buildExternalActions(unitResults, resolvedVersions, productionAssets, externalMarketplaceFreezes, frozenDistributionsMap);
     const overallSnapshotDigest = sha256Hex(snapshotDigests.join(":"));
     const plan = {
       planVersion: 2,
@@ -76426,7 +80008,7 @@ To proceed, pass --acknowledge-hook-side-effects (CLI) or hooksAuthorized=true (
       ...production ? {
         production: {
           mode: "github-npm-v1",
-          assetRoot: relative17(realRoot, runDir)
+          assetRoot: relative19(realRoot, runDir)
         }
       } : {},
       units,
@@ -76440,9 +80022,9 @@ To proceed, pass --acknowledge-hook-side-effects (CLI) or hooksAuthorized=true (
       actionCount: externalActions.length
     });
     await evidence.append({ phase: "plan-write", status: "started" });
-    const latestPlanPath = output ?? resolve18(releaseDir, "release-plan.json");
+    const latestPlanPath = output ?? resolve20(releaseDir, "release-plan.json");
     const plannedDigest = computePlanDigest(plan);
-    const immutablePlanPath = resolve18(dirname9(latestPlanPath), "plans", `${plannedDigest}.json`);
+    const immutablePlanPath = resolve20(dirname9(latestPlanPath), "plans", `${plannedDigest}.json`);
     const { planPath: writtenPath, planDigest } = await writePlanImmutable(immutablePlanPath, plan);
     await writePlanAtomic(latestPlanPath, plan);
     await evidence.append({
@@ -76483,7 +80065,7 @@ To proceed, pass --acknowledge-hook-side-effects (CLI) or hooksAuthorized=true (
     await lock.release();
   }
 }
-var execFile6, EXTERNAL_MARKETPLACE_SHA_RE2;
+var execFile7, CONSUMER_INSTALL_RECIPE_VERSION2, EXTERNAL_MARKETPLACE_SHA_RE2;
 var init_prepare = __esm({
   async "src/commands/prepare.mjs"() {
     await init_config();
@@ -76505,7 +80087,10 @@ var init_prepare = __esm({
     init_npm();
     await init_run();
     await init_registry();
-    execFile6 = promisify7(execFileCb7);
+    await init_plugin_marketplace();
+    init_installation_contract();
+    execFile7 = promisify8(execFileCb8);
+    CONSUMER_INSTALL_RECIPE_VERSION2 = "consumer-install-v1";
     __name(resolveUnitVersion, "resolveUnitVersion");
     __name(resolveAllUnitVersions, "resolveAllUnitVersions");
     __name(runDeclaredHooks, "runDeclaredHooks");
@@ -76528,8 +80113,8 @@ var init_prepare = __esm({
 });
 
 // src/core/approval.mjs
-import { readFile as readFile17 } from "node:fs/promises";
-import { basename as basename5, dirname as dirname10, join as join14, resolve as resolve19 } from "node:path";
+import { readFile as readFile19 } from "node:fs/promises";
+import { basename as basename6, dirname as dirname10, join as join16, resolve as resolve21 } from "node:path";
 function validateApprovalRecordSchema(approval) {
   if (validateApprovalSchema(approval)) return;
   const errors = validateApprovalSchema.errors ?? [];
@@ -76546,9 +80131,9 @@ function assertImmutableApprovalAuthority(approvalPath, plan, rawApproval) {
   if (!plan?.production) return;
   const planDigest = computePlanDigest(plan);
   const approvalDigest = computeApprovalDigest(rawApproval);
-  const absolute = resolve19(approvalPath);
+  const absolute = resolve21(approvalPath);
   const planDirectory = dirname10(absolute);
-  if (basename5(absolute) !== `${approvalDigest}.json` || basename5(planDirectory) !== planDigest || basename5(dirname10(planDirectory)) !== "approvals") {
+  if (basename6(absolute) !== `${approvalDigest}.json` || basename6(planDirectory) !== planDigest || basename6(dirname10(planDirectory)) !== "approvals") {
     throw new ReleaseError(
       GATE_FAILED,
       "production commands require approvals/<planDigest>/<approvalDigest>.json immutable authority",
@@ -76815,8 +80400,8 @@ var approve_exports = {};
 __export(approve_exports, {
   approvePlan: () => approvePlan
 });
-import { readFile as readFile18, writeFile as writeFile7 } from "node:fs/promises";
-import { resolve as resolve20, dirname as dirname11, basename as basename6 } from "node:path";
+import { readFile as readFile20, writeFile as writeFile7 } from "node:fs/promises";
+import { resolve as resolve22, dirname as dirname11, basename as basename7 } from "node:path";
 function defaultClock() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
@@ -76842,7 +80427,7 @@ async function approvePlan(options) {
   }
   let planRaw;
   try {
-    planRaw = await readFile18(planPath, "utf8");
+    planRaw = await readFile20(planPath, "utf8");
   } catch (err) {
     throw new ReleaseError(
       GATE_FAILED,
@@ -76946,18 +80531,18 @@ async function approvePlan(options) {
     expiresAt
   };
   validateApprovalRecordSchema(approvalRecord);
-  const planDir = dirname11(resolve20(planPath));
-  const releaseDir = basename6(planDir) === "plans" && basename6(planPath) === `${actualDigest}.json` ? dirname11(planDir) : planDir;
-  if (plan.production?.mode === "github-npm-v1" && outputPath && resolve20(outputPath) !== resolve20(releaseDir, "approval-record.json")) {
+  const planDir = dirname11(resolve22(planPath));
+  const releaseDir = basename7(planDir) === "plans" && basename7(planPath) === `${actualDigest}.json` ? dirname11(planDir) : planDir;
+  if (plan.production?.mode === "github-npm-v1" && outputPath && resolve22(outputPath) !== resolve22(releaseDir, "approval-record.json")) {
     throw new ReleaseError(
       GATE_FAILED,
       "production approve requires the canonical approval-record.json alias next to the immutable plan authority; custom --output is supported only outside production",
-      { outputPath: resolve20(outputPath), expected: resolve20(releaseDir, "approval-record.json") }
+      { outputPath: resolve22(outputPath), expected: resolve22(releaseDir, "approval-record.json") }
     );
   }
   const json = JSON.stringify(approvalRecord, null, 2);
   const approvalDigest = computeApprovalDigest(json);
-  const immutableApprovalPath = resolve20(
+  const immutableApprovalPath = resolve22(
     releaseDir,
     "approvals",
     actualDigest,
@@ -76969,7 +80554,7 @@ async function approvePlan(options) {
     await writeFile7(immutableApprovalPath, json, { encoding: "utf8", flag: "wx", mode: 384 });
   } catch (error) {
     if (error.code !== "EEXIST") throw error;
-    const existing = await readFile18(immutableApprovalPath, "utf8");
+    const existing = await readFile20(immutableApprovalPath, "utf8");
     if (existing !== json) {
       throw new ReleaseError(
         GATE_FAILED,
@@ -76978,7 +80563,7 @@ async function approvePlan(options) {
       );
     }
   }
-  const writePath = outputPath ?? resolve20(releaseDir, "approval-record.json");
+  const writePath = outputPath ?? resolve22(releaseDir, "approval-record.json");
   await prepareAuthorityDirectory(dirname11(writePath));
   await assertAuthorityFileTarget(writePath);
   await writeFile7(writePath, json, "utf8");
@@ -77024,7 +80609,13 @@ function groupActionsByTier(orderedActions) {
   }
   return { tiers, unknown };
 }
-var CHECKPOINT_ORDER, ADAPTER_ACTION_TYPE_MAP, TIER_TABLE, TIER_OF;
+function isRemoteWriteAction(actionType) {
+  return REMOTE_WRITE_ACTION_TYPES.has(actionType);
+}
+function isMarketplaceAction(actionType) {
+  return MARKETPLACE_ACTION_TYPES.has(actionType);
+}
+var CHECKPOINT_ORDER, ADAPTER_ACTION_TYPE_MAP, TIER_TABLE, TIER_OF, REMOTE_WRITE_ACTION_TYPES, MARKETPLACE_ACTION_TYPES;
 var init_checkpoints = __esm({
   "src/core/checkpoints.mjs"() {
     CHECKPOINT_ORDER = [
@@ -77070,6 +80661,22 @@ var init_checkpoints = __esm({
     __name(tierOfActionType, "tierOfActionType");
     __name(sortActionsByCheckpointOrder, "sortActionsByCheckpointOrder");
     __name(groupActionsByTier, "groupActionsByTier");
+    REMOTE_WRITE_ACTION_TYPES = /* @__PURE__ */ new Set([
+      "push-commit",
+      "push-snapshot",
+      "set-default-branch",
+      "create-tag",
+      "npm-publish",
+      "github-release"
+    ]);
+    MARKETPLACE_ACTION_TYPES = /* @__PURE__ */ new Set([
+      "claude-marketplace-install",
+      "codex-marketplace-install",
+      "kimi-marketplace-install",
+      "codebuddy-marketplace-install"
+    ]);
+    __name(isRemoteWriteAction, "isRemoteWriteAction");
+    __name(isMarketplaceAction, "isMarketplaceAction");
   }
 });
 
@@ -77158,7 +80765,7 @@ function defaultSleep(ms) {
   if (process.env.RELEASE_SKILL_OBSERVE_RETRY_NO_WAIT === "1") {
     return Promise.resolve();
   }
-  return new Promise((resolve25) => setTimeout(resolve25, ms));
+  return new Promise((resolve26) => setTimeout(resolve26, ms));
 }
 function isPropagatingMissing(result) {
   if (result == null) return true;
@@ -77247,8 +80854,8 @@ var reconcile_exports = {};
 __export(reconcile_exports, {
   reconcileRelease: () => reconcileRelease
 });
-import { readFile as readFile19, mkdir as mkdir13 } from "node:fs/promises";
-import { join as join15 } from "node:path";
+import { readFile as readFile21, mkdir as mkdir12 } from "node:fs/promises";
+import { join as join17 } from "node:path";
 function defaultClock3() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
@@ -77277,7 +80884,7 @@ async function reconcileRelease(options) {
   }
   let planRaw;
   try {
-    planRaw = await readFile19(planPath, "utf8");
+    planRaw = await readFile21(planPath, "utf8");
   } catch (err) {
     throw new ReleaseError(GATE_FAILED, `cannot read release plan: ${err.message}`, { planPath, cause: err.code });
   }
@@ -77295,7 +80902,7 @@ async function reconcileRelease(options) {
   if (isProductionPlan) {
     runDir = await createProductionRunDir(runDir, planPath);
   } else {
-    await mkdir13(runDir, { recursive: true });
+    await mkdir12(runDir, { recursive: true });
   }
   const evidence = createEvidenceWriter({ runDir, command: "reconcile", clock: clockFn });
   try {
@@ -77356,7 +80963,7 @@ async function reconcileRelease(options) {
           { sourceRunId: sourceRun.runId }
         );
       }
-      const sourceApprovalRaw = await readFile19(consumedApprovalPath, "utf8").catch((error) => {
+      const sourceApprovalRaw = await readFile21(consumedApprovalPath, "utf8").catch((error) => {
         throw new ReleaseError(GATE_FAILED, "source run approval authority is unavailable", {
           sourceRunId: sourceRun.runId,
           cause: error.code
@@ -77395,7 +81002,7 @@ async function reconcileRelease(options) {
     const hasNonMarketplaceRetryCandidate = sourceRun.checkpoints.some((checkpoint) => {
       if (checkpoint.status === "succeeded") return false;
       const action = planActionsById.get(checkpoint.actionId);
-      return action && !MARKETPLACE_TYPES.has(action.type);
+      return action && !isMarketplaceAction(action.type);
     });
     if (plan.production?.mode === "github-npm-v1" && hasNonMarketplaceRetryCandidate && productionConfirmation !== actualDigest) {
       throw new ReleaseError(
@@ -77471,7 +81078,6 @@ async function reconcileRelease(options) {
       status: "passed",
       gitTreeHash: currentBaseline.gitTreeHash
     });
-    const isProductionPlan2 = plan.production?.mode === "github-npm-v1";
     const defaultPpbObserveFn = /* @__PURE__ */ __name(async (repo, ref, expectedCommit, { githubHost = "github.com" } = {}) => {
       try {
         const { execFile: execFile16 } = await import("node:child_process");
@@ -77493,7 +81099,7 @@ async function reconcileRelease(options) {
     for (const unit of plan.units ?? []) {
       const baseline = unit.previousPublicBaseline;
       if (!baseline) {
-        if (isProductionPlan2) {
+        if (isProductionPlan) {
           throw new ReleaseError(
             GATE_FAILED,
             `unit "${unit.id}" missing previousPublicBaseline in production plan`,
@@ -77507,7 +81113,7 @@ async function reconcileRelease(options) {
         baseline,
         githubHost,
         publicRepo: unit.publicRepo,
-        requireHost: isProductionPlan2
+        requireHost: isProductionPlan
       });
       if (baseline.mode === "bound" && baseline.status !== "consistent") {
         throw new ReleaseError(
@@ -77534,7 +81140,7 @@ async function reconcileRelease(options) {
     if (approvalPath) {
       let approvalRaw;
       try {
-        approvalRaw = await readFile19(approvalPath, "utf8");
+        approvalRaw = await readFile21(approvalPath, "utf8");
       } catch (err) {
         throw new ReleaseError(
           GATE_FAILED,
@@ -77595,10 +81201,8 @@ async function reconcileRelease(options) {
       runDir
     };
     const actionsToRetry = [];
-    const marketplaceRetriesToRetry = [];
     const actionResults = /* @__PURE__ */ new Map();
     let remoteWriteRetryFailed = false;
-    let marketplaceRetryFailed = false;
     for (const action of planActions) {
       const sourceCp = sourceCpMap.get(action.id);
       const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
@@ -77607,7 +81211,8 @@ async function reconcileRelease(options) {
         continue;
       }
       const adapter = adapterRegistry.getAdapter(adapterActionType);
-      if (MARKETPLACE_TYPES.has(action.type)) {
+      if (isMarketplaceAction(action.type)) {
+        actionResults.set(action.id, "deferred");
         continue;
       }
       if (action.type === "push-snapshot" && action.parameters?.branchStrategy === "advance-existing-branch") {
@@ -77703,7 +81308,7 @@ async function reconcileRelease(options) {
         continue;
       }
       const observeInput = { actionType: adapterActionType, ...action.parameters };
-      const observePolicy = MARKETPLACE_TYPES.has(action.type) ? clampPolicyToTimeout(DEFAULT_OBSERVE_RETRY_POLICY, action.parameters?.timeoutMs) : DEFAULT_OBSERVE_RETRY_POLICY;
+      const observePolicy = isMarketplaceAction(action.type) ? clampPolicyToTimeout(DEFAULT_OBSERVE_RETRY_POLICY, action.parameters?.timeoutMs) : DEFAULT_OBSERVE_RETRY_POLICY;
       const observeRetry = await observeWithRetry({
         observe: /* @__PURE__ */ __name((act, ctx) => adapter.observe(act, ctx), "observe"),
         action: observeInput,
@@ -77832,7 +81437,7 @@ async function reconcileRelease(options) {
         decision: "retry"
       });
     }
-    const nonMarketplaceRetries = actionsToRetry.filter((a) => !MARKETPLACE_TYPES.has(a.type));
+    const nonMarketplaceRetries = actionsToRetry.filter((a) => !isMarketplaceAction(a.type));
     if (nonMarketplaceRetries.length > 0) {
       if (plan.production?.mode === "github-npm-v1" && productionConfirmation !== actualDigest) {
         throw new ReleaseError(
@@ -77860,10 +81465,9 @@ async function reconcileRelease(options) {
       for (const action of actionsToRetry) {
         const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
         const adapter = adapterRegistry.getAdapter(adapterActionType);
-        const preflightCtx = MARKETPLACE_TYPES.has(action.type) ? { ...context, externalWritesAuthorized: false, isolatedConsumerWritesAuthorized: true } : context;
         const preflightResult = await adapter.preflight(
           { actionType: adapterActionType, ...action.parameters },
-          preflightCtx
+          context
         );
         if (preflightResult.status === "PREFLIGHT_FAILED") {
           for (const retryAction of actionsToRetry) {
@@ -77901,10 +81505,12 @@ async function reconcileRelease(options) {
       status,
       checkpoints: planActions.map((action) => {
         const value = actionResults.get(action.id);
+        const normalized = value === "deferred" ? "deferred" : value === "succeeded" ? "succeeded" : value === "skipped" ? "skipped" : value === "failed" ? "failed" : value === "uncertain" ? "uncertain" : "pending";
         return {
           actionId: action.id,
           actionType: action.type,
-          status: value === "succeeded" ? "succeeded" : value === "skipped" ? "skipped" : value === "failed" ? "failed" : value === "uncertain" ? "uncertain" : "pending"
+          status: normalized,
+          ...normalized === "deferred" ? { reason: CONSUMER_VERIFICATION_DEFERRED, phase: "post-publish-verification" } : {}
         };
       }),
       startedAt: reconcileStartedAt,
@@ -77926,7 +81532,7 @@ async function reconcileRelease(options) {
       for (const action of groupActions) {
         const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
         const adapter = adapterRegistry.getAdapter(adapterActionType);
-        const retryCtx = MARKETPLACE_TYPES.has(action.type) ? { ...context, externalWritesAuthorized: false, isolatedConsumerWritesAuthorized: true } : context;
+        const retryCtx = context;
         await evidence.append({
           phase: "reconcile-retry",
           actionId: action.id,
@@ -77945,49 +81551,7 @@ async function reconcileRelease(options) {
           executeResult = { status: "EXECUTE_FAILED", error: error.message };
         }
         if (executeResult.status === "EXECUTED") {
-          if (MARKETPLACE_TYPES.has(action.type)) {
-            const verifyInput = {
-              actionType: adapterActionType,
-              ...action.parameters,
-              expected: action.expected
-            };
-            const verifyPolicy = clampPolicyToTimeout(
-              DEFAULT_OBSERVE_RETRY_POLICY,
-              action.parameters?.timeoutMs
-            );
-            const verifyRetry = await observeWithRetry({
-              observe: /* @__PURE__ */ __name((act, ctx) => adapter.verify(act, ctx), "observe"),
-              action: verifyInput,
-              context: retryCtx,
-              policy: verifyPolicy,
-              sleep: observeRetrySleep,
-              onAttempt: /* @__PURE__ */ __name((info) => evidence.append({
-                phase: "reconcile-retry-verify",
-                actionId: action.id,
-                actionType: action.type,
-                attempt: info.attempt,
-                maxAttempts: info.maxAttempts,
-                missing: info.missing,
-                delayMs: info.delayMs,
-                status: info.missing ? "propagating" : "resolved",
-                error: info.error ?? null
-              }), "onAttempt")
-            });
-            const verifyResult = verifyRetry.result;
-            if (verifyResult.status !== "VERIFIED") {
-              actionResults.set(action.id, "failed");
-              markGroupFailed();
-              await evidence.append({
-                phase: "reconcile-retry",
-                actionId: action.id,
-                actionType: action.type,
-                status: "verify-mismatch",
-                error: verifyResult.error
-              });
-              await persistRetryState(PARTIAL);
-              break;
-            }
-          } else {
+          {
             const observeInput = {
               actionType: adapterActionType,
               ...action.parameters,
@@ -78068,34 +81632,30 @@ async function reconcileRelease(options) {
           });
           await persistRetryState(PARTIAL);
         } else {
-          if (!MARKETPLACE_TYPES.has(action.type)) {
-            let observeResult;
-            try {
-              observeResult = await adapter.observe(
-                { actionType: adapterActionType, ...action.parameters, expected: action.expected },
-                retryCtx
-              );
-            } catch (error) {
-              observeResult = { observation: null, error: error.message };
-            }
-            const observation = observeResult?.observation;
-            const missing = observation?.exists === false || observation?.remoteCommit === "" || observation?.commit === "" || observation?.published === false;
-            const matches = action.expected && observation ? matchObservation(action.expected, observation).matches : false;
-            if (matches) {
-              actionResults.set(action.id, "succeeded");
-              await evidence.append({
-                phase: "reconcile-retry",
-                actionId: action.id,
-                actionType: action.type,
-                status: "completed-after-execute-failure-observe"
-              });
-              await persistRetryState(PARTIAL);
-              continue;
-            }
-            actionResults.set(action.id, missing ? "failed" : "uncertain");
-          } else {
-            actionResults.set(action.id, "failed");
+          let observeResult;
+          try {
+            observeResult = await adapter.observe(
+              { actionType: adapterActionType, ...action.parameters, expected: action.expected },
+              retryCtx
+            );
+          } catch (error) {
+            observeResult = { observation: null, error: error.message };
           }
+          const observation = observeResult?.observation;
+          const missing = observation?.exists === false || observation?.remoteCommit === "" || observation?.commit === "" || observation?.published === false;
+          const matches = action.expected && observation ? matchObservation(action.expected, observation).matches : false;
+          if (matches) {
+            actionResults.set(action.id, "succeeded");
+            await evidence.append({
+              phase: "reconcile-retry",
+              actionId: action.id,
+              actionType: action.type,
+              status: "completed-after-execute-failure-observe"
+            });
+            await persistRetryState(PARTIAL);
+            continue;
+          }
+          actionResults.set(action.id, missing ? "failed" : "uncertain");
           markGroupFailed();
           await evidence.append({
             phase: "reconcile-retry",
@@ -78114,142 +81674,6 @@ async function reconcileRelease(options) {
         remoteWriteRetryFailed = true;
       });
     }
-    for (const action of planActions) {
-      if (!MARKETPLACE_TYPES.has(action.type)) continue;
-      const sourceCp = sourceCpMap.get(action.id);
-      const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
-      const adapter = adapterRegistry.getAdapter(adapterActionType);
-      const marketplaceContext = {
-        externalWritesAuthorized: false,
-        isolatedConsumerWritesAuthorized: true,
-        plan,
-        baseline: plan.baseline,
-        root,
-        runDir
-      };
-      const actionInput = {
-        actionType: adapterActionType,
-        ...action.parameters
-      };
-      const preflightResult = await adapter.preflight(actionInput, marketplaceContext);
-      if (preflightResult.status === "PREFLIGHT_FAILED") {
-        actionResults.set(action.id, "failed");
-        await evidence.append({
-          phase: "reconcile-marketplace",
-          actionId: action.id,
-          actionType: action.type,
-          decision: "preflight-failed",
-          error: preflightResult.error
-        });
-        throw new ReleaseError(
-          POST_PUBLISH_VERIFY_FAILED,
-          `marketplace preflight failed for action "${action.id}": ${preflightResult.error}`,
-          { actionId: action.id }
-        );
-      }
-      const executeResult = await adapter.execute(actionInput, marketplaceContext);
-      if (executeResult.status !== "EXECUTED") {
-        actionResults.set(action.id, "failed");
-        await evidence.append({
-          phase: "reconcile-marketplace",
-          actionId: action.id,
-          actionType: action.type,
-          decision: "execute-failed",
-          error: executeResult.error
-        });
-        if (sourceCp.status === "succeeded") {
-          throw new ReleaseError(
-            REMOTE_CONFLICT,
-            `marketplace execute failed for SUCCEEDED action "${action.id}": ${executeResult.error}`,
-            { actionId: action.id }
-          );
-        }
-        marketplaceRetriesToRetry.push(action);
-        continue;
-      }
-      const verifyPolicy = clampPolicyToTimeout(
-        DEFAULT_OBSERVE_RETRY_POLICY,
-        action.parameters?.timeoutMs
-      );
-      const verifyRetry = await observeWithRetry({
-        observe: /* @__PURE__ */ __name((act, ctx) => adapter.verify(act, ctx), "observe"),
-        action: { ...actionInput, expected: action.expected },
-        context: marketplaceContext,
-        policy: verifyPolicy,
-        sleep: observeRetrySleep,
-        onAttempt: /* @__PURE__ */ __name((info) => evidence.append({
-          phase: "reconcile-marketplace-verify",
-          actionId: action.id,
-          actionType: action.type,
-          attempt: info.attempt,
-          maxAttempts: info.maxAttempts,
-          missing: info.missing,
-          delayMs: info.delayMs,
-          status: info.missing ? "propagating" : "resolved",
-          error: info.error ?? null
-        }), "onAttempt")
-      });
-      const verifyResult = verifyRetry.result;
-      if (verifyResult.status === "VERIFIED") {
-        const resultStatus = sourceCp.status === "succeeded" ? "skipped" : "succeeded";
-        actionResults.set(action.id, resultStatus);
-        await evidence.append({
-          phase: "reconcile-marketplace",
-          actionId: action.id,
-          actionType: action.type,
-          decision: sourceCp.status === "succeeded" ? "skip-source-succeeded-consistent" : "recovered",
-          sourceStatus: sourceCp.status
-        });
-      } else {
-        await evidence.append({
-          phase: "reconcile-marketplace",
-          actionId: action.id,
-          actionType: action.type,
-          decision: "verify-mismatch",
-          error: verifyResult.error
-        });
-        if (sourceCp.status === "succeeded") {
-          throw new ReleaseError(
-            REMOTE_CONFLICT,
-            `marketplace verify mismatch for SUCCEEDED action "${action.id}": ${verifyResult.error}`,
-            { actionId: action.id }
-          );
-        }
-        actionResults.set(action.id, "failed");
-        marketplaceRetryFailed = true;
-      }
-    }
-    if (!marketplaceRetryFailed && marketplaceRetriesToRetry.length > 0) {
-      for (const action of marketplaceRetriesToRetry) {
-        const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
-        const adapter = adapterRegistry.getAdapter(adapterActionType);
-        const preflightResult = await adapter.preflight(
-          { actionType: adapterActionType, ...action.parameters },
-          { ...context, externalWritesAuthorized: false, isolatedConsumerWritesAuthorized: true }
-        );
-        if (preflightResult.status === "PREFLIGHT_FAILED") {
-          for (const retryAction of marketplaceRetriesToRetry) {
-            actionResults.set(retryAction.id, "failed");
-          }
-          marketplaceRetryFailed = true;
-          await evidence.append({
-            phase: "reconcile-preflight",
-            status: "failed",
-            actionId: action.id,
-            error: preflightResult.error
-          });
-          break;
-        }
-      }
-    }
-    if (!marketplaceRetryFailed && marketplaceRetriesToRetry.length > 0) {
-      if (retryStateSequence < 0) {
-        await persistRetryState("PUBLISHING");
-      }
-      await executeRetryGroup(marketplaceRetriesToRetry, () => {
-        marketplaceRetryFailed = true;
-      });
-    }
     const markPendingAfterFailure = /* @__PURE__ */ __name((groupActions) => {
       let foundFailed = false;
       for (const action of groupActions) {
@@ -78265,10 +81689,7 @@ async function reconcileRelease(options) {
     if (remoteWriteRetryFailed) {
       markPendingAfterFailure(actionsToRetry);
     }
-    if (marketplaceRetryFailed) {
-      markPendingAfterFailure(marketplaceRetriesToRetry);
-    }
-    if (!remoteWriteRetryFailed && !marketplaceRetryFailed && planActions.every((action) => ["succeeded", "skipped"].includes(actionResults.get(action.id)))) {
+    if (!remoteWriteRetryFailed && planActions.filter((a) => isRemoteWriteAction(a.type)).every((action) => ["succeeded", "skipped"].includes(actionResults.get(action.id)))) {
       await evidence.append({ phase: "safety-gate", gate: "final-branch-consistency", status: "started" });
       for (const action of planActions) {
         if (!["push-snapshot", "set-default-branch"].includes(action.type)) continue;
@@ -78303,21 +81724,22 @@ async function reconcileRelease(options) {
         await evidence.append({ phase: "safety-gate", gate: "final-branch-consistency", status: "passed" });
       }
     }
-    const allSucceeded = planActions.every(
-      (a) => {
-        const result = actionResults.get(a.id);
-        return result === "succeeded" || result === "skipped";
-      }
-    );
+    const remoteWriteAllSucceeded = planActions.filter((a) => isRemoteWriteAction(a.type)).every((a) => {
+      const result = actionResults.get(a.id);
+      return result === "succeeded" || result === "skipped";
+    });
+    const remoteWriteFailed = planActions.filter((a) => isRemoteWriteAction(a.type)).some((a) => {
+      const result = actionResults.get(a.id);
+      return result === "failed" || result === "uncertain";
+    });
     const effectiveFromStatus = PARTIAL;
-    const retryFailed = remoteWriteRetryFailed || marketplaceRetryFailed;
     let overallStatus;
-    if (allSucceeded && !retryFailed) {
+    if (remoteWriteAllSucceeded && !remoteWriteRetryFailed) {
       overallStatus = PUBLISHED;
-    } else if (retryFailed) {
+    } else if (remoteWriteFailed || remoteWriteRetryFailed) {
       overallStatus = PARTIAL;
     } else {
-      overallStatus = PUBLISHED;
+      overallStatus = PARTIAL;
     }
     if (effectiveFromStatus !== overallStatus) {
       assertTransition(effectiveFromStatus, overallStatus);
@@ -78330,12 +81752,14 @@ async function reconcileRelease(options) {
     });
     const resultCheckpoints = planActions.map((a) => {
       const status = actionResults.get(a.id) ?? "pending";
+      const normalized = status === "deferred" ? "deferred" : status === "succeeded" ? "succeeded" : status === "failed" ? "failed" : status === "skipped" ? "skipped" : status === "uncertain" ? "uncertain" : "pending";
       return {
         actionId: a.id,
-        status: status === "succeeded" ? "succeeded" : status === "failed" ? "failed" : status === "skipped" ? "skipped" : status === "uncertain" ? "uncertain" : "pending"
+        status: normalized,
+        ...normalized === "deferred" ? { reason: CONSUMER_VERIFICATION_DEFERRED, phase: "post-publish-verification" } : {}
       };
     });
-    const runPath = join15(runDir, "release-run.json");
+    const runPath = join17(runDir, "release-run.json");
     const sourceRunDigest = sourceAuthorityDigest;
     const runState = {
       runId,
@@ -78352,10 +81776,12 @@ async function reconcileRelease(options) {
       status: overallStatus,
       checkpoints: planActions.map((a) => {
         const status = actionResults.get(a.id) ?? "pending";
+        const normalized = status === "deferred" ? "deferred" : status === "succeeded" ? "succeeded" : status === "failed" ? "failed" : status === "skipped" ? "skipped" : status === "uncertain" ? "uncertain" : "pending";
         return {
           actionId: a.id,
           actionType: a.type,
-          status: status === "succeeded" ? "succeeded" : status === "failed" ? "failed" : status === "skipped" ? "skipped" : status === "uncertain" ? "uncertain" : "pending"
+          status: normalized,
+          ...normalized === "deferred" ? { reason: CONSUMER_VERIFICATION_DEFERRED, phase: "post-publish-verification" } : {}
         };
       }),
       startedAt: reconcileStartedAt,
@@ -78391,7 +81817,6 @@ async function reconcileRelease(options) {
     throw err;
   }
 }
-var MARKETPLACE_TYPES;
 var init_reconcile = __esm({
   async "src/commands/reconcile.mjs"() {
     await init_plan();
@@ -78405,12 +81830,6 @@ var init_reconcile = __esm({
     init_state_machine();
     init_contract();
     init_observe_retry();
-    MARKETPLACE_TYPES = /* @__PURE__ */ new Set([
-      "claude-marketplace-install",
-      "codex-marketplace-install",
-      "kimi-marketplace-install",
-      "codebuddy-marketplace-install"
-    ]);
     __name(defaultClock3, "defaultClock");
     __name(reconcileRelease, "reconcileRelease");
   }
@@ -78422,10 +81841,10 @@ __export(push_snapshot_exports, {
   createPushSnapshotAdapter: () => createPushSnapshotAdapter,
   githubRepositoryUrl: () => githubRepositoryUrl
 });
-import { execFile as execFileCb8 } from "node:child_process";
-import { promisify as promisify8 } from "node:util";
-async function run2(command2, args2, options = {}) {
-  return execFile7(command2, args2, {
+import { execFile as execFileCb9 } from "node:child_process";
+import { promisify as promisify9 } from "node:util";
+async function run3(command2, args2, options = {}) {
+  return execFile8(command2, args2, {
     shell: false,
     encoding: "utf8",
     timeout: 12e4,
@@ -78502,9 +81921,9 @@ async function inspectLocalObjects(action, context, exec) {
   return gitDir;
 }
 function createPushSnapshotAdapter(deps = {}) {
-  const exec = deps.exec ?? run2;
+  const exec = deps.exec ?? run3;
   return Object.freeze({
-    name: NAME2,
+    name: NAME3,
     actionTypes: Object.freeze([ActionType.PUSH_SNAPSHOT]),
     async preflight(action, context) {
       try {
@@ -78677,14 +82096,14 @@ function createPushSnapshotAdapter(deps = {}) {
     }
   });
 }
-var execFile7, NAME2;
+var execFile8, NAME3;
 var init_push_snapshot = __esm({
   "src/adapters/push-snapshot.mjs"() {
     init_contract();
     init_frozen();
-    execFile7 = promisify8(execFileCb8);
-    NAME2 = "push-snapshot";
-    __name(run2, "run");
+    execFile8 = promisify9(execFileCb9);
+    NAME3 = "push-snapshot";
+    __name(run3, "run");
     __name(githubRepositoryUrl, "githubRepositoryUrl");
     __name(validateOid, "validateOid");
     __name(validateAction, "validateAction");
@@ -78698,10 +82117,10 @@ var git_github_exports = {};
 __export(git_github_exports, {
   createGitGithubAdapter: () => createGitGithubAdapter
 });
-import { execFile as execFileCb9 } from "node:child_process";
-import { promisify as promisify9 } from "node:util";
-async function run3(command2, args2, options = {}) {
-  return execFile8(command2, args2, {
+import { execFile as execFileCb10 } from "node:child_process";
+import { promisify as promisify10 } from "node:util";
+async function run4(command2, args2, options = {}) {
+  return execFile9(command2, args2, {
     shell: false,
     encoding: "utf8",
     timeout: 12e4,
@@ -78769,9 +82188,9 @@ async function readRemoteBranchCommit(action, exec) {
   return stdout.trim().split(/\s+/)[0] ?? "";
 }
 function createGitGithubAdapter(deps = {}) {
-  const exec = deps.exec ?? run3;
+  const exec = deps.exec ?? run4;
   return Object.freeze({
-    name: NAME3,
+    name: NAME4,
     actionTypes: Object.freeze([ActionType.GIT_PUSH, ActionType.GIT_TAG, ActionType.GITHUB_RELEASE, ActionType.SET_DEFAULT_BRANCH]),
     async preflight(action, context) {
       try {
@@ -78977,15 +82396,15 @@ function createGitGithubAdapter(deps = {}) {
     }
   });
 }
-var execFile8, NAME3;
+var execFile9, NAME4;
 var init_git_github = __esm({
   "src/adapters/git-github.mjs"() {
     init_contract();
     init_frozen();
     init_push_snapshot();
-    execFile8 = promisify9(execFileCb9);
-    NAME3 = "git-github";
-    __name(run3, "run");
+    execFile9 = promisify10(execFileCb10);
+    NAME4 = "git-github";
+    __name(run4, "run");
     __name(isNotFound2, "isNotFound");
     __name(ghRepo, "ghRepo");
     __name(validateOid2, "validateOid");
@@ -78997,2169 +82416,24 @@ var init_git_github = __esm({
   }
 });
 
-// src/adapters/plugin-marketplace.mjs
-var plugin_marketplace_exports = {};
-__export(plugin_marketplace_exports, {
-  createPluginMarketplaceAdapter: () => createPluginMarketplaceAdapter,
-  readKimiManifest: () => readKimiManifest,
-  resolveKimiEntrySkillFile: () => resolveKimiEntrySkillFile
-});
-import { execFile as execFileCb10 } from "node:child_process";
-import { promisify as promisify10 } from "node:util";
-import { readFile as readFile20, stat as stat5, mkdir as mkdir14, readdir as readdir9, realpath as realpath11, lstat as lstat11 } from "node:fs/promises";
-import { join as join16, resolve as resolve21, relative as relative18, isAbsolute as isAbsolute15, basename as basename7 } from "node:path";
-import { createHash as createHash10 } from "node:crypto";
-function transportPayload(entries) {
-  return entries.map(({ path: path3, type, mode, size, contentDigest }) => ({
-    path: path3,
-    type,
-    // The local authority removes write bits when sealing. Git checkout and
-    // plugin installation restore owner-write permission, while preserving
-    // executable intent. Ignore only write bits; retain every other mode bit.
-    mode: mode & ~146,
-    size,
-    contentDigest
-  }));
-}
-function extractDeclaredPluginSource(consumer, entry) {
-  const platform = getPlatform(consumer);
-  const rawSource = platform.marketplaceSourceForm === "string" ? entry.source : platform.marketplaceSourceForm === "local-path-object" ? entry.source?.source === "local" ? entry.source?.path : null : null;
-  if (typeof rawSource !== "string" || rawSource.length === 0) {
-    throw new Error(`marketplace plugin entry source must be a non-empty relative path${platform.marketplaceSourceForm === "local-path-object" ? ' (object with source:"local")' : ""}, got ${JSON.stringify(entry.source)}`);
-  }
-  if (rawSource.startsWith("/") || rawSource.includes("..") || rawSource.includes("\\") || /^https?:\/\//i.test(rawSource)) {
-    throw new Error(`marketplace plugin entry source "${rawSource}" is not a safe relative path`);
-  }
-  const segments = rawSource.split("/").filter((segment) => segment !== "" && segment !== ".");
-  if (segments.some((segment) => segment === "..")) {
-    throw new Error(`marketplace plugin entry source "${rawSource}" is not a safe relative path`);
-  }
-  return segments.length === 0 ? "." : segments.join("/");
-}
-async function resolveInstalledPayloadSubpath(snapshotDir, sourceEntries, action, consumer) {
-  if (action.payloadContract === PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE || action.marketplaceLocation === "external") {
-    return ".";
-  }
-  const marketplaceRelative = getPlatform(consumer).manifestPaths.marketplace;
-  if (marketplaceRelative === null) return ".";
-  const anchored = sourceEntries.some((entry) => entry.type === "file" && entry.path === marketplaceRelative);
-  if (!anchored) {
-    throw new Error(`frozen snapshot is missing the marketplace manifest ${marketplaceRelative}`);
-  }
-  const result = await validateManifestFile(resolve21(snapshotDir, marketplaceRelative), ["name", "plugins"]);
-  if (!result.valid) {
-    throw new Error(`frozen snapshot ${marketplaceRelative} invalid: ${result.error}`);
-  }
-  if (result.manifest.name !== action.marketplace) {
-    throw new Error(`marketplace manifest name "${result.manifest.name}" does not match action marketplace "${action.marketplace}"`);
-  }
-  const plugins = result.manifest.plugins;
-  if (!Array.isArray(plugins)) {
-    throw new Error(`${marketplaceRelative} must have a plugins[] array`);
-  }
-  const matches = plugins.filter((entry) => entry.name === action.plugin);
-  if (matches.length !== 1) {
-    throw new Error(`expected exactly one plugins[] entry with name "${action.plugin}", found ${matches.length}`);
-  }
-  return extractDeclaredPluginSource(consumer, matches[0]);
-}
-async function verifyInstalledMarketplacePayload(action, context, installPath, consumer) {
-  const sourcePath = await resolveFrozenPath(
-    context.root,
-    action.snapshotPath,
-    "frozen marketplace snapshot"
-  );
-  const sourceSnapshot = await computeFrozenSnapshot(sourcePath);
-  if (sourceSnapshot.digest !== action.manifestDigest) {
-    throw new Error("frozen marketplace snapshot digest no longer matches the plan");
-  }
-  const payloadSubpath = await resolveInstalledPayloadSubpath(
-    sourcePath,
-    sourceSnapshot.entries,
-    action,
-    consumer
-  );
-  const prefix = payloadSubpath === "." ? null : `${payloadSubpath}/`;
-  const authorityEntries = prefix === null ? sourceSnapshot.entries : sourceSnapshot.entries.filter((entry) => entry.path.startsWith(prefix)).map((entry) => ({ ...entry, path: entry.path.slice(prefix.length) }));
-  if (authorityEntries.length === 0) {
-    throw new Error("frozen snapshot contains no payload under the declared marketplace source");
-  }
-  const payloadContract = action.payloadContract;
-  if (payloadContract !== void 0 && payloadContract !== PAYLOAD_CONTRACT_DECLARED_MANIFEST && payloadContract !== PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE) {
-    throw new Error(`unsupported marketplace payload contract: ${JSON.stringify(payloadContract)}`);
-  }
-  if (payloadContract === PAYLOAD_CONTRACT_DECLARED_MANIFEST || payloadContract === PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE) {
-    const installedSnapshot2 = await computeFrozenSnapshot(installPath);
-    const authorityPayload = transportPayload(authorityEntries);
-    const installedByPath = new Map(
-      transportPayload(installedSnapshot2.entries).map((entry) => [entry.path, entry])
-    );
-    const conflicts = [];
-    for (const authorityEntry of authorityPayload) {
-      const installedEntry = installedByPath.get(authorityEntry.path);
-      if (!installedEntry) {
-        conflicts.push(`missing: ${authorityEntry.path}`);
-        continue;
-      }
-      if (installedEntry.type !== authorityEntry.type) {
-        conflicts.push(`type mismatch: ${authorityEntry.path}`);
-      } else if (installedEntry.size !== authorityEntry.size || installedEntry.contentDigest !== authorityEntry.contentDigest) {
-        conflicts.push(`content mismatch: ${authorityEntry.path}`);
-      } else if (installedEntry.mode !== authorityEntry.mode) {
-        conflicts.push(`mode mismatch: ${authorityEntry.path}`);
-      }
-    }
-    if (conflicts.length > 0) {
-      const listed = conflicts.slice(0, PAYLOAD_CONFLICT_REPORT_CAP).join("; ");
-      const overflow = conflicts.length > PAYLOAD_CONFLICT_REPORT_CAP ? `; and ${conflicts.length - PAYLOAD_CONFLICT_REPORT_CAP} more conflicting path(s)` : "";
-      throw new Error(
-        `installed marketplace payload differs in path, bytes, size, or non-write mode bits (${payloadContract}): ${listed}${overflow}`
-      );
-    }
-    const authorityPaths = new Set(authorityPayload.map((entry) => entry.path));
-    const extraPaths = installedSnapshot2.entries.map((entry) => entry.path).filter((path3) => !authorityPaths.has(path3));
-    const extraInstalledPaths = extraPaths.slice(0, EXTRA_INSTALLED_PATHS_CAP);
-    return {
-      manifestDigest: action.manifestDigest,
-      extraInstalledPaths,
-      ...extraPaths.length > EXTRA_INSTALLED_PATHS_CAP ? { extraInstalledPathsTotal: extraPaths.length } : {}
-    };
-  }
-  const installedSnapshot = await computeFrozenSnapshot(installPath, {
-    excludeRootEntries: getPlatform(consumer).knownHostArtifacts
-  });
-  if (JSON.stringify(transportPayload(authorityEntries)) !== JSON.stringify(transportPayload(installedSnapshot.entries))) {
-    throw new Error("installed marketplace payload differs in path, bytes, size, or non-write mode bits");
-  }
-  return { manifestDigest: action.manifestDigest };
-}
-function extraInstalledPathsAudit(binding) {
-  if (!binding || !Array.isArray(binding.extraInstalledPaths)) return {};
-  return {
-    extraInstalledPaths: binding.extraInstalledPaths,
-    ...binding.extraInstalledPathsTotal !== void 0 ? { extraInstalledPathsTotal: binding.extraInstalledPathsTotal } : {}
-  };
-}
-function normalizeKimiSkillsRel(skillsRaw) {
-  if (typeof skillsRaw !== "string" || skillsRaw.length === 0) {
-    throw new Error("kimi manifest skills must be a non-empty relative path when present");
-  }
-  if (skillsRaw.startsWith("/") || skillsRaw.includes("..") || skillsRaw.includes("\\") || /^https?:\/\//i.test(skillsRaw)) {
-    throw new Error(`kimi manifest skills "${skillsRaw}" is not a safe relative path`);
-  }
-  let rel = skillsRaw.replace(/^\.\//, "");
-  rel = rel.replace(/\/+$/, "");
-  if (rel.split("/").some((segment) => segment === "" || segment === "." || segment === "..")) {
-    throw new Error(`kimi manifest skills "${skillsRaw}" is not a safe relative path`);
-  }
-  return rel;
-}
-async function resolveKimiEntrySkillFile(pluginRootReal, manifest, entrySkill) {
-  if (!entrySkill || typeof entrySkill !== "string" || !SAFE_ID_RE.test(entrySkill)) {
-    throw new Error(`unsafe entrySkill: "${entrySkill}"`);
-  }
-  let entryAbs;
-  if (manifest.skills === void 0 || manifest.skills === null) {
-    entryAbs = resolve21(pluginRootReal, "SKILL.md");
-  } else {
-    const skillsRel = normalizeKimiSkillsRel(manifest.skills);
-    const skillsRootAbs = skillsRel === "" ? pluginRootReal : resolve21(pluginRootReal, skillsRel);
-    const skillsRootReal = await realpath11(skillsRootAbs).catch(() => null);
-    if (!skillsRootReal) {
-      throw new Error(`kimi manifest skills root does not exist: ${manifest.skills}`);
-    }
-    const skillsContainment = relative18(pluginRootReal, skillsRootReal);
-    const sepK = process.platform === "win32" ? "\\" : "/";
-    if (skillsContainment !== "" && (isAbsolute15(skillsContainment) || skillsContainment === ".." || skillsContainment.startsWith(`..${sepK}`))) {
-      throw new Error(`kimi manifest skills "${manifest.skills}" escapes the plugin root after symlink resolution`);
-    }
-    entryAbs = resolve21(skillsRootReal, entrySkill, "SKILL.md");
-  }
-  let entryLexicalStat;
-  try {
-    entryLexicalStat = await lstat11(entryAbs);
-  } catch {
-    throw new Error(`kimi entry skill not found: ${relative18(pluginRootReal, entryAbs) || "SKILL.md"}`);
-  }
-  if (entryLexicalStat.isSymbolicLink()) {
-    throw new Error("kimi entry skill must not be a symlink");
-  }
-  if (!entryLexicalStat.isFile()) {
-    throw new Error("kimi entry skill is not a regular file");
-  }
-  const entryReal = await realpath11(entryAbs).catch(() => null);
-  if (!entryReal) {
-    throw new Error(`kimi entry skill not found: ${relative18(pluginRootReal, entryAbs) || "SKILL.md"}`);
-  }
-  const entryContainment = relative18(pluginRootReal, entryReal);
-  const sepE = process.platform === "win32" ? "\\" : "/";
-  if (entryContainment !== "" && (isAbsolute15(entryContainment) || entryContainment === ".." || entryContainment.startsWith(`..${sepE}`))) {
-    throw new Error("kimi entry skill escapes the plugin root after symlink resolution");
-  }
-  return entryReal;
-}
-function normalizeCodeBuddySkillsRel(skillsRaw) {
-  let skillsPath;
-  if (Array.isArray(skillsRaw)) {
-    if (skillsRaw.length !== 1) {
-      throw new Error(
-        `codebuddy manifest skills array must have exactly one element, got ${skillsRaw.length}`
-      );
-    }
-    skillsPath = skillsRaw[0];
-  } else if (typeof skillsRaw === "string") {
-    skillsPath = skillsRaw;
-  } else {
-    throw new Error("codebuddy manifest skills must be a string or single-element array when present");
-  }
-  if (typeof skillsPath !== "string" || skillsPath.length === 0) {
-    throw new Error("codebuddy manifest skills must be a non-empty relative path when present");
-  }
-  if (skillsPath.startsWith("/") || skillsPath.includes("..") || skillsPath.includes("\\") || /^https?:\/\//i.test(skillsPath)) {
-    throw new Error(`codebuddy manifest skills "${skillsPath}" is not a safe relative path`);
-  }
-  let rel = skillsPath.replace(/^\.\//, "");
-  rel = rel.replace(/\/+$/, "");
-  if (rel.split("/").some((segment) => segment === "" || segment === "." || segment === "..")) {
-    throw new Error(`codebuddy manifest skills "${skillsPath}" is not a safe relative path`);
-  }
-  return rel;
-}
-async function resolveCodeBuddyEntrySkillFile(pluginRootReal, manifest, entrySkill) {
-  if (!entrySkill || typeof entrySkill !== "string" || !SAFE_ID_RE.test(entrySkill)) {
-    throw new Error(`unsafe entrySkill: "${entrySkill}"`);
-  }
-  let entryAbs;
-  if (manifest.skills === void 0 || manifest.skills === null) {
-    entryAbs = resolve21(pluginRootReal, "SKILL.md");
-  } else {
-    const skillsRel = normalizeCodeBuddySkillsRel(manifest.skills);
-    const skillsRootAbs = skillsRel === "" ? pluginRootReal : resolve21(pluginRootReal, skillsRel);
-    const skillsRootReal = await realpath11(skillsRootAbs).catch(() => null);
-    if (!skillsRootReal) {
-      throw new Error(`codebuddy manifest skills root does not exist: ${manifest.skills}`);
-    }
-    const skillsContainment = relative18(pluginRootReal, skillsRootReal);
-    const sepK = process.platform === "win32" ? "\\" : "/";
-    if (skillsContainment !== "" && (isAbsolute15(skillsContainment) || skillsContainment === ".." || skillsContainment.startsWith(`..${sepK}`))) {
-      throw new Error(`codebuddy manifest skills "${manifest.skills}" escapes the plugin root after symlink resolution`);
-    }
-    entryAbs = resolve21(skillsRootReal, entrySkill, "SKILL.md");
-  }
-  let entryLexicalStat;
-  try {
-    entryLexicalStat = await lstat11(entryAbs);
-  } catch {
-    throw new Error(`codebuddy entry skill not found: ${relative18(pluginRootReal, entryAbs) || "SKILL.md"}`);
-  }
-  if (entryLexicalStat.isSymbolicLink()) {
-    throw new Error("codebuddy entry skill must not be a symlink");
-  }
-  if (!entryLexicalStat.isFile()) {
-    throw new Error("codebuddy entry skill is not a regular file");
-  }
-  const entryReal = await realpath11(entryAbs).catch(() => null);
-  if (!entryReal) {
-    throw new Error(`codebuddy entry skill not found: ${relative18(pluginRootReal, entryAbs) || "SKILL.md"}`);
-  }
-  const entryContainment = relative18(pluginRootReal, entryReal);
-  const sepE = process.platform === "win32" ? "\\" : "/";
-  if (entryContainment !== "" && (isAbsolute15(entryContainment) || entryContainment === ".." || entryContainment.startsWith(`..${sepE}`))) {
-    throw new Error("codebuddy entry skill escapes the plugin root after symlink resolution");
-  }
-  return entryReal;
-}
-function validateSafeRef(ref) {
-  if (!ref || typeof ref !== "string") {
-    return { valid: false, error: "ref is required" };
-  }
-  if (/[\x00-\x1f]/.test(ref)) {
-    return { valid: false, error: "ref contains control characters" };
-  }
-  if (ref.startsWith("-")) {
-    return { valid: false, error: `ref must not start with '-': "${ref}"` };
-  }
-  if (ref.includes("\\")) {
-    return { valid: false, error: "ref contains backslash" };
-  }
-  if (ref.includes("//")) {
-    return { valid: false, error: "ref contains //" };
-  }
-  if (ref.startsWith("/") || ref.endsWith("/")) {
-    return { valid: false, error: "ref must not start or end with /" };
-  }
-  if (ref.endsWith(".")) {
-    return { valid: false, error: "ref must not end with ." };
-  }
-  if (ref.endsWith(".lock")) {
-    return { valid: false, error: "ref must not end with .lock" };
-  }
-  if (ref.includes("@{")) {
-    return { valid: false, error: "ref contains @{" };
-  }
-  if (ref === "@") {
-    return { valid: false, error: "ref must not be standalone @" };
-  }
-  if (ref.includes("..")) {
-    return { valid: false, error: "ref contains .." };
-  }
-  if (/[;|&`$(){}]/.test(ref)) {
-    return { valid: false, error: "ref contains shell metacharacters" };
-  }
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9._/-]*$/.test(ref)) {
-    return { valid: false, error: `unsafe ref: "${ref}"` };
-  }
-  return { valid: true, error: null };
-}
-function validateMarketplaceParams(params) {
-  if (!params || typeof params !== "object") {
-    return { valid: false, error: "parameters must be an object" };
-  }
-  const { consumer, plugin, marketplace, repo, version, entrySkill } = params;
-  if (!CONSUMER_IDS.has(consumer)) {
-    return { valid: false, error: `invalid consumer: "${consumer}"` };
-  }
-  if (!plugin || !SAFE_ID_RE.test(plugin)) {
-    return { valid: false, error: `unsafe plugin identifier: "${plugin}"` };
-  }
-  const consumerPlatform = getPlatform(consumer);
-  const consumerRoute = resolvePlatformRoute(consumerPlatform);
-  if (consumerRoute.route === "human-attestation") {
-    if (marketplace !== void 0 && marketplace !== null && !SAFE_ID_RE.test(marketplace)) {
-      return { valid: false, error: `unsafe marketplace identifier: "${marketplace}"` };
-    }
-  } else if (!marketplace || !SAFE_ID_RE.test(marketplace)) {
-    return { valid: false, error: `unsafe marketplace identifier: "${marketplace}"` };
-  }
-  if (!repo || !SAFE_REPO_RE.test(repo)) {
-    return { valid: false, error: `unsafe repo identifier: "${repo}"` };
-  }
-  if (!version || !STRICT_SEMVER_RE.test(version)) {
-    return { valid: false, error: `unsafe version (must be valid semver): "${version}"` };
-  }
-  if (!entrySkill || !SAFE_ID_RE.test(entrySkill)) {
-    return { valid: false, error: `unsafe entrySkill: "${entrySkill}"` };
-  }
-  return { valid: true, error: null };
-}
-async function run4(cmd, args2, options = {}) {
-  return execFile9(cmd, args2, {
-    shell: false,
-    encoding: "utf8",
-    timeout: 3e4,
-    ...options
-  });
-}
-async function validateManifestFile(manifestPath, requiredFields) {
-  try {
-    const content = await readFile20(manifestPath, "utf8");
-    const manifest = JSON.parse(content);
-    const missing = requiredFields.filter((f) => !(f in manifest));
-    return {
-      valid: missing.length === 0,
-      manifest,
-      missing,
-      error: missing.length > 0 ? `Missing required fields: ${missing.join(", ")}` : null
-    };
-  } catch (err) {
-    return {
-      valid: false,
-      manifest: null,
-      missing: requiredFields,
-      error: `Failed to read manifest: ${err.message}`
-    };
-  }
-}
-async function checkRequiredFiles(dir, requiredFiles) {
-  const missing = [];
-  for (const file of requiredFiles) {
-    try {
-      await stat5(resolve21(dir, file));
-    } catch {
-      missing.push(file);
-    }
-  }
-  return { allPresent: missing.length === 0, missing };
-}
-function createPluginMarketplaceAdapter(deps = {}) {
-  const exec = deps.exec ?? run4;
-  return Object.freeze({
-    name: NAME4,
-    actionTypes: SUPPORTED_TYPES,
-    /**
-     * Preflight: read-only checks before execution.
-     * Fail-closed: snapshotPath, ref, manifestDigest are required for
-     * marketplace install actions.
-     */
-    async preflight(action, context) {
-      const { actionType } = action;
-      try {
-        if (actionType === ActionType.PLUGIN_MANIFEST_VALIDATE) {
-          const manifestPath = action.manifestPath;
-          if (!manifestPath) {
-            return createResult({
-              actionType,
-              status: ActionStatus.PREFLIGHT_FAILED,
-              error: "manifestPath is required"
-            });
-          }
-          const result = await validateManifestFile(manifestPath, [
-            "name",
-            "version",
-            "description"
-          ]);
-          if (!result.valid) {
-            return createResult({
-              actionType,
-              status: ActionStatus.PREFLIGHT_FAILED,
-              error: result.error
-            });
-          }
-          return createResult({
-            actionType,
-            status: ActionStatus.PREFLIGHT_PASSED
-          });
-        }
-        if (actionType === ActionType.PLUGIN_INSTALL_CHECK) {
-          const pluginDir = action.pluginDir;
-          if (!pluginDir) {
-            return createResult({
-              actionType,
-              status: ActionStatus.PREFLIGHT_FAILED,
-              error: "pluginDir is required"
-            });
-          }
-          try {
-            const s = await stat5(pluginDir);
-            if (!s.isDirectory()) {
-              return createResult({
-                actionType,
-                status: ActionStatus.PREFLIGHT_FAILED,
-                error: `pluginDir is not a directory: ${pluginDir}`
-              });
-            }
-          } catch {
-            return createResult({
-              actionType,
-              status: ActionStatus.PREFLIGHT_FAILED,
-              error: `pluginDir does not exist: ${pluginDir}`
-            });
-          }
-          return createResult({
-            actionType,
-            status: ActionStatus.PREFLIGHT_PASSED
-          });
-        }
-        if (actionType === ActionType.CLAUDE_MARKETPLACE_INSTALL || actionType === ActionType.CODEX_MARKETPLACE_INSTALL || actionType === ActionType.KIMI_MARKETPLACE_INSTALL || actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL) {
-          const validation = validateMarketplaceParams(action);
-          if (!validation.valid) {
-            return createResult({
-              actionType,
-              status: ActionStatus.PREFLIGHT_FAILED,
-              error: validation.error
-            });
-          }
-          const ref = action.ref;
-          if (!ref) {
-            return createResult({
-              actionType,
-              status: ActionStatus.PREFLIGHT_FAILED,
-              error: "ref is required for marketplace install"
-            });
-          }
-          const refValidation = validateSafeRef(ref);
-          if (!refValidation.valid) {
-            return createResult({
-              actionType,
-              status: ActionStatus.PREFLIGHT_FAILED,
-              error: refValidation.error
-            });
-          }
-          const snapshotPath = action.snapshotPath;
-          if (!snapshotPath) {
-            return createResult({
-              actionType,
-              status: ActionStatus.PREFLIGHT_FAILED,
-              error: "snapshotPath is required for marketplace install"
-            });
-          }
-          const manifestDigest = action.manifestDigest;
-          if (!manifestDigest || typeof manifestDigest !== "string") {
-            return createResult({
-              actionType,
-              status: ActionStatus.PREFLIGHT_FAILED,
-              error: "manifestDigest is required for marketplace install"
-            });
-          }
-          if (!/^[a-f0-9]{64}$/.test(manifestDigest)) {
-            return createResult({
-              actionType,
-              status: ActionStatus.PREFLIGHT_FAILED,
-              error: `manifestDigest must be a 64-char lowercase hex string`
-            });
-          }
-          if (!context?.root) {
-            return createResult({
-              actionType,
-              status: ActionStatus.PREFLIGHT_FAILED,
-              error: "context.root is required for marketplace install"
-            });
-          }
-          if (!context.runDir) {
-            return createResult({
-              actionType,
-              status: ActionStatus.PREFLIGHT_FAILED,
-              error: "context.runDir is required for marketplace install"
-            });
-          }
-          const consumer = action.consumer;
-          const consumerPlatform = getPlatform(consumer);
-          const capabilityConflicts = resolveCapabilityConflicts(consumerPlatform);
-          if (capabilityConflicts.length > 0) {
-            return createResult({
-              actionType,
-              status: ActionStatus.PREFLIGHT_FAILED,
-              error: `platform capability conflict: ${capabilityConflicts.join("; ")}`
-            });
-          }
-          const route = resolvePlatformRoute(consumerPlatform);
-          if (route.route === "structured-cli") {
-            const sd = action.sourceDescriptor;
-            if (!sd || typeof sd !== "object") {
-              return createResult({
-                actionType,
-                status: ActionStatus.PREFLIGHT_FAILED,
-                error: "sourceDescriptor is required for marketplace install"
-              });
-            }
-            if (sd.form !== action.marketplaceForm) {
-              return createResult({
-                actionType,
-                status: ActionStatus.PREFLIGHT_FAILED,
-                error: `sourceDescriptor.form "${sd.form}" does not match marketplaceForm "${action.marketplaceForm}"`
-              });
-            }
-            if (typeof sd.payloadDigest !== "string" || sd.payloadDigest.length === 0) {
-              return createResult({
-                actionType,
-                status: ActionStatus.PREFLIGHT_FAILED,
-                error: "sourceDescriptor.payloadDigest is required"
-              });
-            }
-            if (!/^[a-f0-9]{64}$/.test(sd.payloadDigest)) {
-              return createResult({
-                actionType,
-                status: ActionStatus.PREFLIGHT_FAILED,
-                error: "sourceDescriptor.payloadDigest must be a 64-char lowercase hex string"
-              });
-            }
-            if (sd.payloadDigest === "0".repeat(64)) {
-              return createResult({
-                actionType,
-                status: ActionStatus.PREFLIGHT_FAILED,
-                error: "sourceDescriptor.payloadDigest must not be the null hash"
-              });
-            }
-            if (typeof sd.marketplaceEntry !== "string" || sd.marketplaceEntry.length === 0) {
-              return createResult({
-                actionType,
-                status: ActionStatus.PREFLIGHT_FAILED,
-                error: "sourceDescriptor.marketplaceEntry is required"
-              });
-            }
-            if (sd.marketplaceEntry !== action.plugin) {
-              return createResult({
-                actionType,
-                status: ActionStatus.PREFLIGHT_FAILED,
-                error: `sourceDescriptor.marketplaceEntry "${sd.marketplaceEntry}" does not match action plugin "${action.plugin}"`
-              });
-            }
-            if (sd.form === "bundled-family") {
-              if (!sd.repo || !SAFE_REPO_RE.test(sd.repo)) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `sourceDescriptor.repo is required and must be a safe repo pattern`
-                });
-              }
-              if (sd.repo !== action.repo) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `sourceDescriptor.repo "${sd.repo}" does not match action.repo "${action.repo}"`
-                });
-              }
-              if (sd.commit !== void 0 && (typeof sd.commit !== "string" || !/^[0-9a-f]{40}$/.test(sd.commit))) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: "sourceDescriptor.commit must be a 40-hex commit sha for bundled-family form"
-                });
-              }
-              if (sd.commit !== void 0 && action.sourceCommit && sd.commit !== action.sourceCommit) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `sourceDescriptor.commit "${sd.commit}" does not match action.sourceCommit "${action.sourceCommit}"`
-                });
-              }
-              if (sd.payloadDigest !== void 0 && (!sd.payloadDigest || !SAFE_DIGEST_RE.test(sd.payloadDigest))) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: "sourceDescriptor.payloadDigest is required for bundled-family form"
-                });
-              }
-              if (sd.payloadDigest !== void 0 && action.manifestDigest && sd.payloadDigest !== action.manifestDigest) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `sourceDescriptor.payloadDigest does not match action.manifestDigest`
-                });
-              }
-              if (typeof sd.pluginSubpath !== "string" || sd.pluginSubpath.length === 0) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: "sourceDescriptor.pluginSubpath is required for bundled-family form"
-                });
-              }
-            } else if (sd.form === "standalone-index") {
-              if (!sd.pluginRepo || !SAFE_REPO_RE.test(sd.pluginRepo)) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `sourceDescriptor.pluginRepo is required for standalone-index form`
-                });
-              }
-              if (!sd.marketplaceRepo || !SAFE_REPO_RE.test(sd.marketplaceRepo)) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: "sourceDescriptor.marketplaceRepo is required for standalone-index form"
-                });
-              }
-              if (sd.marketplaceRepo !== action.repo) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `sourceDescriptor.marketplaceRepo "${sd.marketplaceRepo}" does not match action.repo "${action.repo}"`
-                });
-              }
-              if (sd.pluginRepo === sd.marketplaceRepo) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `sourceDescriptor.pluginRepo "${sd.pluginRepo}" must differ from marketplaceRepo "${sd.marketplaceRepo}"`
-                });
-              }
-              if (typeof sd.marketplaceCommitSha !== "string" || !/^[0-9a-f]{40}$/.test(sd.marketplaceCommitSha)) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: "sourceDescriptor.marketplaceCommitSha must be a 40-hex commit sha for standalone-index form"
-                });
-              }
-              if (action.marketplaceCommitSha && sd.marketplaceCommitSha !== action.marketplaceCommitSha) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `sourceDescriptor.marketplaceCommitSha "${sd.marketplaceCommitSha}" does not match action.marketplaceCommitSha "${action.marketplaceCommitSha}"`
-                });
-              }
-              if (typeof sd.ref !== "string" || sd.ref.length === 0) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: "sourceDescriptor.ref is required for standalone-index form"
-                });
-              }
-              if (sd.payloadDigest !== void 0 && (!sd.payloadDigest || !SAFE_DIGEST_RE.test(sd.payloadDigest))) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: "sourceDescriptor.payloadDigest must be a 64-hex digest for standalone-index form"
-                });
-              }
-              if (sd.payloadDigest !== void 0 && action.manifestDigest && sd.payloadDigest !== action.manifestDigest) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `sourceDescriptor.payloadDigest does not match action.manifestDigest`
-                });
-              }
-            } else {
-              return createResult({
-                actionType,
-                status: ActionStatus.PREFLIGHT_FAILED,
-                error: `sourceDescriptor.form "${sd.form}" is not a recognized form (expected "bundled-family" or "standalone-index")`
-              });
-            }
-          }
-          const platform = getPlatform(consumer);
-          const platformRoute = resolvePlatformRoute(platform);
-          let snapshotDirReal;
-          let kimiSnapshotManifest = null;
-          try {
-            snapshotDirReal = await resolveFrozenPath(context.root, snapshotPath, "frozen snapshot path");
-          } catch (frozenErr) {
-            return createResult({
-              actionType,
-              status: ActionStatus.PREFLIGHT_FAILED,
-              error: `frozen snapshot validation failed: ${frozenErr.message}`
-            });
-          }
-          if (platformRoute.route === "human-attestation") {
-            const manifestLabel = consumer === "codebuddy" ? "codebuddy" : "kimi";
-            let kimiManifestResult;
-            try {
-              kimiManifestResult = await platform.strategy.readManifest(snapshotDirReal);
-            } catch (manifestErr) {
-              return createResult({
-                actionType,
-                status: ActionStatus.PREFLIGHT_FAILED,
-                error: `frozen snapshot ${manifestLabel} manifest invalid: ${manifestErr.message}`
-              });
-            }
-            const kimiManifest = kimiManifestResult.manifest;
-            if (typeof kimiManifest.name !== "string" || kimiManifest.name !== action.plugin) {
-              return createResult({
-                actionType,
-                status: ActionStatus.PREFLIGHT_FAILED,
-                error: `plugin manifest name "${kimiManifest.name}" does not match action plugin "${action.plugin}"`
-              });
-            }
-            if (typeof kimiManifest.version !== "string" || kimiManifest.version !== action.version) {
-              return createResult({
-                actionType,
-                status: ActionStatus.PREFLIGHT_FAILED,
-                error: `plugin manifest version "${kimiManifest.version}" does not match action version "${action.version}"`
-              });
-            }
-            kimiSnapshotManifest = kimiManifest;
-          }
-          if (platformRoute.route === "structured-cli") {
-            if (action.marketplaceLocation === "external") {
-              if (typeof action.marketplaceCommitSha !== "string" || !/^[0-9a-f]{40}$/.test(action.marketplaceCommitSha)) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `external marketplace marketplaceCommitSha must be a 40-hex commit sha, got ${JSON.stringify(action.marketplaceCommitSha)}`
-                });
-              }
-              if (typeof action.repo !== "string" || !/^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/.test(action.repo)) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `external marketplace repo must be an owner/name repository, got ${JSON.stringify(action.repo)}`
-                });
-              }
-              const externalManifestRelative = platform.manifestPaths.plugin;
-              const externalManifestPath = resolve21(snapshotDirReal, externalManifestRelative);
-              const externalManifestResult = await validateManifestFile(externalManifestPath, ["name", "version"]);
-              if (!externalManifestResult.valid) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `frozen snapshot ${externalManifestRelative} invalid: ${externalManifestResult.error}`
-                });
-              }
-              if (externalManifestResult.manifest.name !== action.plugin) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `plugin manifest name "${externalManifestResult.manifest.name}" does not match action plugin "${action.plugin}"`
-                });
-              }
-              if (externalManifestResult.manifest.version !== action.version) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `plugin manifest version "${externalManifestResult.manifest.version}" does not match action version "${action.version}"`
-                });
-              }
-            } else {
-              const marketplaceRelative = platform.manifestPaths.marketplace;
-              const marketplacePath = resolve21(snapshotDirReal, marketplaceRelative);
-              const marketplaceResult = await validateManifestFile(marketplacePath, ["name"]);
-              if (!marketplaceResult.valid) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `frozen snapshot ${marketplaceRelative} invalid: ${marketplaceResult.error}`
-                });
-              }
-              if (marketplaceResult.manifest.name !== action.marketplace) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `marketplace.json name "${marketplaceResult.manifest.name}" does not match action marketplace "${action.marketplace}"`
-                });
-              }
-              const plugins = marketplaceResult.manifest.plugins;
-              if (!Array.isArray(plugins)) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `${marketplaceRelative} must have a plugins[] array`
-                });
-              }
-              const pluginEntry = plugins.filter((p) => p.name === action.plugin);
-              if (pluginEntry.length !== 1) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `expected exactly one plugins[] entry with name "${action.plugin}", found ${pluginEntry.length}`
-                });
-              }
-              const entry = pluginEntry[0];
-              let sourcePath;
-              try {
-                sourcePath = extractDeclaredPluginSource(consumer, entry);
-              } catch (sourceErr) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: sourceErr.message
-                });
-              }
-              const sourceDirAbs = resolve21(snapshotDirReal, sourcePath);
-              const sourceDirReal = await realpath11(sourceDirAbs).catch(() => null);
-              if (!sourceDirReal) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `marketplace plugin entry source directory does not exist: ${sourcePath}`
-                });
-              }
-              const sourceRelCheck = relative18(snapshotDirReal, sourceDirReal);
-              if (sourceRelCheck.startsWith("..") || isAbsolute15(sourceRelCheck)) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `marketplace plugin entry source "${sourcePath}" escapes the frozen snapshot`
-                });
-              }
-              const manifestRelative = join16(sourcePath, platform.manifestPaths.plugin);
-              const manifestPath = resolve21(snapshotDirReal, manifestRelative);
-              const manifestResult = await validateManifestFile(manifestPath, ["name", "version"]);
-              if (!manifestResult.valid) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `frozen snapshot ${manifestRelative} invalid: ${manifestResult.error}`
-                });
-              }
-              if (platform.marketplaceEntryCarriesVersion && entry.version !== action.version) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `marketplace plugin entry version "${entry.version}" does not match action version "${action.version}"`
-                });
-              }
-              const pluginManifestResult = await validateManifestFile(manifestPath, ["name", "version"]);
-              if (!pluginManifestResult.valid) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `frozen snapshot ${manifestRelative} invalid: ${pluginManifestResult.error}`
-                });
-              }
-              if (pluginManifestResult.manifest.name !== entry.name) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `plugin manifest name "${pluginManifestResult.manifest.name}" does not match marketplace entry name "${entry.name}"`
-                });
-              }
-              if (pluginManifestResult.manifest.version !== action.version) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.PREFLIGHT_FAILED,
-                  error: `plugin manifest version "${pluginManifestResult.manifest.version}" does not match action version "${action.version}"`
-                });
-              }
-            }
-          }
-          if (platformRoute.route === "human-attestation") {
-            const resolveEntrySkillFile = consumer === "codebuddy" ? resolveCodeBuddyEntrySkillFile : resolveKimiEntrySkillFile;
-            try {
-              await resolveEntrySkillFile(snapshotDirReal, kimiSnapshotManifest, action.entrySkill);
-            } catch (entryErr) {
-              return createResult({
-                actionType,
-                status: ActionStatus.PREFLIGHT_FAILED,
-                error: `entry skill not resolvable in snapshot: ${entryErr.message}`
-              });
-            }
-          } else {
-            const entrySkillFile = resolve21(snapshotDirReal, "skills", action.entrySkill, "SKILL.md");
-            try {
-              await stat5(entrySkillFile);
-            } catch {
-              return createResult({
-                actionType,
-                status: ActionStatus.PREFLIGHT_FAILED,
-                error: `entry skill not found in snapshot: skills/${action.entrySkill}/SKILL.md`
-              });
-            }
-          }
-          try {
-            const { digest: actualDigest } = await computeFrozenSnapshot(snapshotDirReal);
-            if (actualDigest !== manifestDigest) {
-              return createResult({
-                actionType,
-                status: ActionStatus.PREFLIGHT_FAILED,
-                error: `manifestDigest mismatch: expected ${manifestDigest.slice(0, 16)}..., actual ${actualDigest.slice(0, 16)}...`
-              });
-            }
-          } catch (digestErr) {
-            return createResult({
-              actionType,
-              status: ActionStatus.PREFLIGHT_FAILED,
-              error: `failed to compute snapshot digest: ${digestErr.message}`
-            });
-          }
-          return createResult({
-            actionType,
-            status: ActionStatus.PREFLIGHT_PASSED
-          });
-        }
-        return createResult({
-          actionType,
-          status: ActionStatus.PREFLIGHT_FAILED,
-          error: `Unsupported action type: ${actionType}`
-        });
-      } catch (err) {
-        return createResult({
-          actionType,
-          status: ActionStatus.PREFLIGHT_FAILED,
-          error: err.message
-        });
-      }
-    },
-    /**
-     * Execute: perform the validation/write action. For marketplace,
-     * "execute" means running structured validation.
-     * Some actions require authorization (e.g., updating remote metadata).
-     */
-    async execute(action, context) {
-      const { actionType } = action;
-      if (actionType === ActionType.PLUGIN_MANIFEST_VALIDATE) {
-        try {
-          const manifestPath = action.manifestPath;
-          const requiredFields = action.requiredFields ?? ["name", "version", "description"];
-          const result = await validateManifestFile(manifestPath, requiredFields);
-          if (!result.valid) {
-            return createResult({
-              actionType,
-              status: ActionStatus.EXECUTE_FAILED,
-              error: result.error,
-              observation: { valid: false, missing: result.missing }
-            });
-          }
-          if (action.entryPoint) {
-            try {
-              await exec(process.execPath, ["--check", action.entryPoint]);
-            } catch (checkErr) {
-              return createResult({
-                actionType,
-                status: ActionStatus.EXECUTE_FAILED,
-                error: `Entry point syntax check failed: ${checkErr.message}`
-              });
-            }
-          }
-          return createResult({
-            actionType,
-            status: ActionStatus.EXECUTED,
-            observation: {
-              valid: true,
-              manifest: result.manifest,
-              manifestPath
-            }
-          });
-        } catch (err) {
-          return createResult({
-            actionType,
-            status: ActionStatus.EXECUTE_FAILED,
-            error: err.message
-          });
-        }
-      }
-      if (actionType === ActionType.PLUGIN_INSTALL_CHECK) {
-        try {
-          const { pluginDir, requiredFiles } = action;
-          const check = await checkRequiredFiles(pluginDir, requiredFiles ?? []);
-          if (!check.allPresent) {
-            return createResult({
-              actionType,
-              status: ActionStatus.EXECUTE_FAILED,
-              error: `Missing required files: ${check.missing.join(", ")}`,
-              observation: { allPresent: false, missing: check.missing }
-            });
-          }
-          if (action.entryPoint) {
-            try {
-              await exec(process.execPath, ["--check", resolve21(pluginDir, action.entryPoint)]);
-            } catch (checkErr) {
-              return createResult({
-                actionType,
-                status: ActionStatus.EXECUTE_FAILED,
-                error: `Install smoke test failed: ${checkErr.message}`
-              });
-            }
-          }
-          return createResult({
-            actionType,
-            status: ActionStatus.EXECUTED,
-            observation: {
-              allPresent: true,
-              pluginDir,
-              checkedFiles: requiredFiles ?? []
-            }
-          });
-        } catch (err) {
-          return createResult({
-            actionType,
-            status: ActionStatus.EXECUTE_FAILED,
-            error: err.message
-          });
-        }
-      }
-      if (actionType === ActionType.CLAUDE_MARKETPLACE_INSTALL || actionType === ActionType.CODEX_MARKETPLACE_INSTALL || actionType === ActionType.KIMI_MARKETPLACE_INSTALL || actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL) {
-        try {
-          assertIsolatedConsumerWritesAuthorized(context, actionType);
-          const validation = validateMarketplaceParams(action);
-          if (!validation.valid) {
-            return createResult({
-              actionType,
-              status: ActionStatus.EXECUTE_FAILED,
-              error: validation.error
-            });
-          }
-          if (!context?.root) {
-            return createResult({
-              actionType,
-              status: ActionStatus.EXECUTE_FAILED,
-              error: "context.root is required for marketplace install"
-            });
-          }
-          if (!context.runDir) {
-            return createResult({
-              actionType,
-              status: ActionStatus.EXECUTE_FAILED,
-              error: "context.runDir is required for marketplace install"
-            });
-          }
-          const platform = getPlatform(action.consumer);
-          const executeRoute = resolvePlatformRoute(platform);
-          if (executeRoute.route === "human-attestation") {
-            return platform.strategy.buildManualRequirement(action, context);
-          }
-          const consumer = action.consumer;
-          const runDir = context.runDir;
-          const isolatedHome = resolve21(runDir, "consumers", `${consumer}-${action.plugin}`);
-          const runDirReal = await realpath11(runDir).catch(() => runDir);
-          const isolatedHomePreReal = await realpath11(isolatedHome).catch(() => isolatedHome);
-          const relToRun = relative18(runDirReal, isolatedHomePreReal);
-          const sepE = process.platform === "win32" ? "\\" : "/";
-          if (relToRun !== "" && (isAbsolute15(relToRun) || relToRun === ".." || relToRun.startsWith(`..${sepE}`))) {
-            return createResult({
-              actionType,
-              status: ActionStatus.EXECUTE_FAILED,
-              error: `consumer directory escapes runDir: ${isolatedHome}`
-            });
-          }
-          await mkdir14(isolatedHome, { recursive: true, mode: 448 });
-          for (const subdir of platform.isolationSubdirs) {
-            await mkdir14(resolve21(isolatedHome, subdir), { recursive: true, mode: 448 });
-          }
-          const cliCmd = platform.cli.binary;
-          const baseEnv = { ...process.env, ...context.env };
-          const env = {
-            ...baseEnv,
-            ...platform.isolationEnv(isolatedHome)
-          };
-          let frozenTimeoutMs;
-          try {
-            frozenTimeoutMs = resolveTimeoutMs(action);
-          } catch (timeoutErr) {
-            return createResult({
-              actionType,
-              status: ActionStatus.EXECUTE_FAILED,
-              error: timeoutErr.message
-            });
-          }
-          const ref = action.ref ?? `v${action.version}`;
-          let addOutput = null;
-          const marketplaceArgs = platform.cli.marketplaceAdd(action.repo, ref);
-          try {
-            const addResult = await exec(cliCmd, marketplaceArgs, { env, cwd: context.root, timeout: frozenTimeoutMs });
-            if (platform.jsonProtocol.marketplaceAddOutput === "json") {
-              try {
-                addOutput = JSON.parse(addResult.stdout);
-                if (!addOutput || typeof addOutput !== "object") {
-                  return createResult({
-                    actionType,
-                    status: ActionStatus.EXECUTE_FAILED,
-                    error: "marketplace add returned invalid JSON output"
-                  });
-                }
-                if (addOutput.marketplaceName !== action.marketplace) {
-                  return createResult({
-                    actionType,
-                    status: ActionStatus.EXECUTE_FAILED,
-                    error: `marketplace add marketplaceName "${addOutput.marketplaceName}" does not match action marketplace "${action.marketplace}"`
-                  });
-                }
-              } catch {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.EXECUTE_FAILED,
-                  error: "marketplace add returned malformed JSON"
-                });
-              }
-            }
-          } catch (addErr) {
-            return createResult({
-              actionType,
-              status: ActionStatus.EXECUTE_FAILED,
-              error: `marketplace add failed: ${addErr.message}`
-            });
-          }
-          let installOutput;
-          const installArgs = platform.cli.install(action.plugin, action.marketplace);
-          try {
-            const installResult = await exec(cliCmd, installArgs, { env, cwd: context.root, timeout: frozenTimeoutMs });
-            if (platform.jsonProtocol.pluginInstallOutput === "json") {
-              try {
-                installOutput = JSON.parse(installResult.stdout);
-                if (!installOutput || typeof installOutput !== "object") {
-                  return createResult({
-                    actionType,
-                    status: ActionStatus.EXECUTE_FAILED,
-                    error: "plugin install returned invalid JSON output"
-                  });
-                }
-                const expectedPluginId = `${action.plugin}@${action.marketplace}`;
-                const installFields = {
-                  pluginId: installOutput.pluginId,
-                  name: installOutput.name,
-                  marketplaceName: installOutput.marketplaceName,
-                  version: installOutput.version,
-                  installedPath: installOutput.installedPath
-                };
-                const expectedFields = {
-                  pluginId: expectedPluginId,
-                  name: action.plugin,
-                  marketplaceName: action.marketplace,
-                  version: action.version,
-                  installedPath: void 0
-                  // must exist and be non-empty
-                };
-                for (const [field, expected] of Object.entries(expectedFields)) {
-                  if (field === "installedPath") {
-                    if (!installFields.installedPath) {
-                      return createResult({
-                        actionType,
-                        status: ActionStatus.EXECUTE_FAILED,
-                        error: `plugin install JSON missing installedPath`
-                      });
-                    }
-                    const installPathAbs = resolve21(installFields.installedPath);
-                    const installPathRel = relative18(isolatedHome, installPathAbs);
-                    if (isAbsolute15(installPathRel) || installPathRel === ".." || installPathRel.startsWith(`..${sepE}`)) {
-                      return createResult({
-                        actionType,
-                        status: ActionStatus.EXECUTE_FAILED,
-                        error: `plugin install installedPath escapes isolated HOME: ${installFields.installedPath}`
-                      });
-                    }
-                  } else if (installFields[field] !== expected) {
-                    return createResult({
-                      actionType,
-                      status: ActionStatus.EXECUTE_FAILED,
-                      error: `plugin install JSON ${field} "${installFields[field]}" does not match expected "${expected}"`
-                    });
-                  }
-                }
-              } catch {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.EXECUTE_FAILED,
-                  error: "plugin install returned malformed JSON"
-                });
-              }
-            }
-          } catch (installErr) {
-            return createResult({
-              actionType,
-              status: ActionStatus.EXECUTE_FAILED,
-              error: `plugin install failed: ${installErr.message}`
-            });
-          }
-          const installPath = installOutput?.installedPath;
-          let executeManifestDigest = null;
-          let executeBinding = null;
-          if (installPath) {
-            try {
-              executeBinding = await verifyInstalledMarketplacePayload(
-                action,
-                context,
-                installPath,
-                consumer
-              );
-              executeManifestDigest = executeBinding.manifestDigest;
-            } catch {
-            }
-          }
-          const evidence = {
-            isolatedHome,
-            consumer,
-            plugin: action.plugin,
-            marketplace: action.marketplace,
-            repo: action.repo,
-            ref,
-            version: action.version,
-            addOutput,
-            installOutput,
-            executedAt: (/* @__PURE__ */ new Date()).toISOString(),
-            ...extraInstalledPathsAudit(executeBinding)
-          };
-          const evidenceDir = resolve21(runDir, "evidence", `${consumer}-${action.plugin}`);
-          await mkdir14(evidenceDir, { recursive: true, mode: 448 });
-          const evidencePath = resolve21(evidenceDir, "release-skill-install-evidence.json");
-          await writeEvidenceAtomic(evidencePath, evidence);
-          const executeObservation = {
-            ...evidence,
-            installed: true,
-            entrySkill: action.entrySkill,
-            ...executeManifestDigest ? { manifestDigest: executeManifestDigest } : {}
-          };
-          return createResult({
-            actionType,
-            status: ActionStatus.EXECUTED,
-            observation: executeObservation
-          });
-        } catch (err) {
-          return createResult({
-            actionType,
-            status: ActionStatus.EXECUTE_FAILED,
-            error: err.message
-          });
-        }
-      }
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: `Unsupported action type: ${actionType}`
-      });
-    },
-    /**
-     * Observe: read the current state of the plugin manifest and content.
-     * Never infers success from exit code alone.
-     *
-     * For Claude: uses id === "plugin@marketplace" match in list array,
-     * reads installPath from CLI output, verifies install dir is inside
-     * isolated HOME, computes real manifestDigest from installed content.
-     *
-     * For Codex: uses pluginId === "plugin@marketplace" match in installed array,
-     * reads installedPath from add/install output or list, verifies install dir
-     * is inside isolated HOME, computes real manifestDigest.
-     *
-     * For Kimi: uses name === plugin match in installed array, reads
-     * installedPath from validated install evidence, verifies install dir
-     * is inside isolated HOME, computes real manifestDigest.
-     */
-    async observe(action, context) {
-      const { actionType } = action;
-      try {
-        if (actionType === ActionType.PLUGIN_MANIFEST_VALIDATE) {
-          const manifestPath = action.manifestPath;
-          try {
-            const content = await readFile20(manifestPath, "utf8");
-            const manifest = JSON.parse(content);
-            return createResult({
-              actionType,
-              status: ActionStatus.OBSERVED,
-              observation: {
-                exists: true,
-                name: manifest.name,
-                version: manifest.version,
-                description: manifest.description
-              }
-            });
-          } catch {
-            return createResult({
-              actionType,
-              status: ActionStatus.OBSERVED,
-              observation: { exists: false }
-            });
-          }
-        }
-        if (actionType === ActionType.PLUGIN_INSTALL_CHECK) {
-          const { pluginDir, requiredFiles } = action;
-          const check = await checkRequiredFiles(pluginDir, requiredFiles ?? []);
-          return createResult({
-            actionType,
-            status: ActionStatus.OBSERVED,
-            observation: {
-              allPresent: check.allPresent,
-              missing: check.missing,
-              pluginDir
-            }
-          });
-        }
-        if (actionType === ActionType.CLAUDE_MARKETPLACE_INSTALL || actionType === ActionType.CODEX_MARKETPLACE_INSTALL || actionType === ActionType.KIMI_MARKETPLACE_INSTALL || actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL) {
-          const consumer = action.consumer;
-          const runDir = context.runDir;
-          if (!runDir) {
-            return createResult({
-              actionType,
-              status: ActionStatus.OBSERVED,
-              observation: { installed: false, error: "context.runDir is required" }
-            });
-          }
-          const isolatedHome = resolve21(runDir, "consumers", `${consumer}-${action.plugin}`);
-          const platform = PLATFORMS.find((p) => p.id === consumer) ?? null;
-          if (!platform) {
-            throw new Error(
-              `Unknown consumer platform "${consumer}" for action "${actionType}". Registered platforms: ${PLATFORMS.map((p) => p.id).join(", ")}`
-            );
-          }
-          const cliCmd = platform.cli ? platform.cli.binary : null;
-          const baseEnv = { ...process.env, ...context.env ?? {} };
-          const env = {
-            ...baseEnv,
-            ...platform.isolationEnv(isolatedHome)
-          };
-          let frozenTimeoutMs;
-          try {
-            frozenTimeoutMs = resolveTimeoutMs(action);
-          } catch (timeoutErr) {
-            return createResult({
-              actionType,
-              status: ActionStatus.OBSERVED,
-              observation: { installed: false, error: timeoutErr.message },
-              error: timeoutErr.message
-            });
-          }
-          const kimiRoute = platform ? resolvePlatformRoute(platform) : null;
-          if (platform && kimiRoute?.route === "human-attestation" && actionType === ActionType.KIMI_MARKETPLACE_INSTALL) {
-            const expectedRef = action.ref ?? `v${action.version}`;
-            let boundPlanDigest;
-            try {
-              boundPlanDigest = resolveBoundPlanDigest(context);
-            } catch (planErr) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  error: `cannot bind kimi observation to the frozen plan: ${planErr.message}`
-                }
-              });
-            }
-            let attestationDir;
-            try {
-              attestationDir = kimiAuthorityDir(context, boundPlanDigest, action.plugin);
-            } catch (dirErr) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: dirErr.message }
-              });
-            }
-            let requirement = null;
-            try {
-              requirement = JSON.parse(await readFile20(resolve21(attestationDir, KIMI_REQUIREMENT_FILE), "utf8"));
-            } catch {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  manualInstallRequired: true,
-                  error: "kimi manual-install requirement is missing; run execute first"
-                }
-              });
-            }
-            if (requirement.planDigest !== boundPlanDigest || requirement.plugin !== action.plugin || requirement.version !== action.version || requirement.entrySkill !== action.entrySkill || requirement.repo !== action.repo || requirement.ref !== expectedRef) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  error: "kimi manual-install requirement does not match the frozen plan/action"
-                }
-              });
-            }
-            let attestation = null;
-            try {
-              attestation = JSON.parse(await readFile20(resolve21(attestationDir, KIMI_ATTESTATION_FILE), "utf8"));
-            } catch {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  manualInstallRequired: true,
-                  installUrl: requirement.installUrl,
-                  attestationDir,
-                  error: `kimi attestation is missing; write ${resolve21(attestationDir, KIMI_ATTESTATION_FILE)} after the interactive install (${requirement.installUrl})`
-                }
-              });
-            }
-            const attestationCheck = validateKimiAttestation(attestation, action, (/* @__PURE__ */ new Date()).toISOString(), boundPlanDigest);
-            if (!attestationCheck.valid) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: attestationCheck.error }
-              });
-            }
-            const kimiCodeHome = resolve21(attestationDir, "kimi-home");
-            const kimiCodeHomeReal = await realpath11(kimiCodeHome).catch(() => null);
-            if (!kimiCodeHomeReal) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  error: `KIMI_CODE_HOME does not exist or cannot be resolved: ${kimiCodeHome}`
-                }
-              });
-            }
-            const managedRootReal = await realpath11(resolve21(kimiCodeHomeReal, KIMI_MANAGED_SUBPATH, action.plugin)).catch(() => null);
-            if (!managedRootReal) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  error: `kimi managed plugin root does not exist: ${resolve21(kimiCodeHomeReal, KIMI_MANAGED_SUBPATH, action.plugin)}`
-                }
-              });
-            }
-            const installPath2 = resolve21(attestation.installPath);
-            let installPathStat;
-            try {
-              installPathStat = await lstat11(installPath2);
-            } catch {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `kimi install path does not exist: ${attestation.installPath}` }
-              });
-            }
-            if (installPathStat.isSymbolicLink()) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `kimi install path must not be a symlink: ${attestation.installPath}` }
-              });
-            }
-            if (!installPathStat.isDirectory()) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `kimi install path must be a directory: ${attestation.installPath}` }
-              });
-            }
-            const installPathReal2 = await realpath11(installPath2).catch(() => null);
-            if (!installPathReal2) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `kimi install path cannot be resolved: ${attestation.installPath}` }
-              });
-            }
-            const sepK = process.platform === "win32" ? "\\" : "/";
-            const relToManaged = relative18(managedRootReal, installPathReal2);
-            if (relToManaged !== "" && (isAbsolute15(relToManaged) || relToManaged === ".." || relToManaged.startsWith(`..${sepK}`))) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  error: `kimi install path escapes the managed root (${managedRootReal}): ${attestation.installPath}`
-                }
-              });
-            }
-            let manifestDigest2;
-            let payloadBinding2 = null;
-            try {
-              payloadBinding2 = await verifyInstalledMarketplacePayload(action, context, installPathReal2, consumer);
-              manifestDigest2 = payloadBinding2.manifestDigest;
-            } catch (digestErr) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal2,
-                  error: `failed to bind installed kimi payload to frozen authority: ${digestErr.message}`
-                }
-              });
-            }
-            if (manifestDigest2 !== action.manifestDigest) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal2,
-                  error: "installed kimi payload digest does not match the frozen plan digest"
-                }
-              });
-            }
-            let installedManifest;
-            let entrySkillFound2 = false;
-            try {
-              const readManifest = await platform.strategy.readManifest(installPathReal2);
-              installedManifest = readManifest.manifest;
-              await resolveKimiEntrySkillFile(installPathReal2, installedManifest, action.entrySkill);
-              entrySkillFound2 = true;
-            } catch (entryErr) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal2,
-                  manifestDigest: manifestDigest2,
-                  entrySkillFound: false,
-                  error: `kimi entry skill not resolvable in installed copy: ${entryErr.message}`
-                }
-              });
-            }
-            if (installedManifest.name !== action.plugin) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal2,
-                  manifestDigest: manifestDigest2,
-                  entrySkillFound: true,
-                  error: `installed kimi manifest name "${installedManifest.name}" does not match action plugin "${action.plugin}"`
-                }
-              });
-            }
-            if (installedManifest.version !== action.version) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal2,
-                  manifestDigest: manifestDigest2,
-                  entrySkillFound: true,
-                  error: `installed kimi manifest version "${installedManifest.version}" does not match action version "${action.version}"`
-                }
-              });
-            }
-            const observation2 = {
-              installed: true,
-              installPath: installPathReal2,
-              entrySkillFound: true,
-              entrySkill: action.entrySkill,
-              manifestDigest: manifestDigest2,
-              consumer,
-              plugin: installedManifest.name,
-              version: installedManifest.version,
-              repo: action.repo,
-              ref: expectedRef,
-              ...extraInstalledPathsAudit(payloadBinding2)
-            };
-            return createResult({
-              actionType,
-              status: ActionStatus.OBSERVED,
-              observation: observation2
-            });
-          }
-          const codebuddyRoute = platform ? resolvePlatformRoute(platform) : null;
-          if (platform && codebuddyRoute?.route === "human-attestation" && actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL) {
-            const expectedRef = action.ref ?? `v${action.version}`;
-            let boundPlanDigest;
-            try {
-              boundPlanDigest = await resolveCodeBuddyBoundPlanDigest(context);
-            } catch (planErr) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  error: `cannot bind codebuddy observation to the frozen plan: ${planErr.message}`
-                }
-              });
-            }
-            let attestationDir;
-            try {
-              attestationDir = codebuddyAuthorityDir(context, boundPlanDigest, action.plugin);
-            } catch (dirErr) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: dirErr.message }
-              });
-            }
-            let requirement = null;
-            try {
-              requirement = JSON.parse(await readFile20(resolve21(attestationDir, CODEBUDDY_REQUIREMENT_FILE), "utf8"));
-            } catch {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  manualInstallRequired: true,
-                  error: "codebuddy manual-install requirement is missing; run execute first"
-                }
-              });
-            }
-            if (requirement.planDigest !== boundPlanDigest || requirement.plugin !== action.plugin || requirement.version !== action.version || requirement.entrySkill !== action.entrySkill || requirement.repo !== action.repo || requirement.ref !== expectedRef) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  error: "codebuddy manual-install requirement does not match the frozen plan/action"
-                }
-              });
-            }
-            let attestation = null;
-            try {
-              attestation = JSON.parse(await readFile20(resolve21(attestationDir, CODEBUDDY_ATTESTATION_FILE), "utf8"));
-            } catch {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: false,
-                  manualInstallRequired: true,
-                  marketplaceSource: CODEBUDDY_MARKETPLACE_SOURCE,
-                  attestationDir,
-                  error: `codebuddy attestation is missing; write ${resolve21(attestationDir, CODEBUDDY_ATTESTATION_FILE)} after the manual install (marketplace ${CODEBUDDY_MARKETPLACE_SOURCE})`
-                }
-              });
-            }
-            const attestationCheck = validateCodeBuddyAttestation(attestation, action, (/* @__PURE__ */ new Date()).toISOString(), boundPlanDigest);
-            if (!attestationCheck.valid) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: attestationCheck.error }
-              });
-            }
-            const installPath2 = resolve21(attestation.installPath);
-            let installPathStat;
-            try {
-              installPathStat = await lstat11(installPath2);
-            } catch {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `codebuddy install path does not exist: ${attestation.installPath}` }
-              });
-            }
-            if (installPathStat.isSymbolicLink()) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `codebuddy install path must not be a symlink: ${attestation.installPath}` }
-              });
-            }
-            if (!installPathStat.isDirectory()) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `codebuddy install path must be a directory: ${attestation.installPath}` }
-              });
-            }
-            const installPathReal2 = await realpath11(installPath2).catch(() => null);
-            if (!installPathReal2) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: `codebuddy install path cannot be resolved: ${attestation.installPath}` }
-              });
-            }
-            if (attestation.installChannel === "cli") {
-              const cliHome = codebuddyCliHome(attestationDir);
-              const cliHomeReal = await realpath11(cliHome).catch(() => null);
-              if (!cliHomeReal) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.OBSERVED,
-                  observation: {
-                    installed: false,
-                    error: `codebuddy isolated CLI home does not exist or cannot be resolved: ${cliHome}`
-                  }
-                });
-              }
-              const cliRootAbs = codebuddyCliInstallRoot(cliHomeReal, attestation.marketplace, action.plugin);
-              const cliRootReal = await realpath11(cliRootAbs).catch(() => null);
-              if (!cliRootReal) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.OBSERVED,
-                  observation: {
-                    installed: false,
-                    error: `codebuddy CLI marketplace plugin root does not exist: ${cliRootAbs}`
-                  }
-                });
-              }
-              const sepC = process.platform === "win32" ? "\\" : "/";
-              const relToRoot = relative18(cliRootReal, installPathReal2);
-              if (relToRoot !== "" && (isAbsolute15(relToRoot) || relToRoot === ".." || relToRoot.startsWith(`..${sepC}`))) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.OBSERVED,
-                  observation: {
-                    installed: false,
-                    error: `codebuddy install path escapes the isolated CLI marketplace root (${cliRootReal}): ${attestation.installPath}`
-                  }
-                });
-              }
-            }
-            let manifestDigest2;
-            let payloadBinding2 = null;
-            try {
-              payloadBinding2 = await verifyInstalledMarketplacePayload(action, context, installPathReal2, consumer);
-              manifestDigest2 = payloadBinding2.manifestDigest;
-            } catch (digestErr) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal2,
-                  error: `failed to bind installed codebuddy payload to frozen authority: ${digestErr.message}`
-                }
-              });
-            }
-            if (manifestDigest2 !== action.manifestDigest) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal2,
-                  error: "installed codebuddy payload digest does not match the frozen plan digest"
-                }
-              });
-            }
-            let installedManifest;
-            try {
-              const readManifest = await platform.strategy.readManifest(installPathReal2);
-              installedManifest = readManifest.manifest;
-              await resolveCodeBuddyEntrySkillFile(installPathReal2, installedManifest, action.entrySkill);
-            } catch (entryErr) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal2,
-                  manifestDigest: manifestDigest2,
-                  entrySkillFound: false,
-                  error: `codebuddy entry skill not resolvable in installed copy: ${entryErr.message}`
-                }
-              });
-            }
-            if (installedManifest.name !== action.plugin) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal2,
-                  manifestDigest: manifestDigest2,
-                  entrySkillFound: true,
-                  error: `installed codebuddy manifest name "${installedManifest.name}" does not match action plugin "${action.plugin}"`
-                }
-              });
-            }
-            if (installedManifest.version !== action.version) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath: installPathReal2,
-                  manifestDigest: manifestDigest2,
-                  entrySkillFound: true,
-                  error: `installed codebuddy manifest version "${installedManifest.version}" does not match action version "${action.version}"`
-                }
-              });
-            }
-            const observation2 = {
-              installed: true,
-              installPath: installPathReal2,
-              entrySkillFound: true,
-              entrySkill: action.entrySkill,
-              manifestDigest: manifestDigest2,
-              consumer,
-              plugin: installedManifest.name,
-              version: installedManifest.version,
-              repo: action.repo,
-              ref: expectedRef,
-              marketplace: attestation.marketplace,
-              installChannel: attestation.installChannel,
-              ...extraInstalledPathsAudit(payloadBinding2)
-            };
-            return createResult({
-              actionType,
-              status: ActionStatus.OBSERVED,
-              observation: observation2
-            });
-          }
-          let evidence = null;
-          try {
-            const evidenceRaw = await readFile20(resolve21(runDir, "evidence", `${consumer}-${action.plugin}`, "release-skill-install-evidence.json"), "utf8");
-            evidence = JSON.parse(evidenceRaw);
-          } catch {
-            return createResult({
-              actionType,
-              status: ActionStatus.OBSERVED,
-              observation: {
-                installed: false,
-                error: "execute evidence file is missing or unreadable"
-              }
-            });
-          }
-          if (evidence.consumer !== consumer || evidence.plugin !== action.plugin || evidence.marketplace !== action.marketplace || evidence.version !== action.version || evidence.repo !== action.repo || evidence.ref !== action.ref || evidence.isolatedHome !== isolatedHome) {
-            return createResult({
-              actionType,
-              status: ActionStatus.OBSERVED,
-              observation: {
-                installed: false,
-                error: "execute evidence identity does not match the frozen action"
-              }
-            });
-          }
-          const listArgs = ["plugin", "list", "--json"];
-          let listOutput;
-          try {
-            const result = await exec(cliCmd, listArgs, { env, cwd: context.root, timeout: frozenTimeoutMs });
-            listOutput = JSON.parse(result.stdout);
-          } catch (listErr) {
-            return createResult({
-              actionType,
-              status: ActionStatus.OBSERVED,
-              observation: {
-                installed: false,
-                error: `list command failed: ${listErr.message}`
-              }
-            });
-          }
-          const pluginId = `${action.plugin}@${action.marketplace}`;
-          let found = null;
-          let installPath = null;
-          if (platform && platform.jsonProtocol.installPathSource === "install-output") {
-            const extracted = platform.strategy.extractInstallPath({ execEvidence: evidence });
-            if (!extracted.ok) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: extracted.error }
-              });
-            }
-            installPath = extracted.installPath;
-          }
-          if (platform && platform.strategy.parseListOutput) {
-            const listParsed = platform.strategy.parseListOutput(listOutput, pluginId);
-            if (!listParsed.ok) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: { installed: false, error: listParsed.error }
-              });
-            }
-            found = listParsed.found;
-            if (platform.jsonProtocol.installPathSource === "list") {
-              const extracted = platform.strategy.extractInstallPath({ listParsed });
-              if (!extracted.ok) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.OBSERVED,
-                  observation: { installed: false, error: extracted.error }
-                });
-              }
-              installPath = extracted.installPath;
-            }
-            if (platform.strategy.crossValidateListEntry) {
-              const crossCheck = platform.strategy.crossValidateListEntry(found, action);
-              if (!crossCheck.ok) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.OBSERVED,
-                  observation: { installed: false, error: crossCheck.error }
-                });
-              }
-            }
-          }
-          const isolatedHomeReal = await realpath11(isolatedHome).catch(() => isolatedHome);
-          const installPathReal = await realpath11(installPath).catch(() => installPath);
-          const relToHome = relative18(isolatedHomeReal, installPathReal);
-          const sep4 = process.platform === "win32" ? "\\" : "/";
-          if (relToHome !== "" && (isAbsolute15(relToHome) || relToHome === ".." || relToHome.startsWith(`..${sep4}`))) {
-            return createResult({
-              actionType,
-              status: ActionStatus.OBSERVED,
-              observation: {
-                installed: false,
-                error: `install path escapes isolated HOME: ${installPath}`
-              }
-            });
-          }
-          const entrySkillPath = resolve21(installPath, "skills", action.entrySkill, "SKILL.md");
-          let entrySkillFound = false;
-          try {
-            const skillStat = await lstat11(entrySkillPath);
-            if (skillStat.isFile() && !skillStat.isSymbolicLink()) {
-              entrySkillFound = true;
-            }
-          } catch {
-          }
-          if (!entrySkillFound) {
-            return createResult({
-              actionType,
-              status: ActionStatus.OBSERVED,
-              observation: {
-                installed: true,
-                installPath,
-                entrySkillFound: false,
-                error: `entry skill not found: skills/${action.entrySkill}/SKILL.md`
-              }
-            });
-          }
-          let manifestDigest;
-          let manifestError = null;
-          let payloadBinding = null;
-          try {
-            payloadBinding = await verifyInstalledMarketplacePayload(
-              action,
-              context,
-              installPath,
-              consumer
-            );
-            manifestDigest = payloadBinding.manifestDigest;
-          } catch (digestErr) {
-            try {
-              const installedSnapshot = await computeFrozenSnapshot(installPath, {
-                excludeRootEntries: action.payloadContract === void 0 ? getPlatform(consumer).knownHostArtifacts : []
-              });
-              manifestDigest = installedSnapshot.digest;
-            } catch {
-              manifestDigest = void 0;
-            }
-            manifestError = `failed to bind manifestDigest to frozen authority: ${digestErr.message}`;
-          }
-          const observation = {
-            installed: true,
-            installPath,
-            entrySkillFound: true,
-            entrySkill: action.entrySkill,
-            manifestDigest,
-            consumer,
-            ...extraInstalledPathsAudit(payloadBinding)
-          };
-          if (platform && platform.strategy.extractListIdentity) {
-            Object.assign(observation, platform.strategy.extractListIdentity(found));
-          }
-          if (evidence.version && observation.version && evidence.version !== observation.version) {
-            return createResult({
-              actionType,
-              status: ActionStatus.OBSERVED,
-              observation: {
-                installed: true,
-                installPath,
-                entrySkillFound: true,
-                manifestDigest,
-                error: `version mismatch: CLI reports ${observation.version}, evidence shows ${evidence.version}`
-              }
-            });
-          }
-          try {
-            const installedManifestPath = resolve21(installPath, platform.manifestPaths.plugin);
-            const installedManifestContent = await readFile20(installedManifestPath, "utf8");
-            const installedManifest = JSON.parse(installedManifestContent);
-            const expectedName = observation.plugin;
-            if (expectedName && installedManifest.name !== expectedName) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath,
-                  entrySkillFound: true,
-                  manifestDigest,
-                  error: `installed manifest name "${installedManifest.name}" does not match CLI plugin "${expectedName}"`
-                }
-              });
-            }
-            if (observation.version && installedManifest.version !== observation.version) {
-              return createResult({
-                actionType,
-                status: ActionStatus.OBSERVED,
-                observation: {
-                  installed: true,
-                  installPath,
-                  entrySkillFound: true,
-                  manifestDigest,
-                  error: `installed manifest version "${installedManifest.version}" does not match CLI version "${observation.version}"`
-                }
-              });
-            }
-          } catch (manifestErr) {
-            return createResult({
-              actionType,
-              status: ActionStatus.OBSERVED,
-              observation: {
-                installed: true,
-                installPath,
-                entrySkillFound: true,
-                manifestDigest,
-                error: `installed plugin manifest is missing or invalid: ${manifestErr.message}`
-              }
-            });
-          }
-          if (evidence.repo && evidence.repo !== action.repo) {
-            return createResult({
-              actionType,
-              status: ActionStatus.OBSERVED,
-              observation: {
-                installed: true,
-                installPath,
-                entrySkillFound: true,
-                manifestDigest,
-                error: `evidence repo "${evidence.repo}" does not match action repo "${action.repo}"`
-              }
-            });
-          }
-          if (evidence.ref && evidence.ref !== action.ref) {
-            return createResult({
-              actionType,
-              status: ActionStatus.OBSERVED,
-              observation: {
-                installed: true,
-                installPath,
-                entrySkillFound: true,
-                manifestDigest,
-                error: `evidence ref "${evidence.ref}" does not match action ref "${action.ref}"`
-              }
-            });
-          }
-          if (evidence.repo) observation.repo = evidence.repo;
-          if (evidence.ref) observation.ref = evidence.ref;
-          if (action.marketplaceLocation === "external") {
-            observation.marketplaceLocation = action.marketplaceLocation;
-            observation.marketplaceCommitSha = action.marketplaceCommitSha;
-          }
-          return createResult({
-            actionType,
-            status: ActionStatus.OBSERVED,
-            observation,
-            error: manifestError
-          });
-        }
-        return createResult({
-          actionType,
-          status: ActionStatus.OBSERVED,
-          observation: {}
-        });
-      } catch (err) {
-        return createResult({
-          actionType,
-          status: ActionStatus.OBSERVED,
-          error: err.message,
-          observation: {}
-        });
-      }
-    },
-    /**
-     * Verify: compare observed state against the frozen plan's expected state.
-     */
-    async verify(action, context) {
-      const observed = await this.observe(action, context);
-      if (observed.error) {
-        return createResult({
-          actionType: action.actionType,
-          status: ActionStatus.VERIFY_FAILED,
-          observation: observed.observation,
-          error: observed.error
-        });
-      }
-      const expected = action.expected ?? {};
-      const { matches, mismatches } = matchObservation(expected, observed.observation);
-      return createResult({
-        actionType: action.actionType,
-        status: matches ? ActionStatus.VERIFIED : ActionStatus.VERIFY_FAILED,
-        observation: observed.observation,
-        error: matches ? null : `Observation mismatch: ${mismatches.join("; ")}`
-      });
-    }
-  });
-}
-var execFile9, NAME4, PAYLOAD_CONTRACT_DECLARED_MANIFEST, PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE, EXTRA_INSTALLED_PATHS_CAP, PAYLOAD_CONFLICT_REPORT_CAP, SUPPORTED_TYPES, SAFE_REPO_RE, SAFE_DIGEST_RE, CONSUMER_IDS, STRICT_SEMVER_RE;
-var init_plugin_marketplace = __esm({
-  async "src/adapters/plugin-marketplace.mjs"() {
-    init_contract();
-    init_frozen();
-    await init_registry();
-    await init_kimi();
-    init_codebuddy();
-    execFile9 = promisify10(execFileCb10);
-    NAME4 = "plugin-marketplace";
-    __name(transportPayload, "transportPayload");
-    PAYLOAD_CONTRACT_DECLARED_MANIFEST = "declared-manifest-v1";
-    PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE = "external-marketplace-v1";
-    EXTRA_INSTALLED_PATHS_CAP = 200;
-    PAYLOAD_CONFLICT_REPORT_CAP = 10;
-    __name(extractDeclaredPluginSource, "extractDeclaredPluginSource");
-    __name(resolveInstalledPayloadSubpath, "resolveInstalledPayloadSubpath");
-    __name(verifyInstalledMarketplacePayload, "verifyInstalledMarketplacePayload");
-    __name(extraInstalledPathsAudit, "extraInstalledPathsAudit");
-    __name(normalizeKimiSkillsRel, "normalizeKimiSkillsRel");
-    __name(resolveKimiEntrySkillFile, "resolveKimiEntrySkillFile");
-    __name(normalizeCodeBuddySkillsRel, "normalizeCodeBuddySkillsRel");
-    __name(resolveCodeBuddyEntrySkillFile, "resolveCodeBuddyEntrySkillFile");
-    SUPPORTED_TYPES = [
-      ActionType.PLUGIN_MANIFEST_VALIDATE,
-      ActionType.PLUGIN_INSTALL_CHECK,
-      ActionType.CLAUDE_MARKETPLACE_INSTALL,
-      ActionType.CODEX_MARKETPLACE_INSTALL,
-      ActionType.KIMI_MARKETPLACE_INSTALL,
-      ActionType.CODEBUDDY_MARKETPLACE_INSTALL
-    ];
-    SAFE_REPO_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*\/[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
-    SAFE_DIGEST_RE = /^[0-9a-f]{64}$/;
-    CONSUMER_IDS = new Set(PLATFORMS.map((p) => p.id));
-    STRICT_SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
-    __name(validateSafeRef, "validateSafeRef");
-    __name(validateMarketplaceParams, "validateMarketplaceParams");
-    __name(run4, "run");
-    __name(validateManifestFile, "validateManifestFile");
-    __name(checkRequiredFiles, "checkRequiredFiles");
-    __name(createPluginMarketplaceAdapter, "createPluginMarketplaceAdapter");
-  }
-});
-
 // src/commands/verify.mjs
 var verify_exports = {};
 __export(verify_exports, {
+  VERIFICATION_RESOLVED_TYPES: () => VERIFICATION_RESOLVED_TYPES,
   runSmokeTest: () => runSmokeTest,
   verifyRelease: () => verifyRelease
 });
-import { readFile as readFile21, writeFile as writeFile8, mkdtemp as mkdtemp3, rm as rm7, mkdir as mkdir15, lstat as lstat12, realpath as realpath12 } from "node:fs/promises";
-import { dirname as dirname12, join as join17, relative as relative19, isAbsolute as isAbsolute16, resolve as resolve22 } from "node:path";
+import { readFile as readFile22, writeFile as writeFile8, mkdtemp as mkdtemp3, rm as rm7, mkdir as mkdir13, lstat as lstat12, realpath as realpath12, readdir as readdir10 } from "node:fs/promises";
+import { realpathSync as realpathSync4 } from "node:fs";
+import { dirname as dirname12, join as join18, relative as relative20, isAbsolute as isAbsolute17, resolve as resolve23, basename as basename8 } from "node:path";
 import { tmpdir as tmpdir2 } from "node:os";
 import { execFile as execFileCb11 } from "node:child_process";
 import { promisify as promisify11 } from "node:util";
 function defaultClock4() {
   return (/* @__PURE__ */ new Date()).toISOString();
+}
+function isValidDigest2(digest) {
+  return typeof digest === "string" && /^[a-f0-9]{64}$/.test(digest);
 }
 function matchesSubset2(actual, expected) {
   if (expected === null || expected === void 0) {
@@ -81180,8 +82454,8 @@ function matchesSubset2(actual, expected) {
 }
 async function runSmokeTest(plan, root, options = {}) {
   const baseDir = options.baseDir ?? tmpdir2();
-  await mkdir15(baseDir, { recursive: true });
-  const tmpDir = await mkdtemp3(join17(baseDir, "verify-smoke-"));
+  await mkdir13(baseDir, { recursive: true });
+  const tmpDir = await mkdtemp3(join18(baseDir, "verify-smoke-"));
   const npmExec = options.npmExecutor ?? defaultNpmExecutor;
   const installFlags = [
     "--ignore-scripts",
@@ -81227,7 +82501,7 @@ async function runSmokeTest(plan, root, options = {}) {
     for (const { package: pkgName, registry, targetVersion, unitId, smokeBin, smokeArgs, smokeExpectedJson } of npmDistributions) {
       const packageAtVersion = `${pkgName}@${targetVersion}`;
       const installDir = resolveUnitScopedPath(tmpDir, unitId);
-      await mkdir15(join17(installDir, "node_modules"), { recursive: true });
+      await mkdir13(join18(installDir, "node_modules"), { recursive: true });
       const registryFlags = [...installFlags, "--registry", registry];
       const installResult = await npmExec.install(
         packageAtVersion,
@@ -81245,10 +82519,10 @@ async function runSmokeTest(plan, root, options = {}) {
           }
         };
       }
-      const installedPkgPath = join17(installDir, "node_modules", pkgName, "package.json");
+      const installedPkgPath = join18(installDir, "node_modules", pkgName, "package.json");
       let installedPkg;
       try {
-        installedPkg = JSON.parse(await readFile21(installedPkgPath, "utf8"));
+        installedPkg = JSON.parse(await readFile22(installedPkgPath, "utf8"));
       } catch {
         return {
           passed: false,
@@ -81279,7 +82553,7 @@ async function runSmokeTest(plan, root, options = {}) {
           }
         };
       }
-      const pkgRoot = join17(installDir, "node_modules", pkgName);
+      const pkgRoot = join18(installDir, "node_modules", pkgName);
       gateResults.push(...await runConsumerVerificationGates({
         plan,
         unitId,
@@ -81321,10 +82595,10 @@ async function runSmokeTest(plan, root, options = {}) {
           }
         };
       }
-      const binPath = resolve22(pkgRoot, binRelative);
-      const relBin = relative19(pkgRoot, binPath);
+      const binPath = resolve23(pkgRoot, binRelative);
+      const relBin = relative20(pkgRoot, binPath);
       const sep4 = process.platform === "win32" ? "\\" : "/";
-      if (isAbsolute16(relBin) || relBin === ".." || relBin.startsWith(`..${sep4}`)) {
+      if (isAbsolute17(relBin) || relBin === ".." || relBin.startsWith(`..${sep4}`)) {
         return {
           passed: false,
           details: {
@@ -81338,8 +82612,8 @@ async function runSmokeTest(plan, root, options = {}) {
       try {
         binStat = await lstat12(binPath);
         const [pkgRootReal, binPathReal] = await Promise.all([realpath12(pkgRoot), realpath12(binPath)]);
-        const relReal = relative19(pkgRootReal, binPathReal);
-        if (!binStat.isFile() || binStat.isSymbolicLink() || isAbsolute16(relReal) || relReal === ".." || relReal.startsWith(`..${sep4}`)) {
+        const relReal = relative20(pkgRootReal, binPathReal);
+        if (!binStat.isFile() || binStat.isSymbolicLink() || isAbsolute17(relReal) || relReal === ".." || relReal.startsWith(`..${sep4}`)) {
           throw new Error("bin is not a regular file inside the installed package");
         }
       } catch (err) {
@@ -81457,7 +82731,8 @@ async function verifyRelease(options) {
     clock: clockOpt,
     npmExecutor,
     verificationGatesAuthorized,
-    gateEnv
+    gateEnv,
+    previousVerifyRun
   } = options ?? {};
   const clockFn = typeof clockOpt === "function" ? clockOpt : defaultClock4;
   if (!sourceRunPath) {
@@ -81469,7 +82744,7 @@ async function verifyRelease(options) {
   }
   let planRaw;
   try {
-    planRaw = await readFile21(planPath, "utf8");
+    planRaw = await readFile22(planPath, "utf8");
   } catch (err) {
     throw new ReleaseError(
       GATE_FAILED,
@@ -81491,7 +82766,7 @@ async function verifyRelease(options) {
   const runId = `verify-${Date.now()}`;
   const requestedRunDir = runDirOpt ?? resolveDefaultRunDir(planPath, "verify", runId);
   const runDir = plan.production ? await createProductionRunDir(requestedRunDir, planPath) : requestedRunDir;
-  if (!plan.production) await mkdir15(runDir, { recursive: true });
+  if (!plan.production) await mkdir13(runDir, { recursive: true });
   const evidence = createEvidenceWriter({ runDir, command: "verify", clock: clockFn });
   try {
     await evidence.append({ phase: "verify", step: "plan-load", status: "started" });
@@ -81539,7 +82814,7 @@ async function verifyRelease(options) {
       }
       let approvalRaw;
       try {
-        approvalRaw = await readFile21(sourceRun.approvalPath, "utf8");
+        approvalRaw = await readFile22(sourceRun.approvalPath, "utf8");
       } catch (error) {
         throw new ReleaseError(
           GATE_FAILED,
@@ -81576,7 +82851,7 @@ async function verifyRelease(options) {
     }
     validateRunCheckpointMapping(sourceRun, plan.externalActions ?? []);
     const incompleteCheckpoints = sourceRun.checkpoints.filter(
-      (cp2) => cp2.status !== "succeeded" && cp2.status !== "skipped"
+      (cp2) => cp2.status !== "succeeded" && cp2.status !== "skipped" && !((cp2.status === "failed" || cp2.status === "deferred") && isMarketplaceAction(cp2.actionType))
     );
     if (incompleteCheckpoints.length > 0) {
       throw new ReleaseError(
@@ -81594,13 +82869,93 @@ async function verifyRelease(options) {
     await evidence.append({ phase: "verify", step: "adapter-verify", status: "started" });
     const adapterChecks = [];
     const consumerGateResults = [];
+    const consumerVerificationReceipts = [];
     const actions = plan.externalActions ?? [];
-    const MARKETPLACE_TYPES3 = /* @__PURE__ */ new Set([
-      "claude-marketplace-install",
-      "codex-marketplace-install",
-      "kimi-marketplace-install",
-      "codebuddy-marketplace-install"
-    ]);
+    const trustedVerifyRuns = [];
+    const planDir = dirname12(planPath);
+    const releaseDir = basename8(planDir) === "plans" ? dirname12(planDir) : planDir;
+    const runsDir = resolve23(releaseDir, "runs");
+    let runsDirReal = null;
+    let authorityDirReal = null;
+    if (previousVerifyRun) {
+      if (previousVerifyRun.status === "VERIFIED" && isValidDigest2(previousVerifyRun.planDigest) && previousVerifyRun.finishedAt && typeof previousVerifyRun.finishedAt === "string" && !isNaN(Date.parse(previousVerifyRun.finishedAt))) {
+        const computedRunDigest = computeRunDigest(previousVerifyRun);
+        if (typeof previousVerifyRun.runDigest === "string" && previousVerifyRun.runDigest.length > 0 && previousVerifyRun.runDigest === computedRunDigest) {
+          trustedVerifyRuns.push(previousVerifyRun);
+        }
+      }
+    }
+    {
+      try {
+        const runsDirStat = await lstat12(runsDir);
+        if (runsDirStat.isSymbolicLink()) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            "runs directory is a symbolic link; authority identity compromised",
+            { runsDir }
+          );
+        }
+        if (!runsDirStat.isDirectory()) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            "runs path is not a directory",
+            { runsDir }
+          );
+        }
+        runsDirReal = realpathSync4(runsDir);
+        authorityDirReal = realpathSync4(releaseDir);
+        if (!runsDirReal.startsWith(authorityDirReal + "/") && runsDirReal !== authorityDirReal) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            "runs directory is not a real child of the plan authority directory",
+            { runsDir, runsDirReal, authorityDirReal }
+          );
+        }
+      } catch (err) {
+        if (err instanceof ReleaseError) throw err;
+        runsDirReal = null;
+      }
+      if (runsDirReal) {
+        const entries = await readdir10(runsDirReal, { withFileTypes: true });
+        for (const entry of entries) {
+          if (!entry.name.startsWith("verify-")) continue;
+          if (!entry.isDirectory() || entry.isSymbolicLink()) {
+            throw new ReleaseError(
+              GATE_FAILED,
+              "verify-* candidate is a symbolic link or not a directory; authority identity compromised",
+              { entry: entry.name, runsDir: runsDirReal }
+            );
+          }
+          const candidateDir = resolve23(runsDirReal, entry.name);
+          const candidateStat = await lstat12(candidateDir).catch(() => null);
+          if (!candidateStat || candidateStat.isSymbolicLink()) {
+            throw new ReleaseError(
+              GATE_FAILED,
+              "verify-* candidate is a symbolic link; authority identity compromised",
+              { candidateDir, runsDir: runsDirReal }
+            );
+          }
+          const candidateReal = realpathSync4(candidateDir);
+          if (!candidateReal.startsWith(runsDirReal + "/") && candidateReal !== runsDirReal) {
+            throw new ReleaseError(
+              GATE_FAILED,
+              "verify-* candidate real path is not contained in authority runs directory",
+              { candidateDir, candidateReal, runsDir: runsDirReal }
+            );
+          }
+          const candidatePath = resolve23(candidateDir, "release-run.json");
+          try {
+            const candidate = await loadRun(candidatePath, { requireDigest: true });
+            if (candidate.status !== "VERIFIED") continue;
+            if (!candidate.planDigest) continue;
+            if (!candidate.finishedAt || typeof candidate.finishedAt !== "string") continue;
+            trustedVerifyRuns.push(candidate);
+          } catch {
+            continue;
+          }
+        }
+      }
+    }
     for (const action of actions) {
       const adapterActionType = ADAPTER_ACTION_TYPE_MAP2[action.type];
       if (!adapterActionType) {
@@ -81622,7 +82977,7 @@ async function verifyRelease(options) {
           { actionId: action.id, adapterActionType }
         );
       }
-      if (MARKETPLACE_TYPES3.has(action.type)) {
+      if (isMarketplaceAction(action.type)) {
         const marketplaceContext = {
           externalWritesAuthorized: false,
           isolatedConsumerWritesAuthorized: true,
@@ -81635,19 +82990,80 @@ async function verifyRelease(options) {
           actionType: adapterActionType,
           ...action.parameters
         };
+        const unit = (plan.units ?? []).find((u) => u.id === action.unitId);
+        const typeToDist = {
+          "claude-marketplace-install": "claude-plugin",
+          "codex-marketplace-install": "codex-plugin",
+          "kimi-marketplace-install": "kimi-plugin",
+          "codebuddy-marketplace-install": "codebuddy-plugin"
+        };
+        const dist = unit?.distributions?.find((d) => d.type === typeToDist[action.type]);
         const preflightResult = await adapter.preflight(actionInput, marketplaceContext);
-        if (preflightResult.status === "PREFLIGHT_FAILED") {
+        if (preflightResult.status !== "PREFLIGHT_PASSED") {
           adapterChecks.push({
             actionId: action.id,
             actionType: action.type,
             status: "FAILED",
-            error: `preflight failed: ${preflightResult.error}`
+            error: `preflight did not pass: status=${preflightResult.status}, error=${preflightResult.error}`
           });
           throw new ReleaseError(
             POST_PUBLISH_VERIFY_FAILED,
-            `marketplace preflight failed for action "${action.id}": ${preflightResult.error}`,
+            `marketplace preflight did not pass for action "${action.id}": status=${preflightResult.status}, error=${preflightResult.error}`,
             { actionId: action.id }
           );
+        }
+        if (dist?.installationContractDigest) {
+          const currentDigest = dist.installationContractDigest;
+          const currentPlatform = action.parameters?.consumer ?? action.type.replace("-marketplace-install", "");
+          let previousActionCheck = null;
+          if (trustedVerifyRuns.length > 0) {
+            const sorted = [...trustedVerifyRuns].sort((a, b) => {
+              const ta = Date.parse(a.finishedAt) || 0;
+              const tb = Date.parse(b.finishedAt) || 0;
+              return tb - ta;
+            });
+            const latest = sorted[0];
+            const matchingReceipt = (latest.consumerVerificationReceipts ?? []).find(
+              (r) => r.actionId === action.id && r.unitId === action.unitId && r.platform === currentPlatform && r.planDigest === latest.planDigest
+            );
+            if (matchingReceipt) {
+              previousActionCheck = { ...matchingReceipt, _runFinishedAtTime: Date.parse(latest.finishedAt) };
+            }
+          }
+          const previousDigest = previousActionCheck?.installationContractDigest ?? null;
+          const skipDecision = shouldSkipVerification({
+            currentDigest,
+            previousDigest,
+            previousReceipt: previousActionCheck,
+            algorithmVersion: INSTALLATION_CONTRACT_ALGORITHM_VERSION
+          });
+          if (skipDecision === "NOT_REQUIRED_UNCHANGED") {
+            adapterChecks.push({
+              actionId: action.id,
+              actionType: action.type,
+              status: VERIFICATION_RESOLVED_TYPES.NOT_REQUIRED_UNCHANGED,
+              installationContractDigest: currentDigest,
+              reason: "\u5B89\u88C5\u5951\u7EA6\u6458\u8981\u672A\u53D8\u5316\uFF0C\u8DF3\u8FC7\u9A8C\u8BC1"
+            });
+            consumerVerificationReceipts.push({
+              actionId: action.id,
+              unitId: action.unitId,
+              platform: action.parameters?.consumer ?? action.type.replace("-marketplace-install", ""),
+              result: VERIFICATION_RESOLVED_TYPES.NOT_REQUIRED_UNCHANGED,
+              installationContractDigest: currentDigest,
+              algorithmVersion: INSTALLATION_CONTRACT_ALGORITHM_VERSION,
+              planDigest: plan.digest,
+              verifiedAt: clockFn()
+            });
+            await evidence.append({
+              phase: "verify-marketplace",
+              actionId: action.id,
+              actionType: action.type,
+              status: VERIFICATION_RESOLVED_TYPES.NOT_REQUIRED_UNCHANGED,
+              installationContractDigest: currentDigest
+            });
+            continue;
+          }
         }
         const executeResult = await adapter.execute(actionInput, marketplaceContext);
         if (executeResult.status !== "EXECUTED") {
@@ -81667,14 +83083,29 @@ async function verifyRelease(options) {
           { ...actionInput, expected: action.expected },
           marketplaceContext
         );
+        const isHumanConfirmed = verifyResult.observation?.humanConfirmed === true;
+        const resolvedStatus = verifyResult.status === "VERIFIED" ? isHumanConfirmed ? VERIFICATION_RESOLVED_TYPES.PASSED_MANUAL : VERIFICATION_RESOLVED_TYPES.PASSED_AUTOMATIC : "FAILED";
         const check = {
           actionId: action.id,
           actionType: action.type,
-          status: verifyResult.status === "VERIFIED" ? "PASSED" : "FAILED",
+          status: resolvedStatus,
           observation: verifyResult.observation,
-          error: verifyResult.error
+          error: verifyResult.error,
+          ...dist?.installationContractDigest ? { installationContractDigest: dist.installationContractDigest } : {}
         };
         adapterChecks.push(check);
+        if (resolvedStatus !== "FAILED" && dist?.installationContractDigest && /^[a-f0-9]{64}$/.test(dist.installationContractDigest)) {
+          consumerVerificationReceipts.push({
+            actionId: action.id,
+            unitId: action.unitId,
+            platform: action.parameters?.consumer ?? action.type.replace("-marketplace-install", ""),
+            result: resolvedStatus,
+            installationContractDigest: dist.installationContractDigest,
+            algorithmVersion: INSTALLATION_CONTRACT_ALGORITHM_VERSION,
+            planDigest: plan.digest,
+            verifiedAt: clockFn()
+          });
+        }
         await evidence.append({
           phase: "verify-marketplace",
           actionId: action.id,
@@ -81685,7 +83116,13 @@ async function verifyRelease(options) {
           throw new ReleaseError(
             POST_PUBLISH_VERIFY_FAILED,
             `marketplace verification failed for action "${action.id}": ${verifyResult.error}`,
-            { actionId: action.id, observation: verifyResult.observation }
+            {
+              actionId: action.id,
+              actionType: action.type,
+              verificationResult: check.status,
+              observation: verifyResult.observation,
+              expected: action.expected
+            }
           );
         }
         const distribution = action.type === "claude-marketplace-install" ? "claude-plugin" : action.type === "codex-marketplace-install" ? "codex-plugin" : action.type === "codebuddy-marketplace-install" ? "codebuddy-plugin" : "kimi-plugin";
@@ -81698,16 +83135,16 @@ async function verifyRelease(options) {
           evidence,
           env: gateEnv ?? process.env,
           fixedEnv: action.type === "claude-marketplace-install" ? {
-            HOME: resolve22(runDir, "consumers", `claude-${action.parameters.plugin}`),
-            CLAUDE_CONFIG_DIR: resolve22(runDir, "consumers", `claude-${action.parameters.plugin}`, ".claude")
+            HOME: resolve23(runDir, "consumers", `claude-${action.parameters.plugin}`),
+            CLAUDE_CONFIG_DIR: resolve23(runDir, "consumers", `claude-${action.parameters.plugin}`, ".claude")
           } : action.type === "codex-marketplace-install" ? {
-            HOME: resolve22(runDir, "consumers", `codex-${action.parameters.plugin}`),
-            CODEX_HOME: resolve22(runDir, "consumers", `codex-${action.parameters.plugin}`)
+            HOME: resolve23(runDir, "consumers", `codex-${action.parameters.plugin}`),
+            CODEX_HOME: resolve23(runDir, "consumers", `codex-${action.parameters.plugin}`)
           } : action.type === "codebuddy-marketplace-install" ? {
-            HOME: resolve22(runDir, "consumers", `codebuddy-${action.parameters.plugin}`)
+            HOME: resolve23(runDir, "consumers", `codebuddy-${action.parameters.plugin}`)
           } : {
-            HOME: resolve22(runDir, "consumers", `kimi-${action.parameters.plugin}`),
-            KIMI_CODE_HOME: resolve22(runDir, "consumers", `kimi-${action.parameters.plugin}`)
+            HOME: resolve23(runDir, "consumers", `kimi-${action.parameters.plugin}`),
+            KIMI_CODE_HOME: resolve23(runDir, "consumers", `kimi-${action.parameters.plugin}`)
           }
         }));
       } else {
@@ -81729,7 +83166,7 @@ async function verifyRelease(options) {
         const check = {
           actionId: action.id,
           actionType: action.type,
-          status: verifyResult.status === "VERIFIED" ? "PASSED" : "FAILED",
+          status: verifyResult.status === "VERIFIED" ? VERIFICATION_RESOLVED_TYPES.PASSED_AUTOMATIC : "FAILED",
           observation: verifyResult.observation,
           error: verifyResult.error
         };
@@ -81744,7 +83181,13 @@ async function verifyRelease(options) {
           throw new ReleaseError(
             POST_PUBLISH_VERIFY_FAILED,
             `adapter verification failed for action "${action.id}": ${verifyResult.error}`,
-            { actionId: action.id, observation: verifyResult.observation }
+            {
+              actionId: action.id,
+              actionType: action.type,
+              verificationResult: check.status,
+              observation: verifyResult.observation,
+              expected: action.expected
+            }
           );
         }
       }
@@ -81788,7 +83231,7 @@ async function verifyRelease(options) {
     assertTransition(PUBLISHED, VERIFIED);
     await evidence.append({ phase: "verify", status: "completed", overallStatus: VERIFIED });
     const sourceRunDigest = sourceRun.runDigest ?? computeRunDigest(sourceRun);
-    const verifyRunPath = join17(runDir, "release-run.json");
+    const verifyRunPath = join18(runDir, "release-run.json");
     const verifyRunState = {
       runId,
       command: "verify",
@@ -81804,13 +83247,26 @@ async function verifyRelease(options) {
       status: VERIFIED,
       checkpoints: actions.map((a) => {
         const check = adapterChecks.find((c) => c.actionId === a.id);
+        let status;
+        if (check?.status === "SKIPPED") {
+          status = "skipped";
+        } else if (check?.status === VERIFICATION_RESOLVED_TYPES.PASSED_AUTOMATIC) {
+          status = "succeeded";
+        } else if (check?.status === VERIFICATION_RESOLVED_TYPES.PASSED_MANUAL) {
+          status = "succeeded";
+        } else if (check?.status === VERIFICATION_RESOLVED_TYPES.NOT_REQUIRED_UNCHANGED) {
+          status = "skipped";
+        } else {
+          status = "succeeded";
+        }
         return {
           actionId: a.id,
           actionType: a.type,
-          status: check?.status === "SKIPPED" ? "skipped" : "succeeded"
+          status
         };
       }),
       gateResults: consumerGateResults,
+      consumerVerificationReceipts,
       startedAt: clockFn(),
       finishedAt: clockFn()
     };
@@ -81847,7 +83303,7 @@ async function verifyRelease(options) {
     throw err;
   }
 }
-var execFile10, ADAPTER_ACTION_TYPE_MAP2, defaultNpmExecutor;
+var execFile10, VERIFICATION_RESOLVED_TYPES, ADAPTER_ACTION_TYPE_MAP2, defaultNpmExecutor;
 var init_verify = __esm({
   async "src/commands/verify.mjs"() {
     await init_plan();
@@ -81859,7 +83315,14 @@ var init_verify = __esm({
     init_public_path();
     init_npm();
     init_verification_gates();
+    init_checkpoints();
+    init_installation_contract();
     execFile10 = promisify11(execFileCb11);
+    VERIFICATION_RESOLVED_TYPES = Object.freeze({
+      PASSED_AUTOMATIC: "PASSED_AUTOMATIC",
+      PASSED_MANUAL: "PASSED_MANUAL",
+      NOT_REQUIRED_UNCHANGED: "NOT_REQUIRED_UNCHANGED"
+    });
     ADAPTER_ACTION_TYPE_MAP2 = {
       "push-commit": "git-push",
       "push-snapshot": "push-snapshot",
@@ -81873,6 +83336,7 @@ var init_verify = __esm({
       "codebuddy-marketplace-install": "codebuddy-marketplace-install"
     };
     __name(defaultClock4, "defaultClock");
+    __name(isValidDigest2, "isValidDigest");
     __name(matchesSubset2, "matchesSubset");
     __name(runSmokeTest, "runSmokeTest");
     defaultNpmExecutor = {
@@ -81884,7 +83348,7 @@ var init_verify = __esm({
           exec: execFile10,
           env: process.env
         });
-        const userConfig = join17(cwd, ".release-skill-npmrc");
+        const userConfig = join18(cwd, ".release-skill-npmrc");
         await writeFile8(
           userConfig,
           `registry=${normalizedRegistry}/
@@ -81944,11 +83408,11 @@ __export(publish_exports, {
   classifyPreObservation: () => classifyPreObservation,
   publishRelease: () => publishRelease
 });
-import { readFile as readFile22, mkdir as mkdir16 } from "node:fs/promises";
-import { isAbsolute as isAbsolute17, join as join18, relative as relative20 } from "node:path";
+import { readFile as readFile23, mkdir as mkdir14 } from "node:fs/promises";
+import { isAbsolute as isAbsolute18, join as join19, relative as relative21 } from "node:path";
 function assertInsideAssetRoot(assetRoot, candidate, label) {
-  const rel = relative20(assetRoot, candidate);
-  if (rel === "" || isAbsolute17(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+  const rel = relative21(assetRoot, candidate);
+  if (rel === "" || isAbsolute18(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
     throw new ReleaseError(GATE_FAILED, `${label} must be a child of the production asset root`);
   }
 }
@@ -82104,7 +83568,7 @@ async function executeCheckpoint(action, adapterRegistry, context) {
       };
     }
   } else {
-    const observePolicy = MARKETPLACE_TYPES2.has(planActionType) ? clampPolicyToTimeout(DEFAULT_OBSERVE_RETRY_POLICY, action.parameters?.timeoutMs) : DEFAULT_OBSERVE_RETRY_POLICY;
+    const observePolicy = isMarketplaceAction(planActionType) ? clampPolicyToTimeout(DEFAULT_OBSERVE_RETRY_POLICY, action.parameters?.timeoutMs) : DEFAULT_OBSERVE_RETRY_POLICY;
     const retryOutcome = await observeWithRetry({
       observe: /* @__PURE__ */ __name((act, ctx) => adapter.observe(act, ctx), "observe"),
       action: observeInput,
@@ -82178,7 +83642,7 @@ async function publishRelease(options) {
   const captureBaselineActual = typeof captureBaselineFn === "function" ? captureBaselineFn : captureBaseline;
   let planRaw;
   try {
-    planRaw = await readFile22(planPath, "utf8");
+    planRaw = await readFile23(planPath, "utf8");
   } catch (err) {
     throw new ReleaseError(GATE_FAILED, `cannot read release plan: ${err.message}`, { planPath, cause: err.code });
   }
@@ -82196,7 +83660,7 @@ async function publishRelease(options) {
   if (isProductionPlan) {
     runDir = await createProductionRunDir(runDir, planPath);
   } else {
-    await mkdir16(runDir, { recursive: true });
+    await mkdir14(runDir, { recursive: true });
   }
   const evidence = createEvidenceWriter({ runDir, command: "publish", clock: clockFn });
   try {
@@ -82288,7 +83752,7 @@ async function publishRelease(options) {
     await evidence.append({ phase: "safety-gate", gate: "approval-load", status: "started" });
     let approvalRaw;
     try {
-      approvalRaw = await readFile22(approvalPath, "utf8");
+      approvalRaw = await readFile23(approvalPath, "utf8");
     } catch (err) {
       throw new ReleaseError(
         GATE_FAILED,
@@ -82510,16 +83974,15 @@ async function publishRelease(options) {
     const publishingPlan = deepClone(plan);
     publishingPlan.status = PUBLISHING;
     const orderedActions = sortActionsByCheckpointOrder(publishingPlan.externalActions);
+    const remoteWriteActions = orderedActions.filter((a) => !isMarketplaceAction(a.type));
     await evidence.append({ phase: "safety-gate", gate: "global-preflight", status: "started" });
-    for (const action of orderedActions) {
+    for (const action of remoteWriteActions) {
       if (action.type === "write-remote-identifier") continue;
       const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
       if (!adapterActionType) continue;
       const adapter = adapterRegistry.getAdapter(adapterActionType);
-      const isMarketplace = MARKETPLACE_TYPES2.has(action.type);
       const preflightContext = {
         externalWritesAuthorized: false,
-        isolatedConsumerWritesAuthorized: isMarketplace,
         plan: publishingPlan,
         baseline: plan.baseline,
         root,
@@ -82530,7 +83993,7 @@ async function publishRelease(options) {
         preflightContext
       );
       if (preflightResult.status === "PREFLIGHT_FAILED") {
-        if (!isMarketplace && hasExpected(action.expected)) {
+        if (hasExpected(action.expected)) {
           let arbitration;
           try {
             arbitration = await adapter.observe(
@@ -82560,13 +84023,24 @@ async function publishRelease(options) {
       }
     }
     await evidence.append({ phase: "safety-gate", gate: "global-preflight", status: "passed" });
-    const runPath = join18(runDir, "release-run.json");
-    const checkpoints = orderedActions.map((action) => ({
-      actionId: action.id,
-      actionType: action.type,
-      status: "PENDING",
-      error: null
-    }));
+    const runPath = join19(runDir, "release-run.json");
+    const checkpoints = orderedActions.map((action) => {
+      if (isMarketplaceAction(action.type)) {
+        return {
+          actionId: action.id,
+          actionType: action.type,
+          status: "DEFERRED",
+          phase: "post-publish-verification",
+          reason: CONSUMER_VERIFICATION_DEFERRED
+        };
+      }
+      return {
+        actionId: action.id,
+        actionType: action.type,
+        status: "PENDING",
+        error: null
+      };
+    });
     const startedAt = clockFn();
     const buildPersistedState = /* @__PURE__ */ __name((status = PUBLISHING, finishedAt2) => ({
       runId,
@@ -82579,10 +84053,11 @@ async function publishRelease(options) {
       checkpoints: checkpoints.map((checkpoint) => ({
         actionId: checkpoint.actionId,
         actionType: checkpoint.actionType,
-        status: checkpoint.status === "SUCCEEDED" ? "succeeded" : checkpoint.status === "FAILED" ? "failed" : checkpoint.status === "UNCERTAIN" ? "uncertain" : checkpoint.status === "SKIPPED" ? "skipped" : "pending",
+        status: checkpoint.status === "SUCCEEDED" ? "succeeded" : checkpoint.status === "FAILED" ? "failed" : checkpoint.status === "UNCERTAIN" ? "uncertain" : checkpoint.status === "SKIPPED" ? "skipped" : checkpoint.status === "DEFERRED" ? "deferred" : "pending",
         ...checkpoint.preObserve ? { preObserve: checkpoint.preObserve } : {},
         ...checkpoint.postObserve ? { postObserve: checkpoint.postObserve } : {},
-        ...checkpoint.error ? { error: { code: "GATE_FAILED", message: checkpoint.error } } : {}
+        ...checkpoint.error ? { error: { code: "GATE_FAILED", message: checkpoint.error } } : {},
+        ...checkpoint.reason === CONSUMER_VERIFICATION_DEFERRED ? { reason: CONSUMER_VERIFICATION_DEFERRED, phase: checkpoint.phase ?? "post-publish-verification" } : {}
       })),
       startedAt,
       ...finishedAt2 ? { finishedAt: finishedAt2 } : {}
@@ -82596,7 +84071,7 @@ async function publishRelease(options) {
       prePersistedRunPath: latestState.statePath
     });
     const checkpointByActionId = new Map(checkpoints.map((cp2) => [cp2.actionId, cp2]));
-    const { tiers, unknown } = groupActionsByTier(orderedActions);
+    const { tiers, unknown } = groupActionsByTier(remoteWriteActions);
     let stopped = false;
     if (unknown.length > 0) {
       for (const action of unknown) {
@@ -82633,7 +84108,7 @@ async function publishRelease(options) {
       stateSequence += 1;
       latestState = await appendRunState(runDir, stateSequence, buildPersistedState(PARTIAL));
       const results = await Promise.all(tierActions.map(async (action) => {
-        const isMarketplace = MARKETPLACE_TYPES2.has(action.type);
+        const isMarketplace = isMarketplaceAction(action.type);
         const actionContext = {
           externalWritesAuthorized: !isMarketplace,
           isolatedConsumerWritesAuthorized: isMarketplace,
@@ -82678,49 +84153,61 @@ async function publishRelease(options) {
         stopped = true;
       }
     }
-    if (checkpoints.every((cp2) => cp2.status === "SUCCEEDED" || cp2.status === "SKIPPED")) {
-      await evidence.append({ phase: "safety-gate", gate: "final-branch-consistency", status: "started" });
-      for (let index = 0; index < orderedActions.length; index += 1) {
-        const action = orderedActions[index];
-        if (!["push-snapshot", "set-default-branch"].includes(action.type)) continue;
-        const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
-        const adapter = adapterRegistry.getAdapter(adapterActionType);
-        let observed;
-        try {
-          observed = await adapter.observe(
-            { actionType: adapterActionType, ...action.parameters, expected: action.expected },
-            { externalWritesAuthorized: false, plan: publishingPlan, baseline: plan.baseline, root, runDir }
-          );
-        } catch (error) {
-          observed = { observation: null, error: error.message };
+    {
+      const remoteWriteCps = checkpoints.filter((cp2) => isRemoteWriteAction(cp2.actionType));
+      const allRemoteConsistent = remoteWriteCps.every(
+        (cp2) => cp2.status === "SUCCEEDED" || cp2.status === "SKIPPED"
+      );
+      if (allRemoteConsistent) {
+        await evidence.append({ phase: "safety-gate", gate: "final-branch-consistency", status: "started" });
+        for (let index = 0; index < orderedActions.length; index += 1) {
+          const action = orderedActions[index];
+          if (!["push-snapshot", "set-default-branch"].includes(action.type)) continue;
+          const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
+          const adapter = adapterRegistry.getAdapter(adapterActionType);
+          let observed;
+          try {
+            observed = await adapter.observe(
+              { actionType: adapterActionType, ...action.parameters, expected: action.expected },
+              { externalWritesAuthorized: false, plan: publishingPlan, baseline: plan.baseline, root, runDir }
+            );
+          } catch (error) {
+            observed = { observation: null, error: error.message };
+          }
+          const observation = observed?.observation;
+          const observable = observation && !(observed.error && Object.keys(observation).length === 0);
+          const comparison = observable ? matchObservation(action.expected ?? {}, observation) : { matches: false, mismatches: [] };
+          if (!comparison.matches) {
+            checkpoints[index].status = observable ? "FAILED" : "UNCERTAIN";
+            checkpoints[index].error = observable ? `final branch consistency mismatch: ${comparison.mismatches.join("; ")}` : `final branch consistency unobservable: ${observed?.error ?? "empty observation"}`;
+            await evidence.append({
+              phase: "safety-gate",
+              gate: "final-branch-consistency",
+              status: "failed",
+              actionId: action.id,
+              error: checkpoints[index].error
+            });
+            break;
+          }
         }
-        const observation = observed?.observation;
-        const observable = observation && !(observed.error && Object.keys(observation).length === 0);
-        const comparison = observable ? matchObservation(action.expected ?? {}, observation) : { matches: false, mismatches: [] };
-        if (!comparison.matches) {
-          checkpoints[index].status = observable ? "FAILED" : "UNCERTAIN";
-          checkpoints[index].error = observable ? `final branch consistency mismatch: ${comparison.mismatches.join("; ")}` : `final branch consistency unobservable: ${observed?.error ?? "empty observation"}`;
-          await evidence.append({
-            phase: "safety-gate",
-            gate: "final-branch-consistency",
-            status: "failed",
-            actionId: action.id,
-            error: checkpoints[index].error
-          });
-          break;
+        const freshRemoteCps = checkpoints.filter((cp2) => isRemoteWriteAction(cp2.actionType));
+        if (freshRemoteCps.every((cp2) => cp2.status === "SUCCEEDED" || cp2.status === "SKIPPED")) {
+          await evidence.append({ phase: "safety-gate", gate: "final-branch-consistency", status: "passed" });
         }
-      }
-      if (checkpoints.every((cp2) => cp2.status === "SUCCEEDED" || cp2.status === "SKIPPED")) {
-        await evidence.append({ phase: "safety-gate", gate: "final-branch-consistency", status: "passed" });
       }
     }
-    const hasFailure = checkpoints.some((cp2) => cp2.status === "FAILED" || cp2.status === "UNCERTAIN");
-    const allSucceeded = checkpoints.every((cp2) => cp2.status === "SUCCEEDED" || cp2.status === "SKIPPED");
+    const remoteWriteCheckpointsFinal = checkpoints.filter((cp2) => isRemoteWriteAction(cp2.actionType));
+    const remoteWriteAllSucceeded = remoteWriteCheckpointsFinal.every(
+      (cp2) => cp2.status === "SUCCEEDED" || cp2.status === "SKIPPED"
+    );
+    const remoteWriteHasFailure = remoteWriteCheckpointsFinal.some(
+      (cp2) => cp2.status === "FAILED" || cp2.status === "UNCERTAIN"
+    );
     let overallStatus;
-    if (allSucceeded) {
+    if (remoteWriteAllSucceeded) {
       overallStatus = PUBLISHED;
       publishingPlan.status = PUBLISHED;
-    } else if (hasFailure) {
+    } else if (remoteWriteHasFailure) {
       overallStatus = PARTIAL;
       publishingPlan.status = overallStatus;
     } else {
@@ -82769,7 +84256,7 @@ async function publishRelease(options) {
     throw err;
   }
 }
-var MARKETPLACE_TYPES2, PRE_OBSERVE;
+var PRE_OBSERVE;
 var init_publish = __esm({
   async "src/commands/publish.mjs"() {
     await init_plan();
@@ -82786,12 +84273,6 @@ var init_publish = __esm({
     init_frozen();
     init_npm();
     __name(assertInsideAssetRoot, "assertInsideAssetRoot");
-    MARKETPLACE_TYPES2 = /* @__PURE__ */ new Set([
-      "claude-marketplace-install",
-      "codex-marketplace-install",
-      "kimi-marketplace-install",
-      "codebuddy-marketplace-install"
-    ]);
     __name(defaultClock5, "defaultClock");
     __name(deepClone, "deepClone");
     PRE_OBSERVE = Object.freeze({
@@ -82808,8 +84289,8 @@ var init_publish = __esm({
 });
 
 // src/artifacts/policy.mjs
-import { readFile as readFile23 } from "node:fs/promises";
-import { join as join19 } from "node:path";
+import { readFile as readFile24 } from "node:fs/promises";
+import { join as join20 } from "node:path";
 import { createHash as createHash11 } from "node:crypto";
 function validateArtifactPolicy(policy) {
   const ok = _validate(policy);
@@ -82905,10 +84386,10 @@ async function parseSafeYamlWithinRoot(root, policyPath) {
     }
     throw err;
   }
-  const fullPath = join19(root, policyPath);
+  const fullPath = join20(root, policyPath);
   let content;
   try {
-    content = await readFile23(fullPath, "utf8");
+    content = await readFile24(fullPath, "utf8");
   } catch (err) {
     throw new ReleaseError(
       ARTIFACT_POLICY_INVALID,
@@ -83019,8 +84500,8 @@ var init_policy = __esm({
 });
 
 // src/artifacts/entry.mjs
-import { lstat as lstat13, readdir as readdir10, readFile as readFile24 } from "node:fs/promises";
-import { join as join20 } from "node:path";
+import { lstat as lstat13, readdir as readdir11, readFile as readFile25 } from "node:fs/promises";
+import { join as join21 } from "node:path";
 import { promisify as promisify12 } from "node:util";
 import { execFile as execFile11 } from "node:child_process";
 function statToGitMode(stat9) {
@@ -83040,10 +84521,10 @@ async function gitHashObject(root, absPath) {
 }
 async function enumerateTreeEntries(root, dirPath, relBase) {
   const entries = [];
-  const items = await readdir10(dirPath, { withFileTypes: true });
+  const items = await readdir11(dirPath, { withFileTypes: true });
   for (const item of items) {
     if (SKIP_DIRS2.has(item.name)) continue;
-    const absPath = join20(dirPath, item.name);
+    const absPath = join21(dirPath, item.name);
     const relPath = relBase ? `${relBase}/${item.name}` : item.name;
     const st = await lstat13(absPath);
     if (st.isSymbolicLink()) {
@@ -83064,7 +84545,7 @@ async function enumerateTreeEntries(root, dirPath, relBase) {
       const subEntries = await enumerateTreeEntries(root, absPath, relPath);
       entries.push(...subEntries);
     } else {
-      const content = await readFile24(absPath);
+      const content = await readFile25(absPath);
       entries.push(
         Object.freeze({
           path: relPath,
@@ -83094,7 +84575,7 @@ async function readEntry({ root, path: path3, source = "worktree" } = {}) {
   if (source !== "worktree") {
     throw new ReleaseError(PATH_UNSAFE, `unsupported readEntry source: ${source}`, { source });
   }
-  const absPath = join20(root, path3);
+  const absPath = join21(root, path3);
   let st;
   try {
     st = await lstat13(absPath);
@@ -83127,7 +84608,7 @@ async function readEntry({ root, path: path3, source = "worktree" } = {}) {
       { path: path3, nlink: st.nlink }
     );
   }
-  const content = await readFile24(absPath);
+  const content = await readFile25(absPath);
   return Object.freeze({
     kind: "regular",
     path: path3,
@@ -83390,8 +84871,8 @@ var init_graph = __esm({
 });
 
 // src/artifacts/producer-registry.mjs
-import { readFile as readFile25, readdir as readdir11, stat as stat6, mkdir as mkdir17, writeFile as writeFile9, rm as rm8 } from "node:fs/promises";
-import { join as join21 } from "node:path";
+import { readFile as readFile26, readdir as readdir12, stat as stat6, mkdir as mkdir15, writeFile as writeFile9, rm as rm8 } from "node:fs/promises";
+import { join as join22 } from "node:path";
 import { mkdtemp as mkdtemp4 } from "node:fs/promises";
 import { tmpdir as tmpdir3 } from "node:os";
 import { createHash as createHash12 } from "node:crypto";
@@ -83412,7 +84893,7 @@ function collectStaticImports(filePath, visited = /* @__PURE__ */ new Set()) {
   const dir = abs.replace(/\/[^/]*$/, "");
   while ((match = importRe.exec(source)) !== null) {
     const spec = match[1];
-    let resolved = join21(dir, spec);
+    let resolved = join22(dir, spec);
     if (!resolved.endsWith(".mjs")) resolved += ".mjs";
     results.push(...collectStaticImports(resolved, visited));
   }
@@ -83420,10 +84901,10 @@ function collectStaticImports(filePath, visited = /* @__PURE__ */ new Set()) {
 }
 async function createBuiltInProducerRegistry() {
   const producers = /* @__PURE__ */ new Map();
-  const lockfilePath = join21(new URL("../../..", import.meta.url).pathname, "pnpm-lock.yaml");
+  const lockfilePath = join22(new URL("../../..", import.meta.url).pathname, "pnpm-lock.yaml");
   let lockfileBytes;
   try {
-    lockfileBytes = await readFile25(lockfilePath);
+    lockfileBytes = await readFile26(lockfilePath);
   } catch {
     lockfileBytes = Buffer.from("");
   }
@@ -83440,7 +84921,7 @@ async function createBuiltInProducerRegistry() {
     const allModuleBytes = await Promise.all(
       allModulePaths.map(async (p) => {
         try {
-          return await readFile25(p);
+          return await readFile26(p);
         } catch {
           return Buffer.from("");
         }
@@ -83457,16 +84938,16 @@ async function createBuiltInProducerRegistry() {
 }
 async function readDirEntries(dirPath, relBase = "") {
   const entries = [];
-  const items = await readdir11(dirPath, { withFileTypes: true });
+  const items = await readdir12(dirPath, { withFileTypes: true });
   for (const item of items) {
     if (item.name === ".git") continue;
-    const absPath = join21(dirPath, item.name);
+    const absPath = join22(dirPath, item.name);
     const relPath = relBase ? `${relBase}/${item.name}` : item.name;
     const st = await stat6(absPath);
     if (st.isDirectory()) {
       entries.push(...await readDirEntries(absPath, relPath));
     } else {
-      const content = await readFile25(absPath);
+      const content = await readFile26(absPath);
       entries.push(Object.freeze({
         path: relPath,
         type: "blob",
@@ -83483,11 +84964,11 @@ async function readDirEntries(dirPath, relBase = "") {
 async function materializeEntries(entries, dirPath) {
   for (const entry of entries) {
     if (!entry.path) continue;
-    const targetPath = join21(dirPath, entry.path);
+    const targetPath = join22(dirPath, entry.path);
     if (entry.type === "tree" || entry.kind === "tree") {
-      await mkdir17(targetPath, { recursive: true });
+      await mkdir15(targetPath, { recursive: true });
     } else {
-      await mkdir17(join21(targetPath, ".."), { recursive: true });
+      await mkdir15(join22(targetPath, ".."), { recursive: true });
       if (entry.content) {
         await writeFile9(targetPath, entry.content);
       }
@@ -83531,7 +85012,7 @@ async function runProducerClosure({
   graph,
   inputSnapshot,
   artifactIds,
-  tempRootFactory = /* @__PURE__ */ __name(async () => mkdtemp4(join21(tmpdir3(), "producer-")), "tempRootFactory")
+  tempRootFactory = /* @__PURE__ */ __name(async () => mkdtemp4(join22(tmpdir3(), "producer-")), "tempRootFactory")
 } = {}) {
   const generatedSet = new Set(graph.topologicalOrder);
   for (const id of artifactIds) {
@@ -83568,7 +85049,7 @@ async function runProducerClosure({
         if (inputEntries) {
           const first = inputEntries[0];
           if (first && first.path) {
-            const absPath = first.path.startsWith("/") ? first.path : join21(process.cwd(), first.path);
+            const absPath = first.path.startsWith("/") ? first.path : join22(process.cwd(), first.path);
             try {
               const st = await stat6(absPath);
               if (st.isDirectory()) {
@@ -83992,7 +85473,7 @@ var init_state = __esm({
 });
 
 // src/artifacts/artifact-plan.mjs
-import { writeFile as writeFile10, mkdir as mkdir18, readFile as readFile26, rename as rename3, open as open8 } from "node:fs/promises";
+import { writeFile as writeFile10, mkdir as mkdir16, readFile as readFile27, rename as rename3, open as open8 } from "node:fs/promises";
 import { dirname as dirname13 } from "node:path";
 function assemblePlan({
   operation,
@@ -84017,7 +85498,7 @@ function assemblePlan({
 }
 async function writePlan(plan, outputPath) {
   const dir = dirname13(outputPath);
-  await mkdir18(dir, { recursive: true });
+  await mkdir16(dir, { recursive: true });
   const tmpPath = `${outputPath}.tmp`;
   const content = JSON.stringify(plan, null, 2);
   const fh = await open8(tmpPath, "w");
@@ -84681,8 +86162,8 @@ var init_adoption = __esm({
 // src/artifacts/inspect.mjs
 import { promisify as promisify15 } from "node:util";
 import { execFile as execFile14 } from "node:child_process";
-import { readdir as readdir12, stat as stat7, readFile as readFile27 } from "node:fs/promises";
-import { join as join22 } from "node:path";
+import { readdir as readdir13, stat as stat7, readFile as readFile28 } from "node:fs/promises";
+import { join as join23 } from "node:path";
 async function hasNestedGitRoots(root) {
   try {
     const { stdout } = await execFileAsync5(
@@ -84692,9 +86173,9 @@ async function hasNestedGitRoots(root) {
     );
     const dirs = stdout.split("\n").filter((s) => s.length > 0);
     for (const dir of dirs) {
-      const absDir = join22(root, dir);
+      const absDir = join23(root, dir);
       try {
-        const nestedGit = join22(absDir, ".git");
+        const nestedGit = join23(absDir, ".git");
         await stat7(nestedGit);
         return true;
       } catch {
@@ -84953,8 +86434,8 @@ var init_inspect = __esm({
 });
 
 // src/artifacts/resolution.mjs
-import { mkdir as mkdir19, open as open9, readFile as readFile28, stat as stat8, lstat as lstat14, chmod as chmod4 } from "node:fs/promises";
-import { join as join23, resolve as resolve23, relative as relative21, isAbsolute as isAbsolute18, basename as basename8 } from "node:path";
+import { mkdir as mkdir17, open as open9, readFile as readFile29, stat as stat8, lstat as lstat14, chmod as chmod4 } from "node:fs/promises";
+import { join as join24, resolve as resolve24, relative as relative22, isAbsolute as isAbsolute19, basename as basename9 } from "node:path";
 function decodeBuffer(value, label) {
   if (value == null) return null;
   if (Buffer.isBuffer(value)) return value;
@@ -85056,9 +86537,9 @@ function assertSafeArtifactId(id) {
 }
 async function assertNoSymlinksInPath(root, artifactId) {
   const levels = [
-    join23(root, ".release-skill"),
-    join23(root, ".release-skill", "resolution"),
-    join23(root, ".release-skill", "resolution", artifactId)
+    join24(root, ".release-skill"),
+    join24(root, ".release-skill", "resolution"),
+    join24(root, ".release-skill", "resolution", artifactId)
   ];
   for (const dir of levels) {
     try {
@@ -85074,18 +86555,18 @@ async function assertNoSymlinksInPath(root, artifactId) {
   }
 }
 async function assertSafeResolvedPath(root, artifactId, resolvedPath) {
-  const resolutionDir = resolve23(root, ".release-skill", "resolution", artifactId);
-  const resolved = resolve23(resolvedPath);
+  const resolutionDir = resolve24(root, ".release-skill", "resolution", artifactId);
+  const resolved = resolve24(resolvedPath);
   await assertNoSymlinksInPath(root, artifactId);
-  const rel = relative21(resolutionDir, resolved);
-  if (rel.startsWith("..") || isAbsolute18(rel)) {
+  const rel = relative22(resolutionDir, resolved);
+  if (rel.startsWith("..") || isAbsolute19(rel)) {
     throw new ReleaseError(
       PATH_UNSAFE,
       `resolvedPath must be inside resolution directory ${resolutionDir}`,
       { resolvedPath, resolutionDir }
     );
   }
-  const filename = basename8(resolvedPath);
+  const filename = basename9(resolvedPath);
   if (filename !== `${artifactId}.resolved`) {
     throw new ReleaseError(
       PATH_UNSAFE,
@@ -85093,7 +86574,7 @@ async function assertSafeResolvedPath(root, artifactId, resolvedPath) {
       { resolvedPath, expected: `${artifactId}.resolved`, actual: filename }
     );
   }
-  if (resolved !== resolve23(resolutionDir, `${artifactId}.resolved`)) {
+  if (resolved !== resolve24(resolutionDir, `${artifactId}.resolved`)) {
     throw new ReleaseError(
       PATH_UNSAFE,
       "resolvedPath must be the exact materialized resolution file",
@@ -85237,13 +86718,13 @@ async function materializeResolution({
   const template = buildConflictTemplate(artifact.conflict ?? {}, decodedBuffers);
   const templateDigest = sha256Hex(template);
   await assertNoSymlinksInPath(root, artifactId);
-  const resolutionDir = join23(root, ".release-skill", "resolution", artifactId);
-  await mkdir19(resolutionDir, { recursive: true, mode: 448 });
+  const resolutionDir = join24(root, ".release-skill", "resolution", artifactId);
+  await mkdir17(resolutionDir, { recursive: true, mode: 448 });
   const dirStat = await stat8(resolutionDir);
   if ((dirStat.mode & 511) !== 448) {
     await chmod4(resolutionDir, 448);
   }
-  const resolvedPath = join23(resolutionDir, `${artifactId}.resolved`);
+  const resolvedPath = join24(resolutionDir, `${artifactId}.resolved`);
   const fh = await open9(resolvedPath, "wx", 384);
   try {
     await fh.write(template, 0, template.length);
@@ -85285,7 +86766,7 @@ async function submitResolution({
 async function readAndValidateResolvedFile(resolvedPath) {
   let content;
   try {
-    content = await readFile28(resolvedPath);
+    content = await readFile29(resolvedPath);
   } catch (err) {
     throw new ReleaseError(MISSING_PARAMETERS, `cannot read resolved file: ${err.message}`, { resolvedPath, cause: err.code });
   }
@@ -85453,8 +86934,8 @@ var artifacts_exports = {};
 __export(artifacts_exports, {
   runArtifactsCommand: () => runArtifactsCommand
 });
-import { readFile as readFile29 } from "node:fs/promises";
-import { join as join24 } from "node:path";
+import { readFile as readFile30 } from "node:fs/promises";
+import { join as join25 } from "node:path";
 async function runArtifactsCommand({ subcommand, args: args2, root } = {}) {
   if (!VALID_SUBCOMMANDS.has(subcommand)) {
     throw new ReleaseError(
@@ -85582,7 +87063,7 @@ async function handleAdopt({ args: args2, root }) {
       { subcommand: "adopt" }
     );
   }
-  const planRaw = await readFile29(planPath, "utf8");
+  const planRaw = await readFile30(planPath, "utf8");
   const plan = JSON.parse(planRaw);
   if (expectedDigest && plan.planDigest !== expectedDigest) {
     throw new ReleaseError(
@@ -85597,7 +87078,7 @@ async function handleAdopt({ args: args2, root }) {
     if (artifact.path) {
       const entry = await readEntry({ root, path: artifact.path, source: "worktree" });
       if (entry.kind === "regular") {
-        const bytes = await readFile29(join24(root, artifact.path));
+        const bytes = await readFile30(join25(root, artifact.path));
         currentEntries.set(artifact.id, Object.freeze({ ...entry, bytes, content: bytes }));
       } else {
         currentEntries.set(artifact.id, entry);
@@ -85662,7 +87143,7 @@ async function handleBootstrap({ args: args2, root }) {
       { subcommand: "bootstrap" }
     );
   }
-  const planRaw = await readFile29(planPath, "utf8");
+  const planRaw = await readFile30(planPath, "utf8");
   const adoptionPlan = JSON.parse(planRaw);
   const currentEntries = /* @__PURE__ */ new Map();
   for (const id of new Set((adoptionPlan.protectedHunks ?? []).map((h) => h.artifactId))) {
@@ -85674,12 +87155,12 @@ async function handleBootstrap({ args: args2, root }) {
     if (entry.kind !== "regular") {
       throw new ReleaseError("PLAN_STALE", `artifact is no longer a regular file: ${id}`, { id });
     }
-    const bytes = await readFile29(join24(root, artifactPath));
+    const bytes = await readFile30(join25(root, artifactPath));
     currentEntries.set(id, Object.freeze({ ...entry, bytes, content: bytes }));
   }
   let replacementBytes;
   if (action === "replace" && replacementPath) {
-    replacementBytes = await readFile29(replacementPath);
+    replacementBytes = await readFile30(replacementPath);
   }
   const updated = await discardBootstrapHunk({
     adoptionPlan,
@@ -85717,7 +87198,7 @@ async function handleResolve({ args: args2, root }) {
       { subcommand: "resolve" }
     );
   }
-  const planRaw = await readFile29(planPath, "utf8");
+  const planRaw = await readFile30(planPath, "utf8");
   const plan = JSON.parse(planRaw);
   if (plan.planDigest !== expectedDigest) {
     throw new ReleaseError(
@@ -86085,7 +87566,7 @@ var init_docs = __esm({
 });
 
 // bin/release-skill-cli.mjs
-import { basename as basename9, dirname as dirname14, join as join25, resolve as resolve24 } from "node:path";
+import { basename as basename10, dirname as dirname14, join as join26, resolve as resolve25 } from "node:path";
 import { execFile as execFileCb12 } from "node:child_process";
 import { promisify as promisify16 } from "node:util";
 
@@ -86339,7 +87820,7 @@ if (!command && (args.includes("--version") || args.includes("-v"))) {
   } else {
     const { readFileSync: readFileSync5 } = await import("node:fs");
     const { fileURLToPath: fileURLToPath3 } = await import("node:url");
-    const pkgPath = join25(dirname14(fileURLToPath3(import.meta.url)), "..", "package.json");
+    const pkgPath = join26(dirname14(fileURLToPath3(import.meta.url)), "..", "package.json");
     pkg = JSON.parse(readFileSync5(pkgPath, "utf8"));
   }
   if (hasJson) {
@@ -86460,7 +87941,7 @@ if (!COMMANDS.has(command)) {
 if (command === "setup") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve24(rawRoot);
+  const root = resolve25(rawRoot);
   const answersIdx = args.indexOf("--answers");
   const answersPath = answersIdx !== -1 && args[answersIdx + 1] ? args[answersIdx + 1] : void 0;
   const confirmationIdx = args.indexOf("--confirm-setup");
@@ -86495,7 +87976,7 @@ if (command === "setup") {
 if (command === "assess") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve24(rawRoot);
+  const root = resolve25(rawRoot);
   const offline = args.includes("--offline") || !args.includes("--online");
   const outputIdx = args.indexOf("--output");
   const output = outputIdx !== -1 && args[outputIdx + 1] ? args[outputIdx + 1] : void 0;
@@ -86526,7 +88007,7 @@ if (command === "assess") {
 if (command === "prepare") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve24(rawRoot);
+  const root = resolve25(rawRoot);
   const offline = args.includes("--offline") || !args.includes("--online");
   let targetVersion;
   for (const flag of ["--target-version", "--version"]) {
@@ -86541,9 +88022,9 @@ if (command === "prepare") {
   const hookCache = !args.includes("--no-hook-cache");
   const production = args.includes("--production");
   const outputIdx = args.indexOf("--output");
-  const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve24(args[outputIdx + 1]) : void 0;
+  const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve25(args[outputIdx + 1]) : void 0;
   const runDirIdx = args.indexOf("--run-dir");
-  const runDir = runDirIdx !== -1 && args[runDirIdx + 1] ? resolve24(args[runDirIdx + 1]) : void 0;
+  const runDir = runDirIdx !== -1 && args[runDirIdx + 1] ? resolve25(args[runDirIdx + 1]) : void 0;
   try {
     const { prepareRelease: prepareRelease2 } = await init_prepare().then(() => prepare_exports);
     const { readFile: readFileFs } = await import("node:fs/promises");
@@ -86596,7 +88077,7 @@ if (command === "approve") {
   const actorIdx = args.indexOf("--actor");
   const actor = actorIdx !== -1 && args[actorIdx + 1] ? args[actorIdx + 1] : void 0;
   const outputIdx = args.indexOf("--output");
-  const outputPath = outputIdx !== -1 && args[outputIdx + 1] ? resolve24(args[outputIdx + 1]) : void 0;
+  const outputPath = outputIdx !== -1 && args[outputIdx + 1] ? resolve25(args[outputIdx + 1]) : void 0;
   if (!planPath || !expectedDigest || !actor) {
     const msg = "approve requires --plan <path>, --digest <sha256>, and --actor <name>";
     if (hasJson) {
@@ -86608,10 +88089,10 @@ if (command === "approve") {
   }
   try {
     const { approvePlan: approvePlan2 } = await init_approve().then(() => approve_exports);
-    const resolvedPlanPath = resolve24(planPath);
+    const resolvedPlanPath = resolve25(planPath);
     const planDir = dirname14(resolvedPlanPath);
-    const releaseDir = basename9(planDir) === "plans" && basename9(resolvedPlanPath) === `${expectedDigest}.json` ? dirname14(planDir) : planDir;
-    const approvalPath = outputPath ?? join25(releaseDir, "approval-record.json");
+    const releaseDir = basename10(planDir) === "plans" && basename10(resolvedPlanPath) === `${expectedDigest}.json` ? dirname14(planDir) : planDir;
+    const approvalPath = outputPath ?? join26(releaseDir, "approval-record.json");
     const record = await approvePlan2({ planPath, expectedDigest, actor, outputPath: approvalPath });
     if (hasJson) {
       console.log(JSON.stringify(record, null, 2));
@@ -86638,13 +88119,13 @@ if (command === "approve") {
 if (command === "reconcile") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve24(rawRoot);
+  const root = resolve25(rawRoot);
   const planIdx = args.indexOf("--plan");
-  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve24(args[planIdx + 1]) : void 0;
+  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve25(args[planIdx + 1]) : void 0;
   const runIdx = args.indexOf("--run");
-  const runPath = runIdx !== -1 && args[runIdx + 1] ? resolve24(args[runIdx + 1]) : void 0;
+  const runPath = runIdx !== -1 && args[runIdx + 1] ? resolve25(args[runIdx + 1]) : void 0;
   const approvalIdx = args.indexOf("--approval");
-  const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve24(args[approvalIdx + 1]) : void 0;
+  const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve25(args[approvalIdx + 1]) : void 0;
   const confirmationIdx = args.indexOf("--confirm-production");
   const productionConfirmation = confirmationIdx !== -1 && args[confirmationIdx + 1] ? args[confirmationIdx + 1] : void 0;
   if (!planPath || !runPath) {
@@ -86703,11 +88184,11 @@ if (command === "reconcile") {
 if (command === "verify") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve24(rawRoot);
+  const root = resolve25(rawRoot);
   const planIdx = args.indexOf("--plan");
-  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve24(args[planIdx + 1]) : void 0;
+  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve25(args[planIdx + 1]) : void 0;
   const runIdx = args.indexOf("--run");
-  const runPath = runIdx !== -1 && args[runIdx + 1] ? resolve24(args[runIdx + 1]) : void 0;
+  const runPath = runIdx !== -1 && args[runIdx + 1] ? resolve25(args[runIdx + 1]) : void 0;
   const verificationGatesAuthorized = args.includes("--acknowledge-gate-side-effects");
   if (!planPath || !runPath) {
     const msg = "verify requires --plan <path> and --run <path>";
@@ -86763,11 +88244,11 @@ if (command === "verify") {
 if (command === "publish") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve24(rawRoot);
+  const root = resolve25(rawRoot);
   const planIdx = args.indexOf("--plan");
-  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve24(args[planIdx + 1]) : void 0;
+  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve25(args[planIdx + 1]) : void 0;
   const approvalIdx = args.indexOf("--approval");
-  const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve24(args[approvalIdx + 1]) : void 0;
+  const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve25(args[approvalIdx + 1]) : void 0;
   const confirmationIdx = args.indexOf("--confirm-production");
   const productionConfirmation = confirmationIdx !== -1 && args[confirmationIdx + 1] ? args[confirmationIdx + 1] : void 0;
   if (!planPath || !approvalPath || !productionConfirmation) {
@@ -86826,9 +88307,9 @@ if (command === "publish") {
 if (command === "artifacts") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve24(rawRoot);
+  const root = resolve25(rawRoot);
   const outputIdx = args.indexOf("--output");
-  const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve24(args[outputIdx + 1]) : void 0;
+  const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve25(args[outputIdx + 1]) : void 0;
   const subcommand = positional[1] ?? "status";
   try {
     const { runArtifactsCommand: runArtifactsCommand2 } = await Promise.resolve().then(() => (init_artifacts(), artifacts_exports));
@@ -86895,7 +88376,7 @@ if (command === "docs") {
         );
       }
     }
-    const root = resolve24(rawRoot);
+    const root = resolve25(rawRoot);
     const valuedDocsFlags = /* @__PURE__ */ new Set(["--root", "--unit", "--confirm-refresh"]);
     const booleanDocsFlags = /* @__PURE__ */ new Set(["--json", "--write", "--ack-local-document-write"]);
     let docsSubcommand;

@@ -22,6 +22,7 @@ import addFormats from 'ajv-formats';
 import { canonicalJson, sha256Hex } from './digest.mjs';
 import { ReleaseError, GATE_FAILED } from './errors.mjs';
 import { readTrustedPackageResource } from './trusted-resource.mjs';
+import { computeInstallationContractDigest, INSTALLATION_CONTRACT_ALGORITHM_VERSION } from './installation-contract.mjs';
 // NOTE (T2.2 step 3): plan.mjs and the platform registry form a module cycle
 // (plan -> registry -> platforms/kimi -> plan, because the kimi strategies
 // bind computePlanDigest). PLATFORMS is therefore only ever read inside
@@ -778,15 +779,69 @@ export function validatePlanActionCompleteness(plan, options = {}) {
 
         // External independent marketplace form: the distribution declares
         // marketplaceRepo, so the install targets the external marketplace
-        // repository instead of publicRepo. Only platforms with a marketplace
-        // add capability (marketplaceRefForm !== null: claude=name, codex=sha)
-        // may carry it; kimi/codebuddy fail closed. Inline form (no
-        // marketplaceRepo) keeps every assertion below byte-for-byte.
+        // repository instead of publicRepo. All platforms support both
+        // bundled-family and standalone-index source types; the marketplace
+        // add capability (marketplaceRefForm) only constrains the automated
+        // install path, not the static source validation.
         const externalMarketplace = dist.marketplaceRepo !== undefined && dist.marketplaceRepo !== null;
-        if (externalMarketplace && platform.marketplaceRefForm === null) {
+        if (externalMarketplace && dist.marketplaceSourceType && dist.marketplaceSourceType !== 'standalone-index') {
           failures.push(
-            `unit "${unitId}", action "${action.id}": ${platform.distributionType} distribution declares marketplaceRepo but the platform has no marketplace add capability`,
+            `unit "${unitId}", action "${action.id}": ${platform.distributionType} distribution declares marketplaceRepo but marketplaceSourceType is "${dist.marketplaceSourceType}"; marketplaceRepo requires standalone-index`,
           );
+        }
+
+        // --- 新版字段组完整性检查 ---
+        // 真正新增的安装契约字段（0.2.3 旧计划不含这些字段）：
+        //   distribution: installationContract、installationContractDigest、marketplaceSourceType
+        //   action: installationContractDigest、algorithmVersion
+        // 0.2.3 已有的 marketplaceForm/sourceDescriptor/sourceCommit 单独存在不能触发新版组，
+        // 否则破坏已发布 0.2.3 冻结计划兼容。
+        // 整组都不存在才按旧计划兼容；出现任意一个但不完整必须失败。
+        const distHasFieldGroup = dist.installationContract !== undefined && dist.installationContract !== null
+          || dist.installationContractDigest !== undefined && dist.installationContractDigest !== null
+          || dist.marketplaceSourceType !== undefined && dist.marketplaceSourceType !== null;
+        const actionHasFieldGroup = action.parameters?.installationContractDigest !== undefined && action.parameters?.installationContractDigest !== null
+          || action.parameters?.algorithmVersion !== undefined && action.parameters?.algorithmVersion !== null;
+        const hasFieldGroup = distHasFieldGroup || actionHasFieldGroup;
+
+        if (hasFieldGroup) {
+          // 检查 distribution 字段完整性
+          if (dist.marketplaceSourceType === undefined || dist.marketplaceSourceType === null) {
+            failures.push(`unit "${unitId}", action "${action.id}": distribution missing marketplaceSourceType; new-version field group requires all fields`);
+          }
+          if (dist.installationContract === undefined || dist.installationContract === null) {
+            failures.push(`unit "${unitId}", action "${action.id}": distribution missing installationContract; new-version field group requires all fields`);
+          }
+          if (dist.installationContractDigest === undefined || dist.installationContractDigest === null) {
+            failures.push(`unit "${unitId}", action "${action.id}": distribution missing installationContractDigest; new-version field group requires all fields`);
+          }
+          // 检查 action 字段完整性
+          if (action.parameters?.marketplaceForm === undefined || action.parameters?.marketplaceForm === null) {
+            failures.push(`unit "${unitId}", action "${action.id}": parameters.marketplaceForm missing; new-version field group requires all fields`);
+          }
+          if (action.parameters?.sourceDescriptor === undefined || action.parameters?.sourceDescriptor === null) {
+            failures.push(`unit "${unitId}", action "${action.id}": parameters.sourceDescriptor missing; new-version field group requires all fields`);
+          }
+          if (action.parameters?.installationContractDigest === undefined || action.parameters?.installationContractDigest === null) {
+            failures.push(`unit "${unitId}", action "${action.id}": parameters.installationContractDigest missing; new-version field group requires all fields`);
+          }
+          if (action.parameters?.algorithmVersion === undefined || action.parameters?.algorithmVersion === null) {
+            failures.push(`unit "${unitId}", action "${action.id}": parameters.algorithmVersion missing; new-version field group requires all fields`);
+          }
+          // sourceCommit 仅生产计划必需
+          if (production && (action.parameters?.sourceCommit === undefined || action.parameters?.sourceCommit === null)) {
+            failures.push(`unit "${unitId}", action "${action.id}": parameters.sourceCommit missing; production plan requires sourceCommit`);
+          }
+          // marketplaceForm、sourceDescriptor.form、distribution 的 marketplaceSourceType 三者一致
+          const mf = action.parameters?.marketplaceForm;
+          const sdForm = action.parameters?.sourceDescriptor?.form;
+          const distSourceType = dist.marketplaceSourceType;
+          if (mf && distSourceType && mf !== distSourceType) {
+            failures.push(`unit "${unitId}", action "${action.id}": marketplaceForm "${mf}" does not match distribution marketplaceSourceType "${distSourceType}"`);
+          }
+          if (sdForm && distSourceType && sdForm !== distSourceType) {
+            failures.push(`unit "${unitId}", action "${action.id}": sourceDescriptor.form "${sdForm}" does not match distribution marketplaceSourceType "${distSourceType}"`);
+          }
         }
 
         // Parameter checks
@@ -1056,6 +1111,74 @@ export function validatePlanActionCompleteness(plan, options = {}) {
               failures.push(
                 `unit "${unitId}", action "${action.id}": sourceDescriptor.form "${sd.form}" is unknown; expected "bundled-family" or "standalone-index"`,
               );
+            }
+          }
+        }
+
+        // --- installationContractDigest 重新计算验证 ---
+        // 不能只比较两个可一起篡改的字符串；必须重新由 distribution 的 installationContract 计算并验证
+        if (hasFieldGroup && dist.installationContract) {
+          // 从 distribution 的 installationContract 重新计算摘要
+          const recomputedDigest = sha256Hex(canonicalJson(dist.installationContract));
+          const actionDigest = action.parameters?.installationContractDigest;
+          const distDigest = dist.installationContractDigest;
+
+          // 重算值必须同时等于 distribution 摘要和 action 摘要
+          if (distDigest && recomputedDigest !== distDigest) {
+            failures.push(
+              `unit "${unitId}", action "${action.id}": recomputed installationContractDigest "${recomputedDigest.slice(0, 16)}..." does not match distribution digest "${(distDigest ?? '').slice(0, 16)}..."; contract may have been tampered`,
+            );
+          }
+          if (actionDigest && recomputedDigest !== actionDigest) {
+            failures.push(
+              `unit "${unitId}", action "${action.id}": recomputed installationContractDigest "${recomputedDigest.slice(0, 16)}..." does not match action digest "${(actionDigest ?? '').slice(0, 16)}..."; contract may have been tampered`,
+            );
+          }
+          // algorithmVersion 必须等于当前算法版本
+          if (action.parameters?.algorithmVersion !== undefined && action.parameters?.algorithmVersion !== INSTALLATION_CONTRACT_ALGORITHM_VERSION) {
+            failures.push(
+              `unit "${unitId}", action "${action.id}": algorithmVersion is "${action.parameters?.algorithmVersion}", expected "${INSTALLATION_CONTRACT_ALGORITHM_VERSION}"`,
+            );
+          }
+        }
+
+        // --- standalone-index 审计字段校验 ---
+        // 仅 production === true 且来源为 standalone-index 时，要求 action 完整携带
+        // 非空 marketplaceIndexPath / marketplaceName / selectedEntry。
+        // 非生产计划不得要求这三个字段存在（未冻结时无真实值可用），
+        // 也不得接受"用 null 表示存在"的方案。
+        if (production && externalMarketplace && dist.marketplaceSourceType === 'standalone-index') {
+          const params = action.parameters;
+          if (params) {
+            if (!params.marketplaceIndexPath) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.marketplaceIndexPath is required for production standalone-index`,
+              );
+            }
+            if (!params.marketplaceName) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.marketplaceName is required for production standalone-index`,
+              );
+            }
+            if (!params.selectedEntry) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": parameters.selectedEntry is required for production standalone-index`,
+              );
+            }
+          }
+        }
+
+        // --- bundled-family 禁止混入 standalone 字段 ---
+        if (!externalMarketplace && dist.marketplaceSourceType === 'bundled-family') {
+          const params = action.parameters;
+          if (params) {
+            const STANDALONE_ONLY = ['marketplaceIndexPath', 'marketplaceName', 'selectedEntry'];
+            for (const field of STANDALONE_ONLY) {
+              if (params[field] !== undefined) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": parameters.${field} is unexpected for bundled-family form; mixed fields are prohibited`,
+                );
+              }
             }
           }
         }

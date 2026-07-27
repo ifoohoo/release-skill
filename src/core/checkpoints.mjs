@@ -66,13 +66,14 @@ export const ADAPTER_ACTION_TYPE_MAP = {
  *   `push-snapshot` (the frozen commit must exist on the remote before a tag
  *   or branch tip can point at it). `npm-publish` has no git dependency and is
  *   placed in Tier 1 only for conservative scheduling.
- * - Tier 2 `github-release` and the claude/codex marketplace installs depend
- *   on Tier 1 `create-tag` (release `--verify-tag`; install ref is the tag).
- * - Tier 3 `kimi-marketplace-install` depends on Tier 2 `github-release`
- *   (its install URL points at the Release page). `codebuddy-marketplace-install`
- *   is also a non-automatable human-attestation closure and runs in Tier 3 after
- *   the automated writes (its install is from a unified marketplace, proven by a
- *   human attestation rather than an automated install checkpoint).
+ * - Tier 2 `github-release` depends on Tier 1 `create-tag` (release `--verify-tag`).
+ *
+ * Marketplace actions (claude/codex/kimi/codebuddy-marketplace-install) are
+ * included in the tier table for ADAPTER_ACTION_TYPE_MAP lookup but are
+ * filtered out before tier grouping in both publish and reconcile. They are
+ * recorded as DEFERRED with CONSUMER_VERIFICATION_DEFERRED reason and never
+ * participate in tier execution. Their verification is handled exclusively
+ * by the verify command.
  *
  * Action types not listed in any tier are unknown to the scheduler and fail
  * closed (see groupActionsByTier); they are never silently scheduled.
@@ -145,4 +146,46 @@ export function groupActionsByTier(orderedActions) {
     }
   }
   return { tiers, unknown };
+}
+
+/**
+ * 远端写入动作类型集合。
+ * 这些动作的结果决定 PUBLISHED 状态：全部一致后即可进入 PUBLISHED。
+ */
+export const REMOTE_WRITE_ACTION_TYPES = new Set([
+  'push-commit',
+  'push-snapshot',
+  'set-default-branch',
+  'create-tag',
+  'npm-publish',
+  'github-release',
+]);
+
+/**
+ * 市场安装动作类型集合。
+ * 这些动作的结果记录在 run 中，但不阻止 PUBLISHED 状态。
+ */
+export const MARKETPLACE_ACTION_TYPES = new Set([
+  'claude-marketplace-install',
+  'codex-marketplace-install',
+  'kimi-marketplace-install',
+  'codebuddy-marketplace-install',
+]);
+
+/**
+ * 判断动作类型是否为远端写入动作。
+ * @param {string} actionType - 计划中的动作类型
+ * @returns {boolean}
+ */
+export function isRemoteWriteAction(actionType) {
+  return REMOTE_WRITE_ACTION_TYPES.has(actionType);
+}
+
+/**
+ * 判断动作类型是否为市场安装动作。
+ * @param {string} actionType - 计划中的动作类型
+ * @returns {boolean}
+ */
+export function isMarketplaceAction(actionType) {
+  return MARKETPLACE_ACTION_TYPES.has(actionType);
 }

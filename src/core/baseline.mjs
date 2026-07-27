@@ -172,12 +172,19 @@ async function computeWorkspaceDigest(root) {
 
   // Ask Git for unambiguous NUL-delimited names, then request the patch for
   // each exact argv path. This avoids parsing C-quoted `diff --git` headers.
+  //
+  // Per-file `git diff --binary` can exceed Node.js default ~1 MiB maxBuffer
+  // when generated bundles (e.g. 3.8 MiB) are modified. We use an explicit
+  // 64 MiB upper bound: large enough for any realistic single-file diff, small
+  // enough to fail closed before exhausting memory.
+  const DIFF_MAX_BUFFER = 64 * 1024 * 1024; // 64 MiB
+  const diffOpts = { ...opts, maxBuffer: DIFF_MAX_BUFFER };
   const changedPaths = splitNul(changedOut).filter((p) => !isControlPlanePath(p));
   for (const changedPath of changedPaths) {
     const { stdout: patch } = await execFile(
       'git',
       ['diff', '--no-ext-diff', '--no-textconv', '--binary', '--no-color', '--', changedPath],
-      opts,
+      diffOpts,
     );
     parts.push(`UNSTAGED:${changedPath}\0${patch}`);
   }

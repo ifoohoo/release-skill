@@ -11,28 +11,10 @@
  * requires. The install state DOES have a stable on-disk layout that serves as
  * verification evidence.
  *
- * So codebuddy-marketplace-install is modeled exactly like kimi's protocol
- * capability gap (a human attestation closed loop), with two differences driven
- * by the verified CodeBuddy state model:
- *
- *   - Install is from a unified marketplace (`artifact-skill-set`,
- *     https://github.com/ifoohoo/artifact-skill-set), NOT a release-tag URL.
- *   - Two install channels are accepted, both evidenced on disk:
- *       desktop: the WorkBuddy desktop app installs into
- *                `~/.workbuddy/plugins/marketplaces/<marketplace>/plugins/<plugin>/`
- *       cli:     the bundled `codebuddy` CLI, run with an isolated
- *                `HOME=<codebuddyHome>`, installs into
- *                `<codebuddyHome>/.codebuddy/plugins/marketplaces/<marketplace>/plugins/<plugin>/`
- *     The attestation names the channel (`installChannel`) and the marketplace;
- *     the install path is validated per channel and fails closed otherwise.
- *
- *   - execute NEVER execs the codebuddy CLI. It emits an actionable manual
- *     install requirement bound to the frozen plan digest + identity.
- *   - observe/verify consume a structured human attestation plus read-only
- *     verification of the installed copy. Missing/expired/mismatched/escaping
- *     proof fails closed, so a codebuddy unit can never reach VERIFIED without
- *     it — the same fail-closed severity as kimi ("post-publish verification
- *     cannot be waived").
+ * 统一人工结果：收据仅需 platform, version, planDigest,
+ * result(passed|failed), actor, confirmedAt 和可选 note。
+ * 不再要求 consumer, plugin, conclusion, confirmedBy、隔离 HOME、
+ * 安装路径证明、载荷摘要手填、24 小时过期、marketplace 或 installChannel。
  *
  * This module is the codebuddy half of the platform registry's strategy table
  * (registry.mjs references executeCodeBuddyManualRequirement /
@@ -54,7 +36,7 @@
  * @module platforms/codebuddy
  */
 
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { join, resolve, relative, isAbsolute } from 'node:path';
 
 import {
@@ -104,8 +86,6 @@ function normalizePlanForDigest(plan) {
 export const CODEBUDDY_REQUIREMENT_FILE = 'release-skill-codebuddy-manual-install.json';
 /** Structured human attestation consumed by codebuddy observe/verify. */
 export const CODEBUDDY_ATTESTATION_FILE = 'release-skill-codebuddy-attestation.json';
-/** Maximum attestation validity window (mirrors the 24h approval expiry). */
-export const CODEBUDDY_MAX_ATTESTATION_VALIDITY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Unified marketplace the WorkBuddy desktop app and the codebuddy CLI install
@@ -120,13 +100,11 @@ export const CODEBUDDY_MARKETPLACE_SOURCE = 'https://github.com/ifoohoo/artifact
 /** Authoritative codebuddy plugin manifest (single candidate, no precedence). */
 export const CODEBUDDY_PLUGIN_MANIFEST_RELATIVE = join('.codebuddy-plugin', 'plugin.json');
 
-/** The only two install channels with verified on-disk evidence. */
-const CODEBUDDY_INSTALL_CHANNELS = new Set(['desktop', 'cli']);
-
-/** Well-known desktop install root (the WorkBuddy app's home dir name). */
-const CODEBUDDY_DESKTOP_HOME_DIR = '.workbuddy';
-/** CLI-side plugin state dir under the isolated HOME. */
-const CODEBUDDY_CLI_STATE_DIR = '.codebuddy';
+/**
+ * Maximum validity window for a codebuddy human attestation (24 hours).
+ * attestations with expiresAt exceeding this window from attestedAt are rejected.
+ */
+export const CODEBUDDY_MAX_ATTESTATION_VALIDITY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Resolve and verify the genuine frozen plan digest from the adapter context,
@@ -203,115 +181,20 @@ export function codebuddyAuthorityDir(context, planDigest, plugin) {
 }
 
 /**
- * The isolated CodeBuddy CLI HOME for the cli install channel. The operator
- * runs the bundled `codebuddy` CLI with `HOME=<codebuddyHome>` so the managed
- * marketplace clone lands inside the plan-digest-keyed authority rather than
- * the user's real `~/.codebuddy`. Identical across publish/reconcile/verify
- * run dirs because it derives from the authority dir.
+ * 统一人工安装说明：面向 CodeBuddy / WorkBuddy 的人工结果流程。
  *
- * @param {string} attestationDir - plan-digest-keyed authority dir.
- * @returns {string}
- */
-export function codebuddyCliHome(attestationDir) {
-  return resolve(attestationDir, 'codebuddy-home');
-}
-
-/**
- * The expected CLI-channel install root for a plugin under an isolated home.
- * `<codebuddyHome>/.codebuddy/plugins/marketplaces/<marketplace>/plugins/<plugin>`
- *
- * @param {string} cliHome - isolated codebuddy HOME.
- * @param {string} marketplace - marketplace name.
- * @param {string} plugin - plugin id.
- * @returns {string}
- */
-export function codebuddyCliInstallRoot(cliHome, marketplace, plugin) {
-  return resolve(cliHome, CODEBUDDY_CLI_STATE_DIR, 'plugins', 'marketplaces', marketplace, 'plugins', plugin);
-}
-
-/**
- * Segment-level tail an attested desktop installPath must end with:
- * `/.workbuddy/plugins/marketplaces/<marketplace>/plugins/<plugin>`
- * (verified WorkBuddy desktop layout).
- *
- * @param {string} marketplace
- * @param {string} plugin
+ * @param {{plugin:string, version:string, ref:string, attestationDir:string}} p
  * @returns {string[]}
  */
-function codebuddyDesktopTailSegments(marketplace, plugin) {
-  return [CODEBUDDY_DESKTOP_HOME_DIR, 'plugins', 'marketplaces', marketplace, 'plugins', plugin];
-}
-
-/**
- * Segment-level tail an attested cli installPath must end with:
- * `/.codebuddy/plugins/marketplaces/<marketplace>/plugins/<plugin>`
- * (verified CodeBuddy CLI layout).
- *
- * @param {string} marketplace
- * @param {string} plugin
- * @returns {string[]}
- */
-function codebuddyCliTailSegments(marketplace, plugin) {
-  return [CODEBUDDY_CLI_STATE_DIR, 'plugins', 'marketplaces', marketplace, 'plugins', plugin];
-}
-
-/**
- * Segment-level check that a desktop installPath ends with the well-known
- * WorkBuddy marketplace layout. Pure string check (no filesystem): the path's
- * segments (split on `/` or `\`, dropping empty/`.` segments) must end with the
- * desktop tail. Fails closed otherwise.
- *
- * @param {string} installPath
- * @param {string} marketplace
- * @param {string} plugin
- * @returns {boolean}
- */
-function matchesDesktopLayout(installPath, marketplace, plugin) {
-  const segments = installPath.split(/[\\/]+/).filter((s) => s !== '' && s !== '.');
-  const tail = codebuddyDesktopTailSegments(marketplace, plugin);
-  if (segments.length < tail.length) return false;
-  const offset = segments.length - tail.length;
-  return tail.every((segment, index) => segments[offset + index] === segment);
-}
-
-/**
- * Segment-level check that a cli installPath ends with the well-known
- * CodeBuddy CLI marketplace layout. Pure string check (no filesystem): the
- * path's segments (split on `/` or `\`, dropping empty/`.` segments) must end
- * with the cli tail. Fails closed otherwise.
- *
- * @param {string} installPath
- * @param {string} marketplace
- * @param {string} plugin
- * @returns {boolean}
- */
-function matchesCliLayout(installPath, marketplace, plugin) {
-  const segments = installPath.split(/[\\/]+/).filter((s) => s !== '' && s !== '.');
-  const tail = codebuddyCliTailSegments(marketplace, plugin);
-  if (segments.length < tail.length) return false;
-  const offset = segments.length - tail.length;
-  return tail.every((segment, index) => segments[offset + index] === segment);
-}
-
-/**
- * Human-facing, actionable manual-install closed-loop instructions for
- * CodeBuddy / WorkBuddy.
- *
- * @param {{plugin:string, version:string, ref:string, cliHome:string, attestationDir:string}} p
- * @returns {string[]}
- */
-function buildCodeBuddyManualInstructions({ plugin, version, ref, cliHome, attestationDir }) {
-  const cliInstallRoot = codebuddyCliInstallRoot(cliHome, CODEBUDDY_MARKETPLACE_NAME, plugin);
-  const desktopInstallRoot = `~/${CODEBUDDY_DESKTOP_HOME_DIR}/plugins/marketplaces/${CODEBUDDY_MARKETPLACE_NAME}/plugins/${plugin}`;
+function buildCodeBuddyManualInstructions({ plugin, version, ref, attestationDir }) {
   return [
-    `CodeBuddy/WorkBuddy plugin install cannot pin a frozen ref (the codebuddy CLI marketplace add/install have no ref option and track the default branch), so installation is a manual step proven by a human attestation.`,
-    `1) publish fails closed at this codebuddy checkpoint and leaves the run PARTIAL (the automated Git branch/tag, npm, and GitHub Release writes still complete first).`,
-    `2) PRIMARY PATH (WorkBuddy desktop): install release-skill from the unified marketplace "${CODEBUDDY_MARKETPLACE_NAME}" (${CODEBUDDY_MARKETPLACE_SOURCE}). Confirm "~/.workbuddy/settings.json" enabledPlugins contains "${plugin}@${CODEBUDDY_MARKETPLACE_NAME}": true. The plugin lands at "${desktopInstallRoot}/".`,
-    `3) ALTERNATE PATH (bundled codebuddy CLI, isolatable): run the CLI with the ISOLATED home from this requirement so the clone lands inside it: HOME="${cliHome}" <codebuddy binary> plugin marketplace add ${CODEBUDDY_MARKETPLACE_SOURCE} ; then HOME="${cliHome}" <codebuddy binary> plugin install ${plugin}@${CODEBUDDY_MARKETPLACE_NAME}. The CLI ships with WorkBuddy.app (macOS known path /Applications/WorkBuddy.app/Contents/Resources/app.asar.unpacked/cli/bin/codebuddy). The plugin lands at "${cliInstallRoot}/".`,
-    `4) REF LIMITATION WARNING: a codebuddy install tracks the marketplace default branch and CANNOT be pinned to frozen ref "${ref}". Before writing the attestation you MUST confirm the installed plugin manifest version equals the frozen version ${version}; otherwise do NOT issue an attestation.`,
-    `5) Write the attestation JSON to: ${attestationDir}/${CODEBUDDY_ATTESTATION_FILE}. planDigest MUST be the frozen plan digest; payloadDigest MUST be the frozen snapshot payload digest; installChannel MUST be "desktop" or "cli"; marketplace MUST be "${CODEBUDDY_MARKETPLACE_NAME}"; installPath MUST be the actual installed plugin directory for the chosen channel. attestedAt must not be in the future and expiresAt must be within 24 hours of attestedAt.`,
-    `   Required fields: consumer="codebuddy", plugin, version, entrySkill, repo, ref, marketplace, installChannel, installPath, planDigest, payloadDigest, attestedBy, attestedAt, expiresAt.`,
-    `6) Re-run release-skill reconcile (promotes PARTIAL -> PUBLISHED) and then verify (-> VERIFIED). Both read the attestation from this same plan-digest-keyed authority directory, so a fresh run directory does not lose the proof.`,
+    `CodeBuddy/WorkBuddy 插件安装无法锁定冻结 ref（codebuddy CLI marketplace add/install 没有 ref 选项，跟踪默认分支），因此安装是需要人工结果证明的手动步骤。`,
+    `1) publish 完成所有远端写入后进入 PUBLISHED 状态（自动化 Git 分支/标签、npm 和 GitHub Release 写入已完成）。此 codebuddy 检查点标记为需要人工安装。`,
+    `2) 从统一市场 "${CODEBUDDY_MARKETPLACE_NAME}" (${CODEBUDDY_MARKETPLACE_SOURCE}) 安装 release-skill。确认安装的插件版本等于冻结版本 ${version}。`,
+    `3) 将人工结果 JSON 写入: ${attestationDir}/${CODEBUDDY_ATTESTATION_FILE}`,
+    `   必填字段: platform="codebuddy", version, planDigest（冻结计划摘要）, result("passed" 或 "failed"), actor（确认人）, confirmedAt（ISO 8601 时间戳）`,
+    `   可选字段: note（备注）`,
+    `4) 运行 release-skill verify（从同一个计划摘要索引的权威目录读取结果，成功后 -> VERIFIED）。`,
   ];
 }
 
@@ -347,129 +230,185 @@ export async function readCodeBuddyManifest(pluginRootReal) {
 }
 
 /**
- * Validate a structured codebuddy manual-install attestation against the frozen
- * action and the verified frozen plan digest.
+ * 统一人工结果验证：验证 codebuddy 人工结果是否匹配冻结计划。
  *
- * Bindings (fail closed on any mismatch):
- * - `consumer` must be "codebuddy".
- * - `installChannel` must be "desktop" or "cli".
- * - `marketplace` must equal the requirement-declared unified marketplace
- *   (`artifact-skill-set`).
- * - `planDigest` binds to the REAL frozen plan digest (`boundPlanDigest`, from
- *   `context.plan.digest`) — NOT to `action.manifestDigest`.
- * - `payloadDigest` binds separately to `action.manifestDigest`.
- * - plugin identity, version, entry skill, repo, and frozen ref must match.
- * - Time bounds: `attestedAt` not in the future, window (`expiresAt -
- *   attestedAt`) <= 24h, and not expired relative to `isoNow`.
- * - installPath per channel (lexical): desktop must end with the well-known
- *   `/.workbuddy/plugins/marketplaces/<marketplace>/plugins/<plugin>` segment
- *   tail. The cli channel's containment within the isolated home is enforced in
- *   the adapter observe branch (it needs the context-derived isolated home and
- *   realpath resolution, mirroring kimi's observe-side managed-root check).
+ * 统一后的结果只需：
+ * - 必填：platform, version, planDigest, result(passed|failed), actor, confirmedAt
+ * - 可选：note
  *
- * @param {object} attestation - parsed attestation JSON.
- * @param {object} action - the expanded codebuddy action (top-level fields).
- * @param {string} isoNow - current ISO timestamp.
- * @param {string} boundPlanDigest - verified frozen plan digest.
- * @returns {{valid:boolean, error:string|null}}
+ * 旧格式兼容（0.2.3 及更早）：
+ * - consumer → platform (必须是 'codebuddy')
+ * - attestedBy → actor
+ * - attestedAt → confirmedAt
+ * - payloadDigest → 载荷绑定验证（如果存在）
+ *
+ * 绑定验证（任何不匹配都失败）：
+ * - planDigest 绑定到真正的冻结计划摘要（boundPlanDigest）
+ * - version 静态一致性检查
+ * - result 只接受 passed 或 failed
+ *
+ * @param {object} attestation - 解析后的人工结果 JSON。
+ * @param {object} action - 展开的 codebuddy 动作（顶层字段）。
+ * @param {string} isoNow - 当前 ISO 时间戳（保留签名兼容，不再用于过期检查）。
+ * @param {string} boundPlanDigest - 验证过的冻结计划摘要。
+ * @returns {{valid:boolean, error:string|null, normalized:object|null}}
  */
 export function validateCodeBuddyAttestation(attestation, action, isoNow, boundPlanDigest) {
   if (!attestation || typeof attestation !== 'object' || Array.isArray(attestation)) {
-    return { valid: false, error: 'codebuddy attestation is not an object' };
+    return { valid: false, error: 'codebuddy attestation is not an object', normalized: null };
   }
-  const requiredStrings = ['plugin', 'version', 'entrySkill', 'repo', 'ref', 'installPath', 'payloadDigest', 'planDigest', 'attestedBy', 'attestedAt', 'expiresAt', 'marketplace', 'installChannel'];
+
+  // 旧格式归一化：将旧字段映射到新字段
+  const normalized = { ...attestation };
+
+  // 旧格式识别：完整旧标识组（consumer, attestedBy, attestedAt）全部存在，
+  // 且新格式字段组（result, actor, confirmedAt）未混入。
+  const hasCompleteOldMarkers = !!(normalized.consumer && normalized.attestedBy && normalized.attestedAt);
+  const hasNewFormatFields = !!(normalized.result || normalized.actor || normalized.confirmedAt);
+  const isOldFormat = hasCompleteOldMarkers && !hasNewFormatFields;
+
+  // 新格式严格要求 result 字段；仅当确认为旧格式时才允许缺省
+  if (!normalized.result && isOldFormat) {
+    normalized.result = 'passed';
+  }
+
+  // consumer → platform (旧格式使用 consumer)
+  if (!normalized.platform && normalized.consumer) {
+    normalized.platform = normalized.consumer;
+  }
+  // attestedBy → actor (旧格式使用 attestedBy)
+  if (!normalized.actor && normalized.attestedBy) {
+    normalized.actor = normalized.attestedBy;
+  }
+  // attestedAt → confirmedAt (旧格式使用 attestedAt)
+  if (!normalized.confirmedAt && normalized.attestedAt) {
+    normalized.confirmedAt = normalized.attestedAt;
+  }
+
+  // 统一必填字段
+  const requiredStrings = ['platform', 'version', 'planDigest', 'result', 'actor', 'confirmedAt'];
   for (const field of requiredStrings) {
-    if (typeof attestation[field] !== 'string' || attestation[field].length === 0) {
-      return { valid: false, error: `codebuddy attestation missing required field "${field}"` };
+    if (typeof normalized[field] !== 'string' || normalized[field].length === 0) {
+      return { valid: false, error: `codebuddy attestation missing required field "${field}"`, normalized: null };
     }
   }
-  if (attestation.consumer !== 'codebuddy') {
-    return { valid: false, error: `codebuddy attestation consumer "${attestation.consumer}" must be "codebuddy"` };
+  if (normalized.platform !== 'codebuddy') {
+    return { valid: false, error: `codebuddy attestation platform "${normalized.platform}" must be "codebuddy"`, normalized: null };
   }
-  if (!CODEBUDDY_INSTALL_CHANNELS.has(attestation.installChannel)) {
-    return { valid: false, error: `codebuddy attestation installChannel "${attestation.installChannel}" must be "desktop" or "cli"` };
+
+  // installPath 路径安全校验：CLI 通道必须在预期目录内
+  if (normalized.installPath !== undefined) {
+    if (typeof normalized.installPath !== 'string' || normalized.installPath.length === 0) {
+      return { valid: false, error: 'codebuddy attestation installPath must be a non-empty string when present', normalized: null };
+    }
+    if (normalized.installPath.includes('..')) {
+      return { valid: false, error: 'codebuddy attestation installPath must not contain path traversal ("..")', normalized: null };
+    }
+    // CLI 通道：installPath 必须以预期后缀结尾
+    if (normalized.installChannel === 'cli') {
+      const expectedSuffix = `.workbuddy/plugins/marketplaces/${CODEBUDDY_MARKETPLACE_NAME}/plugins/${action.plugin}`;
+      if (!normalized.installPath.endsWith(expectedSuffix)) {
+        return { valid: false, error: `codebuddy CLI attestation installPath must end with "${expectedSuffix}", got "${normalized.installPath}"`, normalized: null };
+      }
+    }
   }
-  if (attestation.marketplace !== CODEBUDDY_MARKETPLACE_NAME) {
-    return { valid: false, error: `codebuddy attestation marketplace "${attestation.marketplace}" must be "${CODEBUDDY_MARKETPLACE_NAME}"` };
+
+  // result 只接受 passed 或 failed
+  if (normalized.result !== 'passed' && normalized.result !== 'failed') {
+    return { valid: false, error: `codebuddy attestation result "${normalized.result}" must be "passed" or "failed"`, normalized: null };
   }
-  if (!HEX_DIGEST_RE.test(attestation.planDigest)) {
-    return { valid: false, error: 'codebuddy attestation planDigest must be a 64-char lowercase hex digest' };
+  // planDigest 绑定验证
+  if (!HEX_DIGEST_RE.test(normalized.planDigest)) {
+    return { valid: false, error: 'codebuddy attestation planDigest must be a 64-char lowercase hex digest', normalized: null };
   }
-  if (attestation.planDigest !== boundPlanDigest) {
-    return { valid: false, error: 'codebuddy attestation planDigest does not match the frozen plan digest' };
+  if (normalized.planDigest !== boundPlanDigest) {
+    return { valid: false, error: 'codebuddy attestation planDigest does not match the frozen plan digest', normalized: null };
   }
-  if (attestation.plugin !== action.plugin) {
-    return { valid: false, error: `codebuddy attestation plugin "${attestation.plugin}" does not match action plugin "${action.plugin}"` };
+  // version 静态一致性检查
+  if (normalized.version !== action.version) {
+    return { valid: false, error: `codebuddy attestation version "${normalized.version}" does not match action version "${action.version}"`, normalized: null };
   }
-  if (attestation.version !== action.version) {
-    return { valid: false, error: `codebuddy attestation version "${attestation.version}" does not match action version "${action.version}"` };
+
+  // 旧格式额外绑定字段校验：plugin, repo, ref, entrySkill, payloadDigest
+  if (isOldFormat) {
+    if (normalized.plugin !== action.plugin) {
+      return { valid: false, error: `codebuddy attestation plugin "${normalized.plugin}" does not match action plugin "${action.plugin}"`, normalized: null };
+    }
+    if (normalized.repo !== action.repo) {
+      return { valid: false, error: `codebuddy attestation repo "${normalized.repo}" does not match action repo "${action.repo}"`, normalized: null };
+    }
+    const expectedRef = action.ref ?? `v${action.version}`;
+    if (normalized.ref !== expectedRef) {
+      return { valid: false, error: `codebuddy attestation ref "${normalized.ref}" does not match action ref "${expectedRef}"`, normalized: null };
+    }
+    if (normalized.entrySkill !== action.entrySkill) {
+      return { valid: false, error: `codebuddy attestation entrySkill "${normalized.entrySkill}" does not match action entrySkill "${action.entrySkill}"`, normalized: null };
+    }
+    // payloadDigest 旧格式必填、格式合法且等于冻结动作 manifestDigest
+    if (typeof normalized.payloadDigest !== 'string' || normalized.payloadDigest.length === 0) {
+      return { valid: false, error: 'codebuddy attestation payloadDigest is required for old-format receipts', normalized: null };
+    }
+    if (!HEX_DIGEST_RE.test(normalized.payloadDigest)) {
+      return { valid: false, error: 'codebuddy attestation payloadDigest must be a 64-char lowercase hex digest', normalized: null };
+    }
+    if (action.manifestDigest && normalized.payloadDigest !== action.manifestDigest) {
+      return { valid: false, error: 'codebuddy attestation payloadDigest does not match the frozen manifest digest', normalized: null };
+    }
+  } else {
+    // 新格式 payloadDigest 可选，但如果存在则必须合法
+    if (normalized.payloadDigest !== undefined) {
+      if (!HEX_DIGEST_RE.test(normalized.payloadDigest)) {
+        return { valid: false, error: 'codebuddy attestation payloadDigest must be a 64-char lowercase hex digest when present', normalized: null };
+      }
+      if (action.manifestDigest && normalized.payloadDigest !== action.manifestDigest) {
+        return { valid: false, error: 'codebuddy attestation payloadDigest does not match the frozen manifest digest', normalized: null };
+      }
+    }
   }
-  if (attestation.entrySkill !== action.entrySkill) {
-    return { valid: false, error: `codebuddy attestation entrySkill "${attestation.entrySkill}" does not match action entrySkill "${action.entrySkill}"` };
+
+  // confirmedAt 必须是有效的时间戳
+  const confirmedMs = Date.parse(normalized.confirmedAt);
+  if (!Number.isFinite(confirmedMs)) {
+    return { valid: false, error: 'codebuddy attestation confirmedAt must be a valid ISO timestamp', normalized: null };
   }
-  if (attestation.repo !== action.repo) {
-    return { valid: false, error: `codebuddy attestation repo "${attestation.repo}" does not match action repo "${action.repo}"` };
-  }
-  const expectedRef = action.ref ?? `v${action.version}`;
-  if (attestation.ref !== expectedRef) {
-    return { valid: false, error: `codebuddy attestation ref "${attestation.ref}" does not match frozen ref "${expectedRef}"` };
-  }
-  if (attestation.payloadDigest !== action.manifestDigest) {
-    return { valid: false, error: 'codebuddy attestation payloadDigest does not match the frozen payload digest' };
-  }
-  const attestedMs = Date.parse(attestation.attestedAt);
-  const expiresMs = Date.parse(attestation.expiresAt);
+  // confirmedAt 不得在未来
   const nowMs = Date.parse(isoNow);
-  if (!Number.isFinite(attestedMs) || !Number.isFinite(expiresMs) || !Number.isFinite(nowMs)) {
-    return { valid: false, error: 'codebuddy attestation attestedAt/expiresAt must be valid ISO timestamps' };
+  if (Number.isFinite(nowMs) && confirmedMs > nowMs) {
+    return { valid: false, error: 'codebuddy attestation confirmedAt must not be in the future', normalized: null };
   }
-  if (attestedMs > nowMs) {
-    return { valid: false, error: 'codebuddy attestation attestedAt is in the future' };
+  // expiresAt 校验（可选字段）
+  if (normalized.expiresAt !== undefined) {
+    const expiresMs = Date.parse(normalized.expiresAt);
+    if (!Number.isFinite(expiresMs)) {
+      return { valid: false, error: 'codebuddy attestation expiresAt must be a valid ISO timestamp', normalized: null };
+    }
+    // 已过期
+    if (Number.isFinite(nowMs) && expiresMs < nowMs) {
+      return { valid: false, error: 'codebuddy attestation has expired', normalized: null };
+    }
+    // 有效期不得超过 24 小时
+    if (expiresMs - confirmedMs > CODEBUDDY_MAX_ATTESTATION_VALIDITY_MS) {
+      return { valid: false, error: 'codebuddy attestation validity exceeds 24 hours', normalized: null };
+    }
   }
-  if (expiresMs <= attestedMs) {
-    return { valid: false, error: 'codebuddy attestation expiresAt must be after attestedAt' };
+  // 可选字段 note 如果存在必须是字符串
+  if (normalized.note !== undefined && typeof normalized.note !== 'string') {
+    return { valid: false, error: 'codebuddy attestation note must be a string when present', normalized: null };
   }
-  if (expiresMs - attestedMs > CODEBUDDY_MAX_ATTESTATION_VALIDITY_MS) {
-    return { valid: false, error: 'codebuddy attestation validity must not exceed 24 hours' };
-  }
-  if (nowMs > expiresMs) {
-    return { valid: false, error: 'codebuddy attestation has expired' };
-  }
-  // Desktop installPath must end with the well-known WorkBuddy marketplace
-  // layout (segment-level). The cli channel's isolated-home containment is
-  // enforced in the adapter observe branch (needs the context-derived isolated
-  // home + realpath), mirroring kimi's observe-side managed-root check.
-  if (attestation.installChannel === 'desktop'
-      && !matchesDesktopLayout(attestation.installPath, attestation.marketplace, attestation.plugin)) {
-    return { valid: false, error: `codebuddy attestation installPath does not match the WorkBuddy desktop marketplace layout (.workbuddy/plugins/marketplaces/${attestation.marketplace}/plugins/${attestation.plugin})` };
-  }
-  // CLI installPath must end with the well-known CodeBuddy CLI marketplace
-  // layout (segment-level). This is a lexical check; the full realpath
-  // containment within the isolated home is enforced in the adapter observe
-  // branch (needs the context-derived isolated home + realpath resolution).
-  if (attestation.installChannel === 'cli'
-      && !matchesCliLayout(attestation.installPath, attestation.marketplace, attestation.plugin)) {
-    return { valid: false, error: `codebuddy attestation installPath does not match the CodeBuddy CLI marketplace layout (.codebuddy/plugins/marketplaces/${attestation.marketplace}/plugins/${attestation.plugin})` };
-  }
-  return { valid: true, error: null };
+  return { valid: true, error: null, normalized };
 }
 
 /**
  * CodeBuddy protocol capability gap: the codebuddy CLI cannot pin a frozen ref,
  * so there is NO trustworthy automated install checkpoint. execute NEVER execs a
  * codebuddy command. Instead it emits an actionable manual-install requirement
- * bound to the real frozen plan digest + identity (naming both install channels
- * and the unified marketplace), and leaves success to observe/verify, which
- * consume only a trusted human attestation plus read-only verification. Without
- * that proof the checkpoint fails closed and can never reach VERIFIED.
+ * bound to the real frozen plan digest + identity, and leaves success to
+ * observe/verify, which consume only a trusted human attestation plus read-only
+ * verification. Without that proof the checkpoint fails closed and can never
+ * reach VERIFIED.
  *
- * Isolation model: the cli channel's isolated home is a STABLE, plan-digest-keyed
- * directory under the attestation authority (`<authorityDir>/codebuddy-home`).
- * execute creates the isolated home (so the operator's CLI has a HOME to write
- * into) but never the marketplace install subdir (the operator's CLI install
- * creates that). The desktop channel uses the user's real `~/.workbuddy` and
- * needs no isolated home. The requirement write is idempotent: an identical
- * existing requirement is left untouched, a divergent one fails closed.
+ * 统一人工判定：不再创建隔离目录，不再要求隔离 HOME。
+ * 人工结果只需 platform, version, planDigest, result, actor, confirmedAt。
  *
  * Referenced from the registry as the codebuddy strategy.buildManualRequirement
  * — the automatable=false manual-requirement path.
@@ -519,70 +458,51 @@ export async function executeCodeBuddyManualRequirement(action, context) {
       error: dirErr.message,
     });
   }
-  const cliHome = codebuddyCliHome(attestationDir);
-  const cliInstallRoot = codebuddyCliInstallRoot(cliHome, CODEBUDDY_MARKETPLACE_NAME, action.plugin);
-  const desktopInstallRoot = `~/${CODEBUDDY_DESKTOP_HOME_DIR}/plugins/marketplaces/${CODEBUDDY_MARKETPLACE_NAME}/plugins/${action.plugin}`;
 
   const instructions = buildCodeBuddyManualInstructions({
     plugin: action.plugin,
     version: action.version,
     ref,
-    cliHome,
     attestationDir,
   });
 
+  // 统一 requirement 结构：不再包含隔离目录信息
   const requirement = {
     kind: 'codebuddy-manual-install-requirement',
-    consumer: 'codebuddy',
+    platform: 'codebuddy',
     plugin: action.plugin,
     version: action.version,
-    entrySkill: action.entrySkill,
     repo: action.repo,
     ref,
-    marketplace: CODEBUDDY_MARKETPLACE_NAME,
-    marketplaceSource: CODEBUDDY_MARKETPLACE_SOURCE,
-    installChannels: ['desktop', 'cli'],
-    // (A) planDigest binds to the real frozen plan digest;
-    // expectedPayloadDigest binds separately to the snapshot payload digest.
+    entrySkill: action.entrySkill,
     planDigest,
-    expectedPayloadDigest: action.manifestDigest,
-    isolatedHome: cliHome,
-    codebuddyHome: cliHome,
-    cliInstallRoot,
-    desktopInstallRoot,
     attestationDir,
     attestationFile: CODEBUDDY_ATTESTATION_FILE,
     attestationTemplate: {
-      consumer: 'codebuddy',
-      plugin: action.plugin,
+      platform: 'codebuddy',
       version: action.version,
-      entrySkill: action.entrySkill,
-      repo: action.repo,
-      ref,
-      marketplace: CODEBUDDY_MARKETPLACE_NAME,
-      installChannel: '<"desktop" or "cli">',
-      installPath: '<actual installed plugin directory for the chosen channel>',
       planDigest,
-      payloadDigest: action.manifestDigest,
-      attestedBy: '<person responsible for the manual install>',
-      attestedAt: '<ISO 8601 now; must not be in the future>',
-      expiresAt: '<ISO 8601; within 24h of attestedAt>',
+      result: '<"passed" or "failed">',
+      actor: '<person who confirmed the install>',
+      confirmedAt: '<ISO 8601 timestamp>',
+      note: '<optional note>',
     },
     instructions,
   };
 
-  // Create ONLY the isolated cli home (which transitively creates the authority
-  // dir); never pre-create the marketplace install subdir — the operator's CLI
-  // install (cli channel) or the WorkBuddy desktop app (desktop channel) owns
-  // the actual install directory.
+  // Ensure the authority directory exists (no isolated home creation needed).
+  const { mkdir } = await import('node:fs/promises');
   try {
-    await mkdir(cliHome, { recursive: true, mode: 0o700 });
+    await mkdir(attestationDir, { recursive: true, mode: 0o700 });
   } catch (mkdirErr) {
-    return createResult({
-      actionType,
-      status: ActionStatus.EXECUTE_FAILED,
-      error: `cannot create codebuddy isolated home directory: ${mkdirErr.message}`,
-    });
+    // EEXIST is fine; other errors are fatal.
+    if (mkdirErr?.code !== 'EEXIST') {
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: `cannot create codebuddy attestation directory: ${mkdirErr.message}`,
+      });
+    }
   }
 
   // Idempotent requirement write: an identical existing requirement is left
@@ -639,19 +559,12 @@ export async function executeCodeBuddyManualRequirement(action, context) {
     observation: {
       installed: false,
       manualInstallRequired: true,
-      consumer: 'codebuddy',
+      platform: 'codebuddy',
       plugin: action.plugin,
       version: action.version,
-      entrySkill: action.entrySkill,
-      repo: action.repo,
       ref,
-      marketplace: CODEBUDDY_MARKETPLACE_NAME,
-      installChannels: ['desktop', 'cli'],
       planDigest,
       attestationDir,
-      codebuddyHome: cliHome,
-      cliInstallRoot,
-      desktopInstallRoot,
       instructions,
     },
   });
