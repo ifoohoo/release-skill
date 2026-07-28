@@ -2882,6 +2882,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
 
             // 使用归一化后的 attestation（兼容旧格式）
             const normalizedAttestation = attestationCheck.normalized;
+            const requiresInstalledClosure = Boolean(context.plan?.skillResourceClosure);
 
             // 统一人工判定：如果结果是 failed，直接返回失败
             if (normalizedAttestation.result === 'failed') {
@@ -2901,7 +2902,19 @@ export function createPluginMarketplaceAdapter(deps = {}) {
               });
             }
 
+            if (requiresInstalledClosure && !normalizedAttestation.installPath) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: false,
+                  error: 'kimi attestation installPath is required by the skill resource closure gate',
+                },
+              });
+            }
+
             // installPath 验证：必须在 managed root 内，不得逃逸，不得是符号链接
+            let verifiedInstallPath = null;
             if (normalizedAttestation.installPath) {
               const managedRoot = resolve(attestationDir, 'kimi-home', 'plugins', 'managed');
               const installPathAbs = resolve(normalizedAttestation.installPath);
@@ -2967,18 +2980,19 @@ export function createPluginMarketplaceAdapter(deps = {}) {
                   },
                 });
               }
+              verifiedInstallPath = installPathReal;
             }
 
             // 载荷绑定验证：旧格式含 installPath 时必须绑定冻结载荷并失败关闭。
             // 身份、版本、载荷、市场来源不一致绝不能被人工 passed 覆盖。
             let manifestDigest = action.manifestDigest;
             let payloadBinding = null;
-            if (normalizedAttestation.installPath) {
+            if (verifiedInstallPath) {
               try {
                 payloadBinding = await verifyInstalledMarketplacePayload(
                   action,
                   context,
-                  normalizedAttestation.installPath,
+                  verifiedInstallPath,
                   consumer,
                 );
                 manifestDigest = payloadBinding.manifestDigest;
@@ -3019,6 +3033,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
                 entrySkillFound: true,
                 manifestDigest,
                 planDigest: boundPlanDigest,
+                ...(verifiedInstallPath ? { installPath: verifiedInstallPath } : {}),
                 ...extraInstalledPathsAudit(payloadBinding),
               },
             });
@@ -3129,6 +3144,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
 
             // 使用归一化后的 attestation（兼容旧格式）
             const normalizedAttestation = attestationCheck.normalized;
+            const requiresInstalledClosure = Boolean(context.plan?.skillResourceClosure);
 
             // 统一人工判定：如果结果是 failed，直接返回失败
             if (normalizedAttestation.result === 'failed') {
@@ -3148,7 +3164,69 @@ export function createPluginMarketplaceAdapter(deps = {}) {
               });
             }
 
-            // 统一人工判定：返回人工确认成功（不再进行自动化验证）
+            let verifiedInstallPath = null;
+            if (requiresInstalledClosure) {
+              if (!normalizedAttestation.installPath) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: {
+                    installed: false,
+                    error: 'codebuddy attestation installPath is required by the skill resource closure gate',
+                  },
+                });
+              }
+              if (!['desktop', 'cli'].includes(normalizedAttestation.installChannel)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: {
+                    installed: false,
+                    error: 'codebuddy attestation installChannel must be "desktop" or "cli" when the skill resource closure gate is active',
+                  },
+                });
+              }
+              const normalizedPath = normalizedAttestation.installPath.replaceAll('\\', '/');
+              const expectedSuffix = `.workbuddy/plugins/marketplaces/${CODEBUDDY_MARKETPLACE_NAME}/plugins/${action.plugin}`;
+              if (!normalizedPath.endsWith(expectedSuffix)) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: {
+                    installed: false,
+                    error: `codebuddy attestation installPath must end with "${expectedSuffix}"`,
+                  },
+                });
+              }
+              const installPathAbs = resolve(normalizedAttestation.installPath);
+              let lexicalStat;
+              try {
+                lexicalStat = await lstat(installPathAbs);
+              } catch {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: {
+                    installed: false,
+                    error: `codebuddy attestation installPath does not exist: ${normalizedAttestation.installPath}`,
+                  },
+                });
+              }
+              if (lexicalStat.isSymbolicLink() || !lexicalStat.isDirectory()) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: {
+                    installed: false,
+                    error: 'codebuddy attestation installPath must be a real directory, not a symlink',
+                  },
+                });
+              }
+              verifiedInstallPath = await realpath(installPathAbs);
+            }
+
+            // 人工结果仍裁决不可自动化的安装步骤；新资源闭包计划另外
+            // 暴露已校验的真实安装目录，供 verify 的内置只读门禁扫描。
             return createResult({
               actionType,
               status: ActionStatus.OBSERVED,
@@ -3167,6 +3245,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
                 entrySkillFound: true,
                 manifestDigest: action.manifestDigest,
                 planDigest: boundPlanDigest,
+                ...(verifiedInstallPath ? { installPath: verifiedInstallPath } : {}),
               },
             });
           }

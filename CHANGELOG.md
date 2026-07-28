@@ -1,5 +1,29 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.2.5 locale=en baseline=sha256:8bd4c268f65c72efeb3866ef4bcae7d1fa902e02833e622ca66670b633b124b1 -->
+## [0.2.5] - 2026-07-28
+
+v0.2.5 adds a built-in skill resource-closure release gate. Release Skill now validates the actual frozen and installed plugin projections instead of treating repository-level file presence as proof that every skill can resolve its resources.
+
+### Added
+
+- **Skill resource-closure gate**: recursively discovers nested skills and validates skill-local references, assets, schemas, examples, and private scripts from each skill root.
+- **Frozen and installed receipts**: prepare records closure receipts for every distribution surface, publish rechecks the frozen artifact before external writes, and verify requires matching receipts from real npm and plugin installation roots.
+- **Adversarial path checks**: rejects current-working-directory fallbacks, source-tree backjumps, absolute machine paths, path escape, symbolic links, and non-regular resource targets.
+
+### Changed
+
+- **Shared runtime resolution is explicit**: plugin-level scripts and cross-skill resources must resolve from a validated plugin root; bounded source-only build tools remain auditable exceptions.
+- **Kimi Code and CodeBuddy verification tightened**: consumer verification plans now bind to actual isolated or managed plugin installation paths.
+- **Legacy plan compatibility preserved**: existing frozen plans remain readable, while newly prepared plans require resource-closure evidence.
+
+### Fixed
+
+- **Nested skill blind spot removed**: author, review, repair, and other nested skills are no longer skipped by resource validation.
+- **Public baseline tests synchronized**: migration invariants now track the configured v0.2.4 public baseline commit.
+<!-- release-skill:changelog:end version=0.2.5 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.2.4 locale=en baseline=sha256:b0ad6c897df808a11a2630d1565327ff5092e407dd004dc71bc43b954cbf88a6 -->
 ## [0.2.4] - 2026-07-28
 

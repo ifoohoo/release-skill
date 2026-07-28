@@ -366,6 +366,91 @@
           }
         }
       }
+    },
+    "skillResourceClosureReceipts": {
+      "type": "array",
+      "description": "Per-surface skill resource closure verification receipts from verify phase",
+      "items": {
+        "type": "object",
+        "required": [
+          "host",
+          "distribution",
+          "unitId",
+          "checkerVersion",
+          "inputDigest",
+          "surfaceCount",
+          "skillCount",
+          "referenceCount",
+          "sourceOnlyCount",
+          "findingCount",
+          "receiptDigest",
+          "checkedAt",
+          "exitCode"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "host": {
+            "type": "string",
+            "minLength": 1
+          },
+          "unitId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "distribution": {
+            "type": "string",
+            "enum": [
+              "npm",
+              "claude-plugin",
+              "codex-plugin",
+              "kimi-plugin",
+              "codebuddy-plugin"
+            ]
+          },
+          "actionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "checkerVersion": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inputDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "surfaceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "skillCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "referenceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sourceOnlyCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "findingCount": {
+            "const": 0
+          },
+          "receiptDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "exitCode": {
+            "const": 0
+          }
+        }
+      }
     }
   },
   "allOf": [

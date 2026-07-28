@@ -165,6 +165,35 @@ export function validatePlan(plan) {
       );
     }
   }
+
+  if (plan.skillResourceClosure) {
+    const receipts = plan.skillResourceClosure.unitReceipts ?? [];
+    const receiptUnitIds = receipts.map((item) => item.unitId);
+    if (
+      new Set(receiptUnitIds).size !== receiptUnitIds.length
+      || JSON.stringify([...receiptUnitIds].sort()) !== JSON.stringify([...unitsById.keys()].sort())
+    ) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        'skill resource closure receipts must cover every release unit exactly once',
+      );
+    }
+    const totals = {
+      totalSkillCount: receipts.reduce((sum, item) => sum + item.skillCount, 0),
+      totalReferenceCount: receipts.reduce((sum, item) => sum + item.referenceCount, 0),
+      totalSourceOnlyCount: receipts.reduce((sum, item) => sum + item.sourceOnlyCount, 0),
+      totalFindingCount: receipts.reduce((sum, item) => sum + item.findingCount, 0),
+    };
+    for (const [field, expected] of Object.entries(totals)) {
+      if (plan.skillResourceClosure[field] !== expected) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `skill resource closure ${field} does not match unit receipts`,
+          { expected, observed: plan.skillResourceClosure[field] },
+        );
+      }
+    }
+  }
 }
 
 /**

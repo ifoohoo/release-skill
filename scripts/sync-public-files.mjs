@@ -208,9 +208,9 @@ function buildRequiredPublicFilesYaml(entries, indent = 6) {
 // Entry collection
 // ---------------------------------------------------------------------------
 
-async function collectEntries() {
+async function collectEntries(packageRoot) {
   // 1. Scan all files in the package directory
-  const allFiles = await scanFiles(PKG_ROOT);
+  const allFiles = await scanFiles(packageRoot);
   const allSet = new Set(allFiles);
 
   // 2. Build the adapter exclusion set (all files under adapters/)
@@ -303,8 +303,8 @@ async function collectEntries() {
 // Check / write
 // ---------------------------------------------------------------------------
 
-async function readProjectYaml() {
-  return await readFile(PROJECT_YAML, 'utf8');
+async function readProjectYaml(projectPath) {
+  return await readFile(projectPath, 'utf8');
 }
 
 function extractExistingEntries(yamlText, key) {
@@ -369,18 +369,29 @@ function replaceArrayInYaml(yamlText, key, newContent) {
  *
  * @param {object} options
  * @param {string} options.packageDir - Package directory.
+ * @param {string} [options.projectPath] - Project config path. Defaults to the
+ * real workspace config; tests may provide an isolated copy.
  * @param {boolean} [options.check] - Read-only drift detection.
  * @returns {Promise<{mode: string, clean?: boolean, diff?: object}>}
  */
-export async function syncPublicFiles({ packageDir, check = false } = {}) {
+export async function syncPublicFiles({
+  packageDir,
+  projectPath = PROJECT_YAML,
+  check = false,
+} = {}) {
   if (typeof packageDir !== 'string' || packageDir.length === 0) {
     const err = new Error('sync-public-files: packageDir is required');
     err.code = 'SYNC_PUBLIC_FILES_INVALID_ARGUMENT';
     throw err;
   }
+  if (typeof projectPath !== 'string' || projectPath.length === 0) {
+    const err = new Error('sync-public-files: projectPath must be a non-empty string');
+    err.code = 'SYNC_PUBLIC_FILES_INVALID_ARGUMENT';
+    throw err;
+  }
 
-  const entries = await collectEntries();
-  const yamlText = await readProjectYaml();
+  const entries = await collectEntries(packageDir);
+  const yamlText = await readProjectYaml(projectPath);
 
   const existingPublic = extractExistingEntries(yamlText, 'publicFiles');
   const existingRequired = extractExistingEntries(yamlText, 'requiredPublicFiles');
@@ -422,10 +433,10 @@ export async function syncPublicFiles({ packageDir, check = false } = {}) {
   let newYaml = replaceArrayInYaml(yamlText, 'publicFiles', publicYaml);
   newYaml = replaceArrayInYaml(newYaml, 'requiredPublicFiles', requiredYaml);
 
-  await writeFile(PROJECT_YAML, newYaml, 'utf8');
+  await writeFile(projectPath, newYaml, 'utf8');
 
   // Verify write
-  const reread = await readFile(PROJECT_YAML, 'utf8');
+  const reread = await readFile(projectPath, 'utf8');
   if (reread !== newYaml) {
     const err = new Error('sync-public-files: post-write verification failed');
     err.code = 'SYNC_PUBLIC_FILES_WRITE_VERIFY_FAILED';

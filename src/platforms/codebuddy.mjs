@@ -183,16 +183,22 @@ export function codebuddyAuthorityDir(context, planDigest, plugin) {
 /**
  * 统一人工安装说明：面向 CodeBuddy / WorkBuddy 的人工结果流程。
  *
- * @param {{plugin:string, version:string, ref:string, attestationDir:string}} p
+ * @param {{plugin:string, version:string, ref:string, attestationDir:string, requiresInstalledClosure:boolean}} p
  * @returns {string[]}
  */
-function buildCodeBuddyManualInstructions({ plugin, version, ref, attestationDir }) {
+function buildCodeBuddyManualInstructions({
+  plugin,
+  version,
+  ref,
+  attestationDir,
+  requiresInstalledClosure,
+}) {
   return [
     `CodeBuddy/WorkBuddy 插件安装无法锁定冻结 ref（codebuddy CLI marketplace add/install 没有 ref 选项，跟踪默认分支），因此安装是需要人工结果证明的手动步骤。`,
     `1) publish 完成所有远端写入后进入 PUBLISHED 状态（自动化 Git 分支/标签、npm 和 GitHub Release 写入已完成）。此 codebuddy 检查点标记为需要人工安装。`,
     `2) 从统一市场 "${CODEBUDDY_MARKETPLACE_NAME}" (${CODEBUDDY_MARKETPLACE_SOURCE}) 安装 release-skill。确认安装的插件版本等于冻结版本 ${version}。`,
     `3) 将人工结果 JSON 写入: ${attestationDir}/${CODEBUDDY_ATTESTATION_FILE}`,
-    `   必填字段: platform="codebuddy", version, planDigest（冻结计划摘要）, result("passed" 或 "failed"), actor（确认人）, confirmedAt（ISO 8601 时间戳）`,
+    `   必填字段: platform="codebuddy", version, planDigest（冻结计划摘要）, result("passed" 或 "failed"), actor（确认人）, confirmedAt（ISO 8601 时间戳）${requiresInstalledClosure ? '，installChannel("desktop" 或 "cli")，installPath（实际安装后的插件目录）' : ''}`,
     `   可选字段: note（备注）`,
     `4) 运行 release-skill verify（从同一个计划摘要索引的权威目录读取结果，成功后 -> VERIFIED）。`,
   ];
@@ -464,6 +470,7 @@ export async function executeCodeBuddyManualRequirement(action, context) {
     version: action.version,
     ref,
     attestationDir,
+    requiresInstalledClosure: Boolean(context.plan?.skillResourceClosure),
   });
 
   // 统一 requirement 结构：不再包含隔离目录信息
@@ -485,6 +492,12 @@ export async function executeCodeBuddyManualRequirement(action, context) {
       result: '<"passed" or "failed">',
       actor: '<person who confirmed the install>',
       confirmedAt: '<ISO 8601 timestamp>',
+      ...(context.plan?.skillResourceClosure
+        ? {
+            installChannel: '<"desktop" or "cli">',
+            installPath: `<actual .workbuddy/plugins/marketplaces/${CODEBUDDY_MARKETPLACE_NAME}/plugins/${action.plugin} directory>`,
+          }
+        : {}),
       note: '<optional note>',
     },
     instructions,

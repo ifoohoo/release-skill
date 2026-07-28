@@ -187,16 +187,24 @@ function buildKimiInstallUrl(repo, ref) {
 /**
  * 统一人工安装说明：面向 Kimi Code 的人工结果流程。
  *
- * @param {{installUrl:string, plugin:string, version:string, ref:string, attestationDir:string}} p
+ * @param {{installUrl:string, plugin:string, version:string, ref:string, attestationDir:string, requiresInstalledClosure:boolean, managedRoot:string|null}} p
  * @returns {string[]}
  */
-function buildKimiManualInstructions({ installUrl, plugin, version, ref, attestationDir }) {
+function buildKimiManualInstructions({
+  installUrl,
+  plugin,
+  version,
+  ref,
+  attestationDir,
+  requiresInstalledClosure,
+  managedRoot,
+}) {
   return [
     `Kimi Code 没有可脚本化的插件安装命令行工具；安装是手动交互步骤。`,
     `1) publish 完成所有远端写入后进入 PUBLISHED 状态（自动化 Git 分支/标签、npm 和 GitHub Release 写入已完成）。此 kimi 检查点标记为需要人工安装。`,
-    `2) 在 Kimi Code 中运行: /plugins install ${installUrl}（锁定到冻结 ref "${ref}"，版本 ${version}）。确认插件 "${plugin}" 的信任提示，然后运行 /plugins reload（或 /new）。`,
+    `2) ${requiresInstalledClosure ? `以 KIMI_CODE_HOME="${resolve(managedRoot, '..', '..')}" 启动 Kimi Code，然后` : '在 Kimi Code 中'}运行: /plugins install ${installUrl}（锁定到冻结 ref "${ref}"，版本 ${version}）。确认插件 "${plugin}" 的信任提示，然后运行 /plugins reload（或 /new）。`,
     `3) 将人工结果 JSON 写入: ${attestationDir}/${KIMI_ATTESTATION_FILE}`,
-    `   必填字段: platform="kimi", version, planDigest（冻结计划摘要）, result("passed" 或 "failed"), actor（确认人）, confirmedAt（ISO 8601 时间戳）`,
+    `   必填字段: platform="kimi", version, planDigest（冻结计划摘要）, result("passed" 或 "failed"), actor（确认人）, confirmedAt（ISO 8601 时间戳）${requiresInstalledClosure ? '，installPath（实际安装后的插件目录，必须位于该证明目录的 kimi-home/plugins/managed/ 内）' : ''}`,
     `   可选字段: note（备注）`,
     `4) 运行 release-skill reconcile（对账远端状态并跳过已完成步骤），然后 release-skill verify（从同一个计划摘要索引的权威目录读取结果，成功后 -> VERIFIED）。`,
   ];
@@ -438,12 +446,18 @@ export async function executeKimiManualRequirement(action, context) {
     });
   }
 
+  const requiresInstalledClosure = Boolean(context.plan?.skillResourceClosure);
+  const managedRoot = requiresInstalledClosure
+    ? resolve(attestationDir, 'kimi-home', 'plugins', 'managed')
+    : null;
   const instructions = buildKimiManualInstructions({
     installUrl,
     plugin: action.plugin,
     version: action.version,
     ref,
     attestationDir,
+    requiresInstalledClosure,
+    managedRoot,
   });
 
   // 统一 requirement 结构：不再包含隔离目录信息
@@ -466,6 +480,9 @@ export async function executeKimiManualRequirement(action, context) {
       result: '<"passed" or "failed">',
       actor: '<person who confirmed the install>',
       confirmedAt: '<ISO 8601 timestamp>',
+      ...(requiresInstalledClosure
+        ? { installPath: resolve(managedRoot, action.plugin) }
+        : {}),
       note: '<optional note>',
     },
     instructions,
@@ -486,11 +503,21 @@ export async function executeKimiManualRequirement(action, context) {
     }
   }
 
-  // New manual format: execute only writes the requirement file.
-  // The managed home directory (kimi-home/plugins/managed) is NOT created here.
-  // Only old-format attestations with installPath trigger managed home verification
-  // in the observe path. Creating it unconditionally would violate the invariant
-  // that new-format receipts do not create isolated installation artifacts.
+  // New closure plans must scan an actual installed consumer tree. Create only
+  // the isolated KIMI_CODE_HOME container; the interactive host remains the
+  // sole owner of managed/<plugin>. Legacy plans retain the previous no-home
+  // behavior byte-for-byte.
+  if (requiresInstalledClosure) {
+    try {
+      await mkdir(managedRoot, { recursive: true, mode: 0o700 });
+    } catch (mkdirErr) {
+      return createResult({
+        actionType,
+        status: ActionStatus.EXECUTE_FAILED,
+        error: `cannot create kimi resource-closure managed root: ${mkdirErr.message}`,
+      });
+    }
+  }
 
   // Idempotent requirement write: an identical existing requirement is left
   // untouched; a divergent existing requirement fails closed (never silently

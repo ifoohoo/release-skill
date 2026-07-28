@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.2.4 -->
+<!-- release-skill:release-version: 0.2.5 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,28 +14,30 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.2.4** (2026-07-28)
+**0.2.5** (2026-07-28)
 
-v0.2.4 is a documentation and marketplace-source remediation release. It corrects the default marketplace source to the bundled-family repository (ifoohoo/release-skill), eliminates stale v0.1.9 residuals, improves README bilingual consistency and navigation, and strengthens anti-regression gates for version drift.
+v0.2.5 adds a built-in skill resource-closure release gate. Release Skill now validates the actual frozen and installed plugin projections instead of treating repository-level file presence as proof that every skill can resolve its resources.
+
+**Added**
+
+- **Skill resource-closure gate**: recursively discovers nested skills and validates skill-local references, assets, schemas, examples, and private scripts from each skill root.
+- **Frozen and installed receipts**: prepare records closure receipts for every distribution surface, publish rechecks the frozen artifact before external writes, and verify requires matching receipts from real npm and plugin installation roots.
+- **Adversarial path checks**: rejects current-working-directory fallbacks, source-tree backjumps, absolute machine paths, path escape, symbolic links, and non-regular resource targets.
 
 **Changed**
 
-- **Default marketplace source corrected**: all installation documentation now uses the bundled-family repository `ifoohoo/release-skill` instead of the external marketplace `ifoohoo/artifact-skill-set`. Claude Code install command is now `/plugin marketplace add ifoohoo/release-skill` with `release-skill@release-skill`.
-- **README restructured for readability**: both EN and ZH READMEs now include a table of contents, Documentation navigation section, and reorganized chapter flow (Quick start moved before preservation contract). Significantly shorter than before.
-- **Positioning sentences completed**: README and root workspace README now list all supported platforms (Claude Code, CodeBuddy, WorkBuddy, Codex, Kimi Code).
-- **Anti-regression gate expanded**: `sync-version.mjs` TEXT_TARGETS now covers the safe-first-command version statement in both EN and ZH READMEs, preventing future v0.1.9-type drift.
+- **Shared runtime resolution is explicit**: plugin-level scripts and cross-skill resources must resolve from a validated plugin root; bounded source-only build tools remain auditable exceptions.
+- **Kimi Code and CodeBuddy verification tightened**: consumer verification plans now bind to actual isolated or managed plugin installation paths.
+- **Legacy plan compatibility preserved**: existing frozen plans remain readable, while newly prepared plans require resource-closure evidence.
 
 **Fixed**
 
-- **v0.1.9 residual eliminated**: the safe-first-command block in both READMEs now correctly references the current version (was stuck at v0.1.9).
-- **Stale counting removed**: replaced fragile 'All four plugin hosts' / '四种插件宿主' with 'All supported plugin hosts' / '各插件宿主'.
-- **Root README boundary corrected**: clarified that README/INSTALL/CHANGELOG are human-maintained source files, while references/schemas/adapters/skills are generated artifacts.
-- **CONTRIBUTING updated**: added 'Do not edit generated files' section documenting the authority source and regeneration workflow for references/, schemas/, adapters/, and skills/.
-- **AGENTS.md language rule adjusted**: governance rules file may use English; user-facing documentation remains Chinese.
+- **Nested skill blind spot removed**: author, review, repair, and other nested skills are no longer skipped by resource validation.
+- **Public baseline tests synchronized**: migration invariants now track the configured v0.2.4 public baseline commit.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.2.4 is the current release (v0.2.2 previously held
+> **Current boundary:** v0.2.5 is the current release (v0.2.2 previously held
 > published status before the platform verification convergence fix was added).
 > v0.1.1 completed a real production release to GitHub and npm — the first
 > production-verified milestone — followed by
@@ -53,7 +55,7 @@ v0.2.4 is a documentation and marketplace-source remediation release. It correct
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.2.4 is the current
+> **Production path verified since the v0.1.1 milestone; v0.2.5 is the current
 > release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >

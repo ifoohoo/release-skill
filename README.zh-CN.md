@@ -2,34 +2,36 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.2.4 -->
+<!-- release-skill:release-version: 0.2.5 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.2.4** (2026-07-28)
+**0.2.5** (2026-07-28)
 
-v0.2.4 是文档与市场来源整改版本。将默认市场来源纠正为 bundled-family 仓库（ifoohoo/release-skill），消除过时的 v0.1.9 残留，改善 README 双语一致性与导航，并强化版本漂移的防复发门禁。
+v0.2.5 新增内置的技能资源闭包发布门禁。Release Skill 现在检查真实冻结产物与安装投影，不再把“仓库根目录存在文件”误当成“每个技能都能解析资源”的证据。
+
+**新增**
+
+- **技能资源闭包门禁**：递归发现嵌套技能，并从每个技能根验证技能私有的 references、assets、schemas、examples 与 scripts。
+- **冻结态与安装态收据**：prepare 为每个分发面记录闭包收据，publish 在外部写入前复核冻结制品，verify 要求真实 npm 与插件安装根产生匹配收据。
+- **对抗性路径检查**：拒绝依赖当前工作目录、回跳源码树、机器绝对路径、路径逃逸、符号链接和非普通文件资源。
 
 **变更**
 
-- **默认市场来源纠正**：所有安装文档现使用 bundled-family 仓库 `ifoohoo/release-skill`，而非外部市场 `ifoohoo/artifact-skill-set`。Claude Code 安装命令改为 `/plugin marketplace add ifoohoo/release-skill`，安装名为 `release-skill@release-skill`。
-- **README 结构优化**：中英文 README 均增加目录、文档导航章节，并重组章节流程（快速开始移至保存契约之前）。相较此前显著缩短。
-- **定位句补全**：README 和根工作区 README 现列出所有支持平台（Claude Code、CodeBuddy、WorkBuddy、Codex、Kimi Code）。
-- **防复发门禁扩展**：`sync-version.mjs` TEXT_TARGETS 现覆盖中英文 README 的 safe-first-command 版本陈述，防止未来 v0.1.9 类漂移。
+- **共享运行时显式解析**：插件级脚本和跨技能资源必须从已校验的插件根解析；有限的仅源码构建工具作为可审计例外保留。
+- **Kimi Code 与 CodeBuddy 验证收紧**：消费者验证计划现在绑定真实的隔离或受管插件安装路径。
+- **保留旧计划兼容性**：既有冻结计划仍可读取，新生成计划必须包含资源闭包证据。
 
 **修复**
 
-- **消除 v0.1.9 残留**：两个 README 的 safe-first-command 块现正确引用当前版本（之前停留在 v0.1.9）。
-- **移除易漂移计数**：将 'All four plugin hosts' / '四种插件宿主' 替换为 'All supported plugin hosts' / '各插件宿主'。
-- **根 README 边界修正**：明确 README/INSTALL/CHANGELOG 是人工维护的源文件，references/schemas/adapters/skills 是生成产物。
-- **CONTRIBUTING 更新**：新增'不要直接编辑生成物'章节，说明 references/、schemas/、adapters/、skills/ 的权威来源和再生命令。
-- **AGENTS.md 语言规则调整**：治理规则文件可使用英文；面向用户的文档仍使用中文。
+- **消除嵌套技能盲区**：author、review、repair 等嵌套技能不再被资源验证遗漏。
+- **同步公开基线测试**：迁移不变量现与配置中的 v0.2.4 公开基线提交一致。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.2.4 是当前发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.2.5 是当前发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -42,7 +44,7 @@ v0.2.4 是文档与市场来源整改版本。将默认市场来源纠正为 bun
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.2.4 是当前发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.2.5 是当前发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**

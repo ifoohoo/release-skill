@@ -815,6 +815,97 @@
       "minLength": 1,
       "description": "Digest of the project configuration at plan freeze time"
     },
+    "skillResourceClosure": {
+      "type": "object",
+      "description": "Skill resource closure gate receipts from prepare phase (per-unit bound)",
+      "additionalProperties": false,
+      "properties": {
+        "unitReceipts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "unitId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "checkerVersion": {
+                "type": "string",
+                "minLength": 1
+              },
+              "inputDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "surfaceCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "skillCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "referenceCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sourceOnlyCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "findingCount": {
+                "const": 0
+              },
+              "receiptDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "unitId",
+              "checkerVersion",
+              "inputDigest",
+              "surfaceCount",
+              "skillCount",
+              "referenceCount",
+              "sourceOnlyCount",
+              "findingCount",
+              "receiptDigest"
+            ]
+          }
+        },
+        "checkerVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "totalSkillCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "totalReferenceCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "totalSourceOnlyCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "totalFindingCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "unitReceipts",
+        "checkerVersion",
+        "totalSkillCount",
+        "totalReferenceCount",
+        "totalSourceOnlyCount",
+        "totalFindingCount"
+      ]
+    },
     "verificationGates": {
       "type": "array",
       "items": {

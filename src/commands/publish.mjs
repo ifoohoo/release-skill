@@ -42,6 +42,12 @@ import {
 } from '../core/previous-public-baseline.mjs';
 import { createEvidenceWriter } from '../core/evidence.mjs';
 import {
+  CHECKER_VERSION as SKILL_RESOURCE_CHECKER_VERSION,
+  assertSkillResourceClosureReceipt,
+  checkSkillResourceClosure,
+  createSkillResourceClosureReceipt,
+} from '../core/skill-resource-closure.mjs';
+import {
   ADAPTER_ACTION_TYPE_MAP,
   TIER_TABLE,
   groupActionsByTier,
@@ -521,6 +527,7 @@ export async function publishRelease(options) {
     if (productionMode && !isProductionPlan) {
       throw new ReleaseError(GATE_FAILED, 'production publish requires a github-npm-v1 frozen plan');
     }
+    const verifiedFrozenSnapshots = new Map();
     if (isProductionPlan) {
       if (!plan.production.assetRoot || plan.production.assetRoot === '.') {
         throw new ReleaseError(GATE_FAILED, 'production plan requires a dedicated assetRoot');
@@ -566,6 +573,7 @@ export async function publishRelease(options) {
           snapshotPath: frozen.path,
           expectedDigest: frozen.manifestDigest,
         });
+        verifiedFrozenSnapshots.set(unit.id, snapshot.snapshotDir);
         assertInsideAssetRoot(assetRoot, snapshot.snapshotDir, 'frozen snapshot');
         const git = await verifyFrozenGitRepository({
           root,
@@ -597,6 +605,60 @@ export async function publishRelease(options) {
         }
       }
       await evidence.append({ phase: 'safety-gate', gate: 'frozen-artifacts', status: 'passed' });
+    }
+
+    // =======================================================================
+    // Safety Gate 2c: Skill resource closure recheck
+    // Re-run the skill resource closure check on each unit's frozen snapshot.
+    // Requires findingCount=0 and receipt matches the plan.
+    // =======================================================================
+    if (plan.skillResourceClosure) {
+      await evidence.append({ phase: 'safety-gate', gate: 'skill-resource-closure', status: 'started' });
+      const expectedReceipts = plan.skillResourceClosure.unitReceipts ?? [];
+      if (plan.skillResourceClosure.checkerVersion !== SKILL_RESOURCE_CHECKER_VERSION) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `skill resource closure checker version mismatch: plan=${plan.skillResourceClosure.checkerVersion}, current=${SKILL_RESOURCE_CHECKER_VERSION}`,
+        );
+      }
+      if (expectedReceipts.length !== plan.units.length) {
+        throw new ReleaseError(GATE_FAILED, 'skill resource closure receipt set does not cover every release unit');
+      }
+
+      for (const [unitId, snapshotDir] of verifiedFrozenSnapshots) {
+        const expected = expectedReceipts.find((item) => item.unitId === unitId);
+        if (!expected) {
+          throw new ReleaseError(GATE_FAILED, `skill resource closure receipt missing for unit "${unitId}"`);
+        }
+        const closureResult = await checkSkillResourceClosure({
+          snapshotDir,
+          host: 'root',
+        });
+        if (closureResult.findings.length > 0) {
+          await evidence.append({
+            phase: 'safety-gate',
+            gate: 'skill-resource-closure',
+            status: 'failed',
+            unitId,
+            findingCount: closureResult.findings.length,
+          });
+          throw new ReleaseError(
+            GATE_FAILED,
+            `skill resource closure recheck failed for unit "${unitId}": ${closureResult.findings.length} finding(s)`,
+            { unitId, findings: closureResult.findings },
+          );
+        }
+        const observed = createSkillResourceClosureReceipt(closureResult, { unitId });
+        assertSkillResourceClosureReceipt(expected, observed, `unit "${unitId}"`);
+      }
+
+      await evidence.append({
+        phase: 'safety-gate',
+        gate: 'skill-resource-closure',
+        status: 'passed',
+        receiptCount: expectedReceipts.length,
+        recheckedReceiptCount: verifiedFrozenSnapshots.size,
+      });
     }
 
     // =======================================================================

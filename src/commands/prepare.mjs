@@ -33,6 +33,11 @@ import { runSnapshotVerificationGates } from '../core/verification-gates.mjs';
 import { createEvidenceWriter } from '../core/evidence.mjs';
 import { computePlanDigest, writePlanAtomic, writePlanImmutable } from '../core/plan.mjs';
 import { sha256Hex } from '../core/digest.mjs';
+import {
+  CHECKER_VERSION as SKILL_RESOURCE_CHECKER_VERSION,
+  checkSkillResourceClosure,
+  createSkillResourceClosureReceipt,
+} from '../core/skill-resource-closure.mjs';
 import { buildPublicStaging } from '../snapshot/public-map.mjs';
 import { resolveUnitScopedPath } from '../snapshot/public-path.mjs';
 import { scanSnapshot } from '../snapshot/scan.mjs';
@@ -2234,6 +2239,67 @@ export async function prepareRelease(options) {
         )
       : null;
 
+    // --- Step 7b: Skill resource closure gate ---
+    // Production snapshots are sealed inside buildProductionAssets. Scan only
+    // after that transition so the receipt binds the exact byte/mode identity
+    // publish will re-verify, rather than the writable pre-freeze staging tree.
+    // Non-production plans scan the final staging tree at the same point.
+    // This gate is built in, read-only, and cannot be disabled by overlays.
+    const skillResourceClosureResults = [];
+    for (const { unit, manifest } of unitResults) {
+      await evidence.append({
+        phase: 'skill-resource-closure',
+        status: 'started',
+        unitId: unit.id,
+      });
+
+      const closureResult = await checkSkillResourceClosure({
+        snapshotDir: manifest.outputDir,
+        host: 'root',
+      });
+
+      const receipt = createSkillResourceClosureReceipt(closureResult, { unitId: unit.id });
+      skillResourceClosureResults.push(receipt);
+
+      if (closureResult.findings.length > 0) {
+        await evidence.append({
+          phase: 'skill-resource-closure',
+          status: 'blocking',
+          unitId: unit.id,
+          findingCount: closureResult.findings.length,
+          findings: closureResult.findings.map((f) => ({
+            skill: f.skill,
+            line: f.line,
+            reference: f.reference,
+            classification: f.classification,
+            code: f.code,
+          })),
+        });
+        throw new ReleaseError(
+          GATE_FAILED,
+          `skill resource closure gate failed for unit "${unit.id}": ${closureResult.findings.length} finding(s)`,
+          {
+            unitId: unit.id,
+            findingCount: closureResult.findings.length,
+            findings: closureResult.findings,
+          },
+        );
+      }
+
+      await evidence.append({
+        phase: 'skill-resource-closure',
+        status: 'completed',
+        unitId: unit.id,
+        checkerVersion: closureResult.checkerVersion,
+        surfaceCount: receipt.surfaceCount,
+        skillCount: receipt.skillCount,
+        referenceCount: closureResult.referenceCount,
+        sourceOnlyCount: closureResult.sourceOnlyCount,
+        findingCount: 0,
+        receiptDigest: closureResult.receiptDigest,
+      });
+    }
+
     // Freeze external independent marketplace HEADs (production + online only):
     // for each claude/codex/codebuddy distribution declaring marketplaceRepo,
     // resolve the external repo's HEAD sha + default branch and validate the
@@ -2581,6 +2647,14 @@ export async function prepareRelease(options) {
         capturedAt: baseline.capturedAt,
       },
       configDigest,
+      skillResourceClosure: {
+        checkerVersion: SKILL_RESOURCE_CHECKER_VERSION,
+        unitReceipts: skillResourceClosureResults,
+        totalSkillCount: skillResourceClosureResults.reduce((sum, item) => sum + item.skillCount, 0),
+        totalReferenceCount: skillResourceClosureResults.reduce((sum, item) => sum + item.referenceCount, 0),
+        totalSourceOnlyCount: skillResourceClosureResults.reduce((sum, item) => sum + item.sourceOnlyCount, 0),
+        totalFindingCount: 0,
+      },
       verificationGates: config.verificationGates ?? [],
       snapshotDigest: overallSnapshotDigest,
       ...(production ? {

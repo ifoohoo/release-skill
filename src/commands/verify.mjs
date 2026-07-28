@@ -51,6 +51,11 @@ import {
   resolveNpmRegistryAuthToken,
 } from '../adapters/npm.mjs';
 import { runConsumerVerificationGates } from '../core/verification-gates.mjs';
+import {
+  checkSkillResourceClosure,
+  createSkillResourceClosureReceipt,
+  evaluateConsumerSkillResourceClosureReceipts,
+} from '../core/skill-resource-closure.mjs';
 import { isRemoteWriteAction, isMarketplaceAction } from '../core/checkpoints.mjs';
 import {
   shouldSkipVerification,
@@ -216,11 +221,13 @@ export async function runSmokeTest(plan, root, options = {}) {
         skipped: true,
         details: { message: 'No npm distributions in plan; smoke test skipped' },
         gateResults: [],
+        skillResourceClosureReceipts: [],
       };
     }
 
     const results = [];
     const gateResults = [];
+    const skillResourceClosureReceipts = [];
 
     for (const { package: pkgName, registry, targetVersion, unitId, smokeBin, smokeArgs, smokeExpectedJson } of npmDistributions) {
       const packageAtVersion = `${pkgName}@${targetVersion}`;
@@ -285,6 +292,47 @@ export async function runSmokeTest(plan, root, options = {}) {
       }
 
       const pkgRoot = join(installDir, 'node_modules', pkgName);
+      if (plan.skillResourceClosure) {
+        const expectedUnitReceipt = plan.skillResourceClosure.unitReceipts
+          .find((item) => item.unitId === unitId);
+        if (!expectedUnitReceipt) {
+          return {
+            passed: false,
+            details: { error: `Skill resource closure receipt missing for npm unit "${unitId}"` },
+          };
+        }
+        const closureResult = await checkSkillResourceClosure({
+          snapshotDir: pkgRoot,
+          host: 'npm',
+        });
+        if (closureResult.findings.length > 0) {
+          return {
+            passed: false,
+            details: {
+              error: `Skill resource closure failed for ${packageAtVersion}`,
+              findings: closureResult.findings,
+            },
+          };
+        }
+        if (expectedUnitReceipt.skillCount > 0 && closureResult.skillCount === 0) {
+          return {
+            passed: false,
+            details: {
+              error: `Installed npm package ${packageAtVersion} contains no skills`,
+            },
+          };
+        }
+        skillResourceClosureReceipts.push(createSkillResourceClosureReceipt(
+          closureResult,
+          {
+            unitId,
+            distribution: 'npm',
+            host: 'npm',
+            checkedAt: new Date().toISOString(),
+            exitCode: 0,
+          },
+        ));
+      }
       gateResults.push(...await runConsumerVerificationGates({
         plan,
         unitId,
@@ -471,6 +519,7 @@ export async function runSmokeTest(plan, root, options = {}) {
         count: results.length,
       },
       gateResults,
+      skillResourceClosureReceipts,
     };
   } finally {
     await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
@@ -1002,7 +1051,10 @@ export async function verifyRelease(options) {
             algorithmVersion: INSTALLATION_CONTRACT_ALGORITHM_VERSION,
           });
 
-          if (skipDecision === 'NOT_REQUIRED_UNCHANGED') {
+          // A current-run resource-closure receipt requires a fresh isolated
+          // install. Installation-contract reuse alone cannot prove the
+          // installed Skill resources are reachable.
+          if (skipDecision === 'NOT_REQUIRED_UNCHANGED' && !plan.skillResourceClosure) {
             adapterChecks.push({
               actionId: action.id,
               actionType: action.type,
@@ -1242,6 +1294,103 @@ export async function verifyRelease(options) {
     }
 
     // =======================================================================
+    // Step 4b: Skill resource closure check on consumer install surfaces
+    // Re-run the closure check on each declared consumer install surface.
+    // If the plan declares skillResourceClosure, every declared host surface
+    // must be checked and pass; undeclared or failed surfaces block VERIFIED.
+    // =======================================================================
+    const skillResourceClosureReceipts = [
+      ...(smokeTest.skillResourceClosureReceipts ?? []),
+    ];
+    if (plan.skillResourceClosure) {
+      await evidence.append({ phase: 'verify', step: 'skill-resource-closure', status: 'started' });
+
+      // Collect install paths from marketplace adapter checks
+      const installSurfaces = [];
+      const actionDistribution = {
+        'claude-marketplace-install': 'claude-plugin',
+        'codex-marketplace-install': 'codex-plugin',
+        'kimi-marketplace-install': 'kimi-plugin',
+        'codebuddy-marketplace-install': 'codebuddy-plugin',
+      };
+      for (const check of adapterChecks) {
+        const distribution = actionDistribution[check.actionType];
+        if (distribution && check.observation?.installPath) {
+          installSurfaces.push({
+            host: distribution.replace('-plugin', ''),
+            distribution,
+            installPath: check.observation.installPath,
+            actionId: check.actionId,
+            unitId: actions.find((a) => a.id === check.actionId)?.unitId,
+          });
+        }
+      }
+
+      for (const surface of installSurfaces) {
+        const closureResult = await checkSkillResourceClosure({
+          snapshotDir: surface.installPath,
+          host: surface.host,
+        });
+
+        if (closureResult.findings.length > 0) {
+          await evidence.append({
+            phase: 'verify',
+            step: 'skill-resource-closure',
+            status: 'failed',
+            host: surface.host,
+            findingCount: closureResult.findings.length,
+            findings: closureResult.findings,
+          });
+          throw new ReleaseError(
+            POST_PUBLISH_VERIFY_FAILED,
+            `skill resource closure check failed for ${surface.host} consumer install: ${closureResult.findings.length} finding(s)`,
+            { host: surface.host, findings: closureResult.findings },
+          );
+        }
+        const expectedUnitReceipt = plan.skillResourceClosure.unitReceipts
+          .find((item) => item.unitId === surface.unitId);
+        if (!expectedUnitReceipt || closureResult.skillCount === 0) {
+          throw new ReleaseError(
+            POST_PUBLISH_VERIFY_FAILED,
+            `skill resource closure installed surface is empty or unbound for ${surface.distribution}`,
+            { unitId: surface.unitId, distribution: surface.distribution },
+          );
+        }
+        skillResourceClosureReceipts.push(createSkillResourceClosureReceipt(
+          closureResult,
+          {
+            host: surface.host,
+            distribution: surface.distribution,
+            actionId: surface.actionId,
+            unitId: surface.unitId,
+            checkedAt: clockFn(),
+            exitCode: 0,
+          },
+        ));
+      }
+
+      const receiptCoverage = evaluateConsumerSkillResourceClosureReceipts(
+        plan,
+        skillResourceClosureReceipts,
+      );
+      if (!receiptCoverage.passed) {
+        throw new ReleaseError(
+          POST_PUBLISH_VERIFY_FAILED,
+          'skill resource closure receipt set does not match declared consumer distributions',
+          receiptCoverage,
+        );
+      }
+
+      await evidence.append({
+        phase: 'verify',
+        step: 'skill-resource-closure',
+        status: 'completed',
+        surfaceCount: installSurfaces.length,
+        receipts: skillResourceClosureReceipts,
+      });
+    }
+
+    // =======================================================================
     // All verifications passed — write verify run
     // =======================================================================
     assertTransition(PUBLISHED, VERIFIED);
@@ -1285,6 +1434,7 @@ export async function verifyRelease(options) {
       }),
       gateResults: consumerGateResults,
       consumerVerificationReceipts,
+      skillResourceClosureReceipts,
       startedAt: clockFn(),
       finishedAt: clockFn(),
     };

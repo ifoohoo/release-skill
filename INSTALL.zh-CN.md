@@ -2,7 +2,7 @@
 
 [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.2.4 -->
+<!-- release-skill:release-version: 0.2.5 -->
 ## 前置条件
 
 - Node.js 22.0.0 或更高版本
@@ -112,7 +112,7 @@ release-skill 把 Kimi 安装建模为“版本钉死的手动安装 + 可信观
    必须核实已安装插件清单版本等于冻结版本；否则**不得**出具证明。
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.4
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.5
    /plugins reload
    ```
 
@@ -124,7 +124,7 @@ release-skill 把 Kimi 安装建模为“版本钉死的手动安装 + 可信观
 ```json
 {
   "platform": "kimi",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "planDigest": "<64 位十六进制冻结计划摘要>",
   "result": "passed",
   "actor": "<确认人>",
@@ -178,7 +178,7 @@ codebuddy CLI 可以添加市场并安装插件，但 **`plugin marketplace add`
 ```json
 {
   "platform": "codebuddy",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "planDigest": "<64 位十六进制冻结计划摘要>",
   "result": "passed",
   "actor": "<确认人>",
