@@ -35,6 +35,12 @@
         "defaultBranch": {
           "type": "string",
           "minLength": 1
+        },
+        "sourceRepository": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$",
+          "description": "GitHub owner/repo of the workspace source repository for source authority content gate"
         }
       }
     },

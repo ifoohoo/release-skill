@@ -2,36 +2,33 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.2.5 -->
+<!-- release-skill:release-version: 0.2.6 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.2.5** (2026-07-28)
+**0.2.6** (2026-07-29)
 
-v0.2.5 新增内置的技能资源闭包发布门禁。Release Skill 现在检查真实冻结产物与安装投影，不再把“仓库根目录存在文件”误当成“每个技能都能解析资源”的证据。
+v0.2.6 新增源码权威内容门，避免生产发布完成后，项目工作区的真实默认分支仍对外展示旧 README 等公开文件。
 
 **新增**
 
-- **技能资源闭包门禁**：递归发现嵌套技能，并从每个技能根验证技能私有的 references、assets、schemas、examples 与 scripts。
-- **冻结态与安装态收据**：prepare 为每个分发面记录闭包收据，publish 在外部写入前复核冻结制品，verify 要求真实 npm 与插件安装根产生匹配收据。
-- **对抗性路径检查**：拒绝依赖当前工作目录、回跳源码树、机器绝对路径、路径逃逸、符号链接和非普通文件资源。
+- **源码权威内容闭包**：prepare 冻结必须出现在所配置源码仓真实默认分支上的公开输入路径、内容与可执行位。
+- **发布前远端证明**：publish 在任何外部写入前对比冻结闭包与远端默认分支，并生成摘要绑定的收据；verify 必须消费该收据。
 
 **变更**
 
-- **共享运行时显式解析**：插件级脚本和跨技能资源必须从已校验的插件根解析；有限的仅源码构建工具作为可审计例外保留。
-- **Kimi Code 与 CodeBuddy 验证收紧**：消费者验证计划现在绑定真实的隔离或受管插件安装路径。
-- **保留旧计划兼容性**：既有冻结计划仍可读取，新生成计划必须包含资源闭包证据。
+- **兼容不同分支拓扑**：项目既可直接在默认分支迭代，也可使用发布分支；是否合规只看最终内容，不依赖合并祖先关系或写死的分支名。
+- **最小冲突策略**：分叉或冲突状态失败关闭并给出诊断；Release Skill 不自动 merge、rebase、force-push，也不引入替代性的分支工作流。
 
 **修复**
 
-- **消除嵌套技能盲区**：author、review、repair 等嵌套技能不再被资源验证遗漏。
-- **同步公开基线测试**：迁移不变量现与配置中的 v0.2.4 公开基线提交一致。
+- **修复发布后工作区 README 陈旧**：当源码工作区真实默认分支缺少冻结后的 README 或其他声明输入时，生产发布会在外部写入前阻断。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.2.5 是当前发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.2.6 是当前发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -44,7 +41,7 @@ v0.2.5 新增内置的技能资源闭包发布门禁。Release Skill 现在检�
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.2.5 是当前发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.2.6 是当前发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -235,6 +232,13 @@ DISCOVERED -> ASSESSED -> PREPARED -> APPROVED -> PUBLISHING -> PUBLISHED -> VER
 
 **写入安全：** `setup` 默认只读（摘要确认后仅首次创建配置）。`prepare` 只写 `.release-skill/`。`publish` 是生产写入入口，需要同时提供批准和当前计划摘要。项目 hook 和 gate 是已确认的本地进程，没有操作系统沙箱。
 
+**Workspace 源码权威：** 生产配置使用 `project.sourceRepository` 指定 workspace
+源仓库，并用 `project.defaultBranch` 指定其真实远端默认分支。prepare 冻结所有
+`publicFiles.from` 展开文件及各 `version.source` 的内容与 Git mode；publish 在第一个
+adapter 写入前与远端默认分支比较。普通 merge、squash、rebase 后内容仍一致即可通过；
+README 被冲突解决或 revert 丢失时会精确到路径阻断。系统不会自动合并、切分支、push
+或创建 PR。
+
 ## 文档导航
 
 | 文档 | 说明 |
@@ -259,6 +263,7 @@ kind: ReleaseProject
 project:
   name: my-project
   defaultBranch: main
+  sourceRepository: owner/my-workspace
 releaseUnits:
   - id: my-project
     source: .
@@ -297,6 +302,7 @@ kind: ReleaseProject
 project:
   name: my-workspace
   defaultBranch: main
+  sourceRepository: owner/my-workspace
 releaseUnits:
   - id: my-app
     source: packages/app
@@ -353,7 +359,11 @@ releaseUnits:
   "projectConfig": {
     "apiVersion": "release-skill/v1",
     "kind": "ReleaseProject",
-    "project": { "name": "my-project", "defaultBranch": "main" },
+    "project": {
+      "name": "my-project",
+      "defaultBranch": "main",
+      "sourceRepository": "owner/my-workspace"
+    },
     "releaseUnits": [{
       "id": "my-project",
       "source": ".",

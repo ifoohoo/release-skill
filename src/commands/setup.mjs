@@ -976,6 +976,21 @@ function buildRecommendedProposal(facts, candidates) {
   const legacyOwner = facts.legacyReleaseConfigs
     .map((c) => c.owner)
     .find(Boolean);
+  const sourceRepositoryCandidates = [...new Set(
+    facts.git.remotes.map((remote) => remote.repo).filter(Boolean),
+  )].sort();
+  if (sourceRepositoryCandidates.length !== 1) {
+    return {
+      answers: null,
+      conflicts: [{
+        code: sourceRepositoryCandidates.length === 0
+          ? 'SOURCE_REPOSITORY_MISSING'
+          : 'SOURCE_REPOSITORY_AMBIGUOUS',
+        candidates: sourceRepositoryCandidates,
+      }],
+      assumptions,
+    };
+  }
 
   const units = [];
   for (const unit of candidates.units) {
@@ -1156,6 +1171,7 @@ function buildRecommendedProposal(facts, candidates) {
     project: {
       name: facts.packages[0]?.name ?? 'project',
       defaultBranch: facts.legacyReleaseConfigs[0]?.defaultBranch ?? facts.git.branch ?? 'main',
+      sourceRepository: sourceRepositoryCandidates[0],
     },
     releaseUnits: units,
     ...(selectedGateIds.length > 0 ? {
@@ -1517,6 +1533,9 @@ export async function setupProject({ root, answersPath, write = false, confirmSe
 
   const facts = await discoverFacts(rootReal);
   const candidates = buildCandidates(facts);
+  const sourceRepositoryCandidates = [...new Set(
+    facts.git.remotes.map((remote) => remote.repo).filter(Boolean),
+  )].sort();
   let answers = null;
   if (answersPath) {
     const resolvedAnswers = isAbsolute(answersPath) ? answersPath : resolve(rootReal, answersPath);
@@ -1527,6 +1546,7 @@ export async function setupProject({ root, answersPath, write = false, confirmSe
   const digestAuthority = {
     setupVersion: 1,
     facts,
+    sourceRepositoryCandidates,
     releaseUnitCandidates: candidates.units,
     gateCandidates: candidates.gates,
     selectedGateIds,
@@ -1599,6 +1619,9 @@ export async function setupProject({ root, answersPath, write = false, confirmSe
       const lockedAuthority = {
         setupVersion: 1,
         facts: lockedFacts,
+        sourceRepositoryCandidates: [...new Set(
+          lockedFacts.git.remotes.map((remote) => remote.repo).filter(Boolean),
+        )].sort(),
         releaseUnitCandidates: lockedCandidates.units,
         gateCandidates: lockedCandidates.gates,
         selectedGateIds: lockedAnswers.selectedGateIds,
@@ -1622,6 +1645,9 @@ export async function setupProject({ root, answersPath, write = false, confirmSe
           const finalAuthority = {
             setupVersion: 1,
             facts: finalFacts,
+            sourceRepositoryCandidates: [...new Set(
+              finalFacts.git.remotes.map((remote) => remote.repo).filter(Boolean),
+            )].sort(),
             releaseUnitCandidates: finalCandidates.units,
             gateCandidates: finalCandidates.gates,
             selectedGateIds: finalAnswers.selectedGateIds,

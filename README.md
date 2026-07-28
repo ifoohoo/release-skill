@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.2.5 -->
+<!-- release-skill:release-version: 0.2.6 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,30 +14,27 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.2.5** (2026-07-28)
+**0.2.6** (2026-07-29)
 
-v0.2.5 adds a built-in skill resource-closure release gate. Release Skill now validates the actual frozen and installed plugin projections instead of treating repository-level file presence as proof that every skill can resolve its resources.
+v0.2.6 adds a source-authority content gate so a production release cannot succeed while the project workspace's real default branch still exposes stale public files.
 
 **Added**
 
-- **Skill resource-closure gate**: recursively discovers nested skills and validates skill-local references, assets, schemas, examples, and private scripts from each skill root.
-- **Frozen and installed receipts**: prepare records closure receipts for every distribution surface, publish rechecks the frozen artifact before external writes, and verify requires matching receipts from real npm and plugin installation roots.
-- **Adversarial path checks**: rejects current-working-directory fallbacks, source-tree backjumps, absolute machine paths, path escape, symbolic links, and non-regular resource targets.
+- **Source-authority content closure**: prepare freezes the exact public input paths and executable modes that must exist on the configured source repository's actual default branch.
+- **Pre-publish remote proof**: publish compares the frozen closure with the remote default branch before any external write and records a digest-bound receipt that verify requires.
 
 **Changed**
 
-- **Shared runtime resolution is explicit**: plugin-level scripts and cross-skill resources must resolve from a validated plugin root; bounded source-only build tools remain auditable exceptions.
-- **Kimi Code and CodeBuddy verification tightened**: consumer verification plans now bind to actual isolated or managed plugin installation paths.
-- **Legacy plan compatibility preserved**: existing frozen plans remain readable, while newly prepared plans require resource-closure evidence.
+- **Branch topology tolerance**: projects may develop directly on the default branch or use release branches; compliance is based on final content, not merge ancestry or a hard-coded branch name.
+- **Minimal conflict policy**: divergent or conflicting source state fails closed with diagnostics; Release Skill does not auto-merge, rebase, force-push, or create a replacement branch workflow.
 
 **Fixed**
 
-- **Nested skill blind spot removed**: author, review, repair, and other nested skills are no longer skipped by resource validation.
-- **Public baseline tests synchronized**: migration invariants now track the configured v0.2.4 public baseline commit.
+- **Stale workspace README after release**: production publishing now blocks when the source workspace's real default branch does not contain the frozen public README and other declared source inputs.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.2.5 is the current release (v0.2.2 previously held
+> **Current boundary:** v0.2.6 is the current release (v0.2.2 previously held
 > published status before the platform verification convergence fix was added).
 > v0.1.1 completed a real production release to GitHub and npm — the first
 > production-verified milestone — followed by
@@ -55,7 +52,7 @@ v0.2.5 adds a built-in skill resource-closure release gate. Release Skill now va
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.2.5 is the current
+> **Production path verified since the v0.1.1 milestone; v0.2.6 is the current
 > release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
@@ -263,6 +260,15 @@ again; it never rebuilds from a template. Only files listed in `publicFiles` are
 copied. `prepare` never refreshes or rewrites human docs — maintainers update
 README, INSTALL, and CHANGELOG first, then prepare, review, and approve.
 
+**Workspace source authority:** production config names the workspace source
+repository with `project.sourceRepository` and its real remote default branch
+with `project.defaultBranch`. Prepare binds the content and Git mode of every
+expanded `publicFiles.from` input plus each `version.source`; publish compares
+that frozen closure with the remote default branch before the first adapter
+write. The check accepts merge, squash, and rebase when the bytes still match,
+but blocks a lost or reverted README by path. It never merges, switches
+branches, pushes, or creates a PR.
+
 **Write safety:** `setup` is read-only by default (create-once after digest
 confirmation). `prepare` writes only under `.release-skill/`. `publish` is the
 production write entry, requiring both approval and the current plan digest.
@@ -293,6 +299,7 @@ kind: ReleaseProject
 project:
   name: my-project
   defaultBranch: main
+  sourceRepository: owner/my-workspace
 releaseUnits:
   - id: my-project
     source: .
@@ -333,6 +340,7 @@ kind: ReleaseProject
 project:
   name: my-workspace
   defaultBranch: main
+  sourceRepository: owner/my-workspace
 releaseUnits:
   - id: my-app
     source: packages/app
@@ -390,7 +398,11 @@ and binding the same id in `selectedGateIds`:
   "projectConfig": {
     "apiVersion": "release-skill/v1",
     "kind": "ReleaseProject",
-    "project": { "name": "my-project", "defaultBranch": "main" },
+    "project": {
+      "name": "my-project",
+      "defaultBranch": "main",
+      "sourceRepository": "owner/my-workspace"
+    },
     "releaseUnits": [{
       "id": "my-project",
       "source": ".",

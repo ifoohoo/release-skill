@@ -2,7 +2,7 @@
 
 [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.2.5 -->
+<!-- release-skill:release-version: 0.2.6 -->
 ## 前置条件
 
 - Node.js 22.0.0 或更高版本
@@ -112,7 +112,7 @@ release-skill 把 Kimi 安装建模为“版本钉死的手动安装 + 可信观
    必须核实已安装插件清单版本等于冻结版本；否则**不得**出具证明。
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.5
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.6
    /plugins reload
    ```
 
@@ -124,7 +124,7 @@ release-skill 把 Kimi 安装建模为“版本钉死的手动安装 + 可信观
 ```json
 {
   "platform": "kimi",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "planDigest": "<64 位十六进制冻结计划摘要>",
   "result": "passed",
   "actor": "<确认人>",
@@ -178,7 +178,7 @@ codebuddy CLI 可以添加市场并安装插件，但 **`plugin marketplace add`
 ```json
 {
   "platform": "codebuddy",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "planDigest": "<64 位十六进制冻结计划摘要>",
   "result": "passed",
   "actor": "<确认人>",
@@ -297,7 +297,11 @@ node -e 'require("node:fs").rmSync(process.argv[1],{recursive:true,force:false})
   "projectConfig": {
     "apiVersion": "release-skill/v1",
     "kind": "ReleaseProject",
-    "project": { "name": "my-project", "defaultBranch": "main" },
+    "project": {
+      "name": "my-project",
+      "defaultBranch": "main",
+      "sourceRepository": "owner/my-workspace"
+    },
     "releaseUnits": [{
       "id": "my-project",
       "source": ".",
@@ -362,6 +366,7 @@ kind: ReleaseProject
 project:
   name: my-project
   defaultBranch: main
+  sourceRepository: owner/my-workspace
 
 releaseUnits:
   - id: my-project
@@ -512,6 +517,19 @@ production:
 
 后两种策略必须在线执行 production prepare。任何不一致都应停止并审阅；只有检查真实远端状态后才能人工更新权威配置，禁止 force push 或弱化基线。
 
+### Workspace 源码权威
+
+`project.sourceRepository` 是承载人工源文件的 workspace GitHub
+`owner/repo`，可以与各 release unit 的 `publicRepo` 不同。
+`project.defaultBranch` 是该仓库真实的远端默认分支，不假设一定为 `main`。
+
+生产 prepare 冻结所有 `publicFiles.from` 展开输入和各 unit
+`version.source` 的内容与 Git mode，只拒绝这个闭包内的未提交变化。publish 在任何
+adapter execute 前从远端默认分支比较同一闭包。判定不依赖 commit ancestry，因此
+merge、squash、rebase 后字节仍一致即可通过；README 被 revert 或冲突解决丢失时按路径
+阻断。差异必须由人工处理并把接受内容放入默认分支；release-skill 不自动 merge、切分支、
+push 或创建 PR。
+
 ## 保护人工维护内容
 
 README 文案、slogan、示例、排版及其他人工源文件始终是权威。release-skill 只按 `publicFiles` 映射做快照，不重新生成或覆盖源 README。每次人工编辑后重新 prepare，并批准新的不可变计划；不得编辑冻结快照或复用旧批准绕过变化。
@@ -528,5 +546,9 @@ README 文案、slogan、示例、排版及其他人工源文件始终是权威�
 - 缺少配置时运行 `"${CLI[@]}" setup --root <your-project> --json`，在人工决策完成前保持默认 dry-run。
 - 运行 `"${CLI[@]}" assess --root <your-project> --offline` 检查发布就绪度。
 - 运行 `"${CLI[@]}" prepare --root <your-project> --offline` 生成发布计划；release-skill 自身只做本地写入，但项目 hook 可能执行远端操作。
-- 生产前为每个 unit 配置 `previousPublicBaseline`。已有公开版本必须使用 `mode: bound`，绑定精确 `repo`、`ref` 和 `commit`，再运行 `"${CLI[@]}" prepare --root <your-project> --online --production`。
+- 生产前为每个 unit 配置 `previousPublicBaseline`。已有公开版本必须使用 `mode: bound`，
+  绑定精确 `repo`、`ref` 和 `commit`；同时配置 workspace 的
+  `project.sourceRepository` 与真实 `project.defaultBranch`，再运行
+  `"${CLI[@]}" prepare --root <your-project> --online --production`。prepare 不下载源码
+  内容；publish 会在任何 execute 前检查源码权威闭包与目标唯一性。
 - 生产命令只使用 `prepare --json` 返回的不可变 `planPath`，以及 `approve --json` 返回的不可变 `approvalPath`。

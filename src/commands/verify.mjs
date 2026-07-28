@@ -41,8 +41,10 @@ import {
 import {
   ReleaseError,
   GATE_FAILED,
+  CONFIG_MISSING,
   POST_PUBLISH_VERIFY_FAILED,
 } from '../core/errors.mjs';
+import { verifySourceAuthorityReceipt } from '../core/source-authority.mjs';
 import { assertTransition, PUBLISHED, VERIFIED } from '../core/state-machine.mjs';
 import { resolveUnitScopedPath } from '../snapshot/public-path.mjs';
 import {
@@ -654,6 +656,13 @@ export async function verifyRelease(options) {
     );
   }
   validatePlan(plan);
+  if (plan.production?.mode === 'github-npm-v1' && !plan.sourceAuthority) {
+    throw new ReleaseError(
+      CONFIG_MISSING,
+      'production verify requires a frozen sourceAuthority binding; the release must be re-prepared before publish',
+      { gate: 'source-authority' },
+    );
+  }
 
   // --- Set up directories ---
   const runId = `verify-${Date.now()}`;
@@ -776,6 +785,29 @@ export async function verifyRelease(options) {
 
     // Validate checkpoint mapping
     validateRunCheckpointMapping(sourceRun, plan.externalActions ?? []);
+
+    // --- Source authority receipt verification ---
+    // If the plan declares sourceAuthority, the source publish run must
+    // contain a matching CONSISTENT receipt bound to this planDigest.
+    if (plan.sourceAuthority) {
+      await evidence.append({ phase: 'source-authority-receipt', status: 'started' });
+
+      const receiptResult = verifySourceAuthorityReceipt({ plan, run: sourceRun });
+      if (!receiptResult.passed) {
+        await evidence.append({
+          phase: 'source-authority-receipt',
+          status: 'failed',
+          reason: receiptResult.reason,
+        });
+        throw new ReleaseError(
+          GATE_FAILED,
+          `source authority receipt verification failed: ${receiptResult.reason}`,
+          { reason: receiptResult.reason },
+        );
+      }
+
+      await evidence.append({ phase: 'source-authority-receipt', status: 'passed' });
+    }
 
     // All checkpoints must be succeeded or skipped (no failed/pending),
     // except marketplace install checkpoints which are re-verified by verify

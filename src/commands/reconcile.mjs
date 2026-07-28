@@ -59,6 +59,7 @@ import {
   CONSUMER_VERIFICATION_DEFERRED,
 } from '../core/errors.mjs';
 import { assertTransition, PARTIAL, PUBLISHED, BLOCKED } from '../core/state-machine.mjs';
+import { verifySourceAuthorityReceipt } from '../core/source-authority.mjs';
 import { matchObservation } from '../adapters/contract.mjs';
 import { observeWithRetry, clampPolicyToTimeout, DEFAULT_OBSERVE_RETRY_POLICY } from '../core/observe-retry.mjs';
 
@@ -232,6 +233,18 @@ export async function reconcileRelease(options) {
         GATE_FAILED,
         `reconcile source command must be publish or reconcile, got "${sourceRun.command}"`,
       );
+    }
+    let sourceAuthorityReceipt = null;
+    if (plan.sourceAuthority) {
+      const receiptResult = verifySourceAuthorityReceipt({ plan, run: sourceRun });
+      if (!receiptResult.passed) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `reconcile source run has no valid source-authority receipt: ${receiptResult.reason}`,
+          { gate: 'source-authority', sourceRunId: sourceRun.runId },
+        );
+      }
+      sourceAuthorityReceipt = receiptResult.receipt;
     }
 
     let consumedApprovalPath = sourceRun.approvalPath;
@@ -956,6 +969,9 @@ export async function reconcileRelease(options) {
       sourceRunDigest: sourceAuthorityDigest,
       sourceRunPath,
       status,
+      ...(sourceAuthorityReceipt
+        ? { sourceAuthorityReceipts: [sourceAuthorityReceipt] }
+        : {}),
       checkpoints: planActions.map((action) => {
         const value = actionResults.get(action.id);
         const normalized = value === 'deferred' ? 'deferred'
@@ -1303,6 +1319,9 @@ export async function reconcileRelease(options) {
       sourceRunDigest,
       sourceRunPath,
       status: overallStatus,
+      ...(sourceAuthorityReceipt
+        ? { sourceAuthorityReceipts: [sourceAuthorityReceipt] }
+        : {}),
       checkpoints: planActions.map((a) => {
         const status = actionResults.get(a.id) ?? 'pending';
         const normalized = status === 'deferred' ? 'deferred'

@@ -1,5 +1,26 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.2.6 locale=en baseline=sha256:ba7fe1d8cbae8ea3a539016c1231acd066f6dbf30b6e1ebb9db50e7c04e69253 -->
+## [0.2.6] - 2026-07-29
+
+v0.2.6 adds a source-authority content gate so a production release cannot succeed while the project workspace's real default branch still exposes stale public files.
+
+### Added
+
+- **Source-authority content closure**: prepare freezes the exact public input paths and executable modes that must exist on the configured source repository's actual default branch.
+- **Pre-publish remote proof**: publish compares the frozen closure with the remote default branch before any external write and records a digest-bound receipt that verify requires.
+
+### Changed
+
+- **Branch topology tolerance**: projects may develop directly on the default branch or use release branches; compliance is based on final content, not merge ancestry or a hard-coded branch name.
+- **Minimal conflict policy**: divergent or conflicting source state fails closed with diagnostics; Release Skill does not auto-merge, rebase, force-push, or create a replacement branch workflow.
+
+### Fixed
+
+- **Stale workspace README after release**: production publishing now blocks when the source workspace's real default branch does not contain the frozen public README and other declared source inputs.
+<!-- release-skill:changelog:end version=0.2.6 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.2.5 locale=en baseline=sha256:8bd4c268f65c72efeb3866ef4bcae7d1fa902e02833e622ca66670b633b124b1 -->
 ## [0.2.5] - 2026-07-28
 

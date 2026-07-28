@@ -59,10 +59,15 @@ import { appendRunState, createProductionRunDir, writeRunAtomic, resolveDefaultR
 import {
   ReleaseError,
   GATE_FAILED,
+  CONFIG_MISSING,
   BASELINE_CHANGED,
   PARTIAL_RELEASE,
   CONSUMER_VERIFICATION_DEFERRED,
 } from '../core/errors.mjs';
+import {
+  verifyRemoteSourceContent,
+  createSourceAuthorityReceipt,
+} from '../core/source-authority.mjs';
 import { assertTransition, PUBLISHING, PUBLISHED, PARTIAL } from '../core/state-machine.mjs';
 import { matchObservation } from '../adapters/contract.mjs';
 import { observeWithRetry, clampPolicyToTimeout, DEFAULT_OBSERVE_RETRY_POLICY, isPropagatingMissing } from '../core/observe-retry.mjs';
@@ -527,6 +532,13 @@ export async function publishRelease(options) {
     if (productionMode && !isProductionPlan) {
       throw new ReleaseError(GATE_FAILED, 'production publish requires a github-npm-v1 frozen plan');
     }
+    if (isProductionPlan && !plan.sourceAuthority) {
+      throw new ReleaseError(
+        CONFIG_MISSING,
+        'production publish requires a frozen sourceAuthority binding; re-run prepare with project.sourceRepository configured',
+        { gate: 'source-authority' },
+      );
+    }
     const verifiedFrozenSnapshots = new Map();
     if (isProductionPlan) {
       if (!plan.production.assetRoot || plan.production.assetRoot === '.') {
@@ -933,6 +945,65 @@ export async function publishRelease(options) {
     }
 
     // =======================================================================
+    // Safety Gate 11: Source authority content closure verification
+    // Verifies that the frozen source-input closure content exists in the
+    // workspace's remote default branch. Must pass before ANY adapter execute.
+    // Failure => zero adapter execute calls.
+    // =======================================================================
+    let sourceAuthorityReceipt = null;
+    if (plan.sourceAuthority) {
+      await evidence.append({ phase: 'safety-gate', gate: 'source-authority', status: 'started' });
+
+      const sa = plan.sourceAuthority;
+
+      // Verify the remote source tree against the entries frozen into the
+      // digest-bound plan. Publish must never rebuild authority from the
+      // mutable workspace or current config.
+      const frozenClosure = {
+        algorithmVersion: sa.algorithmVersion,
+        digest: sa.inputDigest,
+        entries: sa.entries,
+      };
+      const remoteResult = await verifyRemoteSourceContent({
+        sourceRepository: sa.sourceRepository,
+        defaultBranch: sa.defaultBranch,
+        closure: frozenClosure,
+        readRemoteFn: options.readRemoteSourceFn,
+      });
+
+      if (!remoteResult.passed) {
+        const errorCode = remoteResult.error?.code ?? GATE_FAILED;
+        await evidence.append({
+          phase: 'safety-gate',
+          gate: 'source-authority',
+          status: 'failed',
+          error: remoteResult.error,
+        });
+        throw new ReleaseError(
+          errorCode,
+          `source authority content gate failed: ${remoteResult.error?.message}`,
+          remoteResult.error,
+        );
+      }
+
+      // Create receipt for successful verification
+      sourceAuthorityReceipt = createSourceAuthorityReceipt({
+        plan,
+        result: 'CONSISTENT',
+        observation: remoteResult.observation,
+        clock: clockFn,
+      });
+
+      await evidence.append({
+        phase: 'safety-gate',
+        gate: 'source-authority',
+        status: 'passed',
+        sourceRepository: sa.sourceRepository,
+        defaultBranch: sa.defaultBranch,
+      });
+    }
+
+    // =======================================================================
     // All safety gates passed -- prepare for execution
     // =======================================================================
     if (isProductionPlan && plan.status === 'PREPARED') {
@@ -1069,6 +1140,7 @@ export async function publishRelease(options) {
           : {}),
       })),
       startedAt,
+      ...(sourceAuthorityReceipt ? { sourceAuthorityReceipts: [sourceAuthorityReceipt] } : {}),
       ...(finishedAt ? { finishedAt } : {}),
     });
     let stateSequence = 0;

@@ -23,8 +23,9 @@ apiVersion: release-skill/v1
 kind: ReleaseProject
 
 project:
-  name: <string>            # 项目标识，必填
-  defaultBranch: <string>   # 默认分支，必填
+  name: <string>                 # 项目标识，必填
+  defaultBranch: <string>        # workspace 远端默认分支，必填；不限定为 main
+  sourceRepository: <owner/repo> # workspace 源仓库；生产发布必填
 
 releaseUnits:               # 发布单元数组，至少 1 个
   - id: <string>            # 唯一标识
@@ -124,6 +125,31 @@ human-owned 权威源，然后重新 prepare、审阅并 approve；后续环节�
 字节，不重新生成或覆盖 README、slogan 及其他人工修改。
 
 旧的 `policy.requiredPublicFiles` 已不支持。加载器必须返回 `CONFIG_INVALID`，并引导迁移到各自的 `releaseUnits[].requiredPublicFiles`。
+
+### 3.1.1 Workspace 源码权威内容闭包
+
+`project.sourceRepository` 标识承载当前 workspace 人工源文件的 GitHub
+`owner/repo`，它与各发布单元的 `publicRepo` 不是同一概念；多个发布单元可以投影到不同
+公开仓库，但它们仍可共享一个 workspace 源仓库。`project.defaultBranch` 表示该源仓库的
+真实远端默认分支，可以是 `main`、`master`、`develop`、`trunk` 或其他明确名称。
+setup 只在 workspace Git remotes 唯一一致时提出候选；缺失或冲突时要求人工裁决，不保存
+`auto`。
+
+生产 prepare 在 hooks 完成后，从所有 `publicFiles.from`（目录递归展开）和每个 unit 的
+`version.source` 计算源码输入闭包，冻结 workspace 相对路径、内容 SHA-256 和 Git mode。
+只有闭包内 staged、unstaged 或 untracked 的文件会阻断 prepare；无关 dirty 文件不阻断。
+离线 prepare 明确记录 `unobserved-offline`，远端内容的强制比较留在 publish。
+
+production publish 在任何 adapter `execute` 前，从
+`sourceRepository/defaultBranch` 读取冻结路径集合，先确认配置分支仍是远端实际默认分支，
+再比较内容和 mode。判定只依赖内容闭包，不依赖 commit ancestry，因此普通 merge、
+squash、rebase 和默认分支上的无关后续提交可以通过；冲突解决或 revert 丢失 README、
+版本源或其他公开输入会按具体路径失败关闭。系统不会自动 merge、rebase、切分支、push
+或创建 PR。
+
+通过后，publish 写入与 plan digest 绑定的源码权威收据；PARTIAL 经 reconcile 恢复时继承
+并重新校验该收据。verify 只消费这份冻结收据，不在发布完成后用可变默认分支重新判定历史
+发布。
 
 ### 3.2 公开分支策略
 

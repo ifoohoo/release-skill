@@ -22,16 +22,16 @@
       "bytes": 2390
     },
     "release-plan.schema.json": {
-      "digest": "d7869cdb335618754eb787fe352c4c1775c799900f3bb926197c51359699a648",
-      "bytes": 24088
+      "digest": "01c96659223918b5ce0e2d0d01d1ce5095baeb056de401babb8928add4d2a221",
+      "bytes": 35256
     },
     "release-project.schema.json": {
-      "digest": "53efe202fc5e2bf63c8d846cf4d50648991163b270536c1450c4be44e45d4b93",
-      "bytes": 25761
+      "digest": "a3d46be1e1e8105103a505c6d58d14f3733c8da91ab8289e097ffd259bf1cd93",
+      "bytes": 30982
     },
     "release-run.schema.json": {
-      "digest": "f453845fd2aab02c7b0812b1f62fd1ab7fa37104b8e752914906551c0e8c2637",
-      "bytes": 8959
+      "digest": "bf3c8fb4ca2fc078272a45a6ee6bf663fd2420a722b2f995dbaabf2635e2179e",
+      "bytes": 14824
     }
   }
 }

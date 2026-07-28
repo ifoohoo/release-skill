@@ -2,7 +2,7 @@
 
 [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.2.5 -->
+<!-- release-skill:release-version: 0.2.6 -->
 ## Prerequisites
 
 - Node.js 22.0.0 or later
@@ -128,7 +128,7 @@ as a version-pinned **manual** install plus trusted observation/attestation:
    frozen version; otherwise do NOT issue an attestation.
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.5
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.6
    /plugins reload
    ```
 
@@ -140,7 +140,7 @@ as a version-pinned **manual** install plus trusted observation/attestation:
 ```json
 {
   "platform": "kimi",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "planDigest": "<64-hex frozen plan digest>",
   "result": "passed",
   "actor": "<person who confirmed>",
@@ -204,7 +204,7 @@ attestation (the same capability gap and closed loop as Kimi Code):
 ```json
 {
   "platform": "codebuddy",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "planDigest": "<64-hex frozen plan digest>",
   "result": "passed",
   "actor": "<person who confirmed>",
@@ -345,7 +345,11 @@ setup; use the mechanically extracted `recommendedAnswers`.
   "projectConfig": {
     "apiVersion": "release-skill/v1",
     "kind": "ReleaseProject",
-    "project": { "name": "my-project", "defaultBranch": "main" },
+    "project": {
+      "name": "my-project",
+      "defaultBranch": "main",
+      "sourceRepository": "owner/my-workspace"
+    },
     "releaseUnits": [{
       "id": "my-project",
       "source": ".",
@@ -428,6 +432,7 @@ kind: ReleaseProject
 project:
   name: my-project
   defaultBranch: main
+  sourceRepository: owner/my-workspace
 
 releaseUnits:
   - id: my-project
@@ -643,6 +648,23 @@ The last two strategies require online production prepare. Any mismatch stops
 for review; update the human-owned config only after inspecting real remote
 state, and never force-push or weaken the baseline.
 
+### Workspace source authority
+
+`project.sourceRepository` is the GitHub `owner/repo` of the workspace that
+owns the human source files; it may differ from every release unit's
+`publicRepo`. `project.defaultBranch` is that repository's actual remote
+default branch and is not assumed to be `main`.
+
+Production prepare freezes a content-and-mode closure of every expanded
+`publicFiles.from` input and each unit's `version.source`. It rejects only
+uncommitted changes inside that closure. Before any publish adapter executes,
+release-skill verifies the same closure on the remote default branch. Commit
+ancestry is intentionally irrelevant: merge, squash, and rebase are accepted
+when the bytes still match, while a reverted or conflict-lost README is
+blocked by path. Resolve differences manually and put the accepted content on
+the default branch; release-skill never merges, switches branches, pushes, or
+creates a PR.
+
 ## Protect Human-Owned Content
 
 README text, slogans, examples, layout, and other manually curated source files
@@ -673,10 +695,12 @@ When an existing public copy has drifted, choose explicitly:
   a release plan.
 - Before production, configure every unit's `previousPublicBaseline`. Use
   `mode: bound` with the exact `repo`, `ref`, and `commit` for an existing
-  public version, then run `"${CLI[@]}" prepare --root <your-project> --online --production`.
+  public version. Also configure the workspace `project.sourceRepository` and
+  its real `project.defaultBranch`, then run
+  `"${CLI[@]}" prepare --root <your-project> --online --production`.
   The default observer proves only the ref-to-commit mapping; remote content is
-  not downloaded. Target branch/tag/Release/npm uniqueness is checked by the
-  publish global preflight before any execute.
+  not downloaded during prepare. Source content authority and target
+  branch/tag/Release/npm uniqueness are checked by publish before any execute.
 - For production commands, use only the immutable `planPath` returned by
   `prepare --json` and immutable `approvalPath` returned by `approve --json`.
   Mutable latest aliases are for convenience and are not production authority.

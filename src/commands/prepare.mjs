@@ -49,7 +49,13 @@ import {
   normalizeGitTimestamp,
   sealFrozenSnapshot,
 } from '../snapshot/frozen.mjs';
-import { ReleaseError, GATE_FAILED, CONFIG_INVALID, FORBIDDEN_CONTENT_DETECTED, RELEASE_DOCS_STALE } from '../core/errors.mjs';
+import { ReleaseError, GATE_FAILED, CONFIG_INVALID, CONFIG_MISSING, FORBIDDEN_CONTENT_DETECTED, RELEASE_DOCS_STALE, DIRTY_SOURCE_INPUT } from '../core/errors.mjs';
+import {
+  SOURCE_INPUT_ALGORITHM_VERSION,
+  computeSourceInputClosure,
+  checkSourceInputDirty,
+  verifySnapshotSourcesMatchClosure,
+} from '../core/source-authority.mjs';
 import { acquireProjectLock } from '../artifacts/project-lock.mjs';
 import { assertPreviousPublicBaselineTarget, observePreviousPublicBaseline } from '../core/previous-public-baseline.mjs';
 import { verifyFrozenNpmTarballIdentity } from '../adapters/npm.mjs';
@@ -1919,6 +1925,87 @@ export async function prepareRelease(options) {
       });
     }
 
+    // --- Step 3c: Source authority content closure gate ---
+    // After hooks complete, compute the deterministic source-input closure
+    // and verify that closure inputs are clean (no staged/unstaged/untracked
+    // changes). Production configs must declare sourceRepository.
+    const sourceRepository = config.project?.sourceRepository ?? null;
+    const configDefaultBranch = config.project?.defaultBranch ?? null;
+
+    let sourceAuthority = null;
+    let sourceInputClosure = null;
+    if (production) {
+      if (!sourceRepository || typeof sourceRepository !== 'string') {
+        throw new ReleaseError(
+          CONFIG_MISSING,
+          'production prepare requires project.sourceRepository in configuration; source authority content gate needs a workspace source repository',
+          { configPath },
+        );
+      }
+
+      await evidence.append({ phase: 'source-authority', status: 'started' });
+
+      // Compute source-input closure from resolved unit configs
+      const unitConfigsForClosure = configUnits.map((unit, idx) => ({
+        ...unit,
+        version: { ...unit.version },
+      }));
+      sourceInputClosure = await computeSourceInputClosure({
+        units: unitConfigsForClosure,
+        root: realRoot,
+      });
+
+      await evidence.append({
+        phase: 'source-authority',
+        step: 'closure-computed',
+        entryCount: sourceInputClosure.entries.length,
+        inputDigest: sourceInputClosure.digest,
+      });
+
+      // Check only closure inputs for dirty (not whole workspace)
+      const dirtyResult = await checkSourceInputDirty({
+        closure: sourceInputClosure,
+        root: realRoot,
+      });
+      if (dirtyResult.dirty) {
+        await evidence.append({
+          phase: 'source-authority',
+          status: 'blocking',
+          reason: 'DIRTY_SOURCE_INPUT',
+          dirtyPaths: dirtyResult.dirtyPaths,
+        });
+        throw new ReleaseError(
+          DIRTY_SOURCE_INPUT,
+          `source-input closure files have uncommitted changes: ${dirtyResult.dirtyPaths.join(', ')}`,
+          { dirtyPaths: dirtyResult.dirtyPaths },
+        );
+      }
+
+      await evidence.append({
+        phase: 'source-authority',
+        step: 'dirty-check',
+        status: 'clean',
+      });
+
+      // Build sourceAuthority binding for plan digest
+      sourceAuthority = {
+        sourceRepository,
+        defaultBranch: configDefaultBranch,
+        entries: sourceInputClosure.entries,
+        inputDigest: sourceInputClosure.digest,
+        algorithmVersion: SOURCE_INPUT_ALGORITHM_VERSION,
+      };
+
+      await evidence.append({
+        phase: 'source-authority',
+        status: 'completed',
+        sourceRepository,
+        defaultBranch: configDefaultBranch,
+        inputDigest: sourceInputClosure.digest,
+        remoteObservation: offline ? 'unobserved-offline' : 'deferred-to-publish',
+      });
+    }
+
     // --- Step 4: Capture Git baseline (AFTER hooks, so workspaceDigest
     //     reflects any file changes introduced by hooks) ---
     await evidence.append({ phase: 'baseline', status: 'started' });
@@ -2182,6 +2269,75 @@ export async function prepareRelease(options) {
       status: 'completed',
       gateCount: snapshotGateResults.length,
     });
+
+    // Bind the remote source-authority proof to the exact bytes that entered
+    // the frozen snapshots, not merely to an earlier read of the workspace.
+    // Then re-read the complete closure and dirty state once more so version
+    // sources and non-snapshot closure entries cannot drift during prepare.
+    if (production) {
+      const snapshotSourceResult = verifySnapshotSourcesMatchClosure({
+        closure: sourceInputClosure,
+        unitResults,
+      });
+      if (!snapshotSourceResult.passed) {
+        throw new ReleaseError(
+          DIRTY_SOURCE_INPUT,
+          'source inputs changed between closure calculation and frozen snapshot construction',
+          {
+            reason: 'SNAPSHOT_SOURCE_DRIFT',
+            dirtyPaths: snapshotSourceResult.error.paths,
+          },
+        );
+      }
+
+      const finalClosure = await computeSourceInputClosure({
+        units: configUnits,
+        root: realRoot,
+      });
+      if (finalClosure.digest !== sourceInputClosure.digest) {
+        const initialByPath = new Map(
+          sourceInputClosure.entries.map((entry) => [entry.path, entry]),
+        );
+        const finalByPath = new Map(
+          finalClosure.entries.map((entry) => [entry.path, entry]),
+        );
+        const changedPaths = [...new Set([
+          ...sourceInputClosure.entries.map((entry) => entry.path),
+          ...finalClosure.entries.map((entry) => entry.path),
+        ])].filter((path) => (
+          JSON.stringify(initialByPath.get(path) ?? null)
+          !== JSON.stringify(finalByPath.get(path) ?? null)
+        )).sort();
+        throw new ReleaseError(
+          DIRTY_SOURCE_INPUT,
+          'source-input closure changed while preparing frozen snapshots',
+          { reason: 'SOURCE_CLOSURE_DRIFT', dirtyPaths: changedPaths },
+        );
+      }
+
+      const finalDirtyResult = await checkSourceInputDirty({
+        closure: finalClosure,
+        root: realRoot,
+      });
+      if (finalDirtyResult.dirty) {
+        throw new ReleaseError(
+          DIRTY_SOURCE_INPUT,
+          `source-input closure files have uncommitted changes after snapshot construction: ${finalDirtyResult.dirtyPaths.join(', ')}`,
+          {
+            reason: 'DIRTY_AFTER_SNAPSHOT',
+            dirtyPaths: finalDirtyResult.dirtyPaths,
+          },
+        );
+      }
+
+      await evidence.append({
+        phase: 'source-authority',
+        step: 'snapshot-binding',
+        status: 'completed',
+        inputDigest: sourceInputClosure.digest,
+        snapshotSourceCount: snapshotSourceResult.observation.snapshotSourceCount,
+      });
+    }
 
     // --- Step 6: Remote uniqueness (deferred to publish preflight) ---
     // Prepare only observes the previous public baseline (already done above).
@@ -2665,6 +2821,7 @@ export async function prepareRelease(options) {
       } : {}),
       units,
       externalActions,
+      ...(sourceAuthority ? { sourceAuthority } : {}),
       createdAt: production ? createdAtTimestamp : (clock ? clock() : new Date().toISOString()),
     };
 

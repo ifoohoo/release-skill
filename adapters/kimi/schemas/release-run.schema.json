@@ -227,6 +227,71 @@
         }
       }
     },
+    "sourceAuthorityReceipts": {
+      "type": "array",
+      "description": "Source authority content closure receipts: one per publish run proving remote content matches frozen inputs",
+      "items": {
+        "type": "object",
+        "required": [
+          "sourceRepository",
+          "defaultBranch",
+          "inputDigest",
+          "algorithmVersion",
+          "entryCount",
+          "planDigest",
+          "verifiedAt",
+          "result"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "sourceRepository": {
+            "type": "string",
+            "minLength": 1
+          },
+          "defaultBranch": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inputDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "algorithmVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "entryCount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "planDigest": {
+            "type": "string",
+            "minLength": 1
+          },
+          "verifiedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "CONSISTENT",
+              "MISMATCH"
+            ]
+          },
+          "observedCommit": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{40,64}$"
+          },
+          "mismatchedPaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
     "consumerVerificationReceipts": {
       "type": "array",
       "description": "消费端验证收据，每个 marketplace action 一条记录",

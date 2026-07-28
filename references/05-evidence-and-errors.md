@@ -26,6 +26,12 @@
 | `RELEASE_DOCS_CONFLICT` | 目标文档存在人工冲突 | 非受管同版本 CHANGELOG 条目、受管标记缺失/重复/损坏、版本标记非唯一 | 人工修复目标并保留人工修改后重新演练 |
 | `RELEASE_DOCS_REFRESH_STALE` | 写入确认绑定的候选已变化 | 演练后说明源或目标发生变化，仍用旧 `refreshDigest` 写入 | 重新演练取得新的 `refreshDigest` 并重新确认 |
 | `RELEASE_DOCS_STALE` | prepare 检测到发布文档未刷新 | 说明源已更新但 README/CHANGELOG 受管内容未同步 | `docs refresh` 演练 → 确认写入 → 审阅提交 → 重新 prepare |
+| `CONFIG_MISSING` | 生产源码权威配置缺失 | 缺少明确的 `project.sourceRepository` 或 `project.defaultBranch` | 补充经人工确认的 workspace 源仓库与默认分支后重新 prepare |
+| `REMOTE_UNAVAILABLE` | 无法可靠读取 workspace 源仓库 | 网络、认证或远端协议错误导致默认分支内容不可观察 | 修复网络或认证后基于同一冻结计划重试；不得猜测成功 |
+| `REF_MISSING` | 配置的远端默认分支不存在 | `refs/heads/<defaultBranch>` 不存在 | 核对真实分支名并重新 prepare |
+| `NOT_DEFAULT` | 配置分支不是远端实际默认分支 | 默认分支在 prepare 后改变，或配置错误 | 人工确认远端默认分支，更新配置并重新 prepare |
+| `CONTENT_MISMATCH` | 远端默认分支缺少冻结源码内容 | README、版本源、公开映射输入的内容或 mode 不一致 | 人工 merge/adopt/reject；接受的内容进入默认分支后重试 publish |
+| `DIRTY_SOURCE_INPUT` | 源码输入闭包存在未提交变化 | `publicFiles.from` 或 `version.source` 有 staged、unstaged、untracked 变化 | 提交或撤销这些具体输入的变化后重新 prepare；无关 dirty 不受影响 |
 
 ---
 

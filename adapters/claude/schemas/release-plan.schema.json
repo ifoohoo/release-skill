@@ -992,6 +992,73 @@
       "type": "string",
       "minLength": 1
     },
+    "sourceAuthority": {
+      "type": "object",
+      "description": "Source authority content closure gate binding: proves frozen source inputs exist in the workspace remote default branch",
+      "required": [
+        "sourceRepository",
+        "defaultBranch",
+        "entries",
+        "inputDigest",
+        "algorithmVersion"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sourceRepository": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$",
+          "description": "GitHub owner/repo of the workspace source repository"
+        },
+        "defaultBranch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Workspace remote default branch name"
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Frozen workspace-relative source inputs compared with the remote default branch",
+          "items": {
+            "type": "object",
+            "required": [
+              "path",
+              "digest",
+              "mode"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
+              },
+              "digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "100644",
+                  "100755"
+                ]
+              }
+            }
+          }
+        },
+        "inputDigest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "SHA-256 digest of the deterministic source-input closure"
+        },
+        "algorithmVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Source-input closure algorithm version"
+        }
+      }
+    },
     "waivers": {
       "type": "array",
       "items": {
