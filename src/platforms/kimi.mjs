@@ -129,16 +129,18 @@ export function resolveBoundPlanDigest(context) {
 /**
  * Authoritative, cross-run attestation directory for a kimi install.
  *
- * Lives at a stable root-fixed location keyed by the verified frozen plan
- * digest and plugin id:
- *   <root>/.release-skill/kimi-attestations/<planDigest>/<plugin>/
+ * Lives at a stable root-fixed location keyed by the plugin id:
+ *   <root>/.release-skill/kimi-attestations/<plugin>/
  *
  * This survives the publish -> manual install -> reconcile -> verify chain,
  * where each command otherwise uses a fresh runDir (an attestation written to a
  * publish runDir would be invisible to reconcile/verify). Both the requirement
- * and the human attestation live here. The segments are pre-validated (planDigest
- * is 64-hex, plugin matches SAFE_ID_RE) and the resolved path is contained
- * within the authority base, so no path escape is possible.
+ * and the human attestation live here. The planDigest parameter is still
+ * received and validated (it binds the attestation content), but the path
+ * itself is stable across plan versions — new plan requirements can atomically
+ * replace old ones in the same directory. The segments are pre-validated
+ * (planDigest is 64-hex, plugin matches SAFE_ID_RE) and the resolved path is
+ * contained within the authority base, so no path escape is possible.
  *
  * @param {object} context - adapter context (needs `root`).
  * @param {string} planDigest - verified frozen plan digest (64-hex).
@@ -156,7 +158,7 @@ export function kimiAuthorityDir(context, planDigest, plugin) {
     throw new Error(`kimi attestation authority requires a safe plugin id: "${plugin}"`);
   }
   const base = resolve(context.root, '.release-skill', 'kimi-attestations');
-  const dir = resolve(base, planDigest, plugin);
+  const dir = resolve(base, plugin);
   const rel = relative(base, dir);
   const sep = process.platform === 'win32' ? '\\' : '/';
   if (
@@ -187,7 +189,7 @@ function buildKimiInstallUrl(repo, ref) {
 /**
  * 统一人工安装说明：面向 Kimi Code 的人工结果流程。
  *
- * @param {{installUrl:string, plugin:string, version:string, ref:string, attestationDir:string, requiresInstalledClosure:boolean, managedRoot:string|null}} p
+ * @param {{installUrl:string, plugin:string, version:string, ref:string, attestationDir:string, requiresInstalledClosure:boolean}} p
  * @returns {string[]}
  */
 function buildKimiManualInstructions({
@@ -197,16 +199,15 @@ function buildKimiManualInstructions({
   ref,
   attestationDir,
   requiresInstalledClosure,
-  managedRoot,
 }) {
   return [
     `Kimi Code 没有可脚本化的插件安装命令行工具；安装是手动交互步骤。`,
     `1) publish 完成所有远端写入后进入 PUBLISHED 状态（自动化 Git 分支/标签、npm 和 GitHub Release 写入已完成）。此 kimi 检查点标记为需要人工安装。`,
-    `2) ${requiresInstalledClosure ? `以 KIMI_CODE_HOME="${resolve(managedRoot, '..', '..')}" 启动 Kimi Code，然后` : '在 Kimi Code 中'}运行: /plugins install ${installUrl}（锁定到冻结 ref "${ref}"，版本 ${version}）。确认插件 "${plugin}" 的信任提示，然后运行 /plugins reload（或 /new）。`,
+    `2) 在 Kimi Code 中运行: /plugins install ${installUrl}（锁定到冻结 ref "${ref}"，版本 ${version}）。确认插件 "${plugin}" 的信任提示，然后运行 /plugins reload（或 /new）。`,
     `3) 将人工结果 JSON 写入: ${attestationDir}/${KIMI_ATTESTATION_FILE}`,
-    `   必填字段: platform="kimi", version, planDigest（冻结计划摘要）, result("passed" 或 "failed"), actor（确认人）, confirmedAt（ISO 8601 时间戳）${requiresInstalledClosure ? '，installPath（实际安装后的插件目录，必须位于该证明目录的 kimi-home/plugins/managed/ 内）' : ''}`,
+    `   必填字段: platform="kimi", version, planDigest（冻结计划摘要）, result("passed" 或 "failed"), actor（确认人）, confirmedAt（ISO 8601 时间戳）${requiresInstalledClosure ? '，installPath（实际安装后的插件目录的真实路径）' : ''}`,
     `   可选字段: note（备注）`,
-    `4) 运行 release-skill reconcile（对账远端状态并跳过已完成步骤），然后 release-skill verify（从同一个计划摘要索引的权威目录读取结果，成功后 -> VERIFIED）。`,
+    `4) 若发布运行是 PARTIAL，先运行 release-skill reconcile；若已是 PUBLISHED，直接运行 release-skill verify。verify 从该插件的稳定证明目录读取并校验当前 planDigest，成功后 -> VERIFIED。`,
   ];
 }
 
@@ -433,7 +434,7 @@ export async function executeKimiManualRequirement(action, context) {
   const ref = action.ref ?? `v${action.version}`;
   const installUrl = buildKimiInstallUrl(action.repo, ref);
 
-  // (B) Stable, plan-digest-keyed authority dir, shared across
+  // (B) Stable plugin-level authority dir, shared across
   // publish/reconcile/verify run dirs.
   let attestationDir;
   try {
@@ -447,9 +448,6 @@ export async function executeKimiManualRequirement(action, context) {
   }
 
   const requiresInstalledClosure = Boolean(context.plan?.skillResourceClosure);
-  const managedRoot = requiresInstalledClosure
-    ? resolve(attestationDir, 'kimi-home', 'plugins', 'managed')
-    : null;
   const instructions = buildKimiManualInstructions({
     installUrl,
     plugin: action.plugin,
@@ -457,7 +455,6 @@ export async function executeKimiManualRequirement(action, context) {
     ref,
     attestationDir,
     requiresInstalledClosure,
-    managedRoot,
   });
 
   // 统一 requirement 结构：不再包含隔离目录信息
@@ -481,7 +478,7 @@ export async function executeKimiManualRequirement(action, context) {
       actor: '<person who confirmed the install>',
       confirmedAt: '<ISO 8601 timestamp>',
       ...(requiresInstalledClosure
-        ? { installPath: resolve(managedRoot, action.plugin) }
+        ? { installPath: '<actual installed plugin directory>' }
         : {}),
       note: '<optional note>',
     },
@@ -499,22 +496,6 @@ export async function executeKimiManualRequirement(action, context) {
         actionType,
         status: ActionStatus.EXECUTE_FAILED,
         error: `cannot create kimi attestation directory: ${mkdirErr.message}`,
-      });
-    }
-  }
-
-  // New closure plans must scan an actual installed consumer tree. Create only
-  // the isolated KIMI_CODE_HOME container; the interactive host remains the
-  // sole owner of managed/<plugin>. Legacy plans retain the previous no-home
-  // behavior byte-for-byte.
-  if (requiresInstalledClosure) {
-    try {
-      await mkdir(managedRoot, { recursive: true, mode: 0o700 });
-    } catch (mkdirErr) {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: `cannot create kimi resource-closure managed root: ${mkdirErr.message}`,
       });
     }
   }
@@ -557,11 +538,17 @@ export async function executeKimiManualRequirement(action, context) {
     }
     const { createdAt: _existingCreatedAt, ...existingBody } = existing;
     if (canonicalJson(existingBody) !== canonicalJson(requirement)) {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: 'existing kimi manual-install requirement conflicts with the current frozen action; refusing to overwrite',
-      });
+      // 旧 plan 的 requirement 与新 plan 不同：允许原子替换（路径不再含 planDigest）。
+      // 但如果 planDigest 相同而内容不同，说明同一 plan 内的冻结动作不一致，仍失败关闭。
+      if (existing.planDigest === planDigest) {
+        return createResult({
+          actionType,
+          status: ActionStatus.EXECUTE_FAILED,
+          error: 'existing kimi manual-install requirement conflicts with the current frozen action (same planDigest); refusing to overwrite',
+        });
+      }
+      // 不同 planDigest：原子替换旧 plan 的 requirement
+      await writeEvidenceAtomic(requirementPath, { ...requirement, createdAt: new Date().toISOString() });
     }
   } else {
     await writeEvidenceAtomic(requirementPath, { ...requirement, createdAt: new Date().toISOString() });

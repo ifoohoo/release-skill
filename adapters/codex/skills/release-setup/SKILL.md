@@ -21,6 +21,9 @@ description: "首次接入 release-skill：只读发现发布单元与个性化�
 - 默认只读。README、slogan、CHANGELOG、业务脚本和已有配置均为人工权威内容，不得重写或覆盖。
 - 发现脚本不等于选择或授权。间接脚本以 `SIDE_EFFECTS_UNPROVEN` 排除；项目特有 hook/gate 只能人工增量注册。
 - 仓库、公开文件等证据冲突时停止自动提案，交给人工修正权威事实后重新发现。
+- npm 单元只读提取 `package.json` 的具体入口和旧 `npmRequiredPackagePaths`，报告
+  tracked/untracked/ignored/missing/non-regular 状态与覆盖漂移；这些是人工复核候选，
+  不得自动写入 `publicFiles` 或 `requiredPublicFiles`。
 - 写入只允许 create-once（仅创建一次），必须同时提供 answers 与精确 `setupDigest`；无安全原生写入能力时失败关闭。
 - Agent 的多次 shell 调用彼此独立；只能用首轮打印的会话目录绝对路径续接，不得假设变量仍存在。
 
@@ -50,7 +53,13 @@ node -e 'const fs=require("node:fs");const r=JSON.parse(fs.readFileSync(process.
 node -e 'const fs=require("node:fs");const r=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if((r.proposalConflicts??[]).length){console.error("proposal conflicts require human resolution");process.exit(2)}if(!r.recommendedAnswers){console.error("recommendedAnswers missing");process.exit(2)}fs.writeFileSync(process.argv[2],JSON.stringify(r.recommendedAnswers,null,2)+"\n",{flag:"wx",mode:0o600})' "$REPORT" "$ANSWERS"
 ```
 
-若 `proposalConflicts` 非空，暂停，让用户修正仓库/映射权威事实，删除本会话目录后从第 2 步重跑，不得猜测选边。无冲突时可人工增量编辑 `answers.json`：hook 写入 `recommendedAnswers.projectConfig.hooks` 对应的 `projectConfig.hooks`；gate 写入 `verificationGates`，并把同一 id 加入 `selectedGateIds`。人工文件保持 `mode: preserve`，跨单元共享源使用 `sourceScope: workspace`。
+若 `proposalConflicts` 非空，暂停，让用户修正仓库/映射权威事实或 npm 入口候选，
+删除本会话目录后从第 2 步重跑，不得猜测选边。构建后才产生且被忽略的入口应先由
+人工确认构建流程与最终 tarball 边界，不能因为 setup 发现了路径就自动信任或纳入公开
+配置。无冲突时可人工增量编辑 `answers.json`：hook 写入
+`recommendedAnswers.projectConfig.hooks` 对应的 `projectConfig.hooks`；gate 写入
+`verificationGates`，并把同一 id 加入 `selectedGateIds`。人工文件保持
+`mode: preserve`，跨单元共享源使用 `sourceScope: workspace`。
 
 3. 使用上一步打印的两个绝对字面量重新赋值，运行绑定 dry-run；任何人工编辑后都必须重跑本步：
 

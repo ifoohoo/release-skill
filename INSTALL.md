@@ -2,7 +2,7 @@
 
 [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.2.6 -->
+<!-- release-skill:release-version: 0.2.7 -->
 ## Prerequisites
 
 - Node.js 22.0.0 or later
@@ -120,7 +120,7 @@ as a version-pinned **manual** install plus trusted observation/attestation:
    permanent writes are consistent. The run record gives the pinned install URL
    and the attestation path.
 2. Read the requirement at
-   `<root>/.release-skill/kimi-attestations/<planDigest>/<plugin>/release-skill-kimi-manual-install.json`.
+   `<root>/.release-skill/kimi-attestations/<plugin>/release-skill-kimi-manual-install.json`.
 3. Launch Kimi Code and install from the release tag pinned to the exact
    version (never the bare repository URL, which installs the latest release or
    default branch), confirm the trust prompt, then reload. Before writing the
@@ -128,19 +128,19 @@ as a version-pinned **manual** install plus trusted observation/attestation:
    frozen version; otherwise do NOT issue an attestation.
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.6
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.7
    /plugins reload
    ```
 
 4. Write the attestation JSON to
-   `<root>/.release-skill/kimi-attestations/<planDigest>/<plugin>/release-skill-kimi-attestation.json`.
+   `<root>/.release-skill/kimi-attestations/<plugin>/release-skill-kimi-attestation.json`.
    `planDigest` MUST be the frozen **plan** digest; `result` accepts only
    `"passed"` or `"failed"`. Example:
 
 ```json
 {
   "platform": "kimi",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "planDigest": "<64-hex frozen plan digest>",
   "result": "passed",
   "actor": "<person who confirmed>",
@@ -150,8 +150,8 @@ as a version-pinned **manual** install plus trusted observation/attestation:
 ```
 
 5. Run `release-skill verify --run <publish-run>` (→
-   `VERIFIED`). The verify command reads the attestation from the same
-   plan-digest-keyed directory, so the fresh run directory does not lose the proof.
+   `VERIFIED`). The verify command reads the attestation from the stable
+   plugin-level directory, so the fresh run directory does not lose the proof.
 
 When a platform has no reliable automated verification, the bound human
 `passed`/`failed` attestation is authoritative. The `verify` command consumes
@@ -191,20 +191,20 @@ attestation (the same capability gap and closed loop as Kimi Code):
    install path fails closed. The run enters `PUBLISHED` after all remote
    permanent writes are consistent. The run record gives the attestation path.
 2. Read the requirement at
-   `<root>/.release-skill/codebuddy-attestations/<planDigest>/<plugin>/release-skill-codebuddy-manual-install.json`.
+   `<root>/.release-skill/codebuddy-attestations/<plugin>/release-skill-codebuddy-manual-install.json`.
 3. Install release-skill from the bundled-family marketplace `ifoohoo/release-skill`
    (https://github.com/ifoohoo/release-skill). Before writing the
    attestation you MUST confirm the installed plugin manifest version equals the
    frozen version; otherwise do NOT issue an attestation.
 4. Write the attestation JSON to
-   `<root>/.release-skill/codebuddy-attestations/<planDigest>/<plugin>/release-skill-codebuddy-attestation.json`.
+   `<root>/.release-skill/codebuddy-attestations/<plugin>/release-skill-codebuddy-attestation.json`.
    `planDigest` MUST be the frozen **plan** digest; `result` accepts only
    `"passed"` or `"failed"`. Example:
 
 ```json
 {
   "platform": "codebuddy",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "planDigest": "<64-hex frozen plan digest>",
   "result": "passed",
   "actor": "<person who confirmed>",
@@ -214,8 +214,8 @@ attestation (the same capability gap and closed loop as Kimi Code):
 ```
 
 5. Run `release-skill verify --run <publish-run>` (→
-   `VERIFIED`). The verify command reads the attestation from the same
-   plan-digest-keyed directory, so the fresh run directory does not lose the proof.
+   `VERIFIED`). The verify command reads the attestation from the stable
+   plugin-level directory, so the fresh run directory does not lose the proof.
 
 When a platform has no reliable automated verification, the bound human
 `passed`/`failed` attestation is authoritative. The `verify` command consumes

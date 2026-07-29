@@ -547,7 +547,36 @@ async function runTarFromHandle(handle, args) {
   });
 }
 
-async function verifyNpmTarballContent({ snapshotDir, tarballBytes, tarballDir, expectedSnapshotDigest }) {
+function validateNpmTarballListing(listOut) {
+  const listed = listOut.split(/\r?\n/).filter(Boolean);
+  if (listed.length === 0) {
+    throw frozenError('npm tarball contains no entries');
+  }
+
+  const seen = new Set();
+  for (const entry of listed) {
+    if (
+      entry.startsWith('/') || entry.includes('\\') ||
+      (!entry.startsWith('package/') && entry !== 'package')
+    ) {
+      throw frozenError('npm tarball contains an unsafe or unexpected path', { entry });
+    }
+    const segments = entry.split('/');
+    const pathSegments = entry.endsWith('/') ? segments.slice(0, -1) : segments;
+    if (
+      pathSegments.some((segment) => segment === '' || segment === '.' || segment === '..')
+    ) {
+      throw frozenError('npm tarball contains an unsafe or unexpected path', { entry });
+    }
+    const canonicalPath = entry.endsWith('/') ? entry.slice(0, -1) : entry;
+    if (seen.has(canonicalPath)) {
+      throw frozenError('npm tarball contains a duplicate path', { entry: canonicalPath });
+    }
+    seen.add(canonicalPath);
+  }
+}
+
+async function inspectNpmTarballContent({ tarballBytes, tarballDir }) {
   const listHandle = await createDetachedReadHandle(tarballBytes, tarballDir);
   let listOut;
   try {
@@ -555,13 +584,7 @@ async function verifyNpmTarballContent({ snapshotDir, tarballBytes, tarballDir, 
   } finally {
     await listHandle.close();
   }
-  const listed = listOut.split(/\r?\n/).filter(Boolean);
-  if (listed.length === 0 || listed.some((entry) => (
-    !entry.startsWith('package/') || entry.startsWith('/') || entry.includes('\\') ||
-    entry.split('/').some((segment) => segment === '..')
-  ))) {
-    throw frozenError('npm tarball contains an unsafe or unexpected path');
-  }
+  validateNpmTarballListing(listOut);
 
   const verifyDir = await mkdtemp(join(tarballDir, '.verify-'));
   try {
@@ -571,20 +594,29 @@ async function verifyNpmTarballContent({ snapshotDir, tarballBytes, tarballDir, 
     } finally {
       await extractHandle.close();
     }
-    const original = await computeFrozenSnapshot(snapshotDir);
-    if (original.digest !== expectedSnapshotDigest) {
-      throw frozenError('frozen snapshot changed while deriving npm tarball', {
-        expectedDigest: expectedSnapshotDigest,
-        observedDigest: original.digest,
-      });
-    }
-    const packed = await computeFrozenSnapshot(join(verifyDir, 'package'));
-    if (JSON.stringify(contentEntries(packed.entries)) !== JSON.stringify(contentEntries(original.entries))) {
-      throw frozenError('npm tarball bytes do not match the sealed public snapshot');
-    }
+    return await computeFrozenSnapshot(join(verifyDir, 'package'));
   } finally {
     await rm(verifyDir, { recursive: true, force: true });
   }
+}
+
+async function verifyNpmTarballContent({ snapshotDir, tarballBytes, tarballDir, expectedSnapshotDigest }) {
+  const packed = await inspectNpmTarballContent({ tarballBytes, tarballDir });
+  const original = await computeFrozenSnapshot(snapshotDir);
+  if (original.digest !== expectedSnapshotDigest) {
+    throw frozenError('frozen snapshot changed while deriving npm tarball', {
+      expectedDigest: expectedSnapshotDigest,
+      observedDigest: original.digest,
+    });
+  }
+  if (JSON.stringify(contentEntries(packed.entries)) !== JSON.stringify(contentEntries(original.entries))) {
+    throw frozenError('npm tarball bytes do not match the sealed public snapshot');
+  }
+}
+
+export async function buildNpmTarballFileIndex({ tarballBytes, tarballDir }) {
+  const packed = await inspectNpmTarballContent({ tarballBytes, tarballDir });
+  return new Map(packed.entries.map((entry) => [entry.path, { type: entry.type }]));
 }
 
 export async function buildFrozenNpmTarball({ snapshotDir, tarballDir, expectedSnapshotDigest, exec = execFile }) {

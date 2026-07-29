@@ -62,6 +62,7 @@ import { assertTransition, PARTIAL, PUBLISHED, BLOCKED } from '../core/state-mac
 import { verifySourceAuthorityReceipt } from '../core/source-authority.mjs';
 import { matchObservation } from '../adapters/contract.mjs';
 import { observeWithRetry, clampPolicyToTimeout, DEFAULT_OBSERVE_RETRY_POLICY } from '../core/observe-retry.mjs';
+import { verifyFrozenNpmTarballContract } from '../adapters/npm.mjs';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -209,6 +210,44 @@ export async function reconcileRelease(options) {
     }
 
     await evidence.append({ phase: 'safety-gate', gate: 'action-completeness', status: 'passed' });
+
+    // =======================================================================
+    // Safety Gate 2c: Unconditional frozen npm entry-closure recheck
+    // This is plan-global and intentionally precedes source-run observation:
+    // a previously consistent npm checkpoint must not exempt a bad frozen
+    // tarball while another action is being reconciled.
+    // =======================================================================
+    for (const unit of plan.units ?? []) {
+      const frozen = unit.frozenSnapshot;
+      if (!frozen?.npm) continue;
+      const npmDistribution = (unit.distributions ?? []).find((distribution) => distribution.type === 'npm');
+      if (!npmDistribution) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" has a frozen npm tarball but no npm distribution`,
+          { gate: 'npm-entry-closure', unitId: unit.id },
+        );
+      }
+      await evidence.append({
+        phase: 'safety-gate',
+        gate: 'npm-entry-closure',
+        unitId: unit.id,
+        status: 'started',
+      });
+      await verifyFrozenNpmTarballContract({
+        package: npmDistribution.package,
+        version: unit.targetVersion,
+        tarballPath: frozen.npm.tarballPath,
+        tarballSha256: frozen.npm.tarballSha256,
+        integrity: frozen.npm.integrity,
+      }, root);
+      await evidence.append({
+        phase: 'safety-gate',
+        gate: 'npm-entry-closure',
+        unitId: unit.id,
+        status: 'passed',
+      });
+    }
 
     // =======================================================================
     // Safety Gate 3: Load and validate source run

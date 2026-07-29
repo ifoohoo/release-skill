@@ -2,33 +2,33 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.2.6 -->
+<!-- release-skill:release-version: 0.2.7 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.2.6** (2026-07-29)
+**0.2.7** (2026-07-29)
 
-v0.2.6 新增源码权威内容门，避免生产发布完成后，项目工作区的真实默认分支仍对外展示旧 README 等公开文件。
+v0.2.7 阻止缺少已声明运行入口的 npm 包进入准备、发布、协调或已验证终态。
 
 **新增**
 
-- **源码权威内容闭包**：prepare 冻结必须出现在所配置源码仓真实默认分支上的公开输入路径、内容与可执行位。
-- **发布前远端证明**：publish 在任何外部写入前对比冻结闭包与远端默认分支，并生成摘要绑定的收据；verify 必须消费该收据。
+- **npm 静态入口闭包**：release-skill 针对精确冻结 tarball 和全新安装包检查 `bin`、`main`、`module`、`types`、`typings` 及具体本地 `exports` 目标。
+- **setup 诊断**：setup 将声明的 npm 入口报告为已跟踪、未跟踪、已忽略、缺失或非普通文件，但不会修改项目配置。
 
 **变更**
 
-- **兼容不同分支拓扑**：项目既可直接在默认分支迭代，也可使用发布分支；是否合规只看最终内容，不依赖合并祖先关系或写死的分支名。
-- **最小冲突策略**：分叉或冲突状态失败关闭并给出诊断；Release Skill 不自动 merge、rebase、force-push，也不引入替代性的分支工作流。
+- **不支持的 exports 失败关闭**：通配符 exports 和 fallback array 仍处于最小解析边界之外，并改为阻断发布，不猜测展开或静默跳过。
+- **最终写入边界复检**：npm 适配器在提交注册表前，对同一份已通过摘要校验的 tarball Buffer 再次检查入口闭包。
 
 **修复**
 
-- **修复发布后工作区 README 陈旧**：当源码工作区真实默认分支缺少冻结后的 README 或其他声明输入时，生产发布会在外部写入前阻断。
+- **空壳包验证漏洞**：当已声明的运行入口或类型入口缺失时，包不再能够进入 `PREPARED`、远端发布、协调或 `VERIFIED`。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.2.6 是当前发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.2.7 是当前发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -41,7 +41,7 @@ v0.2.6 新增源码权威内容门，避免生产发布完成后，项目工作�
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.2.6 是当前发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.2.7 是当前发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -152,7 +152,11 @@ ACTOR=your-name
    ```
    写入必须返回 `CONFIG_CREATED`，下一次 setup 必须返回 `ALREADY_CONFIGURED`。
    已有配置永不重新生成，后续只做经审阅的增量编辑。发现的脚本标记为
-   `SIDE_EFFECTS_UNPROVEN`。只有在人工审阅之后才添加项目专属 hook 或 gate：
+   `SIDE_EFFECTS_UNPROVEN`。对于 npm 单元，setup 还会把具体
+   `bin`/`main`/`module`/`types`/`typings`/`exports` 目标和旧
+   `npmRequiredPackagePaths` 标成已跟踪、未跟踪、已忽略、缺失或非普通文件。
+   这些只是假设候选：setup 不会自动写入 `publicFiles` 或
+   `requiredPublicFiles`。只有在人工审阅之后才添加项目专属 hook 或 gate：
    编辑 `projectConfig.hooks`，或编辑 `verificationGates` 并把同一个 id 加入
    `selectedGateIds`，然后重新运行绑定 dry-run。配置已存在时跳过。
    完整多步流程见 [INSTALL.zh-CN.md](INSTALL.zh-CN.md#首次接入)。
@@ -436,6 +440,13 @@ hook 仅在人工审阅后、以 `--acknowledge-hook-side-effects` 显式授权�
 | `codebuddy-plugin` | 生成的 `adapters/workbuddy/`，带 `.codebuddy-plugin/plugin.json` | 手动，需可信证明 |
 
 每个适配器闭包都自带 CLI、skills 和 schemas 副本，安装后无需外部依赖即可运行。Claude/Codex 验证是自动化的；Kimi Code 和 CodeBuddy/WorkBuddy 需要绑定冻结计划摘要的可信证明。
+
+每个 npm 分发在 `prepare` 时都会针对精确封装的 tarball 静态校验
+`package.json` 声明的具体入口。`publish` 与 `reconcile` 在任何远端动作前对同一
+冻结 tarball 重复校验，`verify` 则在允许进入 `VERIFIED` 前对精确安装目录重复校验。
+`smokeBin` 仍是可选的：配置后增加需授权的运行时烟雾测试；未配置时，静态入口闭包
+检查仍然是强制门禁。通配符 exports 与 fallback array 刻意不纳入首版最小语义边界，
+静态门禁会阻断，直到入口声明收窄为具体目标。
 
 <!-- release-skill:capability:unsupported-scope -->
 - 不自动生成 README，不覆盖项目源文件；

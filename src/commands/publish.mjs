@@ -77,7 +77,7 @@ import {
   verifyFrozenGitRepository,
   verifyFrozenSnapshot,
 } from '../snapshot/frozen.mjs';
-import { verifyFrozenNpmTarballIdentity } from '../adapters/npm.mjs';
+import { verifyFrozenNpmTarballContract } from '../adapters/npm.mjs';
 
 function assertInsideAssetRoot(assetRoot, candidate, label) {
   const rel = relative(assetRoot, candidate);
@@ -607,7 +607,7 @@ export async function publishRelease(options) {
           if (!npmDistribution) {
             throw new ReleaseError(GATE_FAILED, `unit "${unit.id}" has a frozen npm tarball but no npm distribution`);
           }
-          await verifyFrozenNpmTarballIdentity({
+          await verifyFrozenNpmTarballContract({
             package: npmDistribution.package,
             version: unit.targetVersion,
             tarballPath: frozen.npm.tarballPath,

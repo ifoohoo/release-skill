@@ -17,7 +17,7 @@ verify 只接受 `PUBLISHED` 状态的源 run；`VERIFIED` 是终态，不会再
 
 ## 职责与边界
 
-验证远端所有 action 的实际状态与冻结计划一致。执行精确 `<package>@<version>` npm 安装到隔离目录，验证包名、版本、bin 路径安全和 CLI 烟雾输出。对每个声明的 marketplace distribution 执行全新隔离消费者安装验证。
+验证远端所有 action 的实际状态与冻结计划一致。执行精确 `<package>@<version>` npm 安装到隔离目录，验证包名、版本、静态入口闭包，并在配置时验证 bin 路径安全和 CLI 烟雾输出。对每个声明的 marketplace distribution 执行全新隔离消费者安装验证。
 
 **阶段通过规则**: 只有 CLI exit code 0 和结构化状态码 `VERIFIED` 才是完整终态。
 
@@ -55,8 +55,10 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" verify --root <path> --plan <
 - 在 `os.tmpdir()` 创建隔离目录
 - 执行 `npm install <package>@<version>` 带安全标志
 - 验证安装的 `package.json` name 和 version 精确匹配
+- 无条件静态验证已安装包中具体 `bin`/`main`/`module`/`types`/`typings`/`exports`
+  目标是普通文件；失败时不得写入 `VERIFIED`
 - 若配置了 `smokeBin`：验证 bin 路径安全（无逃逸、无 symlink），从精确安装根、隔离 HOME 和最小环境执行并验证输出；这会运行已安装代码，必须显式授权
-- 若未配置 `smokeBin`：仅安装 + name/version 检查即通过
+- 若未配置 `smokeBin`：跳过运行代码，但静态入口闭包检查仍然强制执行
 
 ## 常见错误
 

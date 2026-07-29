@@ -63,6 +63,10 @@ import {
   shouldSkipVerification,
   INSTALLATION_CONTRACT_ALGORITHM_VERSION,
 } from '../core/installation-contract.mjs';
+import {
+  buildDirectoryFileIndex,
+  checkNpmEntryClosure,
+} from '../npm/npm-entry-closure.mjs';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -294,6 +298,30 @@ export async function runSmokeTest(plan, root, options = {}) {
       }
 
       const pkgRoot = join(installDir, 'node_modules', pkgName);
+
+      // Entry closure check: verify all declared entry points (bin, main,
+      // module, types, typings, exports) exist as regular files in the
+      // installed package. This catches incident-class tarballs where
+      // name/version are correct but distribution files are missing.
+      {
+        const dirIndex = await buildDirectoryFileIndex(pkgRoot);
+        const closureResult = checkNpmEntryClosure(installedPkg, dirIndex);
+        if (closureResult.errors.length > 0) {
+          return {
+            passed: false,
+            details: {
+              gate: 'npm-entry-closure',
+              error: `npm entry closure check failed for ${packageAtVersion}: ${closureResult.errors.map((e) => e.message).join('; ')}`,
+              packageAtVersion,
+              unitId,
+              entries: closureResult.entries,
+              errors: closureResult.errors,
+              diagnostics: closureResult.diagnostics,
+            },
+          };
+        }
+      }
+
       if (plan.skillResourceClosure) {
         const expectedUnitReceipt = plan.skillResourceClosure.unitReceipts
           .find((item) => item.unitId === unitId);
@@ -1225,7 +1253,6 @@ export async function verifyRelease(options) {
                   }
                 : {
                     HOME: resolve(runDir, 'consumers', `kimi-${action.parameters.plugin}`),
-                    KIMI_CODE_HOME: resolve(runDir, 'consumers', `kimi-${action.parameters.plugin}`),
                   },
         }));
       } else {

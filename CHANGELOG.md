@@ -1,5 +1,26 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.2.7 locale=en baseline=sha256:05d12ddcc435b3c4438561dba780481ead1ac7662d946c3c36ddf8123dcaebe3 -->
+## [0.2.7] - 2026-07-29
+
+v0.2.7 prevents npm packages with missing declared runtime entries from being prepared, published, reconciled, or marked as verified.
+
+### Added
+
+- **Static npm entry closure**: release-skill checks `bin`, `main`, `module`, `types`, `typings`, and concrete local `exports` targets against the exact frozen tarball and the freshly installed package.
+- **Setup diagnostics**: setup reports declared npm entry candidates as tracked, untracked, ignored, missing, or non-regular without modifying project configuration.
+
+### Changed
+
+- **Fail-closed unsupported exports**: wildcard exports and fallback arrays remain outside the minimal resolver boundary and now block release instead of being guessed or silently skipped.
+- **Final write-boundary verification**: the npm adapter rechecks the same digest-verified tarball buffer immediately before registry publication.
+
+### Fixed
+
+- **Empty-shell package verification**: a package can no longer reach `PREPARED`, remote publication, reconciliation, or `VERIFIED` when its declared runtime or type entry is absent.
+<!-- release-skill:changelog:end version=0.2.7 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.2.6 locale=en baseline=sha256:ba7fe1d8cbae8ea3a539016c1231acd066f6dbf30b6e1ebb9db50e7c04e69253 -->
 ## [0.2.6] - 2026-07-29
 

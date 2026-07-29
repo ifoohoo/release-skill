@@ -58,7 +58,7 @@ import {
 } from '../core/source-authority.mjs';
 import { acquireProjectLock } from '../artifacts/project-lock.mjs';
 import { assertPreviousPublicBaselineTarget, observePreviousPublicBaseline } from '../core/previous-public-baseline.mjs';
-import { verifyFrozenNpmTarballIdentity } from '../adapters/npm.mjs';
+import { verifyFrozenNpmTarballContract } from '../adapters/npm.mjs';
 import { createProductionPrepareRunDir } from '../core/run.mjs';
 import { PLATFORMS } from '../platforms/registry.mjs';
 import { validateMarketplaceSourceSelection, MARKETPLACE_SOURCE_TYPES, resolvePluginManifestFromMarketplaceEntrySource, resolveMarketplaceRoot } from '../adapters/plugin-marketplace.mjs';
@@ -930,13 +930,13 @@ async function buildProductionAssets(
         tarballDir: resolveUnitScopedPath(resolve(runDir, 'tarballs'), unit.id),
         expectedSnapshotDigest: sealed.digest,
       });
-      await verifyFrozenNpmTarballIdentity({
+      await verifyFrozenNpmTarballContract({
         package: npmDistribution.package,
         version,
         tarballPath: relative(root, npm.tarballPath),
         tarballSha256: npm.sha256,
         integrity: npm.integrity,
-      }, root);
+      }, root, resolveUnitScopedPath(resolve(runDir, 'tarballs'), unit.id));
     }
 
     assets.push({

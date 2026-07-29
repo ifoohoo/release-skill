@@ -36,6 +36,10 @@ description: Freeze an immutable release plan with local configuration, document
 
 若用户明确要求 GitHub+npm 生产发布，加入 `--production`。该模式还会封存独立
 Git commit/tree 和 npm tarball，并把路径、SHA/integrity、branch/tag 写入计划。
+每个 npm tarball 在计划落盘前必须静态验证 `package.json` 的具体
+`bin`/`main`/`module`/`types`/`typings`/`exports` 入口均为 tarball 内普通文件；
+该门禁不依赖项目是否配置 `requiredPublicFiles` 或 `smokeBin`。通配符 exports 不做
+猜测展开；它与 fallback array 都属于首版最小边界外的阻断形态。
 每个 release unit 必须显式配置 `previousPublicBaseline`。只有确认不存在前序公开
 版本时用 `mode: none`；已有版本必须用 `mode: bound` + 精确 repo/ref/commit，并以
 `--online --production` 逐 unit 观察 ref→commit mapping。默认 observer 不下载远端
@@ -79,6 +83,7 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" prepare --root <path> --offli
 | GATE_FAILED (gate 授权) | 向用户展示 snapshot gate 命令和风险，获得授权后加 `--acknowledge-gate-side-effects` 重试 |
 | GATE_FAILED (bound + offline) | 改用 `--online --production`，不得把 unobserved-offline plan 交给 publish |
 | GATE_FAILED (前序基线漂移) | 先取得并比较实际远端内容；人工选择 merge/adopt/reject。merge/adopt 都必须把接受内容落回 human-owned 权威源，并把 `previousPublicBaseline` 更新为接受状态的精确 repo/ref/commit 后重新 online production prepare；reject 停止调查，禁止改 `mode: none` 绕过 |
+| GATE_FAILED (`npm-entry-closure`) | 修复打包内容或入口声明后重新 prepare；不得用 `requiredPublicFiles`/`smokeBin` 缺省绕过 |
 | GATE_FAILED (其他) | 修复门失败原因后重试；以 CLI exit code 为准 |
 | RELEASE_DOCS_STALE | 文档相对说明源已陈旧；按详情运行只读演练，展示文件/语种/版本/摘要，经用户授权“本地发布文档写入”后执行写入，审阅提交再重新 prepare |
 | RELEASE_DOCS_INVALID / TRANSLATION_MISSING / CONFLICT / REFRESH_STALE | 修复配置/说明源/目标或重新演练取得新 `refreshDigest`；不得扩大写入范围绕过 |

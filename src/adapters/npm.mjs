@@ -16,6 +16,11 @@ import {
   createResult,
   matchObservation,
 } from './contract.mjs';
+import {
+  checkNpmEntryClosure,
+  buildTarballFileIndex,
+} from '../npm/npm-entry-closure.mjs';
+import { ReleaseError, GATE_FAILED } from '../core/errors.mjs';
 
 const execFile = promisify(execFileCb);
 const NAME = 'npm';
@@ -347,6 +352,53 @@ export async function verifyFrozenNpmTarballIdentity(action, root) {
     name: action.package,
     version: action.version,
   });
+}
+
+async function verifyNpmTarballBufferContract(buffer, action, tarballDir) {
+  const manifest = extractManifestFromTarball(buffer, {
+    name: action.package,
+    version: action.version,
+  });
+  const fileIndex = await buildTarballFileIndex(buffer, tarballDir);
+  const closureResult = checkNpmEntryClosure(manifest, fileIndex);
+  if (closureResult.errors.length > 0) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `npm entry closure check failed for ${action.package}@${action.version}: ${closureResult.errors.length} error(s)`,
+      {
+        gate: 'npm-entry-closure',
+        package: action.package,
+        version: action.version,
+        entries: closureResult.entries,
+        errors: closureResult.errors,
+        diagnostics: closureResult.diagnostics,
+      },
+    );
+  }
+  return { manifest, closureResult };
+}
+
+/**
+ * Shared frozen tarball contract helper: reads the verified tarball bytes ONCE
+ * and performs both identity verification (name/version from manifest) and
+ * entry closure validation (bin/main/module/types/typings/exports targets
+ * exist as regular files inside the tarball).
+ *
+ * The same Buffer that passes `readVerifiedTarballBytes` is reused for both
+ * the existing identity reader and the controlled extraction/file-index
+ * boundary. This adds no new tar parser and performs no second source read.
+ *
+ * @param {object} action - The frozen action with tarballPath, tarballSha256,
+ *   integrity, package, and version.
+ * @param {string} root - Absolute project root.
+ * @param {string} [tarballDir] - Temp directory for tar extraction (defaults to os.tmpdir()).
+ * @returns {Promise<{ manifest: object, closureResult: object }>}
+ * @throws {ReleaseError} GATE_FAILED with details.gate='npm-entry-closure'
+ *   when any declared entry is missing or invalid.
+ */
+export async function verifyFrozenNpmTarballContract(action, root, tarballDir) {
+  const buffer = await readVerifiedTarballBytes(action, root);
+  return verifyNpmTarballBufferContract(buffer, action, tarballDir);
 }
 
 /**
@@ -700,7 +752,7 @@ export function createNpmAdapter(deps = {}) {
           }
           const cwd = resolvePackageCwd(action.cwd, context.root);
           if (action.tarballPath) {
-            await verifyFrozenNpmTarballIdentity(action, context.root);
+            await verifyFrozenNpmTarballContract(action, context.root);
           }
 
           let whoamiUser;
@@ -775,7 +827,7 @@ export function createNpmAdapter(deps = {}) {
             throw new Error('frozen npm tarball requires a stable Buffer publish capability');
           }
           const buffer = await readVerifiedTarballBytes(action, context.root);
-          const manifest = extractManifestFromTarball(buffer, { name: action.package, version: action.version });
+          const { manifest } = await verifyNpmTarballBufferContract(buffer, action);
           let token;
           try {
             token = await resolveAuthToken({ registry: normalizedRegistry, cwd, exec, env: authEnv });

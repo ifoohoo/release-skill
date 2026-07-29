@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.2.6 -->
+<!-- release-skill:release-version: 0.2.7 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,27 +14,27 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.2.6** (2026-07-29)
+**0.2.7** (2026-07-29)
 
-v0.2.6 adds a source-authority content gate so a production release cannot succeed while the project workspace's real default branch still exposes stale public files.
+v0.2.7 prevents npm packages with missing declared runtime entries from being prepared, published, reconciled, or marked as verified.
 
 **Added**
 
-- **Source-authority content closure**: prepare freezes the exact public input paths and executable modes that must exist on the configured source repository's actual default branch.
-- **Pre-publish remote proof**: publish compares the frozen closure with the remote default branch before any external write and records a digest-bound receipt that verify requires.
+- **Static npm entry closure**: release-skill checks `bin`, `main`, `module`, `types`, `typings`, and concrete local `exports` targets against the exact frozen tarball and the freshly installed package.
+- **Setup diagnostics**: setup reports declared npm entry candidates as tracked, untracked, ignored, missing, or non-regular without modifying project configuration.
 
 **Changed**
 
-- **Branch topology tolerance**: projects may develop directly on the default branch or use release branches; compliance is based on final content, not merge ancestry or a hard-coded branch name.
-- **Minimal conflict policy**: divergent or conflicting source state fails closed with diagnostics; Release Skill does not auto-merge, rebase, force-push, or create a replacement branch workflow.
+- **Fail-closed unsupported exports**: wildcard exports and fallback arrays remain outside the minimal resolver boundary and now block release instead of being guessed or silently skipped.
+- **Final write-boundary verification**: the npm adapter rechecks the same digest-verified tarball buffer immediately before registry publication.
 
 **Fixed**
 
-- **Stale workspace README after release**: production publishing now blocks when the source workspace's real default branch does not contain the frozen public README and other declared source inputs.
+- **Empty-shell package verification**: a package can no longer reach `PREPARED`, remote publication, reconciliation, or `VERIFIED` when its declared runtime or type entry is absent.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.2.6 is the current release (v0.2.2 previously held
+> **Current boundary:** v0.2.7 is the current release (v0.2.2 previously held
 > published status before the platform verification convergence fix was added).
 > v0.1.1 completed a real production release to GitHub and npm — the first
 > production-verified milestone — followed by
@@ -52,7 +52,7 @@ v0.2.6 adds a source-authority content gate so a production release cannot succe
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.2.6 is the current
+> **Production path verified since the v0.1.1 milestone; v0.2.7 is the current
 > release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
@@ -167,7 +167,12 @@ ACTOR=your-name
    ```
    The write must return `CONFIG_CREATED`; the next setup must return
    `ALREADY_CONFIGURED`. Existing configuration is never regenerated — make only
-   reviewed incremental edits. Discovered scripts are `SIDE_EFFECTS_UNPROVEN`.
+   reviewed incremental edits. For npm units, setup also reports each concrete
+   `bin`/`main`/`module`/`types`/`typings`/`exports` target and legacy
+   `npmRequiredPackagePaths` as tracked, untracked, ignored, missing, or
+   non-regular. These are review candidates only: setup never copies them into
+   `publicFiles` or `requiredPublicFiles`. Discovered scripts are
+   `SIDE_EFFECTS_UNPROVEN`.
    Add a project-specific hook or gate only after human review: edit
    `projectConfig.hooks`, or edit `verificationGates` and add the same id to
    `selectedGateIds`, then rerun the bound dry-run.
@@ -484,6 +489,16 @@ dependency after installation. `publish` only publishes frozen Git objects and
 npm tarballs, then checks remote commit/tree/tag integrity. Claude/Codex
 verification is automated; Kimi Code and CodeBuddy/WorkBuddy require a trusted
 attestation bound to the frozen plan digest.
+
+For every npm distribution, `prepare` statically checks the exact packed
+tarball against concrete `package.json` entry targets. `publish` and
+`reconcile` repeat the same check on the frozen tarball before any remote
+action, and `verify` repeats it against the exact installed package before
+allowing `VERIFIED`. `smokeBin` remains optional: when configured it adds an
+authorized runtime smoke test; when absent, the static entry-closure check is
+still mandatory. Wildcard exports and fallback arrays are deliberately outside
+the first minimal semantic boundary, so the static gate fails closed until the
+declaration is narrowed to concrete targets.
 
 <!-- release-skill:capability:unsupported-scope -->
 - no automatic README generation or source-file overwrite;

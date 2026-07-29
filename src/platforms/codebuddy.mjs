@@ -141,13 +141,15 @@ export async function resolveCodeBuddyBoundPlanDigest(context) {
 /**
  * Authoritative, cross-run attestation directory for a codebuddy install.
  *
- * Lives at a stable root-fixed location keyed by the verified frozen plan
- * digest and plugin id:
- *   <root>/.release-skill/codebuddy-attestations/<planDigest>/<plugin>/
+ * Lives at a stable root-fixed location keyed by the plugin id:
+ *   <root>/.release-skill/codebuddy-attestations/<plugin>/
  *
  * This survives the publish -> manual install -> reconcile -> verify chain,
  * where each command otherwise uses a fresh runDir. Both the requirement and
- * the human attestation live here. Segments are pre-validated (planDigest is
+ * the human attestation live here. The planDigest parameter is still received
+ * and validated (it binds the attestation content), but the path itself is
+ * stable across plan versions — new plan requirements can atomically replace
+ * old ones in the same directory. Segments are pre-validated (planDigest is
  * 64-hex, plugin matches SAFE_ID_RE) and the resolved path is contained within
  * the authority base, so no path escape is possible. (Path-escape validation is
  * copied verbatim from kimiAuthorityDir, with codebuddy wording.)
@@ -168,7 +170,7 @@ export function codebuddyAuthorityDir(context, planDigest, plugin) {
     throw new Error(`codebuddy attestation authority requires a safe plugin id: "${plugin}"`);
   }
   const base = resolve(context.root, '.release-skill', 'codebuddy-attestations');
-  const dir = resolve(base, planDigest, plugin);
+  const dir = resolve(base, plugin);
   const rel = relative(base, dir);
   const sep = process.platform === 'win32' ? '\\' : '/';
   if (
@@ -452,7 +454,7 @@ export async function executeCodeBuddyManualRequirement(action, context) {
 
   const ref = action.ref ?? `v${action.version}`;
 
-  // (B) Stable, plan-digest-keyed authority dir, shared across
+  // (B) Stable plugin-level authority dir, shared across
   // publish/reconcile/verify run dirs.
   let attestationDir;
   try {
@@ -556,11 +558,17 @@ export async function executeCodeBuddyManualRequirement(action, context) {
     }
     const { createdAt: _existingCreatedAt, ...existingBody } = existing;
     if (canonicalJson(existingBody) !== canonicalJson(requirement)) {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: 'existing codebuddy manual-install requirement conflicts with the current frozen action; refusing to overwrite',
-      });
+      // 旧 plan 的 requirement 与新 plan 不同：允许原子替换（路径不再含 planDigest）。
+      // 但如果 planDigest 相同而内容不同，说明同一 plan 内的冻结动作不一致，仍失败关闭。
+      if (existing.planDigest === planDigest) {
+        return createResult({
+          actionType,
+          status: ActionStatus.EXECUTE_FAILED,
+          error: 'existing codebuddy manual-install requirement conflicts with the current frozen action (same planDigest); refusing to overwrite',
+        });
+      }
+      // 不同 planDigest：原子替换旧 plan 的 requirement
+      await writeEvidenceAtomic(requirementPath, { ...requirement, createdAt: new Date().toISOString() });
     }
   } else {
     await writeEvidenceAtomic(requirementPath, { ...requirement, createdAt: new Date().toISOString() });

@@ -9,7 +9,7 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.2.6"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.2.7"});
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -17087,7 +17087,7 @@ function kimiAuthorityDir(context, planDigest, plugin) {
     throw new Error(`kimi attestation authority requires a safe plugin id: "${plugin}"`);
   }
   const base = resolve4(context.root, ".release-skill", "kimi-attestations");
-  const dir = resolve4(base, planDigest, plugin);
+  const dir = resolve4(base, plugin);
   const rel = relative2(base, dir);
   const sep6 = process.platform === "win32" ? "\\" : "/";
   if (rel === "" || rel === ".." || isAbsolute2(rel) || rel.startsWith(`..${sep6}`) || rel.split(sep6).some((segment) => segment === ".." || segment === "")) {
@@ -17104,17 +17104,16 @@ function buildKimiManualInstructions({
   version,
   ref,
   attestationDir,
-  requiresInstalledClosure,
-  managedRoot
+  requiresInstalledClosure
 }) {
   return [
     `Kimi Code \u6CA1\u6709\u53EF\u811A\u672C\u5316\u7684\u63D2\u4EF6\u5B89\u88C5\u547D\u4EE4\u884C\u5DE5\u5177\uFF1B\u5B89\u88C5\u662F\u624B\u52A8\u4EA4\u4E92\u6B65\u9AA4\u3002`,
     `1) publish \u5B8C\u6210\u6240\u6709\u8FDC\u7AEF\u5199\u5165\u540E\u8FDB\u5165 PUBLISHED \u72B6\u6001\uFF08\u81EA\u52A8\u5316 Git \u5206\u652F/\u6807\u7B7E\u3001npm \u548C GitHub Release \u5199\u5165\u5DF2\u5B8C\u6210\uFF09\u3002\u6B64 kimi \u68C0\u67E5\u70B9\u6807\u8BB0\u4E3A\u9700\u8981\u4EBA\u5DE5\u5B89\u88C5\u3002`,
-    `2) ${requiresInstalledClosure ? `\u4EE5 KIMI_CODE_HOME="${resolve4(managedRoot, "..", "..")}" \u542F\u52A8 Kimi Code\uFF0C\u7136\u540E` : "\u5728 Kimi Code \u4E2D"}\u8FD0\u884C: /plugins install ${installUrl}\uFF08\u9501\u5B9A\u5230\u51BB\u7ED3 ref "${ref}"\uFF0C\u7248\u672C ${version}\uFF09\u3002\u786E\u8BA4\u63D2\u4EF6 "${plugin}" \u7684\u4FE1\u4EFB\u63D0\u793A\uFF0C\u7136\u540E\u8FD0\u884C /plugins reload\uFF08\u6216 /new\uFF09\u3002`,
+    `2) \u5728 Kimi Code \u4E2D\u8FD0\u884C: /plugins install ${installUrl}\uFF08\u9501\u5B9A\u5230\u51BB\u7ED3 ref "${ref}"\uFF0C\u7248\u672C ${version}\uFF09\u3002\u786E\u8BA4\u63D2\u4EF6 "${plugin}" \u7684\u4FE1\u4EFB\u63D0\u793A\uFF0C\u7136\u540E\u8FD0\u884C /plugins reload\uFF08\u6216 /new\uFF09\u3002`,
     `3) \u5C06\u4EBA\u5DE5\u7ED3\u679C JSON \u5199\u5165: ${attestationDir}/${KIMI_ATTESTATION_FILE}`,
-    `   \u5FC5\u586B\u5B57\u6BB5: platform="kimi", version, planDigest\uFF08\u51BB\u7ED3\u8BA1\u5212\u6458\u8981\uFF09, result("passed" \u6216 "failed"), actor\uFF08\u786E\u8BA4\u4EBA\uFF09, confirmedAt\uFF08ISO 8601 \u65F6\u95F4\u6233\uFF09${requiresInstalledClosure ? "\uFF0CinstallPath\uFF08\u5B9E\u9645\u5B89\u88C5\u540E\u7684\u63D2\u4EF6\u76EE\u5F55\uFF0C\u5FC5\u987B\u4F4D\u4E8E\u8BE5\u8BC1\u660E\u76EE\u5F55\u7684 kimi-home/plugins/managed/ \u5185\uFF09" : ""}`,
+    `   \u5FC5\u586B\u5B57\u6BB5: platform="kimi", version, planDigest\uFF08\u51BB\u7ED3\u8BA1\u5212\u6458\u8981\uFF09, result("passed" \u6216 "failed"), actor\uFF08\u786E\u8BA4\u4EBA\uFF09, confirmedAt\uFF08ISO 8601 \u65F6\u95F4\u6233\uFF09${requiresInstalledClosure ? "\uFF0CinstallPath\uFF08\u5B9E\u9645\u5B89\u88C5\u540E\u7684\u63D2\u4EF6\u76EE\u5F55\u7684\u771F\u5B9E\u8DEF\u5F84\uFF09" : ""}`,
     `   \u53EF\u9009\u5B57\u6BB5: note\uFF08\u5907\u6CE8\uFF09`,
-    `4) \u8FD0\u884C release-skill reconcile\uFF08\u5BF9\u8D26\u8FDC\u7AEF\u72B6\u6001\u5E76\u8DF3\u8FC7\u5DF2\u5B8C\u6210\u6B65\u9AA4\uFF09\uFF0C\u7136\u540E release-skill verify\uFF08\u4ECE\u540C\u4E00\u4E2A\u8BA1\u5212\u6458\u8981\u7D22\u5F15\u7684\u6743\u5A01\u76EE\u5F55\u8BFB\u53D6\u7ED3\u679C\uFF0C\u6210\u529F\u540E -> VERIFIED\uFF09\u3002`
+    `4) \u82E5\u53D1\u5E03\u8FD0\u884C\u662F PARTIAL\uFF0C\u5148\u8FD0\u884C release-skill reconcile\uFF1B\u82E5\u5DF2\u662F PUBLISHED\uFF0C\u76F4\u63A5\u8FD0\u884C release-skill verify\u3002verify \u4ECE\u8BE5\u63D2\u4EF6\u7684\u7A33\u5B9A\u8BC1\u660E\u76EE\u5F55\u8BFB\u53D6\u5E76\u6821\u9A8C\u5F53\u524D planDigest\uFF0C\u6210\u529F\u540E -> VERIFIED\u3002`
   ];
 }
 async function readKimiManifest(pluginRootReal) {
@@ -17259,15 +17258,13 @@ async function executeKimiManualRequirement(action, context) {
     });
   }
   const requiresInstalledClosure = Boolean(context.plan?.skillResourceClosure);
-  const managedRoot = requiresInstalledClosure ? resolve4(attestationDir, "kimi-home", "plugins", "managed") : null;
   const instructions = buildKimiManualInstructions({
     installUrl,
     plugin: action.plugin,
     version: action.version,
     ref,
     attestationDir,
-    requiresInstalledClosure,
-    managedRoot
+    requiresInstalledClosure
   });
   const requirement = {
     kind: "kimi-manual-install-requirement",
@@ -17288,7 +17285,7 @@ async function executeKimiManualRequirement(action, context) {
       result: '<"passed" or "failed">',
       actor: "<person who confirmed the install>",
       confirmedAt: "<ISO 8601 timestamp>",
-      ...requiresInstalledClosure ? { installPath: resolve4(managedRoot, action.plugin) } : {},
+      ...requiresInstalledClosure ? { installPath: "<actual installed plugin directory>" } : {},
       note: "<optional note>"
     },
     instructions
@@ -17302,17 +17299,6 @@ async function executeKimiManualRequirement(action, context) {
         actionType,
         status: ActionStatus.EXECUTE_FAILED,
         error: `cannot create kimi attestation directory: ${mkdirErr.message}`
-      });
-    }
-  }
-  if (requiresInstalledClosure) {
-    try {
-      await mkdir18(managedRoot, { recursive: true, mode: 448 });
-    } catch (mkdirErr) {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: `cannot create kimi resource-closure managed root: ${mkdirErr.message}`
       });
     }
   }
@@ -17351,11 +17337,14 @@ async function executeKimiManualRequirement(action, context) {
     }
     const { createdAt: _existingCreatedAt, ...existingBody } = existing;
     if (canonicalJson(existingBody) !== canonicalJson(requirement)) {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: "existing kimi manual-install requirement conflicts with the current frozen action; refusing to overwrite"
-      });
+      if (existing.planDigest === planDigest) {
+        return createResult({
+          actionType,
+          status: ActionStatus.EXECUTE_FAILED,
+          error: "existing kimi manual-install requirement conflicts with the current frozen action (same planDigest); refusing to overwrite"
+        });
+      }
+      await writeEvidenceAtomic(requirementPath, { ...requirement, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
     }
   } else {
     await writeEvidenceAtomic(requirementPath, { ...requirement, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
@@ -17438,7 +17427,7 @@ function codebuddyAuthorityDir(context, planDigest, plugin) {
     throw new Error(`codebuddy attestation authority requires a safe plugin id: "${plugin}"`);
   }
   const base = resolve5(context.root, ".release-skill", "codebuddy-attestations");
-  const dir = resolve5(base, planDigest, plugin);
+  const dir = resolve5(base, plugin);
   const rel = relative3(base, dir);
   const sep6 = process.platform === "win32" ? "\\" : "/";
   if (rel === "" || rel === ".." || isAbsolute3(rel) || rel.startsWith(`..${sep6}`) || rel.split(sep6).some((segment) => segment === ".." || segment === "")) {
@@ -17708,11 +17697,14 @@ async function executeCodeBuddyManualRequirement(action, context) {
     }
     const { createdAt: _existingCreatedAt, ...existingBody } = existing;
     if (canonicalJson(existingBody) !== canonicalJson(requirement)) {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: "existing codebuddy manual-install requirement conflicts with the current frozen action; refusing to overwrite"
-      });
+      if (existing.planDigest === planDigest) {
+        return createResult({
+          actionType,
+          status: ActionStatus.EXECUTE_FAILED,
+          error: "existing codebuddy manual-install requirement conflicts with the current frozen action (same planDigest); refusing to overwrite"
+        });
+      }
+      await writeEvidenceAtomic(requirementPath, { ...requirement, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
     }
   } else {
     await writeEvidenceAtomic(requirementPath, { ...requirement, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
@@ -17792,7 +17784,7 @@ function codexAuthorityDir(context, planDigest, plugin) {
     throw new Error(`codex attestation authority requires a safe plugin id: "${plugin}"`);
   }
   const base = resolve6(context.root, ".release-skill", "codex-attestations");
-  const dir = resolve6(base, planDigest, plugin);
+  const dir = resolve6(base, plugin);
   const rel = relative4(base, dir);
   const sep6 = process.platform === "win32" ? "\\" : "/";
   if (rel === "" || rel === ".." || isAbsolute4(rel) || rel.startsWith(`..${sep6}`) || rel.split(sep6).some((segment) => segment === ".." || segment === "")) {
@@ -17964,11 +17956,14 @@ async function executeCodexManualRequirement(action, context) {
     }
     const { createdAt: _existingCreatedAt, ...existingBody } = existing;
     if (canonicalJson(existingBody) !== canonicalJson(requirement)) {
-      return createResult({
-        actionType,
-        status: ActionStatus.EXECUTE_FAILED,
-        error: "existing codex manual-install requirement conflicts with the current frozen action; refusing to overwrite"
-      });
+      if (existing.planDigest === planDigest) {
+        return createResult({
+          actionType,
+          status: ActionStatus.EXECUTE_FAILED,
+          error: "existing codex manual-install requirement conflicts with the current frozen action (same planDigest); refusing to overwrite"
+        });
+      }
+      await writeEvidenceAtomic(requirementPath, { ...requirement, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
     }
   } else {
     await writeEvidenceAtomic(requirementPath, { ...requirement, createdAt: (/* @__PURE__ */ new Date()).toISOString() });
@@ -18526,13 +18521,794 @@ var init_registry = __esm({
   }
 });
 
+// src/snapshot/frozen.mjs
+import { createHash as createHash2 } from "node:crypto";
+import { execFile as execFileCb, spawn } from "node:child_process";
+import { promisify } from "node:util";
+import {
+  chmod,
+  lstat as lstat4,
+  mkdir as mkdir3,
+  mkdtemp,
+  open as open3,
+  readdir as readdir2,
+  realpath as realpath2,
+  rm as rm3,
+  unlink as unlink2
+} from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
+import { isAbsolute as isAbsolute5, join as join7, relative as relative5, resolve as resolve7 } from "node:path";
+function frozenError(message, details = {}) {
+  return new ReleaseError(GATE_FAILED, message, details);
+}
+function isInside(parent, candidate) {
+  const rel = relative5(parent, candidate);
+  return rel === "" || !isAbsolute5(rel) && rel !== ".." && !rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`);
+}
+async function resolveFrozenPath(root, relativePath, label = "frozen path") {
+  if (!relativePath || typeof relativePath !== "string" || isAbsolute5(relativePath)) {
+    throw frozenError(`${label} must be a non-empty project-relative path`);
+  }
+  const rootReal = await realpath2(root);
+  const lexical = resolve7(rootReal, relativePath);
+  if (!isInside(rootReal, lexical)) {
+    throw frozenError(`${label} escapes project root`, { relativePath });
+  }
+  const lexicalStat = await lstat4(lexical).catch((err) => {
+    throw frozenError(`${label} is missing`, { relativePath, cause: err.code });
+  });
+  if (lexicalStat.isSymbolicLink()) {
+    throw frozenError(`${label} must not be a symlink`, { relativePath });
+  }
+  const physical = await realpath2(lexical).catch((err) => {
+    throw frozenError(`${label} is missing`, { relativePath, cause: err.code });
+  });
+  if (!isInside(rootReal, physical)) {
+    throw frozenError(`${label} resolves outside project root`, { relativePath });
+  }
+  return physical;
+}
+async function readStableRegularFile(filePath, displayPath) {
+  const before = await lstat4(filePath);
+  if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1) {
+    throw frozenError(`frozen snapshot entry is not a single-link regular file: ${displayPath}`);
+  }
+  const handle = await open3(filePath, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+  try {
+    const opened = await handle.stat();
+    if (!opened.isFile() || opened.nlink !== 1 || opened.dev !== before.dev || opened.ino !== before.ino) {
+      throw frozenError(`frozen snapshot entry changed before read: ${displayPath}`);
+    }
+    const bytes = await handle.readFile();
+    const after = await handle.stat();
+    if (after.dev !== opened.dev || after.ino !== opened.ino || after.nlink !== 1 || after.size !== opened.size || after.mtimeMs !== opened.mtimeMs || after.ctimeMs !== opened.ctimeMs) {
+      throw frozenError(`frozen snapshot entry changed during read: ${displayPath}`);
+    }
+    return { bytes, mode: opened.mode };
+  } finally {
+    await handle.close();
+  }
+}
+async function computeFrozenSnapshot(snapshotDir, { excludeRootEntries = [] } = {}) {
+  const root = await realpath2(snapshotDir);
+  const rootStat = await lstat4(root);
+  if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
+    throw frozenError("frozen snapshot root must be a real directory");
+  }
+  const entries = [];
+  const excludedRootNames = /* @__PURE__ */ new Set();
+  const excludedPathPrefixes = [];
+  for (const entry of excludeRootEntries) {
+    if (typeof entry !== "string") {
+      throw frozenError("frozen snapshot exclusion entries must be strings");
+    }
+    const segments = entry.split("/").filter((segment) => segment !== "" && segment !== ".");
+    if (segments.length === 0 || entry.startsWith("/") || entry.includes("\\") || segments.some((segment) => segment === "..")) {
+      throw frozenError(`frozen snapshot exclusion entry is not a safe relative path: ${JSON.stringify(entry)}`);
+    }
+    if (segments.length === 1) {
+      excludedRootNames.add(segments[0]);
+    } else {
+      excludedPathPrefixes.push(segments.join("/"));
+    }
+  }
+  async function walk(dir) {
+    const children = await readdir2(dir, { withFileTypes: true });
+    children.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+    for (const child of children) {
+      if (dir === root && excludedRootNames.has(child.name)) continue;
+      const absolute = join7(dir, child.name);
+      const rel = relative5(root, absolute).split("\\").join("/");
+      if (excludedPathPrefixes.some((prefix) => rel === prefix || rel.startsWith(`${prefix}/`))) continue;
+      const st = await lstat4(absolute);
+      if (st.isSymbolicLink()) {
+        throw frozenError(`frozen snapshot contains symlink: ${rel}`);
+      }
+      if (st.isDirectory()) {
+        await walk(absolute);
+        continue;
+      }
+      const { bytes, mode } = await readStableRegularFile(absolute, rel);
+      entries.push({
+        path: rel,
+        type: "file",
+        mode,
+        size: bytes.length,
+        contentDigest: createHash2("sha256").update(bytes).digest("hex")
+      });
+    }
+  }
+  __name(walk, "walk");
+  await walk(root);
+  entries.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+  const digest = createHash2("sha256").update(JSON.stringify(entries)).digest("hex");
+  return { digest, entries };
+}
+async function verifyFrozenSnapshot({ root, snapshotPath, expectedDigest }) {
+  const snapshotDir = await resolveFrozenPath(root, snapshotPath, "frozen snapshot path");
+  const observed = await computeFrozenSnapshot(snapshotDir);
+  if (!expectedDigest || observed.digest !== expectedDigest) {
+    throw frozenError("frozen snapshot digest mismatch", {
+      expectedDigest,
+      observedDigest: observed.digest
+    });
+  }
+  return { snapshotDir, ...observed };
+}
+async function verifyFrozenFile({ root, filePath, expectedSha256, label = "frozen file" }) {
+  const physical = await resolveFrozenPath(root, filePath, label);
+  const { bytes } = await readStableRegularFile(physical, filePath);
+  const observedSha256 = createHash2("sha256").update(bytes).digest("hex");
+  if (!expectedSha256 || observedSha256 !== expectedSha256) {
+    throw frozenError(`${label} SHA-256 mismatch`, { expectedSha256, observedSha256 });
+  }
+  return { physical, observedSha256, size: bytes.length };
+}
+async function verifyFrozenDirectoryStructure(directory, label = "frozen directory") {
+  async function walk(current) {
+    const children = await readdir2(current, { withFileTypes: true });
+    for (const child of children) {
+      const absolute = join7(current, child.name);
+      const st = await lstat4(absolute);
+      if (st.isSymbolicLink()) {
+        throw frozenError(`${label} contains a symlink`);
+      }
+      if (st.isDirectory()) {
+        await walk(absolute);
+      } else if (!st.isFile() || st.nlink !== 1) {
+        throw frozenError(`${label} contains an unsafe non-regular or hardlinked entry`);
+      }
+    }
+  }
+  __name(walk, "walk");
+  await walk(directory);
+}
+async function verifyFrozenGitRepository({
+  root,
+  gitObjectDir,
+  commit,
+  tree,
+  parentCommit,
+  commitTimestamp,
+  exec = execFile
+}) {
+  const gitDir = await resolveFrozenPath(root, gitObjectDir, "frozen git object directory");
+  await verifyFrozenDirectoryStructure(gitDir, "frozen git object directory");
+  const { stdout } = await exec("git", ["--git-dir", gitDir, "rev-parse", `${commit}^{tree}`], { shell: false });
+  if (stdout.trim() !== tree) {
+    throw frozenError("frozen git object tree mismatch", { commit, expectedTree: tree, observedTree: stdout.trim() });
+  }
+  if (commitTimestamp !== void 0) {
+    const expectedTimestamp = normalizeGitTimestamp(commitTimestamp, "frozen commit timestamp");
+    const { stdout: datesOut } = await exec(
+      "git",
+      ["--git-dir", gitDir, "show", "-s", "--format=%aI%n%cI", commit],
+      { shell: false }
+    );
+    const [authorDate, committerDate] = datesOut.trim().split("\n");
+    if (authorDate !== expectedTimestamp || committerDate !== expectedTimestamp) {
+      throw frozenError("frozen git commit dates do not match the plan freeze timestamp", {
+        commit,
+        expectedTimestamp,
+        observedAuthorDate: authorDate,
+        observedCommitterDate: committerDate
+      });
+    }
+  }
+  if (parentCommit) {
+    if (!/^[a-f0-9]{40,64}$/.test(parentCommit)) {
+      throw frozenError("frozen Git parent must be a full hexadecimal object id");
+    }
+    const { stdout: parentsOut } = await exec(
+      "git",
+      ["--git-dir", gitDir, "rev-list", "--parents", "-n", "1", commit],
+      { shell: false }
+    );
+    const [observedCommit, ...parents] = parentsOut.trim().split(/\s+/);
+    if (observedCommit !== commit || parents.length !== 1 || parents[0] !== parentCommit) {
+      throw frozenError("frozen Git commit parent mismatch", {
+        commit,
+        expectedParent: parentCommit,
+        observedParents: parents
+      });
+    }
+  }
+  return { gitDir, commit, tree, ...parentCommit ? { parentCommit } : {} };
+}
+async function verifyGitTreeContent({ snapshotDir, repositoryDir, commit, expectedSnapshotDigest, exec }) {
+  const snapshot = await computeFrozenSnapshot(snapshotDir);
+  if (snapshot.digest !== expectedSnapshotDigest) {
+    throw frozenError("frozen snapshot changed while deriving Git objects", {
+      expectedDigest: expectedSnapshotDigest,
+      observedDigest: snapshot.digest
+    });
+  }
+  const { stdout: treeOut } = await exec(
+    "git",
+    ["--git-dir", repositoryDir, "ls-tree", "-rz", commit],
+    { shell: false, encoding: "buffer", maxBuffer: 64 * 1024 * 1024 }
+  );
+  const treeEntries = Buffer.from(treeOut).toString("utf8").split("\0").filter(Boolean).map((record) => {
+    const separator = record.indexOf("	");
+    const [mode, type] = record.slice(0, separator).split(" ");
+    return { path: record.slice(separator + 1), mode, type };
+  }).sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+  const names = treeEntries.map((entry) => entry.path);
+  const expectedNames = snapshot.entries.map((entry) => entry.path);
+  if (JSON.stringify(names) !== JSON.stringify(expectedNames)) {
+    throw frozenError("frozen Git tree paths do not match the sealed public snapshot");
+  }
+  for (const [index, entry] of snapshot.entries.entries()) {
+    const gitEntry = treeEntries[index];
+    const expectedMode = entry.mode & 73 ? "100755" : "100644";
+    if (gitEntry.type !== "blob" || gitEntry.mode !== expectedMode) {
+      throw frozenError(`frozen Git tree mode does not match the sealed public snapshot: ${entry.path}`, {
+        expectedMode,
+        observedMode: gitEntry.mode,
+        observedType: gitEntry.type
+      });
+    }
+    const { stdout } = await exec(
+      "git",
+      ["--git-dir", repositoryDir, "show", `${commit}:${entry.path}`],
+      { shell: false, encoding: "buffer", maxBuffer: Math.max(64 * 1024 * 1024, entry.size + 1024) }
+    );
+    const digest = createHash2("sha256").update(Buffer.from(stdout)).digest("hex");
+    if (digest !== entry.contentDigest) {
+      throw frozenError(`frozen Git tree bytes do not match the sealed public snapshot: ${entry.path}`);
+    }
+  }
+}
+function normalizeGitTimestamp(value, label = "freeze timestamp") {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw frozenError(`${label} must be a non-empty strict ISO 8601 timestamp string`, {
+      received: typeof value === "string" ? value : typeof value
+    });
+  }
+  const trimmed = value.trim();
+  const match = GIT_ISO8601_STRICT_RE.exec(trimmed);
+  if (!match) {
+    throw frozenError(`${label} must be strict ISO 8601 with an explicit UTC offset`, {
+      received: trimmed
+    });
+  }
+  const [, yearStr, monthStr, dayStr, hourStr, minuteStr, secondStr, zone] = match;
+  const inputYear = Number(yearStr);
+  const inputMonth = Number(monthStr);
+  const inputDay = Number(dayStr);
+  const inputHour = Number(hourStr);
+  const inputMinute = Number(minuteStr);
+  const inputSecond = Number(secondStr);
+  if (inputYear < 1e3 || inputYear > 9999) {
+    throw frozenError(`${label} year must be a four-digit ISO year`, { received: trimmed });
+  }
+  const probeMs = Date.UTC(inputYear, inputMonth - 1, inputDay, inputHour, inputMinute, inputSecond);
+  const probe = new Date(probeMs);
+  if (probe.getUTCFullYear() !== inputYear || probe.getUTCMonth() !== inputMonth - 1 || probe.getUTCDate() !== inputDay || probe.getUTCHours() !== inputHour || probe.getUTCMinutes() !== inputMinute || probe.getUTCSeconds() !== inputSecond) {
+    throw frozenError(`${label} is not a valid calendar date`, { received: trimmed });
+  }
+  let offsetMs = 0;
+  if (zone !== "Z") {
+    const sign = zone.startsWith("-") ? -1 : 1;
+    const zoneHours = Number(zone.slice(1, 3));
+    const zoneMinutes = Number(zone.slice(4, 6));
+    if (zoneHours > 23 || zoneMinutes > 59) {
+      throw frozenError(`${label} has an invalid UTC offset`, { received: trimmed });
+    }
+    offsetMs = sign * (zoneHours * 60 + zoneMinutes) * 6e4;
+  }
+  const date = new Date(probeMs - offsetMs);
+  if (date.getUTCFullYear() < 1e3 || date.getUTCFullYear() > 9999) {
+    throw frozenError(`${label} normalizes outside the four-digit ISO year range`, { received: trimmed });
+  }
+  const pad = /* @__PURE__ */ __name((num) => String(num).padStart(2, "0"), "pad");
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}+00:00`;
+}
+function publicGitRemote({ repo, githubHost = "github.com" }) {
+  if (typeof repo !== "string" || !/^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(repo)) {
+    throw frozenError("Git parent repo must use owner/name format");
+  }
+  if (typeof githubHost !== "string" || !/^[A-Za-z0-9.-]+$/.test(githubHost) || githubHost.startsWith(".") || githubHost.endsWith(".") || githubHost.includes("..")) {
+    throw frozenError("Git parent githubHost must be a valid hostname");
+  }
+  return `https://${githubHost}/${repo}.git`;
+}
+async function buildFrozenGitRepository({
+  snapshotDir,
+  repositoryDir,
+  version,
+  expectedSnapshotDigest,
+  parent,
+  commitTimestamp,
+  exec = execFile
+}) {
+  const canonicalTimestamp = normalizeGitTimestamp(commitTimestamp, "frozen commit timestamp");
+  if (!expectedSnapshotDigest) throw frozenError("Git object build requires the sealed snapshot digest");
+  await mkdir3(repositoryDir, { recursive: true });
+  await exec("git", ["init", "--bare", repositoryDir], { shell: false });
+  let parentCommit = null;
+  if (parent) {
+    if (!parent.ref || typeof parent.ref !== "string") {
+      throw frozenError("Git parent ref must be a non-empty string");
+    }
+    if (!parent.commit || !/^[a-f0-9]{40,64}$/.test(parent.commit)) {
+      throw frozenError("Git parent commit must be a full hexadecimal object id");
+    }
+    const remoteUrl = publicGitRemote(parent);
+    await exec(
+      "git",
+      ["--git-dir", repositoryDir, "fetch", "--no-tags", remoteUrl, parent.ref],
+      { shell: false }
+    );
+    const { stdout: fetchedOut } = await exec(
+      "git",
+      ["--git-dir", repositoryDir, "rev-parse", "FETCH_HEAD^{commit}"],
+      { shell: false }
+    );
+    if (fetchedOut.trim() !== parent.commit) {
+      throw frozenError("fetched Git parent does not match the observed public baseline", {
+        expectedCommit: parent.commit,
+        observedCommit: fetchedOut.trim(),
+        ref: parent.ref
+      });
+    }
+    parentCommit = parent.commit;
+  }
+  const indexPath = join7(repositoryDir, "release-index");
+  const env = { ...process.env, GIT_INDEX_FILE: indexPath };
+  await exec("git", [
+    "--git-dir",
+    repositoryDir,
+    "--work-tree",
+    snapshotDir,
+    "add",
+    "--all",
+    "--force",
+    "--",
+    "."
+  ], { cwd: snapshotDir, env, shell: false });
+  const { stdout: treeOut } = await exec("git", ["--git-dir", repositoryDir, "write-tree"], {
+    env,
+    shell: false
+  });
+  const tree = treeOut.trim();
+  const commitEnv = {
+    ...env,
+    GIT_AUTHOR_NAME: "release-skill",
+    GIT_AUTHOR_EMAIL: "release-skill@localhost",
+    GIT_COMMITTER_NAME: "release-skill",
+    GIT_COMMITTER_EMAIL: "release-skill@localhost",
+    GIT_AUTHOR_DATE: canonicalTimestamp,
+    GIT_COMMITTER_DATE: canonicalTimestamp
+  };
+  const commitArgs = ["--git-dir", repositoryDir, "commit-tree", tree];
+  if (parentCommit) commitArgs.push("-p", parentCommit);
+  commitArgs.push("-m", `Release ${version}`);
+  const { stdout: commitOut } = await exec(
+    "git",
+    commitArgs,
+    { env: commitEnv, shell: false }
+  );
+  const commit = commitOut.trim();
+  await verifyGitTreeContent({ snapshotDir, repositoryDir, commit, expectedSnapshotDigest, exec });
+  if (parentCommit) {
+    const { stdout: parentsOut } = await exec(
+      "git",
+      ["--git-dir", repositoryDir, "rev-list", "--parents", "-n", "1", commit],
+      { shell: false }
+    );
+    const [observedCommit, ...parents] = parentsOut.trim().split(/\s+/);
+    if (observedCommit !== commit || parents.length !== 1 || parents[0] !== parentCommit) {
+      throw frozenError("derived Git commit does not have the exact planned parent", {
+        commit,
+        parentCommit,
+        observedParents: parents
+      });
+    }
+  }
+  return { tree, commit, ...parentCommit ? { parentCommit } : {} };
+}
+function contentEntries(entries) {
+  return entries.map(({ path: path3, size, contentDigest }) => ({ path: path3, size, contentDigest }));
+}
+async function createDetachedReadHandle(bytes, directory) {
+  const tempDir = await mkdtemp(join7(directory, ".tar-fd-"));
+  const tempPath = join7(tempDir, "package.tgz");
+  let handle;
+  try {
+    const writer = await open3(tempPath, "wx", 256);
+    try {
+      await writer.writeFile(bytes);
+      await writer.sync();
+    } finally {
+      await writer.close();
+    }
+    handle = await open3(tempPath, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+    await unlink2(tempPath);
+    await rm3(tempDir, { recursive: true, force: true });
+    return handle;
+  } catch (err) {
+    await handle?.close().catch(() => {
+    });
+    await rm3(tempDir, { recursive: true, force: true });
+    throw err;
+  }
+}
+async function runTarFromHandle(handle, args2) {
+  const fdPath = process.platform === "linux" ? "/proc/self/fd/3" : "/dev/fd/3";
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn("tar", args2(fdPath), {
+      shell: false,
+      env: process.env,
+      stdio: ["ignore", "pipe", "pipe", handle.fd]
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.on("error", rejectPromise);
+    child.on("close", (code) => {
+      if (code === 0) resolvePromise({ stdout, stderr });
+      else rejectPromise(new Error(`tar exited with code ${code}: ${stderr.trim()}`));
+    });
+  });
+}
+function validateNpmTarballListing(listOut) {
+  const listed = listOut.split(/\r?\n/).filter(Boolean);
+  if (listed.length === 0) {
+    throw frozenError("npm tarball contains no entries");
+  }
+  const seen = /* @__PURE__ */ new Set();
+  for (const entry of listed) {
+    if (entry.startsWith("/") || entry.includes("\\") || !entry.startsWith("package/") && entry !== "package") {
+      throw frozenError("npm tarball contains an unsafe or unexpected path", { entry });
+    }
+    const segments = entry.split("/");
+    const pathSegments = entry.endsWith("/") ? segments.slice(0, -1) : segments;
+    if (pathSegments.some((segment) => segment === "" || segment === "." || segment === "..")) {
+      throw frozenError("npm tarball contains an unsafe or unexpected path", { entry });
+    }
+    const canonicalPath2 = entry.endsWith("/") ? entry.slice(0, -1) : entry;
+    if (seen.has(canonicalPath2)) {
+      throw frozenError("npm tarball contains a duplicate path", { entry: canonicalPath2 });
+    }
+    seen.add(canonicalPath2);
+  }
+}
+async function inspectNpmTarballContent({ tarballBytes, tarballDir }) {
+  const listHandle = await createDetachedReadHandle(tarballBytes, tarballDir);
+  let listOut;
+  try {
+    ({ stdout: listOut } = await runTarFromHandle(listHandle, (fdPath) => ["-tzf", fdPath]));
+  } finally {
+    await listHandle.close();
+  }
+  validateNpmTarballListing(listOut);
+  const verifyDir = await mkdtemp(join7(tarballDir, ".verify-"));
+  try {
+    const extractHandle = await createDetachedReadHandle(tarballBytes, tarballDir);
+    try {
+      await runTarFromHandle(extractHandle, (fdPath) => ["-xzf", fdPath, "-C", verifyDir]);
+    } finally {
+      await extractHandle.close();
+    }
+    return await computeFrozenSnapshot(join7(verifyDir, "package"));
+  } finally {
+    await rm3(verifyDir, { recursive: true, force: true });
+  }
+}
+async function verifyNpmTarballContent({ snapshotDir, tarballBytes, tarballDir, expectedSnapshotDigest }) {
+  const packed = await inspectNpmTarballContent({ tarballBytes, tarballDir });
+  const original = await computeFrozenSnapshot(snapshotDir);
+  if (original.digest !== expectedSnapshotDigest) {
+    throw frozenError("frozen snapshot changed while deriving npm tarball", {
+      expectedDigest: expectedSnapshotDigest,
+      observedDigest: original.digest
+    });
+  }
+  if (JSON.stringify(contentEntries(packed.entries)) !== JSON.stringify(contentEntries(original.entries))) {
+    throw frozenError("npm tarball bytes do not match the sealed public snapshot");
+  }
+}
+async function buildNpmTarballFileIndex({ tarballBytes, tarballDir }) {
+  const packed = await inspectNpmTarballContent({ tarballBytes, tarballDir });
+  return new Map(packed.entries.map((entry) => [entry.path, { type: entry.type }]));
+}
+async function buildFrozenNpmTarball({ snapshotDir, tarballDir, expectedSnapshotDigest, exec = execFile }) {
+  await mkdir3(tarballDir, { recursive: true });
+  const { stdout } = await exec(
+    "npm",
+    ["pack", snapshotDir, "--pack-destination", tarballDir, "--json", "--ignore-scripts"],
+    { shell: false, encoding: "utf8", timeout: 12e4 }
+  );
+  let parsed;
+  try {
+    parsed = JSON.parse(stdout);
+  } catch {
+    throw frozenError("npm pack returned invalid JSON");
+  }
+  const info = Array.isArray(parsed) ? parsed[0] : parsed;
+  if (!info?.filename || !info?.integrity) {
+    throw frozenError("npm pack did not return filename and integrity");
+  }
+  const tarballPath = join7(tarballDir, info.filename);
+  const { bytes } = await readStableRegularFile(tarballPath, info.filename);
+  if (!expectedSnapshotDigest) throw frozenError("npm tarball build requires the sealed snapshot digest");
+  await verifyNpmTarballContent({
+    snapshotDir,
+    tarballBytes: bytes,
+    tarballDir,
+    expectedSnapshotDigest
+  });
+  return {
+    tarballPath,
+    integrity: info.integrity,
+    sha256: createHash2("sha256").update(bytes).digest("hex"),
+    size: bytes.length
+  };
+}
+async function sealFrozenSnapshot(snapshotDir) {
+  async function walk(dir) {
+    const children = await readdir2(dir, { withFileTypes: true });
+    for (const child of children) {
+      const absolute = join7(dir, child.name);
+      const st = await lstat4(absolute);
+      if (st.isDirectory()) {
+        await walk(absolute);
+        await chmod(absolute, 365);
+      } else if (st.isFile()) {
+        await chmod(absolute, st.mode & 73 ? 365 : 292);
+      }
+    }
+  }
+  __name(walk, "walk");
+  await walk(snapshotDir);
+  await chmod(snapshotDir, 365);
+}
+var execFile, GIT_ISO8601_STRICT_RE;
+var init_frozen = __esm({
+  "src/snapshot/frozen.mjs"() {
+    init_errors();
+    execFile = promisify(execFileCb);
+    __name(frozenError, "frozenError");
+    __name(isInside, "isInside");
+    __name(resolveFrozenPath, "resolveFrozenPath");
+    __name(readStableRegularFile, "readStableRegularFile");
+    __name(computeFrozenSnapshot, "computeFrozenSnapshot");
+    __name(verifyFrozenSnapshot, "verifyFrozenSnapshot");
+    __name(verifyFrozenFile, "verifyFrozenFile");
+    __name(verifyFrozenDirectoryStructure, "verifyFrozenDirectoryStructure");
+    __name(verifyFrozenGitRepository, "verifyFrozenGitRepository");
+    __name(verifyGitTreeContent, "verifyGitTreeContent");
+    GIT_ISO8601_STRICT_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/;
+    __name(normalizeGitTimestamp, "normalizeGitTimestamp");
+    __name(publicGitRemote, "publicGitRemote");
+    __name(buildFrozenGitRepository, "buildFrozenGitRepository");
+    __name(contentEntries, "contentEntries");
+    __name(createDetachedReadHandle, "createDetachedReadHandle");
+    __name(runTarFromHandle, "runTarFromHandle");
+    __name(validateNpmTarballListing, "validateNpmTarballListing");
+    __name(inspectNpmTarballContent, "inspectNpmTarballContent");
+    __name(verifyNpmTarballContent, "verifyNpmTarballContent");
+    __name(buildNpmTarballFileIndex, "buildNpmTarballFileIndex");
+    __name(buildFrozenNpmTarball, "buildFrozenNpmTarball");
+    __name(sealFrozenSnapshot, "sealFrozenSnapshot");
+  }
+});
+
+// src/npm/npm-entry-closure.mjs
+import { tmpdir } from "node:os";
+function entryError(field, target, reason, message) {
+  return { field, target, reason, message };
+}
+function validateRelativeTarget(target, field, { requireDotSlash = false } = {}) {
+  if (typeof target !== "string" || target.length === 0) {
+    return {
+      error: entryError(field, String(target ?? ""), "invalid_type", `${field} target must be a non-empty string`)
+    };
+  }
+  if (target.includes("\0")) {
+    return { error: entryError(field, target, "nul_in_path", `${field} target must not contain NUL`) };
+  }
+  if (target.startsWith("/") || /^[A-Za-z]:[/\\]/.test(target) || target.startsWith("\\\\")) {
+    return { error: entryError(field, target, "absolute_path", `${field} target must be package-relative`) };
+  }
+  if (target.includes("\\")) {
+    return { error: entryError(field, target, "backslash_path", `${field} target must use forward slashes`) };
+  }
+  if (requireDotSlash && !target.startsWith("./")) {
+    return {
+      error: entryError(field, target, "missing_dot_slash", `${field} target must start with "./"`)
+    };
+  }
+  const relativeTarget = target.startsWith("./") ? target.slice(2) : target;
+  const segments = relativeTarget.split("/");
+  if (segments.includes("..")) {
+    return {
+      error: entryError(field, target, "path_escape", `${field} target escapes the package root`)
+    };
+  }
+  if (relativeTarget.length === 0 || segments.some((segment) => segment === "" || segment === ".")) {
+    return {
+      error: entryError(field, target, "unsafe_segment", `${field} target contains an unsafe path segment`)
+    };
+  }
+  if (requireDotSlash && segments.includes("node_modules")) {
+    return {
+      error: entryError(field, target, "unsafe_segment", `${field} target must not contain node_modules`)
+    };
+  }
+  return { target: relativeTarget };
+}
+function checkTarget({ field, target, fileIndex, requireDotSlash = false }) {
+  const validated = validateRelativeTarget(target, field, { requireDotSlash });
+  if (validated.error) return { errors: [validated.error], entries: [] };
+  const indexed = fileIndex.get(validated.target);
+  const found = indexed?.type === "file";
+  const entries = [{ field, target: validated.target, found }];
+  if (found) return { entries, errors: [] };
+  const reason = indexed === void 0 ? "entry_missing" : "entry_not_regular_file";
+  return {
+    entries,
+    errors: [
+      entryError(
+        field,
+        validated.target,
+        reason,
+        indexed === void 0 ? `${field} target "${validated.target}" is missing` : `${field} target "${validated.target}" is not a regular file`
+      )
+    ]
+  };
+}
+function collectExports(value, location, result) {
+  if (value === null) return;
+  if (typeof value === "string") {
+    if (value.includes("*")) {
+      result.errors.push(
+        entryError(
+          "exports",
+          value,
+          "unsupported_entry_shape",
+          `${location} uses a wildcard target that the static gate cannot verify`
+        )
+      );
+    } else {
+      result.targets.push({ field: `exports ${location}`, target: value });
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    result.errors.push(
+      entryError("exports", location, "unsupported_entry_shape", `${location} uses unsupported fallback-array semantics`)
+    );
+    return;
+  }
+  if (typeof value !== "object" || value === void 0) {
+    result.errors.push(
+      entryError("exports", String(value), "invalid_exports_type", `${location} has an unsupported exports value`)
+    );
+    return;
+  }
+  for (const [key, child] of Object.entries(value)) {
+    const childLocation = `${location}.${key}`;
+    if (key.includes("*")) {
+      result.errors.push(
+        entryError(
+          "exports",
+          key,
+          "unsupported_entry_shape",
+          `${childLocation} uses a wildcard subpath that the static gate cannot verify`
+        )
+      );
+      continue;
+    }
+    collectExports(child, childLocation, result);
+  }
+}
+function checkNpmEntryClosure(manifest, fileIndex) {
+  const result = { entries: [], errors: [], diagnostics: [] };
+  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
+    result.errors.push(entryError("manifest", "", "invalid_manifest", "manifest must be an object"));
+    return result;
+  }
+  if (!(fileIndex instanceof Map)) {
+    result.errors.push(entryError("fileIndex", "", "invalid_file_index", "fileIndex must be a Map"));
+    return result;
+  }
+  if (manifest.bin !== void 0 && manifest.bin !== null) {
+    if (typeof manifest.bin === "string") {
+      const checked = checkTarget({ field: "bin", target: manifest.bin, fileIndex });
+      result.entries.push(...checked.entries);
+      result.errors.push(...checked.errors);
+    } else if (typeof manifest.bin === "object" && !Array.isArray(manifest.bin)) {
+      for (const [name, target] of Object.entries(manifest.bin)) {
+        const checked = checkTarget({ field: "bin", target, fileIndex });
+        result.entries.push(...checked.entries);
+        result.errors.push(...checked.errors);
+      }
+    } else {
+      result.errors.push(entryError("bin", String(manifest.bin), "invalid_type", "bin must be a string or object"));
+    }
+  }
+  for (const field of SIMPLE_FIELDS) {
+    if (manifest[field] === void 0 || manifest[field] === null) continue;
+    const checked = checkTarget({ field, target: manifest[field], fileIndex });
+    result.entries.push(...checked.entries);
+    result.errors.push(...checked.errors);
+  }
+  if (manifest.exports !== void 0) {
+    const exportsResult = { targets: [], errors: [], diagnostics: [] };
+    collectExports(manifest.exports, "exports", exportsResult);
+    result.errors.push(...exportsResult.errors);
+    result.diagnostics.push(...exportsResult.diagnostics);
+    for (const target of exportsResult.targets) {
+      const checked = checkTarget({
+        field: "exports",
+        target: target.target,
+        fileIndex,
+        requireDotSlash: true
+      });
+      result.entries.push(...checked.entries);
+      result.errors.push(...checked.errors);
+    }
+  }
+  return result;
+}
+async function buildTarballFileIndex(tarballBytes, tarballDir = tmpdir()) {
+  return buildNpmTarballFileIndex({ tarballBytes, tarballDir });
+}
+async function buildDirectoryFileIndex(packageDir) {
+  const snapshot = await computeFrozenSnapshot(packageDir, { excludeRootEntries: [".git"] });
+  return new Map(snapshot.entries.map((entry) => [entry.path, { type: entry.type }]));
+}
+var SIMPLE_FIELDS;
+var init_npm_entry_closure = __esm({
+  "src/npm/npm-entry-closure.mjs"() {
+    init_frozen();
+    SIMPLE_FIELDS = ["main", "module", "types", "typings"];
+    __name(entryError, "entryError");
+    __name(validateRelativeTarget, "validateRelativeTarget");
+    __name(checkTarget, "checkTarget");
+    __name(collectExports, "collectExports");
+    __name(checkNpmEntryClosure, "checkNpmEntryClosure");
+    __name(buildTarballFileIndex, "buildTarballFileIndex");
+    __name(buildDirectoryFileIndex, "buildDirectoryFileIndex");
+  }
+});
+
 // src/artifacts/safe-fs-backend-internal.mjs
 import { createRequire } from "node:module";
-import { dirname as dirname3, resolve as resolve7 } from "node:path";
+import { dirname as dirname3, resolve as resolve8 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
-import { realpath as realpath2 } from "node:fs/promises";
+import { realpath as realpath3 } from "node:fs/promises";
 import { readFileSync as readFileSync3, realpathSync as realpathSync2, lstatSync as lstatSync2 } from "node:fs";
-import { createHash as createHash2 } from "node:crypto";
+import { createHash as createHash3 } from "node:crypto";
 function failPrebuildManifest(reason, message = "prebuilds manifest not readable") {
   throw new ReleaseError(
     SAFE_WRITE_UNAVAILABLE,
@@ -18585,8 +19361,8 @@ function sanitizeError(err) {
   return "native addon error";
 }
 function isWithinPackageBuildDir(addonPath) {
-  const buildDir = resolve7(NATIVE_BASE, "build/");
-  const resolved = resolve7(addonPath);
+  const buildDir = resolve8(NATIVE_BASE, "build/");
+  const resolved = resolve8(addonPath);
   if (!resolved.startsWith(buildDir + "/") && resolved !== buildDir) {
     return null;
   }
@@ -18623,7 +19399,7 @@ function validateManifestEntry(entry, key) {
   if (typeof entry.exports !== "object" || !Array.isArray(entry.exports)) {
     throw new ReleaseError(SAFE_WRITE_UNAVAILABLE, `manifest entry missing exports for ${key}`);
   }
-  const resolved = resolve7(NATIVE_BASE, entry.path);
+  const resolved = resolve8(NATIVE_BASE, entry.path);
   const baseDir = NATIVE_BASE;
   if (!resolved.startsWith(baseDir + "/") && resolved !== baseDir) {
     throw new ReleaseError(SAFE_WRITE_UNAVAILABLE, `manifest path escapes base directory for ${key}`);
@@ -18636,7 +19412,7 @@ function validateManifestEntry(entry, key) {
 }
 function requireAddon(addonPath) {
   try {
-    const require2 = createRequire(resolve7(PKG_ROOT2, "package.json"));
+    const require2 = createRequire(resolve8(PKG_ROOT2, "package.json"));
     return require2(addonPath);
   } catch (err) {
     throw new ReleaseError(SAFE_WRITE_UNAVAILABLE, sanitizeError(err));
@@ -18657,7 +19433,7 @@ function readStableAddon(options = {}) {
     );
   }
   validateManifestEntry(entry, key);
-  const addonFile = resolve7(NATIVE_BASE, entry.path);
+  const addonFile = resolve8(NATIVE_BASE, entry.path);
   const lstatFn = hooks.lstatSync || lstatSync2;
   const lstatOpts = { bigint: true };
   let preStat;
@@ -18693,7 +19469,7 @@ function readStableAddon(options = {}) {
   } catch {
     throw new ReleaseError(SAFE_WRITE_UNAVAILABLE, "prebuilt addon not readable");
   }
-  const hash = createHash2("sha256").update(data).digest("hex");
+  const hash = createHash3("sha256").update(data).digest("hex");
   if (hash !== entry.sha256) {
     throw new ReleaseError(SAFE_WRITE_UNAVAILABLE, "prebuilt addon SHA-256 mismatch");
   }
@@ -19066,11 +19842,11 @@ var PKG_ROOT2, NATIVE_BASE, PREBUILDS_PATH, PREBUILDS_RESOURCE, DEFAULT_ADDON_PA
 var init_safe_fs_backend_internal = __esm({
   "src/artifacts/safe-fs-backend-internal.mjs"() {
     init_errors();
-    PKG_ROOT2 = typeof __bundlePkgRoot !== "undefined" ? __bundlePkgRoot : resolve7(dirname3(fileURLToPath2(import.meta.url)), "..", "..");
-    NATIVE_BASE = resolve7(PKG_ROOT2, "native/safe-write");
-    PREBUILDS_PATH = resolve7(NATIVE_BASE, "prebuilds.json");
+    PKG_ROOT2 = typeof __bundlePkgRoot !== "undefined" ? __bundlePkgRoot : resolve8(dirname3(fileURLToPath2(import.meta.url)), "..", "..");
+    NATIVE_BASE = resolve8(PKG_ROOT2, "native/safe-write");
+    PREBUILDS_PATH = resolve8(NATIVE_BASE, "prebuilds.json");
     PREBUILDS_RESOURCE = "native/safe-write/prebuilds.json";
-    DEFAULT_ADDON_PATH = resolve7(NATIVE_BASE, "build/Release/safe_write.node");
+    DEFAULT_ADDON_PATH = resolve8(NATIVE_BASE, "build/Release/safe_write.node");
     EXPECTED_EXPORTS = Object.freeze([
       "openRoot",
       "openDir",
@@ -19105,8 +19881,8 @@ __export(safe_fs_exports, {
   loadSafeFs: () => loadSafeFs,
   requireSafeFs: () => requireSafeFs
 });
-import { realpath as realpath3 } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { realpath as realpath4 } from "node:fs/promises";
+import { tmpdir as tmpdir2 } from "node:os";
 async function loadSafeFs(options = {}) {
   const addon = loadNativeAddon(options.addonPath);
   return createBackend(addon);
@@ -19117,7 +19893,7 @@ async function requireSafeFs(options = {}) {
   if (options.root) {
     root = options.root;
   } else {
-    root = await realpath3(tmpdir());
+    root = await realpath4(tmpdir2());
   }
   const result = await backend.probe(root);
   if (!result.supported) {
@@ -19142,26 +19918,26 @@ var setup_exports = {};
 __export(setup_exports, {
   setupProject: () => setupProject
 });
-import { execFile as execFileCb } from "node:child_process";
-import { createHash as createHash3 } from "node:crypto";
+import { execFile as execFileCb2 } from "node:child_process";
+import { createHash as createHash4 } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { promisify } from "node:util";
+import { promisify as promisify2 } from "node:util";
 import {
-  lstat as lstat4,
+  lstat as lstat5,
   readFile as readFile7,
-  readdir as readdir2,
-  realpath as realpath4
+  readdir as readdir3,
+  realpath as realpath5
 } from "node:fs/promises";
-import { basename as basename2, dirname as dirname4, isAbsolute as isAbsolute5, join as join7, relative as relative5, resolve as resolve8 } from "node:path";
+import { basename as basename2, dirname as dirname4, isAbsolute as isAbsolute6, join as join8, relative as relative6, resolve as resolve9 } from "node:path";
 function setupError(code, message, details = {}) {
   return new ReleaseError(code, message, details);
 }
 function safeRelative(root, path3) {
-  const rel = relative5(root, path3).split("\\").join("/");
+  const rel = relative6(root, path3).split("\\").join("/");
   return rel || ".";
 }
 async function readJsonBounded(path3, label) {
-  const stat9 = await lstat4(path3);
+  const stat9 = await lstat5(path3);
   if (!stat9.isFile() || stat9.isSymbolicLink() || stat9.size > MAX_JSON_BYTES) {
     throw setupError(CONFIG_INVALID, `${label} must be a regular JSON file no larger than 1 MiB`, { path: path3 });
   }
@@ -19175,11 +19951,11 @@ async function walkDiscoveryFiles(root, maxDepth = 8) {
   const found = [];
   async function walk(directory, depth) {
     if (depth > maxDepth) return;
-    const children = await readdir2(directory, { withFileTypes: true });
+    const children = await readdir3(directory, { withFileTypes: true });
     children.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
     for (const child of children) {
       if (child.isSymbolicLink()) continue;
-      const absolute = join7(directory, child.name);
+      const absolute = join8(directory, child.name);
       if (child.isDirectory()) {
         if (!SKIP_DIRS.has(child.name)) await walk(absolute, depth + 1);
       } else if (child.isFile() && (child.name === "package.json" || child.name === "public-release.json" || child.name === "SKILL.md" || /^README(?:\.|$)/i.test(child.name) || /^LICENSE(?:\.|$)/i.test(child.name) || /^CHANGELOG(?:\.|$)/i.test(child.name) || [...DISCOVERY_MANIFEST_SUFFIXES].some((suffix) => absolute.endsWith(`/${suffix}`)))) {
@@ -19192,11 +19968,11 @@ async function walkDiscoveryFiles(root, maxDepth = 8) {
   return found;
 }
 async function digestFile(path3) {
-  const before = await lstat4(path3);
+  const before = await lstat5(path3);
   if (!before.isFile() || before.isSymbolicLink()) throw setupError(CONFIG_INVALID, "discovered file must be regular", { path: path3 });
-  const hash = createHash3("sha256");
+  const hash = createHash4("sha256");
   for await (const chunk of createReadStream(path3)) hash.update(chunk);
-  const after = await lstat4(path3);
+  const after = await lstat5(path3);
   if (before.size !== after.size || before.mtimeMs !== after.mtimeMs || before.ino !== after.ino) {
     throw setupError(CONFIG_INVALID, "discovered file changed while setup was reading it", { path: path3 });
   }
@@ -19235,6 +20011,8 @@ function summarizeLegacyReleaseConfig(value, path3) {
     tagPrefix: optionalString(repo.tagPrefix),
     npmPackage: optionalString(repo.npmPackage),
     npmPackageDeclared: Object.hasOwn(repo, "npmPackage"),
+    npmRequiredPathCandidates: stringList(repo.npmRequiredPackagePaths),
+    npmRequiredPathsDeclared: Object.hasOwn(repo, "npmRequiredPackagePaths"),
     docsSource: optionalString(repo.docsSource),
     requiredPathCandidates: stringList(repo.requiredPackagePaths),
     snapshotCommands: Array.isArray(repo.snapshotCommands) ? repo.snapshotCommands : []
@@ -19249,6 +20027,8 @@ function summarizeLegacyReleaseConfig(value, path3) {
       tagPrefix: optionalString(value.tagPrefix),
       npmPackage: plugins.filter((plugin) => plugin && typeof plugin === "object" && !Array.isArray(plugin)).map((plugin) => optionalString(plugin.npmPackage)).find(Boolean) ?? null,
       npmPackageDeclared: plugins.some((plugin) => plugin && typeof plugin === "object" && !Array.isArray(plugin) && Object.hasOwn(plugin, "npmPackage")),
+      npmRequiredPathCandidates: stringList(value.npmRequiredPackagePaths),
+      npmRequiredPathsDeclared: Object.hasOwn(value, "npmRequiredPackagePaths"),
       docsSource: null,
       requiredPathCandidates: stringList(value.requiredPaths),
       snapshotCommands: Array.isArray(value.snapshotCommands) ? value.snapshotCommands : []
@@ -19327,7 +20107,7 @@ function classifyScript(name, command2, unitId, distributionTypes) {
 async function discoverGit(root) {
   const run5 = /* @__PURE__ */ __name(async (args2) => {
     try {
-      const { stdout } = await execFile("git", args2, { cwd: root, shell: false, encoding: "utf8", timeout: 5e3 });
+      const { stdout } = await execFile2("git", args2, { cwd: root, shell: false, encoding: "utf8", timeout: 5e3 });
       return stdout.trim();
     } catch {
       return "";
@@ -19357,7 +20137,7 @@ async function discoverGit(root) {
 async function discoverUnitGit(unitAbsDir, parentRoot) {
   const run5 = /* @__PURE__ */ __name(async (cwd, args2) => {
     try {
-      const { stdout } = await execFile("git", args2, { cwd, shell: false, encoding: "utf8", timeout: 5e3 });
+      const { stdout } = await execFile2("git", args2, { cwd, shell: false, encoding: "utf8", timeout: 5e3 });
       return stdout.trim();
     } catch {
       return "";
@@ -19405,6 +20185,93 @@ async function discoverUnitGit(unitAbsDir, parentRoot) {
     }
   };
 }
+async function pathIsGitIgnored(unitAbsDir, target) {
+  try {
+    await execFile2("git", ["check-ignore", "--no-index", "--quiet", "--", target], {
+      cwd: unitAbsDir,
+      shell: false,
+      timeout: 5e3
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function classifyNpmEntryCandidate(unitAbsDir, target, trackedFiles) {
+  const tracked = trackedFiles.includes(target);
+  const ignored = await pathIsGitIgnored(unitAbsDir, target);
+  let stat9 = null;
+  try {
+    stat9 = await lstat5(join8(unitAbsDir, target));
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  const exists = stat9 !== null;
+  const regular = stat9?.isFile() === true && stat9?.isSymbolicLink() !== true;
+  const state = exists && !regular ? "NON_REGULAR" : exists && tracked ? "TRACKED_PRESENT" : exists && ignored ? "IGNORED_PRESENT" : exists ? "UNTRACKED_PRESENT" : ignored ? "IGNORED_MISSING" : "MISSING";
+  return { path: target, state, exists, tracked, ignored };
+}
+async function discoverNpmEntryCandidates(root, pkg, matchingLegacyUnits, unitGitEntry) {
+  const emptyIndex = /* @__PURE__ */ new Map();
+  const semantic = checkNpmEntryClosure(pkg.entryManifest, emptyIndex);
+  const byPath = /* @__PURE__ */ new Map();
+  const add = /* @__PURE__ */ __name((target, source) => {
+    const current = byPath.get(target) ?? { path: target, sources: /* @__PURE__ */ new Set() };
+    current.sources.add(source);
+    byPath.set(target, current);
+  }, "add");
+  for (const entry of semantic.entries) add(entry.target, `package.json:${entry.field}`);
+  const diagnostics = [
+    ...semantic.errors.filter((error) => error.reason !== "entry_missing").map((error) => ({ code: "NPM_ENTRY_DECLARATION_INVALID", ...error })),
+    ...semantic.diagnostics.map((diagnostic) => ({
+      code: "NPM_ENTRY_WILDCARD_REQUIRES_REVIEW",
+      ...diagnostic
+    }))
+  ];
+  const declaredLegacyPaths = /* @__PURE__ */ new Set();
+  const legacyCoverageDeclared = matchingLegacyUnits.some((unit) => unit.npmRequiredPathsDeclared);
+  for (const legacy of matchingLegacyUnits) {
+    for (const target of legacy.npmRequiredPathCandidates) {
+      const checked = checkNpmEntryClosure({ main: target }, emptyIndex);
+      const normalized = checked.entries[0]?.target;
+      if (!normalized) {
+        diagnostics.push({
+          code: "LEGACY_NPM_REQUIRED_PATH_INVALID",
+          path: target,
+          reason: checked.errors[0]?.reason ?? "invalid_path"
+        });
+        continue;
+      }
+      declaredLegacyPaths.add(normalized);
+      add(normalized, "public-release.json:npmRequiredPackagePaths");
+    }
+  }
+  if (legacyCoverageDeclared) {
+    for (const entry of semantic.entries) {
+      if (!declaredLegacyPaths.has(entry.target)) {
+        diagnostics.push({
+          code: "LEGACY_NPM_ENTRY_COVERAGE_MISSING",
+          path: entry.target,
+          field: entry.field
+        });
+      }
+    }
+  }
+  const unitAbsDir = resolve9(root, pkg.directory);
+  const candidates = [];
+  for (const item of [...byPath.values()].sort((a, b) => a.path.localeCompare(b.path))) {
+    candidates.push({
+      ...await classifyNpmEntryCandidate(
+        unitAbsDir,
+        item.path,
+        unitGitEntry?.trackedFiles ?? []
+      ),
+      sources: [...item.sources].sort()
+    });
+  }
+  diagnostics.sort((a, b) => canonicalJson(a).localeCompare(canonicalJson(b)));
+  return { candidates, diagnostics };
+}
 async function discoverFacts(root) {
   const files = await walkDiscoveryFiles(root);
   const packageFiles = files.filter((path3) => basename2(path3) === "package.json" && !/[\\/]adapters[\\/](?:claude|codex|kimi)[\\/]package\.json$/.test(path3));
@@ -19429,6 +20296,9 @@ async function discoverFacts(root) {
       private: pkg.private === true,
       repository: parseGithubRepo(pkg.repository),
       publishRegistry: typeof pkg.publishConfig?.registry === "string" ? pkg.publishConfig.registry : null,
+      entryManifest: Object.fromEntries(
+        ["bin", "main", "module", "types", "typings", "exports"].filter((field) => Object.hasOwn(pkg, field)).map((field) => [field, pkg[field]])
+      ),
       files: Array.isArray(pkg.files) ? pkg.files.filter((item) => typeof item === "string").sort() : [],
       scripts: Object.fromEntries(Object.entries(pkg.scripts ?? {}).filter(([, value]) => typeof value === "string").sort(([a], [b]) => a.localeCompare(b)))
     });
@@ -19470,8 +20340,18 @@ async function discoverFacts(root) {
   }).filter((item) => item.name).sort((a, b) => canonicalJson(a).localeCompare(canonicalJson(b)));
   const unitGit = {};
   for (const pkg of packages) {
-    const unitAbsDir = resolve8(root, pkg.directory);
+    const unitAbsDir = resolve9(root, pkg.directory);
     unitGit[pkg.directory] = await discoverUnitGit(unitAbsDir, root);
+    const inferredId = safeUnitId(pkg, pkg.directory);
+    const matchingLegacyUnits = legacyReleaseConfigs.flatMap((config) => config.releaseUnits).filter((unit) => unit.id === inferredId || unit.source === pkg.directory || unit.source === dirname4(pkg.path));
+    const npmDiscovery = await discoverNpmEntryCandidates(
+      root,
+      pkg,
+      matchingLegacyUnits,
+      unitGit[pkg.directory]
+    );
+    pkg.npmEntryCandidates = npmDiscovery.candidates;
+    pkg.npmEntryDiagnostics = npmDiscovery.diagnostics;
   }
   return { git: git2, packages, manifests, skills, legacyReleaseConfigs, fileDigests, unitGit };
 }
@@ -19708,6 +20588,8 @@ function buildCandidates(facts) {
       publicFileMappingCandidates: mappingResult.mappings,
       publicFileMappingConflicts: mappingResult.conflicts,
       requiredPublicFileCandidates,
+      npmEntryCandidates: pkg.npmEntryCandidates ?? [],
+      npmEntryDiagnostics: pkg.npmEntryDiagnostics ?? [],
       entrySkillCandidates: entrySkillCandidatesForUnit(facts, pkg, id),
       ...hasAuthorityConflict ? {
         authorityConflict: {
@@ -19825,6 +20707,18 @@ function buildRecommendedProposal(facts, candidates) {
       return {
         answers: null,
         conflicts: [{ code: "PUBLIC_FILE_BOUNDARY_EMPTY", unit: unit.id }],
+        assumptions
+      };
+    }
+    if (unit.distributionCandidates.includes("npm") && ((unit.npmEntryCandidates ?? []).some((candidate) => candidate.state !== "TRACKED_PRESENT") || (unit.npmEntryDiagnostics ?? []).length > 0)) {
+      return {
+        answers: null,
+        conflicts: [{
+          code: "NPM_ENTRY_REVIEW_REQUIRED",
+          unit: unit.id,
+          candidates: unit.npmEntryCandidates,
+          diagnostics: unit.npmEntryDiagnostics
+        }],
         assumptions
       };
     }
@@ -20001,6 +20895,12 @@ function buildDecisionsRequired(candidates, localOnly) {
       id: `unit:${unit.id}:distributions-and-files`,
       description: `\u9010\u9879\u786E\u8BA4\u6E20\u9053 ${JSON.stringify(unit.distributionCandidates)}\u3001\u516C\u5F00\u6587\u4EF6\u8FB9\u754C\u548C requiredPublicFiles\uFF1B\u5019\u9009\u4E0D\u662F\u6388\u6743\u3002`
     });
+    if ((unit.npmEntryCandidates ?? []).length > 0 || (unit.npmEntryDiagnostics ?? []).length > 0) {
+      decisions.push({
+        id: `unit:${unit.id}:npm-entry-closure`,
+        description: "\u5BA1\u9605 package.json \u5165\u53E3\u53CA\u65E7 npmRequiredPackagePaths \u7684 tracked/untracked/ignored/missing \u72B6\u6001\uFF1Bsetup \u53EA\u62A5\u544A\u5019\u9009\uFF0C\u4E0D\u81EA\u52A8\u5199\u5165 publicFiles \u6216 requiredPublicFiles\u3002"
+      });
+    }
   }
   decisions.push({
     id: "verification-gates",
@@ -20019,7 +20919,9 @@ function buildCompactSummary(report) {
       branchCandidates: [...unit.branchCandidates].sort(),
       distributionCandidates: [...unit.distributionCandidates].sort(),
       publicFileMappingCount: (unit.publicFileMappingCandidates ?? []).length,
-      requiredPublicFileCount: (unit.requiredPublicFileCandidates ?? []).length
+      requiredPublicFileCount: (unit.requiredPublicFileCandidates ?? []).length,
+      npmEntryCandidates: unit.npmEntryCandidates ?? [],
+      npmEntryDiagnostics: unit.npmEntryDiagnostics ?? []
     })),
     gateCandidates: (report.gateCandidates ?? []).map((gate) => ({
       id: gate.id,
@@ -20133,8 +21035,8 @@ async function assertConfigDirectoryStillBound(root, safeFs, expected) {
 async function createConfigOnce(root, config, { beforeRename } = {}) {
   const { loadSafeFs: loadSafeFs2 } = await Promise.resolve().then(() => (init_safe_fs(), safe_fs_exports));
   const safeFs = await loadSafeFs2();
-  const releaseDir = join7(root, ".release-skill");
-  const target = join7(releaseDir, "project.yaml");
+  const releaseDir = join8(root, ".release-skill");
+  const target = join8(releaseDir, "project.yaml");
   const bound = await openBoundConfigDirectory(root, safeFs);
   let tempToken;
   const bytes = Buffer.from(import_yaml.default.stringify(config, { lineWidth: 0 }), "utf8");
@@ -20188,16 +21090,16 @@ async function createConfigOnce(root, config, { beforeRename } = {}) {
   }
 }
 async function setupProject({ root, answersPath, write = false, confirmSetup, faultInjector } = {}) {
-  if (!root || typeof root !== "string" || !isAbsolute5(root)) {
+  if (!root || typeof root !== "string" || !isAbsolute6(root)) {
     throw setupError(CONFIG_INVALID, "setup root must be an absolute path");
   }
-  const rootReal = await realpath4(root).catch((error) => {
+  const rootReal = await realpath5(root).catch((error) => {
     throw setupError(CONFIG_INVALID, `cannot resolve setup root: ${error.message}`);
   });
-  const configPath = join7(rootReal, ".release-skill", "project.yaml");
+  const configPath = join8(rootReal, ".release-skill", "project.yaml");
   let configExists = false;
   try {
-    const stat9 = await lstat4(configPath);
+    const stat9 = await lstat5(configPath);
     configExists = true;
     if (!stat9.isFile() || stat9.isSymbolicLink()) {
       throw setupError(CONFIG_INVALID, "existing project.yaml must be a regular file");
@@ -20253,7 +21155,8 @@ async function setupProject({ root, answersPath, write = false, confirmSetup, fa
           ...parseError ? ["\u5DF2\u6709\u914D\u7F6E\u65E0\u6CD5\u89E3\u6790\uFF1B\u5148\u4EBA\u5DE5\u4FEE\u590D\uFF0C\u518D\u8FD0\u884C release-assess\u3002"] : [],
           ...validationErrors.length > 0 ? ["\u5DF2\u6709\u914D\u7F6E\u4E0D\u7B26\u5408 release-project schema\uFF1B\u6309 validationErrors \u4EBA\u5DE5\u589E\u91CF\u4FEE\u590D\uFF0C\u4E0D\u91CD\u65B0\u751F\u6210\u3002"] : [],
           ...canonicalJson(configuredUnitIds) !== canonicalJson(discoveredUnitIds) ? ["\u53D1\u73B0\u7684\u53D1\u5E03\u5355\u5143\u4E0E\u5DF2\u6709\u914D\u7F6E\u4E0D\u540C\uFF1B\u4EBA\u5DE5\u6BD4\u8F83\u540E\u4EC5\u505A\u589E\u91CF\u7F16\u8F91\uFF0C\u4E0D\u91CD\u65B0\u751F\u6210\u3002"] : [],
-          ...unconfiguredGateCandidateIds.length > 0 ? ["\u5B58\u5728\u672A\u914D\u7F6E\u7684\u9A8C\u8BC1\u5019\u9009\uFF1B\u9010\u9879\u5BA1\u9605\u526F\u4F5C\u7528\u540E\u51B3\u5B9A\u662F\u5426\u4EBA\u5DE5\u6CE8\u518C\u3002"] : []
+          ...unconfiguredGateCandidateIds.length > 0 ? ["\u5B58\u5728\u672A\u914D\u7F6E\u7684\u9A8C\u8BC1\u5019\u9009\uFF1B\u9010\u9879\u5BA1\u9605\u526F\u4F5C\u7528\u540E\u51B3\u5B9A\u662F\u5426\u4EBA\u5DE5\u6CE8\u518C\u3002"] : [],
+          ...candidates2.units.some((unit) => (unit.npmEntryCandidates ?? []).some((candidate) => candidate.state !== "TRACKED_PRESENT") || (unit.npmEntryDiagnostics ?? []).length > 0) ? ["npm \u5165\u53E3\u5019\u9009\u5B58\u5728\u672A\u8DDF\u8E2A\u3001\u88AB\u5FFD\u7565\u3001\u7F3A\u5931\u3001\u975E\u666E\u901A\u6587\u4EF6\u6216\u58F0\u660E\u8986\u76D6\u7591\u70B9\uFF1B\u4EBA\u5DE5\u589E\u91CF\u4FEE\u590D\u914D\u7F6E\u6216\u6784\u5EFA\u6D41\u7A0B\uFF0Csetup \u4E0D\u81EA\u52A8\u6539\u5199\u3002"] : []
         ]
       },
       recommendedGateIds: [],
@@ -20272,7 +21175,7 @@ async function setupProject({ root, answersPath, write = false, confirmSetup, fa
   )].sort();
   let answers = null;
   if (answersPath) {
-    const resolvedAnswers = isAbsolute5(answersPath) ? answersPath : resolve8(rootReal, answersPath);
+    const resolvedAnswers = isAbsolute6(answersPath) ? answersPath : resolve9(rootReal, answersPath);
     answers = await readJsonBounded(resolvedAnswers, "setup answers");
     validateAnswers(answers, candidates.gates);
   }
@@ -20326,7 +21229,7 @@ async function setupProject({ root, answersPath, write = false, confirmSetup, fa
       if (faultInjector) await faultInjector("before-config-commit");
       const lockedFacts = await discoverFacts(rootReal);
       const lockedCandidates = buildCandidates(lockedFacts);
-      const resolvedAnswers = isAbsolute5(answersPath) ? answersPath : resolve8(rootReal, answersPath);
+      const resolvedAnswers = isAbsolute6(answersPath) ? answersPath : resolve9(rootReal, answersPath);
       const lockedAnswers = await readJsonBounded(resolvedAnswers, "setup answers");
       validateAnswers(lockedAnswers, lockedCandidates.gates);
       const lockedAuthority = {
@@ -20399,7 +21302,7 @@ async function setupProject({ root, answersPath, write = false, confirmSetup, fa
   createdReport.compactSummary = buildCompactSummary(createdReport);
   return createdReport;
 }
-var import_yaml, import_ajv2, import_ajv_formats2, execFile, SKIP_DIRS, DISCOVERY_MANIFEST_SUFFIXES, MANIFEST_SUFFIX_HOST_MAP, MAX_JSON_BYTES, schema, ajv2, validateProjectConfig;
+var import_yaml, import_ajv2, import_ajv_formats2, execFile2, SKIP_DIRS, DISCOVERY_MANIFEST_SUFFIXES, MANIFEST_SUFFIX_HOST_MAP, MAX_JSON_BYTES, schema, ajv2, validateProjectConfig;
 var init_setup = __esm({
   async "src/commands/setup.mjs"() {
     import_yaml = __toESM(require_dist(), 1);
@@ -20408,9 +21311,10 @@ var init_setup = __esm({
     init_digest();
     init_project_lock();
     await init_registry();
+    init_npm_entry_closure();
     init_errors();
     init_trusted_resource();
-    execFile = promisify(execFileCb);
+    execFile2 = promisify2(execFileCb2);
     SKIP_DIRS = /* @__PURE__ */ new Set([
       ".git",
       ".release-skill",
@@ -20500,6 +21404,9 @@ var init_setup = __esm({
     __name(classifyScript, "classifyScript");
     __name(discoverGit, "discoverGit");
     __name(discoverUnitGit, "discoverUnitGit");
+    __name(pathIsGitIgnored, "pathIsGitIgnored");
+    __name(classifyNpmEntryCandidate, "classifyNpmEntryCandidate");
+    __name(discoverNpmEntryCandidates, "discoverNpmEntryCandidates");
     __name(discoverFacts, "discoverFacts");
     __name(packagePatternMatches, "packagePatternMatches");
     __name(buildPublicFileMappingCandidates, "buildPublicFileMappingCandidates");
@@ -20561,7 +21468,7 @@ var init_path_key = __esm({
 });
 
 // src/snapshot/public-path.mjs
-import { isAbsolute as isAbsolute6, relative as relative6, resolve as resolve9 } from "node:path";
+import { isAbsolute as isAbsolute7, relative as relative7, resolve as resolve10 } from "node:path";
 function canonicalPublicPath(raw, { allowDot = false } = {}) {
   if (allowDot && raw === ".") {
     return { path: "." };
@@ -20591,11 +21498,11 @@ function resolveUnitScopedPath(baseDir, unitId, { suffix = "" } = {}) {
       { unitId }
     );
   }
-  const base = resolve9(baseDir);
-  const candidate = resolve9(base, `${unitId}${suffix}`);
-  const rel = relative6(base, candidate);
+  const base = resolve10(baseDir);
+  const candidate = resolve10(base, `${unitId}${suffix}`);
+  const rel = relative7(base, candidate);
   const separator = process.platform === "win32" ? "\\" : "/";
-  if (rel === "" || isAbsolute6(rel) || rel === ".." || rel.startsWith(`..${separator}`)) {
+  if (rel === "" || isAbsolute7(rel) || rel === ".." || rel.startsWith(`..${separator}`)) {
     throw new ReleaseError(
       PUBLIC_PATH_FORBIDDEN,
       `release unit path escapes its trusted base: "${unitId}"`,
@@ -20617,11 +21524,11 @@ var init_public_path = __esm({
 });
 
 // src/core/baseline.mjs
-import { execFile as execFileCb2 } from "node:child_process";
-import { promisify as promisify2 } from "node:util";
-import { createHash as createHash4 } from "node:crypto";
-import { lstat as lstat5, open as open3, readlink } from "node:fs/promises";
-import { constants as fsConstants } from "node:fs";
+import { execFile as execFileCb3 } from "node:child_process";
+import { promisify as promisify3 } from "node:util";
+import { createHash as createHash5 } from "node:crypto";
+import { lstat as lstat6, open as open4, readlink } from "node:fs/promises";
+import { constants as fsConstants2 } from "node:fs";
 import path from "node:path";
 function isControlPlanePath(p) {
   const normalized = p;
@@ -20667,9 +21574,9 @@ async function computeWorkspaceDigest(root) {
     { stdout: changedOut },
     { stdout: untrackedOut }
   ] = await Promise.all([
-    execFile2("git", ["ls-files", "-s", "-z"], opts),
-    execFile2("git", ["diff", "--name-only", "-z"], opts),
-    execFile2("git", ["ls-files", "-o", "--exclude-standard", "-z"], opts)
+    execFile3("git", ["ls-files", "-s", "-z"], opts),
+    execFile3("git", ["diff", "--name-only", "-z"], opts),
+    execFile3("git", ["ls-files", "-o", "--exclude-standard", "-z"], opts)
   ]);
   const parts = [];
   for (const record of splitNul(stagedOut)) {
@@ -20682,7 +21589,7 @@ async function computeWorkspaceDigest(root) {
   const diffOpts = { ...opts, maxBuffer: DIFF_MAX_BUFFER };
   const changedPaths = splitNul(changedOut).filter((p) => !isControlPlanePath(p));
   for (const changedPath of changedPaths) {
-    const { stdout: patch } = await execFile2(
+    const { stdout: patch } = await execFile3(
       "git",
       ["diff", "--no-ext-diff", "--no-textconv", "--binary", "--no-color", "--", changedPath],
       diffOpts
@@ -20699,7 +21606,7 @@ async function computeWorkspaceDigest(root) {
           `Refusing to read path outside repository root: ${relPath} resolves to ${absPath}`
         );
       }
-      const stat9 = await lstat5(absPath);
+      const stat9 = await lstat6(absPath);
       let type;
       if (stat9.isSymbolicLink()) {
         type = "symlink";
@@ -20713,7 +21620,7 @@ async function computeWorkspaceDigest(root) {
       const typeMarker = `TYPE:${type}`;
       let content;
       if (stat9.isFile()) {
-        const handle = await open3(absPath, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+        const handle = await open4(absPath, fsConstants2.O_RDONLY | fsConstants2.O_NOFOLLOW);
         try {
           const fdStat = await handle.stat();
           if (fdStat.ino !== stat9.ino) {
@@ -20739,21 +21646,21 @@ async function computeWorkspaceDigest(root) {
       return [
         relPath,
         typeMarker,
-        createHash4("sha256").update(content).digest("hex")
+        createHash5("sha256").update(content).digest("hex")
       ].join("	");
     })
   );
   parts.sort();
   untrackedParts.sort();
   const combined = parts.join("\n") + (parts.length && untrackedParts.length ? "\n" : "") + untrackedParts.join("\n");
-  return createHash4("sha256").update(combined).digest("hex");
+  return createHash5("sha256").update(combined).digest("hex");
 }
 async function captureBaseline(root) {
   const opts = { cwd: root, shell: false, encoding: "utf8" };
   const [{ stdout: headOut }, { stdout: treeOut }, { stdout: statusOut }] = await Promise.all([
-    execFile2("git", ["rev-parse", "HEAD"], opts),
-    execFile2("git", ["rev-parse", "HEAD^{tree}"], opts),
-    execFile2("git", ["status", "--porcelain=v1", "-z", "--untracked-files=all"], opts)
+    execFile3("git", ["rev-parse", "HEAD"], opts),
+    execFile3("git", ["rev-parse", "HEAD^{tree}"], opts),
+    execFile3("git", ["status", "--porcelain=v1", "-z", "--untracked-files=all"], opts)
   ]);
   const gitHead = headOut.trim();
   const gitTreeHash = treeOut.trim();
@@ -20768,10 +21675,10 @@ async function captureBaseline(root) {
     capturedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var execFile2, WORKSPACE_DIGEST_ALGORITHM, CONTROL_PLANE_PREFIXES, RESERVED_CONTROL_PREFIXES, CONTROL_PLANE_EXACT, DIGEST, IMMUTABLE_PLAN, IMMUTABLE_APPROVAL;
+var execFile3, WORKSPACE_DIGEST_ALGORITHM, CONTROL_PLANE_PREFIXES, RESERVED_CONTROL_PREFIXES, CONTROL_PLANE_EXACT, DIGEST, IMMUTABLE_PLAN, IMMUTABLE_APPROVAL;
 var init_baseline = __esm({
   "src/core/baseline.mjs"() {
-    execFile2 = promisify2(execFileCb2);
+    execFile3 = promisify3(execFileCb3);
     WORKSPACE_DIGEST_ALGORITHM = "git-workspace-v2";
     CONTROL_PLANE_PREFIXES = [
       ".release-skill/lock",
@@ -20823,7 +21730,7 @@ var init_baseline = __esm({
 
 // src/core/config.mjs
 import { readFile as readFile8 } from "node:fs/promises";
-import { resolve as resolve10, isAbsolute as isAbsolute7, relative as relative7, normalize as normalize2 } from "node:path";
+import { resolve as resolve11, isAbsolute as isAbsolute8, relative as relative8, normalize as normalize2 } from "node:path";
 function containsAlias(node) {
   if (!node || typeof node !== "object") {
     return false;
@@ -20848,9 +21755,9 @@ function containsAlias(node) {
 }
 function resolveConfigPath(root, configPath) {
   const rootNorm = normalize2(root);
-  const resolved = isAbsolute7(configPath) ? normalize2(configPath) : resolve10(rootNorm, configPath);
-  const rel = relative7(rootNorm, resolved);
-  if (rel.startsWith("..") || rel === ".." || isAbsolute7(rel)) {
+  const resolved = isAbsolute8(configPath) ? normalize2(configPath) : resolve11(rootNorm, configPath);
+  const rel = relative8(rootNorm, resolved);
+  if (rel.startsWith("..") || rel === ".." || isAbsolute8(rel)) {
     throw new ReleaseError(
       CONFIG_INVALID,
       `config path "${configPath}" resolves outside project root "${root}"`,
@@ -21147,10 +22054,10 @@ __export(assess_exports, {
   Severity: () => Severity,
   assessProject: () => assessProject
 });
-import { readFile as readFile9, stat as stat2, writeFile as writeFile4, mkdir as mkdir3 } from "node:fs/promises";
-import { resolve as resolve11, dirname as dirname5, relative as relative8 } from "node:path";
-import { execFile as execFileCb3 } from "node:child_process";
-import { promisify as promisify3 } from "node:util";
+import { readFile as readFile9, stat as stat2, writeFile as writeFile4, mkdir as mkdir4 } from "node:fs/promises";
+import { resolve as resolve12, dirname as dirname5, relative as relative9 } from "node:path";
+import { execFile as execFileCb4 } from "node:child_process";
+import { promisify as promisify4 } from "node:util";
 async function fileExists(filePath) {
   try {
     await stat2(filePath);
@@ -21249,9 +22156,9 @@ async function checkCommonDocs(root, config) {
     { file: "LICENSE", code: "LICENSE_MISSING", message: "\u7F3A\u5C11 LICENSE \u6587\u4EF6" }
   ];
   for (const unit of units) {
-    const unitRoot = resolve11(root, unit.source);
+    const unitRoot = resolve12(root, unit.source);
     for (const doc of requiredDocs) {
-      const exists = await fileExists(resolve11(unitRoot, doc.file));
+      const exists = await fileExists(resolve12(unitRoot, doc.file));
       if (!exists) {
         gaps.push(
           createGap({
@@ -21272,9 +22179,9 @@ async function checkCommonDocs(root, config) {
     { file: "CONTRIBUTING.md", code: "CONTRIBUTING_MISSING", message: "\u5EFA\u8BAE\u6DFB\u52A0 CONTRIBUTING.md" }
   ];
   for (const unit of units) {
-    const unitRoot = resolve11(root, unit.source);
+    const unitRoot = resolve12(root, unit.source);
     for (const doc of recommendedDocs) {
-      const exists = await fileExists(resolve11(unitRoot, doc.file));
+      const exists = await fileExists(resolve12(unitRoot, doc.file));
       if (!exists) {
         gaps.push(
           createGap({
@@ -21296,9 +22203,9 @@ async function checkPluginManifests(root, config) {
   const units = config.releaseUnits ?? [];
   for (const unit of units) {
     const distributionTypes = new Set((unit.distributions ?? []).map((dist) => dist.type));
-    const unitRoot = resolve11(root, unit.source);
+    const unitRoot = resolve12(root, unit.source);
     if (distributionTypes.has("claude-plugin")) {
-      const manifestPath = resolve11(unitRoot, ".claude-plugin", "plugin.json");
+      const manifestPath = resolve12(unitRoot, ".claude-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".claude-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -21345,7 +22252,7 @@ async function checkPluginManifests(root, config) {
       }
     }
     if (distributionTypes.has("codex-plugin")) {
-      const manifestPath = resolve11(unitRoot, ".codex-plugin", "plugin.json");
+      const manifestPath = resolve12(unitRoot, ".codex-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".codex-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -21392,7 +22299,7 @@ async function checkPluginManifests(root, config) {
       }
     }
     if (distributionTypes.has("kimi-plugin")) {
-      const manifestPath = resolve11(unitRoot, ".kimi-plugin", "plugin.json");
+      const manifestPath = resolve12(unitRoot, ".kimi-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".kimi-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -21439,7 +22346,7 @@ async function checkPluginManifests(root, config) {
       }
     }
     if (distributionTypes.has("codebuddy-plugin")) {
-      const manifestPath = resolve11(unitRoot, ".codebuddy-plugin", "plugin.json");
+      const manifestPath = resolve12(unitRoot, ".codebuddy-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".codebuddy-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -21505,8 +22412,8 @@ async function checkPackageMetadata(root, config) {
   for (const unit of units) {
     const hasNpmDist = (unit.distributions ?? []).some((d) => d.type === "npm");
     if (!hasNpmDist) continue;
-    const unitRoot = resolve11(root, unit.source);
-    const pkgPath = resolve11(unitRoot, "package.json");
+    const unitRoot = resolve12(root, unit.source);
+    const pkgPath = resolve12(unitRoot, "package.json");
     const exists = await fileExists(pkgPath);
     if (!exists) {
       gaps.push(
@@ -21558,7 +22465,7 @@ async function checkRemotePrerequisites(root, config, offline) {
   const gaps = [];
   const units = config.releaseUnits ?? [];
   try {
-    const { stdout } = await execFile3("git", ["remote", "get-url", "origin"], {
+    const { stdout } = await execFile4("git", ["remote", "get-url", "origin"], {
       cwd: root,
       shell: false,
       encoding: "utf8",
@@ -21589,7 +22496,7 @@ async function checkRemotePrerequisites(root, config, offline) {
   for (const unit of units) {
     const npmDist = (unit.distributions ?? []).find((d) => d.type === "npm");
     if (!npmDist?.package) continue;
-    const pkgPath = resolve11(root, unit.source, "package.json");
+    const pkgPath = resolve12(root, unit.source, "package.json");
     let version;
     try {
       const content = await readFile9(pkgPath, "utf8");
@@ -21600,7 +22507,7 @@ async function checkRemotePrerequisites(root, config, offline) {
     }
     if (!version) continue;
     try {
-      await execFile3(
+      await execFile4(
         "npm",
         ["view", `${npmDist.package}@${version}`, "version"],
         { cwd: root, shell: false, encoding: "utf8", timeout: 15e3 }
@@ -21623,7 +22530,7 @@ async function checkReadmeStructure(root, config) {
   const gaps = [];
   const units = config.releaseUnits ?? [];
   for (const unit of units) {
-    const readmePath = resolve11(root, unit.source, "README.md");
+    const readmePath = resolve12(root, unit.source, "README.md");
     const displayPath = unitFile(unit, "README.md");
     const exists = await fileExists(readmePath);
     if (!exists) continue;
@@ -21800,15 +22707,15 @@ async function assessProject(options) {
 }
 async function writeReport(outputPath, report) {
   const dir = dirname5(outputPath);
-  await mkdir3(dir, { recursive: true });
+  await mkdir4(dir, { recursive: true });
   await writeFile4(outputPath, JSON.stringify(report, null, 2), "utf8");
 }
-var execFile3, Severity, GapScope, GapCategory;
+var execFile4, Severity, GapScope, GapCategory;
 var init_assess = __esm({
   async "src/commands/assess.mjs"() {
     await init_config();
     init_errors();
-    execFile3 = promisify3(execFileCb3);
+    execFile4 = promisify4(execFileCb4);
     Severity = Object.freeze({
       ERROR: "error",
       WARNING: "warning"
@@ -21844,10 +22751,10 @@ var init_assess = __esm({
 });
 
 // src/core/hooks.mjs
-import { execFile as execFileCb4 } from "node:child_process";
-import { promisify as promisify4 } from "node:util";
-import { resolve as resolve12, relative as relative9, isAbsolute as isAbsolute8 } from "node:path";
-import { realpath as realpath5 } from "node:fs/promises";
+import { execFile as execFileCb5 } from "node:child_process";
+import { promisify as promisify5 } from "node:util";
+import { resolve as resolve13, relative as relative10, isAbsolute as isAbsolute9 } from "node:path";
+import { realpath as realpath6 } from "node:fs/promises";
 function validateHook(hook) {
   if (!hook || typeof hook !== "object" || Array.isArray(hook)) {
     throw new ReleaseError("INVALID_HOOK", "hook must be a non-null object");
@@ -21930,13 +22837,13 @@ async function runHook(hook, context) {
   if (!context || typeof context !== "object" || Array.isArray(context)) {
     throw new ReleaseError("INVALID_HOOK", "context must be a non-null object");
   }
-  if (typeof context.root !== "string" || !isAbsolute8(context.root)) {
+  if (typeof context.root !== "string" || !isAbsolute9(context.root)) {
     throw new ReleaseError("INVALID_HOOK", "context.root must be an absolute path");
   }
   const { command: command2, cwd, timeoutMs, envAllowlist = [] } = hook;
-  const rootReal = await realpath5(context.root);
-  const resolvedCwd = cwd ? await realpath5(resolve12(rootReal, cwd)) : rootReal;
-  const rel = relative9(rootReal, resolvedCwd);
+  const rootReal = await realpath6(context.root);
+  const resolvedCwd = cwd ? await realpath6(resolve13(rootReal, cwd)) : rootReal;
+  const rel = relative10(rootReal, resolvedCwd);
   if (rel.startsWith("..") || rel === "..") {
     throw new ReleaseError(
       "INVALID_HOOK",
@@ -21988,7 +22895,7 @@ var execFileAsync, PLATFORM_REQUIRED_VARS, ENV_KEY_PATTERN;
 var init_hooks = __esm({
   "src/core/hooks.mjs"() {
     init_errors();
-    execFileAsync = promisify4(execFileCb4);
+    execFileAsync = promisify5(execFileCb5);
     PLATFORM_REQUIRED_VARS = (() => {
       const posix3 = ["PATH", "HOME", "USER", "LANG", "LC_ALL", "LC_CTYPE", "TERM"];
       const win322 = ["PATH", "HOME", "USER", "SystemRoot", "SYSTEMROOT", "COMSPEC", "PATHEXT", "TEMP", "TMP"];
@@ -22002,8 +22909,8 @@ var init_hooks = __esm({
 });
 
 // src/core/hook-cache.mjs
-import { readdir as readdir3, readFile as readFile10, mkdir as mkdir4, writeFile as writeFile5 } from "node:fs/promises";
-import { join as join8 } from "node:path";
+import { readdir as readdir4, readFile as readFile10, mkdir as mkdir5, writeFile as writeFile5 } from "node:fs/promises";
+import { join as join9 } from "node:path";
 function globToRegExp(glob) {
   let source = "";
   let i = 0;
@@ -22032,7 +22939,7 @@ async function listInputFiles(root) {
   async function walk(dirAbs, dirRel) {
     let entries;
     try {
-      entries = await readdir3(dirAbs, { withFileTypes: true });
+      entries = await readdir4(dirAbs, { withFileTypes: true });
     } catch {
       return;
     }
@@ -22040,7 +22947,7 @@ async function listInputFiles(root) {
       if (entry.isDirectory()) {
         if (SKIPPED_DIRS.has(entry.name)) continue;
         const rel = dirRel ? `${dirRel}/${entry.name}` : entry.name;
-        await walk(join8(dirAbs, entry.name), rel);
+        await walk(join9(dirAbs, entry.name), rel);
       } else if (entry.isFile()) {
         out.push(dirRel ? `${dirRel}/${entry.name}` : entry.name);
       }
@@ -22079,17 +22986,17 @@ async function computeHookCacheKey(hook, root) {
   matched.sort();
   const fileEntries = [];
   for (const relPath of matched) {
-    const content = await readFile10(join8(root, relPath));
+    const content = await readFile10(join9(root, relPath));
     fileEntries.push({ path: relPath, sha256: sha256Hex(content) });
   }
   const cacheKey = sha256Hex(canonicalJson(hook) + canonicalJson(fileEntries));
   return { cacheKey, matchedFiles: matched };
 }
 function hookCacheDir(root, hookName) {
-  return join8(root, ...CACHE_BASE, hookName);
+  return join9(root, ...CACHE_BASE, hookName);
 }
 function hookCachePath(root, hookName, cacheKey) {
-  return join8(hookCacheDir(root, hookName), `${cacheKey}.json`);
+  return join9(hookCacheDir(root, hookName), `${cacheKey}.json`);
 }
 async function readHookCache(root, hookName, cacheKey) {
   try {
@@ -22108,7 +23015,7 @@ async function writeHookCache(root, hookName, cacheKey, result) {
     return { ok: false, error: "refusing to cache a non-zero exit result" };
   }
   try {
-    await mkdir4(hookCacheDir(root, hookName), { recursive: true });
+    await mkdir5(hookCacheDir(root, hookName), { recursive: true });
     const record = {
       cacheKey,
       exitCode: 0,
@@ -22138,578 +23045,6 @@ var init_hook_cache = __esm({
     __name(hookCachePath, "hookCachePath");
     __name(readHookCache, "readHookCache");
     __name(writeHookCache, "writeHookCache");
-  }
-});
-
-// src/snapshot/frozen.mjs
-import { createHash as createHash5 } from "node:crypto";
-import { execFile as execFileCb5, spawn } from "node:child_process";
-import { promisify as promisify5 } from "node:util";
-import {
-  chmod,
-  lstat as lstat6,
-  mkdir as mkdir5,
-  mkdtemp,
-  open as open4,
-  readdir as readdir4,
-  realpath as realpath6,
-  rm as rm3,
-  unlink as unlink2
-} from "node:fs/promises";
-import { constants as fsConstants2 } from "node:fs";
-import { isAbsolute as isAbsolute9, join as join9, relative as relative10, resolve as resolve13 } from "node:path";
-function frozenError(message, details = {}) {
-  return new ReleaseError(GATE_FAILED, message, details);
-}
-function isInside(parent, candidate) {
-  const rel = relative10(parent, candidate);
-  return rel === "" || !isAbsolute9(rel) && rel !== ".." && !rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`);
-}
-async function resolveFrozenPath(root, relativePath, label = "frozen path") {
-  if (!relativePath || typeof relativePath !== "string" || isAbsolute9(relativePath)) {
-    throw frozenError(`${label} must be a non-empty project-relative path`);
-  }
-  const rootReal = await realpath6(root);
-  const lexical = resolve13(rootReal, relativePath);
-  if (!isInside(rootReal, lexical)) {
-    throw frozenError(`${label} escapes project root`, { relativePath });
-  }
-  const lexicalStat = await lstat6(lexical).catch((err) => {
-    throw frozenError(`${label} is missing`, { relativePath, cause: err.code });
-  });
-  if (lexicalStat.isSymbolicLink()) {
-    throw frozenError(`${label} must not be a symlink`, { relativePath });
-  }
-  const physical = await realpath6(lexical).catch((err) => {
-    throw frozenError(`${label} is missing`, { relativePath, cause: err.code });
-  });
-  if (!isInside(rootReal, physical)) {
-    throw frozenError(`${label} resolves outside project root`, { relativePath });
-  }
-  return physical;
-}
-async function readStableRegularFile(filePath, displayPath) {
-  const before = await lstat6(filePath);
-  if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1) {
-    throw frozenError(`frozen snapshot entry is not a single-link regular file: ${displayPath}`);
-  }
-  const handle = await open4(filePath, fsConstants2.O_RDONLY | fsConstants2.O_NOFOLLOW);
-  try {
-    const opened = await handle.stat();
-    if (!opened.isFile() || opened.nlink !== 1 || opened.dev !== before.dev || opened.ino !== before.ino) {
-      throw frozenError(`frozen snapshot entry changed before read: ${displayPath}`);
-    }
-    const bytes = await handle.readFile();
-    const after = await handle.stat();
-    if (after.dev !== opened.dev || after.ino !== opened.ino || after.nlink !== 1 || after.size !== opened.size || after.mtimeMs !== opened.mtimeMs || after.ctimeMs !== opened.ctimeMs) {
-      throw frozenError(`frozen snapshot entry changed during read: ${displayPath}`);
-    }
-    return { bytes, mode: opened.mode };
-  } finally {
-    await handle.close();
-  }
-}
-async function computeFrozenSnapshot(snapshotDir, { excludeRootEntries = [] } = {}) {
-  const root = await realpath6(snapshotDir);
-  const rootStat = await lstat6(root);
-  if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
-    throw frozenError("frozen snapshot root must be a real directory");
-  }
-  const entries = [];
-  const excludedRootNames = /* @__PURE__ */ new Set();
-  const excludedPathPrefixes = [];
-  for (const entry of excludeRootEntries) {
-    if (typeof entry !== "string") {
-      throw frozenError("frozen snapshot exclusion entries must be strings");
-    }
-    const segments = entry.split("/").filter((segment) => segment !== "" && segment !== ".");
-    if (segments.length === 0 || entry.startsWith("/") || entry.includes("\\") || segments.some((segment) => segment === "..")) {
-      throw frozenError(`frozen snapshot exclusion entry is not a safe relative path: ${JSON.stringify(entry)}`);
-    }
-    if (segments.length === 1) {
-      excludedRootNames.add(segments[0]);
-    } else {
-      excludedPathPrefixes.push(segments.join("/"));
-    }
-  }
-  async function walk(dir) {
-    const children = await readdir4(dir, { withFileTypes: true });
-    children.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
-    for (const child of children) {
-      if (dir === root && excludedRootNames.has(child.name)) continue;
-      const absolute = join9(dir, child.name);
-      const rel = relative10(root, absolute).split("\\").join("/");
-      if (excludedPathPrefixes.some((prefix) => rel === prefix || rel.startsWith(`${prefix}/`))) continue;
-      const st = await lstat6(absolute);
-      if (st.isSymbolicLink()) {
-        throw frozenError(`frozen snapshot contains symlink: ${rel}`);
-      }
-      if (st.isDirectory()) {
-        await walk(absolute);
-        continue;
-      }
-      const { bytes, mode } = await readStableRegularFile(absolute, rel);
-      entries.push({
-        path: rel,
-        type: "file",
-        mode,
-        size: bytes.length,
-        contentDigest: createHash5("sha256").update(bytes).digest("hex")
-      });
-    }
-  }
-  __name(walk, "walk");
-  await walk(root);
-  entries.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
-  const digest = createHash5("sha256").update(JSON.stringify(entries)).digest("hex");
-  return { digest, entries };
-}
-async function verifyFrozenSnapshot({ root, snapshotPath, expectedDigest }) {
-  const snapshotDir = await resolveFrozenPath(root, snapshotPath, "frozen snapshot path");
-  const observed = await computeFrozenSnapshot(snapshotDir);
-  if (!expectedDigest || observed.digest !== expectedDigest) {
-    throw frozenError("frozen snapshot digest mismatch", {
-      expectedDigest,
-      observedDigest: observed.digest
-    });
-  }
-  return { snapshotDir, ...observed };
-}
-async function verifyFrozenFile({ root, filePath, expectedSha256, label = "frozen file" }) {
-  const physical = await resolveFrozenPath(root, filePath, label);
-  const { bytes } = await readStableRegularFile(physical, filePath);
-  const observedSha256 = createHash5("sha256").update(bytes).digest("hex");
-  if (!expectedSha256 || observedSha256 !== expectedSha256) {
-    throw frozenError(`${label} SHA-256 mismatch`, { expectedSha256, observedSha256 });
-  }
-  return { physical, observedSha256, size: bytes.length };
-}
-async function verifyFrozenDirectoryStructure(directory, label = "frozen directory") {
-  async function walk(current) {
-    const children = await readdir4(current, { withFileTypes: true });
-    for (const child of children) {
-      const absolute = join9(current, child.name);
-      const st = await lstat6(absolute);
-      if (st.isSymbolicLink()) {
-        throw frozenError(`${label} contains a symlink`);
-      }
-      if (st.isDirectory()) {
-        await walk(absolute);
-      } else if (!st.isFile() || st.nlink !== 1) {
-        throw frozenError(`${label} contains an unsafe non-regular or hardlinked entry`);
-      }
-    }
-  }
-  __name(walk, "walk");
-  await walk(directory);
-}
-async function verifyFrozenGitRepository({
-  root,
-  gitObjectDir,
-  commit,
-  tree,
-  parentCommit,
-  commitTimestamp,
-  exec = execFile4
-}) {
-  const gitDir = await resolveFrozenPath(root, gitObjectDir, "frozen git object directory");
-  await verifyFrozenDirectoryStructure(gitDir, "frozen git object directory");
-  const { stdout } = await exec("git", ["--git-dir", gitDir, "rev-parse", `${commit}^{tree}`], { shell: false });
-  if (stdout.trim() !== tree) {
-    throw frozenError("frozen git object tree mismatch", { commit, expectedTree: tree, observedTree: stdout.trim() });
-  }
-  if (commitTimestamp !== void 0) {
-    const expectedTimestamp = normalizeGitTimestamp(commitTimestamp, "frozen commit timestamp");
-    const { stdout: datesOut } = await exec(
-      "git",
-      ["--git-dir", gitDir, "show", "-s", "--format=%aI%n%cI", commit],
-      { shell: false }
-    );
-    const [authorDate, committerDate] = datesOut.trim().split("\n");
-    if (authorDate !== expectedTimestamp || committerDate !== expectedTimestamp) {
-      throw frozenError("frozen git commit dates do not match the plan freeze timestamp", {
-        commit,
-        expectedTimestamp,
-        observedAuthorDate: authorDate,
-        observedCommitterDate: committerDate
-      });
-    }
-  }
-  if (parentCommit) {
-    if (!/^[a-f0-9]{40,64}$/.test(parentCommit)) {
-      throw frozenError("frozen Git parent must be a full hexadecimal object id");
-    }
-    const { stdout: parentsOut } = await exec(
-      "git",
-      ["--git-dir", gitDir, "rev-list", "--parents", "-n", "1", commit],
-      { shell: false }
-    );
-    const [observedCommit, ...parents] = parentsOut.trim().split(/\s+/);
-    if (observedCommit !== commit || parents.length !== 1 || parents[0] !== parentCommit) {
-      throw frozenError("frozen Git commit parent mismatch", {
-        commit,
-        expectedParent: parentCommit,
-        observedParents: parents
-      });
-    }
-  }
-  return { gitDir, commit, tree, ...parentCommit ? { parentCommit } : {} };
-}
-async function verifyGitTreeContent({ snapshotDir, repositoryDir, commit, expectedSnapshotDigest, exec }) {
-  const snapshot = await computeFrozenSnapshot(snapshotDir);
-  if (snapshot.digest !== expectedSnapshotDigest) {
-    throw frozenError("frozen snapshot changed while deriving Git objects", {
-      expectedDigest: expectedSnapshotDigest,
-      observedDigest: snapshot.digest
-    });
-  }
-  const { stdout: treeOut } = await exec(
-    "git",
-    ["--git-dir", repositoryDir, "ls-tree", "-rz", commit],
-    { shell: false, encoding: "buffer", maxBuffer: 64 * 1024 * 1024 }
-  );
-  const treeEntries = Buffer.from(treeOut).toString("utf8").split("\0").filter(Boolean).map((record) => {
-    const separator = record.indexOf("	");
-    const [mode, type] = record.slice(0, separator).split(" ");
-    return { path: record.slice(separator + 1), mode, type };
-  }).sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
-  const names = treeEntries.map((entry) => entry.path);
-  const expectedNames = snapshot.entries.map((entry) => entry.path);
-  if (JSON.stringify(names) !== JSON.stringify(expectedNames)) {
-    throw frozenError("frozen Git tree paths do not match the sealed public snapshot");
-  }
-  for (const [index, entry] of snapshot.entries.entries()) {
-    const gitEntry = treeEntries[index];
-    const expectedMode = entry.mode & 73 ? "100755" : "100644";
-    if (gitEntry.type !== "blob" || gitEntry.mode !== expectedMode) {
-      throw frozenError(`frozen Git tree mode does not match the sealed public snapshot: ${entry.path}`, {
-        expectedMode,
-        observedMode: gitEntry.mode,
-        observedType: gitEntry.type
-      });
-    }
-    const { stdout } = await exec(
-      "git",
-      ["--git-dir", repositoryDir, "show", `${commit}:${entry.path}`],
-      { shell: false, encoding: "buffer", maxBuffer: Math.max(64 * 1024 * 1024, entry.size + 1024) }
-    );
-    const digest = createHash5("sha256").update(Buffer.from(stdout)).digest("hex");
-    if (digest !== entry.contentDigest) {
-      throw frozenError(`frozen Git tree bytes do not match the sealed public snapshot: ${entry.path}`);
-    }
-  }
-}
-function normalizeGitTimestamp(value, label = "freeze timestamp") {
-  if (typeof value !== "string" || value.trim() === "") {
-    throw frozenError(`${label} must be a non-empty strict ISO 8601 timestamp string`, {
-      received: typeof value === "string" ? value : typeof value
-    });
-  }
-  const trimmed = value.trim();
-  const match = GIT_ISO8601_STRICT_RE.exec(trimmed);
-  if (!match) {
-    throw frozenError(`${label} must be strict ISO 8601 with an explicit UTC offset`, {
-      received: trimmed
-    });
-  }
-  const [, yearStr, monthStr, dayStr, hourStr, minuteStr, secondStr, zone] = match;
-  const inputYear = Number(yearStr);
-  const inputMonth = Number(monthStr);
-  const inputDay = Number(dayStr);
-  const inputHour = Number(hourStr);
-  const inputMinute = Number(minuteStr);
-  const inputSecond = Number(secondStr);
-  if (inputYear < 1e3 || inputYear > 9999) {
-    throw frozenError(`${label} year must be a four-digit ISO year`, { received: trimmed });
-  }
-  const probeMs = Date.UTC(inputYear, inputMonth - 1, inputDay, inputHour, inputMinute, inputSecond);
-  const probe = new Date(probeMs);
-  if (probe.getUTCFullYear() !== inputYear || probe.getUTCMonth() !== inputMonth - 1 || probe.getUTCDate() !== inputDay || probe.getUTCHours() !== inputHour || probe.getUTCMinutes() !== inputMinute || probe.getUTCSeconds() !== inputSecond) {
-    throw frozenError(`${label} is not a valid calendar date`, { received: trimmed });
-  }
-  let offsetMs = 0;
-  if (zone !== "Z") {
-    const sign = zone.startsWith("-") ? -1 : 1;
-    const zoneHours = Number(zone.slice(1, 3));
-    const zoneMinutes = Number(zone.slice(4, 6));
-    if (zoneHours > 23 || zoneMinutes > 59) {
-      throw frozenError(`${label} has an invalid UTC offset`, { received: trimmed });
-    }
-    offsetMs = sign * (zoneHours * 60 + zoneMinutes) * 6e4;
-  }
-  const date = new Date(probeMs - offsetMs);
-  if (date.getUTCFullYear() < 1e3 || date.getUTCFullYear() > 9999) {
-    throw frozenError(`${label} normalizes outside the four-digit ISO year range`, { received: trimmed });
-  }
-  const pad = /* @__PURE__ */ __name((num) => String(num).padStart(2, "0"), "pad");
-  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}+00:00`;
-}
-function publicGitRemote({ repo, githubHost = "github.com" }) {
-  if (typeof repo !== "string" || !/^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(repo)) {
-    throw frozenError("Git parent repo must use owner/name format");
-  }
-  if (typeof githubHost !== "string" || !/^[A-Za-z0-9.-]+$/.test(githubHost) || githubHost.startsWith(".") || githubHost.endsWith(".") || githubHost.includes("..")) {
-    throw frozenError("Git parent githubHost must be a valid hostname");
-  }
-  return `https://${githubHost}/${repo}.git`;
-}
-async function buildFrozenGitRepository({
-  snapshotDir,
-  repositoryDir,
-  version,
-  expectedSnapshotDigest,
-  parent,
-  commitTimestamp,
-  exec = execFile4
-}) {
-  const canonicalTimestamp = normalizeGitTimestamp(commitTimestamp, "frozen commit timestamp");
-  if (!expectedSnapshotDigest) throw frozenError("Git object build requires the sealed snapshot digest");
-  await mkdir5(repositoryDir, { recursive: true });
-  await exec("git", ["init", "--bare", repositoryDir], { shell: false });
-  let parentCommit = null;
-  if (parent) {
-    if (!parent.ref || typeof parent.ref !== "string") {
-      throw frozenError("Git parent ref must be a non-empty string");
-    }
-    if (!parent.commit || !/^[a-f0-9]{40,64}$/.test(parent.commit)) {
-      throw frozenError("Git parent commit must be a full hexadecimal object id");
-    }
-    const remoteUrl = publicGitRemote(parent);
-    await exec(
-      "git",
-      ["--git-dir", repositoryDir, "fetch", "--no-tags", remoteUrl, parent.ref],
-      { shell: false }
-    );
-    const { stdout: fetchedOut } = await exec(
-      "git",
-      ["--git-dir", repositoryDir, "rev-parse", "FETCH_HEAD^{commit}"],
-      { shell: false }
-    );
-    if (fetchedOut.trim() !== parent.commit) {
-      throw frozenError("fetched Git parent does not match the observed public baseline", {
-        expectedCommit: parent.commit,
-        observedCommit: fetchedOut.trim(),
-        ref: parent.ref
-      });
-    }
-    parentCommit = parent.commit;
-  }
-  const indexPath = join9(repositoryDir, "release-index");
-  const env = { ...process.env, GIT_INDEX_FILE: indexPath };
-  await exec("git", [
-    "--git-dir",
-    repositoryDir,
-    "--work-tree",
-    snapshotDir,
-    "add",
-    "--all",
-    "--force",
-    "--",
-    "."
-  ], { cwd: snapshotDir, env, shell: false });
-  const { stdout: treeOut } = await exec("git", ["--git-dir", repositoryDir, "write-tree"], {
-    env,
-    shell: false
-  });
-  const tree = treeOut.trim();
-  const commitEnv = {
-    ...env,
-    GIT_AUTHOR_NAME: "release-skill",
-    GIT_AUTHOR_EMAIL: "release-skill@localhost",
-    GIT_COMMITTER_NAME: "release-skill",
-    GIT_COMMITTER_EMAIL: "release-skill@localhost",
-    GIT_AUTHOR_DATE: canonicalTimestamp,
-    GIT_COMMITTER_DATE: canonicalTimestamp
-  };
-  const commitArgs = ["--git-dir", repositoryDir, "commit-tree", tree];
-  if (parentCommit) commitArgs.push("-p", parentCommit);
-  commitArgs.push("-m", `Release ${version}`);
-  const { stdout: commitOut } = await exec(
-    "git",
-    commitArgs,
-    { env: commitEnv, shell: false }
-  );
-  const commit = commitOut.trim();
-  await verifyGitTreeContent({ snapshotDir, repositoryDir, commit, expectedSnapshotDigest, exec });
-  if (parentCommit) {
-    const { stdout: parentsOut } = await exec(
-      "git",
-      ["--git-dir", repositoryDir, "rev-list", "--parents", "-n", "1", commit],
-      { shell: false }
-    );
-    const [observedCommit, ...parents] = parentsOut.trim().split(/\s+/);
-    if (observedCommit !== commit || parents.length !== 1 || parents[0] !== parentCommit) {
-      throw frozenError("derived Git commit does not have the exact planned parent", {
-        commit,
-        parentCommit,
-        observedParents: parents
-      });
-    }
-  }
-  return { tree, commit, ...parentCommit ? { parentCommit } : {} };
-}
-function contentEntries(entries) {
-  return entries.map(({ path: path3, size, contentDigest }) => ({ path: path3, size, contentDigest }));
-}
-async function createDetachedReadHandle(bytes, directory) {
-  const tempDir = await mkdtemp(join9(directory, ".tar-fd-"));
-  const tempPath = join9(tempDir, "package.tgz");
-  let handle;
-  try {
-    const writer = await open4(tempPath, "wx", 256);
-    try {
-      await writer.writeFile(bytes);
-      await writer.sync();
-    } finally {
-      await writer.close();
-    }
-    handle = await open4(tempPath, fsConstants2.O_RDONLY | fsConstants2.O_NOFOLLOW);
-    await unlink2(tempPath);
-    await rm3(tempDir, { recursive: true, force: true });
-    return handle;
-  } catch (err) {
-    await handle?.close().catch(() => {
-    });
-    await rm3(tempDir, { recursive: true, force: true });
-    throw err;
-  }
-}
-async function runTarFromHandle(handle, args2) {
-  const fdPath = process.platform === "linux" ? "/proc/self/fd/3" : "/dev/fd/3";
-  return new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn("tar", args2(fdPath), {
-      shell: false,
-      env: process.env,
-      stdio: ["ignore", "pipe", "pipe", handle.fd]
-    });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk;
-    });
-    child.on("error", rejectPromise);
-    child.on("close", (code) => {
-      if (code === 0) resolvePromise({ stdout, stderr });
-      else rejectPromise(new Error(`tar exited with code ${code}: ${stderr.trim()}`));
-    });
-  });
-}
-async function verifyNpmTarballContent({ snapshotDir, tarballBytes, tarballDir, expectedSnapshotDigest }) {
-  const listHandle = await createDetachedReadHandle(tarballBytes, tarballDir);
-  let listOut;
-  try {
-    ({ stdout: listOut } = await runTarFromHandle(listHandle, (fdPath) => ["-tzf", fdPath]));
-  } finally {
-    await listHandle.close();
-  }
-  const listed = listOut.split(/\r?\n/).filter(Boolean);
-  if (listed.length === 0 || listed.some((entry) => !entry.startsWith("package/") || entry.startsWith("/") || entry.includes("\\") || entry.split("/").some((segment) => segment === ".."))) {
-    throw frozenError("npm tarball contains an unsafe or unexpected path");
-  }
-  const verifyDir = await mkdtemp(join9(tarballDir, ".verify-"));
-  try {
-    const extractHandle = await createDetachedReadHandle(tarballBytes, tarballDir);
-    try {
-      await runTarFromHandle(extractHandle, (fdPath) => ["-xzf", fdPath, "-C", verifyDir]);
-    } finally {
-      await extractHandle.close();
-    }
-    const original = await computeFrozenSnapshot(snapshotDir);
-    if (original.digest !== expectedSnapshotDigest) {
-      throw frozenError("frozen snapshot changed while deriving npm tarball", {
-        expectedDigest: expectedSnapshotDigest,
-        observedDigest: original.digest
-      });
-    }
-    const packed = await computeFrozenSnapshot(join9(verifyDir, "package"));
-    if (JSON.stringify(contentEntries(packed.entries)) !== JSON.stringify(contentEntries(original.entries))) {
-      throw frozenError("npm tarball bytes do not match the sealed public snapshot");
-    }
-  } finally {
-    await rm3(verifyDir, { recursive: true, force: true });
-  }
-}
-async function buildFrozenNpmTarball({ snapshotDir, tarballDir, expectedSnapshotDigest, exec = execFile4 }) {
-  await mkdir5(tarballDir, { recursive: true });
-  const { stdout } = await exec(
-    "npm",
-    ["pack", snapshotDir, "--pack-destination", tarballDir, "--json", "--ignore-scripts"],
-    { shell: false, encoding: "utf8", timeout: 12e4 }
-  );
-  let parsed;
-  try {
-    parsed = JSON.parse(stdout);
-  } catch {
-    throw frozenError("npm pack returned invalid JSON");
-  }
-  const info = Array.isArray(parsed) ? parsed[0] : parsed;
-  if (!info?.filename || !info?.integrity) {
-    throw frozenError("npm pack did not return filename and integrity");
-  }
-  const tarballPath = join9(tarballDir, info.filename);
-  const { bytes } = await readStableRegularFile(tarballPath, info.filename);
-  if (!expectedSnapshotDigest) throw frozenError("npm tarball build requires the sealed snapshot digest");
-  await verifyNpmTarballContent({
-    snapshotDir,
-    tarballBytes: bytes,
-    tarballDir,
-    expectedSnapshotDigest
-  });
-  return {
-    tarballPath,
-    integrity: info.integrity,
-    sha256: createHash5("sha256").update(bytes).digest("hex"),
-    size: bytes.length
-  };
-}
-async function sealFrozenSnapshot(snapshotDir) {
-  async function walk(dir) {
-    const children = await readdir4(dir, { withFileTypes: true });
-    for (const child of children) {
-      const absolute = join9(dir, child.name);
-      const st = await lstat6(absolute);
-      if (st.isDirectory()) {
-        await walk(absolute);
-        await chmod(absolute, 365);
-      } else if (st.isFile()) {
-        await chmod(absolute, st.mode & 73 ? 365 : 292);
-      }
-    }
-  }
-  __name(walk, "walk");
-  await walk(snapshotDir);
-  await chmod(snapshotDir, 365);
-}
-var execFile4, GIT_ISO8601_STRICT_RE;
-var init_frozen = __esm({
-  "src/snapshot/frozen.mjs"() {
-    init_errors();
-    execFile4 = promisify5(execFileCb5);
-    __name(frozenError, "frozenError");
-    __name(isInside, "isInside");
-    __name(resolveFrozenPath, "resolveFrozenPath");
-    __name(readStableRegularFile, "readStableRegularFile");
-    __name(computeFrozenSnapshot, "computeFrozenSnapshot");
-    __name(verifyFrozenSnapshot, "verifyFrozenSnapshot");
-    __name(verifyFrozenFile, "verifyFrozenFile");
-    __name(verifyFrozenDirectoryStructure, "verifyFrozenDirectoryStructure");
-    __name(verifyFrozenGitRepository, "verifyFrozenGitRepository");
-    __name(verifyGitTreeContent, "verifyGitTreeContent");
-    GIT_ISO8601_STRICT_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|[+-]\d{2}:\d{2})$/;
-    __name(normalizeGitTimestamp, "normalizeGitTimestamp");
-    __name(publicGitRemote, "publicGitRemote");
-    __name(buildFrozenGitRepository, "buildFrozenGitRepository");
-    __name(contentEntries, "contentEntries");
-    __name(createDetachedReadHandle, "createDetachedReadHandle");
-    __name(runTarFromHandle, "runTarFromHandle");
-    __name(verifyNpmTarballContent, "verifyNpmTarballContent");
-    __name(buildFrozenNpmTarball, "buildFrozenNpmTarball");
-    __name(sealFrozenSnapshot, "sealFrozenSnapshot");
   }
 });
 
@@ -25188,7 +25523,7 @@ import { execFile as execFileCb6 } from "node:child_process";
 import { promisify as promisify6 } from "node:util";
 import { lstat as lstat10, mkdtemp as mkdtemp2, readFile as readFile15, readdir as readdir9, realpath as realpath9, rm as rm5 } from "node:fs/promises";
 import { join as join13, relative as relative15, resolve as resolve17, sep as sep4 } from "node:path";
-import { tmpdir as tmpdir2 } from "node:os";
+import { tmpdir as tmpdir3 } from "node:os";
 async function computeSourceInputClosure({ units, root }) {
   const realRoot = await realpath9(resolve17(root));
   const entriesByPath = /* @__PURE__ */ new Map();
@@ -25502,7 +25837,7 @@ async function verifyWithTemporaryGit({
   if (!branchLine) {
     return failure(REF_MISSING, `remote ref "refs/heads/${defaultBranch}" does not exist`);
   }
-  const tempRoot = await mkdtemp2(join13(tmpdir2(), "release-skill-source-authority-"));
+  const tempRoot = await mkdtemp2(join13(tmpdir3(), "release-skill-source-authority-"));
   try {
     await execFn("git", ["init", "--bare", tempRoot], {
       encoding: "utf8",
@@ -70128,6 +70463,7 @@ __export(npm_exports, {
   registryTokenKey: () => registryTokenKey,
   resolveNpmRegistryAuthToken: () => resolveNpmRegistryAuthToken,
   resolvePackageCwd: () => resolvePackageCwd,
+  verifyFrozenNpmTarballContract: () => verifyFrozenNpmTarballContract,
   verifyFrozenNpmTarballIdentity: () => verifyFrozenNpmTarballIdentity
 });
 import { createHash as createHash9, randomUUID } from "node:crypto";
@@ -70377,6 +70713,33 @@ async function verifyFrozenNpmTarballIdentity(action, root) {
     version: action.version
   });
 }
+async function verifyNpmTarballBufferContract(buffer, action, tarballDir) {
+  const manifest = extractManifestFromTarball(buffer, {
+    name: action.package,
+    version: action.version
+  });
+  const fileIndex = await buildTarballFileIndex(buffer, tarballDir);
+  const closureResult = checkNpmEntryClosure(manifest, fileIndex);
+  if (closureResult.errors.length > 0) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `npm entry closure check failed for ${action.package}@${action.version}: ${closureResult.errors.length} error(s)`,
+      {
+        gate: "npm-entry-closure",
+        package: action.package,
+        version: action.version,
+        entries: closureResult.entries,
+        errors: closureResult.errors,
+        diagnostics: closureResult.diagnostics
+      }
+    );
+  }
+  return { manifest, closureResult };
+}
+async function verifyFrozenNpmTarballContract(action, root, tarballDir) {
+  const buffer = await readVerifiedTarballBytes(action, root);
+  return verifyNpmTarballBufferContract(buffer, action, tarballDir);
+}
 async function spawnNpmPublishTarball({ args: args2, cwd }) {
   return new Promise((resolvePromise, rejectPromise) => {
     const child = spawn3("npm", args2, {
@@ -70460,7 +70823,7 @@ function createNpmAdapter(deps = {}) {
           }
           const cwd = resolvePackageCwd(action.cwd, context.root);
           if (action.tarballPath) {
-            await verifyFrozenNpmTarballIdentity(action, context.root);
+            await verifyFrozenNpmTarballContract(action, context.root);
           }
           let whoamiUser;
           if (action.tarballPath) {
@@ -70520,7 +70883,7 @@ function createNpmAdapter(deps = {}) {
             throw new Error("frozen npm tarball requires a stable Buffer publish capability");
           }
           const buffer = await readVerifiedTarballBytes(action, context.root);
-          const manifest = extractManifestFromTarball(buffer, { name: action.package, version: action.version });
+          const { manifest } = await verifyNpmTarballBufferContract(buffer, action);
           let token;
           try {
             token = await resolveAuthToken({ registry: normalizedRegistry, cwd, exec, env: authEnv });
@@ -70669,6 +71032,8 @@ var init_npm = __esm({
     import_libnpmpublish = __toESM(require_lib25(), 1);
     import_npm_registry_fetch = __toESM(require_lib15(), 1);
     init_contract();
+    init_npm_entry_closure();
+    init_errors();
     execFile6 = promisify7(execFileCb7);
     NAME = "npm";
     SAFE_PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/;
@@ -70687,6 +71052,8 @@ var init_npm = __esm({
     __name(readVerifiedTarballBytes, "readVerifiedTarballBytes");
     __name(extractManifestFromTarball, "extractManifestFromTarball");
     __name(verifyFrozenNpmTarballIdentity, "verifyFrozenNpmTarballIdentity");
+    __name(verifyNpmTarballBufferContract, "verifyNpmTarballBufferContract");
+    __name(verifyFrozenNpmTarballContract, "verifyFrozenNpmTarballContract");
     __name(spawnNpmPublishTarball, "spawnNpmPublishTarball");
     __name(queryVersion, "queryVersion");
     __name(createNpmAdapter, "createNpmAdapter");
@@ -73253,19 +73620,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
             }
             let verifiedInstallPath = null;
             if (normalizedAttestation.installPath) {
-              const managedRoot = resolve20(attestationDir, "kimi-home", "plugins", "managed");
               const installPathAbs = resolve20(normalizedAttestation.installPath);
-              const managedRootReal = await realpath11(managedRoot).catch(() => null);
-              if (!managedRootReal) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.OBSERVED,
-                  observation: {
-                    installed: false,
-                    error: "KIMI_CODE_HOME does not exist"
-                  }
-                });
-              }
               let lexicalStat;
               try {
                 lexicalStat = await lstat13(installPathAbs);
@@ -73297,18 +73652,6 @@ function createPluginMarketplaceAdapter(deps = {}) {
                   observation: {
                     installed: false,
                     error: `kimi attestation installPath does not exist: ${normalizedAttestation.installPath}`
-                  }
-                });
-              }
-              const rel = relative18(managedRootReal, installPathReal2);
-              const sep7 = process.platform === "win32" ? "\\" : "/";
-              if (rel === "" || rel === ".." || isAbsolute15(rel) || rel.startsWith(`..${sep7}`)) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.OBSERVED,
-                  observation: {
-                    installed: false,
-                    error: `kimi attestation installPath escapes the managed root: ${normalizedAttestation.installPath}`
                   }
                 });
               }
@@ -79771,13 +80114,13 @@ async function buildProductionAssets(unitResults, resolvedVersions, root, runDir
         tarballDir: resolveUnitScopedPath(resolve22(runDir, "tarballs"), unit.id),
         expectedSnapshotDigest: sealed.digest
       });
-      await verifyFrozenNpmTarballIdentity({
+      await verifyFrozenNpmTarballContract({
         package: npmDistribution.package,
         version,
         tarballPath: relative21(root, npm.tarballPath),
         tarballSha256: npm.sha256,
         integrity: npm.integrity
-      }, root);
+      }, root, resolveUnitScopedPath(resolve22(runDir, "tarballs"), unit.id));
     }
     assets.push({
       snapshotPath,
@@ -82159,6 +82502,37 @@ async function reconcileRelease(options) {
       );
     }
     await evidence.append({ phase: "safety-gate", gate: "action-completeness", status: "passed" });
+    for (const unit of plan.units ?? []) {
+      const frozen = unit.frozenSnapshot;
+      if (!frozen?.npm) continue;
+      const npmDistribution = (unit.distributions ?? []).find((distribution) => distribution.type === "npm");
+      if (!npmDistribution) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" has a frozen npm tarball but no npm distribution`,
+          { gate: "npm-entry-closure", unitId: unit.id }
+        );
+      }
+      await evidence.append({
+        phase: "safety-gate",
+        gate: "npm-entry-closure",
+        unitId: unit.id,
+        status: "started"
+      });
+      await verifyFrozenNpmTarballContract({
+        package: npmDistribution.package,
+        version: unit.targetVersion,
+        tarballPath: frozen.npm.tarballPath,
+        tarballSha256: frozen.npm.tarballSha256,
+        integrity: frozen.npm.integrity
+      }, root);
+      await evidence.append({
+        phase: "safety-gate",
+        gate: "npm-entry-closure",
+        unitId: unit.id,
+        status: "passed"
+      });
+    }
     await evidence.append({ phase: "safety-gate", gate: "source-run-load", status: "started" });
     const sourceRun = await loadRun(sourceRunPath, {
       requireDigest: Boolean(plan.production),
@@ -83070,6 +83444,7 @@ var init_reconcile = __esm({
     init_source_authority();
     init_contract();
     init_observe_retry();
+    init_npm();
     __name(defaultClock3, "defaultClock");
     __name(reconcileRelease, "reconcileRelease");
   }
@@ -83666,7 +84041,7 @@ __export(verify_exports, {
 import { readFile as readFile24, writeFile as writeFile8, mkdtemp as mkdtemp4, rm as rm8, mkdir as mkdir13, lstat as lstat14, realpath as realpath13, readdir as readdir12 } from "node:fs/promises";
 import { realpathSync as realpathSync4 } from "node:fs";
 import { dirname as dirname13, join as join20, relative as relative22, isAbsolute as isAbsolute18, resolve as resolve25, basename as basename8 } from "node:path";
-import { tmpdir as tmpdir3 } from "node:os";
+import { tmpdir as tmpdir4 } from "node:os";
 import { execFile as execFileCb12 } from "node:child_process";
 import { promisify as promisify12 } from "node:util";
 function defaultClock4() {
@@ -83693,7 +84068,7 @@ function matchesSubset2(actual, expected) {
   return true;
 }
 async function runSmokeTest(plan, root, options = {}) {
-  const baseDir = options.baseDir ?? tmpdir3();
+  const baseDir = options.baseDir ?? tmpdir4();
   await mkdir13(baseDir, { recursive: true });
   const tmpDir = await mkdtemp4(join20(baseDir, "verify-smoke-"));
   const npmExec = options.npmExecutor ?? defaultNpmExecutor;
@@ -83796,6 +84171,24 @@ async function runSmokeTest(plan, root, options = {}) {
         };
       }
       const pkgRoot = join20(installDir, "node_modules", pkgName);
+      {
+        const dirIndex = await buildDirectoryFileIndex(pkgRoot);
+        const closureResult = checkNpmEntryClosure(installedPkg, dirIndex);
+        if (closureResult.errors.length > 0) {
+          return {
+            passed: false,
+            details: {
+              gate: "npm-entry-closure",
+              error: `npm entry closure check failed for ${packageAtVersion}: ${closureResult.errors.map((e) => e.message).join("; ")}`,
+              packageAtVersion,
+              unitId,
+              entries: closureResult.entries,
+              errors: closureResult.errors,
+              diagnostics: closureResult.diagnostics
+            }
+          };
+        }
+      }
       if (plan.skillResourceClosure) {
         const expectedUnitReceipt = plan.skillResourceClosure.unitReceipts.find((item) => item.unitId === unitId);
         if (!expectedUnitReceipt) {
@@ -84450,8 +84843,7 @@ async function verifyRelease(options) {
           } : action.type === "codebuddy-marketplace-install" ? {
             HOME: resolve25(runDir, "consumers", `codebuddy-${action.parameters.plugin}`)
           } : {
-            HOME: resolve25(runDir, "consumers", `kimi-${action.parameters.plugin}`),
-            KIMI_CODE_HOME: resolve25(runDir, "consumers", `kimi-${action.parameters.plugin}`)
+            HOME: resolve25(runDir, "consumers", `kimi-${action.parameters.plugin}`)
           }
         }));
       } else {
@@ -84710,6 +85102,7 @@ var init_verify = __esm({
     init_skill_resource_closure();
     init_checkpoints();
     init_installation_contract();
+    init_npm_entry_closure();
     execFile11 = promisify12(execFileCb12);
     VERIFICATION_RESOLVED_TYPES = Object.freeze({
       PASSED_AUTOMATIC: "PASSED_AUTOMATIC",
@@ -85140,7 +85533,7 @@ async function publishRelease(options) {
           if (!npmDistribution) {
             throw new ReleaseError(GATE_FAILED, `unit "${unit.id}" has a frozen npm tarball but no npm distribution`);
           }
-          await verifyFrozenNpmTarballIdentity({
+          await verifyFrozenNpmTarballContract({
             package: npmDistribution.package,
             version: unit.targetVersion,
             tarballPath: frozen.npm.tarballPath,
@@ -86368,7 +86761,7 @@ var init_graph = __esm({
 import { readFile as readFile28, readdir as readdir14, stat as stat6, mkdir as mkdir15, writeFile as writeFile9, rm as rm9 } from "node:fs/promises";
 import { join as join24 } from "node:path";
 import { mkdtemp as mkdtemp5 } from "node:fs/promises";
-import { tmpdir as tmpdir4 } from "node:os";
+import { tmpdir as tmpdir5 } from "node:os";
 import { createHash as createHash12 } from "node:crypto";
 import { readFileSync as readFileSync4 } from "node:fs";
 function collectStaticImports(filePath, visited = /* @__PURE__ */ new Set()) {
@@ -86506,7 +86899,7 @@ async function runProducerClosure({
   graph,
   inputSnapshot,
   artifactIds,
-  tempRootFactory = /* @__PURE__ */ __name(async () => mkdtemp5(join24(tmpdir4(), "producer-")), "tempRootFactory")
+  tempRootFactory = /* @__PURE__ */ __name(async () => mkdtemp5(join24(tmpdir5(), "producer-")), "tempRootFactory")
 } = {}) {
   const generatedSet = new Set(graph.topologicalOrder);
   for (const id of artifactIds) {

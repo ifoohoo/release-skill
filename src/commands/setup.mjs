@@ -24,6 +24,7 @@ import addFormats from 'ajv-formats';
 import { canonicalJson, sha256Hex } from '../core/digest.mjs';
 import { acquireProjectLock } from '../artifacts/project-lock.mjs';
 import { getPlatform, PLATFORMS } from '../platforms/registry.mjs';
+import { checkNpmEntryClosure } from '../npm/npm-entry-closure.mjs';
 import {
   CONFIG_EXISTS,
   CONFIG_INVALID,
@@ -201,6 +202,8 @@ function summarizeLegacyReleaseConfig(value, path) {
       tagPrefix: optionalString(repo.tagPrefix),
       npmPackage: optionalString(repo.npmPackage),
       npmPackageDeclared: Object.hasOwn(repo, 'npmPackage'),
+      npmRequiredPathCandidates: stringList(repo.npmRequiredPackagePaths),
+      npmRequiredPathsDeclared: Object.hasOwn(repo, 'npmRequiredPackagePaths'),
       docsSource: optionalString(repo.docsSource),
       requiredPathCandidates: stringList(repo.requiredPackagePaths),
       snapshotCommands: Array.isArray(repo.snapshotCommands) ? repo.snapshotCommands : [],
@@ -223,6 +226,8 @@ function summarizeLegacyReleaseConfig(value, path) {
       npmPackageDeclared: plugins.some((plugin) => (
         plugin && typeof plugin === 'object' && !Array.isArray(plugin) && Object.hasOwn(plugin, 'npmPackage')
       )),
+      npmRequiredPathCandidates: stringList(value.npmRequiredPackagePaths),
+      npmRequiredPathsDeclared: Object.hasOwn(value, 'npmRequiredPackagePaths'),
       docsSource: null,
       requiredPathCandidates: stringList(value.requiredPaths),
       snapshotCommands: Array.isArray(value.snapshotCommands) ? value.snapshotCommands : [],
@@ -467,6 +472,111 @@ async function discoverUnitGit(unitAbsDir, parentRoot) {
   };
 }
 
+async function pathIsGitIgnored(unitAbsDir, target) {
+  // --no-index also classifies generated paths that do not exist yet.
+  try {
+    await execFile('git', ['check-ignore', '--no-index', '--quiet', '--', target], {
+      cwd: unitAbsDir,
+      shell: false,
+      timeout: 5000,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function classifyNpmEntryCandidate(unitAbsDir, target, trackedFiles) {
+  const tracked = trackedFiles.includes(target);
+  const ignored = await pathIsGitIgnored(unitAbsDir, target);
+  let stat = null;
+  try {
+    stat = await lstat(join(unitAbsDir, target));
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  const exists = stat !== null;
+  const regular = stat?.isFile() === true && stat?.isSymbolicLink() !== true;
+  const state = exists && !regular
+    ? 'NON_REGULAR'
+    : exists && tracked
+      ? 'TRACKED_PRESENT'
+      : exists && ignored
+        ? 'IGNORED_PRESENT'
+        : exists
+          ? 'UNTRACKED_PRESENT'
+          : ignored
+            ? 'IGNORED_MISSING'
+            : 'MISSING';
+  return { path: target, state, exists, tracked, ignored };
+}
+
+async function discoverNpmEntryCandidates(root, pkg, matchingLegacyUnits, unitGitEntry) {
+  const emptyIndex = new Map();
+  const semantic = checkNpmEntryClosure(pkg.entryManifest, emptyIndex);
+  const byPath = new Map();
+  const add = (target, source) => {
+    const current = byPath.get(target) ?? { path: target, sources: new Set() };
+    current.sources.add(source);
+    byPath.set(target, current);
+  };
+  for (const entry of semantic.entries) add(entry.target, `package.json:${entry.field}`);
+
+  const diagnostics = [
+    ...semantic.errors
+      .filter((error) => error.reason !== 'entry_missing')
+      .map((error) => ({ code: 'NPM_ENTRY_DECLARATION_INVALID', ...error })),
+    ...semantic.diagnostics.map((diagnostic) => ({
+      code: 'NPM_ENTRY_WILDCARD_REQUIRES_REVIEW',
+      ...diagnostic,
+    })),
+  ];
+  const declaredLegacyPaths = new Set();
+  const legacyCoverageDeclared = matchingLegacyUnits.some((unit) => unit.npmRequiredPathsDeclared);
+  for (const legacy of matchingLegacyUnits) {
+    for (const target of legacy.npmRequiredPathCandidates) {
+      const checked = checkNpmEntryClosure({ main: target }, emptyIndex);
+      const normalized = checked.entries[0]?.target;
+      if (!normalized) {
+        diagnostics.push({
+          code: 'LEGACY_NPM_REQUIRED_PATH_INVALID',
+          path: target,
+          reason: checked.errors[0]?.reason ?? 'invalid_path',
+        });
+        continue;
+      }
+      declaredLegacyPaths.add(normalized);
+      add(normalized, 'public-release.json:npmRequiredPackagePaths');
+    }
+  }
+  if (legacyCoverageDeclared) {
+    for (const entry of semantic.entries) {
+      if (!declaredLegacyPaths.has(entry.target)) {
+        diagnostics.push({
+          code: 'LEGACY_NPM_ENTRY_COVERAGE_MISSING',
+          path: entry.target,
+          field: entry.field,
+        });
+      }
+    }
+  }
+
+  const unitAbsDir = resolve(root, pkg.directory);
+  const candidates = [];
+  for (const item of [...byPath.values()].sort((a, b) => a.path.localeCompare(b.path))) {
+    candidates.push({
+      ...await classifyNpmEntryCandidate(
+        unitAbsDir,
+        item.path,
+        unitGitEntry?.trackedFiles ?? [],
+      ),
+      sources: [...item.sources].sort(),
+    });
+  }
+  diagnostics.sort((a, b) => canonicalJson(a).localeCompare(canonicalJson(b)));
+  return { candidates, diagnostics };
+}
+
 async function discoverFacts(root) {
   const files = await walkDiscoveryFiles(root);
   const packageFiles = files.filter((path) => (
@@ -494,6 +604,11 @@ async function discoverFacts(root) {
       private: pkg.private === true,
       repository: parseGithubRepo(pkg.repository),
       publishRegistry: typeof pkg.publishConfig?.registry === 'string' ? pkg.publishConfig.registry : null,
+      entryManifest: Object.fromEntries(
+        ['bin', 'main', 'module', 'types', 'typings', 'exports']
+          .filter((field) => Object.hasOwn(pkg, field))
+          .map((field) => [field, pkg[field]]),
+      ),
       files: Array.isArray(pkg.files) ? pkg.files.filter((item) => typeof item === 'string').sort() : [],
       scripts: Object.fromEntries(Object.entries(pkg.scripts ?? {})
         .filter(([, value]) => typeof value === 'string')
@@ -557,6 +672,22 @@ async function discoverFacts(root) {
   for (const pkg of packages) {
     const unitAbsDir = resolve(root, pkg.directory);
     unitGit[pkg.directory] = await discoverUnitGit(unitAbsDir, root);
+    const inferredId = safeUnitId(pkg, pkg.directory);
+    const matchingLegacyUnits = legacyReleaseConfigs
+      .flatMap((config) => config.releaseUnits)
+      .filter((unit) => (
+        unit.id === inferredId ||
+        unit.source === pkg.directory ||
+        unit.source === dirname(pkg.path)
+      ));
+    const npmDiscovery = await discoverNpmEntryCandidates(
+      root,
+      pkg,
+      matchingLegacyUnits,
+      unitGit[pkg.directory],
+    );
+    pkg.npmEntryCandidates = npmDiscovery.candidates;
+    pkg.npmEntryDiagnostics = npmDiscovery.diagnostics;
   }
 
   return { git, packages, manifests, skills, legacyReleaseConfigs, fileDigests, unitGit };
@@ -871,6 +1002,8 @@ function buildCandidates(facts) {
       publicFileMappingCandidates: mappingResult.mappings,
       publicFileMappingConflicts: mappingResult.conflicts,
       requiredPublicFileCandidates,
+      npmEntryCandidates: pkg.npmEntryCandidates ?? [],
+      npmEntryDiagnostics: pkg.npmEntryDiagnostics ?? [],
       entrySkillCandidates: entrySkillCandidatesForUnit(facts, pkg, id),
       ...(hasAuthorityConflict ? {
         authorityConflict: {
@@ -1024,6 +1157,24 @@ function buildRecommendedProposal(facts, candidates) {
       return {
         answers: null,
         conflicts: [{ code: 'PUBLIC_FILE_BOUNDARY_EMPTY', unit: unit.id }],
+        assumptions,
+      };
+    }
+    if (
+      unit.distributionCandidates.includes('npm') &&
+      (
+        (unit.npmEntryCandidates ?? []).some((candidate) => candidate.state !== 'TRACKED_PRESENT') ||
+        (unit.npmEntryDiagnostics ?? []).length > 0
+      )
+    ) {
+      return {
+        answers: null,
+        conflicts: [{
+          code: 'NPM_ENTRY_REVIEW_REQUIRED',
+          unit: unit.id,
+          candidates: unit.npmEntryCandidates,
+          diagnostics: unit.npmEntryDiagnostics,
+        }],
         assumptions,
       };
     }
@@ -1245,6 +1396,15 @@ function buildDecisionsRequired(candidates, localOnly) {
       id: `unit:${unit.id}:distributions-and-files`,
       description: `逐项确认渠道 ${JSON.stringify(unit.distributionCandidates)}、公开文件边界和 requiredPublicFiles；候选不是授权。`,
     });
+    if (
+      (unit.npmEntryCandidates ?? []).length > 0 ||
+      (unit.npmEntryDiagnostics ?? []).length > 0
+    ) {
+      decisions.push({
+        id: `unit:${unit.id}:npm-entry-closure`,
+        description: '审阅 package.json 入口及旧 npmRequiredPackagePaths 的 tracked/untracked/ignored/missing 状态；setup 只报告候选，不自动写入 publicFiles 或 requiredPublicFiles。',
+      });
+    }
   }
   decisions.push({
     id: 'verification-gates',
@@ -1271,6 +1431,8 @@ function buildCompactSummary(report) {
       distributionCandidates: [...unit.distributionCandidates].sort(),
       publicFileMappingCount: (unit.publicFileMappingCandidates ?? []).length,
       requiredPublicFileCount: (unit.requiredPublicFileCandidates ?? []).length,
+      npmEntryCandidates: unit.npmEntryCandidates ?? [],
+      npmEntryDiagnostics: unit.npmEntryDiagnostics ?? [],
     })),
     gateCandidates: (report.gateCandidates ?? []).map((gate) => ({
       id: gate.id,
@@ -1518,6 +1680,12 @@ export async function setupProject({ root, answersPath, write = false, confirmSe
             : []),
           ...(unconfiguredGateCandidateIds.length > 0
             ? ['存在未配置的验证候选；逐项审阅副作用后决定是否人工注册。']
+            : []),
+          ...(candidates.units.some((unit) => (
+            (unit.npmEntryCandidates ?? []).some((candidate) => candidate.state !== 'TRACKED_PRESENT') ||
+            (unit.npmEntryDiagnostics ?? []).length > 0
+          ))
+            ? ['npm 入口候选存在未跟踪、被忽略、缺失、非普通文件或声明覆盖疑点；人工增量修复配置或构建流程，setup 不自动改写。']
             : []),
         ],
       },

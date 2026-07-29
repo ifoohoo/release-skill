@@ -2393,7 +2393,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
 
           // A non-automatable platform (kimi) has NO scriptable install CLI.
           // It is handled entirely by its manual-requirement strategy, which
-          // uses a stable plan-digest-keyed home and deliberately SKIPS the
+          // uses a stable plugin-level authority directory and deliberately SKIPS the
           // per-run isolated consumer dir and its runDir containment check
           // (that model only fits structured-cli platforms, which exec a real
           // CLI into a per-run HOME).
@@ -2913,24 +2913,11 @@ export function createPluginMarketplaceAdapter(deps = {}) {
               });
             }
 
-            // installPath 验证：必须在 managed root 内，不得逃逸，不得是符号链接
+            // installPath 验证：必须是真实目录，不得是符号链接。
+            // 安装路径不要求位于 attestationDir 内（用户使用实际全局/用户安装目录）。
             let verifiedInstallPath = null;
             if (normalizedAttestation.installPath) {
-              const managedRoot = resolve(attestationDir, 'kimi-home', 'plugins', 'managed');
               const installPathAbs = resolve(normalizedAttestation.installPath);
-
-              // 先验证 managed root 存在（KIMI_CODE_HOME 检查）
-              const managedRootReal = await realpath(managedRoot).catch(() => null);
-              if (!managedRootReal) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.OBSERVED,
-                  observation: {
-                    installed: false,
-                    error: 'KIMI_CODE_HOME does not exist',
-                  },
-                });
-              }
 
               // 检查 installPath 词法路径是否存在（lstat 在 realpath 之前）
               let lexicalStat;
@@ -2965,18 +2952,6 @@ export function createPluginMarketplaceAdapter(deps = {}) {
                   observation: {
                     installed: false,
                     error: `kimi attestation installPath does not exist: ${normalizedAttestation.installPath}`,
-                  },
-                });
-              }
-              const rel = relative(managedRootReal, installPathReal);
-              const sep = process.platform === 'win32' ? '\\' : '/';
-              if (rel === '' || rel === '..' || isAbsolute(rel) || rel.startsWith(`..${sep}`)) {
-                return createResult({
-                  actionType,
-                  status: ActionStatus.OBSERVED,
-                  observation: {
-                    installed: false,
-                    error: `kimi attestation installPath escapes the managed root: ${normalizedAttestation.installPath}`,
                   },
                 });
               }
@@ -3283,7 +3258,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
                 try {
                   codexRequirement = JSON.parse(await readFile(resolve(codexAttestationDir, CODEX_REQUIREMENT_FILE), 'utf8'));
                 } catch {
-                  // No requirement file — must not read isolated attestation
+                  // No requirement file — must not read the stable attestation
                 }
 
                 // Validate requirement binds to this action and plan (完整绑定验证)

@@ -2,7 +2,7 @@
 
 [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.2.6 -->
+<!-- release-skill:release-version: 0.2.7 -->
 ## 前置条件
 
 - Node.js 22.0.0 或更高版本
@@ -106,25 +106,25 @@ release-skill 把 Kimi 安装建模为“版本钉死的手动安装 + 可信观
 1. `publish` 先完成自动化远端写入（Git branch/tag、npm、GitHub Release）。
    `kimi-marketplace-install` 动作在 publish 阶段记录为 `DEFERRED`，不调用市场适配器，自动化安装路径失败关闭。全部远端永久写入一致后运行进入 `PUBLISHED`。运行记录会给出钉死的安装 URL 与证明写入路径。
 2. 读取 requirement：
-   `<root>/.release-skill/kimi-attestations/<planDigest>/<plugin>/release-skill-kimi-manual-install.json`。
+   `<root>/.release-skill/kimi-attestations/<plugin>/release-skill-kimi-manual-install.json`。
 3. 启动 Kimi Code，从钉死到精确版本的 release tag 安装（切勿使用裸仓库地址，
    它会安装最新 release 或默认分支），确认信任提示后重新加载。写出证明之前，
    必须核实已安装插件清单版本等于冻结版本；否则**不得**出具证明。
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.6
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.7
    /plugins reload
    ```
 
 4. 把人工结果 JSON 写入
-   `<root>/.release-skill/kimi-attestations/<planDigest>/<plugin>/release-skill-kimi-attestation.json`。
+   `<root>/.release-skill/kimi-attestations/<plugin>/release-skill-kimi-attestation.json`。
    `planDigest` 必须是冻结**计划**摘要；`result` 只接受 `"passed"` 或 `"failed"`。
    示例：
 
 ```json
 {
   "platform": "kimi",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "planDigest": "<64 位十六进制冻结计划摘要>",
   "result": "passed",
   "actor": "<确认人>",
@@ -134,7 +134,7 @@ release-skill 把 Kimi 安装建模为“版本钉死的手动安装 + 可信观
 ```
 
 5. 运行 `release-skill verify --run <publish-run>`（→
-   `VERIFIED`）。verify 命令从同一个按计划摘要命名的目录读取证明，因此新的
+   `VERIFIED`）。verify 命令从稳定的插件级目录读取证明，因此新的
    run 目录不会丢失该证明。
 
 当平台没有可靠的自动化验证时，绑定后的人工 `passed`/`failed` 结果即为权威判定。
@@ -166,19 +166,19 @@ codebuddy CLI 可以添加市场并安装插件，但 **`plugin marketplace add`
    `codebuddy-marketplace-install` 动作在 publish 阶段记录为 `DEFERRED`，不调用
    市场适配器，自动化安装路径失败关闭。全部远端永久写入一致后运行进入 `PUBLISHED`。运行记录会给出证明写入路径。
 2. 读取 requirement：
-   `<root>/.release-skill/codebuddy-attestations/<planDigest>/<plugin>/release-skill-codebuddy-manual-install.json`。
+   `<root>/.release-skill/codebuddy-attestations/<plugin>/release-skill-codebuddy-manual-install.json`。
 3. 从 bundled-family 市场 `ifoohoo/release-skill`
    （https://github.com/ifoohoo/release-skill）安装 release-skill。
    写出证明之前，必须核实已安装插件清单版本等于冻结版本；否则**不得**出具证明。
 4. 把人工结果 JSON 写入
-   `<root>/.release-skill/codebuddy-attestations/<planDigest>/<plugin>/release-skill-codebuddy-attestation.json`。
+   `<root>/.release-skill/codebuddy-attestations/<plugin>/release-skill-codebuddy-attestation.json`。
    `planDigest` 必须是冻结**计划**摘要；`result` 只接受 `"passed"` 或 `"failed"`。
    示例：
 
 ```json
 {
   "platform": "codebuddy",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "planDigest": "<64 位十六进制冻结计划摘要>",
   "result": "passed",
   "actor": "<确认人>",
@@ -188,7 +188,7 @@ codebuddy CLI 可以添加市场并安装插件，但 **`plugin marketplace add`
 ```
 
 5. 运行 `release-skill verify --run <publish-run>`（→
-   `VERIFIED`）。verify 命令从同一个按计划摘要命名的目录读取证明，因此新的
+   `VERIFIED`）。verify 命令从稳定的插件级目录读取证明，因此新的
    run 目录不会丢失该证明。
 
 当平台没有可靠的自动化验证时，绑定后的人工 `passed`/`failed` 结果即为权威判定。
