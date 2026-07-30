@@ -1,5 +1,20 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.2.9 locale=en baseline=sha256:22b3d94c5d99fca0e6016334a108e4be5f3419f45507fae795b4d0714ca7ad6d -->
+## [0.2.9] - 2026-07-31
+
+v0.2.9 makes missing expected public-surface configuration visible during assessment and preparation without blocking existing projects.
+
+### Added
+
+- **Adoption warning**: assess reports `PUBLIC_SURFACE_CONFIG_MISSING` for every release unit that has not configured `expectedPublicSurface`.
+
+### Changed
+
+- **Prepare visibility**: prepare records and returns the same non-blocking warning, and the CLI exposes it in both JSON and human-readable output.
+<!-- release-skill:changelog:end version=0.2.9 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.2.8 locale=en baseline=sha256:ad6e8910f1af206463b5decf134b82590787b77f5a88faca3d8985d3686b111b -->
 ## [0.2.8] - 2026-07-30
 

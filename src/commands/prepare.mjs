@@ -29,7 +29,10 @@ import { loadProjectConfig } from '../core/config.mjs';
 import { captureBaseline } from '../core/baseline.mjs';
 import { runHook } from '../core/hooks.mjs';
 import { computeHookCacheKey, readHookCache, writeHookCache } from '../core/hook-cache.mjs';
-import { assertExpectedPublicSurface } from '../core/public-surface.mjs';
+import {
+  assertExpectedPublicSurface,
+  collectExpectedPublicSurfaceAdoptionWarnings,
+} from '../core/public-surface.mjs';
 import { runSnapshotVerificationGates } from '../core/verification-gates.mjs';
 import { createEvidenceWriter } from '../core/evidence.mjs';
 import { computePlanDigest, writePlanAtomic, writePlanImmutable } from '../core/plan.mjs';
@@ -1670,7 +1673,7 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
  *   every declared hook runs in full and the incremental hook cache is neither
  *   read nor written.
  *
- * @returns {Promise<{ planPath: string, planDigest: string, evidenceDir: string }>}
+ * @returns {Promise<{ planPath: string, planDigest: string, evidenceDir: string, warnings: ReadonlyArray<object> }>}
  *
  * @throws {ReleaseError} on any gate failure. No PREPARED plan is written.
  */
@@ -1750,6 +1753,7 @@ export async function prepareRelease(options) {
     await evidence.append({ phase: 'config', status: 'started' });
 
     const { config, configPath, configDigest } = await loadProjectConfig({ root: realRoot });
+    const adoptionWarnings = collectExpectedPublicSurfaceAdoptionWarnings(config);
 
     await evidence.append({
       phase: 'config',
@@ -1757,6 +1761,13 @@ export async function prepareRelease(options) {
       configPath: relative(realRoot, configPath),
       configDigest,
     });
+    for (const warning of adoptionWarnings) {
+      await evidence.append({
+        phase: 'public-surface-adoption',
+        status: 'warning',
+        ...warning,
+      });
+    }
 
     // --- Step 1b: Resolve authoritative versions and gate release-document
     //     freshness BEFORE hook authorization ---
@@ -2913,6 +2924,7 @@ export async function prepareRelease(options) {
       planPath: writtenPath,
       planDigest,
       evidenceDir,
+      warnings: adoptionWarnings,
     };
   } catch (err) {
     // Record failure evidence

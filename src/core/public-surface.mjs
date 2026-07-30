@@ -22,9 +22,35 @@ import { canonicalPublicPath } from '../snapshot/public-path.mjs';
 
 const ROOT_CONTROL_DIRECTORIES = Object.freeze(['.git', '.release-skill']);
 const UNSUPPORTED_GLOB_CHARACTERS = /[!()[\]{}]/u;
+export const PUBLIC_SURFACE_CONFIG_MISSING = 'PUBLIC_SURFACE_CONFIG_MISSING';
 
 function compareStrings(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
+}
+
+/**
+ * Return actionable, non-blocking adoption warnings for release units that
+ * have not enabled the expected public-surface gate.
+ *
+ * This helper never invents project policy or writes configuration. It gives
+ * assess and prepare one stable machine code and message while legacy projects
+ * remain releasable during the adoption window.
+ *
+ * @param {object} config
+ * @returns {ReadonlyArray<object>}
+ */
+export function collectExpectedPublicSurfaceAdoptionWarnings(config) {
+  return Object.freeze(
+    (config?.releaseUnits ?? [])
+      .filter((unit) => !unit?.expectedPublicSurface)
+      .map((unit) => Object.freeze({
+        code: PUBLIC_SURFACE_CONFIG_MISSING,
+        unitId: unit.id,
+        message:
+          `发布单元 "${unit.id}" 未配置 expectedPublicSurface；新增或漏配文件不会被分类门禁发现。` +
+          '请审阅项目发布边界后，在 .release-skill/project.yaml 中配置 expectedPublicSurface.scanRoots。',
+      })),
+  );
 }
 
 function toPosixPath(path) {

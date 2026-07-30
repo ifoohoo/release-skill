@@ -23,6 +23,7 @@ import { promisify } from 'node:util';
 
 import { loadProjectConfig } from '../core/config.mjs';
 import { ReleaseError, CONFIG_INVALID, GATE_FAILED } from '../core/errors.mjs';
+import { collectExpectedPublicSurfaceAdoptionWarnings } from '../core/public-surface.mjs';
 
 const execFile = promisify(execFileCb);
 
@@ -880,23 +881,35 @@ export async function assessProject(options) {
   // --- 2. Topology identification ---
   const topology = identifyTopology(config);
 
-  // --- 3. Common docs check ---
+  // --- 3. Expected public-surface adoption ---
+  for (const warning of collectExpectedPublicSurfaceAdoptionWarnings(config)) {
+    allGaps.push(createGap({
+      scope: GapScope.PROJECT,
+      category: GapCategory.POLICY,
+      severity: Severity.WARNING,
+      code: warning.code,
+      message: warning.message,
+      file: '.release-skill/project.yaml',
+    }));
+  }
+
+  // --- 4. Common docs check ---
   const docGaps = await checkCommonDocs(root, config);
   allGaps.push(...docGaps);
 
-  // --- 4. Plugin manifest check ---
+  // --- 5. Plugin manifest check ---
   const manifestGaps = await checkPluginManifests(root, config);
   allGaps.push(...manifestGaps);
 
-  // --- 5. Package metadata check ---
+  // --- 6. Package metadata check ---
   const metadataGaps = await checkPackageMetadata(root, config);
   allGaps.push(...metadataGaps);
 
-  // --- 6. Remote prerequisites ---
+  // --- 7. Remote prerequisites ---
   const remoteGaps = await checkRemotePrerequisites(root, config, offline);
   allGaps.push(...remoteGaps);
 
-  // --- 7. README structure check ---
+  // --- 8. README structure check ---
   const readmeGaps = await checkReadmeStructure(root, config);
   allGaps.push(...readmeGaps);
 

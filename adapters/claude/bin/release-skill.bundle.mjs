@@ -9,7 +9,7 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.2.8"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.2.9"});
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -21535,6 +21535,15 @@ import {
 function compareStrings(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
+function collectExpectedPublicSurfaceAdoptionWarnings(config) {
+  return Object.freeze(
+    (config?.releaseUnits ?? []).filter((unit) => !unit?.expectedPublicSurface).map((unit) => Object.freeze({
+      code: PUBLIC_SURFACE_CONFIG_MISSING,
+      unitId: unit.id,
+      message: `\u53D1\u5E03\u5355\u5143 "${unit.id}" \u672A\u914D\u7F6E expectedPublicSurface\uFF1B\u65B0\u589E\u6216\u6F0F\u914D\u6587\u4EF6\u4E0D\u4F1A\u88AB\u5206\u7C7B\u95E8\u7981\u53D1\u73B0\u3002\u8BF7\u5BA1\u9605\u9879\u76EE\u53D1\u5E03\u8FB9\u754C\u540E\uFF0C\u5728 .release-skill/project.yaml \u4E2D\u914D\u7F6E expectedPublicSurface.scanRoots\u3002`
+    }))
+  );
+}
 function toPosixPath(path3) {
   return path3.split(sep3).join("/");
 }
@@ -21911,14 +21920,16 @@ async function assertExpectedPublicSurface(options) {
     }
   );
 }
-var ROOT_CONTROL_DIRECTORIES, UNSUPPORTED_GLOB_CHARACTERS;
+var ROOT_CONTROL_DIRECTORIES, UNSUPPORTED_GLOB_CHARACTERS, PUBLIC_SURFACE_CONFIG_MISSING;
 var init_public_surface = __esm({
   "src/core/public-surface.mjs"() {
     init_errors();
     init_public_path();
     ROOT_CONTROL_DIRECTORIES = Object.freeze([".git", ".release-skill"]);
     UNSUPPORTED_GLOB_CHARACTERS = /[!()[\]{}]/u;
+    PUBLIC_SURFACE_CONFIG_MISSING = "PUBLIC_SURFACE_CONFIG_MISSING";
     __name(compareStrings, "compareStrings");
+    __name(collectExpectedPublicSurfaceAdoptionWarnings, "collectExpectedPublicSurfaceAdoptionWarnings");
     __name(toPosixPath, "toPosixPath");
     __name(isContainedOrEqual, "isContainedOrEqual");
     __name(isWorkspaceControlPath, "isWorkspaceControlPath");
@@ -23138,6 +23149,16 @@ async function assessProject(options) {
   }
   const config = configResult.config;
   const topology = identifyTopology(config);
+  for (const warning of collectExpectedPublicSurfaceAdoptionWarnings(config)) {
+    allGaps.push(createGap({
+      scope: GapScope.PROJECT,
+      category: GapCategory.POLICY,
+      severity: Severity.WARNING,
+      code: warning.code,
+      message: warning.message,
+      file: ".release-skill/project.yaml"
+    }));
+  }
   const docGaps = await checkCommonDocs(root, config);
   allGaps.push(...docGaps);
   const manifestGaps = await checkPluginManifests(root, config);
@@ -23174,6 +23195,7 @@ var init_assess = __esm({
   async "src/commands/assess.mjs"() {
     await init_config();
     init_errors();
+    init_public_surface();
     execFile4 = promisify4(execFileCb4);
     Severity = Object.freeze({
       ERROR: "error",
@@ -81183,12 +81205,20 @@ async function prepareRelease(options) {
   try {
     await evidence.append({ phase: "config", status: "started" });
     const { config, configPath, configDigest } = await loadProjectConfig({ root: realRoot });
+    const adoptionWarnings = collectExpectedPublicSurfaceAdoptionWarnings(config);
     await evidence.append({
       phase: "config",
       status: "completed",
       configPath: relative22(realRoot, configPath),
       configDigest
     });
+    for (const warning of adoptionWarnings) {
+      await evidence.append({
+        phase: "public-surface-adoption",
+        status: "warning",
+        ...warning
+      });
+    }
     const configUnits = config.releaseUnits ?? [];
     const resolvedVersions = await resolveAllUnitVersions(
       configUnits,
@@ -82110,7 +82140,8 @@ To proceed, pass --acknowledge-hook-side-effects (CLI) or hooksAuthorized=true (
     return {
       planPath: writtenPath,
       planDigest,
-      evidenceDir
+      evidenceDir,
+      warnings: adoptionWarnings
     };
   } catch (err) {
     await evidence.append({
@@ -90431,9 +90462,13 @@ if (command === "prepare") {
         ...plan,
         planPath: result.planPath,
         planDigest: result.planDigest,
-        evidenceDir: result.evidenceDir
+        evidenceDir: result.evidenceDir,
+        warnings: result.warnings
       }, null, 2));
     } else {
+      for (const warning of result.warnings) {
+        console.log(`Warning [${warning.code}] ${warning.message}`);
+      }
       console.log(`Plan frozen at: ${result.planPath}`);
       console.log(`Plan digest: ${result.planDigest}`);
       console.log(`Evidence: ${result.evidenceDir}`);

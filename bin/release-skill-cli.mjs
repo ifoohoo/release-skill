@@ -551,8 +551,12 @@ if (command === 'prepare') {
         planPath: result.planPath,
         planDigest: result.planDigest,
         evidenceDir: result.evidenceDir,
+        warnings: result.warnings,
       }, null, 2));
     } else {
+      for (const warning of result.warnings) {
+        console.log(`Warning [${warning.code}] ${warning.message}`);
+      }
       console.log(`Plan frozen at: ${result.planPath}`);
       console.log(`Plan digest: ${result.planDigest}`);
       console.log(`Evidence: ${result.evidenceDir}`);

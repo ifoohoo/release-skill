@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.2.8 -->
+<!-- release-skill:release-version: 0.2.9 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,27 +14,21 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.2.8** (2026-07-30)
+**0.2.9** (2026-07-31)
 
-v0.2.8 adds a project-configurable expected public-surface gate so newly added or omitted release files cannot silently disappear from a frozen snapshot.
+v0.2.9 makes missing expected public-surface configuration visible during assessment and preparation without blocking existing projects.
 
 **Added**
 
-- **Expected public surface**: release units can declare physical scan roots with compact `include` and `exclude` globs instead of maintaining a second per-file checker.
-- **Exhaustive classification diagnostics**: prepare reports missing mappings, unexpected mappings, unclassified files, and files that ambiguously match both include and exclude rules.
+- **Adoption warning**: assess reports `PUBLIC_SURFACE_CONFIG_MISSING` for every release unit that has not configured `expectedPublicSurface`.
 
 **Changed**
 
-- **Post-build release gate**: prepare scans the actual workspace after build hooks and blocks before source-authority closure, baseline capture, snapshot construction, or plan creation.
-- **Bounded glob and path safety**: the built-in scanner supports `*`, `?`, and `**`, rejects overlapping or escaping scan roots, and keeps workspace control paths outside the project classification surface.
-
-**Fixed**
-
-- **Silent release-file omission**: a file classified for publication can no longer be absent from `publicFiles` while the release still reaches `PREPARED`.
+- **Prepare visibility**: prepare records and returns the same non-blocking warning, and the CLI exposes it in both JSON and human-readable output.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.2.8 is the current release (v0.2.2 previously held
+> **Current boundary:** v0.2.9 is the current release (v0.2.2 previously held
 > published status before the platform verification convergence fix was added).
 > v0.1.1 completed a real production release to GitHub and npm — the first
 > production-verified milestone — followed by
@@ -52,7 +46,7 @@ v0.2.8 adds a project-configurable expected public-surface gate so newly added o
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.2.8 is the current
+> **Production path verified since the v0.1.1 milestone; v0.2.9 is the current
 > release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
