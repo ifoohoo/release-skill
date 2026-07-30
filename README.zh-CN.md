@@ -2,33 +2,33 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.2.7 -->
+<!-- release-skill:release-version: 0.2.8 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.2.7** (2026-07-29)
+**0.2.8** (2026-07-30)
 
-v0.2.7 阻止缺少已声明运行入口的 npm 包进入准备、发布、协调或已验证终态。
+v0.2.8 新增项目可配置的期望发布面门禁，防止新增或漏声明的发布文件静默消失在冻结快照之外。
 
 **新增**
 
-- **npm 静态入口闭包**：release-skill 针对精确冻结 tarball 和全新安装包检查 `bin`、`main`、`module`、`types`、`typings` 及具体本地 `exports` 目标。
-- **setup 诊断**：setup 将声明的 npm 入口报告为已跟踪、未跟踪、已忽略、缺失或非普通文件，但不会修改项目配置。
+- **期望发布面**：发布单元可以通过精简的 `include`、`exclude` glob 声明物理扫描根，无需再维护第二份逐文件检查器。
+- **穷举分类诊断**：prepare 会报告缺失映射、多余映射、未分类文件，以及同时命中包含和排除规则的歧义文件。
 
 **变更**
 
-- **不支持的 exports 失败关闭**：通配符 exports 和 fallback array 仍处于最小解析边界之外，并改为阻断发布，不猜测展开或静默跳过。
-- **最终写入边界复检**：npm 适配器在提交注册表前，对同一份已通过摘要校验的 tarball Buffer 再次检查入口闭包。
+- **构建后发布门禁**：prepare 在 build hook 后扫描真实工作区，并在源码权威闭集、基线捕获、快照构建和计划写入前阻断失败。
+- **有界 glob 与路径安全**：内建扫描器支持 `*`、`?`、`**`，拒绝重叠或逃逸的扫描根，并将工作区控制面排除在项目分类范围之外。
 
 **修复**
 
-- **空壳包验证漏洞**：当已声明的运行入口或类型入口缺失时，包不再能够进入 `PREPARED`、远端发布、协调或 `VERIFIED`。
+- **发布文件静默漏项**：已归类为应发布的文件如果缺少 `publicFiles` 映射，发布将无法再进入 `PREPARED`。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.2.7 是当前发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.2.8 是当前发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -41,7 +41,7 @@ v0.2.7 阻止缺少已声明运行入口的 npm 包进入准备、发布、协�
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.2.7 是当前发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.2.8 是当前发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**

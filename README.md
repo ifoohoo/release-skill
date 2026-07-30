@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.2.7 -->
+<!-- release-skill:release-version: 0.2.8 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,27 +14,27 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.2.7** (2026-07-29)
+**0.2.8** (2026-07-30)
 
-v0.2.7 prevents npm packages with missing declared runtime entries from being prepared, published, reconciled, or marked as verified.
+v0.2.8 adds a project-configurable expected public-surface gate so newly added or omitted release files cannot silently disappear from a frozen snapshot.
 
 **Added**
 
-- **Static npm entry closure**: release-skill checks `bin`, `main`, `module`, `types`, `typings`, and concrete local `exports` targets against the exact frozen tarball and the freshly installed package.
-- **Setup diagnostics**: setup reports declared npm entry candidates as tracked, untracked, ignored, missing, or non-regular without modifying project configuration.
+- **Expected public surface**: release units can declare physical scan roots with compact `include` and `exclude` globs instead of maintaining a second per-file checker.
+- **Exhaustive classification diagnostics**: prepare reports missing mappings, unexpected mappings, unclassified files, and files that ambiguously match both include and exclude rules.
 
 **Changed**
 
-- **Fail-closed unsupported exports**: wildcard exports and fallback arrays remain outside the minimal resolver boundary and now block release instead of being guessed or silently skipped.
-- **Final write-boundary verification**: the npm adapter rechecks the same digest-verified tarball buffer immediately before registry publication.
+- **Post-build release gate**: prepare scans the actual workspace after build hooks and blocks before source-authority closure, baseline capture, snapshot construction, or plan creation.
+- **Bounded glob and path safety**: the built-in scanner supports `*`, `?`, and `**`, rejects overlapping or escaping scan roots, and keeps workspace control paths outside the project classification surface.
 
 **Fixed**
 
-- **Empty-shell package verification**: a package can no longer reach `PREPARED`, remote publication, reconciliation, or `VERIFIED` when its declared runtime or type entry is absent.
+- **Silent release-file omission**: a file classified for publication can no longer be absent from `publicFiles` while the release still reaches `PREPARED`.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.2.7 is the current release (v0.2.2 previously held
+> **Current boundary:** v0.2.8 is the current release (v0.2.2 previously held
 > published status before the platform verification convergence fix was added).
 > v0.1.1 completed a real production release to GitHub and npm — the first
 > production-verified milestone — followed by
@@ -52,7 +52,7 @@ v0.2.7 prevents npm packages with missing declared runtime entries from being pr
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.2.7 is the current
+> **Production path verified since the v0.1.1 milestone; v0.2.8 is the current
 > release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >

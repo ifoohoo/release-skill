@@ -29,6 +29,7 @@ import { loadProjectConfig } from '../core/config.mjs';
 import { captureBaseline } from '../core/baseline.mjs';
 import { runHook } from '../core/hooks.mjs';
 import { computeHookCacheKey, readHookCache, writeHookCache } from '../core/hook-cache.mjs';
+import { assertExpectedPublicSurface } from '../core/public-surface.mjs';
 import { runSnapshotVerificationGates } from '../core/verification-gates.mjs';
 import { createEvidenceWriter } from '../core/evidence.mjs';
 import { computePlanDigest, writePlanAtomic, writePlanImmutable } from '../core/plan.mjs';
@@ -1923,6 +1924,51 @@ export async function prepareRelease(options) {
         reasonTag: 'CHANGES_AFTER_HOOKS',
         expectedBindings: preHookDocsBindings,
       });
+    }
+
+    // --- Step 3b.1: Validate the post-build expected public surface ---
+    // This gate runs after every declared hook (and the post-hook docs check)
+    // but before source-authority closure, baseline, snapshots, remote reads,
+    // and plan write. Therefore build-generated files must be explicitly
+    // classified and every included source must already exist in publicFiles
+    // before downstream authorities bind the release inputs.
+    for (const unit of configUnits) {
+      if (!unit?.expectedPublicSurface) continue;
+      await evidence.append({
+        phase: 'public-surface',
+        status: 'started',
+        unitId: unit.id,
+      });
+      try {
+        const surface = await assertExpectedPublicSurface({
+          root: realRoot,
+          unit,
+        });
+        await evidence.append({
+          phase: 'public-surface',
+          status: 'completed',
+          unitId: unit.id,
+          ...surface.summary,
+        });
+      } catch (error) {
+        await evidence.append({
+          phase: 'public-surface',
+          status: 'failed',
+          unitId: unit.id,
+          reason: error.details?.reason ?? 'PUBLIC_SURFACE_CHECK_FAILED',
+          error: {
+            code: error.code,
+            message: error.message,
+          },
+          diagnostics: {
+            missingMappings: error.details?.missingMappings ?? [],
+            unexpectedMappings: error.details?.unexpectedMappings ?? [],
+            unclassifiedFiles: error.details?.unclassifiedFiles ?? [],
+            ambiguousFiles: error.details?.ambiguousFiles ?? [],
+          },
+        });
+        throw error;
+      }
     }
 
     // --- Step 3c: Source authority content closure gate ---

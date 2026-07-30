@@ -9,7 +9,7 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.2.7"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.2.8"});
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -4425,10 +4425,10 @@ var require_resolve_block_map = __commonJS({
       let offset = bm.offset;
       let commentEnd = null;
       for (const collItem of bm.items) {
-        const { start, key, sep: sep6, value } = collItem;
+        const { start, key, sep: sep7, value } = collItem;
         const keyProps = resolveProps.resolveProps(start, {
           indicator: "explicit-key-ind",
-          next: key ?? sep6?.[0],
+          next: key ?? sep7?.[0],
           offset,
           onError,
           parentIndent: bm.indent,
@@ -4442,7 +4442,7 @@ var require_resolve_block_map = __commonJS({
             else if ("indent" in key && key.indent !== bm.indent)
               onError(offset, "BAD_INDENT", startColMsg);
           }
-          if (!keyProps.anchor && !keyProps.tag && !sep6) {
+          if (!keyProps.anchor && !keyProps.tag && !sep7) {
             commentEnd = keyProps.end;
             if (keyProps.comment) {
               if (map.comment)
@@ -4466,7 +4466,7 @@ var require_resolve_block_map = __commonJS({
         ctx.atKey = false;
         if (utilMapIncludes.mapIncludes(ctx, map.items, keyNode))
           onError(keyStart, "DUPLICATE_KEY", "Map keys must be unique");
-        const valueProps = resolveProps.resolveProps(sep6 ?? [], {
+        const valueProps = resolveProps.resolveProps(sep7 ?? [], {
           indicator: "map-value-ind",
           next: value,
           offset: keyNode.range[2],
@@ -4482,7 +4482,7 @@ var require_resolve_block_map = __commonJS({
             if (ctx.options.strict && keyProps.start < valueProps.found.offset - 1024)
               onError(keyNode.range, "KEY_OVER_1024_CHARS", "The : indicator must be at most 1024 chars after the start of an implicit block mapping key");
           }
-          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : composeEmptyNode(ctx, offset, sep6, null, valueProps, onError);
+          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : composeEmptyNode(ctx, offset, sep7, null, valueProps, onError);
           if (ctx.schema.compat)
             utilFlowIndentCheck.flowIndentCheck(bm.indent, value, onError);
           offset = valueNode.range[2];
@@ -4575,7 +4575,7 @@ var require_resolve_end = __commonJS({
       let comment = "";
       if (end) {
         let hasSpace = false;
-        let sep6 = "";
+        let sep7 = "";
         for (const token of end) {
           const { source, type } = token;
           switch (type) {
@@ -4589,13 +4589,13 @@ var require_resolve_end = __commonJS({
               if (!comment)
                 comment = cb;
               else
-                comment += sep6 + cb;
-              sep6 = "";
+                comment += sep7 + cb;
+              sep7 = "";
               break;
             }
             case "newline":
               if (comment)
-                sep6 += source;
+                sep7 += source;
               hasSpace = true;
               break;
             default:
@@ -4639,18 +4639,18 @@ var require_resolve_flow_collection = __commonJS({
       let offset = fc.offset + fc.start.source.length;
       for (let i = 0; i < fc.items.length; ++i) {
         const collItem = fc.items[i];
-        const { start, key, sep: sep6, value } = collItem;
+        const { start, key, sep: sep7, value } = collItem;
         const props = resolveProps.resolveProps(start, {
           flow: fcName,
           indicator: "explicit-key-ind",
-          next: key ?? sep6?.[0],
+          next: key ?? sep7?.[0],
           offset,
           onError,
           parentIndent: fc.indent,
           startOnNewline: false
         });
         if (!props.found) {
-          if (!props.anchor && !props.tag && !sep6 && !value) {
+          if (!props.anchor && !props.tag && !sep7 && !value) {
             if (i === 0 && props.comma)
               onError(props.comma, "UNEXPECTED_TOKEN", `Unexpected , in ${fcName}`);
             else if (i < fc.items.length - 1)
@@ -4704,8 +4704,8 @@ var require_resolve_flow_collection = __commonJS({
             }
           }
         }
-        if (!isMap && !sep6 && !props.found) {
-          const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep6, null, props, onError);
+        if (!isMap && !sep7 && !props.found) {
+          const valueNode = value ? composeNode(ctx, value, props, onError) : composeEmptyNode(ctx, props.end, sep7, null, props, onError);
           coll.items.push(valueNode);
           offset = valueNode.range[2];
           if (isBlock(value))
@@ -4717,7 +4717,7 @@ var require_resolve_flow_collection = __commonJS({
           if (isBlock(key))
             onError(keyNode.range, "BLOCK_IN_FLOW", blockMsg);
           ctx.atKey = false;
-          const valueProps = resolveProps.resolveProps(sep6 ?? [], {
+          const valueProps = resolveProps.resolveProps(sep7 ?? [], {
             flow: fcName,
             indicator: "map-value-ind",
             next: value,
@@ -4728,8 +4728,8 @@ var require_resolve_flow_collection = __commonJS({
           });
           if (valueProps.found) {
             if (!isMap && !props.found && ctx.options.strict) {
-              if (sep6)
-                for (const st of sep6) {
+              if (sep7)
+                for (const st of sep7) {
                   if (st === valueProps.found)
                     break;
                   if (st.type === "newline") {
@@ -4746,7 +4746,7 @@ var require_resolve_flow_collection = __commonJS({
             else
               onError(valueProps.start, "MISSING_CHAR", `Missing , or : between ${fcName} items`);
           }
-          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : valueProps.found ? composeEmptyNode(ctx, valueProps.end, sep6, null, valueProps, onError) : null;
+          const valueNode = value ? composeNode(ctx, value, valueProps, onError) : valueProps.found ? composeEmptyNode(ctx, valueProps.end, sep7, null, valueProps, onError) : null;
           if (valueNode) {
             if (isBlock(value))
               onError(valueNode.range, "BLOCK_IN_FLOW", blockMsg);
@@ -4929,7 +4929,7 @@ var require_resolve_block_scalar = __commonJS({
           chompStart = i + 1;
       }
       let value = "";
-      let sep6 = "";
+      let sep7 = "";
       let prevMoreIndented = false;
       for (let i = 0; i < contentStart; ++i)
         value += lines[i][0].slice(trimIndent) + "\n";
@@ -4946,24 +4946,24 @@ var require_resolve_block_scalar = __commonJS({
           indent = "";
         }
         if (type === Scalar.Scalar.BLOCK_LITERAL) {
-          value += sep6 + indent.slice(trimIndent) + content;
-          sep6 = "\n";
+          value += sep7 + indent.slice(trimIndent) + content;
+          sep7 = "\n";
         } else if (indent.length > trimIndent || content[0] === "	") {
-          if (sep6 === " ")
-            sep6 = "\n";
-          else if (!prevMoreIndented && sep6 === "\n")
-            sep6 = "\n\n";
-          value += sep6 + indent.slice(trimIndent) + content;
-          sep6 = "\n";
+          if (sep7 === " ")
+            sep7 = "\n";
+          else if (!prevMoreIndented && sep7 === "\n")
+            sep7 = "\n\n";
+          value += sep7 + indent.slice(trimIndent) + content;
+          sep7 = "\n";
           prevMoreIndented = true;
         } else if (content === "") {
-          if (sep6 === "\n")
+          if (sep7 === "\n")
             value += "\n";
           else
-            sep6 = "\n";
+            sep7 = "\n";
         } else {
-          value += sep6 + content;
-          sep6 = " ";
+          value += sep7 + content;
+          sep7 = " ";
           prevMoreIndented = false;
         }
       }
@@ -5151,25 +5151,25 @@ var require_resolve_flow_scalar = __commonJS({
       if (!match)
         return source;
       let res = match[1];
-      let sep6 = " ";
+      let sep7 = " ";
       let pos = first.lastIndex;
       line.lastIndex = pos;
       while (match = line.exec(source)) {
         if (match[1] === "") {
-          if (sep6 === "\n")
-            res += sep6;
+          if (sep7 === "\n")
+            res += sep7;
           else
-            sep6 = "\n";
+            sep7 = "\n";
         } else {
-          res += sep6 + match[1];
-          sep6 = " ";
+          res += sep7 + match[1];
+          sep7 = " ";
         }
         pos = line.lastIndex;
       }
       const last = /[ \t]*(.*)/sy;
       last.lastIndex = pos;
       match = last.exec(source);
-      return res + sep6 + (match?.[1] ?? "");
+      return res + sep7 + (match?.[1] ?? "");
     }
     __name(foldLines, "foldLines");
     function doubleQuotedValue(source, onError) {
@@ -6003,14 +6003,14 @@ var require_cst_stringify = __commonJS({
       }
     }
     __name(stringifyToken, "stringifyToken");
-    function stringifyItem({ start, key, sep: sep6, value }) {
+    function stringifyItem({ start, key, sep: sep7, value }) {
       let res = "";
       for (const st of start)
         res += st.source;
       if (key)
         res += stringifyToken(key);
-      if (sep6)
-        for (const st of sep6)
+      if (sep7)
+        for (const st of sep7)
           res += st.source;
       if (value)
         res += stringifyToken(value);
@@ -7199,18 +7199,18 @@ var require_parser = __commonJS({
         if (this.type === "map-value-ind") {
           const prev = getPrevProps(this.peek(2));
           const start = getFirstKeyStartProps(prev);
-          let sep6;
+          let sep7;
           if (scalar.end) {
-            sep6 = scalar.end;
-            sep6.push(this.sourceToken);
+            sep7 = scalar.end;
+            sep7.push(this.sourceToken);
             delete scalar.end;
           } else
-            sep6 = [this.sourceToken];
+            sep7 = [this.sourceToken];
           const map = {
             type: "block-map",
             offset: scalar.offset,
             indent: scalar.indent,
-            items: [{ start, key: scalar, sep: sep6 }]
+            items: [{ start, key: scalar, sep: sep7 }]
           };
           this.onKeyLine = true;
           this.stack[this.stack.length - 1] = map;
@@ -7363,15 +7363,15 @@ var require_parser = __commonJS({
                 } else if (isFlowToken(it.key) && !includesToken(it.sep, "newline")) {
                   const start2 = getFirstKeyStartProps(it.start);
                   const key = it.key;
-                  const sep6 = it.sep;
-                  sep6.push(this.sourceToken);
+                  const sep7 = it.sep;
+                  sep7.push(this.sourceToken);
                   delete it.key;
                   delete it.sep;
                   this.stack.push({
                     type: "block-map",
                     offset: this.offset,
                     indent: this.indent,
-                    items: [{ start: start2, key, sep: sep6 }]
+                    items: [{ start: start2, key, sep: sep7 }]
                   });
                 } else if (start.length > 0) {
                   it.sep = it.sep.concat(start, this.sourceToken);
@@ -7565,13 +7565,13 @@ var require_parser = __commonJS({
             const prev = getPrevProps(parent);
             const start = getFirstKeyStartProps(prev);
             fixFlowSeqItems(fc);
-            const sep6 = fc.end.splice(1, fc.end.length);
-            sep6.push(this.sourceToken);
+            const sep7 = fc.end.splice(1, fc.end.length);
+            sep7.push(this.sourceToken);
             const map = {
               type: "block-map",
               offset: fc.offset,
               indent: fc.indent,
-              items: [{ start, key: fc, sep: sep6 }]
+              items: [{ start, key: fc, sep: sep7 }]
             };
             this.onKeyLine = true;
             this.stack[this.stack.length - 1] = map;
@@ -11062,7 +11062,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve28.call(this, root, ref);
+      let _sch = resolve29.call(this, root, ref);
       if (_sch === void 0) {
         const schema2 = (_a = root.localRefs) === null || _a === void 0 ? void 0 : _a[ref];
         const { schemaId } = this.opts;
@@ -11093,13 +11093,13 @@ var require_compile = __commonJS({
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
     __name(sameSchemaEnv, "sameSchemaEnv");
-    function resolve28(root, ref) {
+    function resolve29(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
       return sch || this.schemas[ref] || resolveSchema.call(this, root, ref);
     }
-    __name(resolve28, "resolve");
+    __name(resolve29, "resolve");
     function resolveSchema(root, ref) {
       const p = this.opts.uriResolver.parse(ref);
       const refPath = (0, resolve_1._getFullPath)(this.opts.uriResolver, p);
@@ -11751,56 +11751,56 @@ var require_fast_uri = __commonJS({
       return uri;
     }
     __name(normalize4, "normalize");
-    function resolve28(baseURI, relativeURI, options) {
+    function resolve29(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const resolved = resolveComponent(parse2(baseURI, schemelessOptions), parse2(relativeURI, schemelessOptions), schemelessOptions, true);
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    __name(resolve28, "resolve");
-    function resolveComponent(base, relative25, options, skipNormalization) {
+    __name(resolve29, "resolve");
+    function resolveComponent(base, relative26, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
         base = parse2(serialize(base, options), options);
-        relative25 = parse2(serialize(relative25, options), options);
+        relative26 = parse2(serialize(relative26, options), options);
       }
       options = options || {};
-      if (!options.tolerant && relative25.scheme) {
-        target.scheme = relative25.scheme;
-        target.userinfo = relative25.userinfo;
-        target.host = relative25.host;
-        target.port = relative25.port;
-        target.path = removeDotSegments(relative25.path || "");
-        target.query = relative25.query;
+      if (!options.tolerant && relative26.scheme) {
+        target.scheme = relative26.scheme;
+        target.userinfo = relative26.userinfo;
+        target.host = relative26.host;
+        target.port = relative26.port;
+        target.path = removeDotSegments(relative26.path || "");
+        target.query = relative26.query;
       } else {
-        if (relative25.userinfo !== void 0 || relative25.host !== void 0 || relative25.port !== void 0) {
-          target.userinfo = relative25.userinfo;
-          target.host = relative25.host;
-          target.port = relative25.port;
-          target.path = removeDotSegments(relative25.path || "");
-          target.query = relative25.query;
+        if (relative26.userinfo !== void 0 || relative26.host !== void 0 || relative26.port !== void 0) {
+          target.userinfo = relative26.userinfo;
+          target.host = relative26.host;
+          target.port = relative26.port;
+          target.path = removeDotSegments(relative26.path || "");
+          target.query = relative26.query;
         } else {
-          if (!relative25.path) {
+          if (!relative26.path) {
             target.path = base.path;
-            if (relative25.query !== void 0) {
-              target.query = relative25.query;
+            if (relative26.query !== void 0) {
+              target.query = relative26.query;
             } else {
               target.query = base.query;
             }
           } else {
-            if (relative25.path[0] === "/") {
-              target.path = removeDotSegments(relative25.path);
+            if (relative26.path[0] === "/") {
+              target.path = removeDotSegments(relative26.path);
             } else {
               if ((base.userinfo !== void 0 || base.host !== void 0 || base.port !== void 0) && !base.path) {
-                target.path = "/" + relative25.path;
+                target.path = "/" + relative26.path;
               } else if (!base.path) {
-                target.path = relative25.path;
+                target.path = relative26.path;
               } else {
-                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative25.path;
+                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative26.path;
               }
               target.path = removeDotSegments(target.path);
             }
-            target.query = relative25.query;
+            target.query = relative26.query;
           }
           target.userinfo = base.userinfo;
           target.host = base.host;
@@ -11808,7 +11808,7 @@ var require_fast_uri = __commonJS({
         }
         target.scheme = base.scheme;
       }
-      target.fragment = relative25.fragment;
+      target.fragment = relative26.fragment;
       return target;
     }
     __name(resolveComponent, "resolveComponent");
@@ -12019,7 +12019,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize: normalize4,
-      resolve: resolve28,
+      resolve: resolve29,
       resolveComponent,
       equal,
       serialize,
@@ -17089,8 +17089,8 @@ function kimiAuthorityDir(context, planDigest, plugin) {
   const base = resolve4(context.root, ".release-skill", "kimi-attestations");
   const dir = resolve4(base, plugin);
   const rel = relative2(base, dir);
-  const sep6 = process.platform === "win32" ? "\\" : "/";
-  if (rel === "" || rel === ".." || isAbsolute2(rel) || rel.startsWith(`..${sep6}`) || rel.split(sep6).some((segment) => segment === ".." || segment === "")) {
+  const sep7 = process.platform === "win32" ? "\\" : "/";
+  if (rel === "" || rel === ".." || isAbsolute2(rel) || rel.startsWith(`..${sep7}`) || rel.split(sep7).some((segment) => segment === ".." || segment === "")) {
     throw new Error("kimi attestation authority path escapes its base");
   }
   return dir;
@@ -17429,8 +17429,8 @@ function codebuddyAuthorityDir(context, planDigest, plugin) {
   const base = resolve5(context.root, ".release-skill", "codebuddy-attestations");
   const dir = resolve5(base, plugin);
   const rel = relative3(base, dir);
-  const sep6 = process.platform === "win32" ? "\\" : "/";
-  if (rel === "" || rel === ".." || isAbsolute3(rel) || rel.startsWith(`..${sep6}`) || rel.split(sep6).some((segment) => segment === ".." || segment === "")) {
+  const sep7 = process.platform === "win32" ? "\\" : "/";
+  if (rel === "" || rel === ".." || isAbsolute3(rel) || rel.startsWith(`..${sep7}`) || rel.split(sep7).some((segment) => segment === ".." || segment === "")) {
     throw new Error("codebuddy attestation authority path escapes its base");
   }
   return dir;
@@ -17786,8 +17786,8 @@ function codexAuthorityDir(context, planDigest, plugin) {
   const base = resolve6(context.root, ".release-skill", "codex-attestations");
   const dir = resolve6(base, plugin);
   const rel = relative4(base, dir);
-  const sep6 = process.platform === "win32" ? "\\" : "/";
-  if (rel === "" || rel === ".." || isAbsolute4(rel) || rel.startsWith(`..${sep6}`) || rel.split(sep6).some((segment) => segment === ".." || segment === "")) {
+  const sep7 = process.platform === "win32" ? "\\" : "/";
+  if (rel === "" || rel === ".." || isAbsolute4(rel) || rel.startsWith(`..${sep7}`) || rel.split(sep7).some((segment) => segment === ".." || segment === "")) {
     throw new Error("codex attestation authority path escapes its base");
   }
   return dir;
@@ -21523,11 +21523,426 @@ var init_public_path = __esm({
   }
 });
 
+// src/core/public-surface.mjs
+import { lstat as lstat6, readdir as readdir4, realpath as realpath6 } from "node:fs/promises";
+import {
+  isAbsolute as isAbsolute8,
+  join as join9,
+  relative as relative8,
+  resolve as resolve11,
+  sep as sep3
+} from "node:path";
+function compareStrings(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+function toPosixPath(path3) {
+  return path3.split(sep3).join("/");
+}
+function isContainedOrEqual(root, candidate) {
+  const rel = relative8(root, candidate);
+  return rel === "" || rel !== ".." && !rel.startsWith(`..${sep3}`) && !isAbsolute8(rel);
+}
+function isWorkspaceControlPath(workspaceRoot, candidate) {
+  return ROOT_CONTROL_DIRECTORIES.some((name) => isContainedOrEqual(join9(workspaceRoot, name), candidate));
+}
+function failConfig(message, details) {
+  throw new ReleaseError(CONFIG_INVALID, message, details);
+}
+function validatePublicSurfaceGlob(glob) {
+  if (typeof glob !== "string" || glob.length === 0) {
+    failConfig("public surface glob must be a non-empty string", {
+      reason: "PUBLIC_SURFACE_GLOB_INVALID",
+      glob
+    });
+  }
+  if (glob.startsWith("/") || glob.startsWith("./") || glob.includes("\\") || glob.includes("\0") || glob.includes(":") || glob.endsWith("/") || UNSUPPORTED_GLOB_CHARACTERS.test(glob)) {
+    failConfig(`unsupported or unsafe public surface glob "${glob}"`, {
+      reason: "PUBLIC_SURFACE_GLOB_INVALID",
+      glob
+    });
+  }
+  const segments = glob.split("/");
+  if (segments.some((segment) => segment === "" || segment === "." || segment === ".." || segment.includes("**") && segment !== "**")) {
+    failConfig(`unsupported or unsafe public surface glob "${glob}"`, {
+      reason: "PUBLIC_SURFACE_GLOB_INVALID",
+      glob
+    });
+  }
+  return glob;
+}
+function compileGlob(glob) {
+  validatePublicSurfaceGlob(glob);
+  let source = "";
+  for (let index = 0; index < glob.length; ) {
+    if (glob.startsWith("**/", index)) {
+      source += "(?:.*/)?";
+      index += 3;
+      continue;
+    }
+    if (glob.startsWith("**", index)) {
+      source += ".*";
+      index += 2;
+      continue;
+    }
+    const character = glob[index];
+    if (character === "*") {
+      source += "[^/]*";
+    } else if (character === "?") {
+      source += "[^/]";
+    } else {
+      source += character.replace(/[.+^$|\\]/gu, "\\$&");
+    }
+    index += 1;
+  }
+  return new RegExp(`^${source}$`, "u");
+}
+function compilePatterns(patterns) {
+  return (patterns ?? []).map((pattern) => ({
+    pattern,
+    regexp: compileGlob(pattern)
+  }));
+}
+function matchingPatterns(matchers, path3) {
+  return matchers.filter(({ regexp }) => regexp.test(path3)).map(({ pattern }) => pattern).sort(compareStrings);
+}
+async function assertSafeDirectoryPath({
+  workspaceRoot,
+  containmentRoot,
+  candidate,
+  unitId,
+  configuredRoot
+}) {
+  if (!isContainedOrEqual(containmentRoot, candidate)) {
+    failConfig(`public surface scan root escapes its ${containmentRoot === workspaceRoot ? "workspace" : "unit"} scope`, {
+      reason: "PUBLIC_SURFACE_SCAN_ROOT_UNSAFE",
+      unitId,
+      root: configuredRoot
+    });
+  }
+  const rel = relative8(workspaceRoot, candidate);
+  if (!isContainedOrEqual(workspaceRoot, candidate)) {
+    failConfig("public surface scan root escapes the workspace", {
+      reason: "PUBLIC_SURFACE_SCAN_ROOT_UNSAFE",
+      unitId,
+      root: configuredRoot
+    });
+  }
+  let cursor = workspaceRoot;
+  for (const segment of rel.split(sep3).filter(Boolean)) {
+    cursor = join9(cursor, segment);
+    let stat9;
+    try {
+      stat9 = await lstat6(cursor);
+    } catch (error) {
+      failConfig(`cannot inspect public surface scan root "${configuredRoot}"`, {
+        reason: "PUBLIC_SURFACE_SCAN_ROOT_UNSAFE",
+        unitId,
+        root: configuredRoot,
+        cause: error.code ?? "UNKNOWN"
+      });
+    }
+    if (stat9.isSymbolicLink() || !stat9.isDirectory()) {
+      failConfig(`public surface scan root or ancestor is not a physical directory: "${configuredRoot}"`, {
+        reason: "PUBLIC_SURFACE_SCAN_ROOT_UNSAFE",
+        unitId,
+        root: configuredRoot
+      });
+    }
+  }
+  let physicalCandidate;
+  let physicalContainmentRoot;
+  try {
+    [physicalCandidate, physicalContainmentRoot] = await Promise.all([
+      realpath6(candidate),
+      realpath6(containmentRoot)
+    ]);
+  } catch (error) {
+    failConfig(`cannot resolve public surface scan root "${configuredRoot}"`, {
+      reason: "PUBLIC_SURFACE_SCAN_ROOT_UNSAFE",
+      unitId,
+      root: configuredRoot,
+      cause: error.code ?? "UNKNOWN"
+    });
+  }
+  if (!isContainedOrEqual(workspaceRoot, physicalCandidate) || !isContainedOrEqual(physicalContainmentRoot, physicalCandidate)) {
+    failConfig(`public surface scan root escapes physical containment: "${configuredRoot}"`, {
+      reason: "PUBLIC_SURFACE_SCAN_ROOT_UNSAFE",
+      unitId,
+      root: configuredRoot
+    });
+  }
+  return physicalCandidate;
+}
+async function resolveScanRoots({ root, unit }) {
+  let workspaceRoot;
+  try {
+    workspaceRoot = await realpath6(resolve11(root));
+  } catch (error) {
+    failConfig("cannot resolve public surface workspace root", {
+      reason: "PUBLIC_SURFACE_SCAN_ROOT_UNSAFE",
+      unitId: unit.id,
+      cause: error.code ?? "UNKNOWN"
+    });
+  }
+  const unitSource = canonicalPublicPath(unit.source, { allowDot: true }).path;
+  const unitRoot = resolve11(workspaceRoot, unitSource);
+  await assertSafeDirectoryPath({
+    workspaceRoot,
+    containmentRoot: workspaceRoot,
+    candidate: unitRoot,
+    unitId: unit.id,
+    configuredRoot: unit.source
+  });
+  const resolvedRoots = [];
+  for (const [index, rule] of unit.expectedPublicSurface.scanRoots.entries()) {
+    const sourceScope = rule.sourceScope ?? "unit";
+    const configuredRoot = rule.root ?? ".";
+    const rootPath = canonicalPublicPath(configuredRoot, { allowDot: true }).path;
+    const scopeRoot = sourceScope === "workspace" ? workspaceRoot : unitRoot;
+    const candidate = resolve11(scopeRoot, rootPath);
+    if (isWorkspaceControlPath(workspaceRoot, candidate)) {
+      failConfig(`public surface scan root cannot target workspace control paths: "${configuredRoot}"`, {
+        reason: "PUBLIC_SURFACE_SCAN_ROOT_CONTROL_PATH",
+        unitId: unit.id,
+        root: configuredRoot
+      });
+    }
+    const physicalPath = await assertSafeDirectoryPath({
+      workspaceRoot,
+      containmentRoot: scopeRoot,
+      candidate,
+      unitId: unit.id,
+      configuredRoot
+    });
+    resolvedRoots.push({
+      index,
+      sourceScope,
+      configuredRoot,
+      physicalPath,
+      includeMatchers: compilePatterns(rule.include),
+      excludeMatchers: compilePatterns(rule.exclude)
+    });
+  }
+  for (let leftIndex = 0; leftIndex < resolvedRoots.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < resolvedRoots.length; rightIndex += 1) {
+      const left = resolvedRoots[leftIndex];
+      const right = resolvedRoots[rightIndex];
+      if (isContainedOrEqual(left.physicalPath, right.physicalPath) || isContainedOrEqual(right.physicalPath, left.physicalPath)) {
+        failConfig(`public surface scan roots overlap for unit "${unit.id}"`, {
+          reason: "PUBLIC_SURFACE_SCAN_ROOT_OVERLAP",
+          unitId: unit.id,
+          scanRoots: [
+            { index: left.index, sourceScope: left.sourceScope, root: left.configuredRoot },
+            { index: right.index, sourceScope: right.sourceScope, root: right.configuredRoot }
+          ]
+        });
+      }
+    }
+  }
+  return { workspaceRoot, resolvedRoots };
+}
+function unsupportedEntryError({ unit, rule, workspaceRelative, relativePath, entry, includePatterns, excludePatterns }) {
+  return new ReleaseError(
+    GATE_FAILED,
+    `public surface contains an unsupported non-regular entry "${workspaceRelative}"`,
+    {
+      reason: "PUBLIC_SURFACE_UNSUPPORTED_ENTRY",
+      unitId: unit.id,
+      sourceScope: rule.sourceScope,
+      from: workspaceRelative,
+      scanRoot: rule.configuredRoot,
+      relativePath,
+      entryType: entry.isSymbolicLink() ? "symlink" : "special",
+      includePatterns,
+      excludePatterns
+    }
+  );
+}
+async function scanRoot({ workspaceRoot, unit, rule }) {
+  const files = [];
+  let skippedNonRegularCount = 0;
+  const skippedControlPaths = new Set(
+    ROOT_CONTROL_DIRECTORIES.map((name) => join9(workspaceRoot, name))
+  );
+  async function walk(directory, relativeDirectory) {
+    let entries;
+    try {
+      entries = await readdir4(directory, { withFileTypes: true });
+    } catch (error) {
+      failConfig(`cannot read public surface scan root for unit "${unit.id}"`, {
+        reason: "PUBLIC_SURFACE_SCAN_ROOT_UNSAFE",
+        unitId: unit.id,
+        root: rule.configuredRoot,
+        cause: error.code ?? "UNKNOWN"
+      });
+    }
+    entries.sort((left, right) => compareStrings(left.name, right.name));
+    for (const entry of entries) {
+      const absolutePath = join9(directory, entry.name);
+      if (skippedControlPaths.has(absolutePath)) continue;
+      if (entry.isDirectory()) {
+        const childRelative = relativeDirectory ? `${relativeDirectory}/${entry.name}` : entry.name;
+        await walk(absolutePath, childRelative);
+        continue;
+      }
+      const relativePath = relativeDirectory ? `${relativeDirectory}/${entry.name}` : entry.name;
+      const includePatterns = matchingPatterns(rule.includeMatchers, relativePath);
+      const excludePatterns = matchingPatterns(rule.excludeMatchers, relativePath);
+      const workspaceRelative = canonicalPublicPath(
+        toPosixPath(relative8(workspaceRoot, absolutePath))
+      ).path;
+      if (!entry.isFile()) {
+        if (includePatterns.length === 0 && excludePatterns.length > 0) {
+          skippedNonRegularCount += 1;
+          continue;
+        }
+        throw unsupportedEntryError({
+          unit,
+          rule,
+          workspaceRelative,
+          relativePath,
+          entry,
+          includePatterns,
+          excludePatterns
+        });
+      }
+      files.push({
+        identity: `${rule.sourceScope}\0${workspaceRelative}`,
+        sourceScope: rule.sourceScope,
+        from: workspaceRelative,
+        scanRoot: rule.configuredRoot,
+        relativePath,
+        includePatterns,
+        excludePatterns
+      });
+    }
+  }
+  __name(walk, "walk");
+  await walk(rule.physicalPath, "");
+  return { files, skippedNonRegularCount };
+}
+function publicSourceIdentity(sourceScope, from) {
+  return `${sourceScope}\0${from}`;
+}
+function sortBySource(left, right) {
+  return compareStrings(left.sourceScope, right.sourceScope) || compareStrings(left.from, right.from);
+}
+async function inspectExpectedPublicSurface({ root, unit } = {}) {
+  if (!unit?.expectedPublicSurface) {
+    return Object.freeze({ enabled: false, passed: true, unitId: unit?.id ?? null });
+  }
+  const { workspaceRoot, resolvedRoots } = await resolveScanRoots({ root, unit });
+  const observedFiles = [];
+  let skippedNonRegularCount = 0;
+  for (const rule of resolvedRoots) {
+    const observed = await scanRoot({ workspaceRoot, unit, rule });
+    observedFiles.push(...observed.files);
+    skippedNonRegularCount += observed.skippedNonRegularCount;
+  }
+  const includedByIdentity = /* @__PURE__ */ new Map();
+  const unclassifiedFiles = [];
+  const ambiguousFiles = [];
+  let excludedFileCount = 0;
+  for (const file of observedFiles) {
+    const included = file.includePatterns.length > 0;
+    const excluded = file.excludePatterns.length > 0;
+    if (included) includedByIdentity.set(file.identity, file);
+    if (!included && !excluded) {
+      unclassifiedFiles.push(file);
+    } else if (included && excluded) {
+      ambiguousFiles.push(file);
+    } else if (excluded) {
+      excludedFileCount += 1;
+    }
+  }
+  const mappingsByIdentity = /* @__PURE__ */ new Map();
+  for (const mapping of unit.publicFiles ?? []) {
+    const sourceScope = mapping.sourceScope ?? "unit";
+    const from = canonicalPublicPath(mapping.from).path;
+    const identity = publicSourceIdentity(sourceScope, from);
+    const current = mappingsByIdentity.get(identity) ?? {
+      sourceScope,
+      from,
+      targets: []
+    };
+    current.targets.push(canonicalPublicPath(mapping.to).path);
+    current.targets.sort(compareStrings);
+    mappingsByIdentity.set(identity, current);
+  }
+  const missingMappings = [...includedByIdentity.entries()].filter(([identity]) => !mappingsByIdentity.has(identity)).map(([, file]) => ({
+    sourceScope: file.sourceScope,
+    from: file.from
+  })).sort(sortBySource);
+  const unexpectedMappings = [...mappingsByIdentity.entries()].filter(([identity]) => !includedByIdentity.has(identity)).map(([, mapping]) => mapping).sort(sortBySource);
+  unclassifiedFiles.sort(sortBySource);
+  ambiguousFiles.sort(sortBySource);
+  const passed = missingMappings.length === 0 && unexpectedMappings.length === 0 && unclassifiedFiles.length === 0 && ambiguousFiles.length === 0;
+  return {
+    enabled: true,
+    passed,
+    unitId: unit.id,
+    summary: {
+      scannedFileCount: observedFiles.length,
+      includedFileCount: includedByIdentity.size,
+      excludedFileCount,
+      mappedSourceCount: mappingsByIdentity.size,
+      skippedNonRegularCount
+    },
+    missingMappings,
+    unexpectedMappings,
+    unclassifiedFiles,
+    ambiguousFiles
+  };
+}
+async function assertExpectedPublicSurface(options) {
+  const result = await inspectExpectedPublicSurface(options);
+  if (!result.enabled || result.passed) return result;
+  throw new ReleaseError(
+    GATE_FAILED,
+    `expected public surface mismatch for unit "${result.unitId}"`,
+    {
+      reason: "PUBLIC_SURFACE_MISMATCH",
+      unitId: result.unitId,
+      summary: result.summary,
+      missingMappings: result.missingMappings,
+      unexpectedMappings: result.unexpectedMappings,
+      unclassifiedFiles: result.unclassifiedFiles,
+      ambiguousFiles: result.ambiguousFiles
+    }
+  );
+}
+var ROOT_CONTROL_DIRECTORIES, UNSUPPORTED_GLOB_CHARACTERS;
+var init_public_surface = __esm({
+  "src/core/public-surface.mjs"() {
+    init_errors();
+    init_public_path();
+    ROOT_CONTROL_DIRECTORIES = Object.freeze([".git", ".release-skill"]);
+    UNSUPPORTED_GLOB_CHARACTERS = /[!()[\]{}]/u;
+    __name(compareStrings, "compareStrings");
+    __name(toPosixPath, "toPosixPath");
+    __name(isContainedOrEqual, "isContainedOrEqual");
+    __name(isWorkspaceControlPath, "isWorkspaceControlPath");
+    __name(failConfig, "failConfig");
+    __name(validatePublicSurfaceGlob, "validatePublicSurfaceGlob");
+    __name(compileGlob, "compileGlob");
+    __name(compilePatterns, "compilePatterns");
+    __name(matchingPatterns, "matchingPatterns");
+    __name(assertSafeDirectoryPath, "assertSafeDirectoryPath");
+    __name(resolveScanRoots, "resolveScanRoots");
+    __name(unsupportedEntryError, "unsupportedEntryError");
+    __name(scanRoot, "scanRoot");
+    __name(publicSourceIdentity, "publicSourceIdentity");
+    __name(sortBySource, "sortBySource");
+    __name(inspectExpectedPublicSurface, "inspectExpectedPublicSurface");
+    __name(assertExpectedPublicSurface, "assertExpectedPublicSurface");
+  }
+});
+
 // src/core/baseline.mjs
 import { execFile as execFileCb3 } from "node:child_process";
 import { promisify as promisify3 } from "node:util";
 import { createHash as createHash5 } from "node:crypto";
-import { lstat as lstat6, open as open4, readlink } from "node:fs/promises";
+import { lstat as lstat7, open as open4, readlink } from "node:fs/promises";
 import { constants as fsConstants2 } from "node:fs";
 import path from "node:path";
 function isControlPlanePath(p) {
@@ -21606,7 +22021,7 @@ async function computeWorkspaceDigest(root) {
           `Refusing to read path outside repository root: ${relPath} resolves to ${absPath}`
         );
       }
-      const stat9 = await lstat6(absPath);
+      const stat9 = await lstat7(absPath);
       let type;
       if (stat9.isSymbolicLink()) {
         type = "symlink";
@@ -21730,7 +22145,7 @@ var init_baseline = __esm({
 
 // src/core/config.mjs
 import { readFile as readFile8 } from "node:fs/promises";
-import { resolve as resolve11, isAbsolute as isAbsolute8, relative as relative8, normalize as normalize2 } from "node:path";
+import { resolve as resolve12, isAbsolute as isAbsolute9, relative as relative9, normalize as normalize2 } from "node:path";
 function containsAlias(node) {
   if (!node || typeof node !== "object") {
     return false;
@@ -21755,9 +22170,9 @@ function containsAlias(node) {
 }
 function resolveConfigPath(root, configPath) {
   const rootNorm = normalize2(root);
-  const resolved = isAbsolute8(configPath) ? normalize2(configPath) : resolve11(rootNorm, configPath);
-  const rel = relative8(rootNorm, resolved);
-  if (rel.startsWith("..") || rel === ".." || isAbsolute8(rel)) {
+  const resolved = isAbsolute9(configPath) ? normalize2(configPath) : resolve12(rootNorm, configPath);
+  const rel = relative9(rootNorm, resolved);
+  if (rel.startsWith("..") || rel === ".." || isAbsolute9(rel)) {
     throw new ReleaseError(
       CONFIG_INVALID,
       `config path "${configPath}" resolves outside project root "${root}"`,
@@ -21847,6 +22262,49 @@ async function loadProjectConfig({ root, configPath } = {}) {
           `unit "${unit.id}" has invalid source path: ${err.message}`,
           { unitId: unit.id, source: unit.source, field: "source" }
         );
+      }
+      const surface = unit.expectedPublicSurface;
+      if (surface && typeof surface === "object" && Array.isArray(surface.scanRoots)) {
+        for (const [rootIndex, scanRoot2] of surface.scanRoots.entries()) {
+          if (!scanRoot2 || typeof scanRoot2 !== "object") continue;
+          if (typeof scanRoot2.root === "string") {
+            try {
+              canonicalPublicPath(scanRoot2.root, { allowDot: true });
+            } catch (err) {
+              throw new ReleaseError(
+                CONFIG_INVALID,
+                `unit "${unit.id}" has invalid expectedPublicSurface scan root: ${err.message}`,
+                {
+                  unitId: unit.id,
+                  rootIndex,
+                  root: scanRoot2.root,
+                  field: "expectedPublicSurface.scanRoots[].root"
+                }
+              );
+            }
+          }
+          for (const field of ["include", "exclude"]) {
+            if (!Array.isArray(scanRoot2[field])) continue;
+            for (const pattern of scanRoot2[field]) {
+              if (typeof pattern !== "string") continue;
+              try {
+                validatePublicSurfaceGlob(pattern);
+              } catch (err) {
+                throw new ReleaseError(
+                  CONFIG_INVALID,
+                  `unit "${unit.id}" has invalid expectedPublicSurface ${field} glob: ${err.message}`,
+                  {
+                    unitId: unit.id,
+                    rootIndex,
+                    pattern,
+                    field: `expectedPublicSurface.scanRoots[].${field}`,
+                    reason: err.details?.reason ?? "PUBLIC_SURFACE_GLOB_INVALID"
+                  }
+                );
+              }
+            }
+          }
+        }
       }
       if (Array.isArray(unit.publicFiles)) {
         for (const mapping of unit.publicFiles) {
@@ -22020,6 +22478,7 @@ var init_config = __esm({
     import_ajv_formats3 = __toESM(require_dist2(), 1);
     init_digest();
     init_errors();
+    init_public_surface();
     init_public_path();
     init_baseline();
     init_trusted_resource();
@@ -22055,7 +22514,7 @@ __export(assess_exports, {
   assessProject: () => assessProject
 });
 import { readFile as readFile9, stat as stat2, writeFile as writeFile4, mkdir as mkdir4 } from "node:fs/promises";
-import { resolve as resolve12, dirname as dirname5, relative as relative9 } from "node:path";
+import { resolve as resolve13, dirname as dirname5, relative as relative10 } from "node:path";
 import { execFile as execFileCb4 } from "node:child_process";
 import { promisify as promisify4 } from "node:util";
 async function fileExists(filePath) {
@@ -22156,9 +22615,9 @@ async function checkCommonDocs(root, config) {
     { file: "LICENSE", code: "LICENSE_MISSING", message: "\u7F3A\u5C11 LICENSE \u6587\u4EF6" }
   ];
   for (const unit of units) {
-    const unitRoot = resolve12(root, unit.source);
+    const unitRoot = resolve13(root, unit.source);
     for (const doc of requiredDocs) {
-      const exists = await fileExists(resolve12(unitRoot, doc.file));
+      const exists = await fileExists(resolve13(unitRoot, doc.file));
       if (!exists) {
         gaps.push(
           createGap({
@@ -22179,9 +22638,9 @@ async function checkCommonDocs(root, config) {
     { file: "CONTRIBUTING.md", code: "CONTRIBUTING_MISSING", message: "\u5EFA\u8BAE\u6DFB\u52A0 CONTRIBUTING.md" }
   ];
   for (const unit of units) {
-    const unitRoot = resolve12(root, unit.source);
+    const unitRoot = resolve13(root, unit.source);
     for (const doc of recommendedDocs) {
-      const exists = await fileExists(resolve12(unitRoot, doc.file));
+      const exists = await fileExists(resolve13(unitRoot, doc.file));
       if (!exists) {
         gaps.push(
           createGap({
@@ -22203,9 +22662,9 @@ async function checkPluginManifests(root, config) {
   const units = config.releaseUnits ?? [];
   for (const unit of units) {
     const distributionTypes = new Set((unit.distributions ?? []).map((dist) => dist.type));
-    const unitRoot = resolve12(root, unit.source);
+    const unitRoot = resolve13(root, unit.source);
     if (distributionTypes.has("claude-plugin")) {
-      const manifestPath = resolve12(unitRoot, ".claude-plugin", "plugin.json");
+      const manifestPath = resolve13(unitRoot, ".claude-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".claude-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -22252,7 +22711,7 @@ async function checkPluginManifests(root, config) {
       }
     }
     if (distributionTypes.has("codex-plugin")) {
-      const manifestPath = resolve12(unitRoot, ".codex-plugin", "plugin.json");
+      const manifestPath = resolve13(unitRoot, ".codex-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".codex-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -22299,7 +22758,7 @@ async function checkPluginManifests(root, config) {
       }
     }
     if (distributionTypes.has("kimi-plugin")) {
-      const manifestPath = resolve12(unitRoot, ".kimi-plugin", "plugin.json");
+      const manifestPath = resolve13(unitRoot, ".kimi-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".kimi-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -22346,7 +22805,7 @@ async function checkPluginManifests(root, config) {
       }
     }
     if (distributionTypes.has("codebuddy-plugin")) {
-      const manifestPath = resolve12(unitRoot, ".codebuddy-plugin", "plugin.json");
+      const manifestPath = resolve13(unitRoot, ".codebuddy-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".codebuddy-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -22412,8 +22871,8 @@ async function checkPackageMetadata(root, config) {
   for (const unit of units) {
     const hasNpmDist = (unit.distributions ?? []).some((d) => d.type === "npm");
     if (!hasNpmDist) continue;
-    const unitRoot = resolve12(root, unit.source);
-    const pkgPath = resolve12(unitRoot, "package.json");
+    const unitRoot = resolve13(root, unit.source);
+    const pkgPath = resolve13(unitRoot, "package.json");
     const exists = await fileExists(pkgPath);
     if (!exists) {
       gaps.push(
@@ -22496,7 +22955,7 @@ async function checkRemotePrerequisites(root, config, offline) {
   for (const unit of units) {
     const npmDist = (unit.distributions ?? []).find((d) => d.type === "npm");
     if (!npmDist?.package) continue;
-    const pkgPath = resolve12(root, unit.source, "package.json");
+    const pkgPath = resolve13(root, unit.source, "package.json");
     let version;
     try {
       const content = await readFile9(pkgPath, "utf8");
@@ -22530,7 +22989,7 @@ async function checkReadmeStructure(root, config) {
   const gaps = [];
   const units = config.releaseUnits ?? [];
   for (const unit of units) {
-    const readmePath = resolve12(root, unit.source, "README.md");
+    const readmePath = resolve13(root, unit.source, "README.md");
     const displayPath = unitFile(unit, "README.md");
     const exists = await fileExists(readmePath);
     if (!exists) continue;
@@ -22753,8 +23212,8 @@ var init_assess = __esm({
 // src/core/hooks.mjs
 import { execFile as execFileCb5 } from "node:child_process";
 import { promisify as promisify5 } from "node:util";
-import { resolve as resolve13, relative as relative10, isAbsolute as isAbsolute9 } from "node:path";
-import { realpath as realpath6 } from "node:fs/promises";
+import { resolve as resolve14, relative as relative11, isAbsolute as isAbsolute10 } from "node:path";
+import { realpath as realpath7 } from "node:fs/promises";
 function validateHook(hook) {
   if (!hook || typeof hook !== "object" || Array.isArray(hook)) {
     throw new ReleaseError("INVALID_HOOK", "hook must be a non-null object");
@@ -22837,13 +23296,13 @@ async function runHook(hook, context) {
   if (!context || typeof context !== "object" || Array.isArray(context)) {
     throw new ReleaseError("INVALID_HOOK", "context must be a non-null object");
   }
-  if (typeof context.root !== "string" || !isAbsolute9(context.root)) {
+  if (typeof context.root !== "string" || !isAbsolute10(context.root)) {
     throw new ReleaseError("INVALID_HOOK", "context.root must be an absolute path");
   }
   const { command: command2, cwd, timeoutMs, envAllowlist = [] } = hook;
-  const rootReal = await realpath6(context.root);
-  const resolvedCwd = cwd ? await realpath6(resolve13(rootReal, cwd)) : rootReal;
-  const rel = relative10(rootReal, resolvedCwd);
+  const rootReal = await realpath7(context.root);
+  const resolvedCwd = cwd ? await realpath7(resolve14(rootReal, cwd)) : rootReal;
+  const rel = relative11(rootReal, resolvedCwd);
   if (rel.startsWith("..") || rel === "..") {
     throw new ReleaseError(
       "INVALID_HOOK",
@@ -22909,8 +23368,8 @@ var init_hooks = __esm({
 });
 
 // src/core/hook-cache.mjs
-import { readdir as readdir4, readFile as readFile10, mkdir as mkdir5, writeFile as writeFile5 } from "node:fs/promises";
-import { join as join9 } from "node:path";
+import { readdir as readdir5, readFile as readFile10, mkdir as mkdir5, writeFile as writeFile5 } from "node:fs/promises";
+import { join as join10 } from "node:path";
 function globToRegExp(glob) {
   let source = "";
   let i = 0;
@@ -22939,7 +23398,7 @@ async function listInputFiles(root) {
   async function walk(dirAbs, dirRel) {
     let entries;
     try {
-      entries = await readdir4(dirAbs, { withFileTypes: true });
+      entries = await readdir5(dirAbs, { withFileTypes: true });
     } catch {
       return;
     }
@@ -22947,7 +23406,7 @@ async function listInputFiles(root) {
       if (entry.isDirectory()) {
         if (SKIPPED_DIRS.has(entry.name)) continue;
         const rel = dirRel ? `${dirRel}/${entry.name}` : entry.name;
-        await walk(join9(dirAbs, entry.name), rel);
+        await walk(join10(dirAbs, entry.name), rel);
       } else if (entry.isFile()) {
         out.push(dirRel ? `${dirRel}/${entry.name}` : entry.name);
       }
@@ -22986,17 +23445,17 @@ async function computeHookCacheKey(hook, root) {
   matched.sort();
   const fileEntries = [];
   for (const relPath of matched) {
-    const content = await readFile10(join9(root, relPath));
+    const content = await readFile10(join10(root, relPath));
     fileEntries.push({ path: relPath, sha256: sha256Hex(content) });
   }
   const cacheKey = sha256Hex(canonicalJson(hook) + canonicalJson(fileEntries));
   return { cacheKey, matchedFiles: matched };
 }
 function hookCacheDir(root, hookName) {
-  return join9(root, ...CACHE_BASE, hookName);
+  return join10(root, ...CACHE_BASE, hookName);
 }
 function hookCachePath(root, hookName, cacheKey) {
-  return join9(hookCacheDir(root, hookName), `${cacheKey}.json`);
+  return join10(hookCacheDir(root, hookName), `${cacheKey}.json`);
 }
 async function readHookCache(root, hookName, cacheKey) {
   try {
@@ -23051,8 +23510,8 @@ var init_hook_cache = __esm({
 // src/core/verification-gates.mjs
 import { createHash as createHash6 } from "node:crypto";
 import { spawn as spawn2 } from "node:child_process";
-import { chmod as chmod2, cp, lstat as lstat7, mkdir as mkdir6, readdir as readdir5, realpath as realpath7, rm as rm4 } from "node:fs/promises";
-import { isAbsolute as isAbsolute10, join as join10, relative as relative11, resolve as resolve14 } from "node:path";
+import { chmod as chmod2, cp, lstat as lstat8, mkdir as mkdir6, readdir as readdir6, realpath as realpath8, rm as rm4 } from "node:fs/promises";
+import { isAbsolute as isAbsolute11, join as join11, relative as relative12, resolve as resolve15 } from "node:path";
 function gateError(gate, message, details = {}) {
   return new ReleaseError(GATE_FAILED, `verification gate "${gate?.id ?? "unknown"}" ${message}`, {
     gateId: gate?.id,
@@ -23060,9 +23519,9 @@ function gateError(gate, message, details = {}) {
   });
 }
 function isInside2(parent, candidate) {
-  const rel = relative11(parent, candidate);
+  const rel = relative12(parent, candidate);
   const separator = process.platform === "win32" ? "\\" : "/";
-  return rel === "" || !isAbsolute10(rel) && rel !== ".." && !rel.startsWith(`..${separator}`);
+  return rel === "" || !isAbsolute11(rel) && rel !== ".." && !rel.startsWith(`..${separator}`);
 }
 function matchesSubset(actual, expected) {
   if (expected === null || typeof expected !== "object" || Array.isArray(expected)) {
@@ -23117,25 +23576,25 @@ function filteredEnv(allowlist, suppliedEnv, fixedEnv = {}) {
   return result;
 }
 async function resolveSafeCwd(executionRoot, cwd, gate) {
-  const rootStat = await lstat7(executionRoot).catch((error) => {
+  const rootStat = await lstat8(executionRoot).catch((error) => {
     throw gateError(gate, "execution root is missing", { cause: error.code });
   });
   if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
     throw gateError(gate, "execution root must be a real directory");
   }
-  const rootReal = await realpath7(executionRoot);
-  const lexical = resolve14(rootReal, cwd ?? ".");
+  const rootReal = await realpath8(executionRoot);
+  const lexical = resolve15(rootReal, cwd ?? ".");
   if (!isInside2(rootReal, lexical)) throw gateError(gate, "cwd escapes the execution root");
-  const rel = relative11(rootReal, lexical);
+  const rel = relative12(rootReal, lexical);
   let current = rootReal;
   for (const segment of rel.split(/[\\/]/).filter(Boolean)) {
-    current = join10(current, segment);
-    const stat9 = await lstat7(current).catch((error) => {
+    current = join11(current, segment);
+    const stat9 = await lstat8(current).catch((error) => {
       throw gateError(gate, "cwd does not exist", { cause: error.code });
     });
     if (stat9.isSymbolicLink()) throw gateError(gate, "cwd contains a symlink");
   }
-  const physical = await realpath7(lexical);
+  const physical = await realpath8(lexical);
   if (!isInside2(rootReal, physical)) throw gateError(gate, "cwd resolves outside the execution root");
   return physical;
 }
@@ -23374,12 +23833,12 @@ async function runVerificationGate({
   return result;
 }
 async function makeTreeWritable(root) {
-  const stat9 = await lstat7(root);
+  const stat9 = await lstat8(root);
   if (!stat9.isDirectory() || stat9.isSymbolicLink()) throw new Error("gate copy root must be a real directory");
   await chmod2(root, stat9.mode | 448);
-  for (const child of await readdir5(root, { withFileTypes: true })) {
-    const absolute = join10(root, child.name);
-    const childStat = await lstat7(absolute);
+  for (const child of await readdir6(root, { withFileTypes: true })) {
+    const absolute = join11(root, child.name);
+    const childStat = await lstat8(absolute);
     if (childStat.isSymbolicLink()) throw new Error("gate copy must not contain symlinks");
     if (childStat.isDirectory()) await makeTreeWritable(absolute);
     else if (childStat.isFile() && childStat.nlink === 1) await chmod2(absolute, childStat.mode | 384);
@@ -23397,7 +23856,7 @@ async function runSnapshotVerificationGates({
   const snapshotGates = gates.filter((item) => item.phase === "snapshot-verify");
   if (snapshotGates.length === 0) return [];
   const byUnit = new Map(unitResults.map((item) => [item.unit.id, item]));
-  const gateRoot = join10(runDir, "snapshot-gates");
+  const gateRoot = join11(runDir, "snapshot-gates");
   await mkdir6(gateRoot, { recursive: true });
   const results = [];
   for (const gate of snapshotGates) {
@@ -23595,32 +24054,32 @@ var init_evidence = __esm({
 });
 
 // src/core/skill-resource-closure.mjs
-import { lstat as lstat8, readFile as readFile11, readdir as readdir6 } from "node:fs/promises";
-import { dirname as dirname6, isAbsolute as isAbsolute11, join as join11, relative as relative12, resolve as resolve15, sep as sep3 } from "node:path";
+import { lstat as lstat9, readFile as readFile11, readdir as readdir7 } from "node:fs/promises";
+import { dirname as dirname6, isAbsolute as isAbsolute12, join as join12, relative as relative13, resolve as resolve16, sep as sep4 } from "node:path";
 function toPosix(value) {
   return value.replaceAll("\\", "/");
 }
 function relativeStable(root, target) {
-  const value = toPosix(relative12(root, target));
+  const value = toPosix(relative13(root, target));
   return value === "" ? "." : value;
 }
 function isInside3(parent, candidate) {
-  const rel = relative12(parent, candidate);
-  return rel === "" || !isAbsolute11(rel) && rel !== ".." && !rel.startsWith(`..${sep3}`);
+  const rel = relative13(parent, candidate);
+  return rel === "" || !isAbsolute12(rel) && rel !== ".." && !rel.startsWith(`..${sep4}`);
 }
 async function discoverSkills(root, base = root) {
   const results = [];
   let entries;
   try {
-    entries = await readdir6(root, { withFileTypes: true });
+    entries = await readdir7(root, { withFileTypes: true });
   } catch (error) {
     if (error.code === "ENOENT") return results;
     throw error;
   }
   for (const entry of entries) {
     if (entry.name === ".git" || entry.name === "node_modules") continue;
-    const absolute = join11(root, entry.name);
-    const stableRelative = toPosix(relative12(base, absolute));
+    const absolute = join12(root, entry.name);
+    const stableRelative = toPosix(relative13(base, absolute));
     if (stableRelative === ".codex-plugin/migrated-command-skills") continue;
     if (entry.isDirectory()) {
       results.push(...await discoverSkills(absolute, base));
@@ -23630,14 +24089,14 @@ async function discoverSkills(root, base = root) {
   }
   return results.sort();
 }
-function resolvePluginRoot(skillRelativePath, scanRoot) {
+function resolvePluginRoot(skillRelativePath, scanRoot2) {
   const parts = toPosix(skillRelativePath).split("/");
   const skillsIndex = parts.lastIndexOf("skills");
-  if (skillsIndex < 0) return resolve15(scanRoot);
-  return resolve15(scanRoot, ...parts.slice(0, skillsIndex));
+  if (skillsIndex < 0) return resolve16(scanRoot2);
+  return resolve16(scanRoot2, ...parts.slice(0, skillsIndex));
 }
-function resolveSkillRoot(skillRelativePath, scanRoot) {
-  return resolve15(scanRoot, dirname6(skillRelativePath));
+function resolveSkillRoot(skillRelativePath, scanRoot2) {
+  return resolve16(scanRoot2, dirname6(skillRelativePath));
 }
 function trimCandidate(value) {
   return value.trim().replace(/^["']/u, "").replace(/["']$/u, "").replace(/[.,;:]+$/u, "");
@@ -23690,7 +24149,7 @@ function stripExplicitPrefix(token) {
   }
   return token;
 }
-function classifyReference(token, skillRoot, pluginRoot, scanRoot) {
+function classifyReference(token, skillRoot, pluginRoot, scanRoot2) {
   if (MACHINE_ABSOLUTE_PATTERN.test(token)) {
     return {
       classification: CLASSIFICATION.MACHINE_ABSOLUTE,
@@ -23704,41 +24163,41 @@ function classifyReference(token, skillRoot, pluginRoot, scanRoot) {
       classification: CLASSIFICATION.SOURCE_BACKJUMP,
       resolutionRoot: "(source-tree)",
       resolvedTarget: token,
-      absoluteTarget: resolve15(scanRoot, token)
+      absoluteTarget: resolve16(scanRoot2, token)
     };
   }
   const explicit = EXPLICIT_PREFIXES.some((prefix) => token.startsWith(prefix));
   const resolutionRootAbsolute = explicit ? pluginRoot : skillRoot;
   const relativeTarget = explicit ? stripExplicitPrefix(token) : token;
-  const absoluteTarget = resolve15(resolutionRootAbsolute, relativeTarget);
+  const absoluteTarget = resolve16(resolutionRootAbsolute, relativeTarget);
   const inBounds = isInside3(resolutionRootAbsolute, absoluteTarget);
   return {
     classification: inBounds ? explicit ? CLASSIFICATION.PLUGIN_ROOT : CLASSIFICATION.SKILL_LOCAL : CLASSIFICATION.OUT_OF_BOUNDS,
-    resolutionRoot: relativeStable(scanRoot, resolutionRootAbsolute),
-    resolvedTarget: relativeStable(scanRoot, absoluteTarget),
+    resolutionRoot: relativeStable(scanRoot2, resolutionRootAbsolute),
+    resolvedTarget: relativeStable(scanRoot2, absoluteTarget),
     absoluteTarget
   };
 }
 async function inspectRegularFile(root, target) {
   if (!isInside3(root, target)) return { code: FINDING_CODE.OUT_OF_BOUNDS };
-  const parts = relative12(root, target).split(sep3).filter(Boolean);
+  const parts = relative13(root, target).split(sep4).filter(Boolean);
   let current = root;
-  const rootStat = await lstat8(root);
+  const rootStat = await lstat9(root);
   if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) {
     return { code: FINDING_CODE.SYMLINK_NOT_ALLOWED };
   }
   for (const part of parts) {
-    current = join11(current, part);
+    current = join12(current, part);
     let stat9;
     try {
-      stat9 = await lstat8(current);
+      stat9 = await lstat9(current);
     } catch (error) {
       if (error.code === "ENOENT") return { code: FINDING_CODE.RESOURCE_MISSING };
       throw error;
     }
     if (stat9.isSymbolicLink()) return { code: FINDING_CODE.SYMLINK_NOT_ALLOWED };
   }
-  const targetStat = await lstat8(target);
+  const targetStat = await lstat9(target);
   if (!targetStat.isFile() || targetStat.nlink !== 1) {
     return { code: FINDING_CODE.RESOURCE_NOT_REGULAR_FILE };
   }
@@ -23811,15 +24270,15 @@ async function checkSkillResourceClosure({
   if (typeof snapshotDir !== "string" || snapshotDir.length === 0) {
     throw new TypeError("snapshotDir must be a non-empty string");
   }
-  const scanRoot = resolve15(snapshotDir);
-  const scanStat = await lstat8(scanRoot);
+  const scanRoot2 = resolve16(snapshotDir);
+  const scanStat = await lstat9(scanRoot2);
   if (!scanStat.isDirectory() || scanStat.isSymbolicLink()) {
     throw new Error("snapshotDir must be a real directory");
   }
   let inputDigest;
   let snapshotError = null;
   try {
-    inputDigest = (await computeFrozenSnapshot(scanRoot, {
+    inputDigest = (await computeFrozenSnapshot(scanRoot2, {
       excludeRootEntries: TRANSPORT_EXCLUSIONS
     })).digest;
   } catch (error) {
@@ -23828,15 +24287,15 @@ async function checkSkillResourceClosure({
       invalidTree: error.message
     }));
   }
-  const skillPaths = await discoverSkills(scanRoot);
+  const skillPaths = await discoverSkills(scanRoot2);
   const findings = [];
   const surfaceMap = /* @__PURE__ */ new Map();
   let referenceCount = 0;
   let sourceOnlyCount = 0;
   for (const skill of skillPaths) {
-    const skillRoot = resolveSkillRoot(skill, scanRoot);
-    const pluginRoot = resolvePluginRoot(skill, scanRoot);
-    const surfaceId = relativeStable(scanRoot, pluginRoot);
+    const skillRoot = resolveSkillRoot(skill, scanRoot2);
+    const pluginRoot = resolvePluginRoot(skill, scanRoot2);
+    const surfaceId = relativeStable(scanRoot2, pluginRoot);
     const surfaceHost = inferSurfaceHost(surfaceId, host);
     const surface = surfaceMap.get(surfaceId) ?? {
       id: surfaceId,
@@ -23847,7 +24306,7 @@ async function checkSkillResourceClosure({
     };
     surface.skillCount += 1;
     surfaceMap.set(surfaceId, surface);
-    const content = await readFile11(resolve15(scanRoot, skill), "utf8");
+    const content = await readFile11(resolve16(scanRoot2, skill), "utf8");
     for (const pathToken of extractPathTokens(content)) {
       referenceCount += 1;
       surface.referenceCount += 1;
@@ -23855,7 +24314,7 @@ async function checkSkillResourceClosure({
         pathToken.token,
         skillRoot,
         pluginRoot,
-        scanRoot
+        scanRoot2
       );
       const findingBase = {
         host: surfaceHost,
@@ -23991,9 +24450,9 @@ var init_skill_resource_closure = __esm({
 });
 
 // src/snapshot/public-map.mjs
-import { lstat as lstat9, readFile as readFile12, mkdir as mkdir8, readdir as readdir7, realpath as realpath8, chmod as fsChmod } from "node:fs/promises";
+import { lstat as lstat10, readFile as readFile12, mkdir as mkdir8, readdir as readdir8, realpath as realpath9, chmod as fsChmod } from "node:fs/promises";
 import { open as fsOpen } from "node:fs/promises";
-import { relative as relative13, resolve as resolve16, dirname as dirname7, sep as pathSep, isAbsolute as isAbsolute12 } from "node:path";
+import { relative as relative14, resolve as resolve17, dirname as dirname7, sep as pathSep, isAbsolute as isAbsolute13 } from "node:path";
 import { posix } from "node:path";
 import { constants as fsConstants3 } from "node:fs";
 import { createHash as createHash7 } from "node:crypto";
@@ -24002,14 +24461,14 @@ function _isContainedWith(relativeFn, isAbsoluteFn, root, candidate, relPathSep 
   return rel !== "" && rel !== ".." && !rel.startsWith(`..${relPathSep}`) && !isAbsoluteFn(rel);
 }
 function isContained(root, candidate) {
-  return _isContainedWith(relative13, isAbsolute12, root, candidate);
+  return _isContainedWith(relative14, isAbsolute13, root, candidate);
 }
-async function assertNoAncestorSymlinks(root, filePath, fs = { lstat: lstat9 }) {
-  const rel = relative13(root, filePath);
+async function assertNoAncestorSymlinks(root, filePath, fs = { lstat: lstat10 }) {
+  const rel = relative14(root, filePath);
   const segments = rel.split(/[/\\]/);
   let current = root;
   for (const segment of segments) {
-    current = resolve16(current, segment);
+    current = resolve17(current, segment);
     try {
       const st = await fs.lstat(current, { stage: "source-ancestor" });
       if (st.isSymbolicLink()) {
@@ -24031,7 +24490,7 @@ async function assertNoAncestorSymlinks(root, filePath, fs = { lstat: lstat9 }) 
     }
   }
 }
-async function assertOutputAncestorsNoFollow(effectiveOutputDir, fs = { lstat: lstat9 }) {
+async function assertOutputAncestorsNoFollow(effectiveOutputDir, fs = { lstat: lstat10 }) {
   const parts = effectiveOutputDir.split(pathSep).filter(Boolean);
   let accumulated = "";
   for (const part of parts) {
@@ -24065,12 +24524,12 @@ async function assertOutputAncestorsNoFollow(effectiveOutputDir, fs = { lstat: l
     }
   }
 }
-async function assertDestAncestorsNoFollow(realOutputRoot, destPath, fs = { lstat: lstat9 }) {
-  const relDest = relative13(realOutputRoot, destPath);
+async function assertDestAncestorsNoFollow(realOutputRoot, destPath, fs = { lstat: lstat10 }) {
+  const relDest = relative14(realOutputRoot, destPath);
   const segments = relDest.split(pathSep).filter(Boolean);
   let current = realOutputRoot;
   for (const segment of segments) {
-    current = resolve16(current, segment);
+    current = resolve17(current, segment);
     try {
       const st = await fs.lstat(current, { stage: "dest-ancestor" });
       if (st.isSymbolicLink()) {
@@ -24224,12 +24683,12 @@ async function buildPublicStaging({
     throw new ReleaseError(CONFIG_INVALID, "unit.publicFiles must be an array");
   }
   const fs = {
-    lstat: _fsOps.lstat ? (p, ctx) => _fsOps.lstat({ operation: "lstat", path: p, ...ctx }) : lstat9,
-    realpath: _fsOps.realpath ? (p, ctx) => _fsOps.realpath({ operation: "realpath", path: p, ...ctx }) : realpath8,
+    lstat: _fsOps.lstat ? (p, ctx) => _fsOps.lstat({ operation: "lstat", path: p, ...ctx }) : lstat10,
+    realpath: _fsOps.realpath ? (p, ctx) => _fsOps.realpath({ operation: "realpath", path: p, ...ctx }) : realpath9,
     readFile: _fsOps.readFile ? (p, ctx) => _fsOps.readFile({ operation: "readFile", path: p, ...ctx }) : readFile12,
     open: _fsOps.open ? (p, flags, mode, ctx) => _fsOps.open({ operation: "open", path: p, flags, mode, ...ctx }) : fsOpen,
     mkdir: _fsOps.mkdir ? (p, opts, ctx) => _fsOps.mkdir({ operation: "mkdir", path: p, opts, ...ctx }) : mkdir8,
-    readdir: _fsOps.readdir ? (p, ctx) => _fsOps.readdir({ operation: "readdir", path: p, ...ctx }) : readdir7,
+    readdir: _fsOps.readdir ? (p, ctx) => _fsOps.readdir({ operation: "readdir", path: p, ...ctx }) : readdir8,
     chmod: _fsOps.chmod ? (p, mode, ctx) => _fsOps.chmod({ operation: "chmod", path: p, mode, ...ctx }) : fsChmod
   };
   let realSourceRoot;
@@ -24261,7 +24720,7 @@ async function buildPublicStaging({
       { count: mappings.length, limit: MAX_MAPPINGS }
     );
   }
-  const unitRootLexical = resolve16(sourceRoot, unit.source);
+  const unitRootLexical = resolve17(sourceRoot, unit.source);
   let realUnitRoot;
   try {
     realUnitRoot = await fs.realpath(unitRootLexical, { stage: "unit-root-realpath" });
@@ -24274,14 +24733,14 @@ async function buildPublicStaging({
       { sourceRoot, unitSource: unit.source, cause: code }
     );
   }
-  const effectiveOutputDir = resolve16(
-    outputDir ?? resolve16(sourceRoot, ".release-skill", "staging")
+  const effectiveOutputDir = resolve17(
+    outputDir ?? resolve17(sourceRoot, ".release-skill", "staging")
   );
   const preflightRecords = [];
   const requiredTargetSet = new Set(unit.requiredPublicFiles ?? []);
   for (const mapping of mappings) {
-    const srcPath = resolve16(sourceRoot, mapping.from);
-    const destPath = resolve16(effectiveOutputDir, mapping.to);
+    const srcPath = resolve17(sourceRoot, mapping.from);
+    const destPath = resolve17(effectiveOutputDir, mapping.to);
     if (srcPath.length > MAX_PATH_LENGTH || destPath.length > MAX_PATH_LENGTH) {
       preflightRecords.push({
         ok: false,
@@ -24768,11 +25227,11 @@ async function buildPublicStaging({
       );
     }
     const destDir = dirname7(destPath);
-    const relDest = relative13(realOutputRoot, destDir);
+    const relDest = relative14(realOutputRoot, destDir);
     const destSegments = relDest.split(pathSep).filter(Boolean);
     let accumulatedPath = realOutputRoot;
     for (const seg of destSegments) {
-      accumulatedPath = resolve16(accumulatedPath, seg);
+      accumulatedPath = resolve17(accumulatedPath, seg);
       try {
         const segStat = await fs.lstat(accumulatedPath, { stage: "dest-ancestor-pre-mkdir" });
         if (segStat.isSymbolicLink()) {
@@ -25071,25 +25530,25 @@ var init_public_map = __esm({
 });
 
 // src/snapshot/scan.mjs
-import { readFile as readFile13, readdir as readdir8, stat as stat3 } from "node:fs/promises";
-import { join as join12, relative as relative14, extname, posix as posix2, win32 } from "node:path";
+import { readFile as readFile13, readdir as readdir9, stat as stat3 } from "node:fs/promises";
+import { join as join13, relative as relative15, extname, posix as posix2, win32 } from "node:path";
 import { createHash as createHash8 } from "node:crypto";
 async function collectFiles(dir, base = dir) {
   const results = [];
   let entries;
   try {
-    entries = await readdir8(dir, { withFileTypes: true });
+    entries = await readdir9(dir, { withFileTypes: true });
   } catch {
     return results;
   }
   for (const entry of entries) {
     if (entry.name === ".git") continue;
-    const abs = join12(dir, entry.name);
+    const abs = join13(dir, entry.name);
     if (entry.isDirectory()) {
       const sub = await collectFiles(abs, base);
       results.push(...sub);
     } else if (entry.isFile()) {
-      results.push(relative14(base, abs));
+      results.push(relative15(base, abs));
     }
   }
   return results;
@@ -25121,9 +25580,9 @@ async function scanFile(relPath, absPath, forbiddenPaths, forbiddenContentPatter
   for (const fp of forbiddenPaths) {
     const normFp = fp.replaceAll(win32.sep, posix2.sep).replace(/\/+$/, "").toLowerCase();
     if (!normFp) continue;
-    for (const sep6 of separators) {
-      const prefix = normFp.endsWith(sep6.toLowerCase()) ? normFp : normFp + sep6.toLowerCase();
-      const checkPath = lowerRel + sep6.toLowerCase();
+    for (const sep7 of separators) {
+      const prefix = normFp.endsWith(sep7.toLowerCase()) ? normFp : normFp + sep7.toLowerCase();
+      const checkPath = lowerRel + sep7.toLowerCase();
       if (lowerRel === normFp || checkPath.startsWith(prefix)) {
         const dedupKey = `FORBIDDEN_PATH:${normFp}:${normRel}`;
         if (!seenKinds.has(dedupKey)) {
@@ -25209,7 +25668,7 @@ async function scanFile(relPath, absPath, forbiddenPaths, forbiddenContentPatter
 }
 async function scanForStaleDist(snapshotDir) {
   const findings = [];
-  const manifestPath = join12(snapshotDir, "dist", "manifest.json");
+  const manifestPath = join13(snapshotDir, "dist", "manifest.json");
   let manifest;
   try {
     const raw = await readFile13(manifestPath, "utf8");
@@ -25220,10 +25679,10 @@ async function scanForStaleDist(snapshotDir) {
   if (!manifest.files || typeof manifest.files !== "object") {
     return findings;
   }
-  const distDir = join12(snapshotDir, "dist");
+  const distDir = join13(snapshotDir, "dist");
   for (const [fileRel, expectedHash] of Object.entries(manifest.files)) {
     if (typeof expectedHash !== "string") continue;
-    const fileAbs = join12(distDir, fileRel);
+    const fileAbs = join13(distDir, fileRel);
     let actualContent;
     try {
       actualContent = await readFile13(fileAbs);
@@ -25267,7 +25726,7 @@ async function scanSnapshot({ snapshotDir, policy = {} } = {}) {
   const relFiles = await collectFiles(snapshotDir);
   const seenKinds = /* @__PURE__ */ new Set();
   for (const relPath of relFiles) {
-    const absPath = join12(snapshotDir, relPath);
+    const absPath = join13(snapshotDir, relPath);
     const normRel = relPath.replaceAll(win32.sep, posix2.sep);
     if (await isBinaryFile(relPath, absPath)) continue;
     const fileFindings = await scanFile(normRel, absPath, forbiddenPaths, forbiddenContentPatterns, seenKinds);
@@ -25521,11 +25980,11 @@ var init_contract2 = __esm({
 // src/core/source-authority.mjs
 import { execFile as execFileCb6 } from "node:child_process";
 import { promisify as promisify6 } from "node:util";
-import { lstat as lstat10, mkdtemp as mkdtemp2, readFile as readFile15, readdir as readdir9, realpath as realpath9, rm as rm5 } from "node:fs/promises";
-import { join as join13, relative as relative15, resolve as resolve17, sep as sep4 } from "node:path";
+import { lstat as lstat11, mkdtemp as mkdtemp2, readFile as readFile15, readdir as readdir10, realpath as realpath10, rm as rm5 } from "node:fs/promises";
+import { join as join14, relative as relative16, resolve as resolve18, sep as sep5 } from "node:path";
 import { tmpdir as tmpdir3 } from "node:os";
 async function computeSourceInputClosure({ units, root }) {
-  const realRoot = await realpath9(resolve17(root));
+  const realRoot = await realpath10(resolve18(root));
   const entriesByPath = /* @__PURE__ */ new Map();
   for (const unit of units ?? []) {
     for (const mapping of unit.publicFiles ?? []) {
@@ -25564,7 +26023,7 @@ function computeEntriesDigest(entries) {
 async function collectPath({ absolutePath, root, entriesByPath }) {
   let stat9;
   try {
-    stat9 = await lstat10(absolutePath);
+    stat9 = await lstat11(absolutePath);
   } catch (error) {
     throw new ReleaseError(
       CONFIG_INVALID,
@@ -25580,7 +26039,7 @@ async function collectPath({ absolutePath, root, entriesByPath }) {
       { path: rel }
     );
   }
-  const physicalPath = await realpath9(absolutePath);
+  const physicalPath = await realpath10(absolutePath);
   if (physicalPath !== absolutePath) {
     throw new ReleaseError(
       CONFIG_INVALID,
@@ -25589,11 +26048,11 @@ async function collectPath({ absolutePath, root, entriesByPath }) {
     );
   }
   if (stat9.isDirectory()) {
-    const children = await readdir9(absolutePath, { withFileTypes: true });
+    const children = await readdir10(absolutePath, { withFileTypes: true });
     children.sort((left, right) => left.name.localeCompare(right.name));
     for (const child of children) {
       await collectPath({
-        absolutePath: join13(absolutePath, child.name),
+        absolutePath: join14(absolutePath, child.name),
         root,
         entriesByPath
       });
@@ -25615,9 +26074,9 @@ async function collectPath({ absolutePath, root, entriesByPath }) {
   });
 }
 function resolveInside(base, candidate, containmentRoot = base) {
-  const resolved = resolve17(base, candidate);
-  const root = resolve17(containmentRoot);
-  if (resolved !== root && !resolved.startsWith(`${root}${sep4}`)) {
+  const resolved = resolve18(base, candidate);
+  const root = resolve18(containmentRoot);
+  if (resolved !== root && !resolved.startsWith(`${root}${sep5}`)) {
     throw new ReleaseError(
       CONFIG_INVALID,
       `source-input closure path escapes workspace root: "${candidate}"`,
@@ -25627,7 +26086,7 @@ function resolveInside(base, candidate, containmentRoot = base) {
   return resolved;
 }
 function toRelative(root, absolutePath) {
-  const rel = relative15(root, absolutePath).split(sep4).join("/");
+  const rel = relative16(root, absolutePath).split(sep5).join("/");
   if (!rel || rel === "." || rel.startsWith("../") || rel === "..") {
     throw new ReleaseError(
       CONFIG_INVALID,
@@ -25837,7 +26296,7 @@ async function verifyWithTemporaryGit({
   if (!branchLine) {
     return failure(REF_MISSING, `remote ref "refs/heads/${defaultBranch}" does not exist`);
   }
-  const tempRoot = await mkdtemp2(join13(tmpdir3(), "release-skill-source-authority-"));
+  const tempRoot = await mkdtemp2(join14(tmpdir3(), "release-skill-source-authority-"));
   try {
     await execFn("git", ["init", "--bare", tempRoot], {
       encoding: "utf8",
@@ -26944,10 +27403,10 @@ var require_commonjs = __commonJS({
        * Return a void Promise that resolves once the stream ends.
        */
       async promise() {
-        return new Promise((resolve28, reject) => {
+        return new Promise((resolve29, reject) => {
           this.on(DESTROYED, () => reject(new Error("stream destroyed")));
           this.on("error", (er) => reject(er));
-          this.on("end", () => resolve28());
+          this.on("end", () => resolve29());
         });
       }
       /**
@@ -26971,7 +27430,7 @@ var require_commonjs = __commonJS({
             return Promise.resolve({ done: false, value: res });
           if (this[EOF])
             return stop();
-          let resolve28;
+          let resolve29;
           let reject;
           const onerr = /* @__PURE__ */ __name((er) => {
             this.off("data", ondata);
@@ -26985,19 +27444,19 @@ var require_commonjs = __commonJS({
             this.off("end", onend);
             this.off(DESTROYED, ondestroy);
             this.pause();
-            resolve28({ value, done: !!this[EOF] });
+            resolve29({ value, done: !!this[EOF] });
           }, "ondata");
           const onend = /* @__PURE__ */ __name(() => {
             this.off("error", onerr);
             this.off("data", ondata);
             this.off(DESTROYED, ondestroy);
             stop();
-            resolve28({ done: true, value: void 0 });
+            resolve29({ done: true, value: void 0 });
           }, "onend");
           const ondestroy = /* @__PURE__ */ __name(() => onerr(new Error("stream destroyed")), "ondestroy");
           return new Promise((res2, rej) => {
             reject = rej;
-            resolve28 = res2;
+            resolve29 = res2;
             this.once(DESTROYED, ondestroy);
             this.once("error", onerr);
             this.once("end", onend);
@@ -28088,10 +28547,10 @@ var require_minipass = __commonJS({
       }
       // stream.promise().then(() => done, er => emitted error)
       promise() {
-        return new Promise((resolve28, reject) => {
+        return new Promise((resolve29, reject) => {
           this.on(DESTROYED, () => reject(new Error("stream destroyed")));
           this.on("error", (er) => reject(er));
-          this.on("end", () => resolve28());
+          this.on("end", () => resolve29());
         });
       }
       // for await (let chunk of stream)
@@ -28102,7 +28561,7 @@ var require_minipass = __commonJS({
             return Promise.resolve({ done: false, value: res });
           if (this[EOF])
             return Promise.resolve({ done: true });
-          let resolve28 = null;
+          let resolve29 = null;
           let reject = null;
           const onerr = /* @__PURE__ */ __name((er) => {
             this.removeListener("data", ondata);
@@ -28113,17 +28572,17 @@ var require_minipass = __commonJS({
             this.removeListener("error", onerr);
             this.removeListener("end", onend);
             this.pause();
-            resolve28({ value, done: !!this[EOF] });
+            resolve29({ value, done: !!this[EOF] });
           }, "ondata");
           const onend = /* @__PURE__ */ __name(() => {
             this.removeListener("error", onerr);
             this.removeListener("data", ondata);
-            resolve28({ done: true });
+            resolve29({ done: true });
           }, "onend");
           const ondestroy = /* @__PURE__ */ __name(() => onerr(new Error("stream destroyed")), "ondestroy");
           return new Promise((res2, rej) => {
             reject = rej;
-            resolve28 = res2;
+            resolve29 = res2;
             this.once(DESTROYED, ondestroy);
             this.once("error", onerr);
             this.once("end", onend);
@@ -32162,12 +32621,12 @@ var require_body = __commonJS({
         if (resTimeout && resTimeout.unref) {
           resTimeout.unref();
         }
-        return new Promise((resolve28) => {
+        return new Promise((resolve29) => {
           if (stream !== upstream) {
             upstream.on("error", (er) => stream.emit("error", er));
             upstream.pipe(stream);
           }
-          resolve28();
+          resolve29();
         }).then(() => stream.concat()).then((buf) => {
           clearTimeout(resTimeout);
           return buf;
@@ -32932,7 +33391,7 @@ var require_lib2 = __commonJS({
     var fetch = /* @__PURE__ */ __name(async (url, opts) => {
       if (/^data:/.test(url)) {
         const request = new Request(url, opts);
-        return Promise.resolve().then(() => new Promise((resolve28, reject) => {
+        return Promise.resolve().then(() => new Promise((resolve29, reject) => {
           let type, data;
           try {
             const { pathname, search } = new URL2(url);
@@ -32956,10 +33415,10 @@ var require_lib2 = __commonJS({
           if (type) {
             headers["Content-Type"] = type;
           }
-          return resolve28(new Response(data, { headers }));
+          return resolve29(new Response(data, { headers }));
         }));
       }
-      return new Promise((resolve28, reject) => {
+      return new Promise((resolve29, reject) => {
         const request = new Request(url, opts);
         let options;
         try {
@@ -33078,7 +33537,7 @@ var require_lib2 = __commonJS({
                 requestOpts.body = void 0;
                 requestOpts.headers.delete("content-length");
               }
-              resolve28(fetch(new Request(locationURL, requestOpts)));
+              resolve29(fetch(new Request(locationURL, requestOpts)));
               finalize();
               return;
             }
@@ -33106,7 +33565,7 @@ var require_lib2 = __commonJS({
           const codings = headers.get("Content-Encoding");
           if (!request.compress || request.method === "HEAD" || codings === null || res.statusCode === 204 || res.statusCode === 304) {
             response = new Response(body, responseOptions);
-            resolve28(response);
+            resolve29(response);
             return;
           }
           const zlibOptions = {
@@ -33125,7 +33584,7 @@ var require_lib2 = __commonJS({
               ).pipe(unzip),
               responseOptions
             );
-            resolve28(response);
+            resolve29(response);
             return;
           }
           if (codings === "deflate" || codings === "x-deflate") {
@@ -33137,7 +33596,7 @@ var require_lib2 = __commonJS({
                 (er) => decoder2.emit("error", er)
               ).pipe(decoder2);
               response = new Response(decoder2, responseOptions);
-              resolve28(response);
+              resolve29(response);
             });
             return;
           }
@@ -33155,11 +33614,11 @@ var require_lib2 = __commonJS({
               (er) => decoder.emit("error", er)
             ).pipe(decoder);
             response = new Response(decoder, responseOptions);
-            resolve28(response);
+            resolve29(response);
             return;
           }
           response = new Response(body, responseOptions);
-          resolve28(response);
+          resolve29(response);
         });
         writeToStream(req, request);
       });
@@ -33413,12 +33872,12 @@ var require_lib3 = __commonJS({
           return process.emit("input", "end");
         }, "end"),
         read: /* @__PURE__ */ __name(function(...args2) {
-          let resolve28, reject;
+          let resolve29, reject;
           const promise = new Promise((_resolve, _reject) => {
-            resolve28 = _resolve;
+            resolve29 = _resolve;
             reject = _reject;
           });
-          process.emit("input", "read", resolve28, reject, ...args2);
+          process.emit("input", "read", resolve29, reject, ...args2);
           return promise;
         }, "read")
       }
@@ -37833,7 +38292,7 @@ var require_npa = __commonJS({
           spec = arg;
         }
       }
-      return resolve28(name, spec, where, arg);
+      return resolve29(name, spec, where, arg);
     }
     __name(npa, "npa");
     function isFileSpec(spec) {
@@ -37856,7 +38315,7 @@ var require_npa = __commonJS({
       return spec.toLowerCase().startsWith("npm:");
     }
     __name(isAliasSpec, "isAliasSpec");
-    function resolve28(name, spec, where, arg) {
+    function resolve29(name, spec, where, arg) {
       const res = new Result({
         raw: arg,
         name,
@@ -37888,7 +38347,7 @@ var require_npa = __commonJS({
         return fromRegistry(res);
       }
     }
-    __name(resolve28, "resolve");
+    __name(resolve29, "resolve");
     function toPurl(arg, reg = defaultRegistry) {
       const res = npa(arg);
       if (res.type !== "version") {
@@ -38189,7 +38648,7 @@ var require_npa = __commonJS({
     }
     __name(fromRegistry, "fromRegistry");
     module.exports = npa;
-    module.exports.resolve = resolve28;
+    module.exports.resolve = resolve29;
     module.exports.toPurl = toPurl;
     module.exports.Result = Result;
   }
@@ -39780,7 +40239,7 @@ var require_lib7 = __commonJS({
         return `${this.algorithm}-${this.digest}${getOptString(this.options)}`;
       }
     };
-    function integrityHashToString(toString, sep6, opts, hashes) {
+    function integrityHashToString(toString, sep7, opts, hashes) {
       const toStringIsNotEmpty = toString !== "";
       let shouldAddFirstSep = false;
       let complement = "";
@@ -39790,7 +40249,7 @@ var require_lib7 = __commonJS({
         if (hashString) {
           shouldAddFirstSep = true;
           complement += hashString;
-          complement += sep6;
+          complement += sep7;
         }
       }
       const finalHashString = Hash.prototype.toString.call(hashes[lastIndex], opts);
@@ -39799,7 +40258,7 @@ var require_lib7 = __commonJS({
         complement += finalHashString;
       }
       if (toStringIsNotEmpty && shouldAddFirstSep) {
-        return toString + sep6 + complement;
+        return toString + sep7 + complement;
       }
       return toString + complement;
     }
@@ -39818,18 +40277,18 @@ var require_lib7 = __commonJS({
         return Object.keys(this).length === 0;
       }
       toString(opts) {
-        let sep6 = opts?.sep || " ";
+        let sep7 = opts?.sep || " ";
         let toString = "";
         if (opts?.strict) {
-          sep6 = sep6.replace(/\S+/g, " ");
+          sep7 = sep7.replace(/\S+/g, " ");
           for (const hash of SPEC_ALGORITHMS) {
             if (this[hash]) {
-              toString = integrityHashToString(toString, sep6, opts, this[hash]);
+              toString = integrityHashToString(toString, sep7, opts, this[hash]);
             }
           }
         } else {
           for (const hash of Object.keys(this)) {
-            toString = integrityHashToString(toString, sep6, opts, this[hash]);
+            toString = integrityHashToString(toString, sep7, opts, this[hash]);
           }
         }
         return toString;
@@ -39962,7 +40421,7 @@ var require_lib7 = __commonJS({
     module.exports.fromStream = fromStream;
     function fromStream(stream, opts) {
       const istream = integrityStream(opts);
-      return new Promise((resolve28, reject) => {
+      return new Promise((resolve29, reject) => {
         stream.pipe(istream);
         stream.on("error", reject);
         istream.on("error", reject);
@@ -39970,7 +40429,7 @@ var require_lib7 = __commonJS({
         istream.on("integrity", (s) => {
           sri = s;
         });
-        istream.on("end", () => resolve28(sri));
+        istream.on("end", () => resolve29(sri));
         istream.resume();
       });
     }
@@ -40031,7 +40490,7 @@ var require_lib7 = __commonJS({
         ));
       }
       const checker = integrityStream(opts);
-      return new Promise((resolve28, reject) => {
+      return new Promise((resolve29, reject) => {
         stream.pipe(checker);
         stream.on("error", reject);
         checker.on("error", reject);
@@ -40039,7 +40498,7 @@ var require_lib7 = __commonJS({
         checker.on("verified", (s) => {
           verified = s;
         });
-        checker.on("end", () => resolve28(verified));
+        checker.on("end", () => resolve29(verified));
         checker.resume();
       });
     }
@@ -40920,9 +41379,9 @@ var require_polyfill = __commonJS({
     var {
       chmod: chmod5,
       copyFile,
-      lstat: lstat17,
+      lstat: lstat18,
       mkdir: mkdir18,
-      readdir: readdir16,
+      readdir: readdir17,
       readlink: readlink2,
       stat: stat9,
       symlink,
@@ -40931,11 +41390,11 @@ var require_polyfill = __commonJS({
     } = __require("fs/promises");
     var {
       dirname: dirname16,
-      isAbsolute: isAbsolute21,
-      join: join29,
+      isAbsolute: isAbsolute22,
+      join: join30,
       parse: parse2,
-      resolve: resolve28,
-      sep: sep6,
+      resolve: resolve29,
+      sep: sep7,
       toNamespacedPath
     } = __require("path");
     var { fileURLToPath: fileURLToPath3 } = __require("url");
@@ -41021,7 +41480,7 @@ var require_polyfill = __commonJS({
     }
     __name(areIdentical, "areIdentical");
     function getStats(src, dest, opts) {
-      const statFunc = opts.dereference ? (file) => stat9(file, { bigint: true }) : (file) => lstat17(file, { bigint: true });
+      const statFunc = opts.dereference ? (file) => stat9(file, { bigint: true }) : (file) => lstat18(file, { bigint: true });
       return Promise.all([
         statFunc(src),
         statFunc(dest).catch((err) => {
@@ -41052,8 +41511,8 @@ var require_polyfill = __commonJS({
     }
     __name(pathExists2, "pathExists");
     async function checkParentPaths(src, srcStat, dest) {
-      const srcParent = resolve28(dirname16(src));
-      const destParent = resolve28(dirname16(dest));
+      const srcParent = resolve29(dirname16(src));
+      const destParent = resolve29(dirname16(dest));
       if (destParent === srcParent || destParent === parse2(destParent).root) {
         return;
       }
@@ -41077,7 +41536,7 @@ var require_polyfill = __commonJS({
       return checkParentPaths(src, srcStat, destParent);
     }
     __name(checkParentPaths, "checkParentPaths");
-    var normalizePathToArray = /* @__PURE__ */ __name((path3) => resolve28(path3).split(sep6).filter(Boolean), "normalizePathToArray");
+    var normalizePathToArray = /* @__PURE__ */ __name((path3) => resolve29(path3).split(sep7).filter(Boolean), "normalizePathToArray");
     function isSrcSubdir(src, dest) {
       const srcArr = normalizePathToArray(src);
       const destArr = normalizePathToArray(dest);
@@ -41099,7 +41558,7 @@ var require_polyfill = __commonJS({
     }
     __name(startCopy, "startCopy");
     async function getStatsForCopy(destStat, src, dest, opts) {
-      const statFn = opts.dereference ? stat9 : lstat17;
+      const statFn = opts.dereference ? stat9 : lstat18;
       const srcStat = await statFn(src);
       if (srcStat.isDirectory() && opts.recursive) {
         return onDir(srcStat, destStat, src, dest, opts);
@@ -41210,11 +41669,11 @@ var require_polyfill = __commonJS({
     }
     __name(mkDirAndCopy, "mkDirAndCopy");
     async function copyDir(src, dest, opts) {
-      const dir = await readdir16(src);
+      const dir = await readdir17(src);
       for (let i = 0; i < dir.length; i++) {
         const item = dir[i];
-        const srcItem = join29(src, item);
-        const destItem = join29(dest, item);
+        const srcItem = join30(src, item);
+        const destItem = join30(dest, item);
         const { destStat } = await checkPaths(srcItem, destItem, opts);
         await startCopy(destStat, srcItem, destItem, opts);
       }
@@ -41222,8 +41681,8 @@ var require_polyfill = __commonJS({
     __name(copyDir, "copyDir");
     async function onLink(destStat, src, dest) {
       let resolvedSrc = await readlink2(src);
-      if (!isAbsolute21(resolvedSrc)) {
-        resolvedSrc = resolve28(dirname16(src), resolvedSrc);
+      if (!isAbsolute22(resolvedSrc)) {
+        resolvedSrc = resolve29(dirname16(src), resolvedSrc);
       }
       if (!destStat) {
         return symlink(resolvedSrc, dest);
@@ -41237,8 +41696,8 @@ var require_polyfill = __commonJS({
         }
         throw err;
       }
-      if (!isAbsolute21(resolvedDest)) {
-        resolvedDest = resolve28(dirname16(dest), resolvedDest);
+      if (!isAbsolute22(resolvedDest)) {
+        resolvedDest = resolve29(dirname16(dest), resolvedDest);
       }
       if (isSrcSubdir(resolvedSrc, resolvedDest)) {
         throw new ERR_FS_CP_EINVAL({
@@ -41290,7 +41749,7 @@ var require_cp = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/with-temp-dir.js
 var require_with_temp_dir = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/with-temp-dir.js"(exports, module) {
-    var { join: join29, sep: sep6 } = __require("path");
+    var { join: join30, sep: sep7 } = __require("path");
     var getOptions = require_get_options();
     var { mkdir: mkdir18, mkdtemp: mkdtemp6, rm: rm10 } = __require("fs/promises");
     var withTempDir = /* @__PURE__ */ __name(async (root, fn, opts) => {
@@ -41298,7 +41757,7 @@ var require_with_temp_dir = __commonJS({
         copy: ["tmpPrefix"]
       });
       await mkdir18(root, { recursive: true });
-      const target = await mkdtemp6(join29(`${root}${sep6}`, options.tmpPrefix || ""));
+      const target = await mkdtemp6(join30(`${root}${sep7}`, options.tmpPrefix || ""));
       let err;
       let result;
       try {
@@ -41322,14 +41781,14 @@ var require_with_temp_dir = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/readdir-scoped.js
 var require_readdir_scoped = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/readdir-scoped.js"(exports, module) {
-    var { readdir: readdir16 } = __require("fs/promises");
-    var { join: join29 } = __require("path");
+    var { readdir: readdir17 } = __require("fs/promises");
+    var { join: join30 } = __require("path");
     var readdirScoped = /* @__PURE__ */ __name(async (dir) => {
       const results = [];
-      for (const item of await readdir16(dir)) {
+      for (const item of await readdir17(dir)) {
         if (item.startsWith("@")) {
-          for (const scopedItem of await readdir16(join29(dir, item))) {
-            results.push(join29(item, scopedItem));
+          for (const scopedItem of await readdir17(join30(dir, item))) {
+            results.push(join30(item, scopedItem));
           }
         } else {
           results.push(item);
@@ -41344,7 +41803,7 @@ var require_readdir_scoped = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/move-file.js
 var require_move_file = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/move-file.js"(exports, module) {
-    var { dirname: dirname16, join: join29, resolve: resolve28, relative: relative25, isAbsolute: isAbsolute21 } = __require("path");
+    var { dirname: dirname16, join: join30, resolve: resolve29, relative: relative26, isAbsolute: isAbsolute22 } = __require("path");
     var fs = __require("fs/promises");
     var pathExists2 = /* @__PURE__ */ __name(async (path3) => {
       try {
@@ -41374,7 +41833,7 @@ var require_move_file = __commonJS({
           if (sourceStat.isDirectory()) {
             const files = await fs.readdir(source);
             await Promise.all(files.map(
-              (file) => moveFile(join29(source, file), join29(destination, file), options, false, symlinks)
+              (file) => moveFile(join30(source, file), join30(destination, file), options, false, symlinks)
             ));
           } else if (sourceStat.isSymbolicLink()) {
             symlinks.push({ source, destination });
@@ -41388,12 +41847,12 @@ var require_move_file = __commonJS({
       if (root) {
         await Promise.all(symlinks.map(async ({ source: symSource, destination: symDestination }) => {
           let target = await fs.readlink(symSource);
-          if (isAbsolute21(target)) {
-            target = resolve28(symDestination, relative25(symSource, target));
+          if (isAbsolute22(target)) {
+            target = resolve29(symDestination, relative26(symSource, target));
           }
           let targetStat = "file";
           try {
-            targetStat = await fs.stat(resolve28(dirname16(symSource), target));
+            targetStat = await fs.stat(resolve29(dirname16(symSource), target));
             if (targetStat.isDirectory()) {
               targetStat = "junction";
             }
@@ -41466,7 +41925,7 @@ async function pMap(iterable, mapper, {
     const cleanup = /* @__PURE__ */ __name(() => {
       signal?.removeEventListener("abort", signalListener);
     }, "cleanup");
-    const resolve28 = /* @__PURE__ */ __name((value) => {
+    const resolve29 = /* @__PURE__ */ __name((value) => {
       resolve_(value);
       cleanup();
     }, "resolve");
@@ -41498,7 +41957,7 @@ async function pMap(iterable, mapper, {
           }
           isResolved = true;
           if (skippedIndexesMap.size === 0) {
-            resolve28(result);
+            resolve29(result);
             return;
           }
           const pureResult = [];
@@ -41508,7 +41967,7 @@ async function pMap(iterable, mapper, {
             }
             pureResult.push(value);
           }
-          resolve28(pureResult);
+          resolve29(pureResult);
         }
         return;
       }
@@ -41649,7 +42108,7 @@ var require_entry_index = __commonJS({
       appendFile,
       mkdir: mkdir18,
       readFile: readFile33,
-      readdir: readdir16,
+      readdir: readdir17,
       rm: rm10,
       writeFile: writeFile11
     } = __require("fs/promises");
@@ -41909,7 +42368,7 @@ ${hashEntry(stringified)}	${stringified}`);
     }
     __name(formatEntry, "formatEntry");
     function readdirOrEmpty(dir) {
-      return readdir16(dir).catch((err) => {
+      return readdir17(dir).catch((err) => {
         if (err.code === "ENOENT" || err.code === "ENOTDIR") {
           return [];
         }
@@ -45714,9 +46173,9 @@ var require_commonjs5 = __commonJS({
         if (this.#asyncReaddirInFlight) {
           await this.#asyncReaddirInFlight;
         } else {
-          let resolve28 = /* @__PURE__ */ __name(() => {
+          let resolve29 = /* @__PURE__ */ __name(() => {
           }, "resolve");
-          this.#asyncReaddirInFlight = new Promise((res) => resolve28 = res);
+          this.#asyncReaddirInFlight = new Promise((res) => resolve29 = res);
           try {
             for (const e of await this.#fs.promises.readdir(fullpath, {
               withFileTypes: true
@@ -45729,7 +46188,7 @@ var require_commonjs5 = __commonJS({
             children.provisional = 0;
           }
           this.#asyncReaddirInFlight = void 0;
-          resolve28();
+          resolve29();
         }
         return children.slice(0, children.provisional);
       }
@@ -45971,7 +46430,7 @@ var require_commonjs5 = __commonJS({
        *
        * @internal
        */
-      constructor(cwd = process.cwd(), pathImpl, sep6, { nocase, childrenCacheSize = 16 * 1024, fs = defaultFS } = {}) {
+      constructor(cwd = process.cwd(), pathImpl, sep7, { nocase, childrenCacheSize = 16 * 1024, fs = defaultFS } = {}) {
         this.#fs = fsFromOption(fs);
         if (cwd instanceof URL || cwd.startsWith("file://")) {
           cwd = (0, node_url_1.fileURLToPath)(cwd);
@@ -45982,7 +46441,7 @@ var require_commonjs5 = __commonJS({
         this.#resolveCache = new ResolveCache();
         this.#resolvePosixCache = new ResolveCache();
         this.#children = new ChildrenCache(childrenCacheSize);
-        const split = cwdPath.substring(this.rootPath.length).split(sep6);
+        const split = cwdPath.substring(this.rootPath.length).split(sep7);
         if (split.length === 1 && !split[0]) {
           split.pop();
         }
@@ -46840,10 +47299,10 @@ var require_ignore = __commonJS({
       ignored(p) {
         const fullpath = p.fullpath();
         const fullpaths = `${fullpath}/`;
-        const relative25 = p.relative() || ".";
-        const relatives = `${relative25}/`;
+        const relative26 = p.relative() || ".";
+        const relatives = `${relative26}/`;
         for (const m of this.relative) {
-          if (m.match(relative25) || m.match(relatives))
+          if (m.match(relative26) || m.match(relatives))
             return true;
         }
         for (const m of this.absolute) {
@@ -46854,9 +47313,9 @@ var require_ignore = __commonJS({
       }
       childrenIgnored(p) {
         const fullpath = p.fullpath() + "/";
-        const relative25 = (p.relative() || ".") + "/";
+        const relative26 = (p.relative() || ".") + "/";
         for (const m of this.relativeChildren) {
-          if (m.match(relative25))
+          if (m.match(relative26))
             return true;
         }
         for (const m of this.absoluteChildren) {
@@ -47947,8 +48406,8 @@ var require_verify = __commonJS({
           liveContent.add(integrity[algo].toString());
         }
       });
-      await new Promise((resolve28, reject) => {
-        indexStream.on("end", resolve28).on("error", reject);
+      await new Promise((resolve29, reject) => {
+        indexStream.on("end", resolve29).on("error", reject);
       });
       const contentDir = contentPath.contentDir(cache);
       const files = await glob(path3.join(contentDir, "**"), {
@@ -48504,7 +48963,7 @@ var require_promise_retry = __commonJS({
         fn = temp;
       }
       operation = retry.operation(options);
-      return new Promise(function(resolve28, reject) {
+      return new Promise(function(resolve29, reject) {
         operation.attempt(function(number) {
           Promise.resolve().then(function() {
             return fn(function(err) {
@@ -48513,7 +48972,7 @@ var require_promise_retry = __commonJS({
               }
               throw errcode(new Error("Retrying"), "EPROMISERETRY", { retried: err });
             }, number);
-          }).then(resolve28, function(err) {
+          }).then(resolve29, function(err) {
             if (isRetryError(err)) {
               err = err.retried;
               if (operation.retry(err || new Error())) {
@@ -49398,8 +49857,8 @@ var require_helpers = __commonJS({
     function req(url, opts = {}) {
       const href = typeof url === "string" ? url : url.href;
       const req2 = (href.startsWith("https:") ? https : http).request(url, opts);
-      const promise = new Promise((resolve28, reject) => {
-        req2.once("response", resolve28).once("error", reject).end();
+      const promise = new Promise((resolve29, reject) => {
+        req2.once("response", resolve29).once("error", reject).end();
       });
       req2.then = promise.then.bind(promise);
       return req2;
@@ -49714,7 +50173,7 @@ var require_parse_proxy_response = __commonJS({
     var debug_1 = __importDefault(require_src());
     var debug = (0, debug_1.default)("https-proxy-agent:parse-proxy-response");
     function parseProxyResponse(socket) {
-      return new Promise((resolve28, reject) => {
+      return new Promise((resolve29, reject) => {
         let buffersLength = 0;
         const buffers = [];
         function read() {
@@ -49784,7 +50243,7 @@ var require_parse_proxy_response = __commonJS({
           }
           debug("got proxy server response: %o %o", firstLine, headers);
           cleanup();
-          resolve28({
+          resolve29({
             connect: {
               statusCode,
               statusText,
@@ -53463,12 +53922,12 @@ var require_socksclient = __commonJS({
     "use strict";
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve28) {
-          resolve28(value);
+        return value instanceof P ? value : new P(function(resolve29) {
+          resolve29(value);
         });
       }
       __name(adopt, "adopt");
-      return new (P || (P = Promise))(function(resolve28, reject) {
+      return new (P || (P = Promise))(function(resolve29, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -53486,7 +53945,7 @@ var require_socksclient = __commonJS({
         }
         __name(rejected, "rejected");
         function step(result) {
-          result.done ? resolve28(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve29(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         __name(step, "step");
         step((generator = generator.apply(thisArg, _arguments || [])).next());
@@ -53524,13 +53983,13 @@ var require_socksclient = __commonJS({
        * @returns { Promise }
        */
       static createConnection(options, callback) {
-        return new Promise((resolve28, reject) => {
+        return new Promise((resolve29, reject) => {
           try {
             (0, helpers_1.validateSocksClientOptions)(options, ["connect"]);
           } catch (err) {
             if (typeof callback === "function") {
               callback(err);
-              return resolve28(err);
+              return resolve29(err);
             } else {
               return reject(err);
             }
@@ -53541,16 +54000,16 @@ var require_socksclient = __commonJS({
             client.removeAllListeners();
             if (typeof callback === "function") {
               callback(null, info);
-              resolve28(info);
+              resolve29(info);
             } else {
-              resolve28(info);
+              resolve29(info);
             }
           });
           client.once("error", (err) => {
             client.removeAllListeners();
             if (typeof callback === "function") {
               callback(err);
-              resolve28(err);
+              resolve29(err);
             } else {
               reject(err);
             }
@@ -53567,13 +54026,13 @@ var require_socksclient = __commonJS({
        * @returns { Promise }
        */
       static createConnectionChain(options, callback) {
-        return new Promise((resolve28, reject) => __awaiter(this, void 0, void 0, function* () {
+        return new Promise((resolve29, reject) => __awaiter(this, void 0, void 0, function* () {
           try {
             (0, helpers_1.validateSocksClientChainOptions)(options);
           } catch (err) {
             if (typeof callback === "function") {
               callback(err);
-              return resolve28(err);
+              return resolve29(err);
             } else {
               return reject(err);
             }
@@ -53599,14 +54058,14 @@ var require_socksclient = __commonJS({
             }
             if (typeof callback === "function") {
               callback(null, { socket: sock });
-              resolve28({ socket: sock });
+              resolve29({ socket: sock });
             } else {
-              resolve28({ socket: sock });
+              resolve29({ socket: sock });
             }
           } catch (err) {
             if (typeof callback === "function") {
               callback(err);
-              resolve28(err);
+              resolve29(err);
             } else {
               reject(err);
             }
@@ -54294,12 +54753,12 @@ var require_dist6 = __commonJS({
         let { host } = opts;
         const { port, lookup: lookupFn = dns.lookup } = opts;
         if (shouldLookup) {
-          host = await new Promise((resolve28, reject) => {
+          host = await new Promise((resolve29, reject) => {
             lookupFn(host, {}, (err, res) => {
               if (err) {
                 reject(err);
               } else {
-                resolve28(res);
+                resolve29(res);
               }
             });
           });
@@ -55111,8 +55570,8 @@ var require_entry = __commonJS({
         let body = null;
         if (this.response.status === 200) {
           let cacheWriteResolve, cacheWriteReject;
-          const cacheWritePromise = new Promise((resolve28, reject) => {
-            cacheWriteResolve = resolve28;
+          const cacheWritePromise = new Promise((resolve29, reject) => {
+            cacheWriteResolve = resolve29;
             cacheWriteReject = reject;
           }).catch((err) => {
             body.emit("error", err);
@@ -56627,9 +57086,9 @@ var require_index_min = __commonJS({
 var require_lib17 = __commonJS({
   "../../node_modules/.pnpm/which@5.0.0/node_modules/which/lib/index.js"(exports, module) {
     var { isexe, sync: isexeSync } = require_index_min();
-    var { join: join29, delimiter, sep: sep6, posix: posix3 } = __require("path");
+    var { join: join30, delimiter, sep: sep7, posix: posix3 } = __require("path");
     var isWindows = process.platform === "win32";
-    var rSlash = new RegExp(`[${posix3.sep}${sep6 === posix3.sep ? "" : sep6}]`.replace(/(\\)/g, "\\$1"));
+    var rSlash = new RegExp(`[${posix3.sep}${sep7 === posix3.sep ? "" : sep7}]`.replace(/(\\)/g, "\\$1"));
     var rRel = new RegExp(`^\\.${rSlash.source}`);
     var getNotFoundError = /* @__PURE__ */ __name((cmd) => Object.assign(new Error(`not found: ${cmd}`), { code: "ENOENT" }), "getNotFoundError");
     var getPathInfo = /* @__PURE__ */ __name((cmd, {
@@ -56656,7 +57115,7 @@ var require_lib17 = __commonJS({
     var getPathPart = /* @__PURE__ */ __name((raw, cmd) => {
       const pathPart = /^".*"$/.test(raw) ? raw.slice(1, -1) : raw;
       const prefix = !pathPart && rRel.test(cmd) ? cmd.slice(0, 2) : "";
-      return prefix + join29(pathPart, cmd);
+      return prefix + join30(pathPart, cmd);
     }, "getPathPart");
     var which = /* @__PURE__ */ __name(async (cmd, opt = {}) => {
       const { pathEnv, pathExt, pathExtExe } = getPathInfo(cmd, opt);
@@ -56779,9 +57238,9 @@ var require_lib18 = __commonJS({
       if (opts.shell) {
         return spawnWithShell(cmd, args2, opts, extra);
       }
-      let resolve28, reject;
+      let resolve29, reject;
       const promise = new Promise((_resolve, _reject) => {
-        resolve28 = _resolve;
+        resolve29 = _resolve;
         reject = _reject;
       });
       const closeError = new Error("command failed");
@@ -56814,7 +57273,7 @@ var require_lib18 = __commonJS({
         if (code || signal) {
           rejectWithOpts(closeError, { code, signal });
         } else {
-          resolve28(getResult({ code, signal }));
+          resolve29(getResult({ code, signal }));
         }
       });
       return promise;
@@ -57795,7 +58254,7 @@ var require_lib19 = __commonJS({
 // ../../node_modules/.pnpm/npm-normalize-package-bin@4.0.0/node_modules/npm-normalize-package-bin/lib/index.js
 var require_lib20 = __commonJS({
   "../../node_modules/.pnpm/npm-normalize-package-bin@4.0.0/node_modules/npm-normalize-package-bin/lib/index.js"(exports, module) {
-    var { join: join29, basename: basename11 } = __require("path");
+    var { join: join30, basename: basename11 } = __require("path");
     var normalize4 = /* @__PURE__ */ __name((pkg) => !pkg.bin ? removeBin(pkg) : typeof pkg.bin === "string" ? normalizeString(pkg) : Array.isArray(pkg.bin) ? normalizeArray(pkg) : typeof pkg.bin === "object" ? normalizeObject(pkg) : removeBin(pkg), "normalize");
     var normalizeString = /* @__PURE__ */ __name((pkg) => {
       if (!pkg.name) {
@@ -57820,11 +58279,11 @@ var require_lib20 = __commonJS({
       const clean = {};
       let hasBins = false;
       Object.keys(orig).forEach((binKey) => {
-        const base = join29("/", basename11(binKey.replace(/\\|:/g, "/"))).slice(1);
+        const base = join30("/", basename11(binKey.replace(/\\|:/g, "/"))).slice(1);
         if (typeof orig[binKey] !== "string" || !base) {
           return;
         }
-        const binTarget = join29("/", orig[binKey].replace(/\\/g, "/")).replace(/\\/g, "/").slice(1);
+        const binTarget = join30("/", orig[binKey].replace(/\\/g, "/")).replace(/\\/g, "/").slice(1);
         if (!binTarget) {
           return;
         }
@@ -60503,7 +60962,7 @@ var require_sort2 = __commonJS({
 var require_lib23 = __commonJS({
   "../../node_modules/.pnpm/@npmcli+package-json@6.2.0/node_modules/@npmcli/package-json/lib/index.js"(exports, module) {
     var { readFile: readFile33, writeFile: writeFile11 } = __require("node:fs/promises");
-    var { resolve: resolve28 } = __require("node:path");
+    var { resolve: resolve29 } = __require("node:path");
     var parseJSON = require_lib16();
     var updateDeps = require_update_dependencies();
     var updateScripts = require_update_scripts();
@@ -60626,7 +61085,7 @@ var require_lib23 = __commonJS({
           parseErr = err;
         }
         if (parseErr) {
-          const indexFile = resolve28(this.path, "index.js");
+          const indexFile = resolve29(this.path, "index.js");
           let indexFileContent;
           try {
             indexFileContent = await readFile33(indexFile, "utf8");
@@ -60678,7 +61137,7 @@ var require_lib23 = __commonJS({
       }
       get filename() {
         if (this.path) {
-          return resolve28(this.path, "package.json");
+          return resolve29(this.path, "package.json");
         }
         return void 0;
       }
@@ -67604,12 +68063,12 @@ var require_fetcher = __commonJS({
     };
     exports.DefaultFetcher = DefaultFetcher;
     var writeBufferToStream = /* @__PURE__ */ __name(async (stream, buffer) => {
-      return new Promise((resolve28, reject) => {
+      return new Promise((resolve29, reject) => {
         stream.write(buffer, (err) => {
           if (err) {
             reject(err);
           }
-          resolve28(true);
+          resolve29(true);
         });
       });
     }, "writeBufferToStream");
@@ -67828,12 +68287,12 @@ var require_url = __commonJS({
   "../../node_modules/.pnpm/tuf-js@3.1.0/node_modules/tuf-js/dist/utils/url.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.join = join29;
+    exports.join = join30;
     var url_1 = __require("url");
-    function join29(base, path3) {
+    function join30(base, path3) {
       return new url_1.URL(ensureTrailingSlash(base) + removeLeadingSlash(path3)).toString();
     }
-    __name(join29, "join");
+    __name(join30, "join");
     function ensureTrailingSlash(path3) {
       return path3.endsWith("/") ? path3 : path3 + "/";
     }
@@ -68212,7 +68671,7 @@ var require_target = __commonJS({
     var error_1 = require_error8();
     async function readTarget(tuf, targetPath) {
       const path3 = await getTargetPath(tuf, targetPath);
-      return new Promise((resolve28, reject) => {
+      return new Promise((resolve29, reject) => {
         fs_1.default.readFile(path3, "utf-8", (err, data) => {
           if (err) {
             reject(new error_1.TUFError({
@@ -68221,7 +68680,7 @@ var require_target = __commonJS({
               cause: err
             }));
           } else {
-            resolve28(data);
+            resolve29(data);
           }
         });
       });
@@ -70470,9 +70929,9 @@ import { createHash as createHash9, randomUUID } from "node:crypto";
 import { execFile as execFileCb7, spawn as spawn3 } from "node:child_process";
 import { gunzipSync } from "node:zlib";
 import { promisify as promisify7 } from "node:util";
-import { dirname as dirname8, isAbsolute as isAbsolute13, join as join14, relative as relative16, resolve as resolve18 } from "node:path";
+import { dirname as dirname8, isAbsolute as isAbsolute14, join as join15, relative as relative17, resolve as resolve19 } from "node:path";
 import { constants as fsConstants4 } from "node:fs";
-import { chmod as chmod3, lstat as lstat11, mkdtemp as mkdtemp3, open as open6, readFile as readFile16, realpath as realpath10, rm as rm6 } from "node:fs/promises";
+import { chmod as chmod3, lstat as lstat12, mkdtemp as mkdtemp3, open as open6, readFile as readFile16, realpath as realpath11, rm as rm6 } from "node:fs/promises";
 function validatePackageName(value) {
   if (typeof value !== "string" || value.length > 214 || !SAFE_PACKAGE_NAME.test(value)) {
     throw new Error("npm package must be a safe lowercase package name or @scope/name");
@@ -70549,7 +71008,7 @@ async function defaultResolveAuthToken({ registry, cwd, exec, env = process.env 
     if (env[name]) candidates.push(env[name]);
   }
   const key = registryTokenKey(registry);
-  candidates.push(...await tokensFromNpmrc(join14(cwd, ".npmrc"), key, env));
+  candidates.push(...await tokensFromNpmrc(join15(cwd, ".npmrc"), key, env));
   const npmUserConfigKey = ["npm", "config", "userconfig"].join("_");
   const userConfig = env[npmUserConfigKey] ?? (await exec("npm", ["config", "get", "userconfig"], { cwd, shell: false })).stdout.trim();
   if (userConfig) candidates.push(...await tokensFromNpmrc(userConfig, key, env));
@@ -70578,10 +71037,10 @@ async function defaultWhoamiWithToken({ registry, token, cwd, exec }) {
 }
 function resolvePackageCwd(cwd, root) {
   if (!cwd || typeof cwd !== "string") throw new Error("NPM_PUBLISH requires a non-empty action.cwd (package directory)");
-  const rootPath = resolve18(root);
-  const packagePath = resolve18(root, cwd);
-  const rel = relative16(rootPath, packagePath);
-  if (isAbsolute13(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+  const rootPath = resolve19(root);
+  const packagePath = resolve19(root, cwd);
+  const rel = relative17(rootPath, packagePath);
+  if (isAbsolute14(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
     throw new Error(`cwd "${cwd}" is outside project root "${root}"`);
   }
   return packagePath;
@@ -70594,15 +71053,15 @@ ${error?.message ?? ""}`;
   return /\bE404\b|\b404\b.*not found|not found.*\b404\b/i.test(text);
 }
 async function readVerifiedTarballBytes(action, root) {
-  if (!action.tarballPath || isAbsolute13(action.tarballPath)) throw new Error("tarballPath must be project-relative");
+  if (!action.tarballPath || isAbsolute14(action.tarballPath)) throw new Error("tarballPath must be project-relative");
   if (!/^[a-f0-9]{64}$/.test(action.tarballSha256 ?? "")) throw new Error("tarballSha256 must be a lowercase SHA-256 digest");
-  const rootReal = await realpath10(root);
-  const lexical = resolve18(rootReal, action.tarballPath);
-  const rel = relative16(rootReal, lexical);
-  if (isAbsolute13(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+  const rootReal = await realpath11(root);
+  const lexical = resolve19(rootReal, action.tarballPath);
+  const rel = relative17(rootReal, lexical);
+  if (isAbsolute14(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
     throw new Error("tarballPath escapes project root");
   }
-  const before = await lstat11(lexical);
+  const before = await lstat12(lexical);
   if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1) {
     throw new Error("frozen tarball must be a single-link regular file");
   }
@@ -70895,7 +71354,7 @@ function createNpmAdapter(deps = {}) {
             throw new Error("npm bearer authentication does not match the frozen registry and publisher");
           }
           if (typeof beforeBufferPublishHook === "function") {
-            await beforeBufferPublishHook(resolve18(context.root, action.tarballPath));
+            await beforeBufferPublishHook(resolve19(context.root, action.tarballPath));
           }
           try {
             await publishTarballBuffer({
@@ -71061,11 +71520,11 @@ var init_npm = __esm({
 });
 
 // src/core/run.mjs
-import { link as link2, lstat as lstat12, mkdir as mkdir9, open as open7, readFile as readFile17, unlink as unlink3 } from "node:fs/promises";
+import { link as link2, lstat as lstat13, mkdir as mkdir9, open as open7, readFile as readFile17, unlink as unlink3 } from "node:fs/promises";
 import { realpathSync as realpathSync3 } from "node:fs";
-import { dirname as dirname9, join as join15, resolve as resolve19, basename as basename4, relative as relative17, isAbsolute as isAbsolute14 } from "node:path";
+import { dirname as dirname9, join as join16, resolve as resolve20, basename as basename4, relative as relative18, isAbsolute as isAbsolute15 } from "node:path";
 function resolveDefaultRunDir(planPath, command2, runId = `${command2}-${Date.now()}`) {
-  const absolute = resolve19(planPath);
+  const absolute = resolve20(planPath);
   const fileName = basename4(absolute);
   const parentDir = dirname9(absolute);
   if (fileName === "release-plan.json") {
@@ -71073,7 +71532,7 @@ function resolveDefaultRunDir(planPath, command2, runId = `${command2}-${Date.no
   }
   if (basename4(parentDir) === "plans") {
     const releaseDir = dirname9(parentDir);
-    return join15(releaseDir, "runs", runId);
+    return join16(releaseDir, "runs", runId);
   }
   return `${parentDir}/runs/${runId}`;
 }
@@ -71138,7 +71597,7 @@ async function loadRun(runPath, options = {}) {
   return run5;
 }
 function assertImmutableRunAuthority(runPath, planPath, run5) {
-  const absolutePlan = realpathSync3(resolve19(planPath));
+  const absolutePlan = realpathSync3(resolve20(planPath));
   const planDir = dirname9(absolutePlan);
   if (basename4(planDir) !== "plans") {
     throw new ReleaseError(GATE_FAILED, "run authority requires an immutable plans/<digest>.json plan path");
@@ -71152,10 +71611,10 @@ function assertImmutableRunAuthority(runPath, planPath, run5) {
     }
     cursor = dirname9(cursor);
   }
-  const runsDir = join15(authorityRoot, "runs");
-  const absoluteRun = realpathSync3(resolve19(runPath));
-  const rel = relative17(runsDir, absoluteRun);
-  if (isAbsolute14(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+  const runsDir = join16(authorityRoot, "runs");
+  const absoluteRun = realpathSync3(resolve20(runPath));
+  const rel = relative18(runsDir, absoluteRun);
+  if (isAbsolute15(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
     throw new ReleaseError(GATE_FAILED, "production run authority must be inside the plan sibling runs/ directory");
   }
   const fileName = basename4(absoluteRun);
@@ -71170,7 +71629,7 @@ function assertImmutableRunAuthority(runPath, planPath, run5) {
   }
 }
 async function createProductionRunDir(runDir, planPath) {
-  const absolutePlan = realpathSync3(resolve19(planPath));
+  const absolutePlan = realpathSync3(resolve20(planPath));
   const planDir = dirname9(absolutePlan);
   if (basename4(planDir) !== "plans") {
     throw new ReleaseError(GATE_FAILED, "production run directory requires an immutable plans/<digest>.json authority");
@@ -71179,10 +71638,10 @@ async function createProductionRunDir(runDir, planPath) {
   return createProductionRunDirWithinAuthority(runDir, authorityRoot);
 }
 async function createProductionPrepareRunDir(runDir, releaseDir) {
-  const authorityRoot = resolve19(releaseDir);
+  const authorityRoot = resolve20(releaseDir);
   let authorityStat;
   try {
-    authorityStat = await lstat12(authorityRoot);
+    authorityStat = await lstat13(authorityRoot);
   } catch (error) {
     throw new ReleaseError(GATE_FAILED, "cannot inspect production .release-skill authority root", {
       releaseDir: authorityRoot,
@@ -71207,10 +71666,10 @@ async function createProductionPrepareRunDir(runDir, releaseDir) {
   return createProductionRunDirWithinAuthority(runDir, physicalAuthorityRoot);
 }
 async function createProductionRunDirWithinAuthority(runDir, authorityRoot) {
-  const runsDir = join15(authorityRoot, "runs");
+  const runsDir = join16(authorityRoot, "runs");
   let runsStat;
   try {
-    runsStat = await lstat12(runsDir);
+    runsStat = await lstat13(runsDir);
   } catch (error) {
     if (error.code !== "ENOENT") {
       throw new ReleaseError(GATE_FAILED, "cannot inspect production runs authority root", {
@@ -71228,7 +71687,7 @@ async function createProductionRunDirWithinAuthority(runDir, authorityRoot) {
         });
       }
     }
-    runsStat = await lstat12(runsDir);
+    runsStat = await lstat13(runsDir);
   }
   if (runsStat.isSymbolicLink() || !runsStat.isDirectory()) {
     throw new ReleaseError(
@@ -71245,7 +71704,7 @@ async function createProductionRunDirWithinAuthority(runDir, authorityRoot) {
       { runsDir, physicalRunsDir }
     );
   }
-  const requested = resolve19(runDir);
+  const requested = resolve20(runDir);
   let physicalParent;
   try {
     physicalParent = realpathSync3(dirname9(requested));
@@ -71263,7 +71722,7 @@ async function createProductionRunDirWithinAuthority(runDir, authorityRoot) {
     );
   }
   try {
-    await lstat12(requested);
+    await lstat13(requested);
     throw new ReleaseError(GATE_FAILED, "production run directory already exists; authority directories cannot be reused", { runDir });
   } catch (error) {
     if (error instanceof ReleaseError) throw error;
@@ -71296,7 +71755,7 @@ async function validateStatePredecessorChain(run5, runPath, options = {}) {
     return;
   }
   let current = run5;
-  let currentPath = realpathSync3(resolve19(runPath));
+  let currentPath = realpathSync3(resolve20(runPath));
   let traversed = 0;
   while (true) {
     const sequence = current.stateSequence;
@@ -71317,7 +71776,7 @@ async function validateStatePredecessorChain(run5, runPath, options = {}) {
     if (traversed > 1e5) {
       throw new ReleaseError(GATE_FAILED, "run state predecessor chain exceeds maximum depth");
     }
-    const previousPath = join15(dirname9(currentPath), `${String(sequence - 1).padStart(6, "0")}.json`);
+    const previousPath = join16(dirname9(currentPath), `${String(sequence - 1).padStart(6, "0")}.json`);
     const previous = await loadRun(previousPath, {
       requireDigest: true,
       ...options.production ? { authorityPlanPath: options.planPath } : {}
@@ -71410,7 +71869,7 @@ function validateRunPlanDigest(run5, plan, options = {}) {
       { runDigest: run5.planDigest, planDigest: expectedDigest }
     );
   }
-  if (plan.production && run5.planPath && options.planPath && resolve19(run5.planPath) !== resolve19(options.planPath)) {
+  if (plan.production && run5.planPath && options.planPath && resolve20(run5.planPath) !== resolve20(options.planPath)) {
     throw new ReleaseError(
       GATE_FAILED,
       "source run immutable plan path does not match the supplied plan authority",
@@ -71527,10 +71986,10 @@ async function appendRunState(runDir, sequence, run5) {
   if (!Number.isSafeInteger(sequence) || sequence < 0) {
     throw new ReleaseError(GATE_FAILED, "run state sequence must be a non-negative integer");
   }
-  const statesDir = join15(runDir, "states");
+  const statesDir = join16(runDir, "states");
   let previousStateDigest;
   if (sequence > 0) {
-    const previousPath = join15(statesDir, `${String(sequence - 1).padStart(6, "0")}.json`);
+    const previousPath = join16(statesDir, `${String(sequence - 1).padStart(6, "0")}.json`);
     const previous = await loadRun(previousPath, { requireDigest: true });
     if (previous.stateSequence !== sequence - 1 || previous.runId !== run5.runId || previous.command !== run5.command || previous.planDigest !== run5.planDigest) {
       throw new ReleaseError(
@@ -71547,7 +72006,7 @@ async function appendRunState(runDir, sequence, run5) {
     stateSequence: sequence,
     ...previousStateDigest ? { previousStateDigest } : {}
   });
-  const statePath = join15(statesDir, `${String(sequence).padStart(6, "0")}.json`);
+  const statePath = join16(statesDir, `${String(sequence).padStart(6, "0")}.json`);
   await writeRunAtomic(statePath, state);
   return Object.freeze({ state, statePath });
 }
@@ -71599,8 +72058,8 @@ __export(plugin_marketplace_exports, {
 });
 import { execFile as execFileCb8 } from "node:child_process";
 import { promisify as promisify8 } from "node:util";
-import { readFile as readFile18, stat as stat4, mkdir as mkdir10, readdir as readdir10, realpath as realpath11, lstat as lstat13 } from "node:fs/promises";
-import { join as join16, resolve as resolve20, relative as relative18, isAbsolute as isAbsolute15, basename as basename5 } from "node:path";
+import { readFile as readFile18, stat as stat4, mkdir as mkdir10, readdir as readdir11, realpath as realpath12, lstat as lstat14 } from "node:fs/promises";
+import { join as join17, resolve as resolve21, relative as relative19, isAbsolute as isAbsolute16, basename as basename5 } from "node:path";
 import { createHash as createHash10 } from "node:crypto";
 function transportPayload(entries) {
   return entries.map(({ path: path3, type, mode, size, contentDigest }) => ({
@@ -71668,21 +72127,21 @@ async function resolvePluginManifestFromMarketplaceEntrySource(marketIndex, plug
   }
   const entry = matches[0];
   const sourcePath = extractDeclaredPluginSource(platform.id, entry);
-  const snapshotDirReal = await realpath11(snapshotDir).catch(() => snapshotDir);
-  const marketplaceRootAbs = marketplaceRootRel === "." ? snapshotDirReal : resolve20(snapshotDirReal, marketplaceRootRel);
-  const pluginRootAbs = resolve20(marketplaceRootAbs, sourcePath);
-  const pluginRootReal = await realpath11(pluginRootAbs).catch(() => null);
+  const snapshotDirReal = await realpath12(snapshotDir).catch(() => snapshotDir);
+  const marketplaceRootAbs = marketplaceRootRel === "." ? snapshotDirReal : resolve21(snapshotDirReal, marketplaceRootRel);
+  const pluginRootAbs = resolve21(marketplaceRootAbs, sourcePath);
+  const pluginRootReal = await realpath12(pluginRootAbs).catch(() => null);
   if (!pluginRootReal) {
     throw new Error(`marketplace plugin entry source "${sourcePath}" does not exist in snapshot`);
   }
-  const containment = relative18(snapshotDirReal, pluginRootReal);
-  const sep6 = process.platform === "win32" ? "\\" : "/";
-  if (containment !== "" && (isAbsolute15(containment) || containment === ".." || containment.startsWith(`..${sep6}`))) {
+  const containment = relative19(snapshotDirReal, pluginRootReal);
+  const sep7 = process.platform === "win32" ? "\\" : "/";
+  if (containment !== "" && (isAbsolute16(containment) || containment === ".." || containment.startsWith(`..${sep7}`))) {
     throw new Error(`marketplace plugin entry source "${sourcePath}" escapes the snapshot after symlink resolution`);
   }
   const manifestRelative = platform.manifestPaths.plugin;
-  const manifestAbs = resolve20(pluginRootReal, manifestRelative);
-  const pluginRootRelToSnapshot = relative18(snapshotDirReal, pluginRootReal);
+  const manifestAbs = resolve21(pluginRootReal, manifestRelative);
+  const pluginRootRelToSnapshot = relative19(snapshotDirReal, pluginRootReal);
   const fullManifestRelative = pluginRootRelToSnapshot === "" ? manifestRelative : `${pluginRootRelToSnapshot}/${manifestRelative}`;
   let raw;
   try {
@@ -71717,7 +72176,7 @@ async function validateInstallationContractDigest(action, snapshotDirReal, platf
     includeMarketplaceEntry = hasMarketplacePath;
     if (includeMarketplaceEntry) {
       marketplaceIndexRelative = action.marketplaceIndexPath ?? platform.manifestPaths.marketplace;
-      const marketplacePath = resolve20(snapshotDirReal, marketplaceIndexRelative);
+      const marketplacePath = resolve21(snapshotDirReal, marketplaceIndexRelative);
       const mkResult = await validateManifestFile(marketplacePath, ["name", "plugins"]);
       if (!mkResult.valid) {
         return { valid: false, error: `installationContractDigest \u9A8C\u8BC1\u5931\u8D25\uFF1A\u5E02\u573A\u7D22\u5F15\u8BFB\u53D6\u5931\u8D25\uFF1A${mkResult.error}` };
@@ -71763,7 +72222,7 @@ async function validateInstallationContractDigest(action, snapshotDirReal, platf
     pluginManifestRelative = readResult.manifestRelative ?? platform.manifestPaths.plugin;
   } else {
     pluginManifestRelative = platform.manifestPaths.plugin;
-    const pluginManifestPath = resolve20(snapshotDirReal, pluginManifestRelative);
+    const pluginManifestPath = resolve21(snapshotDirReal, pluginManifestRelative);
     const manifestResult = await validateManifestFile(pluginManifestPath, ["name", "version"]);
     if (!manifestResult.valid) {
       return { valid: false, error: `installationContractDigest \u9A8C\u8BC1\u5931\u8D25\uFF1A\u63D2\u4EF6 manifest \u8BFB\u53D6\u5931\u8D25\uFF1A${manifestResult.error}` };
@@ -71800,7 +72259,7 @@ async function resolveInstalledPayloadSubpath(snapshotDir, sourceEntries, action
   if (!anchored) {
     throw new Error(`frozen snapshot is missing the marketplace manifest ${marketplaceRelative}`);
   }
-  const result = await validateManifestFile(resolve20(snapshotDir, marketplaceRelative), ["name", "plugins"]);
+  const result = await validateManifestFile(resolve21(snapshotDir, marketplaceRelative), ["name", "plugins"]);
   if (!result.valid) {
     throw new Error(`frozen snapshot ${marketplaceRelative} invalid: ${result.error}`);
   }
@@ -71914,26 +72373,26 @@ async function resolveKimiEntrySkillFile(pluginRootReal, manifest, entrySkill) {
   }
   let entryAbs;
   if (manifest.skills === void 0 || manifest.skills === null) {
-    entryAbs = resolve20(pluginRootReal, "SKILL.md");
+    entryAbs = resolve21(pluginRootReal, "SKILL.md");
   } else {
     const skillsRel = normalizeKimiSkillsRel(manifest.skills);
-    const skillsRootAbs = skillsRel === "" ? pluginRootReal : resolve20(pluginRootReal, skillsRel);
-    const skillsRootReal = await realpath11(skillsRootAbs).catch(() => null);
+    const skillsRootAbs = skillsRel === "" ? pluginRootReal : resolve21(pluginRootReal, skillsRel);
+    const skillsRootReal = await realpath12(skillsRootAbs).catch(() => null);
     if (!skillsRootReal) {
       throw new Error(`kimi manifest skills root does not exist: ${manifest.skills}`);
     }
-    const skillsContainment = relative18(pluginRootReal, skillsRootReal);
+    const skillsContainment = relative19(pluginRootReal, skillsRootReal);
     const sepK = process.platform === "win32" ? "\\" : "/";
-    if (skillsContainment !== "" && (isAbsolute15(skillsContainment) || skillsContainment === ".." || skillsContainment.startsWith(`..${sepK}`))) {
+    if (skillsContainment !== "" && (isAbsolute16(skillsContainment) || skillsContainment === ".." || skillsContainment.startsWith(`..${sepK}`))) {
       throw new Error(`kimi manifest skills "${manifest.skills}" escapes the plugin root after symlink resolution`);
     }
-    entryAbs = resolve20(skillsRootReal, entrySkill, "SKILL.md");
+    entryAbs = resolve21(skillsRootReal, entrySkill, "SKILL.md");
   }
   let entryLexicalStat;
   try {
-    entryLexicalStat = await lstat13(entryAbs);
+    entryLexicalStat = await lstat14(entryAbs);
   } catch {
-    throw new Error(`kimi entry skill not found: ${relative18(pluginRootReal, entryAbs) || "SKILL.md"}`);
+    throw new Error(`kimi entry skill not found: ${relative19(pluginRootReal, entryAbs) || "SKILL.md"}`);
   }
   if (entryLexicalStat.isSymbolicLink()) {
     throw new Error("kimi entry skill must not be a symlink");
@@ -71941,13 +72400,13 @@ async function resolveKimiEntrySkillFile(pluginRootReal, manifest, entrySkill) {
   if (!entryLexicalStat.isFile()) {
     throw new Error("kimi entry skill is not a regular file");
   }
-  const entryReal = await realpath11(entryAbs).catch(() => null);
+  const entryReal = await realpath12(entryAbs).catch(() => null);
   if (!entryReal) {
-    throw new Error(`kimi entry skill not found: ${relative18(pluginRootReal, entryAbs) || "SKILL.md"}`);
+    throw new Error(`kimi entry skill not found: ${relative19(pluginRootReal, entryAbs) || "SKILL.md"}`);
   }
-  const entryContainment = relative18(pluginRootReal, entryReal);
+  const entryContainment = relative19(pluginRootReal, entryReal);
   const sepE = process.platform === "win32" ? "\\" : "/";
-  if (entryContainment !== "" && (isAbsolute15(entryContainment) || entryContainment === ".." || entryContainment.startsWith(`..${sepE}`))) {
+  if (entryContainment !== "" && (isAbsolute16(entryContainment) || entryContainment === ".." || entryContainment.startsWith(`..${sepE}`))) {
     throw new Error("kimi entry skill escapes the plugin root after symlink resolution");
   }
   return entryReal;
@@ -71985,26 +72444,26 @@ async function resolveCodeBuddyEntrySkillFile(pluginRootReal, manifest, entrySki
   }
   let entryAbs;
   if (manifest.skills === void 0 || manifest.skills === null) {
-    entryAbs = resolve20(pluginRootReal, "SKILL.md");
+    entryAbs = resolve21(pluginRootReal, "SKILL.md");
   } else {
     const skillsRel = normalizeCodeBuddySkillsRel(manifest.skills);
-    const skillsRootAbs = skillsRel === "" ? pluginRootReal : resolve20(pluginRootReal, skillsRel);
-    const skillsRootReal = await realpath11(skillsRootAbs).catch(() => null);
+    const skillsRootAbs = skillsRel === "" ? pluginRootReal : resolve21(pluginRootReal, skillsRel);
+    const skillsRootReal = await realpath12(skillsRootAbs).catch(() => null);
     if (!skillsRootReal) {
       throw new Error(`codebuddy manifest skills root does not exist: ${manifest.skills}`);
     }
-    const skillsContainment = relative18(pluginRootReal, skillsRootReal);
+    const skillsContainment = relative19(pluginRootReal, skillsRootReal);
     const sepK = process.platform === "win32" ? "\\" : "/";
-    if (skillsContainment !== "" && (isAbsolute15(skillsContainment) || skillsContainment === ".." || skillsContainment.startsWith(`..${sepK}`))) {
+    if (skillsContainment !== "" && (isAbsolute16(skillsContainment) || skillsContainment === ".." || skillsContainment.startsWith(`..${sepK}`))) {
       throw new Error(`codebuddy manifest skills "${manifest.skills}" escapes the plugin root after symlink resolution`);
     }
-    entryAbs = resolve20(skillsRootReal, entrySkill, "SKILL.md");
+    entryAbs = resolve21(skillsRootReal, entrySkill, "SKILL.md");
   }
   let entryLexicalStat;
   try {
-    entryLexicalStat = await lstat13(entryAbs);
+    entryLexicalStat = await lstat14(entryAbs);
   } catch {
-    throw new Error(`codebuddy entry skill not found: ${relative18(pluginRootReal, entryAbs) || "SKILL.md"}`);
+    throw new Error(`codebuddy entry skill not found: ${relative19(pluginRootReal, entryAbs) || "SKILL.md"}`);
   }
   if (entryLexicalStat.isSymbolicLink()) {
     throw new Error("codebuddy entry skill must not be a symlink");
@@ -72012,13 +72471,13 @@ async function resolveCodeBuddyEntrySkillFile(pluginRootReal, manifest, entrySki
   if (!entryLexicalStat.isFile()) {
     throw new Error("codebuddy entry skill is not a regular file");
   }
-  const entryReal = await realpath11(entryAbs).catch(() => null);
+  const entryReal = await realpath12(entryAbs).catch(() => null);
   if (!entryReal) {
-    throw new Error(`codebuddy entry skill not found: ${relative18(pluginRootReal, entryAbs) || "SKILL.md"}`);
+    throw new Error(`codebuddy entry skill not found: ${relative19(pluginRootReal, entryAbs) || "SKILL.md"}`);
   }
-  const entryContainment = relative18(pluginRootReal, entryReal);
+  const entryContainment = relative19(pluginRootReal, entryReal);
   const sepE = process.platform === "win32" ? "\\" : "/";
-  if (entryContainment !== "" && (isAbsolute15(entryContainment) || entryContainment === ".." || entryContainment.startsWith(`..${sepE}`))) {
+  if (entryContainment !== "" && (isAbsolute16(entryContainment) || entryContainment === ".." || entryContainment.startsWith(`..${sepE}`))) {
     throw new Error("codebuddy entry skill escapes the plugin root after symlink resolution");
   }
   return entryReal;
@@ -72157,7 +72616,7 @@ async function checkRequiredFiles(dir, requiredFiles) {
   const missing = [];
   for (const file of requiredFiles) {
     try {
-      await stat4(resolve20(dir, file));
+      await stat4(resolve21(dir, file));
     } catch {
       missing.push(file);
     }
@@ -72884,7 +73343,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
                 });
               }
               const externalManifestRelative = platform.manifestPaths.plugin;
-              const externalManifestPath = resolve20(snapshotDirReal, externalManifestRelative);
+              const externalManifestPath = resolve21(snapshotDirReal, externalManifestRelative);
               const externalManifestResult = await validateManifestFile(externalManifestPath, ["name", "version"]);
               if (!externalManifestResult.valid) {
                 return createResult({
@@ -72919,7 +73378,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
                   error: `marketplace root resolution failed: ${mktRootErr.message}`
                 });
               }
-              const marketplacePath = resolve20(snapshotDirReal, marketplaceRelative);
+              const marketplacePath = resolve21(snapshotDirReal, marketplaceRelative);
               const marketplaceResult = await validateManifestFile(marketplacePath, ["name"]);
               if (!marketplaceResult.valid) {
                 return createResult({
@@ -72962,9 +73421,9 @@ function createPluginMarketplaceAdapter(deps = {}) {
                   error: sourceErr.message
                 });
               }
-              const mktRootAbs = mktRoot === "." ? snapshotDirReal : resolve20(snapshotDirReal, mktRoot);
-              const sourceDirAbs = resolve20(mktRootAbs, sourcePath);
-              sourceDirReal = await realpath11(sourceDirAbs).catch(() => null);
+              const mktRootAbs = mktRoot === "." ? snapshotDirReal : resolve21(snapshotDirReal, mktRoot);
+              const sourceDirAbs = resolve21(mktRootAbs, sourcePath);
+              sourceDirReal = await realpath12(sourceDirAbs).catch(() => null);
               if (!sourceDirReal) {
                 return createResult({
                   actionType,
@@ -72972,8 +73431,8 @@ function createPluginMarketplaceAdapter(deps = {}) {
                   error: `marketplace plugin entry source directory does not exist: ${sourcePath}`
                 });
               }
-              const sourceRelCheck = relative18(snapshotDirReal, sourceDirReal);
-              if (sourceRelCheck.startsWith("..") || isAbsolute15(sourceRelCheck)) {
+              const sourceRelCheck = relative19(snapshotDirReal, sourceDirReal);
+              if (sourceRelCheck.startsWith("..") || isAbsolute16(sourceRelCheck)) {
                 return createResult({
                   actionType,
                   status: ActionStatus.PREFLIGHT_FAILED,
@@ -72981,9 +73440,9 @@ function createPluginMarketplaceAdapter(deps = {}) {
                 });
               }
               pluginRootForEntrySkill = sourceDirReal;
-              const pluginRootRelToSnapshot = relative18(snapshotDirReal, sourceDirReal) || ".";
+              const pluginRootRelToSnapshot = relative19(snapshotDirReal, sourceDirReal) || ".";
               const manifestRelative = pluginRootRelToSnapshot === "." ? platform.manifestPaths.plugin : `${pluginRootRelToSnapshot}/${platform.manifestPaths.plugin}`;
-              const manifestPath = resolve20(snapshotDirReal, manifestRelative);
+              const manifestPath = resolve21(snapshotDirReal, manifestRelative);
               const manifestResult = await validateManifestFile(manifestPath, ["name", "version"]);
               if (!manifestResult.valid) {
                 return createResult({
@@ -73036,11 +73495,11 @@ function createPluginMarketplaceAdapter(deps = {}) {
             }
           } else {
             const pluginRootForSkill = pluginRootForEntrySkill || snapshotDirReal;
-            const entrySkillFile = resolve20(pluginRootForSkill, "skills", action.entrySkill, "SKILL.md");
+            const entrySkillFile = resolve21(pluginRootForSkill, "skills", action.entrySkill, "SKILL.md");
             try {
               await stat4(entrySkillFile);
             } catch {
-              const skillRel = relative18(snapshotDirReal, entrySkillFile) || `skills/${action.entrySkill}/SKILL.md`;
+              const skillRel = relative19(snapshotDirReal, entrySkillFile) || `skills/${action.entrySkill}/SKILL.md`;
               return createResult({
                 actionType,
                 status: ActionStatus.PREFLIGHT_FAILED,
@@ -73162,7 +73621,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
           }
           if (action.entryPoint) {
             try {
-              await exec(process.execPath, ["--check", resolve20(pluginDir, action.entryPoint)]);
+              await exec(process.execPath, ["--check", resolve21(pluginDir, action.entryPoint)]);
             } catch (checkErr) {
               return createResult({
                 actionType,
@@ -73220,12 +73679,12 @@ function createPluginMarketplaceAdapter(deps = {}) {
           }
           const consumer = action.consumer;
           const runDir = context.runDir;
-          const isolatedHome = resolve20(runDir, "consumers", `${consumer}-${action.plugin}`);
-          const runDirReal = await realpath11(runDir).catch(() => runDir);
-          const isolatedHomePreReal = await realpath11(isolatedHome).catch(() => isolatedHome);
-          const relToRun = relative18(runDirReal, isolatedHomePreReal);
+          const isolatedHome = resolve21(runDir, "consumers", `${consumer}-${action.plugin}`);
+          const runDirReal = await realpath12(runDir).catch(() => runDir);
+          const isolatedHomePreReal = await realpath12(isolatedHome).catch(() => isolatedHome);
+          const relToRun = relative19(runDirReal, isolatedHomePreReal);
           const sepE = process.platform === "win32" ? "\\" : "/";
-          if (relToRun !== "" && (isAbsolute15(relToRun) || relToRun === ".." || relToRun.startsWith(`..${sepE}`))) {
+          if (relToRun !== "" && (isAbsolute16(relToRun) || relToRun === ".." || relToRun.startsWith(`..${sepE}`))) {
             return createResult({
               actionType,
               status: ActionStatus.EXECUTE_FAILED,
@@ -73234,7 +73693,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
           }
           await mkdir10(isolatedHome, { recursive: true, mode: 448 });
           for (const subdir of platform.isolationSubdirs) {
-            await mkdir10(resolve20(isolatedHome, subdir), { recursive: true, mode: 448 });
+            await mkdir10(resolve21(isolatedHome, subdir), { recursive: true, mode: 448 });
           }
           const cliCmd = platform.cli.binary;
           const baseEnv = { ...process.env, ...context.env };
@@ -73331,9 +73790,9 @@ function createPluginMarketplaceAdapter(deps = {}) {
                         error: `plugin install JSON missing installedPath`
                       });
                     }
-                    const installPathAbs = resolve20(installFields.installedPath);
-                    const installPathRel = relative18(isolatedHome, installPathAbs);
-                    if (isAbsolute15(installPathRel) || installPathRel === ".." || installPathRel.startsWith(`..${sepE}`)) {
+                    const installPathAbs = resolve21(installFields.installedPath);
+                    const installPathRel = relative19(isolatedHome, installPathAbs);
+                    if (isAbsolute16(installPathRel) || installPathRel === ".." || installPathRel.startsWith(`..${sepE}`)) {
                       return createResult({
                         actionType,
                         status: ActionStatus.EXECUTE_FAILED,
@@ -73394,9 +73853,9 @@ function createPluginMarketplaceAdapter(deps = {}) {
             executedAt: (/* @__PURE__ */ new Date()).toISOString(),
             ...extraInstalledPathsAudit(executeBinding)
           };
-          const evidenceDir = resolve20(runDir, "evidence", `${consumer}-${action.plugin}`);
+          const evidenceDir = resolve21(runDir, "evidence", `${consumer}-${action.plugin}`);
           await mkdir10(evidenceDir, { recursive: true, mode: 448 });
-          const evidencePath = resolve20(evidenceDir, "release-skill-install-evidence.json");
+          const evidencePath = resolve21(evidenceDir, "release-skill-install-evidence.json");
           await writeEvidenceAtomic(evidencePath, evidence);
           const executeObservation = {
             ...evidence,
@@ -73492,7 +73951,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
               observation: { installed: false, error: "context.runDir is required" }
             });
           }
-          const isolatedHome = resolve20(runDir, "consumers", `${consumer}-${action.plugin}`);
+          const isolatedHome = resolve21(runDir, "consumers", `${consumer}-${action.plugin}`);
           const platform = PLATFORMS.find((p) => p.id === consumer) ?? null;
           if (!platform) {
             throw new Error(
@@ -73544,7 +74003,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
             }
             let requirement = null;
             try {
-              requirement = JSON.parse(await readFile18(resolve20(attestationDir, KIMI_REQUIREMENT_FILE), "utf8"));
+              requirement = JSON.parse(await readFile18(resolve21(attestationDir, KIMI_REQUIREMENT_FILE), "utf8"));
             } catch {
               return createResult({
                 actionType,
@@ -73568,7 +74027,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
             }
             let attestation = null;
             try {
-              attestation = JSON.parse(await readFile18(resolve20(attestationDir, KIMI_ATTESTATION_FILE), "utf8"));
+              attestation = JSON.parse(await readFile18(resolve21(attestationDir, KIMI_ATTESTATION_FILE), "utf8"));
             } catch {
               return createResult({
                 actionType,
@@ -73578,7 +74037,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
                   manualInstallRequired: true,
                   installUrl: requirement.installUrl,
                   attestationDir,
-                  error: `kimi attestation is missing; write ${resolve20(attestationDir, KIMI_ATTESTATION_FILE)} after the interactive install (${requirement.installUrl})`
+                  error: `kimi attestation is missing; write ${resolve21(attestationDir, KIMI_ATTESTATION_FILE)} after the interactive install (${requirement.installUrl})`
                 }
               });
             }
@@ -73620,10 +74079,10 @@ function createPluginMarketplaceAdapter(deps = {}) {
             }
             let verifiedInstallPath = null;
             if (normalizedAttestation.installPath) {
-              const installPathAbs = resolve20(normalizedAttestation.installPath);
+              const installPathAbs = resolve21(normalizedAttestation.installPath);
               let lexicalStat;
               try {
-                lexicalStat = await lstat13(installPathAbs);
+                lexicalStat = await lstat14(installPathAbs);
               } catch {
                 return createResult({
                   actionType,
@@ -73644,7 +74103,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
                   }
                 });
               }
-              const installPathReal2 = await realpath11(installPathAbs).catch(() => null);
+              const installPathReal2 = await realpath12(installPathAbs).catch(() => null);
               if (!installPathReal2) {
                 return createResult({
                   actionType,
@@ -73735,7 +74194,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
             }
             let requirement = null;
             try {
-              requirement = JSON.parse(await readFile18(resolve20(attestationDir, CODEBUDDY_REQUIREMENT_FILE), "utf8"));
+              requirement = JSON.parse(await readFile18(resolve21(attestationDir, CODEBUDDY_REQUIREMENT_FILE), "utf8"));
             } catch {
               return createResult({
                 actionType,
@@ -73759,7 +74218,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
             }
             let attestation = null;
             try {
-              attestation = JSON.parse(await readFile18(resolve20(attestationDir, CODEBUDDY_ATTESTATION_FILE), "utf8"));
+              attestation = JSON.parse(await readFile18(resolve21(attestationDir, CODEBUDDY_ATTESTATION_FILE), "utf8"));
             } catch {
               return createResult({
                 actionType,
@@ -73769,7 +74228,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
                   manualInstallRequired: true,
                   marketplaceSource: CODEBUDDY_MARKETPLACE_SOURCE,
                   attestationDir,
-                  error: `codebuddy attestation is missing; write ${resolve20(attestationDir, CODEBUDDY_ATTESTATION_FILE)} after the manual install (marketplace ${CODEBUDDY_MARKETPLACE_SOURCE})`
+                  error: `codebuddy attestation is missing; write ${resolve21(attestationDir, CODEBUDDY_ATTESTATION_FILE)} after the manual install (marketplace ${CODEBUDDY_MARKETPLACE_SOURCE})`
                 }
               });
             }
@@ -73833,10 +74292,10 @@ function createPluginMarketplaceAdapter(deps = {}) {
                   }
                 });
               }
-              const installPathAbs = resolve20(normalizedAttestation.installPath);
+              const installPathAbs = resolve21(normalizedAttestation.installPath);
               let lexicalStat;
               try {
-                lexicalStat = await lstat13(installPathAbs);
+                lexicalStat = await lstat14(installPathAbs);
               } catch {
                 return createResult({
                   actionType,
@@ -73857,7 +74316,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
                   }
                 });
               }
-              verifiedInstallPath = await realpath11(installPathAbs);
+              verifiedInstallPath = await realpath12(installPathAbs);
             }
             return createResult({
               actionType,
@@ -73897,13 +74356,13 @@ function createPluginMarketplaceAdapter(deps = {}) {
               if (codexAttestationDir) {
                 let codexRequirement = null;
                 try {
-                  codexRequirement = JSON.parse(await readFile18(resolve20(codexAttestationDir, CODEX_REQUIREMENT_FILE), "utf8"));
+                  codexRequirement = JSON.parse(await readFile18(resolve21(codexAttestationDir, CODEX_REQUIREMENT_FILE), "utf8"));
                 } catch {
                 }
                 if (codexRequirement && codexRequirement.planDigest === codexBoundPlanDigest && codexRequirement.plugin === action.plugin && codexRequirement.version === action.version && codexRequirement.repo === action.repo && codexRequirement.ref === (action.ref ?? `v${action.version}`) && (!action.entrySkill || codexRequirement.entrySkill === action.entrySkill)) {
                   let codexAttestation = null;
                   try {
-                    codexAttestation = JSON.parse(await readFile18(resolve20(codexAttestationDir, CODEX_ATTESTATION_FILE), "utf8"));
+                    codexAttestation = JSON.parse(await readFile18(resolve21(codexAttestationDir, CODEX_ATTESTATION_FILE), "utf8"));
                   } catch {
                   }
                   if (codexAttestation) {
@@ -73958,7 +74417,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
           }
           let evidence = null;
           try {
-            const evidenceRaw = await readFile18(resolve20(runDir, "evidence", `${consumer}-${action.plugin}`, "release-skill-install-evidence.json"), "utf8");
+            const evidenceRaw = await readFile18(resolve21(runDir, "evidence", `${consumer}-${action.plugin}`, "release-skill-install-evidence.json"), "utf8");
             evidence = JSON.parse(evidenceRaw);
           } catch {
             return createResult({
@@ -74041,11 +74500,11 @@ function createPluginMarketplaceAdapter(deps = {}) {
               }
             }
           }
-          const isolatedHomeReal = await realpath11(isolatedHome).catch(() => isolatedHome);
-          const installPathReal = await realpath11(installPath).catch(() => installPath);
-          const relToHome = relative18(isolatedHomeReal, installPathReal);
-          const sep6 = process.platform === "win32" ? "\\" : "/";
-          if (relToHome !== "" && (isAbsolute15(relToHome) || relToHome === ".." || relToHome.startsWith(`..${sep6}`))) {
+          const isolatedHomeReal = await realpath12(isolatedHome).catch(() => isolatedHome);
+          const installPathReal = await realpath12(installPath).catch(() => installPath);
+          const relToHome = relative19(isolatedHomeReal, installPathReal);
+          const sep7 = process.platform === "win32" ? "\\" : "/";
+          if (relToHome !== "" && (isAbsolute16(relToHome) || relToHome === ".." || relToHome.startsWith(`..${sep7}`))) {
             return createResult({
               actionType,
               status: ActionStatus.OBSERVED,
@@ -74055,10 +74514,10 @@ function createPluginMarketplaceAdapter(deps = {}) {
               }
             });
           }
-          const entrySkillPath = resolve20(installPath, "skills", action.entrySkill, "SKILL.md");
+          const entrySkillPath = resolve21(installPath, "skills", action.entrySkill, "SKILL.md");
           let entrySkillFound = false;
           try {
-            const skillStat = await lstat13(entrySkillPath);
+            const skillStat = await lstat14(entrySkillPath);
             if (skillStat.isFile() && !skillStat.isSymbolicLink()) {
               entrySkillFound = true;
             }
@@ -74124,7 +74583,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
           try {
-            const installedManifestPath = resolve20(installPath, platform.manifestPaths.plugin);
+            const installedManifestPath = resolve21(installPath, platform.manifestPaths.plugin);
             const installedManifestContent = await readFile18(installedManifestPath, "utf8");
             const installedManifest = JSON.parse(installedManifestContent);
             const expectedName = observation.plugin;
@@ -74307,8 +74766,8 @@ var init_plugin_marketplace = __esm({
 });
 
 // src/artifacts/transaction-journal.mjs
-import { readdir as readdir11, readFile as readFile19, rm as rm7, stat as stat5 } from "node:fs/promises";
-import { join as join17 } from "node:path";
+import { readdir as readdir12, readFile as readFile19, rm as rm7, stat as stat5 } from "node:fs/promises";
+import { join as join18 } from "node:path";
 function failSchema(message, details) {
   throw new ReleaseError(TRANSACTION_INCOMPLETE, message, details);
 }
@@ -75305,7 +75764,7 @@ async function pruneTerminalTransactionRecords(transactionsRoot, {
     if (!Number.isInteger(retentionMax) || retentionMax < 0) return summary;
     let entries;
     try {
-      entries = await readdir11(transactionsRoot, { withFileTypes: true });
+      entries = await readdir12(transactionsRoot, { withFileTypes: true });
     } catch (scanErr) {
       summary.errors.push(`scan: ${scanErr?.code || scanErr?.message || "readdir-failed"}`);
       return summary;
@@ -75315,11 +75774,11 @@ async function pruneTerminalTransactionRecords(transactionsRoot, {
     if (txnDirs.length <= retentionMax) return summary;
     const terminal = [];
     for (const entry of txnDirs) {
-      const recordDir = join17(transactionsRoot, entry.name);
+      const recordDir = join18(transactionsRoot, entry.name);
       let state = null;
       let createdAt = null;
       try {
-        const raw = await readFile19(join17(recordDir, "journal.json"), "utf8");
+        const raw = await readFile19(join18(recordDir, "journal.json"), "utf8");
         const journal = JSON.parse(raw);
         if (journal && typeof journal === "object") {
           state = typeof journal.state === "string" ? journal.state : null;
@@ -75383,7 +75842,7 @@ async function createTransactionJournal({
     );
     if (typeof root === "string" && root.length > 0) {
       await pruneTerminalTransactionRecords(
-        join17(root, ".release-skill", "transactions"),
+        join18(root, ".release-skill", "transactions"),
         { retentionMax }
       );
     }
@@ -75747,7 +76206,7 @@ __export(transaction_exports, {
   applyWriteSetUnderLock: () => applyWriteSetUnderLock
 });
 import { randomBytes as randomBytes2 } from "node:crypto";
-import { relative as relative19 } from "node:path";
+import { relative as relative20 } from "node:path";
 function computeCanonicalPlanDigest(plan) {
   const { planDigest: _ignored, ...content } = plan;
   return `sha256:${sha256Hex(canonicalJson(content))}`;
@@ -76660,7 +77119,7 @@ async function applyArtifactPlanUnderLock({
   }
   const handle = await safeFs.openRoot(root);
   try {
-    const relPlanPath = canonicalArtifactPath(relative19(root, planPath)).path;
+    const relPlanPath = canonicalArtifactPath(relative20(root, planPath)).path;
     const planFileData = await withParentHandle(handle, relPlanPath, async (parent, leaf) => {
       const planEntry = await parent.readEntry(leaf);
       if (!planEntry || planEntry.kind === "absent") {
@@ -79075,7 +79534,7 @@ __export(refresh_service_exports, {
   planReleaseDocsRefreshForUnit: () => planReleaseDocsRefreshForUnit,
   runReleaseDocsRefresh: () => runReleaseDocsRefresh
 });
-import { isAbsolute as isAbsolute16, relative as relative20, resolve as resolve21, sep as sep5 } from "node:path";
+import { isAbsolute as isAbsolute17, relative as relative21, resolve as resolve22, sep as sep6 } from "node:path";
 function deepFreeze7(value) {
   if (Array.isArray(value)) {
     for (const item of value) deepFreeze7(item);
@@ -79158,7 +79617,7 @@ async function planReleaseDocsRefreshForUnit({
       field: "unit.source"
     });
   }
-  const unitRoot = resolve21(root, unit.source);
+  const unitRoot = resolve22(root, unit.source);
   const backend = await (backendFactory ?? loadSafeFs)();
   const sharedFactory = /* @__PURE__ */ __name(async () => backend, "sharedFactory");
   const notesSource = await loadReleaseNotesSource({
@@ -79368,16 +79827,16 @@ async function runReleaseDocsRefresh({
         });
       }
       const changedFiles = plan.files.filter((file) => file.changed);
-      const unitRoot = resolve21(root, unit.source);
-      const unitLocation = relative20(root, unitRoot);
-      if (unitLocation === ".." || unitLocation.startsWith(`..${sep5}`) || isAbsolute16(unitLocation)) {
+      const unitRoot = resolve22(root, unit.source);
+      const unitLocation = relative21(root, unitRoot);
+      if (unitLocation === ".." || unitLocation.startsWith(`..${sep6}`) || isAbsolute17(unitLocation)) {
         throw new ReleaseError(
           PATH_UNSAFE,
           "release unit source escapes the project root",
           { reason: "UNIT_SOURCE_ESCAPE", unitId }
         );
       }
-      const unitPrefix = unitLocation === "" ? "" : `${unitLocation.split(sep5).join("/")}/`;
+      const unitPrefix = unitLocation === "" ? "" : `${unitLocation.split(sep6).join("/")}/`;
       const projectPath = /* @__PURE__ */ __name((targetPath) => `${unitPrefix}${targetPath}`, "projectPath");
       const writeSet = changedFiles.map((file) => ({
         id: `${file.kind}:${projectPath(file.path)}`,
@@ -79428,7 +79887,7 @@ async function runReleaseDocsRefresh({
         if (err instanceof ReleaseError && err.code === TRANSACTION_INCOMPLETE && typeof err.details?.recover === "string") {
           const restored = await tryRestoreOldBytes(
             backend,
-            resolve21(root, unit.source),
+            resolve22(root, unit.source),
             changedFiles,
             modes
           );
@@ -79528,8 +79987,8 @@ __export(prepare_exports, {
   resolveUnitVersion: () => resolveUnitVersion,
   runDeclaredHooks: () => runDeclaredHooks
 });
-import { resolve as resolve22, relative as relative21, isAbsolute as isAbsolute17, normalize as normalize3, dirname as dirname10 } from "node:path";
-import { readFile as readFile20, mkdir as mkdir11, realpath as realpath12 } from "node:fs/promises";
+import { resolve as resolve23, relative as relative22, isAbsolute as isAbsolute18, normalize as normalize3, dirname as dirname10 } from "node:path";
+import { readFile as readFile20, mkdir as mkdir11, realpath as realpath13 } from "node:fs/promises";
 import { execFile as execFileCb9 } from "node:child_process";
 import { promisify as promisify9 } from "node:util";
 async function resolveUnitVersion(unit, root, explicitVersion) {
@@ -79541,18 +80000,18 @@ async function resolveUnitVersion(unit, root, explicitVersion) {
       { unitId: unit.id }
     );
   }
-  if (isAbsolute17(versionSource)) {
+  if (isAbsolute18(versionSource)) {
     throw new ReleaseError(
       CONFIG_INVALID,
       `unit "${unit.id}" version.source must be a relative path, got absolute: "${versionSource}"`,
       { unitId: unit.id, versionSource }
     );
   }
-  const unitRoot = resolve22(root, unit.source);
-  const resolvedPath = resolve22(unitRoot, versionSource);
+  const unitRoot = resolve23(root, unit.source);
+  const resolvedPath = resolve23(unitRoot, versionSource);
   const normalizedPath = normalize3(resolvedPath);
-  const rel = relative21(unitRoot, normalizedPath);
-  if (rel.startsWith("..") || rel === ".." || isAbsolute17(rel)) {
+  const rel = relative22(unitRoot, normalizedPath);
+  if (rel.startsWith("..") || rel === ".." || isAbsolute18(rel)) {
     throw new ReleaseError(
       CONFIG_INVALID,
       `unit "${unit.id}" version.source escapes unit root: "${versionSource}"`,
@@ -79851,7 +80310,7 @@ async function processSnapshots(config, root, evidence, runDir, production = fal
   const unitResults = [];
   const snapshotDigests = [];
   for (const unit of units) {
-    const outputDir = resolveUnitScopedPath(resolve22(runDir, "snapshots"), unit.id);
+    const outputDir = resolveUnitScopedPath(resolve23(runDir, "snapshots"), unit.id);
     await evidence.append({
       phase: "snapshot",
       status: "started",
@@ -80079,7 +80538,7 @@ async function buildProductionAssets(unitResults, resolvedVersions, root, runDir
     const { unit, manifest } = unitResults[index];
     const version = resolvedVersions[index];
     const { tag, branch, branchStrategy } = resolveProductionBranch(unit, version);
-    const snapshotPath = relative21(root, manifest.outputDir);
+    const snapshotPath = relative22(root, manifest.outputDir);
     const observed = await computeFrozenSnapshot(manifest.outputDir);
     if (observed.digest !== manifest.snapshotDigest) {
       throw new ReleaseError(
@@ -80090,7 +80549,7 @@ async function buildProductionAssets(unitResults, resolvedVersions, root, runDir
     }
     await sealFrozenSnapshot(manifest.outputDir);
     const sealed = await computeFrozenSnapshot(manifest.outputDir);
-    const repositoryDir = resolveUnitScopedPath(resolve22(runDir, "git"), unit.id, { suffix: ".git" });
+    const repositoryDir = resolveUnitScopedPath(resolve23(runDir, "git"), unit.id, { suffix: ".git" });
     const unitBaseline = unitBaselineResults.get(unit.id);
     const parent = branchStrategy === "create-release-branch" ? void 0 : {
       githubHost: unitBaseline.githubHost,
@@ -80111,21 +80570,21 @@ async function buildProductionAssets(unitResults, resolvedVersions, root, runDir
     if (npmDistribution) {
       npm = await buildFrozenNpmTarball({
         snapshotDir: manifest.outputDir,
-        tarballDir: resolveUnitScopedPath(resolve22(runDir, "tarballs"), unit.id),
+        tarballDir: resolveUnitScopedPath(resolve23(runDir, "tarballs"), unit.id),
         expectedSnapshotDigest: sealed.digest
       });
       await verifyFrozenNpmTarballContract({
         package: npmDistribution.package,
         version,
-        tarballPath: relative21(root, npm.tarballPath),
+        tarballPath: relative22(root, npm.tarballPath),
         tarballSha256: npm.sha256,
         integrity: npm.integrity
-      }, root, resolveUnitScopedPath(resolve22(runDir, "tarballs"), unit.id));
+      }, root, resolveUnitScopedPath(resolve23(runDir, "tarballs"), unit.id));
     }
     assets.push({
       snapshotPath,
       manifestDigest: sealed.digest,
-      gitObjectDir: relative21(root, repositoryDir),
+      gitObjectDir: relative22(root, repositoryDir),
       commit: git2.commit,
       tree: git2.tree,
       commitTimestamp: canonicalFreezeTimestamp,
@@ -80134,7 +80593,7 @@ async function buildProductionAssets(unitResults, resolvedVersions, root, runDir
       branch,
       tag,
       npm: npm ? {
-        tarballPath: relative21(root, npm.tarballPath),
+        tarballPath: relative22(root, npm.tarballPath),
         tarballSha256: npm.sha256,
         integrity: npm.integrity,
         size: npm.size
@@ -80685,7 +81144,7 @@ async function prepareRelease(options) {
   }
   let realRoot;
   try {
-    realRoot = await realpath12(root);
+    realRoot = await realpath13(root);
   } catch (err) {
     throw new ReleaseError(
       CONFIG_INVALID,
@@ -80694,26 +81153,26 @@ async function prepareRelease(options) {
     );
   }
   if (production) {
-    const canonicalOutput = resolve22(realRoot, ".release-skill", "release-plan.json");
-    if (output && resolve22(output) !== canonicalOutput) {
+    const canonicalOutput = resolve23(realRoot, ".release-skill", "release-plan.json");
+    if (output && resolve23(output) !== canonicalOutput) {
       throw new ReleaseError(
         GATE_FAILED,
         "production prepare requires the canonical .release-skill/release-plan.json output; custom --output is supported only outside production",
-        { output: resolve22(output), expected: canonicalOutput }
+        { output: resolve23(output), expected: canonicalOutput }
       );
     }
   }
   const lock = await acquireProjectLock({ root: realRoot, command: "prepare", mode: "exclusive" });
-  const releaseDir = resolve22(realRoot, ".release-skill");
+  const releaseDir = resolve23(realRoot, ".release-skill");
   const runId = `prepare-${Date.now()}`;
-  const rawRunDir = runDirOpt ?? resolve22(releaseDir, "runs", runId);
+  const rawRunDir = runDirOpt ?? resolve23(releaseDir, "runs", runId);
   let runDir;
   try {
     if (production) {
       runDir = await createProductionPrepareRunDir(rawRunDir, releaseDir);
     } else {
       await mkdir11(rawRunDir, { recursive: true });
-      runDir = await realpath12(rawRunDir);
+      runDir = await realpath13(rawRunDir);
     }
   } catch (error) {
     await lock.release();
@@ -80727,7 +81186,7 @@ async function prepareRelease(options) {
     await evidence.append({
       phase: "config",
       status: "completed",
-      configPath: relative21(realRoot, configPath),
+      configPath: relative22(realRoot, configPath),
       configDigest
     });
     const configUnits = config.releaseUnits ?? [];
@@ -80858,6 +81317,44 @@ To proceed, pass --acknowledge-hook-side-effects (CLI) or hooksAuthorized=true (
         reasonTag: "CHANGES_AFTER_HOOKS",
         expectedBindings: preHookDocsBindings
       });
+    }
+    for (const unit of configUnits) {
+      if (!unit?.expectedPublicSurface) continue;
+      await evidence.append({
+        phase: "public-surface",
+        status: "started",
+        unitId: unit.id
+      });
+      try {
+        const surface = await assertExpectedPublicSurface({
+          root: realRoot,
+          unit
+        });
+        await evidence.append({
+          phase: "public-surface",
+          status: "completed",
+          unitId: unit.id,
+          ...surface.summary
+        });
+      } catch (error) {
+        await evidence.append({
+          phase: "public-surface",
+          status: "failed",
+          unitId: unit.id,
+          reason: error.details?.reason ?? "PUBLIC_SURFACE_CHECK_FAILED",
+          error: {
+            code: error.code,
+            message: error.message
+          },
+          diagnostics: {
+            missingMappings: error.details?.missingMappings ?? [],
+            unexpectedMappings: error.details?.unexpectedMappings ?? [],
+            unclassifiedFiles: error.details?.unclassifiedFiles ?? [],
+            ambiguousFiles: error.details?.ambiguousFiles ?? []
+          }
+        });
+        throw error;
+      }
     }
     const sourceRepository = config.project?.sourceRepository ?? null;
     const configDefaultBranch = config.project?.defaultBranch ?? null;
@@ -81371,7 +81868,7 @@ To proceed, pass --acknowledge-hook-side-effects (CLI) or hooksAuthorized=true (
                 { unitId: unit.id, distributionType: dist.type }
               );
             }
-            const marketplaceIndexPath = resolve22(snapshotDir, marketplaceIndexRelative);
+            const marketplaceIndexPath = resolve23(snapshotDir, marketplaceIndexRelative);
             let marketplaceIndexRaw;
             try {
               marketplaceIndexRaw = await readFile20(marketplaceIndexPath, "utf8");
@@ -81440,7 +81937,7 @@ To proceed, pass --acknowledge-hook-side-effects (CLI) or hooksAuthorized=true (
           pluginManifestRelative = readResult.manifestRelative ?? platform.manifestPaths.plugin;
         } else {
           pluginManifestRelative = platform.manifestPaths.plugin;
-          const pluginManifestPath = resolve22(snapshotDir, pluginManifestRelative);
+          const pluginManifestPath = resolve23(snapshotDir, pluginManifestRelative);
           let raw;
           try {
             raw = await readFile20(pluginManifestPath, "utf8");
@@ -81573,7 +82070,7 @@ To proceed, pass --acknowledge-hook-side-effects (CLI) or hooksAuthorized=true (
       ...production ? {
         production: {
           mode: "github-npm-v1",
-          assetRoot: relative21(realRoot, runDir)
+          assetRoot: relative22(realRoot, runDir)
         }
       } : {},
       units,
@@ -81588,9 +82085,9 @@ To proceed, pass --acknowledge-hook-side-effects (CLI) or hooksAuthorized=true (
       actionCount: externalActions.length
     });
     await evidence.append({ phase: "plan-write", status: "started" });
-    const latestPlanPath = output ?? resolve22(releaseDir, "release-plan.json");
+    const latestPlanPath = output ?? resolve23(releaseDir, "release-plan.json");
     const plannedDigest = computePlanDigest(plan);
-    const immutablePlanPath = resolve22(dirname10(latestPlanPath), "plans", `${plannedDigest}.json`);
+    const immutablePlanPath = resolve23(dirname10(latestPlanPath), "plans", `${plannedDigest}.json`);
     const { planPath: writtenPath, planDigest } = await writePlanImmutable(immutablePlanPath, plan);
     await writePlanAtomic(latestPlanPath, plan);
     await evidence.append({
@@ -81638,6 +82135,7 @@ var init_prepare = __esm({
     init_baseline();
     init_hooks();
     init_hook_cache();
+    init_public_surface();
     init_verification_gates();
     init_evidence();
     await init_plan();
@@ -81682,7 +82180,7 @@ var init_prepare = __esm({
 
 // src/core/approval.mjs
 import { readFile as readFile21 } from "node:fs/promises";
-import { basename as basename6, dirname as dirname11, join as join18, resolve as resolve23 } from "node:path";
+import { basename as basename6, dirname as dirname11, join as join19, resolve as resolve24 } from "node:path";
 function validateApprovalRecordSchema(approval) {
   if (validateApprovalSchema(approval)) return;
   const errors = validateApprovalSchema.errors ?? [];
@@ -81699,7 +82197,7 @@ function assertImmutableApprovalAuthority(approvalPath, plan, rawApproval) {
   if (!plan?.production) return;
   const planDigest = computePlanDigest(plan);
   const approvalDigest = computeApprovalDigest(rawApproval);
-  const absolute = resolve23(approvalPath);
+  const absolute = resolve24(approvalPath);
   const planDirectory = dirname11(absolute);
   if (basename6(absolute) !== `${approvalDigest}.json` || basename6(planDirectory) !== planDigest || basename6(dirname11(planDirectory)) !== "approvals") {
     throw new ReleaseError(
@@ -81969,7 +82467,7 @@ __export(approve_exports, {
   approvePlan: () => approvePlan
 });
 import { readFile as readFile22, writeFile as writeFile7 } from "node:fs/promises";
-import { resolve as resolve24, dirname as dirname12, basename as basename7 } from "node:path";
+import { resolve as resolve25, dirname as dirname12, basename as basename7 } from "node:path";
 function defaultClock() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
@@ -82099,18 +82597,18 @@ async function approvePlan(options) {
     expiresAt
   };
   validateApprovalRecordSchema(approvalRecord);
-  const planDir = dirname12(resolve24(planPath));
+  const planDir = dirname12(resolve25(planPath));
   const releaseDir = basename7(planDir) === "plans" && basename7(planPath) === `${actualDigest}.json` ? dirname12(planDir) : planDir;
-  if (plan.production?.mode === "github-npm-v1" && outputPath && resolve24(outputPath) !== resolve24(releaseDir, "approval-record.json")) {
+  if (plan.production?.mode === "github-npm-v1" && outputPath && resolve25(outputPath) !== resolve25(releaseDir, "approval-record.json")) {
     throw new ReleaseError(
       GATE_FAILED,
       "production approve requires the canonical approval-record.json alias next to the immutable plan authority; custom --output is supported only outside production",
-      { outputPath: resolve24(outputPath), expected: resolve24(releaseDir, "approval-record.json") }
+      { outputPath: resolve25(outputPath), expected: resolve25(releaseDir, "approval-record.json") }
     );
   }
   const json = JSON.stringify(approvalRecord, null, 2);
   const approvalDigest = computeApprovalDigest(json);
-  const immutableApprovalPath = resolve24(
+  const immutableApprovalPath = resolve25(
     releaseDir,
     "approvals",
     actualDigest,
@@ -82131,7 +82629,7 @@ async function approvePlan(options) {
       );
     }
   }
-  const writePath = outputPath ?? resolve24(releaseDir, "approval-record.json");
+  const writePath = outputPath ?? resolve25(releaseDir, "approval-record.json");
   await prepareAuthorityDirectory(dirname12(writePath));
   await assertAuthorityFileTarget(writePath);
   await writeFile7(writePath, json, "utf8");
@@ -82333,7 +82831,7 @@ function defaultSleep(ms) {
   if (process.env.RELEASE_SKILL_OBSERVE_RETRY_NO_WAIT === "1") {
     return Promise.resolve();
   }
-  return new Promise((resolve28) => setTimeout(resolve28, ms));
+  return new Promise((resolve29) => setTimeout(resolve29, ms));
 }
 function isPropagatingMissing(result) {
   if (result == null) return true;
@@ -82423,7 +82921,7 @@ __export(reconcile_exports, {
   reconcileRelease: () => reconcileRelease
 });
 import { readFile as readFile23, mkdir as mkdir12 } from "node:fs/promises";
-import { join as join19 } from "node:path";
+import { join as join20 } from "node:path";
 function defaultClock3() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
@@ -83371,7 +83869,7 @@ async function reconcileRelease(options) {
         ...normalized === "deferred" ? { reason: CONSUMER_VERIFICATION_DEFERRED, phase: "post-publish-verification" } : {}
       };
     });
-    const runPath = join19(runDir, "release-run.json");
+    const runPath = join20(runDir, "release-run.json");
     const sourceRunDigest = sourceAuthorityDigest;
     const runState = {
       runId,
@@ -84038,9 +84536,9 @@ __export(verify_exports, {
   runSmokeTest: () => runSmokeTest,
   verifyRelease: () => verifyRelease
 });
-import { readFile as readFile24, writeFile as writeFile8, mkdtemp as mkdtemp4, rm as rm8, mkdir as mkdir13, lstat as lstat14, realpath as realpath13, readdir as readdir12 } from "node:fs/promises";
+import { readFile as readFile24, writeFile as writeFile8, mkdtemp as mkdtemp4, rm as rm8, mkdir as mkdir13, lstat as lstat15, realpath as realpath14, readdir as readdir13 } from "node:fs/promises";
 import { realpathSync as realpathSync4 } from "node:fs";
-import { dirname as dirname13, join as join20, relative as relative22, isAbsolute as isAbsolute18, resolve as resolve25, basename as basename8 } from "node:path";
+import { dirname as dirname13, join as join21, relative as relative23, isAbsolute as isAbsolute19, resolve as resolve26, basename as basename8 } from "node:path";
 import { tmpdir as tmpdir4 } from "node:os";
 import { execFile as execFileCb12 } from "node:child_process";
 import { promisify as promisify12 } from "node:util";
@@ -84070,7 +84568,7 @@ function matchesSubset2(actual, expected) {
 async function runSmokeTest(plan, root, options = {}) {
   const baseDir = options.baseDir ?? tmpdir4();
   await mkdir13(baseDir, { recursive: true });
-  const tmpDir = await mkdtemp4(join20(baseDir, "verify-smoke-"));
+  const tmpDir = await mkdtemp4(join21(baseDir, "verify-smoke-"));
   const npmExec = options.npmExecutor ?? defaultNpmExecutor;
   const installFlags = [
     "--ignore-scripts",
@@ -84118,7 +84616,7 @@ async function runSmokeTest(plan, root, options = {}) {
     for (const { package: pkgName, registry, targetVersion, unitId, smokeBin, smokeArgs, smokeExpectedJson } of npmDistributions) {
       const packageAtVersion = `${pkgName}@${targetVersion}`;
       const installDir = resolveUnitScopedPath(tmpDir, unitId);
-      await mkdir13(join20(installDir, "node_modules"), { recursive: true });
+      await mkdir13(join21(installDir, "node_modules"), { recursive: true });
       const registryFlags = [...installFlags, "--registry", registry];
       const installResult = await npmExec.install(
         packageAtVersion,
@@ -84136,7 +84634,7 @@ async function runSmokeTest(plan, root, options = {}) {
           }
         };
       }
-      const installedPkgPath = join20(installDir, "node_modules", pkgName, "package.json");
+      const installedPkgPath = join21(installDir, "node_modules", pkgName, "package.json");
       let installedPkg;
       try {
         installedPkg = JSON.parse(await readFile24(installedPkgPath, "utf8"));
@@ -84170,7 +84668,7 @@ async function runSmokeTest(plan, root, options = {}) {
           }
         };
       }
-      const pkgRoot = join20(installDir, "node_modules", pkgName);
+      const pkgRoot = join21(installDir, "node_modules", pkgName);
       {
         const dirIndex = await buildDirectoryFileIndex(pkgRoot);
         const closureResult = checkNpmEntryClosure(installedPkg, dirIndex);
@@ -84270,10 +84768,10 @@ async function runSmokeTest(plan, root, options = {}) {
           }
         };
       }
-      const binPath = resolve25(pkgRoot, binRelative);
-      const relBin = relative22(pkgRoot, binPath);
-      const sep6 = process.platform === "win32" ? "\\" : "/";
-      if (isAbsolute18(relBin) || relBin === ".." || relBin.startsWith(`..${sep6}`)) {
+      const binPath = resolve26(pkgRoot, binRelative);
+      const relBin = relative23(pkgRoot, binPath);
+      const sep7 = process.platform === "win32" ? "\\" : "/";
+      if (isAbsolute19(relBin) || relBin === ".." || relBin.startsWith(`..${sep7}`)) {
         return {
           passed: false,
           details: {
@@ -84285,10 +84783,10 @@ async function runSmokeTest(plan, root, options = {}) {
       }
       let binStat;
       try {
-        binStat = await lstat14(binPath);
-        const [pkgRootReal, binPathReal] = await Promise.all([realpath13(pkgRoot), realpath13(binPath)]);
-        const relReal = relative22(pkgRootReal, binPathReal);
-        if (!binStat.isFile() || binStat.isSymbolicLink() || isAbsolute18(relReal) || relReal === ".." || relReal.startsWith(`..${sep6}`)) {
+        binStat = await lstat15(binPath);
+        const [pkgRootReal, binPathReal] = await Promise.all([realpath14(pkgRoot), realpath14(binPath)]);
+        const relReal = relative23(pkgRootReal, binPathReal);
+        if (!binStat.isFile() || binStat.isSymbolicLink() || isAbsolute19(relReal) || relReal === ".." || relReal.startsWith(`..${sep7}`)) {
           throw new Error("bin is not a regular file inside the installed package");
         }
       } catch (err) {
@@ -84574,7 +85072,7 @@ async function verifyRelease(options) {
     const trustedVerifyRuns = [];
     const planDir = dirname13(planPath);
     const releaseDir = basename8(planDir) === "plans" ? dirname13(planDir) : planDir;
-    const runsDir = resolve25(releaseDir, "runs");
+    const runsDir = resolve26(releaseDir, "runs");
     let runsDirReal = null;
     let authorityDirReal = null;
     if (previousVerifyRun) {
@@ -84587,7 +85085,7 @@ async function verifyRelease(options) {
     }
     {
       try {
-        const runsDirStat = await lstat14(runsDir);
+        const runsDirStat = await lstat15(runsDir);
         if (runsDirStat.isSymbolicLink()) {
           throw new ReleaseError(
             GATE_FAILED,
@@ -84616,7 +85114,7 @@ async function verifyRelease(options) {
         runsDirReal = null;
       }
       if (runsDirReal) {
-        const entries = await readdir12(runsDirReal, { withFileTypes: true });
+        const entries = await readdir13(runsDirReal, { withFileTypes: true });
         for (const entry of entries) {
           if (!entry.name.startsWith("verify-")) continue;
           if (!entry.isDirectory() || entry.isSymbolicLink()) {
@@ -84626,8 +85124,8 @@ async function verifyRelease(options) {
               { entry: entry.name, runsDir: runsDirReal }
             );
           }
-          const candidateDir = resolve25(runsDirReal, entry.name);
-          const candidateStat = await lstat14(candidateDir).catch(() => null);
+          const candidateDir = resolve26(runsDirReal, entry.name);
+          const candidateStat = await lstat15(candidateDir).catch(() => null);
           if (!candidateStat || candidateStat.isSymbolicLink()) {
             throw new ReleaseError(
               GATE_FAILED,
@@ -84643,7 +85141,7 @@ async function verifyRelease(options) {
               { candidateDir, candidateReal, runsDir: runsDirReal }
             );
           }
-          const candidatePath = resolve25(candidateDir, "release-run.json");
+          const candidatePath = resolve26(candidateDir, "release-run.json");
           try {
             const candidate = await loadRun(candidatePath, { requireDigest: true });
             if (candidate.status !== "VERIFIED") continue;
@@ -84835,15 +85333,15 @@ async function verifyRelease(options) {
           evidence,
           env: gateEnv ?? process.env,
           fixedEnv: action.type === "claude-marketplace-install" ? {
-            HOME: resolve25(runDir, "consumers", `claude-${action.parameters.plugin}`),
-            CLAUDE_CONFIG_DIR: resolve25(runDir, "consumers", `claude-${action.parameters.plugin}`, ".claude")
+            HOME: resolve26(runDir, "consumers", `claude-${action.parameters.plugin}`),
+            CLAUDE_CONFIG_DIR: resolve26(runDir, "consumers", `claude-${action.parameters.plugin}`, ".claude")
           } : action.type === "codex-marketplace-install" ? {
-            HOME: resolve25(runDir, "consumers", `codex-${action.parameters.plugin}`),
-            CODEX_HOME: resolve25(runDir, "consumers", `codex-${action.parameters.plugin}`)
+            HOME: resolve26(runDir, "consumers", `codex-${action.parameters.plugin}`),
+            CODEX_HOME: resolve26(runDir, "consumers", `codex-${action.parameters.plugin}`)
           } : action.type === "codebuddy-marketplace-install" ? {
-            HOME: resolve25(runDir, "consumers", `codebuddy-${action.parameters.plugin}`)
+            HOME: resolve26(runDir, "consumers", `codebuddy-${action.parameters.plugin}`)
           } : {
-            HOME: resolve25(runDir, "consumers", `kimi-${action.parameters.plugin}`)
+            HOME: resolve26(runDir, "consumers", `kimi-${action.parameters.plugin}`)
           }
         }));
       } else {
@@ -85013,7 +85511,7 @@ async function verifyRelease(options) {
     assertTransition(PUBLISHED, VERIFIED);
     await evidence.append({ phase: "verify", status: "completed", overallStatus: VERIFIED });
     const sourceRunDigest = sourceRun.runDigest ?? computeRunDigest(sourceRun);
-    const verifyRunPath = join20(runDir, "release-run.json");
+    const verifyRunPath = join21(runDir, "release-run.json");
     const verifyRunState = {
       runId,
       command: "verify",
@@ -85134,7 +85632,7 @@ var init_verify = __esm({
           exec: execFile11,
           env: process.env
         });
-        const userConfig = join20(cwd, ".release-skill-npmrc");
+        const userConfig = join21(cwd, ".release-skill-npmrc");
         await writeFile8(
           userConfig,
           `registry=${normalizedRegistry}/
@@ -85195,10 +85693,10 @@ __export(publish_exports, {
   publishRelease: () => publishRelease
 });
 import { readFile as readFile25, mkdir as mkdir14 } from "node:fs/promises";
-import { isAbsolute as isAbsolute19, join as join21, relative as relative23 } from "node:path";
+import { isAbsolute as isAbsolute20, join as join22, relative as relative24 } from "node:path";
 function assertInsideAssetRoot(assetRoot, candidate, label) {
-  const rel = relative23(assetRoot, candidate);
-  if (rel === "" || isAbsolute19(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+  const rel = relative24(assetRoot, candidate);
+  if (rel === "" || isAbsolute20(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
     throw new ReleaseError(GATE_FAILED, `${label} must be a child of the production asset root`);
   }
 }
@@ -85907,7 +86405,7 @@ async function publishRelease(options) {
       }
     }
     await evidence.append({ phase: "safety-gate", gate: "global-preflight", status: "passed" });
-    const runPath = join21(runDir, "release-run.json");
+    const runPath = join22(runDir, "release-run.json");
     const checkpoints = orderedActions.map((action) => {
       if (isMarketplaceAction(action.type)) {
         return {
@@ -86177,7 +86675,7 @@ var init_publish = __esm({
 
 // src/artifacts/policy.mjs
 import { readFile as readFile26 } from "node:fs/promises";
-import { join as join22 } from "node:path";
+import { join as join23 } from "node:path";
 import { createHash as createHash11 } from "node:crypto";
 function validateArtifactPolicy(policy) {
   const ok = _validate(policy);
@@ -86273,7 +86771,7 @@ async function parseSafeYamlWithinRoot(root, policyPath) {
     }
     throw err;
   }
-  const fullPath = join22(root, policyPath);
+  const fullPath = join23(root, policyPath);
   let content;
   try {
     content = await readFile26(fullPath, "utf8");
@@ -86387,8 +86885,8 @@ var init_policy = __esm({
 });
 
 // src/artifacts/entry.mjs
-import { lstat as lstat15, readdir as readdir13, readFile as readFile27 } from "node:fs/promises";
-import { join as join23 } from "node:path";
+import { lstat as lstat16, readdir as readdir14, readFile as readFile27 } from "node:fs/promises";
+import { join as join24 } from "node:path";
 import { promisify as promisify13 } from "node:util";
 import { execFile as execFile12 } from "node:child_process";
 function statToGitMode(stat9) {
@@ -86408,12 +86906,12 @@ async function gitHashObject(root, absPath) {
 }
 async function enumerateTreeEntries(root, dirPath, relBase) {
   const entries = [];
-  const items = await readdir13(dirPath, { withFileTypes: true });
+  const items = await readdir14(dirPath, { withFileTypes: true });
   for (const item of items) {
     if (SKIP_DIRS2.has(item.name)) continue;
-    const absPath = join23(dirPath, item.name);
+    const absPath = join24(dirPath, item.name);
     const relPath = relBase ? `${relBase}/${item.name}` : item.name;
-    const st = await lstat15(absPath);
+    const st = await lstat16(absPath);
     if (st.isSymbolicLink()) {
       throw new ReleaseError(
         PATH_UNSAFE,
@@ -86462,10 +86960,10 @@ async function readEntry({ root, path: path3, source = "worktree" } = {}) {
   if (source !== "worktree") {
     throw new ReleaseError(PATH_UNSAFE, `unsupported readEntry source: ${source}`, { source });
   }
-  const absPath = join23(root, path3);
+  const absPath = join24(root, path3);
   let st;
   try {
-    st = await lstat15(absPath);
+    st = await lstat16(absPath);
   } catch (err) {
     if (err.code === "ENOENT" || err.code === "ENOTDIR") {
       return Object.freeze({ kind: "absent" });
@@ -86758,8 +87256,8 @@ var init_graph = __esm({
 });
 
 // src/artifacts/producer-registry.mjs
-import { readFile as readFile28, readdir as readdir14, stat as stat6, mkdir as mkdir15, writeFile as writeFile9, rm as rm9 } from "node:fs/promises";
-import { join as join24 } from "node:path";
+import { readFile as readFile28, readdir as readdir15, stat as stat6, mkdir as mkdir15, writeFile as writeFile9, rm as rm9 } from "node:fs/promises";
+import { join as join25 } from "node:path";
 import { mkdtemp as mkdtemp5 } from "node:fs/promises";
 import { tmpdir as tmpdir5 } from "node:os";
 import { createHash as createHash12 } from "node:crypto";
@@ -86780,7 +87278,7 @@ function collectStaticImports(filePath, visited = /* @__PURE__ */ new Set()) {
   const dir = abs.replace(/\/[^/]*$/, "");
   while ((match = importRe.exec(source)) !== null) {
     const spec = match[1];
-    let resolved = join24(dir, spec);
+    let resolved = join25(dir, spec);
     if (!resolved.endsWith(".mjs")) resolved += ".mjs";
     results.push(...collectStaticImports(resolved, visited));
   }
@@ -86788,7 +87286,7 @@ function collectStaticImports(filePath, visited = /* @__PURE__ */ new Set()) {
 }
 async function createBuiltInProducerRegistry() {
   const producers = /* @__PURE__ */ new Map();
-  const lockfilePath = join24(new URL("../../..", import.meta.url).pathname, "pnpm-lock.yaml");
+  const lockfilePath = join25(new URL("../../..", import.meta.url).pathname, "pnpm-lock.yaml");
   let lockfileBytes;
   try {
     lockfileBytes = await readFile28(lockfilePath);
@@ -86825,10 +87323,10 @@ async function createBuiltInProducerRegistry() {
 }
 async function readDirEntries(dirPath, relBase = "") {
   const entries = [];
-  const items = await readdir14(dirPath, { withFileTypes: true });
+  const items = await readdir15(dirPath, { withFileTypes: true });
   for (const item of items) {
     if (item.name === ".git") continue;
-    const absPath = join24(dirPath, item.name);
+    const absPath = join25(dirPath, item.name);
     const relPath = relBase ? `${relBase}/${item.name}` : item.name;
     const st = await stat6(absPath);
     if (st.isDirectory()) {
@@ -86851,11 +87349,11 @@ async function readDirEntries(dirPath, relBase = "") {
 async function materializeEntries(entries, dirPath) {
   for (const entry of entries) {
     if (!entry.path) continue;
-    const targetPath = join24(dirPath, entry.path);
+    const targetPath = join25(dirPath, entry.path);
     if (entry.type === "tree" || entry.kind === "tree") {
       await mkdir15(targetPath, { recursive: true });
     } else {
-      await mkdir15(join24(targetPath, ".."), { recursive: true });
+      await mkdir15(join25(targetPath, ".."), { recursive: true });
       if (entry.content) {
         await writeFile9(targetPath, entry.content);
       }
@@ -86899,7 +87397,7 @@ async function runProducerClosure({
   graph,
   inputSnapshot,
   artifactIds,
-  tempRootFactory = /* @__PURE__ */ __name(async () => mkdtemp5(join24(tmpdir5(), "producer-")), "tempRootFactory")
+  tempRootFactory = /* @__PURE__ */ __name(async () => mkdtemp5(join25(tmpdir5(), "producer-")), "tempRootFactory")
 } = {}) {
   const generatedSet = new Set(graph.topologicalOrder);
   for (const id of artifactIds) {
@@ -86936,7 +87434,7 @@ async function runProducerClosure({
         if (inputEntries) {
           const first = inputEntries[0];
           if (first && first.path) {
-            const absPath = first.path.startsWith("/") ? first.path : join24(process.cwd(), first.path);
+            const absPath = first.path.startsWith("/") ? first.path : join25(process.cwd(), first.path);
             try {
               const st = await stat6(absPath);
               if (st.isDirectory()) {
@@ -88049,8 +88547,8 @@ var init_adoption = __esm({
 // src/artifacts/inspect.mjs
 import { promisify as promisify16 } from "node:util";
 import { execFile as execFile15 } from "node:child_process";
-import { readdir as readdir15, stat as stat7, readFile as readFile30 } from "node:fs/promises";
-import { join as join25 } from "node:path";
+import { readdir as readdir16, stat as stat7, readFile as readFile30 } from "node:fs/promises";
+import { join as join26 } from "node:path";
 async function hasNestedGitRoots(root) {
   try {
     const { stdout } = await execFileAsync5(
@@ -88060,9 +88558,9 @@ async function hasNestedGitRoots(root) {
     );
     const dirs = stdout.split("\n").filter((s) => s.length > 0);
     for (const dir of dirs) {
-      const absDir = join25(root, dir);
+      const absDir = join26(root, dir);
       try {
-        const nestedGit = join25(absDir, ".git");
+        const nestedGit = join26(absDir, ".git");
         await stat7(nestedGit);
         return true;
       } catch {
@@ -88321,8 +88819,8 @@ var init_inspect = __esm({
 });
 
 // src/artifacts/resolution.mjs
-import { mkdir as mkdir17, open as open9, readFile as readFile31, stat as stat8, lstat as lstat16, chmod as chmod4 } from "node:fs/promises";
-import { join as join26, resolve as resolve26, relative as relative24, isAbsolute as isAbsolute20, basename as basename9 } from "node:path";
+import { mkdir as mkdir17, open as open9, readFile as readFile31, stat as stat8, lstat as lstat17, chmod as chmod4 } from "node:fs/promises";
+import { join as join27, resolve as resolve27, relative as relative25, isAbsolute as isAbsolute21, basename as basename9 } from "node:path";
 function decodeBuffer(value, label) {
   if (value == null) return null;
   if (Buffer.isBuffer(value)) return value;
@@ -88424,13 +88922,13 @@ function assertSafeArtifactId(id) {
 }
 async function assertNoSymlinksInPath(root, artifactId) {
   const levels = [
-    join26(root, ".release-skill"),
-    join26(root, ".release-skill", "resolution"),
-    join26(root, ".release-skill", "resolution", artifactId)
+    join27(root, ".release-skill"),
+    join27(root, ".release-skill", "resolution"),
+    join27(root, ".release-skill", "resolution", artifactId)
   ];
   for (const dir of levels) {
     try {
-      const st = await lstat16(dir);
+      const st = await lstat17(dir);
       if (st.isSymbolicLink()) {
         throw new ReleaseError(PATH_UNSAFE, `directory is a symlink: ${dir}`, { path: dir });
       }
@@ -88442,11 +88940,11 @@ async function assertNoSymlinksInPath(root, artifactId) {
   }
 }
 async function assertSafeResolvedPath(root, artifactId, resolvedPath) {
-  const resolutionDir = resolve26(root, ".release-skill", "resolution", artifactId);
-  const resolved = resolve26(resolvedPath);
+  const resolutionDir = resolve27(root, ".release-skill", "resolution", artifactId);
+  const resolved = resolve27(resolvedPath);
   await assertNoSymlinksInPath(root, artifactId);
-  const rel = relative24(resolutionDir, resolved);
-  if (rel.startsWith("..") || isAbsolute20(rel)) {
+  const rel = relative25(resolutionDir, resolved);
+  if (rel.startsWith("..") || isAbsolute21(rel)) {
     throw new ReleaseError(
       PATH_UNSAFE,
       `resolvedPath must be inside resolution directory ${resolutionDir}`,
@@ -88461,7 +88959,7 @@ async function assertSafeResolvedPath(root, artifactId, resolvedPath) {
       { resolvedPath, expected: `${artifactId}.resolved`, actual: filename }
     );
   }
-  if (resolved !== resolve26(resolutionDir, `${artifactId}.resolved`)) {
+  if (resolved !== resolve27(resolutionDir, `${artifactId}.resolved`)) {
     throw new ReleaseError(
       PATH_UNSAFE,
       "resolvedPath must be the exact materialized resolution file",
@@ -88470,7 +88968,7 @@ async function assertSafeResolvedPath(root, artifactId, resolvedPath) {
   }
   let st;
   try {
-    st = await lstat16(resolvedPath);
+    st = await lstat17(resolvedPath);
   } catch (err) {
     throw new ReleaseError(
       MISSING_PARAMETERS,
@@ -88605,13 +89103,13 @@ async function materializeResolution({
   const template = buildConflictTemplate(artifact.conflict ?? {}, decodedBuffers);
   const templateDigest = sha256Hex(template);
   await assertNoSymlinksInPath(root, artifactId);
-  const resolutionDir = join26(root, ".release-skill", "resolution", artifactId);
+  const resolutionDir = join27(root, ".release-skill", "resolution", artifactId);
   await mkdir17(resolutionDir, { recursive: true, mode: 448 });
   const dirStat = await stat8(resolutionDir);
   if ((dirStat.mode & 511) !== 448) {
     await chmod4(resolutionDir, 448);
   }
-  const resolvedPath = join26(resolutionDir, `${artifactId}.resolved`);
+  const resolvedPath = join27(resolutionDir, `${artifactId}.resolved`);
   const fh = await open9(resolvedPath, "wx", 384);
   try {
     await fh.write(template, 0, template.length);
@@ -88822,7 +89320,7 @@ __export(artifacts_exports, {
   runArtifactsCommand: () => runArtifactsCommand
 });
 import { readFile as readFile32 } from "node:fs/promises";
-import { join as join27 } from "node:path";
+import { join as join28 } from "node:path";
 async function runArtifactsCommand({ subcommand, args: args2, root } = {}) {
   if (!VALID_SUBCOMMANDS.has(subcommand)) {
     throw new ReleaseError(
@@ -88965,7 +89463,7 @@ async function handleAdopt({ args: args2, root }) {
     if (artifact.path) {
       const entry = await readEntry({ root, path: artifact.path, source: "worktree" });
       if (entry.kind === "regular") {
-        const bytes = await readFile32(join27(root, artifact.path));
+        const bytes = await readFile32(join28(root, artifact.path));
         currentEntries.set(artifact.id, Object.freeze({ ...entry, bytes, content: bytes }));
       } else {
         currentEntries.set(artifact.id, entry);
@@ -89042,7 +89540,7 @@ async function handleBootstrap({ args: args2, root }) {
     if (entry.kind !== "regular") {
       throw new ReleaseError("PLAN_STALE", `artifact is no longer a regular file: ${id}`, { id });
     }
-    const bytes = await readFile32(join27(root, artifactPath));
+    const bytes = await readFile32(join28(root, artifactPath));
     currentEntries.set(id, Object.freeze({ ...entry, bytes, content: bytes }));
   }
   let replacementBytes;
@@ -89453,7 +89951,7 @@ var init_docs = __esm({
 });
 
 // bin/release-skill-cli.mjs
-import { basename as basename10, dirname as dirname15, join as join28, resolve as resolve27 } from "node:path";
+import { basename as basename10, dirname as dirname15, join as join29, resolve as resolve28 } from "node:path";
 import { execFile as execFileCb13 } from "node:child_process";
 import { promisify as promisify17 } from "node:util";
 
@@ -89707,7 +90205,7 @@ if (!command && (args.includes("--version") || args.includes("-v"))) {
   } else {
     const { readFileSync: readFileSync5 } = await import("node:fs");
     const { fileURLToPath: fileURLToPath3 } = await import("node:url");
-    const pkgPath = join28(dirname15(fileURLToPath3(import.meta.url)), "..", "package.json");
+    const pkgPath = join29(dirname15(fileURLToPath3(import.meta.url)), "..", "package.json");
     pkg = JSON.parse(readFileSync5(pkgPath, "utf8"));
   }
   if (hasJson) {
@@ -89828,7 +90326,7 @@ if (!COMMANDS.has(command)) {
 if (command === "setup") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve27(rawRoot);
+  const root = resolve28(rawRoot);
   const answersIdx = args.indexOf("--answers");
   const answersPath = answersIdx !== -1 && args[answersIdx + 1] ? args[answersIdx + 1] : void 0;
   const confirmationIdx = args.indexOf("--confirm-setup");
@@ -89863,7 +90361,7 @@ if (command === "setup") {
 if (command === "assess") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve27(rawRoot);
+  const root = resolve28(rawRoot);
   const offline = args.includes("--offline") || !args.includes("--online");
   const outputIdx = args.indexOf("--output");
   const output = outputIdx !== -1 && args[outputIdx + 1] ? args[outputIdx + 1] : void 0;
@@ -89894,7 +90392,7 @@ if (command === "assess") {
 if (command === "prepare") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve27(rawRoot);
+  const root = resolve28(rawRoot);
   const offline = args.includes("--offline") || !args.includes("--online");
   let targetVersion;
   for (const flag of ["--target-version", "--version"]) {
@@ -89909,9 +90407,9 @@ if (command === "prepare") {
   const hookCache = !args.includes("--no-hook-cache");
   const production = args.includes("--production");
   const outputIdx = args.indexOf("--output");
-  const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve27(args[outputIdx + 1]) : void 0;
+  const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve28(args[outputIdx + 1]) : void 0;
   const runDirIdx = args.indexOf("--run-dir");
-  const runDir = runDirIdx !== -1 && args[runDirIdx + 1] ? resolve27(args[runDirIdx + 1]) : void 0;
+  const runDir = runDirIdx !== -1 && args[runDirIdx + 1] ? resolve28(args[runDirIdx + 1]) : void 0;
   try {
     const { prepareRelease: prepareRelease2 } = await init_prepare().then(() => prepare_exports);
     const { readFile: readFileFs } = await import("node:fs/promises");
@@ -89964,7 +90462,7 @@ if (command === "approve") {
   const actorIdx = args.indexOf("--actor");
   const actor = actorIdx !== -1 && args[actorIdx + 1] ? args[actorIdx + 1] : void 0;
   const outputIdx = args.indexOf("--output");
-  const outputPath = outputIdx !== -1 && args[outputIdx + 1] ? resolve27(args[outputIdx + 1]) : void 0;
+  const outputPath = outputIdx !== -1 && args[outputIdx + 1] ? resolve28(args[outputIdx + 1]) : void 0;
   if (!planPath || !expectedDigest || !actor) {
     const msg = "approve requires --plan <path>, --digest <sha256>, and --actor <name>";
     if (hasJson) {
@@ -89976,10 +90474,10 @@ if (command === "approve") {
   }
   try {
     const { approvePlan: approvePlan2 } = await init_approve().then(() => approve_exports);
-    const resolvedPlanPath = resolve27(planPath);
+    const resolvedPlanPath = resolve28(planPath);
     const planDir = dirname15(resolvedPlanPath);
     const releaseDir = basename10(planDir) === "plans" && basename10(resolvedPlanPath) === `${expectedDigest}.json` ? dirname15(planDir) : planDir;
-    const approvalPath = outputPath ?? join28(releaseDir, "approval-record.json");
+    const approvalPath = outputPath ?? join29(releaseDir, "approval-record.json");
     const record = await approvePlan2({ planPath, expectedDigest, actor, outputPath: approvalPath });
     if (hasJson) {
       console.log(JSON.stringify(record, null, 2));
@@ -90006,13 +90504,13 @@ if (command === "approve") {
 if (command === "reconcile") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve27(rawRoot);
+  const root = resolve28(rawRoot);
   const planIdx = args.indexOf("--plan");
-  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve27(args[planIdx + 1]) : void 0;
+  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve28(args[planIdx + 1]) : void 0;
   const runIdx = args.indexOf("--run");
-  const runPath = runIdx !== -1 && args[runIdx + 1] ? resolve27(args[runIdx + 1]) : void 0;
+  const runPath = runIdx !== -1 && args[runIdx + 1] ? resolve28(args[runIdx + 1]) : void 0;
   const approvalIdx = args.indexOf("--approval");
-  const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve27(args[approvalIdx + 1]) : void 0;
+  const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve28(args[approvalIdx + 1]) : void 0;
   const confirmationIdx = args.indexOf("--confirm-production");
   const productionConfirmation = confirmationIdx !== -1 && args[confirmationIdx + 1] ? args[confirmationIdx + 1] : void 0;
   if (!planPath || !runPath) {
@@ -90071,11 +90569,11 @@ if (command === "reconcile") {
 if (command === "verify") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve27(rawRoot);
+  const root = resolve28(rawRoot);
   const planIdx = args.indexOf("--plan");
-  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve27(args[planIdx + 1]) : void 0;
+  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve28(args[planIdx + 1]) : void 0;
   const runIdx = args.indexOf("--run");
-  const runPath = runIdx !== -1 && args[runIdx + 1] ? resolve27(args[runIdx + 1]) : void 0;
+  const runPath = runIdx !== -1 && args[runIdx + 1] ? resolve28(args[runIdx + 1]) : void 0;
   const verificationGatesAuthorized = args.includes("--acknowledge-gate-side-effects");
   if (!planPath || !runPath) {
     const msg = "verify requires --plan <path> and --run <path>";
@@ -90131,11 +90629,11 @@ if (command === "verify") {
 if (command === "publish") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve27(rawRoot);
+  const root = resolve28(rawRoot);
   const planIdx = args.indexOf("--plan");
-  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve27(args[planIdx + 1]) : void 0;
+  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve28(args[planIdx + 1]) : void 0;
   const approvalIdx = args.indexOf("--approval");
-  const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve27(args[approvalIdx + 1]) : void 0;
+  const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve28(args[approvalIdx + 1]) : void 0;
   const confirmationIdx = args.indexOf("--confirm-production");
   const productionConfirmation = confirmationIdx !== -1 && args[confirmationIdx + 1] ? args[confirmationIdx + 1] : void 0;
   if (!planPath || !approvalPath || !productionConfirmation) {
@@ -90194,9 +90692,9 @@ if (command === "publish") {
 if (command === "artifacts") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve27(rawRoot);
+  const root = resolve28(rawRoot);
   const outputIdx = args.indexOf("--output");
-  const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve27(args[outputIdx + 1]) : void 0;
+  const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve28(args[outputIdx + 1]) : void 0;
   const subcommand = positional[1] ?? "status";
   try {
     const { runArtifactsCommand: runArtifactsCommand2 } = await Promise.resolve().then(() => (init_artifacts(), artifacts_exports));
@@ -90263,7 +90761,7 @@ if (command === "docs") {
         );
       }
     }
-    const root = resolve27(rawRoot);
+    const root = resolve28(rawRoot);
     const valuedDocsFlags = /* @__PURE__ */ new Set(["--root", "--unit", "--confirm-refresh"]);
     const booleanDocsFlags = /* @__PURE__ */ new Set(["--json", "--write", "--ack-local-document-write"]);
     let docsSubcommand;

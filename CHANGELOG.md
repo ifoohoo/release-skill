@@ -1,5 +1,26 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.2.8 locale=en baseline=sha256:ad6e8910f1af206463b5decf134b82590787b77f5a88faca3d8985d3686b111b -->
+## [0.2.8] - 2026-07-30
+
+v0.2.8 adds a project-configurable expected public-surface gate so newly added or omitted release files cannot silently disappear from a frozen snapshot.
+
+### Added
+
+- **Expected public surface**: release units can declare physical scan roots with compact `include` and `exclude` globs instead of maintaining a second per-file checker.
+- **Exhaustive classification diagnostics**: prepare reports missing mappings, unexpected mappings, unclassified files, and files that ambiguously match both include and exclude rules.
+
+### Changed
+
+- **Post-build release gate**: prepare scans the actual workspace after build hooks and blocks before source-authority closure, baseline capture, snapshot construction, or plan creation.
+- **Bounded glob and path safety**: the built-in scanner supports `*`, `?`, and `**`, rejects overlapping or escaping scan roots, and keeps workspace control paths outside the project classification surface.
+
+### Fixed
+
+- **Silent release-file omission**: a file classified for publication can no longer be absent from `publicFiles` while the release still reaches `PREPARED`.
+<!-- release-skill:changelog:end version=0.2.8 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.2.7 locale=en baseline=sha256:05d12ddcc435b3c4438561dba780481ead1ac7662d946c3c36ddf8123dcaebe3 -->
 ## [0.2.7] - 2026-07-29
 

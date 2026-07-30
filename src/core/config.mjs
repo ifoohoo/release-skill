@@ -23,6 +23,7 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import { canonicalJson, sha256Hex } from './digest.mjs';
 import { ReleaseError, CONFIG_INVALID } from './errors.mjs';
+import { validatePublicSurfaceGlob } from './public-surface.mjs';
 import { canonicalPublicPath, publicPathCollisionKey } from '../snapshot/public-path.mjs';
 import { isReservedReleaseControlPath } from './baseline.mjs';
 import { readTrustedPackageResource } from './trusted-resource.mjs';
@@ -292,6 +293,53 @@ export async function loadProjectConfig({ root, configPath } = {}) {
         `unit "${unit.id}" has invalid source path: ${err.message}`,
         { unitId: unit.id, source: unit.source, field: 'source' },
       );
+    }
+
+    // Validate expected public-surface roots and the deliberately small glob
+    // language before generic schema validation so diagnostics identify the
+    // exact unit, scan root, and pattern.
+    const surface = unit.expectedPublicSurface;
+    if (surface && typeof surface === 'object' && Array.isArray(surface.scanRoots)) {
+      for (const [rootIndex, scanRoot] of surface.scanRoots.entries()) {
+        if (!scanRoot || typeof scanRoot !== 'object') continue;
+        if (typeof scanRoot.root === 'string') {
+          try {
+            canonicalPublicPath(scanRoot.root, { allowDot: true });
+          } catch (err) {
+            throw new ReleaseError(
+              CONFIG_INVALID,
+              `unit "${unit.id}" has invalid expectedPublicSurface scan root: ${err.message}`,
+              {
+                unitId: unit.id,
+                rootIndex,
+                root: scanRoot.root,
+                field: 'expectedPublicSurface.scanRoots[].root',
+              },
+            );
+          }
+        }
+        for (const field of ['include', 'exclude']) {
+          if (!Array.isArray(scanRoot[field])) continue;
+          for (const pattern of scanRoot[field]) {
+            if (typeof pattern !== 'string') continue;
+            try {
+              validatePublicSurfaceGlob(pattern);
+            } catch (err) {
+              throw new ReleaseError(
+                CONFIG_INVALID,
+                `unit "${unit.id}" has invalid expectedPublicSurface ${field} glob: ${err.message}`,
+                {
+                  unitId: unit.id,
+                  rootIndex,
+                  pattern,
+                  field: `expectedPublicSurface.scanRoots[].${field}`,
+                  reason: err.details?.reason ?? 'PUBLIC_SURFACE_GLOB_INVALID',
+                },
+              );
+            }
+          }
+        }
+      }
     }
 
     // Validate publicFiles[].from and .to
