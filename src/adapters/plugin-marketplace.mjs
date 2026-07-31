@@ -476,7 +476,7 @@ async function resolveInstalledPayloadSubpath(snapshotDir, sourceEntries, action
   return extractDeclaredPluginSource(consumer, matches[0]);
 }
 
-async function verifyInstalledMarketplacePayload(action, context, installPath, consumer) {
+export async function verifyInstalledMarketplacePayload(action, context, installPath, consumer) {
   const sourcePath = await resolveFrozenPath(
     context.root,
     action.snapshotPath,

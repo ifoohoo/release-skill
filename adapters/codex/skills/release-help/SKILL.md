@@ -19,7 +19,7 @@ description: "Discoverable entry point for release-skill: dependency and environ
 ## 职责
 
 - 依赖和环境检查：Node.js >= 22、Git 决定本地准备就绪度；npm/gh 另行决定生产依赖就绪度
-- 能力说明：缺少配置时走 `help → setup → assess`；已有配置的安全默认路径是 `help → assess → prepare --offline`；已有公开版本的生产闭环是显式的 `prepare --online --production → approve → publish → verify`
+- 能力说明：缺少配置时走 `help → setup → assess`；已有配置的安全默认路径是 `help → assess → prepare --offline`；日常生产发布优先使用可恢复的 `ship`，兼容的分阶段闭环仍是 `prepare --online --production → approve → publish → verify`
 - 最小示例：展示从 release-help 到 release-assess 的最短路径
 - 只读诊断：运行 dry-run 检查，不修改任何文件
 - 故障引导：根据错误码指向对应的修复 Skill
@@ -42,6 +42,14 @@ description: "Discoverable entry point for release-skill: dependency and environ
 node "$RELEASE_SKILL_ENTRY" help --json
 node "$RELEASE_SKILL_ENTRY" setup --root <path> --json
 node "$RELEASE_SKILL_ENTRY" assess --root <path> --offline --json
+# 日常发布快速路径：最多两个授权摘要，状态文件可恢复
+node "$RELEASE_SKILL_ENTRY" ship --root <path> --target-version <version> --json
+# 开发阶段执行声明 hooks 并生成 prepare 可复用的内容绑定收据
+node "$RELEASE_SKILL_ENTRY" hooks validate --root <path> \
+  --acknowledge-hook-side-effects --json
+# Kimi/CodeBuddy 安装完成后记录人工事实，不手改 JSON
+node "$RELEASE_SKILL_ENTRY" attest --root <path> \
+  --platform <kimi|codebuddy> --plugin <id> --result <passed|failed> --actor <person> --json
 # 发布文档刷新：默认只读演练
 node "$RELEASE_SKILL_ENTRY" docs refresh --unit <id> --json
 # 摘要确认后的本地写入（三项绑定缺一不可）

@@ -1,0 +1,105 @@
+import { lstat, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import YAML from 'yaml';
+
+import { ReleaseError, CONFIG_INVALID, GATE_FAILED } from './errors.mjs';
+
+function assertOid(value, label) {
+  if (typeof value !== 'string' || !/^[a-f0-9]{40,64}$/.test(value)) {
+    throw new ReleaseError(GATE_FAILED, `${label} is not a full Git object id`);
+  }
+}
+
+/**
+ * After VERIFIED, advance the project-only previous-public baseline to the
+ * exact public commit already frozen, published and verified. This prepares
+ * the next release without asking maintainers to copy commits from terminal
+ * output. It never edits public files or performs remote writes.
+ */
+export async function updatePreviousPublicBaselines(options = {}) {
+  const root = resolve(options.root ?? process.cwd());
+  const planPath = resolve(options.planPath ?? '');
+  const configPath = resolve(root, '.release-skill', 'project.yaml');
+  let plan;
+  let configRaw;
+  let configStat;
+  try {
+    [plan, configRaw, configStat] = await Promise.all([
+      readFile(planPath, 'utf8').then(JSON.parse),
+      readFile(configPath, 'utf8'),
+      lstat(configPath),
+    ]);
+  } catch (error) {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      `cannot load release metadata authorities: ${error.message}`,
+    );
+  }
+  if (!configStat.isFile() || configStat.isSymbolicLink()) {
+    throw new ReleaseError(CONFIG_INVALID, 'project config must be a regular non-symlink file');
+  }
+
+  const doc = YAML.parseDocument(configRaw, { uniqueKeys: true });
+  if (doc.errors.length > 0) {
+    throw new ReleaseError(CONFIG_INVALID, `project config YAML is invalid: ${doc.errors[0].message}`);
+  }
+  const releaseUnits = doc.get('releaseUnits', true);
+  if (!YAML.isSeq(releaseUnits)) {
+    throw new ReleaseError(CONFIG_INVALID, 'project config releaseUnits must be a sequence');
+  }
+  const configUnits = new Map();
+  for (const node of releaseUnits.items) {
+    const id = node?.get?.('id');
+    if (typeof id === 'string') configUnits.set(id, node);
+  }
+
+  const updates = [];
+  for (const unit of plan.units ?? []) {
+    const configUnit = configUnits.get(unit.id);
+    if (!configUnit) {
+      throw new ReleaseError(CONFIG_INVALID, `frozen unit "${unit.id}" is absent from project config`);
+    }
+    const frozen = unit.frozenSnapshot;
+    assertOid(frozen?.commit, `unit "${unit.id}" frozen commit`);
+    assertOid(frozen?.tree, `unit "${unit.id}" frozen tree`);
+    if (!/^[a-f0-9]{64}$/.test(frozen?.manifestDigest ?? '')) {
+      throw new ReleaseError(GATE_FAILED, `unit "${unit.id}" frozen manifest digest is invalid`);
+    }
+    const old = configUnit.get('previousPublicBaseline', true)?.toJSON?.() ?? {};
+    const next = {
+      mode: 'bound',
+      repo: old.repo ?? unit.publicRepo,
+      ref: old.ref ?? `refs/heads/${frozen.branch}`,
+      commit: frozen.commit,
+      tree: frozen.tree,
+      manifestDigest: frozen.manifestDigest,
+    };
+    if (!next.repo || !next.ref) {
+      throw new ReleaseError(GATE_FAILED, `unit "${unit.id}" cannot derive its next public baseline identity`);
+    }
+    configUnit.set('previousPublicBaseline', next);
+    updates.push({
+      id: unit.id,
+      previousCommit: old.commit ?? null,
+      commit: frozen.commit,
+    });
+  }
+
+  const nextRaw = doc.toString();
+  if (nextRaw === configRaw) {
+    return { status: 'UNCHANGED', configPath, units: updates };
+  }
+  const tempPath = `${configPath}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    await writeFile(tempPath, nextRaw, {
+      encoding: 'utf8',
+      mode: configStat.mode & 0o777,
+      flag: 'wx',
+    });
+    await rename(tempPath, configPath);
+  } catch (error) {
+    await rm(tempPath, { force: true }).catch(() => {});
+    throw new ReleaseError(CONFIG_INVALID, `cannot update project release metadata: ${error.message}`);
+  }
+  return { status: 'UPDATED', configPath, units: updates };
+}

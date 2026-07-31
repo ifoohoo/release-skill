@@ -19,7 +19,7 @@ registerPathRedactor(redactSensitivePaths);
 
 const execFile = promisify(execFileCb);
 
-const COMMANDS = new Set(['help', 'setup', 'assess', 'prepare', 'approve', 'publish', 'reconcile', 'verify', 'artifacts', 'docs']);
+const COMMANDS = new Set(['help', 'setup', 'assess', 'prepare', 'approve', 'publish', 'reconcile', 'verify', 'ship', 'attest', 'hooks', 'artifacts', 'docs']);
 
 /**
  * Check if a command is available and get its version.
@@ -222,6 +222,9 @@ Commands:
   publish    Publish frozen GitHub/npm artifacts after approval and digest confirmation
   reconcile  Resume PARTIAL state from evidence; conflicts require a human
   verify     Fresh remote and consumer verification; only this reaches VERIFIED
+  ship       Resume one durable prepare -> approve -> publish -> verify flow
+  attest     Record a generated Kimi/CodeBuddy manual result without editing JSON
+  hooks      Run declared development hooks and populate reusable receipts
   artifacts  Artifact status, inspect, update/apply, resolution, and diagnostics
   docs       Refresh declared release documents (read-only dry-run by default)
 
@@ -242,6 +245,15 @@ Options:
   --ack-local-document-write Acknowledge the explicit local release-document write (docs refresh --write)
   --acknowledge-hook-side-effects Acknowledge unsandboxed legacy hook execution
   --acknowledge-gate-side-effects Acknowledge unsandboxed local verification gate execution
+  --platform <id>   Manual attestation platform: kimi or codebuddy
+  --plugin <id>     Plugin id for a generated manual requirement
+  --actor <name>    Person confirming an approval or manual result
+  --result <value>  Manual result: passed or failed
+  --install-path <path> Actual managed plugin path when closure verification requires it
+  --install-channel <desktop|cli> CodeBuddy installation channel when required
+  --authorize-hooks <digest> Authorize the exact ship hook/config digest
+  --approve-plan <digest> Approve the exact ship plan and its verification gates
+  --state <path>    Override the durable ship state file
   --no-hook-cache  Force every prepare hook to run in full; neither read nor write the hook cache
   --json           Output results as JSON
   --version        Show version and exit
@@ -500,6 +512,154 @@ if (command === 'assess') {
   }
 }
 
+// --- Reusable hook receipt routing ---
+if (command === 'hooks') {
+  const subcommand = positional[1];
+  const rootIdx = args.indexOf('--root');
+  const root = resolve(rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd());
+  if (subcommand !== 'validate') {
+    const message = 'hooks requires subcommand: hooks validate';
+    if (hasJson) console.log(JSON.stringify({ error: 'MISSING_PARAMETERS', message }));
+    else console.error(`Error: ${message}`);
+    process.exit(1);
+  }
+  try {
+    const { validateDeclaredHooks } = await import('../src/commands/hooks.mjs');
+    const result = await validateDeclaredHooks({
+      root,
+      hooksAuthorized: args.includes('--acknowledge-hook-side-effects'),
+      hookCache: !args.includes('--no-hook-cache'),
+    });
+    if (hasJson) console.log(JSON.stringify(result, null, 2));
+    else {
+      console.log(`Declared hooks: ${result.status}`);
+      console.log(`Reusable receipt evidence: ${result.evidenceDir}`);
+    }
+    process.exit(0);
+  } catch (err) {
+    if (hasJson) {
+      console.log(JSON.stringify({
+        error: err.code ?? 'UNKNOWN_ERROR',
+        message: err.message,
+        details: err.details ?? {},
+        exitCode: err.exitCode ?? 1,
+      }));
+    } else console.error(`Error: ${err.message}`);
+    process.exit(err.exitCode ?? 1);
+  }
+}
+
+// --- Durable end-to-end ship routing ---
+if (command === 'ship') {
+  const value = (flag) => {
+    const idx = args.indexOf(flag);
+    return idx !== -1 && args[idx + 1] ? args[idx + 1] : undefined;
+  };
+  const root = resolve(value('--root') ?? process.cwd());
+  try {
+    const [
+      { advanceShip },
+      { createGitGithubAdapter },
+      { createNpmAdapter },
+      { createPluginMarketplaceAdapter },
+      { createPushSnapshotAdapter },
+      { createAdapterRegistry },
+    ] = await Promise.all([
+      import('../src/commands/ship.mjs'),
+      import('../src/adapters/git-github.mjs'),
+      import('../src/adapters/npm.mjs'),
+      import('../src/adapters/plugin-marketplace.mjs'),
+      import('../src/adapters/push-snapshot.mjs'),
+      import('../src/adapters/contract.mjs'),
+    ]);
+    const adapterRegistry = createAdapterRegistry([
+      createGitGithubAdapter(),
+      createNpmAdapter(),
+      createPluginMarketplaceAdapter(),
+      createPushSnapshotAdapter(),
+    ]);
+    const result = await advanceShip({
+      root,
+      statePath: value('--state'),
+      targetVersion: value('--target-version') ?? value('--version'),
+      hookAuthorizationDigest: value('--authorize-hooks'),
+      planApprovalDigest: value('--approve-plan'),
+      actor: value('--actor'),
+      adapterRegistry,
+    });
+    if (hasJson) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log(`Ship status: ${result.status}`);
+      console.log(`State: ${result.statePath}`);
+      if (result.hookAuthorizationDigest && result.status === 'NEEDS_HOOK_AUTHORIZATION') {
+        console.log(`Authorize hooks: --authorize-hooks ${result.hookAuthorizationDigest}`);
+      }
+      if (result.planDigest && result.status === 'NEEDS_PLAN_APPROVAL') {
+        console.log(`Approve plan and verification gates: --approve-plan ${result.planDigest} --actor <person>`);
+      }
+      for (const requirement of result.requirements ?? []) {
+        console.log(`Manual requirement [${requirement.platform}]: ${requirement.requirementPath}`);
+      }
+    }
+    process.exit(0);
+  } catch (err) {
+    if (hasJson) {
+      console.log(JSON.stringify({
+        error: err.code ?? 'UNKNOWN_ERROR',
+        message: err.message,
+        details: err.details ?? {},
+        exitCode: err.exitCode ?? 1,
+      }));
+    } else {
+      console.error(`Error: ${err.message}`);
+    }
+    process.exit(err.exitCode ?? 1);
+  }
+}
+
+// --- Manual attestation command routing ---
+if (command === 'attest') {
+  const value = (flag) => {
+    const idx = args.indexOf(flag);
+    return idx !== -1 && args[idx + 1] ? args[idx + 1] : undefined;
+  };
+  const root = resolve(value('--root') ?? process.cwd());
+  try {
+    const { recordManualAttestation } = await import('../src/commands/attest.mjs');
+    const result = await recordManualAttestation({
+      root,
+      platform: value('--platform'),
+      plugin: value('--plugin'),
+      actor: value('--actor'),
+      result: value('--result'),
+      installPath: value('--install-path'),
+      installChannel: value('--install-channel'),
+      note: value('--note'),
+    });
+    if (hasJson) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log(`Manual attestation recorded: ${result.platform}/${result.plugin} ${result.version}`);
+      console.log(`Bound plan digest: ${result.planDigest}`);
+      console.log(`Receipt: ${result.attestationPath}`);
+    }
+    process.exit(0);
+  } catch (err) {
+    if (hasJson) {
+      console.log(JSON.stringify({
+        error: err.code ?? 'UNKNOWN_ERROR',
+        message: err.message,
+        details: err.details ?? {},
+        exitCode: err.exitCode ?? 1,
+      }));
+    } else {
+      console.error(`Error: ${err.message}`);
+    }
+    process.exit(err.exitCode ?? 1);
+  }
+}
+
 // --- Prepare command routing ---
 if (command === 'prepare') {
   const rootIdx = args.indexOf('--root');
@@ -542,15 +702,27 @@ if (command === 'prepare') {
     });
 
     if (hasJson) {
-      // Output the full plan object plus metadata so consumers
-      // can inspect status, units, externalActions, planDigest, etc.
+      // Keep stdout compact and stable. The immutable plan remains the single
+      // authority at planPath; callers should not have to carry its full
+      // source closure, manifests and action payloads through chat/logs.
       const planContent = await readFileFs(result.planPath, 'utf8');
       const plan = JSON.parse(planContent);
       console.log(JSON.stringify({
-        ...plan,
+        command: 'prepare',
+        status: plan.status,
         planPath: result.planPath,
         planDigest: result.planDigest,
         evidenceDir: result.evidenceDir,
+        units: (plan.units ?? []).map((unit) => ({
+          id: unit.id,
+          targetVersion: unit.targetVersion ?? unit.version,
+        })),
+        actionCount: (plan.externalActions ?? []).length,
+        actions: (plan.externalActions ?? []).map((action) => ({
+          id: action.id,
+          type: action.type,
+          unitId: action.unitId,
+        })),
         warnings: result.warnings,
       }, null, 2));
     } else {

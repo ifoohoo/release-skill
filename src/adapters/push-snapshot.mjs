@@ -32,7 +32,9 @@ export function githubRepositoryUrl(repo, host = 'github.com') {
   ) {
     throw new Error('githubHost must be a valid hostname');
   }
-  return `https://${host}/${repo}.git`;
+  return process.env.RELEASE_SKILL_GIT_TRANSPORT === 'ssh'
+    ? `git@${host}:${repo}.git`
+    : `https://${host}/${repo}.git`;
 }
 
 function validateOid(value, label) {

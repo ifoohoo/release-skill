@@ -9,7 +9,7 @@
     {
       "name": "release-skill",
       "source": "./",
-      "version": "0.2.9",
+      "version": "0.3.0",
       "description": "Safe preparation and frozen GitHub/npm production publishing with full happy end verification"
     }
   ]

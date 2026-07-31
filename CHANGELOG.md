@@ -1,5 +1,26 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.3.0 locale=en baseline=sha256:e3dacdaf9c7f780ccbd530d85cd16994b1a33747146475ac77f21e6f09be1493 -->
+## [0.3.0] - 2026-07-31
+
+v0.3.0 streamlines production releases into a resumable orchestration with reusable hook receipts, consolidated approvals, and stronger consumer-install evidence.
+
+### Added
+
+- **Resumable ship orchestration**: the new `ship` command persists the active release state and resumes prepare, approval, publish, reconcile, and verification without rebuilding authority from conversational context.
+- **Reusable hook receipts**: `hooks validate` executes declared hooks through the same content-bound cache used by prepare, so unchanged checks do not need to run again.
+- **Verified manual attestations**: `attest` validates a reported Kimi or CodeBuddy installation against the exact frozen plugin payload before recording consumer evidence.
+- **Git transport preflight**: production publishing selects one repository-consistent HTTPS or SSH transport before any remote write and blocks conflicting remote identities.
+
+### Changed
+
+- **Consolidated human decisions**: the normal path requires at most one hook-side-effect authorization and one immutable-plan approval; manual consumer requirements are collected before automatic verification.
+- **Parallel consumer verification**: independent consumer checks run concurrently, drain before failure reporting, and produce deterministically ordered evidence.
+- **Automatic release metadata**: successful verification advances each unit's `previousPublicBaseline` to the frozen public commit, tree, and manifest digest.
+- **Compact prepare output**: JSON output references the immutable plan by path and digest instead of embedding the full plan.
+<!-- release-skill:changelog:end version=0.3.0 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.2.9 locale=en baseline=sha256:22b3d94c5d99fca0e6016334a108e4be5f3419f45507fae795b4d0714ca7ad6d -->
 ## [0.2.9] - 2026-07-31
 

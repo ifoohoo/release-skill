@@ -43,6 +43,7 @@ import {
   GATE_FAILED,
   CONFIG_MISSING,
   POST_PUBLISH_VERIFY_FAILED,
+  CONSUMER_VERIFICATION_DEFERRED,
 } from '../core/errors.mjs';
 import { verifySourceAuthorityReceipt } from '../core/source-authority.mjs';
 import { assertTransition, PUBLISHED, VERIFIED } from '../core/state-machine.mjs';
@@ -67,6 +68,20 @@ import {
   buildDirectoryFileIndex,
   checkNpmEntryClosure,
 } from '../npm/npm-entry-closure.mjs';
+import {
+  KIMI_ATTESTATION_FILE,
+  KIMI_REQUIREMENT_FILE,
+  kimiAuthorityDir,
+  resolveBoundPlanDigest,
+  validateKimiAttestation,
+} from '../platforms/kimi.mjs';
+import {
+  CODEBUDDY_ATTESTATION_FILE,
+  CODEBUDDY_REQUIREMENT_FILE,
+  codebuddyAuthorityDir,
+  resolveCodeBuddyBoundPlanDigest,
+  validateCodeBuddyAttestation,
+} from '../platforms/codebuddy.mjs';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -118,6 +133,103 @@ function defaultClock() {
  */
 function isValidDigest(digest) {
   return typeof digest === 'string' && /^[a-f0-9]{64}$/.test(digest);
+}
+
+/**
+ * Generate every manual consumer requirement before any expensive automatic
+ * consumer install starts. This turns a sequence of "install Kimi, rerun,
+ * then discover CodeBuddy" failures into one actionable response.
+ */
+async function collectMissingManualAttestations({
+  actions,
+  adapterRegistry,
+  plan,
+  root,
+  runDir,
+  clockFn,
+}) {
+  const manual = actions.filter((action) => (
+    action.type === 'kimi-marketplace-install'
+    || action.type === 'codebuddy-marketplace-install'
+  ));
+  if (manual.length === 0) return [];
+
+  const missing = [];
+  for (const action of manual) {
+    const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
+    const adapter = adapterRegistry.getAdapter(adapterActionType);
+    // Tests and embedders may intentionally register a fully automatic
+    // adapter for these action types. Only the real platform adapter owns the
+    // interactive manual-install protocol and its stable authority files.
+    if (adapter.name !== 'plugin-marketplace') continue;
+    const context = {
+      externalWritesAuthorized: false,
+      isolatedConsumerWritesAuthorized: true,
+      plan,
+      baseline: plan.baseline,
+      root,
+      runDir,
+    };
+    const actionInput = { actionType: adapterActionType, ...action.parameters };
+    const preflight = await adapter.preflight(actionInput, context);
+    if (preflight.status !== 'PREFLIGHT_PASSED') {
+      throw new ReleaseError(
+        POST_PUBLISH_VERIFY_FAILED,
+        `manual consumer preflight did not pass for action "${action.id}": ${preflight.error}`,
+        { actionId: action.id, platform: action.type.split('-')[0] },
+      );
+    }
+    const executed = await adapter.execute(actionInput, context);
+    if (executed.status !== 'EXECUTED') {
+      throw new ReleaseError(
+        POST_PUBLISH_VERIFY_FAILED,
+        `cannot generate manual consumer requirement for action "${action.id}": ${executed.error}`,
+        { actionId: action.id, platform: action.type.split('-')[0] },
+      );
+    }
+
+    const isKimi = action.type === 'kimi-marketplace-install';
+    const planDigest = isKimi
+      ? resolveBoundPlanDigest(context)
+      : await resolveCodeBuddyBoundPlanDigest(context);
+    const authorityDir = isKimi
+      ? kimiAuthorityDir(context, planDigest, action.parameters.plugin)
+      : codebuddyAuthorityDir(context, planDigest, action.parameters.plugin);
+    const requirementPath = join(
+      authorityDir,
+      isKimi ? KIMI_REQUIREMENT_FILE : CODEBUDDY_REQUIREMENT_FILE,
+    );
+    const attestationPath = join(
+      authorityDir,
+      isKimi ? KIMI_ATTESTATION_FILE : CODEBUDDY_ATTESTATION_FILE,
+    );
+
+    let valid = false;
+    let reason = 'attestation file is missing';
+    try {
+      const attestation = JSON.parse(await readFile(attestationPath, 'utf8'));
+      const validation = isKimi
+        ? validateKimiAttestation(attestation, action.parameters, clockFn(), planDigest)
+        : validateCodeBuddyAttestation(attestation, action.parameters, clockFn(), planDigest);
+      valid = validation.valid;
+      reason = validation.error;
+    } catch (error) {
+      if (error?.code !== 'ENOENT') reason = `attestation cannot be read: ${error.message}`;
+    }
+    if (!valid) {
+      missing.push({
+        actionId: action.id,
+        platform: isKimi ? 'kimi' : 'codebuddy',
+        plugin: action.parameters.plugin,
+        version: action.parameters.version,
+        planDigest,
+        requirementPath,
+        attestationPath,
+        reason,
+      });
+    }
+  }
+  return missing;
 }
 
 // ---------------------------------------------------------------------------
@@ -1000,7 +1112,33 @@ export async function verifyRelease(options) {
       }
     }
 
-    for (const action of actions) {
+    const missingManualAttestations = await collectMissingManualAttestations({
+      actions,
+      adapterRegistry,
+      plan,
+      root,
+      runDir,
+      clockFn,
+    });
+    if (missingManualAttestations.length > 0) {
+      await evidence.append({
+        phase: 'verify',
+        step: 'manual-attestations',
+        status: 'needs-input',
+        requirements: missingManualAttestations,
+      });
+      throw new ReleaseError(
+        CONSUMER_VERIFICATION_DEFERRED,
+        `${missingManualAttestations.length} manual consumer attestation(s) are required`,
+        { requirements: missingManualAttestations },
+      );
+    }
+
+    // Every action is identity-bound and adapters receive read-only or
+    // per-action isolated consumer paths. Run independent checks concurrently;
+    // the evidence writer serializes append operations and result arrays are
+    // sorted afterwards for deterministic receipts.
+    const actionResults = await Promise.allSettled(actions.map(async (action) => {
       const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
 
       // Skip meta-checkpoints
@@ -1011,7 +1149,7 @@ export async function verifyRelease(options) {
           status: 'SKIPPED',
           reason: 'meta-checkpoint',
         });
-        continue;
+        return;
       }
 
       let adapter;
@@ -1142,7 +1280,7 @@ export async function verifyRelease(options) {
               installationContractDigest: currentDigest,
             });
 
-            continue;
+            return;
           }
         }
 
@@ -1305,7 +1443,12 @@ export async function verifyRelease(options) {
           );
         }
       }
-    }
+    }));
+    adapterChecks.sort((a, b) => a.actionId.localeCompare(b.actionId));
+    consumerVerificationReceipts.sort((a, b) => a.actionId.localeCompare(b.actionId));
+    consumerGateResults.sort((a, b) => a.id.localeCompare(b.id));
+    const rejectedAction = actionResults.find((result) => result.status === 'rejected');
+    if (rejectedAction) throw rejectedAction.reason;
 
     await evidence.append({ phase: 'verify', step: 'adapter-verify', status: 'completed' });
 

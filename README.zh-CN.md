@@ -2,27 +2,33 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.2.9 -->
+<!-- release-skill:release-version: 0.3.0 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.2.9** (2026-07-31)
+**0.3.0** (2026-07-31)
 
-v0.2.9 会在评估和准备阶段提示缺少期望发布面配置，同时保持现有项目兼容，不立即阻断发布。
+v0.3.0 将生产发布收敛为可恢复总编排，通过复用钩子收据、合并人工授权并加强消费者安装证据，缩短发布链路。
 
 **新增**
 
-- **采用提醒**：assess 会为每个尚未配置 `expectedPublicSurface` 的发布单元报告 `PUBLIC_SURFACE_CONFIG_MISSING`。
+- **可恢复的 ship 总编排**：新增 `ship` 命令持久化当前发布状态，可连续恢复 prepare、审批、publish、reconcile 与 verify，不依赖对话上下文重建发布权限。
+- **可复用钩子收据**：`hooks validate` 通过与 prepare 相同的内容绑定缓存执行项目钩子，输入未变化时无需重复运行。
+- **可验证的人工证明**：`attest` 在记录 Kimi 或 CodeBuddy 消费者证据前，会把申报的安装目录与精确冻结插件载荷进行核验。
+- **Git 传输预检**：任何远端写入前，生产发布会在全部仓库间选择一致可用的 HTTPS 或 SSH 传输，并阻断远端身份冲突。
 
 **变更**
 
-- **prepare 可见性**：prepare 会记录并返回同一条非阻断警告，CLI 的 JSON 与人类可读输出都会显示该提醒。
+- **合并人工决策**：普通路径最多只需一次钩子副作用授权和一次不可变计划审批；人工消费者要求会在自动验证前集中生成。
+- **并行消费者验证**：相互独立的消费者检查并行执行，全部收敛后再报告失败，并确定性排序证据。
+- **自动推进发布元数据**：验证成功后，各发布单元的 `previousPublicBaseline` 自动更新为冻结的公开 commit、tree 与 manifest digest。
+- **精简 prepare 输出**：JSON 结果改为通过路径和摘要引用不可变计划，不再内嵌完整计划。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.2.9 是当前发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.3.0 是当前发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -35,7 +41,7 @@ v0.2.9 会在评估和准备阶段提示缺少期望发布面配置，同时保�
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.2.9 是当前发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.3.0 是当前发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -98,6 +104,29 @@ tag——见 [INSTALL.zh-CN.md](INSTALL.zh-CN.md#安装为-kimi-code-插件)。
 CodeBuddy、Codex 和 Kimi Code 的完整命令见 [INSTALL.zh-CN.md](INSTALL.zh-CN.md)。
 
 ### 主流程
+
+日常发布优先使用可恢复的快速路径。它会持久化所有权威文件路径，正常流程最多
+只需确认两个摘要：一次绑定当前配置与 hooks，一次绑定冻结计划；计划审批同时
+授权该计划的发布后验证门禁。
+
+```bash
+release-skill ship --root "$PROJECT" --target-version 1.2.3 --json
+release-skill ship --root "$PROJECT" --authorize-hooks <hookDigest> --actor "$ACTOR" --json
+release-skill ship --root "$PROJECT" --approve-plan <planDigest> --actor "$ACTOR" --json
+```
+
+如果存在交互式消费者，`ship` 会一次列出全部 Kimi/CodeBuddy 人工事项。安装并
+reload 后，用命令记录人工事实，不再手改 JSON，然后续跑 `ship`：
+
+```bash
+release-skill attest --root "$PROJECT" --platform kimi --plugin my-plugin \
+  --result passed --actor "$ACTOR" --install-path /actual/managed/plugin/path
+release-skill ship --root "$PROJECT" --json
+```
+
+开发阶段可运行 `release-skill hooks validate
+--acknowledge-hook-side-effects`；它会执行声明的 hooks，并写入 `prepare`
+可复用的内容绑定收据。
 
 按以下顺序执行。步骤 1-4 是安全默认（只读或仅本地）；步骤 5-9 需要显式人工门禁。
 

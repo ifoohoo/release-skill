@@ -9,7 +9,7 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.2.9"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.3.0"});
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -417,13 +417,13 @@ var require_identity = __commonJS({
 var require_visit = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/visit.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var BREAK = Symbol("break visit");
     var SKIP = Symbol("skip children");
     var REMOVE = Symbol("remove node");
     function visit(node, visitor) {
       const visitor_ = initVisitor(visitor);
-      if (identity.isDocument(node)) {
+      if (identity2.isDocument(node)) {
         const cd = visit_(null, node.contents, visitor_, Object.freeze([node]));
         if (cd === REMOVE)
           node.contents = null;
@@ -436,12 +436,12 @@ var require_visit = __commonJS({
     visit.REMOVE = REMOVE;
     function visit_(key, node, visitor, path3) {
       const ctrl = callVisitor(key, node, visitor, path3);
-      if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
+      if (identity2.isNode(ctrl) || identity2.isPair(ctrl)) {
         replaceNode(key, path3, ctrl);
         return visit_(key, ctrl, visitor, path3);
       }
       if (typeof ctrl !== "symbol") {
-        if (identity.isCollection(node)) {
+        if (identity2.isCollection(node)) {
           path3 = Object.freeze(path3.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
             const ci = visit_(i, node.items[i], visitor, path3);
@@ -454,7 +454,7 @@ var require_visit = __commonJS({
               i -= 1;
             }
           }
-        } else if (identity.isPair(node)) {
+        } else if (identity2.isPair(node)) {
           path3 = Object.freeze(path3.concat(node));
           const ck = visit_("key", node.key, visitor, path3);
           if (ck === BREAK)
@@ -473,7 +473,7 @@ var require_visit = __commonJS({
     __name(visit_, "visit_");
     async function visitAsync(node, visitor) {
       const visitor_ = initVisitor(visitor);
-      if (identity.isDocument(node)) {
+      if (identity2.isDocument(node)) {
         const cd = await visitAsync_(null, node.contents, visitor_, Object.freeze([node]));
         if (cd === REMOVE)
           node.contents = null;
@@ -486,12 +486,12 @@ var require_visit = __commonJS({
     visitAsync.REMOVE = REMOVE;
     async function visitAsync_(key, node, visitor, path3) {
       const ctrl = await callVisitor(key, node, visitor, path3);
-      if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
+      if (identity2.isNode(ctrl) || identity2.isPair(ctrl)) {
         replaceNode(key, path3, ctrl);
         return visitAsync_(key, ctrl, visitor, path3);
       }
       if (typeof ctrl !== "symbol") {
-        if (identity.isCollection(node)) {
+        if (identity2.isCollection(node)) {
           path3 = Object.freeze(path3.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
             const ci = await visitAsync_(i, node.items[i], visitor, path3);
@@ -504,7 +504,7 @@ var require_visit = __commonJS({
               i -= 1;
             }
           }
-        } else if (identity.isPair(node)) {
+        } else if (identity2.isPair(node)) {
           path3 = Object.freeze(path3.concat(node));
           const ck = await visitAsync_("key", node.key, visitor, path3);
           if (ck === BREAK)
@@ -543,32 +543,32 @@ var require_visit = __commonJS({
     function callVisitor(key, node, visitor, path3) {
       if (typeof visitor === "function")
         return visitor(key, node, path3);
-      if (identity.isMap(node))
+      if (identity2.isMap(node))
         return visitor.Map?.(key, node, path3);
-      if (identity.isSeq(node))
+      if (identity2.isSeq(node))
         return visitor.Seq?.(key, node, path3);
-      if (identity.isPair(node))
+      if (identity2.isPair(node))
         return visitor.Pair?.(key, node, path3);
-      if (identity.isScalar(node))
+      if (identity2.isScalar(node))
         return visitor.Scalar?.(key, node, path3);
-      if (identity.isAlias(node))
+      if (identity2.isAlias(node))
         return visitor.Alias?.(key, node, path3);
       return void 0;
     }
     __name(callVisitor, "callVisitor");
     function replaceNode(key, path3, node) {
       const parent = path3[path3.length - 1];
-      if (identity.isCollection(parent)) {
+      if (identity2.isCollection(parent)) {
         parent.items[key] = node;
-      } else if (identity.isPair(parent)) {
+      } else if (identity2.isPair(parent)) {
         if (key === "key")
           parent.key = node;
         else
           parent.value = node;
-      } else if (identity.isDocument(parent)) {
+      } else if (identity2.isDocument(parent)) {
         parent.contents = node;
       } else {
-        const pt = identity.isAlias(parent) ? "alias" : "scalar";
+        const pt = identity2.isAlias(parent) ? "alias" : "scalar";
         throw new Error(`Cannot replace node with ${pt} parent`);
       }
     }
@@ -582,7 +582,7 @@ var require_visit = __commonJS({
 var require_directives = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/doc/directives.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var visit = require_visit();
     var escapeChars = {
       "!": "%21",
@@ -728,10 +728,10 @@ var require_directives = __commonJS({
         const lines = this.yaml.explicit ? [`%YAML ${this.yaml.version || "1.2"}`] : [];
         const tagEntries = Object.entries(this.tags);
         let tagNames;
-        if (doc && tagEntries.length > 0 && identity.isNode(doc.contents)) {
+        if (doc && tagEntries.length > 0 && identity2.isNode(doc.contents)) {
           const tags = {};
           visit.visit(doc.contents, (_key, node) => {
-            if (identity.isNode(node) && node.tag)
+            if (identity2.isNode(node) && node.tag)
               tags[node.tag] = true;
           });
           tagNames = Object.keys(tags);
@@ -756,7 +756,7 @@ var require_directives = __commonJS({
 var require_anchors = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/doc/anchors.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var visit = require_visit();
     function anchorIsValid(anchor) {
       if (/[\x00-\x19\s,[\]{}]/.test(anchor)) {
@@ -806,7 +806,7 @@ var require_anchors = __commonJS({
         setAnchors: /* @__PURE__ */ __name(() => {
           for (const source of aliasObjects) {
             const ref = sourceObjects.get(source);
-            if (typeof ref === "object" && ref.anchor && (identity.isScalar(ref.node) || identity.isCollection(ref.node))) {
+            if (typeof ref === "object" && ref.anchor && (identity2.isScalar(ref.node) || identity2.isCollection(ref.node))) {
               ref.node.anchor = ref.anchor;
             } else {
               const error = new Error("Failed to resolve repeated object (this should not happen)");
@@ -881,12 +881,12 @@ var require_applyReviver = __commonJS({
 var require_toJS = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/nodes/toJS.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     function toJS(value, arg, ctx) {
       if (Array.isArray(value))
         return value.map((v, i) => toJS(v, String(i), ctx));
       if (value && typeof value.toJSON === "function") {
-        if (!ctx || !identity.hasAnchor(value))
+        if (!ctx || !identity2.hasAnchor(value))
           return value.toJSON(arg, ctx);
         const data = { aliasCount: 0, count: 1, res: void 0 };
         ctx.anchors.set(value, data);
@@ -913,14 +913,14 @@ var require_Node = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/nodes/Node.js"(exports) {
     "use strict";
     var applyReviver = require_applyReviver();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var toJS = require_toJS();
     var NodeBase = class {
       static {
         __name(this, "NodeBase");
       }
       constructor(type) {
-        Object.defineProperty(this, identity.NODE_TYPE, { value: type });
+        Object.defineProperty(this, identity2.NODE_TYPE, { value: type });
       }
       /** Create a copy of this node.  */
       clone() {
@@ -931,7 +931,7 @@ var require_Node = __commonJS({
       }
       /** A plain JavaScript representation of this node. */
       toJS(doc, { mapAsMap, maxAliasCount, onAnchor, reviver } = {}) {
-        if (!identity.isDocument(doc))
+        if (!identity2.isDocument(doc))
           throw new TypeError("A document argument is required");
         const ctx = {
           anchors: /* @__PURE__ */ new Map(),
@@ -958,7 +958,7 @@ var require_Alias = __commonJS({
     "use strict";
     var anchors = require_anchors();
     var visit = require_visit();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Node = require_Node();
     var toJS = require_toJS();
     var Alias2 = class extends Node.NodeBase {
@@ -966,7 +966,7 @@ var require_Alias = __commonJS({
         __name(this, "Alias");
       }
       constructor(source) {
-        super(identity.ALIAS);
+        super(identity2.ALIAS);
         this.source = source;
         Object.defineProperty(this, "tag", {
           set() {
@@ -988,7 +988,7 @@ var require_Alias = __commonJS({
           nodes = [];
           visit.visit(doc, {
             Node: /* @__PURE__ */ __name((_key, node) => {
-              if (identity.isAlias(node) || identity.hasAnchor(node))
+              if (identity2.isAlias(node) || identity2.hasAnchor(node))
                 nodes.push(node);
             }, "Node")
           });
@@ -1048,11 +1048,11 @@ var require_Alias = __commonJS({
       }
     };
     function getAliasCount(doc, node, anchors2) {
-      if (identity.isAlias(node)) {
+      if (identity2.isAlias(node)) {
         const source = node.resolve(doc);
         const anchor = anchors2 && source && anchors2.get(source);
         return anchor ? anchor.count * anchor.aliasCount : 0;
-      } else if (identity.isCollection(node)) {
+      } else if (identity2.isCollection(node)) {
         let count = 0;
         for (const item of node.items) {
           const c = getAliasCount(doc, item, anchors2);
@@ -1060,7 +1060,7 @@ var require_Alias = __commonJS({
             count = c;
         }
         return count;
-      } else if (identity.isPair(node)) {
+      } else if (identity2.isPair(node)) {
         const kc = getAliasCount(doc, node.key, anchors2);
         const vc = getAliasCount(doc, node.value, anchors2);
         return Math.max(kc, vc);
@@ -1076,7 +1076,7 @@ var require_Alias = __commonJS({
 var require_Scalar = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/nodes/Scalar.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Node = require_Node();
     var toJS = require_toJS();
     var isScalarValue = /* @__PURE__ */ __name((value) => !value || typeof value !== "function" && typeof value !== "object", "isScalarValue");
@@ -1085,7 +1085,7 @@ var require_Scalar = __commonJS({
         __name(this, "Scalar");
       }
       constructor(value) {
-        super(identity.SCALAR);
+        super(identity2.SCALAR);
         this.value = value;
       }
       toJSON(arg, ctx) {
@@ -1110,7 +1110,7 @@ var require_createNode = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/doc/createNode.js"(exports) {
     "use strict";
     var Alias2 = require_Alias();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Scalar = require_Scalar();
     var defaultTagPrefix = "tag:yaml.org,2002:";
     function findTagObject(value, tagName, tags) {
@@ -1125,12 +1125,12 @@ var require_createNode = __commonJS({
     }
     __name(findTagObject, "findTagObject");
     function createNode(value, tagName, ctx) {
-      if (identity.isDocument(value))
+      if (identity2.isDocument(value))
         value = value.contents;
-      if (identity.isNode(value))
+      if (identity2.isNode(value))
         return value;
-      if (identity.isPair(value)) {
-        const map = ctx.schema[identity.MAP].createNode?.(ctx.schema, null, ctx);
+      if (identity2.isPair(value)) {
+        const map = ctx.schema[identity2.MAP].createNode?.(ctx.schema, null, ctx);
         map.items.push(value);
         return map;
       }
@@ -1162,7 +1162,7 @@ var require_createNode = __commonJS({
             ref.node = node2;
           return node2;
         }
-        tagObj = value instanceof Map ? schema2[identity.MAP] : Symbol.iterator in Object(value) ? schema2[identity.SEQ] : schema2[identity.MAP];
+        tagObj = value instanceof Map ? schema2[identity2.MAP] : Symbol.iterator in Object(value) ? schema2[identity2.SEQ] : schema2[identity2.MAP];
       }
       if (onTagObj) {
         onTagObj(tagObj);
@@ -1187,7 +1187,7 @@ var require_Collection = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/nodes/Collection.js"(exports) {
     "use strict";
     var createNode = require_createNode();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Node = require_Node();
     function collectionFromPath(schema2, path3, value) {
       let v = value;
@@ -1235,7 +1235,7 @@ var require_Collection = __commonJS({
         const copy = Object.create(Object.getPrototypeOf(this), Object.getOwnPropertyDescriptors(this));
         if (schema2)
           copy.schema = schema2;
-        copy.items = copy.items.map((it) => identity.isNode(it) || identity.isPair(it) ? it.clone(schema2) : it);
+        copy.items = copy.items.map((it) => identity2.isNode(it) || identity2.isPair(it) ? it.clone(schema2) : it);
         if (this.range)
           copy.range = this.range.slice();
         return copy;
@@ -1251,7 +1251,7 @@ var require_Collection = __commonJS({
         else {
           const [key, ...rest] = path3;
           const node = this.get(key, true);
-          if (identity.isCollection(node))
+          if (identity2.isCollection(node))
             node.addIn(rest, value);
           else if (node === void 0 && this.schema)
             this.set(key, collectionFromPath(this.schema, rest, value));
@@ -1268,7 +1268,7 @@ var require_Collection = __commonJS({
         if (rest.length === 0)
           return this.delete(key);
         const node = this.get(key, true);
-        if (identity.isCollection(node))
+        if (identity2.isCollection(node))
           return node.deleteIn(rest);
         else
           throw new Error(`Expected YAML collection at ${key}. Remaining path: ${rest}`);
@@ -1282,16 +1282,16 @@ var require_Collection = __commonJS({
         const [key, ...rest] = path3;
         const node = this.get(key, true);
         if (rest.length === 0)
-          return !keepScalar && identity.isScalar(node) ? node.value : node;
+          return !keepScalar && identity2.isScalar(node) ? node.value : node;
         else
-          return identity.isCollection(node) ? node.getIn(rest, keepScalar) : void 0;
+          return identity2.isCollection(node) ? node.getIn(rest, keepScalar) : void 0;
       }
       hasAllNullValues(allowScalar) {
         return this.items.every((node) => {
-          if (!identity.isPair(node))
+          if (!identity2.isPair(node))
             return false;
           const n = node.value;
-          return n == null || allowScalar && identity.isScalar(n) && n.value == null && !n.commentBefore && !n.comment && !n.tag;
+          return n == null || allowScalar && identity2.isScalar(n) && n.value == null && !n.commentBefore && !n.comment && !n.tag;
         });
       }
       /**
@@ -1302,7 +1302,7 @@ var require_Collection = __commonJS({
         if (rest.length === 0)
           return this.has(key);
         const node = this.get(key, true);
-        return identity.isCollection(node) ? node.hasIn(rest) : false;
+        return identity2.isCollection(node) ? node.hasIn(rest) : false;
       }
       /**
        * Sets a value in this collection. For `!!set`, `value` needs to be a
@@ -1314,7 +1314,7 @@ var require_Collection = __commonJS({
           this.set(key, value);
         } else {
           const node = this.get(key, true);
-          if (identity.isCollection(node))
+          if (identity2.isCollection(node))
             node.setIn(rest, value);
           else if (node === void 0 && this.schema)
             this.set(key, collectionFromPath(this.schema, rest, value));
@@ -1780,7 +1780,7 @@ var require_stringify = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/stringify/stringify.js"(exports) {
     "use strict";
     var anchors = require_anchors();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var stringifyComment = require_stringifyComment();
     var stringifyString = require_stringifyString();
     function createStringifyContext(doc, options) {
@@ -1834,7 +1834,7 @@ var require_stringify = __commonJS({
       }
       let tagObj = void 0;
       let obj;
-      if (identity.isScalar(item)) {
+      if (identity2.isScalar(item)) {
         obj = item.value;
         let match = tags.filter((t) => t.identify?.(obj));
         if (match.length > 1) {
@@ -1858,7 +1858,7 @@ var require_stringify = __commonJS({
       if (!doc.directives)
         return "";
       const props = [];
-      const anchor = (identity.isScalar(node) || identity.isCollection(node)) && node.anchor;
+      const anchor = (identity2.isScalar(node) || identity2.isCollection(node)) && node.anchor;
       if (anchor && anchors.anchorIsValid(anchor)) {
         anchors$1.add(anchor);
         props.push(`&${anchor}`);
@@ -1870,9 +1870,9 @@ var require_stringify = __commonJS({
     }
     __name(stringifyProps, "stringifyProps");
     function stringify(item, ctx, onComment, onChompKeep) {
-      if (identity.isPair(item))
+      if (identity2.isPair(item))
         return item.toString(ctx, onComment, onChompKeep);
-      if (identity.isAlias(item)) {
+      if (identity2.isAlias(item)) {
         if (ctx.doc.directives)
           return item.toString(ctx);
         if (ctx.resolvedAliases?.has(item)) {
@@ -1886,15 +1886,15 @@ var require_stringify = __commonJS({
         }
       }
       let tagObj = void 0;
-      const node = identity.isNode(item) ? item : ctx.doc.createNode(item, { onTagObj: /* @__PURE__ */ __name((o) => tagObj = o, "onTagObj") });
+      const node = identity2.isNode(item) ? item : ctx.doc.createNode(item, { onTagObj: /* @__PURE__ */ __name((o) => tagObj = o, "onTagObj") });
       tagObj ?? (tagObj = getTagObject(ctx.doc.schema.tags, node));
       const props = stringifyProps(node, tagObj, ctx);
       if (props.length > 0)
         ctx.indentAtStart = (ctx.indentAtStart ?? 0) + props.length + 1;
-      const str = typeof tagObj.stringify === "function" ? tagObj.stringify(node, ctx, onComment, onChompKeep) : identity.isScalar(node) ? stringifyString.stringifyString(node, ctx, onComment, onChompKeep) : node.toString(ctx, onComment, onChompKeep);
+      const str = typeof tagObj.stringify === "function" ? tagObj.stringify(node, ctx, onComment, onChompKeep) : identity2.isScalar(node) ? stringifyString.stringifyString(node, ctx, onComment, onChompKeep) : node.toString(ctx, onComment, onChompKeep);
       if (!props)
         return str;
-      return identity.isScalar(node) || str[0] === "{" || str[0] === "[" ? `${props} ${str}` : `${props}
+      return identity2.isScalar(node) || str[0] === "{" || str[0] === "[" ? `${props} ${str}` : `${props}
 ${ctx.indent}${str}`;
     }
     __name(stringify, "stringify");
@@ -1907,23 +1907,23 @@ ${ctx.indent}${str}`;
 var require_stringifyPair = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyPair.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Scalar = require_Scalar();
     var stringify = require_stringify();
     var stringifyComment = require_stringifyComment();
     function stringifyPair({ key, value }, ctx, onComment, onChompKeep) {
       const { allNullValues, doc, indent, indentStep, options: { commentString, indentSeq, simpleKeys } } = ctx;
-      let keyComment = identity.isNode(key) && key.comment || null;
+      let keyComment = identity2.isNode(key) && key.comment || null;
       if (simpleKeys) {
         if (keyComment) {
           throw new Error("With simple keys, key nodes cannot have comments");
         }
-        if (identity.isCollection(key) || !identity.isNode(key) && typeof key === "object") {
+        if (identity2.isCollection(key) || !identity2.isNode(key) && typeof key === "object") {
           const msg = "With simple keys, collection cannot be used as a key value";
           throw new Error(msg);
         }
       }
-      let explicitKey = !simpleKeys && (!key || keyComment && value == null && !ctx.inFlow || identity.isCollection(key) || (identity.isScalar(key) ? key.type === Scalar.Scalar.BLOCK_FOLDED || key.type === Scalar.Scalar.BLOCK_LITERAL : typeof key === "object"));
+      let explicitKey = !simpleKeys && (!key || keyComment && value == null && !ctx.inFlow || identity2.isCollection(key) || (identity2.isScalar(key) ? key.type === Scalar.Scalar.BLOCK_FOLDED || key.type === Scalar.Scalar.BLOCK_LITERAL : typeof key === "object"));
       ctx = Object.assign({}, ctx, {
         allNullValues: false,
         implicitKey: !explicitKey && (simpleKeys || !allNullValues),
@@ -1964,7 +1964,7 @@ ${indent}:`;
           str += stringifyComment.lineComment(str, ctx.indent, commentString(keyComment));
       }
       let vsb, vcb, valueComment;
-      if (identity.isNode(value)) {
+      if (identity2.isNode(value)) {
         vsb = !!value.spaceBefore;
         vcb = value.commentBefore;
         valueComment = value.comment;
@@ -1976,10 +1976,10 @@ ${indent}:`;
           value = doc.createNode(value);
       }
       ctx.implicitKey = false;
-      if (!explicitKey && !keyComment && identity.isScalar(value))
+      if (!explicitKey && !keyComment && identity2.isScalar(value))
         ctx.indentAtStart = str.length + 1;
       chompKeep = false;
-      if (!indentSeq && indentStep.length >= 2 && !ctx.inFlow && !explicitKey && identity.isSeq(value) && !value.flow && !value.tag && !value.anchor) {
+      if (!indentSeq && indentStep.length >= 2 && !ctx.inFlow && !explicitKey && identity2.isSeq(value) && !value.flow && !value.tag && !value.anchor) {
         ctx.indent = ctx.indent.substring(2);
       }
       let valueCommentDone = false;
@@ -1999,7 +1999,7 @@ ${stringifyComment.indentComment(cs, ctx.indent)}`;
           ws += `
 ${ctx.indent}`;
         }
-      } else if (!explicitKey && identity.isCollection(value)) {
+      } else if (!explicitKey && identity2.isCollection(value)) {
         const vs0 = valueStr[0];
         const nl0 = valueStr.indexOf("\n");
         const hasNewline = nl0 !== -1;
@@ -2065,7 +2065,7 @@ var require_log = __commonJS({
 var require_merge = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/merge.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Scalar = require_Scalar();
     var MERGE_KEY = "<<";
     var merge = {
@@ -2078,10 +2078,10 @@ var require_merge = __commonJS({
       }), "resolve"),
       stringify: /* @__PURE__ */ __name(() => MERGE_KEY, "stringify")
     };
-    var isMergeKey = /* @__PURE__ */ __name((ctx, key) => (merge.identify(key) || identity.isScalar(key) && (!key.type || key.type === Scalar.Scalar.PLAIN) && merge.identify(key.value)) && ctx?.doc.schema.tags.some((tag) => tag.tag === merge.tag && tag.default), "isMergeKey");
+    var isMergeKey = /* @__PURE__ */ __name((ctx, key) => (merge.identify(key) || identity2.isScalar(key) && (!key.type || key.type === Scalar.Scalar.PLAIN) && merge.identify(key.value)) && ctx?.doc.schema.tags.some((tag) => tag.tag === merge.tag && tag.default), "isMergeKey");
     function addMergeToJSMap(ctx, map, value) {
       const source = resolveAliasValue(ctx, value);
-      if (identity.isSeq(source))
+      if (identity2.isSeq(source))
         for (const it of source.items)
           mergeValue(ctx, map, it);
       else if (Array.isArray(source))
@@ -2093,7 +2093,7 @@ var require_merge = __commonJS({
     __name(addMergeToJSMap, "addMergeToJSMap");
     function mergeValue(ctx, map, value) {
       const source = resolveAliasValue(ctx, value);
-      if (!identity.isMap(source))
+      if (!identity2.isMap(source))
         throw new Error("Merge sources must be maps or map aliases");
       const srcMap = source.toJSON(null, ctx, Map);
       for (const [key, value2] of srcMap) {
@@ -2115,7 +2115,7 @@ var require_merge = __commonJS({
     }
     __name(mergeValue, "mergeValue");
     function resolveAliasValue(ctx, value) {
-      return ctx && identity.isAlias(value) ? value.resolve(ctx.doc, ctx) : value;
+      return ctx && identity2.isAlias(value) ? value.resolve(ctx.doc, ctx) : value;
     }
     __name(resolveAliasValue, "resolveAliasValue");
     exports.addMergeToJSMap = addMergeToJSMap;
@@ -2131,10 +2131,10 @@ var require_addPairToJSMap = __commonJS({
     var log = require_log();
     var merge = require_merge();
     var stringify = require_stringify();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var toJS = require_toJS();
     function addPairToJSMap(ctx, map, { key, value }) {
-      if (identity.isNode(key) && key.addToJSMap)
+      if (identity2.isNode(key) && key.addToJSMap)
         key.addToJSMap(ctx, map, value);
       else if (merge.isMergeKey(ctx, key))
         merge.addMergeToJSMap(ctx, map, value);
@@ -2166,7 +2166,7 @@ var require_addPairToJSMap = __commonJS({
         return "";
       if (typeof jsKey !== "object")
         return String(jsKey);
-      if (identity.isNode(key) && ctx?.doc) {
+      if (identity2.isNode(key) && ctx?.doc) {
         const strCtx = stringify.createStringifyContext(ctx.doc, {});
         strCtx.anchors = /* @__PURE__ */ new Set();
         for (const node of ctx.anchors.keys())
@@ -2197,7 +2197,7 @@ var require_Pair = __commonJS({
     var createNode = require_createNode();
     var stringifyPair = require_stringifyPair();
     var addPairToJSMap = require_addPairToJSMap();
-    var identity = require_identity();
+    var identity2 = require_identity();
     function createPair(key, value, ctx) {
       const k = createNode.createNode(key, void 0, ctx);
       const v = createNode.createNode(value, void 0, ctx);
@@ -2209,15 +2209,15 @@ var require_Pair = __commonJS({
         __name(this, "Pair");
       }
       constructor(key, value = null) {
-        Object.defineProperty(this, identity.NODE_TYPE, { value: identity.PAIR });
+        Object.defineProperty(this, identity2.NODE_TYPE, { value: identity2.PAIR });
         this.key = key;
         this.value = value;
       }
       clone(schema2) {
         let { key, value } = this;
-        if (identity.isNode(key))
+        if (identity2.isNode(key))
           key = key.clone(schema2);
-        if (identity.isNode(value))
+        if (identity2.isNode(value))
           value = value.clone(schema2);
         return new _Pair(key, value);
       }
@@ -2238,7 +2238,7 @@ var require_Pair = __commonJS({
 var require_stringifyCollection = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyCollection.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var stringify = require_stringify();
     var stringifyComment = require_stringifyComment();
     function stringifyCollection(collection, ctx, options) {
@@ -2255,14 +2255,14 @@ var require_stringifyCollection = __commonJS({
       for (let i = 0; i < items.length; ++i) {
         const item = items[i];
         let comment2 = null;
-        if (identity.isNode(item)) {
+        if (identity2.isNode(item)) {
           if (!chompKeep && item.spaceBefore)
             lines.push("");
           addCommentBefore(ctx, lines, item.commentBefore, chompKeep);
           if (item.comment)
             comment2 = item.comment;
-        } else if (identity.isPair(item)) {
-          const ik = identity.isNode(item.key) ? item.key : null;
+        } else if (identity2.isPair(item)) {
+          const ik = identity2.isNode(item.key) ? item.key : null;
           if (ik) {
             if (!chompKeep && ik.spaceBefore)
               lines.push("");
@@ -2311,14 +2311,14 @@ ${indent}${line}` : "\n";
       for (let i = 0; i < items.length; ++i) {
         const item = items[i];
         let comment = null;
-        if (identity.isNode(item)) {
+        if (identity2.isNode(item)) {
           if (item.spaceBefore)
             lines.push("");
           addCommentBefore(ctx, lines, item.commentBefore, false);
           if (item.comment)
             comment = item.comment;
-        } else if (identity.isPair(item)) {
-          const ik = identity.isNode(item.key) ? item.key : null;
+        } else if (identity2.isPair(item)) {
+          const ik = identity2.isNode(item.key) ? item.key : null;
           if (ik) {
             if (ik.spaceBefore)
               lines.push("");
@@ -2326,7 +2326,7 @@ ${indent}${line}` : "\n";
             if (ik.comment)
               reqNewline = true;
           }
-          const iv = identity.isNode(item.value) ? item.value : null;
+          const iv = identity2.isNode(item.value) ? item.value : null;
           if (iv) {
             if (iv.comment)
               comment = iv.comment;
@@ -2396,16 +2396,16 @@ var require_YAMLMap = __commonJS({
     var stringifyCollection = require_stringifyCollection();
     var addPairToJSMap = require_addPairToJSMap();
     var Collection = require_Collection();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Pair = require_Pair();
     var Scalar = require_Scalar();
     function findPair(items, key) {
-      const k = identity.isScalar(key) ? key.value : key;
+      const k = identity2.isScalar(key) ? key.value : key;
       for (const it of items) {
-        if (identity.isPair(it)) {
+        if (identity2.isPair(it)) {
           if (it.key === key || it.key === k)
             return it;
-          if (identity.isScalar(it.key) && it.key.value === k)
+          if (identity2.isScalar(it.key) && it.key.value === k)
             return it;
         }
       }
@@ -2420,7 +2420,7 @@ var require_YAMLMap = __commonJS({
         return "tag:yaml.org,2002:map";
       }
       constructor(schema2) {
-        super(identity.MAP, schema2);
+        super(identity2.MAP, schema2);
         this.items = [];
       }
       /**
@@ -2458,7 +2458,7 @@ var require_YAMLMap = __commonJS({
        */
       add(pair, overwrite) {
         let _pair;
-        if (identity.isPair(pair))
+        if (identity2.isPair(pair))
           _pair = pair;
         else if (!pair || typeof pair !== "object" || !("key" in pair)) {
           _pair = new Pair.Pair(pair, pair?.value);
@@ -2469,7 +2469,7 @@ var require_YAMLMap = __commonJS({
         if (prev) {
           if (!overwrite)
             throw new Error(`Key ${_pair.key} already set`);
-          if (identity.isScalar(prev.value) && Scalar.isScalarValue(_pair.value))
+          if (identity2.isScalar(prev.value) && Scalar.isScalarValue(_pair.value))
             prev.value.value = _pair.value;
           else
             prev.value = _pair.value;
@@ -2493,7 +2493,7 @@ var require_YAMLMap = __commonJS({
       get(key, keepScalar) {
         const it = findPair(this.items, key);
         const node = it?.value;
-        return (!keepScalar && identity.isScalar(node) ? node.value : node) ?? void 0;
+        return (!keepScalar && identity2.isScalar(node) ? node.value : node) ?? void 0;
       }
       has(key) {
         return !!findPair(this.items, key);
@@ -2518,7 +2518,7 @@ var require_YAMLMap = __commonJS({
         if (!ctx)
           return JSON.stringify(this);
         for (const item of this.items) {
-          if (!identity.isPair(item))
+          if (!identity2.isPair(item))
             throw new Error(`Map items must all be pairs; found ${JSON.stringify(item)} instead`);
         }
         if (!ctx.allNullValues && this.hasAllNullValues(false))
@@ -2541,7 +2541,7 @@ var require_YAMLMap = __commonJS({
 var require_map = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/schema/common/map.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var YAMLMap = require_YAMLMap();
     var map = {
       collection: "map",
@@ -2549,7 +2549,7 @@ var require_map = __commonJS({
       nodeClass: YAMLMap.YAMLMap,
       tag: "tag:yaml.org,2002:map",
       resolve(map2, onError) {
-        if (!identity.isMap(map2))
+        if (!identity2.isMap(map2))
           onError("Expected a mapping for this tag");
         return map2;
       },
@@ -2566,7 +2566,7 @@ var require_YAMLSeq = __commonJS({
     var createNode = require_createNode();
     var stringifyCollection = require_stringifyCollection();
     var Collection = require_Collection();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Scalar = require_Scalar();
     var toJS = require_toJS();
     var YAMLSeq = class extends Collection.Collection {
@@ -2577,7 +2577,7 @@ var require_YAMLSeq = __commonJS({
         return "tag:yaml.org,2002:seq";
       }
       constructor(schema2) {
-        super(identity.SEQ, schema2);
+        super(identity2.SEQ, schema2);
         this.items = [];
       }
       add(value) {
@@ -2603,7 +2603,7 @@ var require_YAMLSeq = __commonJS({
         if (typeof idx !== "number")
           return void 0;
         const it = this.items[idx];
-        return !keepScalar && identity.isScalar(it) ? it.value : it;
+        return !keepScalar && identity2.isScalar(it) ? it.value : it;
       }
       /**
        * Checks if the collection includes a value with the key `key`.
@@ -2627,7 +2627,7 @@ var require_YAMLSeq = __commonJS({
         if (typeof idx !== "number")
           throw new Error(`Expected a valid index, not ${key}.`);
         const prev = this.items[idx];
-        if (identity.isScalar(prev) && Scalar.isScalarValue(value))
+        if (identity2.isScalar(prev) && Scalar.isScalarValue(value))
           prev.value = value;
         else
           this.items[idx] = value;
@@ -2669,7 +2669,7 @@ var require_YAMLSeq = __commonJS({
       }
     };
     function asItemIndex(key) {
-      let idx = identity.isScalar(key) ? key.value : key;
+      let idx = identity2.isScalar(key) ? key.value : key;
       if (idx && typeof idx === "string")
         idx = Number(idx);
       return typeof idx === "number" && Number.isInteger(idx) && idx >= 0 ? idx : null;
@@ -2683,7 +2683,7 @@ var require_YAMLSeq = __commonJS({
 var require_seq = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/schema/common/seq.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var YAMLSeq = require_YAMLSeq();
     var seq = {
       collection: "seq",
@@ -2691,7 +2691,7 @@ var require_seq = __commonJS({
       nodeClass: YAMLSeq.YAMLSeq,
       tag: "tag:yaml.org,2002:seq",
       resolve(seq2, onError) {
-        if (!identity.isSeq(seq2))
+        if (!identity2.isSeq(seq2))
           onError("Expected a sequence for this tag");
         return seq2;
       },
@@ -3048,17 +3048,17 @@ var require_binary = __commonJS({
 var require_pairs = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/pairs.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Pair = require_Pair();
     var Scalar = require_Scalar();
     var YAMLSeq = require_YAMLSeq();
     function resolvePairs(seq, onError) {
-      if (identity.isSeq(seq)) {
+      if (identity2.isSeq(seq)) {
         for (let i = 0; i < seq.items.length; ++i) {
           let item = seq.items[i];
-          if (identity.isPair(item))
+          if (identity2.isPair(item))
             continue;
-          else if (identity.isMap(item)) {
+          else if (identity2.isMap(item)) {
             if (item.items.length > 1)
               onError("Each pair must have its own sequence indicator");
             const pair = item.items[0] || new Pair.Pair(new Scalar.Scalar(null));
@@ -3072,7 +3072,7 @@ ${cn.comment}` : item.comment;
             }
             item = pair;
           }
-          seq.items[i] = identity.isPair(item) ? item : new Pair.Pair(item);
+          seq.items[i] = identity2.isPair(item) ? item : new Pair.Pair(item);
         }
       } else
         onError("Expected a sequence for this tag");
@@ -3128,7 +3128,7 @@ ${cn.comment}` : item.comment;
 var require_omap = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/omap.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var toJS = require_toJS();
     var YAMLMap = require_YAMLMap();
     var YAMLSeq = require_YAMLSeq();
@@ -3158,7 +3158,7 @@ var require_omap = __commonJS({
           ctx.onCreate(map);
         for (const pair of this.items) {
           let key, value;
-          if (identity.isPair(pair)) {
+          if (identity2.isPair(pair)) {
             key = toJS.toJS(pair.key, "", ctx);
             value = toJS.toJS(pair.value, key, ctx);
           } else {
@@ -3188,7 +3188,7 @@ var require_omap = __commonJS({
         const pairs$1 = pairs.resolvePairs(seq, onError);
         const seenKeys = [];
         for (const { key } of pairs$1.items) {
-          if (identity.isScalar(key)) {
+          if (identity2.isScalar(key)) {
             if (seenKeys.includes(key.value)) {
               onError(`Ordered maps must not include duplicate keys: ${key.value}`);
             } else {
@@ -3372,7 +3372,7 @@ var require_int2 = __commonJS({
 var require_set = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/schema/yaml-1.1/set.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Pair = require_Pair();
     var YAMLMap = require_YAMLMap();
     var YAMLSet = class _YAMLSet extends YAMLMap.YAMLMap {
@@ -3385,7 +3385,7 @@ var require_set = __commonJS({
       }
       add(key) {
         let pair;
-        if (identity.isPair(key))
+        if (identity2.isPair(key))
           pair = key;
         else if (key && typeof key === "object" && "key" in key && "value" in key && key.value === null)
           pair = new Pair.Pair(key.key, null);
@@ -3401,7 +3401,7 @@ var require_set = __commonJS({
        */
       get(key, keepPair) {
         const pair = YAMLMap.findPair(this.items, key);
-        return !keepPair && identity.isPair(pair) ? identity.isScalar(pair.key) ? pair.key.value : pair.key : pair;
+        return !keepPair && identity2.isPair(pair) ? identity2.isScalar(pair.key) ? pair.key.value : pair.key : pair;
       }
       set(key, value) {
         if (typeof value !== "boolean")
@@ -3445,7 +3445,7 @@ var require_set = __commonJS({
       tag: "tag:yaml.org,2002:set",
       createNode: /* @__PURE__ */ __name((schema2, iterable, ctx) => YAMLSet.from(schema2, iterable, ctx), "createNode"),
       resolve(map, onError) {
-        if (identity.isMap(map)) {
+        if (identity2.isMap(map)) {
           if (map.hasAllNullValues(true))
             return Object.assign(new YAMLSet(), map);
           else
@@ -3693,7 +3693,7 @@ var require_tags = __commonJS({
 var require_Schema = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/schema/Schema.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var map = require_map();
     var seq = require_seq();
     var string = require_string();
@@ -3709,9 +3709,9 @@ var require_Schema = __commonJS({
         this.knownTags = resolveKnownTags ? tags.coreKnownTags : {};
         this.tags = tags.getTags(customTags, this.name, merge);
         this.toStringOptions = toStringDefaults ?? null;
-        Object.defineProperty(this, identity.MAP, { value: map.map });
-        Object.defineProperty(this, identity.SCALAR, { value: string.string });
-        Object.defineProperty(this, identity.SEQ, { value: seq.seq });
+        Object.defineProperty(this, identity2.MAP, { value: map.map });
+        Object.defineProperty(this, identity2.SCALAR, { value: string.string });
+        Object.defineProperty(this, identity2.SEQ, { value: seq.seq });
         this.sortMapEntries = typeof sortMapEntries === "function" ? sortMapEntries : sortMapEntries === true ? sortMapEntriesByKey : null;
       }
       clone() {
@@ -3728,7 +3728,7 @@ var require_Schema = __commonJS({
 var require_stringifyDocument = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/stringify/stringifyDocument.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var stringify = require_stringify();
     var stringifyComment = require_stringifyComment();
     function stringifyDocument(doc, options) {
@@ -3755,7 +3755,7 @@ var require_stringifyDocument = __commonJS({
       let chompKeep = false;
       let contentComment = null;
       if (doc.contents) {
-        if (identity.isNode(doc.contents)) {
+        if (identity2.isNode(doc.contents)) {
           if (doc.contents.spaceBefore && hasDirectives)
             lines.push("");
           if (doc.contents.commentBefore) {
@@ -3811,7 +3811,7 @@ var require_Document = __commonJS({
     "use strict";
     var Alias2 = require_Alias();
     var Collection = require_Collection();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Pair = require_Pair();
     var toJS = require_toJS();
     var Schema = require_Schema();
@@ -3829,7 +3829,7 @@ var require_Document = __commonJS({
         this.comment = null;
         this.errors = [];
         this.warnings = [];
-        Object.defineProperty(this, identity.NODE_TYPE, { value: identity.DOC });
+        Object.defineProperty(this, identity2.NODE_TYPE, { value: identity2.DOC });
         let _replacer = null;
         if (typeof replacer === "function" || Array.isArray(replacer)) {
           _replacer = replacer;
@@ -3865,7 +3865,7 @@ var require_Document = __commonJS({
        */
       clone() {
         const copy = Object.create(_Document.prototype, {
-          [identity.NODE_TYPE]: { value: identity.DOC }
+          [identity2.NODE_TYPE]: { value: identity2.DOC }
         });
         copy.commentBefore = this.commentBefore;
         copy.comment = this.comment;
@@ -3875,7 +3875,7 @@ var require_Document = __commonJS({
         if (this.directives)
           copy.directives = this.directives.clone();
         copy.schema = this.schema.clone();
-        copy.contents = identity.isNode(this.contents) ? this.contents.clone(copy.schema) : this.contents;
+        copy.contents = identity2.isNode(this.contents) ? this.contents.clone(copy.schema) : this.contents;
         if (this.range)
           copy.range = this.range.slice();
         return copy;
@@ -3938,7 +3938,7 @@ var require_Document = __commonJS({
           sourceObjects
         };
         const node = createNode.createNode(value, tag, ctx);
-        if (flow && identity.isCollection(node))
+        if (flow && identity2.isCollection(node))
           node.flow = true;
         setAnchors();
         return node;
@@ -3978,7 +3978,7 @@ var require_Document = __commonJS({
        * `true` (collections are always returned intact).
        */
       get(key, keepScalar) {
-        return identity.isCollection(this.contents) ? this.contents.get(key, keepScalar) : void 0;
+        return identity2.isCollection(this.contents) ? this.contents.get(key, keepScalar) : void 0;
       }
       /**
        * Returns item at `path`, or `undefined` if not found. By default unwraps
@@ -3987,14 +3987,14 @@ var require_Document = __commonJS({
        */
       getIn(path3, keepScalar) {
         if (Collection.isEmptyPath(path3))
-          return !keepScalar && identity.isScalar(this.contents) ? this.contents.value : this.contents;
-        return identity.isCollection(this.contents) ? this.contents.getIn(path3, keepScalar) : void 0;
+          return !keepScalar && identity2.isScalar(this.contents) ? this.contents.value : this.contents;
+        return identity2.isCollection(this.contents) ? this.contents.getIn(path3, keepScalar) : void 0;
       }
       /**
        * Checks if the document includes a value with the key `key`.
        */
       has(key) {
-        return identity.isCollection(this.contents) ? this.contents.has(key) : false;
+        return identity2.isCollection(this.contents) ? this.contents.has(key) : false;
       }
       /**
        * Checks if the document includes a value at `path`.
@@ -4002,7 +4002,7 @@ var require_Document = __commonJS({
       hasIn(path3) {
         if (Collection.isEmptyPath(path3))
           return this.contents !== void 0;
-        return identity.isCollection(this.contents) ? this.contents.hasIn(path3) : false;
+        return identity2.isCollection(this.contents) ? this.contents.hasIn(path3) : false;
       }
       /**
        * Sets a value in this document. For `!!set`, `value` needs to be a
@@ -4109,7 +4109,7 @@ var require_Document = __commonJS({
       }
     };
     function assertCollection(contents) {
-      if (identity.isCollection(contents))
+      if (identity2.isCollection(contents))
         return true;
       throw new Error("Expected a YAML collection as document contents");
     }
@@ -4393,12 +4393,12 @@ var require_util_flow_indent_check = __commonJS({
 var require_util_map_includes = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/compose/util-map-includes.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     function mapIncludes(ctx, items, search) {
       const { uniqueKeys } = ctx.options;
       if (uniqueKeys === false)
         return false;
-      const isEqual = typeof uniqueKeys === "function" ? uniqueKeys : (a, b) => a === b || identity.isScalar(a) && identity.isScalar(b) && a.value === b.value;
+      const isEqual = typeof uniqueKeys === "function" ? uniqueKeys : (a, b) => a === b || identity2.isScalar(a) && identity2.isScalar(b) && a.value === b.value;
       return items.some((pair) => isEqual(pair.key, search));
     }
     __name(mapIncludes, "mapIncludes");
@@ -4615,7 +4615,7 @@ var require_resolve_end = __commonJS({
 var require_resolve_flow_collection = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/compose/resolve-flow-collection.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Pair = require_Pair();
     var YAMLMap = require_YAMLMap();
     var YAMLSeq = require_YAMLSeq();
@@ -4694,7 +4694,7 @@ var require_resolve_flow_collection = __commonJS({
             }
             if (prevItemComment) {
               let prev = coll.items[coll.items.length - 1];
-              if (identity.isPair(prev))
+              if (identity2.isPair(prev))
                 prev = prev.value ?? prev.key;
               if (prev.comment)
                 prev.comment += "\n" + prevItemComment;
@@ -4810,7 +4810,7 @@ var require_resolve_flow_collection = __commonJS({
 var require_compose_collection = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/compose/compose-collection.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Scalar = require_Scalar();
     var YAMLMap = require_YAMLMap();
     var YAMLSeq = require_YAMLSeq();
@@ -4861,7 +4861,7 @@ var require_compose_collection = __commonJS({
       }
       const coll = resolveCollection(CN, ctx, token, onError, tagName, tag);
       const res = tag.resolve?.(coll, (msg) => onError(tagToken, "TAG_RESOLVE_FAILED", msg), ctx.options) ?? coll;
-      const node = identity.isNode(res) ? res : new Scalar.Scalar(res);
+      const node = identity2.isNode(res) ? res : new Scalar.Scalar(res);
       node.range = coll.range;
       node.tag = tagName;
       if (tag?.format)
@@ -5290,7 +5290,7 @@ var require_resolve_flow_scalar = __commonJS({
 var require_compose_scalar = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/compose/compose-scalar.js"(exports) {
     "use strict";
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Scalar = require_Scalar();
     var resolveBlockScalar = require_resolve_block_scalar();
     var resolveFlowScalar = require_resolve_flow_scalar();
@@ -5299,17 +5299,17 @@ var require_compose_scalar = __commonJS({
       const tagName = tagToken ? ctx.directives.tagName(tagToken.source, (msg) => onError(tagToken, "TAG_RESOLVE_FAILED", msg)) : null;
       let tag;
       if (ctx.options.stringKeys && ctx.atKey) {
-        tag = ctx.schema[identity.SCALAR];
+        tag = ctx.schema[identity2.SCALAR];
       } else if (tagName)
         tag = findScalarTagByName(ctx.schema, value, tagName, tagToken, onError);
       else if (token.type === "scalar")
         tag = findScalarTagByTest(ctx, value, token, onError);
       else
-        tag = ctx.schema[identity.SCALAR];
+        tag = ctx.schema[identity2.SCALAR];
       let scalar;
       try {
         const res = tag.resolve(value, (msg) => onError(tagToken ?? token, "TAG_RESOLVE_FAILED", msg), ctx.options);
-        scalar = identity.isScalar(res) ? res : new Scalar.Scalar(res);
+        scalar = identity2.isScalar(res) ? res : new Scalar.Scalar(res);
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         onError(tagToken ?? token, "TAG_RESOLVE_FAILED", msg);
@@ -5330,7 +5330,7 @@ var require_compose_scalar = __commonJS({
     __name(composeScalar, "composeScalar");
     function findScalarTagByName(schema2, value, tagName, tagToken, onError) {
       if (tagName === "!")
-        return schema2[identity.SCALAR];
+        return schema2[identity2.SCALAR];
       const matchWithTest = [];
       for (const tag of schema2.tags) {
         if (!tag.collection && tag.tag === tagName) {
@@ -5349,13 +5349,13 @@ var require_compose_scalar = __commonJS({
         return kt;
       }
       onError(tagToken, "TAG_RESOLVE_FAILED", `Unresolved tag: ${tagName}`, tagName !== "tag:yaml.org,2002:str");
-      return schema2[identity.SCALAR];
+      return schema2[identity2.SCALAR];
     }
     __name(findScalarTagByName, "findScalarTagByName");
     function findScalarTagByTest({ atKey, directives, schema: schema2 }, value, token, onError) {
-      const tag = schema2.tags.find((tag2) => (tag2.default === true || atKey && tag2.default === "key") && tag2.test?.test(value)) || schema2[identity.SCALAR];
+      const tag = schema2.tags.find((tag2) => (tag2.default === true || atKey && tag2.default === "key") && tag2.test?.test(value)) || schema2[identity2.SCALAR];
       if (schema2.compat) {
-        const compat = schema2.compat.find((tag2) => tag2.default && tag2.test?.test(value)) ?? schema2[identity.SCALAR];
+        const compat = schema2.compat.find((tag2) => tag2.default && tag2.test?.test(value)) ?? schema2[identity2.SCALAR];
         if (tag.tag !== compat.tag) {
           const ts = directives.tagString(tag.tag);
           const cs = directives.tagString(compat.tag);
@@ -5406,7 +5406,7 @@ var require_compose_node = __commonJS({
   "../../node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/dist/compose/compose-node.js"(exports) {
     "use strict";
     var Alias2 = require_Alias();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var composeCollection = require_compose_collection();
     var composeScalar = require_compose_scalar();
     var resolveEnd = require_resolve_end();
@@ -5452,7 +5452,7 @@ var require_compose_node = __commonJS({
       node ?? (node = composeEmptyNode(ctx, token.offset, void 0, null, props, onError));
       if (anchor && node.anchor === "")
         onError(anchor, "BAD_ALIAS", "Anchor cannot be an empty string");
-      if (atKey && ctx.options.stringKeys && (!identity.isScalar(node) || typeof node.value !== "string" || node.tag && node.tag !== "tag:yaml.org,2002:str")) {
+      if (atKey && ctx.options.stringKeys && (!identity2.isScalar(node) || typeof node.value !== "string" || node.tag && node.tag !== "tag:yaml.org,2002:str")) {
         const msg = "With stringKeys, all keys must be strings";
         onError(tag ?? token, "NON_STRING_KEY", msg);
       }
@@ -5562,7 +5562,7 @@ var require_composer = __commonJS({
     var directives = require_directives();
     var Document = require_Document();
     var errors = require_errors();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var composeDoc = require_compose_doc();
     var resolveEnd = require_resolve_end();
     function getErrorPos(src) {
@@ -5629,9 +5629,9 @@ var require_composer = __commonJS({
 ${comment}` : comment;
           } else if (afterEmptyLine || doc.directives.docStart || !dc) {
             doc.commentBefore = comment;
-          } else if (identity.isCollection(dc) && !dc.flow && dc.items.length > 0) {
+          } else if (identity2.isCollection(dc) && !dc.flow && dc.items.length > 0) {
             let it = dc.items[0];
-            if (identity.isPair(it))
+            if (identity2.isPair(it))
               it = it.key;
             const cb = it.commentBefore;
             it.commentBefore = cb ? `${comment}
@@ -7708,7 +7708,7 @@ var require_public_api = __commonJS({
     var Document = require_Document();
     var errors = require_errors();
     var log = require_log();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var lineCounter = require_line_counter();
     var parser = require_parser();
     function parseOptions(options) {
@@ -7790,7 +7790,7 @@ var require_public_api = __commonJS({
         if (!keepUndefined)
           return void 0;
       }
-      if (identity.isDocument(value) && !_replacer)
+      if (identity2.isDocument(value) && !_replacer)
         return value.toString(options);
       return new Document.Document(value, _replacer, options).toString(options);
     }
@@ -7811,7 +7811,7 @@ var require_dist = __commonJS({
     var Schema = require_Schema();
     var errors = require_errors();
     var Alias2 = require_Alias();
-    var identity = require_identity();
+    var identity2 = require_identity();
     var Pair = require_Pair();
     var Scalar = require_Scalar();
     var YAMLMap = require_YAMLMap();
@@ -7829,14 +7829,14 @@ var require_dist = __commonJS({
     exports.YAMLParseError = errors.YAMLParseError;
     exports.YAMLWarning = errors.YAMLWarning;
     exports.Alias = Alias2.Alias;
-    exports.isAlias = identity.isAlias;
-    exports.isCollection = identity.isCollection;
-    exports.isDocument = identity.isDocument;
-    exports.isMap = identity.isMap;
-    exports.isNode = identity.isNode;
-    exports.isPair = identity.isPair;
-    exports.isScalar = identity.isScalar;
-    exports.isSeq = identity.isSeq;
+    exports.isAlias = identity2.isAlias;
+    exports.isCollection = identity2.isCollection;
+    exports.isDocument = identity2.isDocument;
+    exports.isMap = identity2.isMap;
+    exports.isNode = identity2.isNode;
+    exports.isPair = identity2.isPair;
+    exports.isScalar = identity2.isScalar;
+    exports.isSeq = identity2.isSeq;
     exports.Pair = Pair.Pair;
     exports.Scalar = Scalar.Scalar;
     exports.YAMLMap = YAMLMap.YAMLMap;
@@ -11062,7 +11062,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve29.call(this, root, ref);
+      let _sch = resolve33.call(this, root, ref);
       if (_sch === void 0) {
         const schema2 = (_a = root.localRefs) === null || _a === void 0 ? void 0 : _a[ref];
         const { schemaId } = this.opts;
@@ -11093,13 +11093,13 @@ var require_compile = __commonJS({
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
     __name(sameSchemaEnv, "sameSchemaEnv");
-    function resolve29(root, ref) {
+    function resolve33(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
       return sch || this.schemas[ref] || resolveSchema.call(this, root, ref);
     }
-    __name(resolve29, "resolve");
+    __name(resolve33, "resolve");
     function resolveSchema(root, ref) {
       const p = this.opts.uriResolver.parse(ref);
       const refPath = (0, resolve_1._getFullPath)(this.opts.uriResolver, p);
@@ -11751,13 +11751,13 @@ var require_fast_uri = __commonJS({
       return uri;
     }
     __name(normalize4, "normalize");
-    function resolve29(baseURI, relativeURI, options) {
+    function resolve33(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const resolved = resolveComponent(parse2(baseURI, schemelessOptions), parse2(relativeURI, schemelessOptions), schemelessOptions, true);
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    __name(resolve29, "resolve");
+    __name(resolve33, "resolve");
     function resolveComponent(base, relative26, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
@@ -12019,7 +12019,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize: normalize4,
-      resolve: resolve29,
+      resolve: resolve33,
       resolveComponent,
       equal,
       serialize,
@@ -17290,9 +17290,9 @@ async function executeKimiManualRequirement(action, context) {
     },
     instructions
   };
-  const { mkdir: mkdir18 } = await import("node:fs/promises");
+  const { mkdir: mkdir20 } = await import("node:fs/promises");
   try {
-    await mkdir18(attestationDir, { recursive: true, mode: 448 });
+    await mkdir20(attestationDir, { recursive: true, mode: 448 });
   } catch (mkdirErr) {
     if (mkdirErr?.code !== "EEXIST") {
       return createResult({
@@ -17650,9 +17650,9 @@ async function executeCodeBuddyManualRequirement(action, context) {
     },
     instructions
   };
-  const { mkdir: mkdir18 } = await import("node:fs/promises");
+  const { mkdir: mkdir20 } = await import("node:fs/promises");
   try {
-    await mkdir18(attestationDir, { recursive: true, mode: 448 });
+    await mkdir20(attestationDir, { recursive: true, mode: 448 });
   } catch (mkdirErr) {
     if (mkdirErr?.code !== "EEXIST") {
       return createResult({
@@ -17909,9 +17909,9 @@ async function executeCodexManualRequirement(action, context) {
     },
     instructions
   };
-  const { mkdir: mkdir18 } = await import("node:fs/promises");
+  const { mkdir: mkdir20 } = await import("node:fs/promises");
   try {
-    await mkdir18(attestationDir, { recursive: true, mode: 448 });
+    await mkdir20(attestationDir, { recursive: true, mode: 448 });
   } catch (mkdirErr) {
     if (mkdirErr?.code !== "EEXIST") {
       return createResult({
@@ -18021,9 +18021,9 @@ function claudeExtractInstallPath({ listParsed }) {
 }
 function claudeExtractListIdentity(found) {
   const idParts = found.id.split("@");
-  const identity = { plugin: idParts[0], marketplace: idParts.slice(1).join("@") };
-  if (found.version) identity.version = found.version;
-  return identity;
+  const identity2 = { plugin: idParts[0], marketplace: idParts.slice(1).join("@") };
+  if (found.version) identity2.version = found.version;
+  return identity2;
 }
 function codexParseListOutput(listOutput, pluginId) {
   const installed = listOutput?.installed;
@@ -18044,11 +18044,11 @@ function codexExtractInstallPath({ execEvidence }) {
   return { ok: true, installPath };
 }
 function codexExtractListIdentity(found) {
-  const identity = {};
-  if (found.name) identity.plugin = found.name;
-  if (found.marketplaceName) identity.marketplace = found.marketplaceName;
-  if (found.version) identity.version = found.version;
-  return identity;
+  const identity2 = {};
+  if (found.name) identity2.plugin = found.name;
+  if (found.marketplaceName) identity2.marketplace = found.marketplaceName;
+  if (found.version) identity2.version = found.version;
+  return identity2;
 }
 function codexCrossValidateListEntry(found, action) {
   if (found.name !== action.plugin) {
@@ -21868,21 +21868,21 @@ async function inspectExpectedPublicSurface({ root, unit } = {}) {
   for (const mapping of unit.publicFiles ?? []) {
     const sourceScope = mapping.sourceScope ?? "unit";
     const from = canonicalPublicPath(mapping.from).path;
-    const identity = publicSourceIdentity(sourceScope, from);
-    const current = mappingsByIdentity.get(identity) ?? {
+    const identity2 = publicSourceIdentity(sourceScope, from);
+    const current = mappingsByIdentity.get(identity2) ?? {
       sourceScope,
       from,
       targets: []
     };
     current.targets.push(canonicalPublicPath(mapping.to).path);
     current.targets.sort(compareStrings);
-    mappingsByIdentity.set(identity, current);
+    mappingsByIdentity.set(identity2, current);
   }
-  const missingMappings = [...includedByIdentity.entries()].filter(([identity]) => !mappingsByIdentity.has(identity)).map(([, file]) => ({
+  const missingMappings = [...includedByIdentity.entries()].filter(([identity2]) => !mappingsByIdentity.has(identity2)).map(([, file]) => ({
     sourceScope: file.sourceScope,
     from: file.from
   })).sort(sortBySource);
-  const unexpectedMappings = [...mappingsByIdentity.entries()].filter(([identity]) => !includedByIdentity.has(identity)).map(([, mapping]) => mapping).sort(sortBySource);
+  const unexpectedMappings = [...mappingsByIdentity.entries()].filter(([identity2]) => !includedByIdentity.has(identity2)).map(([, mapping]) => mapping).sort(sortBySource);
   unclassifiedFiles.sort(sortBySource);
   ambiguousFiles.sort(sortBySource);
   const passed = missingMappings.length === 0 && unexpectedMappings.length === 0 && unclassifiedFiles.length === 0 && ambiguousFiles.length === 0;
@@ -22155,6 +22155,10 @@ var init_baseline = __esm({
 });
 
 // src/core/config.mjs
+var config_exports = {};
+__export(config_exports, {
+  loadProjectConfig: () => loadProjectConfig
+});
 import { readFile as readFile8 } from "node:fs/promises";
 import { resolve as resolve12, isAbsolute as isAbsolute9, relative as relative9, normalize as normalize2 } from "node:path";
 function containsAlias(node) {
@@ -23231,6 +23235,104 @@ var init_assess = __esm({
   }
 });
 
+// src/core/evidence.mjs
+import { open as open5, mkdir as mkdir5, writeFile as writeFile5 } from "node:fs/promises";
+import { basename as basename3 } from "node:path";
+function redact(obj) {
+  if (obj === null || obj === void 0) {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map((item) => redact(item));
+  }
+  if (typeof obj === "object") {
+    const result = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (SENSITIVE_KEY_PATTERN.test(key)) {
+        result[key] = REDACTED;
+      } else {
+        result[key] = redact(value);
+      }
+    }
+    return result;
+  }
+  if (typeof obj === "string") {
+    for (const { prefix, label } of CREDENTIAL_PREFIXES) {
+      if (obj.startsWith(prefix)) {
+        return `[REDACTED:${label}]`;
+      }
+    }
+  }
+  return obj;
+}
+function createEvidenceWriter({ runDir, command: command2, clock }) {
+  const clockFn = typeof clock === "function" ? clock : () => (/* @__PURE__ */ new Date()).toISOString();
+  const runId = basename3(runDir);
+  const evidencePath = `${runDir}/evidence.jsonl`;
+  const summaryPath = `${runDir}/summary.json`;
+  let sequence = 1;
+  let handle = null;
+  let appendChain = Promise.resolve();
+  async function ensureHandle() {
+    if (handle === null) {
+      await mkdir5(runDir, { recursive: true });
+      handle = await open5(evidencePath, "a");
+    }
+  }
+  __name(ensureHandle, "ensureHandle");
+  async function appendOnce(event) {
+    await ensureHandle();
+    const enriched = {
+      schemaVersion: SCHEMA_VERSION,
+      runId,
+      sequence,
+      timestamp: clockFn(),
+      command: command2,
+      ...event
+    };
+    sequence += 1;
+    const redacted = redact(enriched);
+    const line = JSON.stringify(redacted);
+    await handle.write(`${line}
+`, null, "utf8");
+  }
+  __name(appendOnce, "appendOnce");
+  function append(event) {
+    const result = appendChain.then(() => appendOnce(event));
+    appendChain = result.then(() => void 0, () => void 0);
+    return result;
+  }
+  __name(append, "append");
+  async function finish(summary) {
+    await appendChain;
+    await ensureHandle();
+    const redacted = redact(summary);
+    await writeFile5(summaryPath, JSON.stringify(redacted, null, 2), "utf8");
+    if (handle !== null) {
+      await handle.close();
+      handle = null;
+    }
+  }
+  __name(finish, "finish");
+  return { append, finish };
+}
+var SCHEMA_VERSION, SENSITIVE_KEY_PATTERN, CREDENTIAL_PREFIXES, REDACTED;
+var init_evidence = __esm({
+  "src/core/evidence.mjs"() {
+    SCHEMA_VERSION = 1;
+    SENSITIVE_KEY_PATTERN = /token|secret|password|authorization|cookie/i;
+    CREDENTIAL_PREFIXES = [
+      { prefix: "github_pat_", label: "github_pat_" },
+      { prefix: "ghp_", label: "ghp_" },
+      { prefix: "npm_", label: "npm_" },
+      { prefix: "AKIA", label: "AKIA" }
+    ];
+    REDACTED = "[REDACTED]";
+    __name(redact, "redact");
+    __name(createEvidenceWriter, "createEvidenceWriter");
+  }
+});
+
 // src/core/hooks.mjs
 import { execFile as execFileCb5 } from "node:child_process";
 import { promisify as promisify5 } from "node:util";
@@ -23390,7 +23492,7 @@ var init_hooks = __esm({
 });
 
 // src/core/hook-cache.mjs
-import { readdir as readdir5, readFile as readFile10, mkdir as mkdir5, writeFile as writeFile5 } from "node:fs/promises";
+import { readdir as readdir5, readFile as readFile10, mkdir as mkdir6, writeFile as writeFile6 } from "node:fs/promises";
 import { join as join10 } from "node:path";
 function globToRegExp(glob) {
   let source = "";
@@ -23496,7 +23598,7 @@ async function writeHookCache(root, hookName, cacheKey, result) {
     return { ok: false, error: "refusing to cache a non-zero exit result" };
   }
   try {
-    await mkdir5(hookCacheDir(root, hookName), { recursive: true });
+    await mkdir6(hookCacheDir(root, hookName), { recursive: true });
     const record = {
       cacheKey,
       exitCode: 0,
@@ -23504,7 +23606,7 @@ async function writeHookCache(root, hookName, cacheKey, result) {
       stderrTail: String(result.stderrTail ?? "").slice(-TAIL_LENGTH),
       createdAt: result.createdAt ?? (/* @__PURE__ */ new Date()).toISOString()
     };
-    await writeFile5(hookCachePath(root, hookName, cacheKey), `${JSON.stringify(record, null, 2)}
+    await writeFile6(hookCachePath(root, hookName, cacheKey), `${JSON.stringify(record, null, 2)}
 `, "utf8");
     return { ok: true };
   } catch (err) {
@@ -23532,7 +23634,7 @@ var init_hook_cache = __esm({
 // src/core/verification-gates.mjs
 import { createHash as createHash6 } from "node:crypto";
 import { spawn as spawn2 } from "node:child_process";
-import { chmod as chmod2, cp, lstat as lstat8, mkdir as mkdir6, readdir as readdir6, realpath as realpath8, rm as rm4 } from "node:fs/promises";
+import { chmod as chmod2, cp, lstat as lstat8, mkdir as mkdir7, readdir as readdir6, realpath as realpath8, rm as rm4 } from "node:fs/promises";
 import { isAbsolute as isAbsolute11, join as join11, relative as relative12, resolve as resolve15 } from "node:path";
 function gateError(gate, message, details = {}) {
   return new ReleaseError(GATE_FAILED, `verification gate "${gate?.id ?? "unknown"}" ${message}`, {
@@ -23879,7 +23981,7 @@ async function runSnapshotVerificationGates({
   if (snapshotGates.length === 0) return [];
   const byUnit = new Map(unitResults.map((item) => [item.unit.id, item]));
   const gateRoot = join11(runDir, "snapshot-gates");
-  await mkdir6(gateRoot, { recursive: true });
+  await mkdir7(gateRoot, { recursive: true });
   const results = [];
   for (const gate of snapshotGates) {
     validateGate(gate);
@@ -23974,104 +24076,6 @@ var init_verification_gates = __esm({
     __name(runSnapshotVerificationGates, "runSnapshotVerificationGates");
     __name(selectConsumerVerificationGates, "selectConsumerVerificationGates");
     __name(runConsumerVerificationGates, "runConsumerVerificationGates");
-  }
-});
-
-// src/core/evidence.mjs
-import { open as open5, mkdir as mkdir7, writeFile as writeFile6 } from "node:fs/promises";
-import { basename as basename3 } from "node:path";
-function redact(obj) {
-  if (obj === null || obj === void 0) {
-    return obj;
-  }
-  if (Array.isArray(obj)) {
-    return obj.map((item) => redact(item));
-  }
-  if (typeof obj === "object") {
-    const result = {};
-    for (const [key, value] of Object.entries(obj)) {
-      if (SENSITIVE_KEY_PATTERN.test(key)) {
-        result[key] = REDACTED;
-      } else {
-        result[key] = redact(value);
-      }
-    }
-    return result;
-  }
-  if (typeof obj === "string") {
-    for (const { prefix, label } of CREDENTIAL_PREFIXES) {
-      if (obj.startsWith(prefix)) {
-        return `[REDACTED:${label}]`;
-      }
-    }
-  }
-  return obj;
-}
-function createEvidenceWriter({ runDir, command: command2, clock }) {
-  const clockFn = typeof clock === "function" ? clock : () => (/* @__PURE__ */ new Date()).toISOString();
-  const runId = basename3(runDir);
-  const evidencePath = `${runDir}/evidence.jsonl`;
-  const summaryPath = `${runDir}/summary.json`;
-  let sequence = 1;
-  let handle = null;
-  let appendChain = Promise.resolve();
-  async function ensureHandle() {
-    if (handle === null) {
-      await mkdir7(runDir, { recursive: true });
-      handle = await open5(evidencePath, "a");
-    }
-  }
-  __name(ensureHandle, "ensureHandle");
-  async function appendOnce(event) {
-    await ensureHandle();
-    const enriched = {
-      schemaVersion: SCHEMA_VERSION,
-      runId,
-      sequence,
-      timestamp: clockFn(),
-      command: command2,
-      ...event
-    };
-    sequence += 1;
-    const redacted = redact(enriched);
-    const line = JSON.stringify(redacted);
-    await handle.write(`${line}
-`, null, "utf8");
-  }
-  __name(appendOnce, "appendOnce");
-  function append(event) {
-    const result = appendChain.then(() => appendOnce(event));
-    appendChain = result.then(() => void 0, () => void 0);
-    return result;
-  }
-  __name(append, "append");
-  async function finish(summary) {
-    await appendChain;
-    await ensureHandle();
-    const redacted = redact(summary);
-    await writeFile6(summaryPath, JSON.stringify(redacted, null, 2), "utf8");
-    if (handle !== null) {
-      await handle.close();
-      handle = null;
-    }
-  }
-  __name(finish, "finish");
-  return { append, finish };
-}
-var SCHEMA_VERSION, SENSITIVE_KEY_PATTERN, CREDENTIAL_PREFIXES, REDACTED;
-var init_evidence = __esm({
-  "src/core/evidence.mjs"() {
-    SCHEMA_VERSION = 1;
-    SENSITIVE_KEY_PATTERN = /token|secret|password|authorization|cookie/i;
-    CREDENTIAL_PREFIXES = [
-      { prefix: "github_pat_", label: "github_pat_" },
-      { prefix: "ghp_", label: "ghp_" },
-      { prefix: "npm_", label: "npm_" },
-      { prefix: "AKIA", label: "AKIA" }
-    ];
-    REDACTED = "[REDACTED]";
-    __name(redact, "redact");
-    __name(createEvidenceWriter, "createEvidenceWriter");
   }
 });
 
@@ -24240,9 +24244,9 @@ function receiptProjection(result) {
     findingCount: result.findings.length
   };
 }
-function createSkillResourceClosureReceipt(result, identity = {}) {
+function createSkillResourceClosureReceipt(result, identity2 = {}) {
   return {
-    ...identity,
+    ...identity2,
     checkerVersion: result.checkerVersion,
     inputDigest: result.inputDigest,
     surfaceCount: result.surfaces.length,
@@ -27425,10 +27429,10 @@ var require_commonjs = __commonJS({
        * Return a void Promise that resolves once the stream ends.
        */
       async promise() {
-        return new Promise((resolve29, reject) => {
+        return new Promise((resolve33, reject) => {
           this.on(DESTROYED, () => reject(new Error("stream destroyed")));
           this.on("error", (er) => reject(er));
-          this.on("end", () => resolve29());
+          this.on("end", () => resolve33());
         });
       }
       /**
@@ -27452,7 +27456,7 @@ var require_commonjs = __commonJS({
             return Promise.resolve({ done: false, value: res });
           if (this[EOF])
             return stop();
-          let resolve29;
+          let resolve33;
           let reject;
           const onerr = /* @__PURE__ */ __name((er) => {
             this.off("data", ondata);
@@ -27466,19 +27470,19 @@ var require_commonjs = __commonJS({
             this.off("end", onend);
             this.off(DESTROYED, ondestroy);
             this.pause();
-            resolve29({ value, done: !!this[EOF] });
+            resolve33({ value, done: !!this[EOF] });
           }, "ondata");
           const onend = /* @__PURE__ */ __name(() => {
             this.off("error", onerr);
             this.off("data", ondata);
             this.off(DESTROYED, ondestroy);
             stop();
-            resolve29({ done: true, value: void 0 });
+            resolve33({ done: true, value: void 0 });
           }, "onend");
           const ondestroy = /* @__PURE__ */ __name(() => onerr(new Error("stream destroyed")), "ondestroy");
           return new Promise((res2, rej) => {
             reject = rej;
-            resolve29 = res2;
+            resolve33 = res2;
             this.once(DESTROYED, ondestroy);
             this.once("error", onerr);
             this.once("end", onend);
@@ -28569,10 +28573,10 @@ var require_minipass = __commonJS({
       }
       // stream.promise().then(() => done, er => emitted error)
       promise() {
-        return new Promise((resolve29, reject) => {
+        return new Promise((resolve33, reject) => {
           this.on(DESTROYED, () => reject(new Error("stream destroyed")));
           this.on("error", (er) => reject(er));
-          this.on("end", () => resolve29());
+          this.on("end", () => resolve33());
         });
       }
       // for await (let chunk of stream)
@@ -28583,7 +28587,7 @@ var require_minipass = __commonJS({
             return Promise.resolve({ done: false, value: res });
           if (this[EOF])
             return Promise.resolve({ done: true });
-          let resolve29 = null;
+          let resolve33 = null;
           let reject = null;
           const onerr = /* @__PURE__ */ __name((er) => {
             this.removeListener("data", ondata);
@@ -28594,17 +28598,17 @@ var require_minipass = __commonJS({
             this.removeListener("error", onerr);
             this.removeListener("end", onend);
             this.pause();
-            resolve29({ value, done: !!this[EOF] });
+            resolve33({ value, done: !!this[EOF] });
           }, "ondata");
           const onend = /* @__PURE__ */ __name(() => {
             this.removeListener("error", onerr);
             this.removeListener("data", ondata);
-            resolve29({ done: true });
+            resolve33({ done: true });
           }, "onend");
           const ondestroy = /* @__PURE__ */ __name(() => onerr(new Error("stream destroyed")), "ondestroy");
           return new Promise((res2, rej) => {
             reject = rej;
-            resolve29 = res2;
+            resolve33 = res2;
             this.once(DESTROYED, ondestroy);
             this.once("error", onerr);
             this.once("end", onend);
@@ -32643,12 +32647,12 @@ var require_body = __commonJS({
         if (resTimeout && resTimeout.unref) {
           resTimeout.unref();
         }
-        return new Promise((resolve29) => {
+        return new Promise((resolve33) => {
           if (stream !== upstream) {
             upstream.on("error", (er) => stream.emit("error", er));
             upstream.pipe(stream);
           }
-          resolve29();
+          resolve33();
         }).then(() => stream.concat()).then((buf) => {
           clearTimeout(resTimeout);
           return buf;
@@ -33413,7 +33417,7 @@ var require_lib2 = __commonJS({
     var fetch = /* @__PURE__ */ __name(async (url, opts) => {
       if (/^data:/.test(url)) {
         const request = new Request(url, opts);
-        return Promise.resolve().then(() => new Promise((resolve29, reject) => {
+        return Promise.resolve().then(() => new Promise((resolve33, reject) => {
           let type, data;
           try {
             const { pathname, search } = new URL2(url);
@@ -33437,10 +33441,10 @@ var require_lib2 = __commonJS({
           if (type) {
             headers["Content-Type"] = type;
           }
-          return resolve29(new Response(data, { headers }));
+          return resolve33(new Response(data, { headers }));
         }));
       }
-      return new Promise((resolve29, reject) => {
+      return new Promise((resolve33, reject) => {
         const request = new Request(url, opts);
         let options;
         try {
@@ -33559,7 +33563,7 @@ var require_lib2 = __commonJS({
                 requestOpts.body = void 0;
                 requestOpts.headers.delete("content-length");
               }
-              resolve29(fetch(new Request(locationURL, requestOpts)));
+              resolve33(fetch(new Request(locationURL, requestOpts)));
               finalize();
               return;
             }
@@ -33587,7 +33591,7 @@ var require_lib2 = __commonJS({
           const codings = headers.get("Content-Encoding");
           if (!request.compress || request.method === "HEAD" || codings === null || res.statusCode === 204 || res.statusCode === 304) {
             response = new Response(body, responseOptions);
-            resolve29(response);
+            resolve33(response);
             return;
           }
           const zlibOptions = {
@@ -33606,7 +33610,7 @@ var require_lib2 = __commonJS({
               ).pipe(unzip),
               responseOptions
             );
-            resolve29(response);
+            resolve33(response);
             return;
           }
           if (codings === "deflate" || codings === "x-deflate") {
@@ -33618,7 +33622,7 @@ var require_lib2 = __commonJS({
                 (er) => decoder2.emit("error", er)
               ).pipe(decoder2);
               response = new Response(decoder2, responseOptions);
-              resolve29(response);
+              resolve33(response);
             });
             return;
           }
@@ -33636,11 +33640,11 @@ var require_lib2 = __commonJS({
               (er) => decoder.emit("error", er)
             ).pipe(decoder);
             response = new Response(decoder, responseOptions);
-            resolve29(response);
+            resolve33(response);
             return;
           }
           response = new Response(body, responseOptions);
-          resolve29(response);
+          resolve33(response);
         });
         writeToStream(req, request);
       });
@@ -33894,12 +33898,12 @@ var require_lib3 = __commonJS({
           return process.emit("input", "end");
         }, "end"),
         read: /* @__PURE__ */ __name(function(...args2) {
-          let resolve29, reject;
+          let resolve33, reject;
           const promise = new Promise((_resolve, _reject) => {
-            resolve29 = _resolve;
+            resolve33 = _resolve;
             reject = _reject;
           });
-          process.emit("input", "read", resolve29, reject, ...args2);
+          process.emit("input", "read", resolve33, reject, ...args2);
           return promise;
         }, "read")
       }
@@ -38314,7 +38318,7 @@ var require_npa = __commonJS({
           spec = arg;
         }
       }
-      return resolve29(name, spec, where, arg);
+      return resolve33(name, spec, where, arg);
     }
     __name(npa, "npa");
     function isFileSpec(spec) {
@@ -38337,7 +38341,7 @@ var require_npa = __commonJS({
       return spec.toLowerCase().startsWith("npm:");
     }
     __name(isAliasSpec, "isAliasSpec");
-    function resolve29(name, spec, where, arg) {
+    function resolve33(name, spec, where, arg) {
       const res = new Result({
         raw: arg,
         name,
@@ -38369,7 +38373,7 @@ var require_npa = __commonJS({
         return fromRegistry(res);
       }
     }
-    __name(resolve29, "resolve");
+    __name(resolve33, "resolve");
     function toPurl(arg, reg = defaultRegistry) {
       const res = npa(arg);
       if (res.type !== "version") {
@@ -38670,7 +38674,7 @@ var require_npa = __commonJS({
     }
     __name(fromRegistry, "fromRegistry");
     module.exports = npa;
-    module.exports.resolve = resolve29;
+    module.exports.resolve = resolve33;
     module.exports.toPurl = toPurl;
     module.exports.Result = Result;
   }
@@ -40443,7 +40447,7 @@ var require_lib7 = __commonJS({
     module.exports.fromStream = fromStream;
     function fromStream(stream, opts) {
       const istream = integrityStream(opts);
-      return new Promise((resolve29, reject) => {
+      return new Promise((resolve33, reject) => {
         stream.pipe(istream);
         stream.on("error", reject);
         istream.on("error", reject);
@@ -40451,7 +40455,7 @@ var require_lib7 = __commonJS({
         istream.on("integrity", (s) => {
           sri = s;
         });
-        istream.on("end", () => resolve29(sri));
+        istream.on("end", () => resolve33(sri));
         istream.resume();
       });
     }
@@ -40512,15 +40516,15 @@ var require_lib7 = __commonJS({
         ));
       }
       const checker = integrityStream(opts);
-      return new Promise((resolve29, reject) => {
+      return new Promise((resolve33, reject) => {
         stream.pipe(checker);
         stream.on("error", reject);
         checker.on("error", reject);
-        let verified;
+        let verified2;
         checker.on("verified", (s) => {
-          verified = s;
+          verified2 = s;
         });
-        checker.on("end", () => resolve29(verified));
+        checker.on("end", () => resolve33(verified2));
         checker.resume();
       });
     }
@@ -41401,8 +41405,8 @@ var require_polyfill = __commonJS({
     var {
       chmod: chmod5,
       copyFile,
-      lstat: lstat18,
-      mkdir: mkdir18,
+      lstat: lstat20,
+      mkdir: mkdir20,
       readdir: readdir17,
       readlink: readlink2,
       stat: stat9,
@@ -41411,11 +41415,11 @@ var require_polyfill = __commonJS({
       utimes
     } = __require("fs/promises");
     var {
-      dirname: dirname16,
+      dirname: dirname17,
       isAbsolute: isAbsolute22,
-      join: join30,
+      join: join31,
       parse: parse2,
-      resolve: resolve29,
+      resolve: resolve33,
       sep: sep7,
       toNamespacedPath
     } = __require("path");
@@ -41502,7 +41506,7 @@ var require_polyfill = __commonJS({
     }
     __name(areIdentical, "areIdentical");
     function getStats(src, dest, opts) {
-      const statFunc = opts.dereference ? (file) => stat9(file, { bigint: true }) : (file) => lstat18(file, { bigint: true });
+      const statFunc = opts.dereference ? (file) => stat9(file, { bigint: true }) : (file) => lstat20(file, { bigint: true });
       return Promise.all([
         statFunc(src),
         statFunc(dest).catch((err) => {
@@ -41515,12 +41519,12 @@ var require_polyfill = __commonJS({
     }
     __name(getStats, "getStats");
     async function checkParentDir(destStat, src, dest, opts) {
-      const destParent = dirname16(dest);
+      const destParent = dirname17(dest);
       const dirExists = await pathExists2(destParent);
       if (dirExists) {
         return getStatsForCopy(destStat, src, dest, opts);
       }
-      await mkdir18(destParent, { recursive: true });
+      await mkdir20(destParent, { recursive: true });
       return getStatsForCopy(destStat, src, dest, opts);
     }
     __name(checkParentDir, "checkParentDir");
@@ -41533,8 +41537,8 @@ var require_polyfill = __commonJS({
     }
     __name(pathExists2, "pathExists");
     async function checkParentPaths(src, srcStat, dest) {
-      const srcParent = resolve29(dirname16(src));
-      const destParent = resolve29(dirname16(dest));
+      const srcParent = resolve33(dirname17(src));
+      const destParent = resolve33(dirname17(dest));
       if (destParent === srcParent || destParent === parse2(destParent).root) {
         return;
       }
@@ -41558,7 +41562,7 @@ var require_polyfill = __commonJS({
       return checkParentPaths(src, srcStat, destParent);
     }
     __name(checkParentPaths, "checkParentPaths");
-    var normalizePathToArray = /* @__PURE__ */ __name((path3) => resolve29(path3).split(sep7).filter(Boolean), "normalizePathToArray");
+    var normalizePathToArray = /* @__PURE__ */ __name((path3) => resolve33(path3).split(sep7).filter(Boolean), "normalizePathToArray");
     function isSrcSubdir(src, dest) {
       const srcArr = normalizePathToArray(src);
       const destArr = normalizePathToArray(dest);
@@ -41580,7 +41584,7 @@ var require_polyfill = __commonJS({
     }
     __name(startCopy, "startCopy");
     async function getStatsForCopy(destStat, src, dest, opts) {
-      const statFn = opts.dereference ? stat9 : lstat18;
+      const statFn = opts.dereference ? stat9 : lstat20;
       const srcStat = await statFn(src);
       if (srcStat.isDirectory() && opts.recursive) {
         return onDir(srcStat, destStat, src, dest, opts);
@@ -41685,7 +41689,7 @@ var require_polyfill = __commonJS({
     }
     __name(onDir, "onDir");
     async function mkDirAndCopy(srcMode, src, dest, opts) {
-      await mkdir18(dest);
+      await mkdir20(dest);
       await copyDir(src, dest, opts);
       return setDestMode(dest, srcMode);
     }
@@ -41694,8 +41698,8 @@ var require_polyfill = __commonJS({
       const dir = await readdir17(src);
       for (let i = 0; i < dir.length; i++) {
         const item = dir[i];
-        const srcItem = join30(src, item);
-        const destItem = join30(dest, item);
+        const srcItem = join31(src, item);
+        const destItem = join31(dest, item);
         const { destStat } = await checkPaths(srcItem, destItem, opts);
         await startCopy(destStat, srcItem, destItem, opts);
       }
@@ -41704,7 +41708,7 @@ var require_polyfill = __commonJS({
     async function onLink(destStat, src, dest) {
       let resolvedSrc = await readlink2(src);
       if (!isAbsolute22(resolvedSrc)) {
-        resolvedSrc = resolve29(dirname16(src), resolvedSrc);
+        resolvedSrc = resolve33(dirname17(src), resolvedSrc);
       }
       if (!destStat) {
         return symlink(resolvedSrc, dest);
@@ -41719,7 +41723,7 @@ var require_polyfill = __commonJS({
         throw err;
       }
       if (!isAbsolute22(resolvedDest)) {
-        resolvedDest = resolve29(dirname16(dest), resolvedDest);
+        resolvedDest = resolve33(dirname17(dest), resolvedDest);
       }
       if (isSrcSubdir(resolvedSrc, resolvedDest)) {
         throw new ERR_FS_CP_EINVAL({
@@ -41771,15 +41775,15 @@ var require_cp = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/with-temp-dir.js
 var require_with_temp_dir = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/with-temp-dir.js"(exports, module) {
-    var { join: join30, sep: sep7 } = __require("path");
+    var { join: join31, sep: sep7 } = __require("path");
     var getOptions = require_get_options();
-    var { mkdir: mkdir18, mkdtemp: mkdtemp6, rm: rm10 } = __require("fs/promises");
+    var { mkdir: mkdir20, mkdtemp: mkdtemp6, rm: rm12 } = __require("fs/promises");
     var withTempDir = /* @__PURE__ */ __name(async (root, fn, opts) => {
       const options = getOptions(opts, {
         copy: ["tmpPrefix"]
       });
-      await mkdir18(root, { recursive: true });
-      const target = await mkdtemp6(join30(`${root}${sep7}`, options.tmpPrefix || ""));
+      await mkdir20(root, { recursive: true });
+      const target = await mkdtemp6(join31(`${root}${sep7}`, options.tmpPrefix || ""));
       let err;
       let result;
       try {
@@ -41788,7 +41792,7 @@ var require_with_temp_dir = __commonJS({
         err = _err;
       }
       try {
-        await rm10(target, { force: true, recursive: true });
+        await rm12(target, { force: true, recursive: true });
       } catch {
       }
       if (err) {
@@ -41804,13 +41808,13 @@ var require_with_temp_dir = __commonJS({
 var require_readdir_scoped = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/readdir-scoped.js"(exports, module) {
     var { readdir: readdir17 } = __require("fs/promises");
-    var { join: join30 } = __require("path");
+    var { join: join31 } = __require("path");
     var readdirScoped = /* @__PURE__ */ __name(async (dir) => {
       const results = [];
       for (const item of await readdir17(dir)) {
         if (item.startsWith("@")) {
-          for (const scopedItem of await readdir17(join30(dir, item))) {
-            results.push(join30(item, scopedItem));
+          for (const scopedItem of await readdir17(join31(dir, item))) {
+            results.push(join31(item, scopedItem));
           }
         } else {
           results.push(item);
@@ -41825,7 +41829,7 @@ var require_readdir_scoped = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/move-file.js
 var require_move_file = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/move-file.js"(exports, module) {
-    var { dirname: dirname16, join: join30, resolve: resolve29, relative: relative26, isAbsolute: isAbsolute22 } = __require("path");
+    var { dirname: dirname17, join: join31, resolve: resolve33, relative: relative26, isAbsolute: isAbsolute22 } = __require("path");
     var fs = __require("fs/promises");
     var pathExists2 = /* @__PURE__ */ __name(async (path3) => {
       try {
@@ -41846,7 +41850,7 @@ var require_move_file = __commonJS({
       if (!options.overwrite && await pathExists2(destination)) {
         throw new Error(`The destination file exists: ${destination}`);
       }
-      await fs.mkdir(dirname16(destination), { recursive: true });
+      await fs.mkdir(dirname17(destination), { recursive: true });
       try {
         await fs.rename(source, destination);
       } catch (error) {
@@ -41855,7 +41859,7 @@ var require_move_file = __commonJS({
           if (sourceStat.isDirectory()) {
             const files = await fs.readdir(source);
             await Promise.all(files.map(
-              (file) => moveFile(join30(source, file), join30(destination, file), options, false, symlinks)
+              (file) => moveFile(join31(source, file), join31(destination, file), options, false, symlinks)
             ));
           } else if (sourceStat.isSymbolicLink()) {
             symlinks.push({ source, destination });
@@ -41870,11 +41874,11 @@ var require_move_file = __commonJS({
         await Promise.all(symlinks.map(async ({ source: symSource, destination: symDestination }) => {
           let target = await fs.readlink(symSource);
           if (isAbsolute22(target)) {
-            target = resolve29(symDestination, relative26(symSource, target));
+            target = resolve33(symDestination, relative26(symSource, target));
           }
           let targetStat = "file";
           try {
-            targetStat = await fs.stat(resolve29(dirname16(symSource), target));
+            targetStat = await fs.stat(resolve33(dirname17(symSource), target));
             if (targetStat.isDirectory()) {
               targetStat = "junction";
             }
@@ -41947,7 +41951,7 @@ async function pMap(iterable, mapper, {
     const cleanup = /* @__PURE__ */ __name(() => {
       signal?.removeEventListener("abort", signalListener);
     }, "cleanup");
-    const resolve29 = /* @__PURE__ */ __name((value) => {
+    const resolve33 = /* @__PURE__ */ __name((value) => {
       resolve_(value);
       cleanup();
     }, "resolve");
@@ -41979,7 +41983,7 @@ async function pMap(iterable, mapper, {
           }
           isResolved = true;
           if (skippedIndexesMap.size === 0) {
-            resolve29(result);
+            resolve33(result);
             return;
           }
           const pureResult = [];
@@ -41989,7 +41993,7 @@ async function pMap(iterable, mapper, {
             }
             pureResult.push(value);
           }
-          resolve29(pureResult);
+          resolve33(pureResult);
         }
         return;
       }
@@ -42128,11 +42132,11 @@ var require_entry_index = __commonJS({
     var crypto = __require("crypto");
     var {
       appendFile,
-      mkdir: mkdir18,
-      readFile: readFile33,
+      mkdir: mkdir20,
+      readFile: readFile36,
       readdir: readdir17,
-      rm: rm10,
-      writeFile: writeFile11
+      rm: rm12,
+      writeFile: writeFile13
     } = __require("fs/promises");
     var { Minipass } = require_commonjs();
     var path3 = __require("path");
@@ -42175,7 +42179,7 @@ var require_entry_index = __commonJS({
       }).join("\n");
       const setup = /* @__PURE__ */ __name(async () => {
         const target = uniqueFilename(path3.join(cache, "tmp"), opts.tmpPrefix);
-        await mkdir18(path3.dirname(target), { recursive: true });
+        await mkdir20(path3.dirname(target), { recursive: true });
         return {
           target,
           moved: false
@@ -42183,12 +42187,12 @@ var require_entry_index = __commonJS({
       }, "setup");
       const teardown = /* @__PURE__ */ __name(async (tmp2) => {
         if (!tmp2.moved) {
-          return rm10(tmp2.target, { recursive: true, force: true });
+          return rm12(tmp2.target, { recursive: true, force: true });
         }
       }, "teardown");
       const write = /* @__PURE__ */ __name(async (tmp2) => {
-        await writeFile11(tmp2.target, newIndex, { flag: "wx" });
-        await mkdir18(path3.dirname(bucket), { recursive: true });
+        await writeFile13(tmp2.target, newIndex, { flag: "wx" });
+        await mkdir20(path3.dirname(bucket), { recursive: true });
         await moveFile(tmp2.target, bucket);
         tmp2.moved = true;
       }, "write");
@@ -42213,7 +42217,7 @@ var require_entry_index = __commonJS({
         metadata
       };
       try {
-        await mkdir18(path3.dirname(bucket), { recursive: true });
+        await mkdir20(path3.dirname(bucket), { recursive: true });
         const stringified = JSON.stringify(entry);
         await appendFile(bucket, `
 ${hashEntry(stringified)}	${stringified}`);
@@ -42253,7 +42257,7 @@ ${hashEntry(stringified)}	${stringified}`);
         return insert(cache, key, null, opts);
       }
       const bucket = bucketPath(cache, key);
-      return rm10(bucket, { recursive: true, force: true });
+      return rm12(bucket, { recursive: true, force: true });
     }
     __name(del, "del");
     module.exports.lsStream = lsStream;
@@ -42321,7 +42325,7 @@ ${hashEntry(stringified)}	${stringified}`);
     __name(ls, "ls");
     module.exports.bucketEntries = bucketEntries;
     async function bucketEntries(bucket, filter) {
-      const data = await readFile33(bucket, "utf8");
+      const data = await readFile36(bucket, "utf8");
       return _bucketEntries(data, filter);
     }
     __name(bucketEntries, "bucketEntries");
@@ -46195,9 +46199,9 @@ var require_commonjs5 = __commonJS({
         if (this.#asyncReaddirInFlight) {
           await this.#asyncReaddirInFlight;
         } else {
-          let resolve29 = /* @__PURE__ */ __name(() => {
+          let resolve33 = /* @__PURE__ */ __name(() => {
           }, "resolve");
-          this.#asyncReaddirInFlight = new Promise((res) => resolve29 = res);
+          this.#asyncReaddirInFlight = new Promise((res) => resolve33 = res);
           try {
             for (const e of await this.#fs.promises.readdir(fullpath, {
               withFileTypes: true
@@ -46210,7 +46214,7 @@ var require_commonjs5 = __commonJS({
             children.provisional = 0;
           }
           this.#asyncReaddirInFlight = void 0;
-          resolve29();
+          resolve33();
         }
         return children.slice(0, children.provisional);
       }
@@ -48288,8 +48292,8 @@ var require_rm = __commonJS({
     var fs = __require("fs/promises");
     var contentPath = require_path();
     var { hasContent } = require_read();
-    module.exports = rm10;
-    async function rm10(cache, integrity) {
+    module.exports = rm12;
+    async function rm12(cache, integrity) {
       const content = await hasContent(cache, integrity);
       if (content && content.sri) {
         await fs.rm(contentPath(cache, content.sri), { recursive: true, force: true });
@@ -48298,7 +48302,7 @@ var require_rm = __commonJS({
         return false;
       }
     }
-    __name(rm10, "rm");
+    __name(rm12, "rm");
   }
 });
 
@@ -48306,7 +48310,7 @@ var require_rm = __commonJS({
 var require_rm2 = __commonJS({
   "../../node_modules/.pnpm/cacache@19.0.1/node_modules/cacache/lib/rm.js"(exports, module) {
     "use strict";
-    var { rm: rm10 } = __require("fs/promises");
+    var { rm: rm12 } = __require("fs/promises");
     var glob = require_glob2();
     var index = require_entry_index();
     var memo = require_memoization();
@@ -48329,7 +48333,7 @@ var require_rm2 = __commonJS({
     async function all(cache) {
       memo.clearMemoized();
       const paths = await glob(path3.join(cache, "*(content-*|index-*)"), { silent: true, nosort: true });
-      return Promise.all(paths.map((p) => rm10(p, { recursive: true, force: true })));
+      return Promise.all(paths.map((p) => rm12(p, { recursive: true, force: true })));
     }
     __name(all, "all");
   }
@@ -48340,12 +48344,12 @@ var require_verify = __commonJS({
   "../../node_modules/.pnpm/cacache@19.0.1/node_modules/cacache/lib/verify.js"(exports, module) {
     "use strict";
     var {
-      mkdir: mkdir18,
-      readFile: readFile33,
-      rm: rm10,
+      mkdir: mkdir20,
+      readFile: readFile36,
+      rm: rm12,
       stat: stat9,
       truncate,
-      writeFile: writeFile11
+      writeFile: writeFile13
     } = __require("fs/promises");
     var contentPath = require_path();
     var fsm = require_lib11();
@@ -48410,7 +48414,7 @@ var require_verify = __commonJS({
     __name(markEndTime, "markEndTime");
     async function fixPerms(cache, opts) {
       opts.log.silly("verify", "fixing cache permissions");
-      await mkdir18(cache, { recursive: true });
+      await mkdir20(cache, { recursive: true });
       return null;
     }
     __name(fixPerms, "fixPerms");
@@ -48428,8 +48432,8 @@ var require_verify = __commonJS({
           liveContent.add(integrity[algo].toString());
         }
       });
-      await new Promise((resolve29, reject) => {
-        indexStream.on("end", resolve29).on("error", reject);
+      await new Promise((resolve33, reject) => {
+        indexStream.on("end", resolve33).on("error", reject);
       });
       const contentDir = contentPath.contentDir(cache);
       const files = await glob(path3.join(contentDir, "**"), {
@@ -48464,7 +48468,7 @@ var require_verify = __commonJS({
           } else {
             stats.reclaimedCount++;
             const s = await stat9(f);
-            await rm10(f, { recursive: true, force: true });
+            await rm12(f, { recursive: true, force: true });
             stats.reclaimedSize += s.size;
           }
           return stats;
@@ -48488,7 +48492,7 @@ var require_verify = __commonJS({
         if (err.code !== "EINTEGRITY") {
           throw err;
         }
-        await rm10(filepath, { recursive: true, force: true });
+        await rm12(filepath, { recursive: true, force: true });
         contentInfo.valid = false;
       }
       return contentInfo;
@@ -48557,18 +48561,18 @@ var require_verify = __commonJS({
     __name(rebuildBucket, "rebuildBucket");
     function cleanTmp(cache, opts) {
       opts.log.silly("verify", "cleaning tmp directory");
-      return rm10(path3.join(cache, "tmp"), { recursive: true, force: true });
+      return rm12(path3.join(cache, "tmp"), { recursive: true, force: true });
     }
     __name(cleanTmp, "cleanTmp");
     async function writeVerifile(cache, opts) {
       const verifile = path3.join(cache, "_lastverified");
       opts.log.silly("verify", "writing verifile to " + verifile);
-      return writeFile11(verifile, `${Date.now()}`);
+      return writeFile13(verifile, `${Date.now()}`);
     }
     __name(writeVerifile, "writeVerifile");
     module.exports.lastRun = lastRun;
     async function lastRun(cache) {
-      const data = await readFile33(path3.join(cache, "_lastverified"), { encoding: "utf8" });
+      const data = await readFile36(path3.join(cache, "_lastverified"), { encoding: "utf8" });
       return /* @__PURE__ */ new Date(+data);
     }
     __name(lastRun, "lastRun");
@@ -48609,7 +48613,7 @@ var require_lib12 = __commonJS({
     "use strict";
     var get = require_get();
     var put = require_put();
-    var rm10 = require_rm2();
+    var rm12 = require_rm2();
     var verify = require_verify();
     var { clearMemoized } = require_memoization();
     var tmp = require_tmp();
@@ -48629,10 +48633,10 @@ var require_lib12 = __commonJS({
     module.exports.get.hasContent = get.hasContent;
     module.exports.put = put;
     module.exports.put.stream = put.stream;
-    module.exports.rm = rm10.entry;
-    module.exports.rm.all = rm10.all;
+    module.exports.rm = rm12.entry;
+    module.exports.rm.all = rm12.all;
     module.exports.rm.entry = module.exports.rm;
-    module.exports.rm.content = rm10.content;
+    module.exports.rm.content = rm12.content;
     module.exports.clearMemoized = clearMemoized;
     module.exports.tmp = {};
     module.exports.tmp.mkdir = tmp.mkdir;
@@ -48985,7 +48989,7 @@ var require_promise_retry = __commonJS({
         fn = temp;
       }
       operation = retry.operation(options);
-      return new Promise(function(resolve29, reject) {
+      return new Promise(function(resolve33, reject) {
         operation.attempt(function(number) {
           Promise.resolve().then(function() {
             return fn(function(err) {
@@ -48994,7 +48998,7 @@ var require_promise_retry = __commonJS({
               }
               throw errcode(new Error("Retrying"), "EPROMISERETRY", { retried: err });
             }, number);
-          }).then(resolve29, function(err) {
+          }).then(resolve33, function(err) {
             if (isRetryError(err)) {
               err = err.retried;
               if (operation.retry(err || new Error())) {
@@ -49879,8 +49883,8 @@ var require_helpers = __commonJS({
     function req(url, opts = {}) {
       const href = typeof url === "string" ? url : url.href;
       const req2 = (href.startsWith("https:") ? https : http).request(url, opts);
-      const promise = new Promise((resolve29, reject) => {
-        req2.once("response", resolve29).once("error", reject).end();
+      const promise = new Promise((resolve33, reject) => {
+        req2.once("response", resolve33).once("error", reject).end();
       });
       req2.then = promise.then.bind(promise);
       return req2;
@@ -50195,7 +50199,7 @@ var require_parse_proxy_response = __commonJS({
     var debug_1 = __importDefault(require_src());
     var debug = (0, debug_1.default)("https-proxy-agent:parse-proxy-response");
     function parseProxyResponse(socket) {
-      return new Promise((resolve29, reject) => {
+      return new Promise((resolve33, reject) => {
         let buffersLength = 0;
         const buffers = [];
         function read() {
@@ -50265,7 +50269,7 @@ var require_parse_proxy_response = __commonJS({
           }
           debug("got proxy server response: %o %o", firstLine, headers);
           cleanup();
-          resolve29({
+          resolve33({
             connect: {
               statusCode,
               statusText,
@@ -53944,12 +53948,12 @@ var require_socksclient = __commonJS({
     "use strict";
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve29) {
-          resolve29(value);
+        return value instanceof P ? value : new P(function(resolve33) {
+          resolve33(value);
         });
       }
       __name(adopt, "adopt");
-      return new (P || (P = Promise))(function(resolve29, reject) {
+      return new (P || (P = Promise))(function(resolve33, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -53967,7 +53971,7 @@ var require_socksclient = __commonJS({
         }
         __name(rejected, "rejected");
         function step(result) {
-          result.done ? resolve29(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve33(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         __name(step, "step");
         step((generator = generator.apply(thisArg, _arguments || [])).next());
@@ -54005,13 +54009,13 @@ var require_socksclient = __commonJS({
        * @returns { Promise }
        */
       static createConnection(options, callback) {
-        return new Promise((resolve29, reject) => {
+        return new Promise((resolve33, reject) => {
           try {
             (0, helpers_1.validateSocksClientOptions)(options, ["connect"]);
           } catch (err) {
             if (typeof callback === "function") {
               callback(err);
-              return resolve29(err);
+              return resolve33(err);
             } else {
               return reject(err);
             }
@@ -54022,16 +54026,16 @@ var require_socksclient = __commonJS({
             client.removeAllListeners();
             if (typeof callback === "function") {
               callback(null, info);
-              resolve29(info);
+              resolve33(info);
             } else {
-              resolve29(info);
+              resolve33(info);
             }
           });
           client.once("error", (err) => {
             client.removeAllListeners();
             if (typeof callback === "function") {
               callback(err);
-              resolve29(err);
+              resolve33(err);
             } else {
               reject(err);
             }
@@ -54048,13 +54052,13 @@ var require_socksclient = __commonJS({
        * @returns { Promise }
        */
       static createConnectionChain(options, callback) {
-        return new Promise((resolve29, reject) => __awaiter(this, void 0, void 0, function* () {
+        return new Promise((resolve33, reject) => __awaiter(this, void 0, void 0, function* () {
           try {
             (0, helpers_1.validateSocksClientChainOptions)(options);
           } catch (err) {
             if (typeof callback === "function") {
               callback(err);
-              return resolve29(err);
+              return resolve33(err);
             } else {
               return reject(err);
             }
@@ -54080,14 +54084,14 @@ var require_socksclient = __commonJS({
             }
             if (typeof callback === "function") {
               callback(null, { socket: sock });
-              resolve29({ socket: sock });
+              resolve33({ socket: sock });
             } else {
-              resolve29({ socket: sock });
+              resolve33({ socket: sock });
             }
           } catch (err) {
             if (typeof callback === "function") {
               callback(err);
-              resolve29(err);
+              resolve33(err);
             } else {
               reject(err);
             }
@@ -54775,12 +54779,12 @@ var require_dist6 = __commonJS({
         let { host } = opts;
         const { port, lookup: lookupFn = dns.lookup } = opts;
         if (shouldLookup) {
-          host = await new Promise((resolve29, reject) => {
+          host = await new Promise((resolve33, reject) => {
             lookupFn(host, {}, (err, res) => {
               if (err) {
                 reject(err);
               } else {
-                resolve29(res);
+                resolve33(res);
               }
             });
           });
@@ -55592,8 +55596,8 @@ var require_entry = __commonJS({
         let body = null;
         if (this.response.status === 200) {
           let cacheWriteResolve, cacheWriteReject;
-          const cacheWritePromise = new Promise((resolve29, reject) => {
-            cacheWriteResolve = resolve29;
+          const cacheWritePromise = new Promise((resolve33, reject) => {
+            cacheWriteResolve = resolve33;
             cacheWriteReject = reject;
           }).catch((err) => {
             body.emit("error", err);
@@ -57108,7 +57112,7 @@ var require_index_min = __commonJS({
 var require_lib17 = __commonJS({
   "../../node_modules/.pnpm/which@5.0.0/node_modules/which/lib/index.js"(exports, module) {
     var { isexe, sync: isexeSync } = require_index_min();
-    var { join: join30, delimiter, sep: sep7, posix: posix3 } = __require("path");
+    var { join: join31, delimiter, sep: sep7, posix: posix3 } = __require("path");
     var isWindows = process.platform === "win32";
     var rSlash = new RegExp(`[${posix3.sep}${sep7 === posix3.sep ? "" : sep7}]`.replace(/(\\)/g, "\\$1"));
     var rRel = new RegExp(`^\\.${rSlash.source}`);
@@ -57137,7 +57141,7 @@ var require_lib17 = __commonJS({
     var getPathPart = /* @__PURE__ */ __name((raw, cmd) => {
       const pathPart = /^".*"$/.test(raw) ? raw.slice(1, -1) : raw;
       const prefix = !pathPart && rRel.test(cmd) ? cmd.slice(0, 2) : "";
-      return prefix + join30(pathPart, cmd);
+      return prefix + join31(pathPart, cmd);
     }, "getPathPart");
     var which = /* @__PURE__ */ __name(async (cmd, opt = {}) => {
       const { pathEnv, pathExt, pathExtExe } = getPathInfo(cmd, opt);
@@ -57260,9 +57264,9 @@ var require_lib18 = __commonJS({
       if (opts.shell) {
         return spawnWithShell(cmd, args2, opts, extra);
       }
-      let resolve29, reject;
+      let resolve33, reject;
       const promise = new Promise((_resolve, _reject) => {
-        resolve29 = _resolve;
+        resolve33 = _resolve;
         reject = _reject;
       });
       const closeError = new Error("command failed");
@@ -57295,7 +57299,7 @@ var require_lib18 = __commonJS({
         if (code || signal) {
           rejectWithOpts(closeError, { code, signal });
         } else {
-          resolve29(getResult({ code, signal }));
+          resolve33(getResult({ code, signal }));
         }
       });
       return promise;
@@ -58276,7 +58280,7 @@ var require_lib19 = __commonJS({
 // ../../node_modules/.pnpm/npm-normalize-package-bin@4.0.0/node_modules/npm-normalize-package-bin/lib/index.js
 var require_lib20 = __commonJS({
   "../../node_modules/.pnpm/npm-normalize-package-bin@4.0.0/node_modules/npm-normalize-package-bin/lib/index.js"(exports, module) {
-    var { join: join30, basename: basename11 } = __require("path");
+    var { join: join31, basename: basename11 } = __require("path");
     var normalize4 = /* @__PURE__ */ __name((pkg) => !pkg.bin ? removeBin(pkg) : typeof pkg.bin === "string" ? normalizeString(pkg) : Array.isArray(pkg.bin) ? normalizeArray(pkg) : typeof pkg.bin === "object" ? normalizeObject(pkg) : removeBin(pkg), "normalize");
     var normalizeString = /* @__PURE__ */ __name((pkg) => {
       if (!pkg.name) {
@@ -58301,11 +58305,11 @@ var require_lib20 = __commonJS({
       const clean = {};
       let hasBins = false;
       Object.keys(orig).forEach((binKey) => {
-        const base = join30("/", basename11(binKey.replace(/\\|:/g, "/"))).slice(1);
+        const base = join31("/", basename11(binKey.replace(/\\|:/g, "/"))).slice(1);
         if (typeof orig[binKey] !== "string" || !base) {
           return;
         }
-        const binTarget = join30("/", orig[binKey].replace(/\\/g, "/")).replace(/\\/g, "/").slice(1);
+        const binTarget = join31("/", orig[binKey].replace(/\\/g, "/")).replace(/\\/g, "/").slice(1);
         if (!binTarget) {
           return;
         }
@@ -58615,13 +58619,13 @@ var require_is = __commonJS({
 var require_find = __commonJS({
   "../../node_modules/.pnpm/@npmcli+git@6.0.3/node_modules/@npmcli/git/lib/find.js"(exports, module) {
     var is = require_is();
-    var { dirname: dirname16 } = __require("path");
+    var { dirname: dirname17 } = __require("path");
     module.exports = async ({ cwd = process.cwd(), root } = {}) => {
       while (true) {
         if (await is({ cwd })) {
           return cwd;
         }
-        const next = dirname16(cwd);
+        const next = dirname17(cwd);
         if (cwd === root || cwd === next) {
           return null;
         }
@@ -60846,11 +60850,11 @@ var require_normalize = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+package-json@6.2.0/node_modules/@npmcli/package-json/lib/read-package.js
 var require_read_package = __commonJS({
   "../../node_modules/.pnpm/@npmcli+package-json@6.2.0/node_modules/@npmcli/package-json/lib/read-package.js"(exports, module) {
-    var { readFile: readFile33 } = __require("fs/promises");
+    var { readFile: readFile36 } = __require("fs/promises");
     var parseJSON = require_lib16();
     async function read(filename) {
       try {
-        const data = await readFile33(filename, "utf8");
+        const data = await readFile36(filename, "utf8");
         return data;
       } catch (err) {
         err.message = `Could not read package.json: ${err}`;
@@ -60983,8 +60987,8 @@ var require_sort2 = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+package-json@6.2.0/node_modules/@npmcli/package-json/lib/index.js
 var require_lib23 = __commonJS({
   "../../node_modules/.pnpm/@npmcli+package-json@6.2.0/node_modules/@npmcli/package-json/lib/index.js"(exports, module) {
-    var { readFile: readFile33, writeFile: writeFile11 } = __require("node:fs/promises");
-    var { resolve: resolve29 } = __require("node:path");
+    var { readFile: readFile36, writeFile: writeFile13 } = __require("node:fs/promises");
+    var { resolve: resolve33 } = __require("node:path");
     var parseJSON = require_lib16();
     var updateDeps = require_update_dependencies();
     var updateScripts = require_update_scripts();
@@ -61107,10 +61111,10 @@ var require_lib23 = __commonJS({
           parseErr = err;
         }
         if (parseErr) {
-          const indexFile = resolve29(this.path, "index.js");
+          const indexFile = resolve33(this.path, "index.js");
           let indexFileContent;
           try {
-            indexFileContent = await readFile33(indexFile, "utf8");
+            indexFileContent = await readFile36(indexFile, "utf8");
           } catch (err) {
             throw parseErr;
           }
@@ -61159,7 +61163,7 @@ var require_lib23 = __commonJS({
       }
       get filename() {
         if (this.path) {
-          return resolve29(this.path, "package.json");
+          return resolve33(this.path, "package.json");
         }
         return void 0;
       }
@@ -61198,7 +61202,7 @@ var require_lib23 = __commonJS({
         const fileContent = `${JSON.stringify(content, null, format)}
 `.replace(/\n/g, eol);
         if (fileContent.trim() !== this.#readFileContent.trim()) {
-          const written = await writeFile11(this.filename, fileContent);
+          const written = await writeFile13(this.filename, fileContent);
           this.#readFileContent = fileContent;
           return written;
         }
@@ -64308,8 +64312,8 @@ var require_timestamp3 = __commonJS({
       verifySignature(key) {
         const signedAttrs = this.signedAttrsObj.toDER();
         signedAttrs[0] = 49;
-        const verified = crypto.verify(signedAttrs, key, this.signatureValue, this.signatureAlgorithm);
-        if (!verified) {
+        const verified2 = crypto.verify(signedAttrs, key, this.signatureValue, this.signatureAlgorithm);
+        if (!verified2) {
           throw new error_1.RFC3161TimestampVerificationError("signature verification failed");
         }
       }
@@ -68085,12 +68089,12 @@ var require_fetcher = __commonJS({
     };
     exports.DefaultFetcher = DefaultFetcher;
     var writeBufferToStream = /* @__PURE__ */ __name(async (stream, buffer) => {
-      return new Promise((resolve29, reject) => {
+      return new Promise((resolve33, reject) => {
         stream.write(buffer, (err) => {
           if (err) {
             reject(err);
           }
-          resolve29(true);
+          resolve33(true);
         });
       });
     }, "writeBufferToStream");
@@ -68309,12 +68313,12 @@ var require_url = __commonJS({
   "../../node_modules/.pnpm/tuf-js@3.1.0/node_modules/tuf-js/dist/utils/url.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.join = join30;
+    exports.join = join31;
     var url_1 = __require("url");
-    function join30(base, path3) {
+    function join31(base, path3) {
       return new url_1.URL(ensureTrailingSlash(base) + removeLeadingSlash(path3)).toString();
     }
-    __name(join30, "join");
+    __name(join31, "join");
     function ensureTrailingSlash(path3) {
       return path3.endsWith("/") ? path3 : path3 + "/";
     }
@@ -68693,7 +68697,7 @@ var require_target = __commonJS({
     var error_1 = require_error8();
     async function readTarget(tuf, targetPath) {
       const path3 = await getTargetPath(tuf, targetPath);
-      return new Promise((resolve29, reject) => {
+      return new Promise((resolve33, reject) => {
         fs_1.default.readFile(path3, "utf-8", (err, data) => {
           if (err) {
             reject(new error_1.TUFError({
@@ -68702,7 +68706,7 @@ var require_target = __commonJS({
               cause: err
             }));
           } else {
-            resolve29(data);
+            resolve33(data);
           }
         });
       });
@@ -69370,8 +69374,8 @@ var require_sct2 = __commonJS({
           logID: sct.logID,
           targetDate: sct.datetime
         });
-        const verified = validCTLogs.some((log) => sct.verify(preCert.buffer, log.publicKey));
-        if (!verified) {
+        const verified2 = validCTLogs.some((log) => sct.verify(preCert.buffer, log.publicKey));
+        if (!verified2) {
           throw new error_1.VerificationError({
             code: "CERTIFICATE_ERROR",
             message: "SCT verification failed"
@@ -69429,13 +69433,13 @@ var require_key4 = __commonJS({
       } else {
         issuer = cert.extension(OID_FULCIO_ISSUER_V1)?.value.toString("ascii");
       }
-      const identity = {
+      const identity2 = {
         extensions: { issuer },
         subjectAlternativeName: cert.subjectAltName
       };
       return {
         key: core_1.crypto.createPublicKey(cert.publicKey),
-        identity
+        identity: identity2
       };
     }
     __name(getSigner, "getSigner");
@@ -69688,13 +69692,13 @@ var require_set2 = __commonJS({
         logID: entry.logId.keyId,
         targetDate: new Date(Number(entry.integratedTime) * 1e3)
       });
-      const verified = validTLogs.some((tlog) => {
+      const verified2 = validTLogs.some((tlog) => {
         const payload = toVerificationPayload(entry);
         const data = Buffer.from(core_1.json.canonicalize(payload), "utf8");
         const signature = entry.inclusionPromise.signedEntryTimestamp;
         return core_1.crypto.verify(data, tlog.publicKey, signature);
       });
-      if (!verified) {
+      if (!verified2) {
         throw new error_1.VerificationError({
           code: "TLOG_INCLUSION_PROMISE_ERROR",
           message: "inclusion promise could not be verified"
@@ -69732,7 +69736,7 @@ var require_tsa3 = __commonJS({
         serialNumber: timestamp.signerSerialNumber,
         issuer: timestamp.signerIssuer
       });
-      const verified = timestampAuthorities.some((ca) => {
+      const verified2 = timestampAuthorities.some((ca) => {
         try {
           verifyTimestampForCA(timestamp, data, ca);
           return true;
@@ -69740,7 +69744,7 @@ var require_tsa3 = __commonJS({
           return false;
         }
       });
-      if (!verified) {
+      if (!verified2) {
         throw new error_1.VerificationError({
           code: "TIMESTAMP_ERROR",
           message: "timestamp could not be verified"
@@ -70106,12 +70110,12 @@ var require_verifier = __commonJS({
           });
         }
       }
-      verifyPolicy(policy, identity) {
+      verifyPolicy(policy, identity2) {
         if (policy.subjectAlternativeName) {
-          (0, policy_1.verifySubjectAlternativeName)(policy.subjectAlternativeName, identity.subjectAlternativeName);
+          (0, policy_1.verifySubjectAlternativeName)(policy.subjectAlternativeName, identity2.subjectAlternativeName);
         }
         if (policy.extensions) {
-          (0, policy_1.verifyExtensions)(policy.extensions, identity.extensions);
+          (0, policy_1.verifyExtensions)(policy.extensions, identity2.extensions);
         }
       }
     };
@@ -70419,7 +70423,7 @@ var require_dist15 = __commonJS({
 var require_provenance = __commonJS({
   "../../node_modules/.pnpm/libnpmpublish@11.1.0/node_modules/libnpmpublish/lib/provenance.js"(exports, module) {
     var sigstore = require_dist15();
-    var { readFile: readFile33 } = __require("node:fs/promises");
+    var { readFile: readFile36 } = __require("node:fs/promises");
     var ci = require_ci_info();
     var { env } = process;
     var INTOTO_PAYLOAD_TYPE = "application/vnd.in-toto+json";
@@ -70611,7 +70615,7 @@ var require_provenance = __commonJS({
     var verifyProvenance = /* @__PURE__ */ __name(async (subject, provenancePath) => {
       let provenanceBundle;
       try {
-        provenanceBundle = JSON.parse(await readFile33(provenancePath));
+        provenanceBundle = JSON.parse(await readFile36(provenancePath));
       } catch (err) {
         err.message = `Invalid provenance provided: ${err.message}`;
         throw err;
@@ -72076,7 +72080,8 @@ __export(plugin_marketplace_exports, {
   resolveKimiEntrySkillFile: () => resolveKimiEntrySkillFile,
   resolveMarketplaceRoot: () => resolveMarketplaceRoot,
   resolvePluginManifestFromMarketplaceEntrySource: () => resolvePluginManifestFromMarketplaceEntrySource,
-  validateMarketplaceSourceSelection: () => validateMarketplaceSourceSelection
+  validateMarketplaceSourceSelection: () => validateMarketplaceSourceSelection,
+  verifyInstalledMarketplacePayload: () => verifyInstalledMarketplacePayload
 });
 import { execFile as execFileCb8 } from "node:child_process";
 import { promisify as promisify8 } from "node:util";
@@ -82209,9 +82214,59 @@ var init_prepare = __esm({
   }
 });
 
+// src/commands/hooks.mjs
+var hooks_exports = {};
+__export(hooks_exports, {
+  validateDeclaredHooks: () => validateDeclaredHooks
+});
+import { mkdir as mkdir12 } from "node:fs/promises";
+import { resolve as resolve24 } from "node:path";
+async function validateDeclaredHooks(options = {}) {
+  const {
+    root = process.cwd(),
+    hooksAuthorized,
+    hookCache = true,
+    runDir = resolve24(root, ".release-skill", "runs", `hooks-${Date.now()}`)
+  } = options;
+  if (hooksAuthorized !== true) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "hooks validate executes declared project commands; pass --acknowledge-hook-side-effects"
+    );
+  }
+  const { config, configDigest } = await loadProjectConfig({ root });
+  await mkdir12(runDir, { recursive: true });
+  const evidence = createEvidenceWriter({
+    runDir,
+    command: "hooks-validate",
+    clock: /* @__PURE__ */ __name(() => (/* @__PURE__ */ new Date()).toISOString(), "clock")
+  });
+  const startedAt = (/* @__PURE__ */ new Date()).toISOString();
+  await runDeclaredHooks(config, root, evidence, void 0, { hookCache });
+  return {
+    command: "hooks validate",
+    status: "PASSED",
+    configDigest,
+    hooks: Object.keys(config.hooks ?? {}).sort(),
+    cacheEnabled: hookCache,
+    evidenceDir: runDir,
+    startedAt,
+    finishedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+var init_hooks2 = __esm({
+  async "src/commands/hooks.mjs"() {
+    await init_config();
+    init_evidence();
+    await init_prepare();
+    init_errors();
+    __name(validateDeclaredHooks, "validateDeclaredHooks");
+  }
+});
+
 // src/core/approval.mjs
 import { readFile as readFile21 } from "node:fs/promises";
-import { basename as basename6, dirname as dirname11, join as join19, resolve as resolve24 } from "node:path";
+import { basename as basename6, dirname as dirname11, join as join19, resolve as resolve25 } from "node:path";
 function validateApprovalRecordSchema(approval) {
   if (validateApprovalSchema(approval)) return;
   const errors = validateApprovalSchema.errors ?? [];
@@ -82228,7 +82283,7 @@ function assertImmutableApprovalAuthority(approvalPath, plan, rawApproval) {
   if (!plan?.production) return;
   const planDigest = computePlanDigest(plan);
   const approvalDigest = computeApprovalDigest(rawApproval);
-  const absolute = resolve24(approvalPath);
+  const absolute = resolve25(approvalPath);
   const planDirectory = dirname11(absolute);
   if (basename6(absolute) !== `${approvalDigest}.json` || basename6(planDirectory) !== planDigest || basename6(dirname11(planDirectory)) !== "approvals") {
     throw new ReleaseError(
@@ -82498,7 +82553,7 @@ __export(approve_exports, {
   approvePlan: () => approvePlan
 });
 import { readFile as readFile22, writeFile as writeFile7 } from "node:fs/promises";
-import { resolve as resolve25, dirname as dirname12, basename as basename7 } from "node:path";
+import { resolve as resolve26, dirname as dirname12, basename as basename7 } from "node:path";
 function defaultClock() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
@@ -82628,18 +82683,18 @@ async function approvePlan(options) {
     expiresAt
   };
   validateApprovalRecordSchema(approvalRecord);
-  const planDir = dirname12(resolve25(planPath));
+  const planDir = dirname12(resolve26(planPath));
   const releaseDir = basename7(planDir) === "plans" && basename7(planPath) === `${actualDigest}.json` ? dirname12(planDir) : planDir;
-  if (plan.production?.mode === "github-npm-v1" && outputPath && resolve25(outputPath) !== resolve25(releaseDir, "approval-record.json")) {
+  if (plan.production?.mode === "github-npm-v1" && outputPath && resolve26(outputPath) !== resolve26(releaseDir, "approval-record.json")) {
     throw new ReleaseError(
       GATE_FAILED,
       "production approve requires the canonical approval-record.json alias next to the immutable plan authority; custom --output is supported only outside production",
-      { outputPath: resolve25(outputPath), expected: resolve25(releaseDir, "approval-record.json") }
+      { outputPath: resolve26(outputPath), expected: resolve26(releaseDir, "approval-record.json") }
     );
   }
   const json = JSON.stringify(approvalRecord, null, 2);
   const approvalDigest = computeApprovalDigest(json);
-  const immutableApprovalPath = resolve25(
+  const immutableApprovalPath = resolve26(
     releaseDir,
     "approvals",
     actualDigest,
@@ -82660,7 +82715,7 @@ async function approvePlan(options) {
       );
     }
   }
-  const writePath = outputPath ?? resolve25(releaseDir, "approval-record.json");
+  const writePath = outputPath ?? resolve26(releaseDir, "approval-record.json");
   await prepareAuthorityDirectory(dirname12(writePath));
   await assertAuthorityFileTarget(writePath);
   await writeFile7(writePath, json, "utf8");
@@ -82862,7 +82917,7 @@ function defaultSleep(ms) {
   if (process.env.RELEASE_SKILL_OBSERVE_RETRY_NO_WAIT === "1") {
     return Promise.resolve();
   }
-  return new Promise((resolve29) => setTimeout(resolve29, ms));
+  return new Promise((resolve33) => setTimeout(resolve33, ms));
 }
 function isPropagatingMissing(result) {
   if (result == null) return true;
@@ -82946,14 +83001,1002 @@ var init_observe_retry = __esm({
   }
 });
 
+// src/commands/publish.mjs
+var publish_exports = {};
+__export(publish_exports, {
+  PRE_OBSERVE: () => PRE_OBSERVE,
+  classifyPreObservation: () => classifyPreObservation,
+  publishRelease: () => publishRelease
+});
+import { readFile as readFile23, mkdir as mkdir13 } from "node:fs/promises";
+import { isAbsolute as isAbsolute19, join as join20, relative as relative23 } from "node:path";
+function assertInsideAssetRoot(assetRoot, candidate, label) {
+  const rel = relative23(assetRoot, candidate);
+  if (rel === "" || isAbsolute19(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+    throw new ReleaseError(GATE_FAILED, `${label} must be a child of the production asset root`);
+  }
+}
+function defaultClock3() {
+  return (/* @__PURE__ */ new Date()).toISOString();
+}
+function deepClone(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+function hasExpected(expected) {
+  return !!expected && typeof expected === "object" && Object.keys(expected).length > 0;
+}
+function classifyPreObservation(action, observeResult) {
+  const observation = observeResult?.observation;
+  if (!observation || Object.keys(observation).length === 0) {
+    return PRE_OBSERVE.UNOBSERVABLE;
+  }
+  const expected = action?.expected;
+  const parameters = action?.parameters ?? {};
+  if (action?.type === "push-snapshot") {
+    if (hasExpected(expected) && matchObservation(expected, observation).matches) {
+      return PRE_OBSERVE.CONSISTENT;
+    }
+    if (parameters.expectedBaselineCommit && observation.commit === parameters.expectedBaselineCommit) {
+      return PRE_OBSERVE.MISSING;
+    }
+    if (observation.exists === false) {
+      return PRE_OBSERVE.MISSING;
+    }
+    return PRE_OBSERVE.CONFLICTING;
+  }
+  if (action?.type === "set-default-branch") {
+    if (parameters.expectedNewBranchCommit && observation.newBranchCommit !== parameters.expectedNewBranchCommit) {
+      return PRE_OBSERVE.CONFLICTING;
+    }
+    if (observation.defaultBranch === parameters.newBranch && hasExpected(expected) && matchObservation(expected, observation).matches) {
+      return PRE_OBSERVE.CONSISTENT;
+    }
+    if (observation.defaultBranch === parameters.oldBranch) {
+      return PRE_OBSERVE.MISSING;
+    }
+    return PRE_OBSERVE.CONFLICTING;
+  }
+  if (hasExpected(expected) && matchObservation(expected, observation).matches) {
+    return PRE_OBSERVE.CONSISTENT;
+  }
+  if (isPropagatingMissing(observeResult)) {
+    return PRE_OBSERVE.MISSING;
+  }
+  return PRE_OBSERVE.CONFLICTING;
+}
+async function executeCheckpoint(action, adapterRegistry, context) {
+  const { id: actionId, type: planActionType } = action;
+  if (planActionType === "write-remote-identifier") {
+    return { actionId, status: "SUCCEEDED", error: null };
+  }
+  const adapterActionType = ADAPTER_ACTION_TYPE_MAP[planActionType];
+  if (!adapterActionType) {
+    return {
+      actionId,
+      status: "FAILED",
+      error: `Unknown action type: ${planActionType}`
+    };
+  }
+  const adapter = adapterRegistry.getAdapter(adapterActionType);
+  if (!adapter) {
+    return {
+      actionId,
+      status: "FAILED",
+      error: `No adapter for action type: ${adapterActionType}`
+    };
+  }
+  let preObserve;
+  if (hasExpected(action.expected)) {
+    const preObserveInput = {
+      actionType: adapterActionType,
+      ...action.parameters,
+      expected: action.expected
+    };
+    let preObserveResult;
+    try {
+      preObserveResult = await adapter.observe(preObserveInput, context);
+    } catch (error) {
+      preObserveResult = { observation: null, error: error?.message ?? String(error) };
+    }
+    const classification = classifyPreObservation(action, preObserveResult);
+    await context.evidence?.append?.({
+      phase: "checkpoint-pre-observe",
+      actionId,
+      actionType: planActionType,
+      status: "pre-observe",
+      details: { preObserve: classification }
+    });
+    if (classification === PRE_OBSERVE.CONSISTENT) {
+      return {
+        actionId,
+        status: "SKIPPED",
+        error: null,
+        observation: preObserveResult?.observation ?? null,
+        preObserve: PRE_OBSERVE.CONSISTENT
+      };
+    }
+    if (classification === PRE_OBSERVE.CONFLICTING) {
+      const mismatches = matchObservation(action.expected, preObserveResult?.observation ?? {}).mismatches;
+      return {
+        actionId,
+        status: "FAILED",
+        error: `pre-observe conflict: ${mismatches.join("; ") || "remote state is present but does not match the frozen plan"}`,
+        observation: preObserveResult?.observation ?? null,
+        preObserve: PRE_OBSERVE.CONFLICTING
+      };
+    }
+    if (classification === PRE_OBSERVE.MISSING) {
+      preObserve = PRE_OBSERVE.MISSING;
+    }
+  }
+  const preflightResult = await adapter.preflight(
+    { actionType: adapterActionType, ...action.parameters },
+    context
+  );
+  if (preflightResult.status === "PREFLIGHT_FAILED") {
+    return {
+      actionId,
+      status: "FAILED",
+      error: preflightResult.error ?? "Preflight failed"
+    };
+  }
+  let executeResult;
+  let executeError = null;
+  try {
+    executeResult = await adapter.execute(
+      { actionType: adapterActionType, ...action.parameters },
+      context
+    );
+  } catch (error) {
+    executeError = error;
+  }
+  const observeInput = {
+    actionType: adapterActionType,
+    ...action.parameters,
+    expected: action.expected
+  };
+  let observeResult;
+  if (executeError) {
+    try {
+      observeResult = await adapter.observe(observeInput, context);
+    } catch (error) {
+      return {
+        actionId,
+        status: "UNCERTAIN",
+        error: `execute outcome is uncertain; observe threw: ${error.message}`,
+        ...preObserve ? { preObserve } : {}
+      };
+    }
+  } else {
+    const observePolicy = isMarketplaceAction(planActionType) ? clampPolicyToTimeout(DEFAULT_OBSERVE_RETRY_POLICY, action.parameters?.timeoutMs) : DEFAULT_OBSERVE_RETRY_POLICY;
+    const retryOutcome = await observeWithRetry({
+      observe: /* @__PURE__ */ __name((act, ctx) => adapter.observe(act, ctx), "observe"),
+      action: observeInput,
+      context,
+      policy: observePolicy,
+      sleep: context.observeRetrySleep,
+      onAttempt: /* @__PURE__ */ __name((info) => context.evidence?.append?.({
+        phase: "checkpoint-observe-retry",
+        actionId,
+        actionType: planActionType,
+        attempt: info.attempt,
+        maxAttempts: info.maxAttempts,
+        missing: info.missing,
+        delayMs: info.delayMs,
+        status: info.missing ? "propagating" : "resolved",
+        error: info.error ?? null
+      }), "onAttempt")
+    });
+    observeResult = retryOutcome.result;
+  }
+  const observation = observeResult?.observation;
+  if (!observation || observeResult.error && Object.keys(observation).length === 0) {
+    return {
+      actionId,
+      status: "UNCERTAIN",
+      error: `execute outcome is uncertain; observe failed: ${observeResult?.error ?? "empty observation"}`,
+      ...preObserve ? { preObserve } : {}
+    };
+  }
+  if (action.expected && matchObservation(action.expected, observation).matches) {
+    return { actionId, status: "SUCCEEDED", error: null, observation, postObserve: PRE_OBSERVE.CONSISTENT, ...preObserve ? { preObserve } : {} };
+  }
+  if (!action.expected && !observation.mismatched && executeResult?.status === "EXECUTED") {
+    return { actionId, status: "SUCCEEDED", error: null, observation, postObserve: PRE_OBSERVE.CONSISTENT, ...preObserve ? { preObserve } : {} };
+  }
+  const explicitlyMissing = observation.exists === false || observation.remoteCommit === "" || observation.commit === "" || observation.published === false;
+  if (explicitlyMissing) {
+    return {
+      actionId,
+      status: "FAILED",
+      error: executeError?.message ?? executeResult?.error ?? "remote state is explicitly missing after execute",
+      observation,
+      postObserve: PRE_OBSERVE.MISSING,
+      ...preObserve ? { preObserve } : {}
+    };
+  }
+  return {
+    actionId,
+    status: executeResult?.status === "EXECUTED" ? "FAILED" : "UNCERTAIN",
+    error: executeError?.message ?? executeResult?.error ?? "observation does not match expected state from frozen plan",
+    observation,
+    postObserve: PRE_OBSERVE.CONFLICTING,
+    ...preObserve ? { preObserve } : {}
+  };
+}
+async function publishRelease(options) {
+  const {
+    planPath,
+    approvalPath,
+    adapterRegistry,
+    root = process.cwd(),
+    runDir: runDirOpt,
+    clock: clockOpt,
+    captureBaselineFn,
+    productionMode = false,
+    productionConfirmation,
+    observePreviousPublicBaselineFn,
+    observeRetrySleep
+  } = options ?? {};
+  const clockFn = typeof clockOpt === "function" ? clockOpt : defaultClock3;
+  const captureBaselineActual = typeof captureBaselineFn === "function" ? captureBaselineFn : captureBaseline;
+  let planRaw;
+  try {
+    planRaw = await readFile23(planPath, "utf8");
+  } catch (err) {
+    throw new ReleaseError(GATE_FAILED, `cannot read release plan: ${err.message}`, { planPath, cause: err.code });
+  }
+  let plan;
+  try {
+    plan = JSON.parse(planRaw);
+  } catch (err) {
+    throw new ReleaseError(GATE_FAILED, `release plan is not valid JSON: ${err.message}`, { planPath });
+  }
+  validatePlan(plan);
+  assertImmutablePlanAuthority(planPath, plan);
+  const isProductionPlan = plan.production?.mode === "github-npm-v1";
+  const runId = `publish-${Date.now()}`;
+  let runDir = runDirOpt ?? resolveDefaultRunDir(planPath, "publish", runId);
+  if (isProductionPlan) {
+    runDir = await createProductionRunDir(runDir, planPath);
+  } else {
+    await mkdir13(runDir, { recursive: true });
+  }
+  const evidence = createEvidenceWriter({ runDir, command: "publish", clock: clockFn });
+  try {
+    await evidence.append({ phase: "safety-gate", gate: "plan-load", status: "started" });
+    await evidence.append({ phase: "safety-gate", gate: "plan-schema", status: "passed" });
+    await evidence.append({ phase: "safety-gate", gate: "plan-digest", status: "started" });
+    const actualDigest = computePlanDigest(plan);
+    if (plan.digest && plan.digest !== actualDigest) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `plan digest mismatch: expected ${plan.digest.slice(0, 16)}..., computed ${actualDigest.slice(0, 16)}...`,
+        { expected: plan.digest, actual: actualDigest }
+      );
+    }
+    await evidence.append({ phase: "safety-gate", gate: "plan-digest", status: "passed" });
+    if (productionMode && !isProductionPlan) {
+      throw new ReleaseError(GATE_FAILED, "production publish requires a github-npm-v1 frozen plan");
+    }
+    if (isProductionPlan && !plan.sourceAuthority) {
+      throw new ReleaseError(
+        CONFIG_MISSING,
+        "production publish requires a frozen sourceAuthority binding; re-run prepare with project.sourceRepository configured",
+        { gate: "source-authority" }
+      );
+    }
+    const verifiedFrozenSnapshots = /* @__PURE__ */ new Map();
+    if (isProductionPlan) {
+      if (!plan.production.assetRoot || plan.production.assetRoot === ".") {
+        throw new ReleaseError(GATE_FAILED, "production plan requires a dedicated assetRoot");
+      }
+      if (!productionConfirmation || productionConfirmation !== actualDigest) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          "production confirmation must exactly match the current plan digest",
+          { planDigest: actualDigest }
+        );
+      }
+    }
+    await evidence.append({ phase: "safety-gate", gate: "action-completeness", status: "started" });
+    const completenessResult = validatePlanActionCompleteness(plan);
+    if (!completenessResult.passed) {
+      await evidence.append({
+        phase: "safety-gate",
+        gate: "action-completeness",
+        status: "failed",
+        failures: completenessResult.details.failures
+      });
+      throw new ReleaseError(
+        GATE_FAILED,
+        `plan action completeness gate failed: ${completenessResult.details.failures.join("; ")}`,
+        { failures: completenessResult.details.failures }
+      );
+    }
+    await evidence.append({ phase: "safety-gate", gate: "action-completeness", status: "passed" });
+    if (isProductionPlan) {
+      await evidence.append({ phase: "safety-gate", gate: "frozen-artifacts", status: "started" });
+      const assetRoot = await resolveFrozenPath(root, plan.production.assetRoot, "production asset root");
+      for (const unit of plan.units) {
+        const frozen = unit.frozenSnapshot;
+        const snapshot = await verifyFrozenSnapshot({
+          root,
+          snapshotPath: frozen.path,
+          expectedDigest: frozen.manifestDigest
+        });
+        verifiedFrozenSnapshots.set(unit.id, snapshot.snapshotDir);
+        assertInsideAssetRoot(assetRoot, snapshot.snapshotDir, "frozen snapshot");
+        const git2 = await verifyFrozenGitRepository({
+          root,
+          gitObjectDir: frozen.gitObjectDir,
+          commit: frozen.commit,
+          tree: frozen.tree,
+          commitTimestamp: frozen.commitTimestamp
+        });
+        assertInsideAssetRoot(assetRoot, git2.gitDir, "frozen git object directory");
+        if (frozen.npm) {
+          const tarball = await verifyFrozenFile({
+            root,
+            filePath: frozen.npm.tarballPath,
+            expectedSha256: frozen.npm.tarballSha256,
+            label: "frozen npm tarball"
+          });
+          assertInsideAssetRoot(assetRoot, tarball.physical, "frozen npm tarball");
+          const npmDistribution = (unit.distributions ?? []).find((item) => item.type === "npm");
+          if (!npmDistribution) {
+            throw new ReleaseError(GATE_FAILED, `unit "${unit.id}" has a frozen npm tarball but no npm distribution`);
+          }
+          await verifyFrozenNpmTarballContract({
+            package: npmDistribution.package,
+            version: unit.targetVersion,
+            tarballPath: frozen.npm.tarballPath,
+            tarballSha256: frozen.npm.tarballSha256,
+            integrity: frozen.npm.integrity
+          }, root);
+        }
+      }
+      await evidence.append({ phase: "safety-gate", gate: "frozen-artifacts", status: "passed" });
+    }
+    if (plan.skillResourceClosure) {
+      await evidence.append({ phase: "safety-gate", gate: "skill-resource-closure", status: "started" });
+      const expectedReceipts = plan.skillResourceClosure.unitReceipts ?? [];
+      if (plan.skillResourceClosure.checkerVersion !== CHECKER_VERSION) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `skill resource closure checker version mismatch: plan=${plan.skillResourceClosure.checkerVersion}, current=${CHECKER_VERSION}`
+        );
+      }
+      if (expectedReceipts.length !== plan.units.length) {
+        throw new ReleaseError(GATE_FAILED, "skill resource closure receipt set does not cover every release unit");
+      }
+      for (const [unitId, snapshotDir] of verifiedFrozenSnapshots) {
+        const expected = expectedReceipts.find((item) => item.unitId === unitId);
+        if (!expected) {
+          throw new ReleaseError(GATE_FAILED, `skill resource closure receipt missing for unit "${unitId}"`);
+        }
+        const closureResult = await checkSkillResourceClosure({
+          snapshotDir,
+          host: "root"
+        });
+        if (closureResult.findings.length > 0) {
+          await evidence.append({
+            phase: "safety-gate",
+            gate: "skill-resource-closure",
+            status: "failed",
+            unitId,
+            findingCount: closureResult.findings.length
+          });
+          throw new ReleaseError(
+            GATE_FAILED,
+            `skill resource closure recheck failed for unit "${unitId}": ${closureResult.findings.length} finding(s)`,
+            { unitId, findings: closureResult.findings }
+          );
+        }
+        const observed = createSkillResourceClosureReceipt(closureResult, { unitId });
+        assertSkillResourceClosureReceipt(expected, observed, `unit "${unitId}"`);
+      }
+      await evidence.append({
+        phase: "safety-gate",
+        gate: "skill-resource-closure",
+        status: "passed",
+        receiptCount: expectedReceipts.length,
+        recheckedReceiptCount: verifiedFrozenSnapshots.size
+      });
+    }
+    await evidence.append({ phase: "safety-gate", gate: "approval-load", status: "started" });
+    let approvalRaw;
+    try {
+      approvalRaw = await readFile23(approvalPath, "utf8");
+    } catch (err) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `cannot read approval record: ${err.message}`,
+        { approvalPath, cause: err.code }
+      );
+    }
+    let approval;
+    try {
+      approval = JSON.parse(approvalRaw);
+    } catch (err) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `approval record is not valid JSON: ${err.message}`,
+        { approvalPath }
+      );
+    }
+    const approvalDigest = assertImmutableApprovalAuthority(approvalPath, plan, approvalRaw) ?? computeApprovalDigest(approvalRaw);
+    validateApprovalRecordSchema(approval);
+    validateApproval(plan, approval, { clock: clockFn });
+    await evidence.append({ phase: "safety-gate", gate: "approval-validated", status: "passed" });
+    await evidence.append({ phase: "safety-gate", gate: "adapter-availability", status: "started" });
+    for (const action of plan.externalActions) {
+      const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
+      if (!adapterActionType) {
+        continue;
+      }
+      try {
+        adapterRegistry.getAdapter(adapterActionType);
+      } catch {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `no adapter registered for action type "${adapterActionType}" (plan action "${action.id}")`,
+          { actionId: action.id, adapterActionType }
+        );
+      }
+    }
+    await evidence.append({ phase: "safety-gate", gate: "adapter-availability", status: "passed" });
+    await evidence.append({ phase: "safety-gate", gate: "baseline-check", status: "started" });
+    if (plan.production?.mode === "github-npm-v1" && plan.baseline?.workspaceDigestAlgorithm !== WORKSPACE_DIGEST_ALGORITHM) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `production plan workspace digest algorithm is missing or obsolete; re-run prepare (expected ${WORKSPACE_DIGEST_ALGORITHM})`,
+        { expected: WORKSPACE_DIGEST_ALGORITHM, actual: plan.baseline?.workspaceDigestAlgorithm ?? null }
+      );
+    }
+    const currentBaseline = await captureBaselineActual(root);
+    const planV2 = plan.planVersion === 2;
+    if (currentBaseline.gitTreeHash !== plan.baseline.gitTreeHash) {
+      if (planV2) {
+        await evidence.append({
+          phase: "safety-gate",
+          gate: "baseline-check",
+          status: "warning",
+          severity: "warning",
+          reason: "planVersion 2: baseline drift is record-layer audit data; frozen-artifact re-verification remains the integrity authority",
+          planTreeHash: plan.baseline.gitTreeHash,
+          currentTreeHash: currentBaseline.gitTreeHash
+        });
+      } else {
+        await evidence.append({
+          phase: "safety-gate",
+          gate: "baseline-check",
+          status: "failed",
+          planTreeHash: plan.baseline.gitTreeHash,
+          currentTreeHash: currentBaseline.gitTreeHash
+        });
+        throw new ReleaseError(
+          BASELINE_CHANGED,
+          `baseline has changed since plan freeze: plan=${plan.baseline.gitTreeHash}, current=${currentBaseline.gitTreeHash}`,
+          { planTreeHash: plan.baseline.gitTreeHash, currentTreeHash: currentBaseline.gitTreeHash }
+        );
+      }
+    }
+    if (plan.baseline.workspaceDigest && currentBaseline.workspaceDigest !== plan.baseline.workspaceDigest) {
+      if (planV2) {
+        await evidence.append({
+          phase: "safety-gate",
+          gate: "baseline-check",
+          status: "warning",
+          severity: "warning",
+          reason: "planVersion 2: workspace digest drift is record-layer audit data; frozen-artifact re-verification remains the integrity authority",
+          planWorkspaceDigest: plan.baseline.workspaceDigest,
+          currentWorkspaceDigest: currentBaseline.workspaceDigest
+        });
+      } else {
+        await evidence.append({
+          phase: "safety-gate",
+          gate: "baseline-check",
+          status: "failed",
+          planWorkspaceDigest: plan.baseline.workspaceDigest,
+          currentWorkspaceDigest: currentBaseline.workspaceDigest
+        });
+        throw new ReleaseError(
+          BASELINE_CHANGED,
+          `workspace digest has changed since plan freeze: plan=${plan.baseline.workspaceDigest}, current=${currentBaseline.workspaceDigest}`,
+          { planWorkspaceDigest: plan.baseline.workspaceDigest, currentWorkspaceDigest: currentBaseline.workspaceDigest }
+        );
+      }
+    }
+    await evidence.append({
+      phase: "safety-gate",
+      gate: "baseline-check",
+      status: "passed",
+      gitTreeHash: currentBaseline.gitTreeHash
+    });
+    {
+      const defaultPpbObserveFn = /* @__PURE__ */ __name(async (repo, ref, expectedCommit, { githubHost = "github.com" } = {}) => {
+        try {
+          const { execFile: eCb } = await import("node:child_process");
+          const { promisify: p } = await import("node:util");
+          const ef = p(eCb);
+          const host = githubHost || "github.com";
+          const { stdout } = await ef("git", ["ls-remote", `https://${host}/${repo}.git`, ref], {
+            shell: false,
+            encoding: "utf8",
+            timeout: 3e4
+          });
+          const lines = stdout.trim().split("\n").filter((l) => l.length > 0);
+          if (lines.length === 0) return { status: "drifted", actual: null, diff: "ref not found on remote" };
+          const [remoteCommit] = lines[0].split("	");
+          if (remoteCommit === expectedCommit) return { status: "consistent", actual: remoteCommit };
+          return { status: "drifted", actual: remoteCommit, diff: "expected " + expectedCommit + ", got " + remoteCommit };
+        } catch (err) {
+          return { status: "unknown", error: err.message };
+        }
+      }, "defaultPpbObserveFn");
+      const ppbObserveFn = observePreviousPublicBaselineFn ?? defaultPpbObserveFn;
+      for (const unit of plan.units ?? []) {
+        const unitPpb = unit.previousPublicBaseline;
+        if (!unitPpb) {
+          if (isProductionPlan) {
+            await evidence.append({
+              phase: "safety-gate",
+              gate: "previous-public-baseline",
+              unitId: unit.id,
+              status: "failed",
+              error: "missing previousPublicBaseline on unit"
+            });
+            throw new ReleaseError(
+              GATE_FAILED,
+              `unit "${unit.id}" missing previousPublicBaseline in plan; cannot proceed`,
+              { gate: "previous-public-baseline", unitId: unit.id }
+            );
+          }
+          continue;
+        }
+        const githubHost = unit.productionConfig?.githubHost ?? "github.com";
+        assertPreviousPublicBaselineTarget({
+          baseline: unitPpb,
+          githubHost,
+          publicRepo: unit.publicRepo,
+          requireHost: isProductionPlan
+        });
+        if (unitPpb.mode === "none") {
+          await evidence.append({
+            phase: "safety-gate",
+            gate: "previous-public-baseline",
+            unitId: unit.id,
+            status: "passed",
+            reason: "fresh repository"
+          });
+          continue;
+        }
+        if (unitPpb.status !== "consistent") {
+          await evidence.append({
+            phase: "safety-gate",
+            gate: "previous-public-baseline",
+            unitId: unit.id,
+            status: "failed",
+            unitStatus: unitPpb.status,
+            error: `unit "${unit.id}" previous public baseline status is "${unitPpb.status}", expected "consistent"`
+          });
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}" previous public baseline not consistent (status: ${unitPpb.status}); all adapter execute blocked`,
+            { gate: "previous-public-baseline", unitId: unit.id, unitStatus: unitPpb.status }
+          );
+        }
+        await evidence.append({
+          phase: "safety-gate",
+          gate: "previous-public-baseline",
+          unitId: unit.id,
+          status: "started"
+        });
+        const reObserveResult = await reObservePreviousPublicBaseline({
+          baseline: unitPpb,
+          observeFn: ppbObserveFn,
+          evidence
+        });
+        if (!reObserveResult.consistent) {
+          await evidence.append({
+            phase: "safety-gate",
+            gate: "previous-public-baseline",
+            unitId: unit.id,
+            status: "failed",
+            error: reObserveResult.error
+          });
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}": ${reObserveResult.error ?? "previous public baseline changed since plan freeze"}`,
+            { gate: "previous-public-baseline", unitId: unit.id }
+          );
+        }
+        await evidence.append({
+          phase: "safety-gate",
+          gate: "previous-public-baseline",
+          unitId: unit.id,
+          status: "passed"
+        });
+      }
+    }
+    let sourceAuthorityReceipt = null;
+    if (plan.sourceAuthority) {
+      await evidence.append({ phase: "safety-gate", gate: "source-authority", status: "started" });
+      const sa = plan.sourceAuthority;
+      const frozenClosure = {
+        algorithmVersion: sa.algorithmVersion,
+        digest: sa.inputDigest,
+        entries: sa.entries
+      };
+      const remoteResult = await verifyRemoteSourceContent({
+        sourceRepository: sa.sourceRepository,
+        defaultBranch: sa.defaultBranch,
+        closure: frozenClosure,
+        readRemoteFn: options.readRemoteSourceFn
+      });
+      if (!remoteResult.passed) {
+        const errorCode = remoteResult.error?.code ?? GATE_FAILED;
+        await evidence.append({
+          phase: "safety-gate",
+          gate: "source-authority",
+          status: "failed",
+          error: remoteResult.error
+        });
+        throw new ReleaseError(
+          errorCode,
+          `source authority content gate failed: ${remoteResult.error?.message}`,
+          remoteResult.error
+        );
+      }
+      sourceAuthorityReceipt = createSourceAuthorityReceipt({
+        plan,
+        result: "CONSISTENT",
+        observation: remoteResult.observation,
+        clock: clockFn
+      });
+      await evidence.append({
+        phase: "safety-gate",
+        gate: "source-authority",
+        status: "passed",
+        sourceRepository: sa.sourceRepository,
+        defaultBranch: sa.defaultBranch
+      });
+    }
+    if (isProductionPlan && plan.status === "PREPARED") {
+      assertTransition("PREPARED", "APPROVED");
+      assertTransition("APPROVED", PUBLISHING);
+    } else {
+      assertTransition(plan.status, PUBLISHING);
+    }
+    const publishingPlan = deepClone(plan);
+    publishingPlan.status = PUBLISHING;
+    const orderedActions = sortActionsByCheckpointOrder(publishingPlan.externalActions);
+    const remoteWriteActions = orderedActions.filter((a) => !isMarketplaceAction(a.type));
+    await evidence.append({ phase: "safety-gate", gate: "global-preflight", status: "started" });
+    for (const action of remoteWriteActions) {
+      if (action.type === "write-remote-identifier") continue;
+      const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
+      if (!adapterActionType) continue;
+      const adapter = adapterRegistry.getAdapter(adapterActionType);
+      const preflightContext = {
+        externalWritesAuthorized: false,
+        plan: publishingPlan,
+        baseline: plan.baseline,
+        root,
+        runDir
+      };
+      const preflightResult = await adapter.preflight(
+        { actionType: adapterActionType, ...action.parameters },
+        preflightContext
+      );
+      if (preflightResult.status === "PREFLIGHT_FAILED") {
+        if (hasExpected(action.expected)) {
+          let arbitration;
+          try {
+            arbitration = await adapter.observe(
+              { actionType: adapterActionType, ...action.parameters, expected: action.expected },
+              preflightContext
+            );
+          } catch (error) {
+            arbitration = { observation: null, error: error?.message ?? String(error) };
+          }
+          const verdict = classifyPreObservation(action, arbitration);
+          await evidence.append({
+            phase: "global-preflight-arbitration",
+            actionId: action.id,
+            actionType: action.type,
+            status: "pre-observe",
+            details: { preObserve: verdict, preflightError: preflightResult.error ?? null }
+          });
+          if (verdict === PRE_OBSERVE.CONSISTENT) {
+            continue;
+          }
+        }
+        throw new ReleaseError(
+          GATE_FAILED,
+          `global preflight failed for action "${action.id}": ${preflightResult.error}`,
+          { actionId: action.id, actionType: action.type }
+        );
+      }
+    }
+    await evidence.append({ phase: "safety-gate", gate: "global-preflight", status: "passed" });
+    const runPath = join20(runDir, "release-run.json");
+    const checkpoints = orderedActions.map((action) => {
+      if (isMarketplaceAction(action.type)) {
+        return {
+          actionId: action.id,
+          actionType: action.type,
+          status: "DEFERRED",
+          phase: "post-publish-verification",
+          reason: CONSUMER_VERIFICATION_DEFERRED
+        };
+      }
+      return {
+        actionId: action.id,
+        actionType: action.type,
+        status: "PENDING",
+        error: null
+      };
+    });
+    const startedAt = clockFn();
+    const buildPersistedState = /* @__PURE__ */ __name((status = PUBLISHING, finishedAt2) => ({
+      runId,
+      command: "publish",
+      planDigest: plan.digest,
+      planPath,
+      approvalDigest,
+      approvalPath,
+      status,
+      checkpoints: checkpoints.map((checkpoint) => ({
+        actionId: checkpoint.actionId,
+        actionType: checkpoint.actionType,
+        status: checkpoint.status === "SUCCEEDED" ? "succeeded" : checkpoint.status === "FAILED" ? "failed" : checkpoint.status === "UNCERTAIN" ? "uncertain" : checkpoint.status === "SKIPPED" ? "skipped" : checkpoint.status === "DEFERRED" ? "deferred" : "pending",
+        ...checkpoint.preObserve ? { preObserve: checkpoint.preObserve } : {},
+        ...checkpoint.postObserve ? { postObserve: checkpoint.postObserve } : {},
+        ...checkpoint.error ? { error: { code: "GATE_FAILED", message: checkpoint.error } } : {},
+        ...checkpoint.reason === CONSUMER_VERIFICATION_DEFERRED ? { reason: CONSUMER_VERIFICATION_DEFERRED, phase: checkpoint.phase ?? "post-publish-verification" } : {}
+      })),
+      startedAt,
+      ...sourceAuthorityReceipt ? { sourceAuthorityReceipts: [sourceAuthorityReceipt] } : {},
+      ...finishedAt2 ? { finishedAt: finishedAt2 } : {}
+    }), "buildPersistedState");
+    let stateSequence = 0;
+    let latestState = await appendRunState(runDir, stateSequence, buildPersistedState());
+    await evidence.append({
+      phase: "publish",
+      status: "started",
+      checkpointCount: orderedActions.length,
+      prePersistedRunPath: latestState.statePath
+    });
+    const checkpointByActionId = new Map(checkpoints.map((cp2) => [cp2.actionId, cp2]));
+    const { tiers, unknown } = groupActionsByTier(remoteWriteActions);
+    let stopped = false;
+    if (unknown.length > 0) {
+      for (const action of unknown) {
+        const checkpoint = checkpointByActionId.get(action.id);
+        checkpoint.status = "FAILED";
+        checkpoint.error = `Unknown action type not present in the dependency tier table: ${action.type}`;
+        action.status = "FAILED";
+        await evidence.append({
+          phase: "checkpoint",
+          actionId: action.id,
+          actionType: action.type,
+          status: "failed",
+          error: checkpoint.error
+        });
+      }
+      stopped = true;
+      stateSequence += 1;
+      latestState = await appendRunState(runDir, stateSequence, buildPersistedState(PARTIAL));
+    }
+    for (let tierIndex = 0; tierIndex < tiers.length && !stopped; tierIndex += 1) {
+      const tierActions = tiers[tierIndex];
+      if (tierActions.length === 0) continue;
+      const tierCheckpoints = tierActions.map((action) => checkpointByActionId.get(action.id));
+      for (let i = 0; i < tierActions.length; i += 1) {
+        tierCheckpoints[i].status = "UNCERTAIN";
+        await evidence.append({
+          phase: "checkpoint",
+          actionId: tierActions[i].id,
+          actionType: tierActions[i].type,
+          status: "started",
+          details: { tier: tierIndex }
+        });
+      }
+      stateSequence += 1;
+      latestState = await appendRunState(runDir, stateSequence, buildPersistedState(PARTIAL));
+      const results = await Promise.all(tierActions.map(async (action) => {
+        const isMarketplace = isMarketplaceAction(action.type);
+        const actionContext = {
+          externalWritesAuthorized: !isMarketplace,
+          isolatedConsumerWritesAuthorized: isMarketplace,
+          plan: publishingPlan,
+          baseline: plan.baseline,
+          root,
+          runDir,
+          evidence,
+          observeRetrySleep
+        };
+        try {
+          return await executeCheckpoint(action, adapterRegistry, actionContext);
+        } catch (error) {
+          return { actionId: action.id, status: "UNCERTAIN", error: `checkpoint threw: ${error.message}` };
+        }
+      }));
+      let tierFailed = false;
+      for (let i = 0; i < tierActions.length; i += 1) {
+        const action = tierActions[i];
+        const checkpoint = tierCheckpoints[i];
+        const result = results[i];
+        checkpoint.status = result.status;
+        checkpoint.error = result.error;
+        if (result.preObserve) checkpoint.preObserve = result.preObserve;
+        if (result.postObserve) checkpoint.postObserve = result.postObserve;
+        action.status = result.status;
+        await evidence.append({
+          phase: "checkpoint",
+          actionId: action.id,
+          actionType: action.type,
+          status: result.status === "SUCCEEDED" || result.status === "SKIPPED" ? "completed" : "failed",
+          error: result.error,
+          details: { tier: tierIndex, ...result.status === "SKIPPED" ? { skipped: true } : {} }
+        });
+        if (result.status !== "SUCCEEDED" && result.status !== "SKIPPED") {
+          tierFailed = true;
+        }
+      }
+      stateSequence += 1;
+      latestState = await appendRunState(runDir, stateSequence, buildPersistedState(PARTIAL));
+      if (tierFailed) {
+        stopped = true;
+      }
+    }
+    {
+      const remoteWriteCps = checkpoints.filter((cp2) => isRemoteWriteAction(cp2.actionType));
+      const allRemoteConsistent = remoteWriteCps.every(
+        (cp2) => cp2.status === "SUCCEEDED" || cp2.status === "SKIPPED"
+      );
+      if (allRemoteConsistent) {
+        await evidence.append({ phase: "safety-gate", gate: "final-branch-consistency", status: "started" });
+        for (let index = 0; index < orderedActions.length; index += 1) {
+          const action = orderedActions[index];
+          if (!["push-snapshot", "set-default-branch"].includes(action.type)) continue;
+          const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
+          const adapter = adapterRegistry.getAdapter(adapterActionType);
+          let observed;
+          try {
+            observed = await adapter.observe(
+              { actionType: adapterActionType, ...action.parameters, expected: action.expected },
+              { externalWritesAuthorized: false, plan: publishingPlan, baseline: plan.baseline, root, runDir }
+            );
+          } catch (error) {
+            observed = { observation: null, error: error.message };
+          }
+          const observation = observed?.observation;
+          const observable = observation && !(observed.error && Object.keys(observation).length === 0);
+          const comparison = observable ? matchObservation(action.expected ?? {}, observation) : { matches: false, mismatches: [] };
+          if (!comparison.matches) {
+            checkpoints[index].status = observable ? "FAILED" : "UNCERTAIN";
+            checkpoints[index].error = observable ? `final branch consistency mismatch: ${comparison.mismatches.join("; ")}` : `final branch consistency unobservable: ${observed?.error ?? "empty observation"}`;
+            await evidence.append({
+              phase: "safety-gate",
+              gate: "final-branch-consistency",
+              status: "failed",
+              actionId: action.id,
+              error: checkpoints[index].error
+            });
+            break;
+          }
+        }
+        const freshRemoteCps = checkpoints.filter((cp2) => isRemoteWriteAction(cp2.actionType));
+        if (freshRemoteCps.every((cp2) => cp2.status === "SUCCEEDED" || cp2.status === "SKIPPED")) {
+          await evidence.append({ phase: "safety-gate", gate: "final-branch-consistency", status: "passed" });
+        }
+      }
+    }
+    const remoteWriteCheckpointsFinal = checkpoints.filter((cp2) => isRemoteWriteAction(cp2.actionType));
+    const remoteWriteAllSucceeded = remoteWriteCheckpointsFinal.every(
+      (cp2) => cp2.status === "SUCCEEDED" || cp2.status === "SKIPPED"
+    );
+    const remoteWriteHasFailure = remoteWriteCheckpointsFinal.some(
+      (cp2) => cp2.status === "FAILED" || cp2.status === "UNCERTAIN"
+    );
+    let overallStatus;
+    if (remoteWriteAllSucceeded) {
+      overallStatus = PUBLISHED;
+      publishingPlan.status = PUBLISHED;
+    } else if (remoteWriteHasFailure) {
+      overallStatus = PARTIAL;
+      publishingPlan.status = overallStatus;
+    } else {
+      overallStatus = PUBLISHING;
+      publishingPlan.status = PUBLISHING;
+    }
+    assertTransition(PUBLISHING, publishingPlan.status);
+    await evidence.append({
+      phase: "publish",
+      status: "completed",
+      overallStatus,
+      checkpointStatuses: checkpoints.map((cp2) => cp2.status)
+    });
+    const finishedAt = clockFn();
+    stateSequence += 1;
+    latestState = await appendRunState(
+      runDir,
+      stateSequence,
+      buildPersistedState(overallStatus, finishedAt)
+    );
+    const finalRunState = await writeRunAtomic(
+      runPath,
+      buildPersistedState(overallStatus, finishedAt)
+    );
+    await evidence.finish({
+      status: overallStatus,
+      planPath,
+      runPath,
+      finalRunDigest: finalRunState.runDigest,
+      latestStatePath: latestState.statePath,
+      checkpointStatuses: checkpoints.map((cp2) => cp2.status),
+      finishedAt: clockFn()
+    });
+    return { planPath, runPath, status: overallStatus, checkpoints };
+  } catch (err) {
+    await evidence.append({
+      phase: "publish",
+      status: "failed",
+      error: { code: err.code, message: err.message }
+    });
+    await evidence.finish({
+      status: "FAILED",
+      error: { code: err.code, message: err.message },
+      failedAt: clockFn()
+    });
+    throw err;
+  }
+}
+var PRE_OBSERVE;
+var init_publish = __esm({
+  async "src/commands/publish.mjs"() {
+    await init_plan();
+    await init_approval();
+    init_baseline();
+    init_previous_public_baseline();
+    init_evidence();
+    init_skill_resource_closure();
+    init_checkpoints();
+    await init_run();
+    init_errors();
+    init_source_authority();
+    init_state_machine();
+    init_contract();
+    init_observe_retry();
+    init_frozen();
+    init_npm();
+    __name(assertInsideAssetRoot, "assertInsideAssetRoot");
+    __name(defaultClock3, "defaultClock");
+    __name(deepClone, "deepClone");
+    PRE_OBSERVE = Object.freeze({
+      CONSISTENT: "CONSISTENT",
+      MISSING: "MISSING",
+      CONFLICTING: "CONFLICTING",
+      UNOBSERVABLE: "UNOBSERVABLE"
+    });
+    __name(hasExpected, "hasExpected");
+    __name(classifyPreObservation, "classifyPreObservation");
+    __name(executeCheckpoint, "executeCheckpoint");
+    __name(publishRelease, "publishRelease");
+  }
+});
+
 // src/commands/reconcile.mjs
 var reconcile_exports = {};
 __export(reconcile_exports, {
   reconcileRelease: () => reconcileRelease
 });
-import { readFile as readFile23, mkdir as mkdir12 } from "node:fs/promises";
-import { join as join20 } from "node:path";
-function defaultClock3() {
+import { readFile as readFile24, mkdir as mkdir14 } from "node:fs/promises";
+import { join as join21 } from "node:path";
+function defaultClock4() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
 async function reconcileRelease(options) {
@@ -82970,7 +84013,7 @@ async function reconcileRelease(options) {
     observePreviousPublicBaselineFn,
     observeRetrySleep
   } = options ?? {};
-  const clockFn = typeof clockOpt === "function" ? clockOpt : defaultClock3;
+  const clockFn = typeof clockOpt === "function" ? clockOpt : defaultClock4;
   const captureBaselineActual = typeof captureBaselineFn === "function" ? captureBaselineFn : captureBaseline;
   if (!sourceRunPath) {
     throw new ReleaseError(
@@ -82981,7 +84024,7 @@ async function reconcileRelease(options) {
   }
   let planRaw;
   try {
-    planRaw = await readFile23(planPath, "utf8");
+    planRaw = await readFile24(planPath, "utf8");
   } catch (err) {
     throw new ReleaseError(GATE_FAILED, `cannot read release plan: ${err.message}`, { planPath, cause: err.code });
   }
@@ -82999,7 +84042,7 @@ async function reconcileRelease(options) {
   if (isProductionPlan) {
     runDir = await createProductionRunDir(runDir, planPath);
   } else {
-    await mkdir12(runDir, { recursive: true });
+    await mkdir14(runDir, { recursive: true });
   }
   const evidence = createEvidenceWriter({ runDir, command: "reconcile", clock: clockFn });
   try {
@@ -83103,7 +84146,7 @@ async function reconcileRelease(options) {
           { sourceRunId: sourceRun.runId }
         );
       }
-      const sourceApprovalRaw = await readFile23(consumedApprovalPath, "utf8").catch((error) => {
+      const sourceApprovalRaw = await readFile24(consumedApprovalPath, "utf8").catch((error) => {
         throw new ReleaseError(GATE_FAILED, "source run approval authority is unavailable", {
           sourceRunId: sourceRun.runId,
           cause: error.code
@@ -83220,9 +84263,9 @@ async function reconcileRelease(options) {
     });
     const defaultPpbObserveFn = /* @__PURE__ */ __name(async (repo, ref, expectedCommit, { githubHost = "github.com" } = {}) => {
       try {
-        const { execFile: execFile17 } = await import("node:child_process");
-        const { promisify: promisify18 } = await import("node:util");
-        const { stdout } = await promisify18(execFile17)(
+        const { execFile: execFile18 } = await import("node:child_process");
+        const { promisify: promisify19 } = await import("node:util");
+        const { stdout } = await promisify19(execFile18)(
           "git",
           ["ls-remote", `https://${githubHost}/${repo}.git`, ref],
           { shell: false, encoding: "utf8", timeout: 3e4 }
@@ -83280,7 +84323,7 @@ async function reconcileRelease(options) {
     if (approvalPath) {
       let approvalRaw;
       try {
-        approvalRaw = await readFile23(approvalPath, "utf8");
+        approvalRaw = await readFile24(approvalPath, "utf8");
       } catch (err) {
         throw new ReleaseError(
           GATE_FAILED,
@@ -83900,7 +84943,7 @@ async function reconcileRelease(options) {
         ...normalized === "deferred" ? { reason: CONSUMER_VERIFICATION_DEFERRED, phase: "post-publish-verification" } : {}
       };
     });
-    const runPath = join20(runDir, "release-run.json");
+    const runPath = join21(runDir, "release-run.json");
     const sourceRunDigest = sourceAuthorityDigest;
     const runState = {
       runId,
@@ -83974,8 +85017,1808 @@ var init_reconcile = __esm({
     init_contract();
     init_observe_retry();
     init_npm();
-    __name(defaultClock3, "defaultClock");
+    __name(defaultClock4, "defaultClock");
     __name(reconcileRelease, "reconcileRelease");
+  }
+});
+
+// src/commands/verify.mjs
+var verify_exports = {};
+__export(verify_exports, {
+  VERIFICATION_RESOLVED_TYPES: () => VERIFICATION_RESOLVED_TYPES,
+  runSmokeTest: () => runSmokeTest,
+  verifyRelease: () => verifyRelease
+});
+import { readFile as readFile25, writeFile as writeFile8, mkdtemp as mkdtemp4, rm as rm8, mkdir as mkdir15, lstat as lstat15, realpath as realpath14, readdir as readdir13 } from "node:fs/promises";
+import { realpathSync as realpathSync4 } from "node:fs";
+import { dirname as dirname13, join as join22, relative as relative24, isAbsolute as isAbsolute20, resolve as resolve27, basename as basename8 } from "node:path";
+import { tmpdir as tmpdir4 } from "node:os";
+import { execFile as execFileCb10 } from "node:child_process";
+import { promisify as promisify10 } from "node:util";
+function defaultClock5() {
+  return (/* @__PURE__ */ new Date()).toISOString();
+}
+function isValidDigest2(digest) {
+  return typeof digest === "string" && /^[a-f0-9]{64}$/.test(digest);
+}
+async function collectMissingManualAttestations({
+  actions,
+  adapterRegistry,
+  plan,
+  root,
+  runDir,
+  clockFn
+}) {
+  const manual = actions.filter((action) => action.type === "kimi-marketplace-install" || action.type === "codebuddy-marketplace-install");
+  if (manual.length === 0) return [];
+  const missing = [];
+  for (const action of manual) {
+    const adapterActionType = ADAPTER_ACTION_TYPE_MAP2[action.type];
+    const adapter = adapterRegistry.getAdapter(adapterActionType);
+    if (adapter.name !== "plugin-marketplace") continue;
+    const context = {
+      externalWritesAuthorized: false,
+      isolatedConsumerWritesAuthorized: true,
+      plan,
+      baseline: plan.baseline,
+      root,
+      runDir
+    };
+    const actionInput = { actionType: adapterActionType, ...action.parameters };
+    const preflight = await adapter.preflight(actionInput, context);
+    if (preflight.status !== "PREFLIGHT_PASSED") {
+      throw new ReleaseError(
+        POST_PUBLISH_VERIFY_FAILED,
+        `manual consumer preflight did not pass for action "${action.id}": ${preflight.error}`,
+        { actionId: action.id, platform: action.type.split("-")[0] }
+      );
+    }
+    const executed = await adapter.execute(actionInput, context);
+    if (executed.status !== "EXECUTED") {
+      throw new ReleaseError(
+        POST_PUBLISH_VERIFY_FAILED,
+        `cannot generate manual consumer requirement for action "${action.id}": ${executed.error}`,
+        { actionId: action.id, platform: action.type.split("-")[0] }
+      );
+    }
+    const isKimi = action.type === "kimi-marketplace-install";
+    const planDigest = isKimi ? resolveBoundPlanDigest(context) : await resolveCodeBuddyBoundPlanDigest(context);
+    const authorityDir = isKimi ? kimiAuthorityDir(context, planDigest, action.parameters.plugin) : codebuddyAuthorityDir(context, planDigest, action.parameters.plugin);
+    const requirementPath = join22(
+      authorityDir,
+      isKimi ? KIMI_REQUIREMENT_FILE : CODEBUDDY_REQUIREMENT_FILE
+    );
+    const attestationPath = join22(
+      authorityDir,
+      isKimi ? KIMI_ATTESTATION_FILE : CODEBUDDY_ATTESTATION_FILE
+    );
+    let valid = false;
+    let reason = "attestation file is missing";
+    try {
+      const attestation = JSON.parse(await readFile25(attestationPath, "utf8"));
+      const validation = isKimi ? validateKimiAttestation(attestation, action.parameters, clockFn(), planDigest) : validateCodeBuddyAttestation(attestation, action.parameters, clockFn(), planDigest);
+      valid = validation.valid;
+      reason = validation.error;
+    } catch (error) {
+      if (error?.code !== "ENOENT") reason = `attestation cannot be read: ${error.message}`;
+    }
+    if (!valid) {
+      missing.push({
+        actionId: action.id,
+        platform: isKimi ? "kimi" : "codebuddy",
+        plugin: action.parameters.plugin,
+        version: action.parameters.version,
+        planDigest,
+        requirementPath,
+        attestationPath,
+        reason
+      });
+    }
+  }
+  return missing;
+}
+function matchesSubset2(actual, expected) {
+  if (expected === null || expected === void 0) {
+    return actual === expected;
+  }
+  if (typeof expected !== "object" || Array.isArray(expected)) {
+    return actual === expected;
+  }
+  if (typeof actual !== "object" || actual === null || Array.isArray(actual)) {
+    return false;
+  }
+  for (const key of Object.keys(expected)) {
+    if (!(key in actual) || !matchesSubset2(actual[key], expected[key])) {
+      return false;
+    }
+  }
+  return true;
+}
+async function runSmokeTest(plan, root, options = {}) {
+  const baseDir = options.baseDir ?? tmpdir4();
+  await mkdir15(baseDir, { recursive: true });
+  const tmpDir = await mkdtemp4(join22(baseDir, "verify-smoke-"));
+  const npmExec = options.npmExecutor ?? defaultNpmExecutor;
+  const installFlags = [
+    "--ignore-scripts",
+    "--no-audit",
+    "--no-fund",
+    "--package-lock=false",
+    "--save=false"
+  ];
+  try {
+    const units = plan.units ?? [];
+    const npmDistributions = [];
+    for (const unit of units) {
+      for (const dist of unit.distributions ?? []) {
+        if (dist.type === "npm" && dist.package) {
+          npmDistributions.push({
+            package: dist.package,
+            registry: normalizeRegistry(dist.registry),
+            targetVersion: unit.targetVersion,
+            unitId: unit.id,
+            smokeBin: dist.smokeBin,
+            smokeArgs: dist.smokeArgs ?? [],
+            // The expected `version` is always the unit's resolved
+            // targetVersion (whose source is version.source → package.json),
+            // injected at runtime. A config-declared smokeExpectedJson.version
+            // is redundant and overridden. This keeps the version check strong
+            // without hand-writing the version into project config, so a
+            // version bump never churns configDigest (T2.1 §4.3).
+            smokeExpectedJson: dist.smokeExpectedJson ? { ...dist.smokeExpectedJson, version: unit.targetVersion } : dist.smokeExpectedJson
+          });
+        }
+      }
+    }
+    if (npmDistributions.length === 0) {
+      return {
+        passed: true,
+        skipped: true,
+        details: { message: "No npm distributions in plan; smoke test skipped" },
+        gateResults: [],
+        skillResourceClosureReceipts: []
+      };
+    }
+    const results = [];
+    const gateResults = [];
+    const skillResourceClosureReceipts = [];
+    for (const { package: pkgName, registry, targetVersion, unitId, smokeBin, smokeArgs, smokeExpectedJson } of npmDistributions) {
+      const packageAtVersion = `${pkgName}@${targetVersion}`;
+      const installDir = resolveUnitScopedPath(tmpDir, unitId);
+      await mkdir15(join22(installDir, "node_modules"), { recursive: true });
+      const registryFlags = [...installFlags, "--registry", registry];
+      const installResult = await npmExec.install(
+        packageAtVersion,
+        installDir,
+        registryFlags,
+        { registry }
+      );
+      if (!installResult.success) {
+        return {
+          passed: false,
+          details: {
+            error: `npm install ${packageAtVersion} failed: ${installResult.error}`,
+            packageAtVersion,
+            unitId
+          }
+        };
+      }
+      const installedPkgPath = join22(installDir, "node_modules", pkgName, "package.json");
+      let installedPkg;
+      try {
+        installedPkg = JSON.parse(await readFile25(installedPkgPath, "utf8"));
+      } catch {
+        return {
+          passed: false,
+          details: {
+            error: `Installed package.json not found at ${installedPkgPath}`,
+            packageAtVersion,
+            unitId
+          }
+        };
+      }
+      if (installedPkg.name !== pkgName) {
+        return {
+          passed: false,
+          details: {
+            error: `Installed package name mismatch: expected ${pkgName}, got ${installedPkg.name}`,
+            packageAtVersion,
+            unitId
+          }
+        };
+      }
+      if (installedPkg.version !== targetVersion) {
+        return {
+          passed: false,
+          details: {
+            error: `Installed version mismatch: expected ${targetVersion}, got ${installedPkg.version}`,
+            packageAtVersion,
+            unitId
+          }
+        };
+      }
+      const pkgRoot = join22(installDir, "node_modules", pkgName);
+      {
+        const dirIndex = await buildDirectoryFileIndex(pkgRoot);
+        const closureResult = checkNpmEntryClosure(installedPkg, dirIndex);
+        if (closureResult.errors.length > 0) {
+          return {
+            passed: false,
+            details: {
+              gate: "npm-entry-closure",
+              error: `npm entry closure check failed for ${packageAtVersion}: ${closureResult.errors.map((e) => e.message).join("; ")}`,
+              packageAtVersion,
+              unitId,
+              entries: closureResult.entries,
+              errors: closureResult.errors,
+              diagnostics: closureResult.diagnostics
+            }
+          };
+        }
+      }
+      if (plan.skillResourceClosure) {
+        const expectedUnitReceipt = plan.skillResourceClosure.unitReceipts.find((item) => item.unitId === unitId);
+        if (!expectedUnitReceipt) {
+          return {
+            passed: false,
+            details: { error: `Skill resource closure receipt missing for npm unit "${unitId}"` }
+          };
+        }
+        const closureResult = await checkSkillResourceClosure({
+          snapshotDir: pkgRoot,
+          host: "npm"
+        });
+        if (closureResult.findings.length > 0) {
+          return {
+            passed: false,
+            details: {
+              error: `Skill resource closure failed for ${packageAtVersion}`,
+              findings: closureResult.findings
+            }
+          };
+        }
+        if (expectedUnitReceipt.skillCount > 0 && closureResult.skillCount === 0) {
+          return {
+            passed: false,
+            details: {
+              error: `Installed npm package ${packageAtVersion} contains no skills`
+            }
+          };
+        }
+        skillResourceClosureReceipts.push(createSkillResourceClosureReceipt(
+          closureResult,
+          {
+            unitId,
+            distribution: "npm",
+            host: "npm",
+            checkedAt: (/* @__PURE__ */ new Date()).toISOString(),
+            exitCode: 0
+          }
+        ));
+      }
+      gateResults.push(...await runConsumerVerificationGates({
+        plan,
+        unitId,
+        distribution: "npm",
+        executionRoot: pkgRoot,
+        evidence: options.evidence,
+        env: options.gateEnv ?? process.env,
+        fixedEnv: { HOME: installDir }
+      }));
+      if (!smokeBin) {
+        results.push({
+          packageName: pkgName,
+          version: targetVersion,
+          packageAtVersion,
+          unitId,
+          cliSmoke: "not-configured"
+        });
+        continue;
+      }
+      const binMapping = installedPkg.bin;
+      if (!binMapping) {
+        return {
+          passed: false,
+          details: {
+            error: `Installed package ${packageAtVersion} has no bin field; smokeBin "${smokeBin}" requested`,
+            packageAtVersion,
+            unitId
+          }
+        };
+      }
+      const binRelative = typeof binMapping === "string" ? binMapping : binMapping[smokeBin];
+      if (typeof binRelative !== "string" || binRelative.length === 0) {
+        return {
+          passed: false,
+          details: {
+            error: `Installed package ${packageAtVersion} does not expose bin "${smokeBin}"`,
+            packageAtVersion,
+            unitId
+          }
+        };
+      }
+      const binPath = resolve27(pkgRoot, binRelative);
+      const relBin = relative24(pkgRoot, binPath);
+      const sep7 = process.platform === "win32" ? "\\" : "/";
+      if (isAbsolute20(relBin) || relBin === ".." || relBin.startsWith(`..${sep7}`)) {
+        return {
+          passed: false,
+          details: {
+            error: `Bin path escapes package root: ${binPath}`,
+            packageAtVersion,
+            unitId
+          }
+        };
+      }
+      let binStat;
+      try {
+        binStat = await lstat15(binPath);
+        const [pkgRootReal, binPathReal] = await Promise.all([realpath14(pkgRoot), realpath14(binPath)]);
+        const relReal = relative24(pkgRootReal, binPathReal);
+        if (!binStat.isFile() || binStat.isSymbolicLink() || isAbsolute20(relReal) || relReal === ".." || relReal.startsWith(`..${sep7}`)) {
+          throw new Error("bin is not a regular file inside the installed package");
+        }
+      } catch (err) {
+        return {
+          passed: false,
+          details: {
+            error: `Invalid installed bin for ${packageAtVersion}: ${err.message}`,
+            packageAtVersion,
+            unitId
+          }
+        };
+      }
+      const cliArgs = smokeArgs.length > 0 ? smokeArgs : [];
+      let binResult;
+      try {
+        binResult = await npmExec.runBin(binPath, cliArgs, {
+          cwd: pkgRoot,
+          env: {
+            HOME: installDir,
+            TMPDIR: installDir,
+            TEMP: installDir,
+            TMP: installDir,
+            PATH: dirname13(process.execPath),
+            CI: "1"
+          }
+        });
+      } catch (binErr) {
+        return {
+          passed: false,
+          details: {
+            error: `CLI smoke execution failed for ${packageAtVersion}: ${binErr.message}`,
+            packageAtVersion,
+            unitId
+          }
+        };
+      }
+      if (binResult.exitCode !== 0 && binResult.exitCode !== void 0) {
+        return {
+          passed: false,
+          details: {
+            error: `CLI smoke exited with code ${binResult.exitCode} for ${packageAtVersion}`,
+            packageAtVersion,
+            unitId
+          }
+        };
+      }
+      if (smokeExpectedJson) {
+        let parsedOutput;
+        try {
+          parsedOutput = JSON.parse(binResult.stdout);
+        } catch {
+          return {
+            passed: false,
+            details: {
+              error: `CLI smoke returned non-JSON output for ${packageAtVersion}`,
+              packageAtVersion,
+              unitId
+            }
+          };
+        }
+        if (!matchesSubset2(parsedOutput, smokeExpectedJson)) {
+          return {
+            passed: false,
+            details: {
+              error: `CLI smoke JSON output does not match expected fields for ${packageAtVersion}`,
+              packageAtVersion,
+              unitId,
+              expected: smokeExpectedJson,
+              actual: parsedOutput
+            }
+          };
+        }
+      } else {
+        try {
+          JSON.parse(binResult.stdout);
+        } catch {
+          return {
+            passed: false,
+            details: {
+              error: `CLI smoke returned non-JSON output for ${packageAtVersion}`,
+              packageAtVersion,
+              unitId
+            }
+          };
+        }
+      }
+      results.push({
+        packageName: pkgName,
+        version: targetVersion,
+        packageAtVersion,
+        unitId,
+        cliSmoke: "passed"
+      });
+    }
+    return {
+      passed: true,
+      details: {
+        distributions: results,
+        count: results.length
+      },
+      gateResults,
+      skillResourceClosureReceipts
+    };
+  } finally {
+    await rm8(tmpDir, { recursive: true, force: true }).catch(() => {
+    });
+  }
+}
+async function verifyRelease(options) {
+  const {
+    planPath,
+    sourceRunPath,
+    adapterRegistry,
+    root = process.cwd(),
+    runDir: runDirOpt,
+    clock: clockOpt,
+    npmExecutor,
+    verificationGatesAuthorized,
+    gateEnv,
+    previousVerifyRun
+  } = options ?? {};
+  const clockFn = typeof clockOpt === "function" ? clockOpt : defaultClock5;
+  if (!sourceRunPath) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "verify requires a source run path (--run)",
+      { parameter: "sourceRunPath" }
+    );
+  }
+  let planRaw;
+  try {
+    planRaw = await readFile25(planPath, "utf8");
+  } catch (err) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `cannot read release plan: ${err.message}`,
+      { planPath, cause: err.code }
+    );
+  }
+  let plan;
+  try {
+    plan = JSON.parse(planRaw);
+  } catch (err) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `release plan is not valid JSON: ${err.message}`,
+      { planPath }
+    );
+  }
+  validatePlan(plan);
+  if (plan.production?.mode === "github-npm-v1" && !plan.sourceAuthority) {
+    throw new ReleaseError(
+      CONFIG_MISSING,
+      "production verify requires a frozen sourceAuthority binding; the release must be re-prepared before publish",
+      { gate: "source-authority" }
+    );
+  }
+  const runId = `verify-${Date.now()}`;
+  const requestedRunDir = runDirOpt ?? resolveDefaultRunDir(planPath, "verify", runId);
+  const runDir = plan.production ? await createProductionRunDir(requestedRunDir, planPath) : requestedRunDir;
+  if (!plan.production) await mkdir15(runDir, { recursive: true });
+  const evidence = createEvidenceWriter({ runDir, command: "verify", clock: clockFn });
+  try {
+    await evidence.append({ phase: "verify", step: "plan-load", status: "started" });
+    const consumerGates = (plan.verificationGates ?? []).filter((gate) => gate.phase === "consumer-verify");
+    const configuredSmokeBins = (plan.units ?? []).flatMap((unit) => (unit.distributions ?? []).filter((distribution) => distribution.type === "npm" && distribution.smokeBin).map((distribution) => ({ unitId: unit.id, smokeBin: distribution.smokeBin })));
+    if ((consumerGates.length > 0 || configuredSmokeBins.length > 0) && verificationGatesAuthorized !== true) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `plan declares ${consumerGates.length} consumer verification gate(s) and ${configuredSmokeBins.length} npm CLI smoke process(es). They execute installed project code without an OS or network sandbox. To proceed, pass --acknowledge-gate-side-effects (CLI) or verificationGatesAuthorized=true (API).`,
+        { gateIds: consumerGates.map((gate) => gate.id), configuredSmokeBins }
+      );
+    }
+    await evidence.append({ phase: "verify", step: "plan-load", status: "passed" });
+    await evidence.append({ phase: "verify", step: "source-run-load", status: "started" });
+    const sourceRun = await loadRun(sourceRunPath, {
+      requireDigest: Boolean(plan.production),
+      ...plan.production ? { authorityPlanPath: planPath } : {}
+    });
+    await validateRunLineage(sourceRun, {
+      plan,
+      planPath,
+      runPath: sourceRunPath,
+      production: Boolean(plan.production)
+    });
+    if (sourceRun.command !== "publish" && sourceRun.command !== "reconcile") {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `verify only accepts source runs from publish or reconcile; source run command is "${sourceRun.command}"`,
+        { sourceRunCommand: sourceRun.command, sourceRunId: sourceRun.runId }
+      );
+    }
+    if (sourceRun.status !== "PUBLISHED") {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `cannot verify: source run status is "${sourceRun.status}"; expected PUBLISHED (VERIFIED is terminal)`,
+        { sourceRunStatus: sourceRun.status }
+      );
+    }
+    if (plan.production) {
+      if (!sourceRun.approvalPath || !sourceRun.approvalDigest) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          "production verify requires immutable approvalPath and approvalDigest on the source run"
+        );
+      }
+      let approvalRaw;
+      try {
+        approvalRaw = await readFile25(sourceRun.approvalPath, "utf8");
+      } catch (error) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `cannot read source run approval authority: ${error.message}`
+        );
+      }
+      let approval;
+      try {
+        approval = JSON.parse(approvalRaw);
+      } catch (error) {
+        throw new ReleaseError(GATE_FAILED, `source run approval is not valid JSON: ${error.message}`);
+      }
+      validateApprovalRecordSchema(approval);
+      const approvalDigest = assertImmutableApprovalAuthority(
+        sourceRun.approvalPath,
+        plan,
+        approvalRaw
+      );
+      if (approvalDigest !== sourceRun.approvalDigest) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          "source run approvalDigest does not match immutable approval bytes"
+        );
+      }
+      validateApproval(plan, approval, { clock: clockFn, requireUnexpired: false });
+    }
+    const completenessResult = validatePlanActionCompleteness(plan, { legacyCompatibility: true });
+    if (!completenessResult.passed) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `plan action completeness gate failed: ${completenessResult.details.failures.join("; ")}`,
+        { failures: completenessResult.details.failures }
+      );
+    }
+    validateRunCheckpointMapping(sourceRun, plan.externalActions ?? []);
+    if (plan.sourceAuthority) {
+      await evidence.append({ phase: "source-authority-receipt", status: "started" });
+      const receiptResult = verifySourceAuthorityReceipt({ plan, run: sourceRun });
+      if (!receiptResult.passed) {
+        await evidence.append({
+          phase: "source-authority-receipt",
+          status: "failed",
+          reason: receiptResult.reason
+        });
+        throw new ReleaseError(
+          GATE_FAILED,
+          `source authority receipt verification failed: ${receiptResult.reason}`,
+          { reason: receiptResult.reason }
+        );
+      }
+      await evidence.append({ phase: "source-authority-receipt", status: "passed" });
+    }
+    const incompleteCheckpoints = sourceRun.checkpoints.filter(
+      (cp2) => cp2.status !== "succeeded" && cp2.status !== "skipped" && !((cp2.status === "failed" || cp2.status === "deferred") && isMarketplaceAction(cp2.actionType))
+    );
+    if (incompleteCheckpoints.length > 0) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `cannot verify: source run has ${incompleteCheckpoints.length} incomplete checkpoint(s): ${incompleteCheckpoints.map((cp2) => `${cp2.actionId}=${cp2.status}`).join(", ")}`,
+        { incompleteCheckpoints: incompleteCheckpoints.map((cp2) => ({ actionId: cp2.actionId, status: cp2.status })) }
+      );
+    }
+    await evidence.append({
+      phase: "verify",
+      step: "source-run-load",
+      status: "passed",
+      sourceRunId: sourceRun.runId
+    });
+    await evidence.append({ phase: "verify", step: "adapter-verify", status: "started" });
+    const adapterChecks = [];
+    const consumerGateResults = [];
+    const consumerVerificationReceipts = [];
+    const actions = plan.externalActions ?? [];
+    const trustedVerifyRuns = [];
+    const planDir = dirname13(planPath);
+    const releaseDir = basename8(planDir) === "plans" ? dirname13(planDir) : planDir;
+    const runsDir = resolve27(releaseDir, "runs");
+    let runsDirReal = null;
+    let authorityDirReal = null;
+    if (previousVerifyRun) {
+      if (previousVerifyRun.status === "VERIFIED" && isValidDigest2(previousVerifyRun.planDigest) && previousVerifyRun.finishedAt && typeof previousVerifyRun.finishedAt === "string" && !isNaN(Date.parse(previousVerifyRun.finishedAt))) {
+        const computedRunDigest = computeRunDigest(previousVerifyRun);
+        if (typeof previousVerifyRun.runDigest === "string" && previousVerifyRun.runDigest.length > 0 && previousVerifyRun.runDigest === computedRunDigest) {
+          trustedVerifyRuns.push(previousVerifyRun);
+        }
+      }
+    }
+    {
+      try {
+        const runsDirStat = await lstat15(runsDir);
+        if (runsDirStat.isSymbolicLink()) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            "runs directory is a symbolic link; authority identity compromised",
+            { runsDir }
+          );
+        }
+        if (!runsDirStat.isDirectory()) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            "runs path is not a directory",
+            { runsDir }
+          );
+        }
+        runsDirReal = realpathSync4(runsDir);
+        authorityDirReal = realpathSync4(releaseDir);
+        if (!runsDirReal.startsWith(authorityDirReal + "/") && runsDirReal !== authorityDirReal) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            "runs directory is not a real child of the plan authority directory",
+            { runsDir, runsDirReal, authorityDirReal }
+          );
+        }
+      } catch (err) {
+        if (err instanceof ReleaseError) throw err;
+        runsDirReal = null;
+      }
+      if (runsDirReal) {
+        const entries = await readdir13(runsDirReal, { withFileTypes: true });
+        for (const entry of entries) {
+          if (!entry.name.startsWith("verify-")) continue;
+          if (!entry.isDirectory() || entry.isSymbolicLink()) {
+            throw new ReleaseError(
+              GATE_FAILED,
+              "verify-* candidate is a symbolic link or not a directory; authority identity compromised",
+              { entry: entry.name, runsDir: runsDirReal }
+            );
+          }
+          const candidateDir = resolve27(runsDirReal, entry.name);
+          const candidateStat = await lstat15(candidateDir).catch(() => null);
+          if (!candidateStat || candidateStat.isSymbolicLink()) {
+            throw new ReleaseError(
+              GATE_FAILED,
+              "verify-* candidate is a symbolic link; authority identity compromised",
+              { candidateDir, runsDir: runsDirReal }
+            );
+          }
+          const candidateReal = realpathSync4(candidateDir);
+          if (!candidateReal.startsWith(runsDirReal + "/") && candidateReal !== runsDirReal) {
+            throw new ReleaseError(
+              GATE_FAILED,
+              "verify-* candidate real path is not contained in authority runs directory",
+              { candidateDir, candidateReal, runsDir: runsDirReal }
+            );
+          }
+          const candidatePath = resolve27(candidateDir, "release-run.json");
+          try {
+            const candidate = await loadRun(candidatePath, { requireDigest: true });
+            if (candidate.status !== "VERIFIED") continue;
+            if (!candidate.planDigest) continue;
+            if (!candidate.finishedAt || typeof candidate.finishedAt !== "string") continue;
+            trustedVerifyRuns.push(candidate);
+          } catch {
+            continue;
+          }
+        }
+      }
+    }
+    const missingManualAttestations = await collectMissingManualAttestations({
+      actions,
+      adapterRegistry,
+      plan,
+      root,
+      runDir,
+      clockFn
+    });
+    if (missingManualAttestations.length > 0) {
+      await evidence.append({
+        phase: "verify",
+        step: "manual-attestations",
+        status: "needs-input",
+        requirements: missingManualAttestations
+      });
+      throw new ReleaseError(
+        CONSUMER_VERIFICATION_DEFERRED,
+        `${missingManualAttestations.length} manual consumer attestation(s) are required`,
+        { requirements: missingManualAttestations }
+      );
+    }
+    const actionResults = await Promise.allSettled(actions.map(async (action) => {
+      const adapterActionType = ADAPTER_ACTION_TYPE_MAP2[action.type];
+      if (!adapterActionType) {
+        adapterChecks.push({
+          actionId: action.id,
+          actionType: action.type,
+          status: "SKIPPED",
+          reason: "meta-checkpoint"
+        });
+        return;
+      }
+      let adapter;
+      try {
+        adapter = adapterRegistry.getAdapter(adapterActionType);
+      } catch {
+        throw new ReleaseError(
+          POST_PUBLISH_VERIFY_FAILED,
+          `no adapter registered for action type "${adapterActionType}" (plan action "${action.id}")`,
+          { actionId: action.id, adapterActionType }
+        );
+      }
+      if (isMarketplaceAction(action.type)) {
+        const marketplaceContext = {
+          externalWritesAuthorized: false,
+          isolatedConsumerWritesAuthorized: true,
+          plan,
+          baseline: plan.baseline,
+          root,
+          runDir
+        };
+        const actionInput = {
+          actionType: adapterActionType,
+          ...action.parameters
+        };
+        const unit = (plan.units ?? []).find((u) => u.id === action.unitId);
+        const typeToDist = {
+          "claude-marketplace-install": "claude-plugin",
+          "codex-marketplace-install": "codex-plugin",
+          "kimi-marketplace-install": "kimi-plugin",
+          "codebuddy-marketplace-install": "codebuddy-plugin"
+        };
+        const dist = unit?.distributions?.find((d) => d.type === typeToDist[action.type]);
+        const preflightResult = await adapter.preflight(actionInput, marketplaceContext);
+        if (preflightResult.status !== "PREFLIGHT_PASSED") {
+          adapterChecks.push({
+            actionId: action.id,
+            actionType: action.type,
+            status: "FAILED",
+            error: `preflight did not pass: status=${preflightResult.status}, error=${preflightResult.error}`
+          });
+          throw new ReleaseError(
+            POST_PUBLISH_VERIFY_FAILED,
+            `marketplace preflight did not pass for action "${action.id}": status=${preflightResult.status}, error=${preflightResult.error}`,
+            { actionId: action.id }
+          );
+        }
+        if (dist?.installationContractDigest) {
+          const currentDigest = dist.installationContractDigest;
+          const currentPlatform = action.parameters?.consumer ?? action.type.replace("-marketplace-install", "");
+          let previousActionCheck = null;
+          if (trustedVerifyRuns.length > 0) {
+            const sorted = [...trustedVerifyRuns].sort((a, b) => {
+              const ta = Date.parse(a.finishedAt) || 0;
+              const tb = Date.parse(b.finishedAt) || 0;
+              return tb - ta;
+            });
+            const latest = sorted[0];
+            const matchingReceipt = (latest.consumerVerificationReceipts ?? []).find(
+              (r) => r.actionId === action.id && r.unitId === action.unitId && r.platform === currentPlatform && r.planDigest === latest.planDigest
+            );
+            if (matchingReceipt) {
+              previousActionCheck = { ...matchingReceipt, _runFinishedAtTime: Date.parse(latest.finishedAt) };
+            }
+          }
+          const previousDigest = previousActionCheck?.installationContractDigest ?? null;
+          const skipDecision = shouldSkipVerification({
+            currentDigest,
+            previousDigest,
+            previousReceipt: previousActionCheck,
+            algorithmVersion: INSTALLATION_CONTRACT_ALGORITHM_VERSION
+          });
+          if (skipDecision === "NOT_REQUIRED_UNCHANGED" && !plan.skillResourceClosure) {
+            adapterChecks.push({
+              actionId: action.id,
+              actionType: action.type,
+              status: VERIFICATION_RESOLVED_TYPES.NOT_REQUIRED_UNCHANGED,
+              installationContractDigest: currentDigest,
+              reason: "\u5B89\u88C5\u5951\u7EA6\u6458\u8981\u672A\u53D8\u5316\uFF0C\u8DF3\u8FC7\u9A8C\u8BC1"
+            });
+            consumerVerificationReceipts.push({
+              actionId: action.id,
+              unitId: action.unitId,
+              platform: action.parameters?.consumer ?? action.type.replace("-marketplace-install", ""),
+              result: VERIFICATION_RESOLVED_TYPES.NOT_REQUIRED_UNCHANGED,
+              installationContractDigest: currentDigest,
+              algorithmVersion: INSTALLATION_CONTRACT_ALGORITHM_VERSION,
+              planDigest: plan.digest,
+              verifiedAt: clockFn()
+            });
+            await evidence.append({
+              phase: "verify-marketplace",
+              actionId: action.id,
+              actionType: action.type,
+              status: VERIFICATION_RESOLVED_TYPES.NOT_REQUIRED_UNCHANGED,
+              installationContractDigest: currentDigest
+            });
+            return;
+          }
+        }
+        const executeResult = await adapter.execute(actionInput, marketplaceContext);
+        if (executeResult.status !== "EXECUTED") {
+          adapterChecks.push({
+            actionId: action.id,
+            actionType: action.type,
+            status: "FAILED",
+            error: `execute failed: ${executeResult.error}`
+          });
+          throw new ReleaseError(
+            POST_PUBLISH_VERIFY_FAILED,
+            `marketplace execute failed for action "${action.id}": ${executeResult.error}`,
+            { actionId: action.id }
+          );
+        }
+        const verifyResult = await adapter.verify(
+          { ...actionInput, expected: action.expected },
+          marketplaceContext
+        );
+        const isHumanConfirmed = verifyResult.observation?.humanConfirmed === true;
+        const resolvedStatus = verifyResult.status === "VERIFIED" ? isHumanConfirmed ? VERIFICATION_RESOLVED_TYPES.PASSED_MANUAL : VERIFICATION_RESOLVED_TYPES.PASSED_AUTOMATIC : "FAILED";
+        const check = {
+          actionId: action.id,
+          actionType: action.type,
+          status: resolvedStatus,
+          observation: verifyResult.observation,
+          error: verifyResult.error,
+          ...dist?.installationContractDigest ? { installationContractDigest: dist.installationContractDigest } : {}
+        };
+        adapterChecks.push(check);
+        if (resolvedStatus !== "FAILED" && dist?.installationContractDigest && /^[a-f0-9]{64}$/.test(dist.installationContractDigest)) {
+          consumerVerificationReceipts.push({
+            actionId: action.id,
+            unitId: action.unitId,
+            platform: action.parameters?.consumer ?? action.type.replace("-marketplace-install", ""),
+            result: resolvedStatus,
+            installationContractDigest: dist.installationContractDigest,
+            algorithmVersion: INSTALLATION_CONTRACT_ALGORITHM_VERSION,
+            planDigest: plan.digest,
+            verifiedAt: clockFn()
+          });
+        }
+        await evidence.append({
+          phase: "verify-marketplace",
+          actionId: action.id,
+          actionType: action.type,
+          status: check.status
+        });
+        if (check.status === "FAILED") {
+          throw new ReleaseError(
+            POST_PUBLISH_VERIFY_FAILED,
+            `marketplace verification failed for action "${action.id}": ${verifyResult.error}`,
+            {
+              actionId: action.id,
+              actionType: action.type,
+              verificationResult: check.status,
+              observation: verifyResult.observation,
+              expected: action.expected
+            }
+          );
+        }
+        const distribution = action.type === "claude-marketplace-install" ? "claude-plugin" : action.type === "codex-marketplace-install" ? "codex-plugin" : action.type === "codebuddy-marketplace-install" ? "codebuddy-plugin" : "kimi-plugin";
+        const installPath = verifyResult.observation?.installPath;
+        consumerGateResults.push(...await runConsumerVerificationGates({
+          plan,
+          unitId: action.unitId,
+          distribution,
+          executionRoot: installPath,
+          evidence,
+          env: gateEnv ?? process.env,
+          fixedEnv: action.type === "claude-marketplace-install" ? {
+            HOME: resolve27(runDir, "consumers", `claude-${action.parameters.plugin}`),
+            CLAUDE_CONFIG_DIR: resolve27(runDir, "consumers", `claude-${action.parameters.plugin}`, ".claude")
+          } : action.type === "codex-marketplace-install" ? {
+            HOME: resolve27(runDir, "consumers", `codex-${action.parameters.plugin}`),
+            CODEX_HOME: resolve27(runDir, "consumers", `codex-${action.parameters.plugin}`)
+          } : action.type === "codebuddy-marketplace-install" ? {
+            HOME: resolve27(runDir, "consumers", `codebuddy-${action.parameters.plugin}`)
+          } : {
+            HOME: resolve27(runDir, "consumers", `kimi-${action.parameters.plugin}`)
+          }
+        }));
+      } else {
+        const context = {
+          externalWritesAuthorized: false,
+          plan,
+          baseline: plan.baseline,
+          root,
+          runDir
+        };
+        const verifyResult = await adapter.verify(
+          {
+            actionType: adapterActionType,
+            ...action.parameters,
+            expected: action.expected
+          },
+          context
+        );
+        const check = {
+          actionId: action.id,
+          actionType: action.type,
+          status: verifyResult.status === "VERIFIED" ? VERIFICATION_RESOLVED_TYPES.PASSED_AUTOMATIC : "FAILED",
+          observation: verifyResult.observation,
+          error: verifyResult.error
+        };
+        adapterChecks.push(check);
+        await evidence.append({
+          phase: "verify-adapter",
+          actionId: action.id,
+          actionType: action.type,
+          status: check.status
+        });
+        if (check.status === "FAILED") {
+          throw new ReleaseError(
+            POST_PUBLISH_VERIFY_FAILED,
+            `adapter verification failed for action "${action.id}": ${verifyResult.error}`,
+            {
+              actionId: action.id,
+              actionType: action.type,
+              verificationResult: check.status,
+              observation: verifyResult.observation,
+              expected: action.expected
+            }
+          );
+        }
+      }
+    }));
+    adapterChecks.sort((a, b) => a.actionId.localeCompare(b.actionId));
+    consumerVerificationReceipts.sort((a, b) => a.actionId.localeCompare(b.actionId));
+    consumerGateResults.sort((a, b) => a.id.localeCompare(b.id));
+    const rejectedAction = actionResults.find((result) => result.status === "rejected");
+    if (rejectedAction) throw rejectedAction.reason;
+    await evidence.append({ phase: "verify", step: "adapter-verify", status: "completed" });
+    await evidence.append({ phase: "verify", step: "smoke-test", status: "started" });
+    let smokeTest;
+    try {
+      smokeTest = await runSmokeTest(plan, root, {
+        npmExecutor,
+        baseDir: runDir,
+        evidence,
+        gateEnv: gateEnv ?? process.env
+      });
+    } catch (err) {
+      smokeTest = { passed: false, details: { error: err.message } };
+    }
+    await evidence.append({
+      phase: "verify",
+      step: "smoke-test",
+      status: smokeTest.passed ? "passed" : "failed",
+      details: smokeTest.details
+    });
+    if (!smokeTest.passed) {
+      throw new ReleaseError(
+        POST_PUBLISH_VERIFY_FAILED,
+        `installation smoke test failed: ${smokeTest.details.error}`,
+        { smokeTest: smokeTest.details }
+      );
+    }
+    consumerGateResults.push(...smokeTest.gateResults ?? []);
+    const expectedGateIds = consumerGates.map((gate) => gate.id).sort();
+    const observedGateIds = consumerGateResults.map((result) => result.id).sort();
+    if (JSON.stringify(expectedGateIds) !== JSON.stringify(observedGateIds)) {
+      throw new ReleaseError(
+        POST_PUBLISH_VERIFY_FAILED,
+        "consumer verification gate execution set does not match the frozen plan",
+        { expectedGateIds, observedGateIds }
+      );
+    }
+    const skillResourceClosureReceipts = [
+      ...smokeTest.skillResourceClosureReceipts ?? []
+    ];
+    if (plan.skillResourceClosure) {
+      await evidence.append({ phase: "verify", step: "skill-resource-closure", status: "started" });
+      const installSurfaces = [];
+      const actionDistribution = {
+        "claude-marketplace-install": "claude-plugin",
+        "codex-marketplace-install": "codex-plugin",
+        "kimi-marketplace-install": "kimi-plugin",
+        "codebuddy-marketplace-install": "codebuddy-plugin"
+      };
+      for (const check of adapterChecks) {
+        const distribution = actionDistribution[check.actionType];
+        if (distribution && check.observation?.installPath) {
+          installSurfaces.push({
+            host: distribution.replace("-plugin", ""),
+            distribution,
+            installPath: check.observation.installPath,
+            actionId: check.actionId,
+            unitId: actions.find((a) => a.id === check.actionId)?.unitId
+          });
+        }
+      }
+      for (const surface of installSurfaces) {
+        const closureResult = await checkSkillResourceClosure({
+          snapshotDir: surface.installPath,
+          host: surface.host
+        });
+        if (closureResult.findings.length > 0) {
+          await evidence.append({
+            phase: "verify",
+            step: "skill-resource-closure",
+            status: "failed",
+            host: surface.host,
+            findingCount: closureResult.findings.length,
+            findings: closureResult.findings
+          });
+          throw new ReleaseError(
+            POST_PUBLISH_VERIFY_FAILED,
+            `skill resource closure check failed for ${surface.host} consumer install: ${closureResult.findings.length} finding(s)`,
+            { host: surface.host, findings: closureResult.findings }
+          );
+        }
+        const expectedUnitReceipt = plan.skillResourceClosure.unitReceipts.find((item) => item.unitId === surface.unitId);
+        if (!expectedUnitReceipt || closureResult.skillCount === 0) {
+          throw new ReleaseError(
+            POST_PUBLISH_VERIFY_FAILED,
+            `skill resource closure installed surface is empty or unbound for ${surface.distribution}`,
+            { unitId: surface.unitId, distribution: surface.distribution }
+          );
+        }
+        skillResourceClosureReceipts.push(createSkillResourceClosureReceipt(
+          closureResult,
+          {
+            host: surface.host,
+            distribution: surface.distribution,
+            actionId: surface.actionId,
+            unitId: surface.unitId,
+            checkedAt: clockFn(),
+            exitCode: 0
+          }
+        ));
+      }
+      const receiptCoverage = evaluateConsumerSkillResourceClosureReceipts(
+        plan,
+        skillResourceClosureReceipts
+      );
+      if (!receiptCoverage.passed) {
+        throw new ReleaseError(
+          POST_PUBLISH_VERIFY_FAILED,
+          "skill resource closure receipt set does not match declared consumer distributions",
+          receiptCoverage
+        );
+      }
+      await evidence.append({
+        phase: "verify",
+        step: "skill-resource-closure",
+        status: "completed",
+        surfaceCount: installSurfaces.length,
+        receipts: skillResourceClosureReceipts
+      });
+    }
+    assertTransition(PUBLISHED, VERIFIED);
+    await evidence.append({ phase: "verify", status: "completed", overallStatus: VERIFIED });
+    const sourceRunDigest = sourceRun.runDigest ?? computeRunDigest(sourceRun);
+    const verifyRunPath = join22(runDir, "release-run.json");
+    const verifyRunState = {
+      runId,
+      command: "verify",
+      planDigest: plan.digest,
+      planPath,
+      ...sourceRun.approvalPath ? {
+        approvalPath: sourceRun.approvalPath,
+        approvalDigest: sourceRun.approvalDigest
+      } : {},
+      sourceRunId: sourceRun.runId,
+      sourceRunDigest,
+      sourceRunPath,
+      status: VERIFIED,
+      checkpoints: actions.map((a) => {
+        const check = adapterChecks.find((c) => c.actionId === a.id);
+        let status;
+        if (check?.status === "SKIPPED") {
+          status = "skipped";
+        } else if (check?.status === VERIFICATION_RESOLVED_TYPES.PASSED_AUTOMATIC) {
+          status = "succeeded";
+        } else if (check?.status === VERIFICATION_RESOLVED_TYPES.PASSED_MANUAL) {
+          status = "succeeded";
+        } else if (check?.status === VERIFICATION_RESOLVED_TYPES.NOT_REQUIRED_UNCHANGED) {
+          status = "skipped";
+        } else {
+          status = "succeeded";
+        }
+        return {
+          actionId: a.id,
+          actionType: a.type,
+          status
+        };
+      }),
+      gateResults: consumerGateResults,
+      consumerVerificationReceipts,
+      skillResourceClosureReceipts,
+      startedAt: clockFn(),
+      finishedAt: clockFn()
+    };
+    const persistedVerifyRun = await writeRunAtomic(verifyRunPath, verifyRunState);
+    await evidence.finish({
+      status: VERIFIED,
+      planPath,
+      sourceRunId: sourceRun.runId,
+      sourceRunDigest,
+      runDigest: persistedVerifyRun.runDigest,
+      adapterCheckCount: adapterChecks.length,
+      smokeTestPassed: true,
+      consumerGateCount: consumerGateResults.length,
+      completedAt: clockFn()
+    });
+    return {
+      planPath,
+      status: VERIFIED,
+      adapterChecks,
+      smokeTest,
+      gateResults: consumerGateResults
+    };
+  } catch (err) {
+    await evidence.append({
+      phase: "verify",
+      status: "failed",
+      error: { code: err.code, message: err.message }
+    });
+    await evidence.finish({
+      status: "FAILED",
+      error: { code: err.code, message: err.message },
+      failedAt: clockFn()
+    });
+    throw err;
+  }
+}
+var execFile9, VERIFICATION_RESOLVED_TYPES, ADAPTER_ACTION_TYPE_MAP2, defaultNpmExecutor;
+var init_verify = __esm({
+  async "src/commands/verify.mjs"() {
+    await init_plan();
+    init_evidence();
+    await init_run();
+    await init_approval();
+    init_errors();
+    init_source_authority();
+    init_state_machine();
+    init_public_path();
+    init_npm();
+    init_verification_gates();
+    init_skill_resource_closure();
+    init_checkpoints();
+    init_installation_contract();
+    init_npm_entry_closure();
+    await init_kimi();
+    init_codebuddy();
+    execFile9 = promisify10(execFileCb10);
+    VERIFICATION_RESOLVED_TYPES = Object.freeze({
+      PASSED_AUTOMATIC: "PASSED_AUTOMATIC",
+      PASSED_MANUAL: "PASSED_MANUAL",
+      NOT_REQUIRED_UNCHANGED: "NOT_REQUIRED_UNCHANGED"
+    });
+    ADAPTER_ACTION_TYPE_MAP2 = {
+      "push-commit": "git-push",
+      "push-snapshot": "push-snapshot",
+      "set-default-branch": "set-default-branch",
+      "create-tag": "git-tag",
+      "npm-publish": "npm-publish",
+      "github-release": "github-release",
+      "claude-marketplace-install": "claude-marketplace-install",
+      "codex-marketplace-install": "codex-marketplace-install",
+      "kimi-marketplace-install": "kimi-marketplace-install",
+      "codebuddy-marketplace-install": "codebuddy-marketplace-install"
+    };
+    __name(defaultClock5, "defaultClock");
+    __name(isValidDigest2, "isValidDigest");
+    __name(collectMissingManualAttestations, "collectMissingManualAttestations");
+    __name(matchesSubset2, "matchesSubset");
+    __name(runSmokeTest, "runSmokeTest");
+    defaultNpmExecutor = {
+      async install(packageAtVersion, cwd, flags, { registry }) {
+        const normalizedRegistry = normalizeRegistry(registry);
+        const token = await resolveNpmRegistryAuthToken({
+          registry: normalizedRegistry,
+          cwd,
+          exec: execFile9,
+          env: process.env
+        });
+        const userConfig = join22(cwd, ".release-skill-npmrc");
+        await writeFile8(
+          userConfig,
+          `registry=${normalizedRegistry}/
+${registryTokenKey(normalizedRegistry)}=${token}
+`,
+          { encoding: "utf8", mode: 384 }
+        );
+        const env = { ...process.env };
+        for (const name of [
+          "NPM_TOKEN",
+          "NODE_AUTH_TOKEN",
+          "NPM_CONFIG_REGISTRY",
+          "npm_config_registry",
+          "NPM_CONFIG_USERCONFIG",
+          "npm_config_userconfig"
+        ]) delete env[name];
+        try {
+          await execFile9("npm", [
+            "install",
+            packageAtVersion,
+            ...flags,
+            "--userconfig",
+            userConfig
+          ], {
+            cwd,
+            env,
+            shell: false,
+            encoding: "utf8",
+            timeout: 6e4
+          });
+          return { success: true };
+        } catch (err) {
+          return { success: false, error: err.message };
+        } finally {
+          await rm8(userConfig, { force: true }).catch(() => {
+          });
+        }
+      },
+      async runBin(binPath, args2 = [], options = {}) {
+        return execFile9(process.execPath, [binPath, ...args2], {
+          cwd: options.cwd,
+          env: options.env,
+          shell: false,
+          encoding: "utf8",
+          timeout: 3e4
+        });
+      }
+    };
+    __name(verifyRelease, "verifyRelease");
+  }
+});
+
+// src/core/git-transport.mjs
+var git_transport_exports = {};
+__export(git_transport_exports, {
+  preflightGitTransports: () => preflightGitTransports
+});
+import { execFile as execFileCb11 } from "node:child_process";
+import { promisify as promisify11 } from "node:util";
+function urls(repo, host) {
+  if (typeof repo !== "string" || !/^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(repo)) {
+    throw new ReleaseError(REMOTE_UNAVAILABLE, "git transport preflight requires owner/name repositories");
+  }
+  const safeHost = host ?? "github.com";
+  if (!/^[A-Za-z0-9.-]+$/.test(safeHost)) {
+    throw new ReleaseError(REMOTE_UNAVAILABLE, "git transport preflight requires a safe GitHub hostname");
+  }
+  return {
+    https: `https://${safeHost}/${repo}.git`,
+    ssh: `git@${safeHost}:${repo}.git`
+  };
+}
+function identity(stdout) {
+  const lines = String(stdout).trim().split("\n").filter(Boolean);
+  const head = lines.find((line) => /^[a-f0-9]{40,64}\s+HEAD$/.test(line.trim()));
+  const symref = lines.find((line) => line.startsWith("ref: "));
+  return `${symref ?? ""}
+${head ?? ""}`;
+}
+async function preflightGitTransports(plan, options = {}) {
+  const exec = options.exec ?? ((command2, args2, execOptions) => execFile10(command2, args2, execOptions));
+  const repositories = /* @__PURE__ */ new Map();
+  for (const action of plan.externalActions ?? []) {
+    const repo = action.parameters?.repo;
+    if (!repo) continue;
+    const host = action.parameters?.githubHost ?? "github.com";
+    repositories.set(`${host}/${repo}`, { repo, host });
+  }
+  const observations = [];
+  for (const { repo, host } of repositories.values()) {
+    const candidates = urls(repo, host);
+    const observation = { repo, host };
+    for (const transport2 of ["https", "ssh"]) {
+      try {
+        const { stdout } = await exec(
+          "git",
+          ["ls-remote", "--symref", candidates[transport2], "HEAD"],
+          { shell: false, encoding: "utf8", timeout: 3e4 }
+        );
+        observation[transport2] = {
+          status: "available",
+          identity: identity(stdout)
+        };
+      } catch (error) {
+        observation[transport2] = {
+          status: "unavailable",
+          error: error.message
+        };
+      }
+    }
+    if (observation.https.status === "unavailable" && observation.ssh.status === "unavailable") {
+      throw new ReleaseError(
+        REMOTE_UNAVAILABLE,
+        `neither HTTPS nor SSH can read ${repo}`,
+        { repository: repo, transports: observation }
+      );
+    }
+    if (observation.https.status === "available" && observation.ssh.status === "available" && observation.https.identity !== observation.ssh.identity) {
+      throw new ReleaseError(
+        REMOTE_CONFLICT,
+        `HTTPS and SSH resolve different remote identities for ${repo}`,
+        { repository: repo }
+      );
+    }
+    observations.push(observation);
+  }
+  const transport = observations.some((entry) => entry.https.status === "unavailable") ? "ssh" : "https";
+  if (transport === "ssh" && observations.some((entry) => entry.ssh.status !== "available")) {
+    throw new ReleaseError(
+      REMOTE_UNAVAILABLE,
+      "no single safe Git transport is available for every release repository"
+    );
+  }
+  return { transport, repositories: observations };
+}
+var execFile10;
+var init_git_transport = __esm({
+  "src/core/git-transport.mjs"() {
+    init_errors();
+    execFile10 = promisify11(execFileCb11);
+    __name(urls, "urls");
+    __name(identity, "identity");
+    __name(preflightGitTransports, "preflightGitTransports");
+  }
+});
+
+// src/core/release-metadata.mjs
+var release_metadata_exports = {};
+__export(release_metadata_exports, {
+  updatePreviousPublicBaselines: () => updatePreviousPublicBaselines
+});
+import { lstat as lstat16, readFile as readFile26, rename as rename3, rm as rm9, writeFile as writeFile9 } from "node:fs/promises";
+import { resolve as resolve28 } from "node:path";
+function assertOid(value, label) {
+  if (typeof value !== "string" || !/^[a-f0-9]{40,64}$/.test(value)) {
+    throw new ReleaseError(GATE_FAILED, `${label} is not a full Git object id`);
+  }
+}
+async function updatePreviousPublicBaselines(options = {}) {
+  const root = resolve28(options.root ?? process.cwd());
+  const planPath = resolve28(options.planPath ?? "");
+  const configPath = resolve28(root, ".release-skill", "project.yaml");
+  let plan;
+  let configRaw;
+  let configStat;
+  try {
+    [plan, configRaw, configStat] = await Promise.all([
+      readFile26(planPath, "utf8").then(JSON.parse),
+      readFile26(configPath, "utf8"),
+      lstat16(configPath)
+    ]);
+  } catch (error) {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      `cannot load release metadata authorities: ${error.message}`
+    );
+  }
+  if (!configStat.isFile() || configStat.isSymbolicLink()) {
+    throw new ReleaseError(CONFIG_INVALID, "project config must be a regular non-symlink file");
+  }
+  const doc = import_yaml4.default.parseDocument(configRaw, { uniqueKeys: true });
+  if (doc.errors.length > 0) {
+    throw new ReleaseError(CONFIG_INVALID, `project config YAML is invalid: ${doc.errors[0].message}`);
+  }
+  const releaseUnits = doc.get("releaseUnits", true);
+  if (!import_yaml4.default.isSeq(releaseUnits)) {
+    throw new ReleaseError(CONFIG_INVALID, "project config releaseUnits must be a sequence");
+  }
+  const configUnits = /* @__PURE__ */ new Map();
+  for (const node of releaseUnits.items) {
+    const id = node?.get?.("id");
+    if (typeof id === "string") configUnits.set(id, node);
+  }
+  const updates = [];
+  for (const unit of plan.units ?? []) {
+    const configUnit = configUnits.get(unit.id);
+    if (!configUnit) {
+      throw new ReleaseError(CONFIG_INVALID, `frozen unit "${unit.id}" is absent from project config`);
+    }
+    const frozen = unit.frozenSnapshot;
+    assertOid(frozen?.commit, `unit "${unit.id}" frozen commit`);
+    assertOid(frozen?.tree, `unit "${unit.id}" frozen tree`);
+    if (!/^[a-f0-9]{64}$/.test(frozen?.manifestDigest ?? "")) {
+      throw new ReleaseError(GATE_FAILED, `unit "${unit.id}" frozen manifest digest is invalid`);
+    }
+    const old = configUnit.get("previousPublicBaseline", true)?.toJSON?.() ?? {};
+    const next = {
+      mode: "bound",
+      repo: old.repo ?? unit.publicRepo,
+      ref: old.ref ?? `refs/heads/${frozen.branch}`,
+      commit: frozen.commit,
+      tree: frozen.tree,
+      manifestDigest: frozen.manifestDigest
+    };
+    if (!next.repo || !next.ref) {
+      throw new ReleaseError(GATE_FAILED, `unit "${unit.id}" cannot derive its next public baseline identity`);
+    }
+    configUnit.set("previousPublicBaseline", next);
+    updates.push({
+      id: unit.id,
+      previousCommit: old.commit ?? null,
+      commit: frozen.commit
+    });
+  }
+  const nextRaw = doc.toString();
+  if (nextRaw === configRaw) {
+    return { status: "UNCHANGED", configPath, units: updates };
+  }
+  const tempPath = `${configPath}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    await writeFile9(tempPath, nextRaw, {
+      encoding: "utf8",
+      mode: configStat.mode & 511,
+      flag: "wx"
+    });
+    await rename3(tempPath, configPath);
+  } catch (error) {
+    await rm9(tempPath, { force: true }).catch(() => {
+    });
+    throw new ReleaseError(CONFIG_INVALID, `cannot update project release metadata: ${error.message}`);
+  }
+  return { status: "UPDATED", configPath, units: updates };
+}
+var import_yaml4;
+var init_release_metadata = __esm({
+  "src/core/release-metadata.mjs"() {
+    import_yaml4 = __toESM(require_dist(), 1);
+    init_errors();
+    __name(assertOid, "assertOid");
+    __name(updatePreviousPublicBaselines, "updatePreviousPublicBaselines");
+  }
+});
+
+// src/commands/ship.mjs
+var ship_exports = {};
+__export(ship_exports, {
+  advanceShip: () => advanceShip
+});
+import { readFile as readFile27, lstat as lstat17, mkdir as mkdir16, rename as rename4, rm as rm10, writeFile as writeFile10 } from "node:fs/promises";
+import { dirname as dirname14, resolve as resolve29 } from "node:path";
+async function writeJsonAtomic(path3, value) {
+  await mkdir16(dirname14(path3), { recursive: true });
+  const temp = `${path3}.${process.pid}.${Date.now()}.tmp`;
+  const { stateDigest: _oldDigest, ...body } = value;
+  const sealed = {
+    ...body,
+    stateDigest: sha256Hex(canonicalJson(body))
+  };
+  try {
+    await writeFile10(temp, `${JSON.stringify(sealed, null, 2)}
+`, {
+      encoding: "utf8",
+      mode: 384,
+      flag: "wx"
+    });
+    await rename4(temp, path3);
+  } catch (error) {
+    await rm10(temp, { force: true }).catch(() => {
+    });
+    throw error;
+  }
+}
+async function readState(path3) {
+  try {
+    const stat9 = await lstat17(path3);
+    if (!stat9.isFile() || stat9.isSymbolicLink()) {
+      throw new Error("ship state must be a regular non-symlink file");
+    }
+    const state = JSON.parse(await readFile27(path3, "utf8"));
+    const { stateDigest, ...body } = state;
+    if (typeof stateDigest !== "string" || stateDigest !== sha256Hex(canonicalJson(body)) || body.statePath !== path3) {
+      throw new Error("ship state digest or authority path does not match");
+    }
+    return state;
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw new ReleaseError(GATE_FAILED, `cannot read ship state: ${error.message}`, { statePath: path3 });
+  }
+}
+async function defaultDependencies() {
+  const [
+    configModule,
+    prepareModule,
+    approveModule,
+    publishModule,
+    reconcileModule,
+    verifyModule,
+    transportModule,
+    metadataModule
+  ] = await Promise.all([
+    init_config().then(() => config_exports),
+    init_prepare().then(() => prepare_exports),
+    init_approve().then(() => approve_exports),
+    init_publish().then(() => publish_exports),
+    init_reconcile().then(() => reconcile_exports),
+    init_verify().then(() => verify_exports),
+    Promise.resolve().then(() => (init_git_transport(), git_transport_exports)),
+    Promise.resolve().then(() => (init_release_metadata(), release_metadata_exports))
+  ]);
+  return {
+    loadProjectConfig: configModule.loadProjectConfig,
+    prepareRelease: prepareModule.prepareRelease,
+    approvePlan: approveModule.approvePlan,
+    publishRelease: publishModule.publishRelease,
+    reconcileRelease: reconcileModule.reconcileRelease,
+    verifyRelease: verifyModule.verifyRelease,
+    preflightGitTransports: transportModule.preflightGitTransports,
+    updatePreviousPublicBaselines: metadataModule.updatePreviousPublicBaselines
+  };
+}
+function publicState(state) {
+  return {
+    command: "ship",
+    status: state.status,
+    statePath: state.statePath,
+    targetVersion: state.targetVersion,
+    ...state.hookAuthorizationDigest ? {
+      hookAuthorizationDigest: state.hookAuthorizationDigest,
+      hooks: state.hooks
+    } : {},
+    ...state.planPath ? {
+      planPath: state.planPath,
+      planDigest: state.planDigest,
+      evidenceDir: state.evidenceDir,
+      warnings: state.warnings ?? []
+    } : {},
+    ...state.approvalPath ? { approvalPath: state.approvalPath } : {},
+    ...state.sourceRunPath ? { sourceRunPath: state.sourceRunPath } : {},
+    ...state.requirements ? { requirements: state.requirements } : {},
+    ...state.metadataUpdate ? { metadataUpdate: state.metadataUpdate } : {},
+    verificationGateAuthorizationIncludedInPlanApproval: state.status !== "NEEDS_HOOK_AUTHORIZATION",
+    postVerifyMetadataUpdateIncludedInPlanApproval: state.status !== "NEEDS_HOOK_AUTHORIZATION"
+  };
+}
+function hookAuthority(loaded, targetVersion) {
+  const hooks = Object.keys(loaded.config.hooks ?? {}).sort();
+  return {
+    hooks,
+    digest: sha256Hex(canonicalJson({
+      kind: "release-skill-hook-authorization/v1",
+      configDigest: loaded.configDigest,
+      hooks: loaded.config.hooks ?? {},
+      targetVersion: targetVersion ?? null
+    }))
+  };
+}
+async function advanceShip(options = {}, injected = {}) {
+  const root = resolve29(options.root ?? process.cwd());
+  const statePath = resolve29(
+    options.statePath ?? resolve29(root, ".release-skill", "ships", "current.json")
+  );
+  const deps = Object.keys(injected).length > 0 ? injected : await defaultDependencies();
+  let state = await readState(statePath);
+  if (state?.gitTransport) {
+    process.env.RELEASE_SKILL_GIT_TRANSPORT = state.gitTransport;
+  }
+  if (!state) {
+    const loaded = await deps.loadProjectConfig({ root });
+    const authority = hookAuthority(loaded, options.targetVersion);
+    const hooks = authority.hooks;
+    const hookAuthorizationDigest = authority.digest;
+    state = {
+      schemaVersion: 1,
+      root,
+      statePath,
+      targetVersion: options.targetVersion ?? null,
+      configDigest: loaded.configDigest,
+      hooks,
+      hookAuthorizationDigest,
+      status: hooks.length > 0 ? "NEEDS_HOOK_AUTHORIZATION" : "NEW",
+      createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    await writeJsonAtomic(statePath, state);
+    if (hooks.length > 0 && options.hookAuthorizationDigest !== hookAuthorizationDigest) {
+      return publicState(state);
+    }
+  }
+  if (state.status === "NEEDS_HOOK_AUTHORIZATION") {
+    const loaded = await deps.loadProjectConfig({ root });
+    const current = hookAuthority(loaded, state.targetVersion);
+    if (loaded.configDigest !== state.configDigest || current.digest !== state.hookAuthorizationDigest) {
+      state = {
+        ...state,
+        configDigest: loaded.configDigest,
+        hooks: current.hooks,
+        hookAuthorizationDigest: current.digest,
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      await writeJsonAtomic(statePath, state);
+      if (verified.status === "VERIFIED" && deps.updatePreviousPublicBaselines) {
+        try {
+          state.metadataUpdate = await deps.updatePreviousPublicBaselines({
+            root,
+            planPath: state.planPath
+          });
+        } catch (error) {
+          state.metadataUpdate = {
+            status: "FAILED",
+            error: error.message
+          };
+        }
+        state.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+        await writeJsonAtomic(statePath, state);
+      }
+      return publicState(state);
+    }
+    if (options.hookAuthorizationDigest !== state.hookAuthorizationDigest) {
+      if (options.hookAuthorizationDigest) {
+        throw new ReleaseError(
+          PLAN_DIGEST_MISMATCH,
+          "hook authorization digest does not match the current config, hooks and target version"
+        );
+      }
+      return publicState(state);
+    }
+    state.hookAuthorizedBy = options.actor ?? null;
+    state.status = "NEW";
+    state.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+    await writeJsonAtomic(statePath, state);
+  }
+  if (state.status === "NEW") {
+    const loaded = await deps.loadProjectConfig({ root });
+    if (loaded.configDigest !== state.configDigest) {
+      const current = hookAuthority(loaded, state.targetVersion);
+      state = {
+        ...state,
+        configDigest: loaded.configDigest,
+        hooks: current.hooks,
+        hookAuthorizationDigest: current.digest,
+        status: current.hooks.length > 0 ? "NEEDS_HOOK_AUTHORIZATION" : "NEW",
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      await writeJsonAtomic(statePath, state);
+      if (state.status === "NEEDS_HOOK_AUTHORIZATION") return publicState(state);
+    }
+    const prepared = await deps.prepareRelease({
+      root,
+      version: state.targetVersion ?? void 0,
+      offline: false,
+      production: true,
+      hooksAuthorized: true,
+      verificationGatesAuthorized: false,
+      hookCache: true
+    });
+    let transportPreflight = null;
+    if (deps.preflightGitTransports) {
+      const frozenPlan = JSON.parse(await readFile27(prepared.planPath, "utf8"));
+      transportPreflight = await deps.preflightGitTransports(frozenPlan);
+      process.env.RELEASE_SKILL_GIT_TRANSPORT = transportPreflight.transport;
+    }
+    state = {
+      ...state,
+      status: "NEEDS_PLAN_APPROVAL",
+      planPath: prepared.planPath,
+      planDigest: prepared.planDigest,
+      evidenceDir: prepared.evidenceDir,
+      warnings: prepared.warnings,
+      ...transportPreflight ? {
+        gitTransport: transportPreflight.transport,
+        gitTransportPreflight: transportPreflight.repositories
+      } : {},
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    await writeJsonAtomic(statePath, state);
+  }
+  if (state.status === "NEEDS_PLAN_APPROVAL") {
+    if (!options.planApprovalDigest) return publicState(state);
+    if (options.planApprovalDigest !== state.planDigest) {
+      throw new ReleaseError(PLAN_DIGEST_MISMATCH, "ship plan approval digest does not match the frozen plan");
+    }
+    if (!options.actor) {
+      throw new ReleaseError(GATE_FAILED, "ship plan approval requires --actor <person>");
+    }
+    const approval = await deps.approvePlan({
+      planPath: state.planPath,
+      expectedDigest: state.planDigest,
+      actor: options.actor
+    });
+    state = {
+      ...state,
+      status: "APPROVED",
+      approvalPath: approval.approvalPath,
+      verificationGatesAuthorized: true,
+      approvedBy: options.actor,
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    await writeJsonAtomic(statePath, state);
+  }
+  if (state.status === "APPROVED" || state.status === "PUBLISHING") {
+    if (!options.adapterRegistry) {
+      throw new ReleaseError(GATE_FAILED, "ship requires an adapter registry to publish");
+    }
+    state.status = "PUBLISHING";
+    await writeJsonAtomic(statePath, state);
+    const published = await deps.publishRelease({
+      planPath: state.planPath,
+      approvalPath: state.approvalPath,
+      adapterRegistry: options.adapterRegistry,
+      root,
+      productionMode: true,
+      productionConfirmation: state.planDigest
+    });
+    state = {
+      ...state,
+      status: published.status,
+      sourceRunPath: published.runPath,
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    await writeJsonAtomic(statePath, state);
+  }
+  if (state.status === "PARTIAL") {
+    const reconciled = await deps.reconcileRelease({
+      planPath: state.planPath,
+      sourceRunPath: state.sourceRunPath,
+      approvalPath: state.approvalPath,
+      adapterRegistry: options.adapterRegistry,
+      root,
+      productionConfirmation: state.planDigest
+    });
+    state = {
+      ...state,
+      status: reconciled.status,
+      sourceRunPath: reconciled.runPath,
+      updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    await writeJsonAtomic(statePath, state);
+  }
+  if (state.status === "PUBLISHED" || state.status === "NEEDS_MANUAL_ATTESTATIONS") {
+    try {
+      const verified2 = await deps.verifyRelease({
+        planPath: state.planPath,
+        sourceRunPath: state.sourceRunPath,
+        adapterRegistry: options.adapterRegistry,
+        root,
+        verificationGatesAuthorized: state.verificationGatesAuthorized === true
+      });
+      state = {
+        ...state,
+        status: verified2.status,
+        verifyRunPath: verified2.runPath,
+        requirements: void 0,
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      await writeJsonAtomic(statePath, state);
+    } catch (error) {
+      if (error?.code !== CONSUMER_VERIFICATION_DEFERRED) throw error;
+      state = {
+        ...state,
+        status: "NEEDS_MANUAL_ATTESTATIONS",
+        requirements: error.details?.requirements ?? [],
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      await writeJsonAtomic(statePath, state);
+    }
+  }
+  return publicState(state);
+}
+var init_ship = __esm({
+  "src/commands/ship.mjs"() {
+    init_digest();
+    init_errors();
+    __name(writeJsonAtomic, "writeJsonAtomic");
+    __name(readState, "readState");
+    __name(defaultDependencies, "defaultDependencies");
+    __name(publicState, "publicState");
+    __name(hookAuthority, "hookAuthority");
+    __name(advanceShip, "advanceShip");
   }
 });
 
@@ -83985,10 +86828,10 @@ __export(push_snapshot_exports, {
   createPushSnapshotAdapter: () => createPushSnapshotAdapter,
   githubRepositoryUrl: () => githubRepositoryUrl
 });
-import { execFile as execFileCb10 } from "node:child_process";
-import { promisify as promisify10 } from "node:util";
+import { execFile as execFileCb12 } from "node:child_process";
+import { promisify as promisify12 } from "node:util";
 async function run3(command2, args2, options = {}) {
-  return execFile9(command2, args2, {
+  return execFile11(command2, args2, {
     shell: false,
     encoding: "utf8",
     timeout: 12e4,
@@ -84002,7 +86845,7 @@ function githubRepositoryUrl(repo, host = "github.com") {
   if (typeof host !== "string" || !/^[A-Za-z0-9.-]+$/.test(host) || host.startsWith(".") || host.endsWith(".") || host.includes("..")) {
     throw new Error("githubHost must be a valid hostname");
   }
-  return `https://${host}/${repo}.git`;
+  return process.env.RELEASE_SKILL_GIT_TRANSPORT === "ssh" ? `git@${host}:${repo}.git` : `https://${host}/${repo}.git`;
 }
 function validateOid(value, label) {
   if (typeof value !== "string" || !/^[a-f0-9]{40,64}$/.test(value)) {
@@ -84240,12 +87083,12 @@ function createPushSnapshotAdapter(deps = {}) {
     }
   });
 }
-var execFile9, NAME3;
+var execFile11, NAME3;
 var init_push_snapshot = __esm({
   "src/adapters/push-snapshot.mjs"() {
     init_contract();
     init_frozen();
-    execFile9 = promisify10(execFileCb10);
+    execFile11 = promisify12(execFileCb12);
     NAME3 = "push-snapshot";
     __name(run3, "run");
     __name(githubRepositoryUrl, "githubRepositoryUrl");
@@ -84261,10 +87104,10 @@ var git_github_exports = {};
 __export(git_github_exports, {
   createGitGithubAdapter: () => createGitGithubAdapter
 });
-import { execFile as execFileCb11 } from "node:child_process";
-import { promisify as promisify11 } from "node:util";
+import { execFile as execFileCb13 } from "node:child_process";
+import { promisify as promisify13 } from "node:util";
 async function run4(command2, args2, options = {}) {
-  return execFile10(command2, args2, {
+  return execFile12(command2, args2, {
     shell: false,
     encoding: "utf8",
     timeout: 12e4,
@@ -84540,13 +87383,13 @@ function createGitGithubAdapter(deps = {}) {
     }
   });
 }
-var execFile10, NAME4;
+var execFile12, NAME4;
 var init_git_github = __esm({
   "src/adapters/git-github.mjs"() {
     init_contract();
     init_frozen();
     init_push_snapshot();
-    execFile10 = promisify11(execFileCb11);
+    execFile12 = promisify13(execFileCb13);
     NAME4 = "git-github";
     __name(run4, "run");
     __name(isNotFound2, "isNotFound");
@@ -84560,2153 +87403,189 @@ var init_git_github = __esm({
   }
 });
 
-// src/commands/verify.mjs
-var verify_exports = {};
-__export(verify_exports, {
-  VERIFICATION_RESOLVED_TYPES: () => VERIFICATION_RESOLVED_TYPES,
-  runSmokeTest: () => runSmokeTest,
-  verifyRelease: () => verifyRelease
+// src/commands/attest.mjs
+var attest_exports = {};
+__export(attest_exports, {
+  recordManualAttestation: () => recordManualAttestation
 });
-import { readFile as readFile24, writeFile as writeFile8, mkdtemp as mkdtemp4, rm as rm8, mkdir as mkdir13, lstat as lstat15, realpath as realpath14, readdir as readdir13 } from "node:fs/promises";
-import { realpathSync as realpathSync4 } from "node:fs";
-import { dirname as dirname13, join as join21, relative as relative23, isAbsolute as isAbsolute19, resolve as resolve26, basename as basename8 } from "node:path";
-import { tmpdir as tmpdir4 } from "node:os";
-import { execFile as execFileCb12 } from "node:child_process";
-import { promisify as promisify12 } from "node:util";
-function defaultClock4() {
-  return (/* @__PURE__ */ new Date()).toISOString();
-}
-function isValidDigest2(digest) {
-  return typeof digest === "string" && /^[a-f0-9]{64}$/.test(digest);
-}
-function matchesSubset2(actual, expected) {
-  if (expected === null || expected === void 0) {
-    return actual === expected;
-  }
-  if (typeof expected !== "object" || Array.isArray(expected)) {
-    return actual === expected;
-  }
-  if (typeof actual !== "object" || actual === null || Array.isArray(actual)) {
-    return false;
-  }
-  for (const key of Object.keys(expected)) {
-    if (!(key in actual) || !matchesSubset2(actual[key], expected[key])) {
-      return false;
-    }
-  }
-  return true;
-}
-async function runSmokeTest(plan, root, options = {}) {
-  const baseDir = options.baseDir ?? tmpdir4();
-  await mkdir13(baseDir, { recursive: true });
-  const tmpDir = await mkdtemp4(join21(baseDir, "verify-smoke-"));
-  const npmExec = options.npmExecutor ?? defaultNpmExecutor;
-  const installFlags = [
-    "--ignore-scripts",
-    "--no-audit",
-    "--no-fund",
-    "--package-lock=false",
-    "--save=false"
-  ];
-  try {
-    const units = plan.units ?? [];
-    const npmDistributions = [];
-    for (const unit of units) {
-      for (const dist of unit.distributions ?? []) {
-        if (dist.type === "npm" && dist.package) {
-          npmDistributions.push({
-            package: dist.package,
-            registry: normalizeRegistry(dist.registry),
-            targetVersion: unit.targetVersion,
-            unitId: unit.id,
-            smokeBin: dist.smokeBin,
-            smokeArgs: dist.smokeArgs ?? [],
-            // The expected `version` is always the unit's resolved
-            // targetVersion (whose source is version.source → package.json),
-            // injected at runtime. A config-declared smokeExpectedJson.version
-            // is redundant and overridden. This keeps the version check strong
-            // without hand-writing the version into project config, so a
-            // version bump never churns configDigest (T2.1 §4.3).
-            smokeExpectedJson: dist.smokeExpectedJson ? { ...dist.smokeExpectedJson, version: unit.targetVersion } : dist.smokeExpectedJson
-          });
-        }
-      }
-    }
-    if (npmDistributions.length === 0) {
-      return {
-        passed: true,
-        skipped: true,
-        details: { message: "No npm distributions in plan; smoke test skipped" },
-        gateResults: [],
-        skillResourceClosureReceipts: []
-      };
-    }
-    const results = [];
-    const gateResults = [];
-    const skillResourceClosureReceipts = [];
-    for (const { package: pkgName, registry, targetVersion, unitId, smokeBin, smokeArgs, smokeExpectedJson } of npmDistributions) {
-      const packageAtVersion = `${pkgName}@${targetVersion}`;
-      const installDir = resolveUnitScopedPath(tmpDir, unitId);
-      await mkdir13(join21(installDir, "node_modules"), { recursive: true });
-      const registryFlags = [...installFlags, "--registry", registry];
-      const installResult = await npmExec.install(
-        packageAtVersion,
-        installDir,
-        registryFlags,
-        { registry }
-      );
-      if (!installResult.success) {
-        return {
-          passed: false,
-          details: {
-            error: `npm install ${packageAtVersion} failed: ${installResult.error}`,
-            packageAtVersion,
-            unitId
-          }
-        };
-      }
-      const installedPkgPath = join21(installDir, "node_modules", pkgName, "package.json");
-      let installedPkg;
-      try {
-        installedPkg = JSON.parse(await readFile24(installedPkgPath, "utf8"));
-      } catch {
-        return {
-          passed: false,
-          details: {
-            error: `Installed package.json not found at ${installedPkgPath}`,
-            packageAtVersion,
-            unitId
-          }
-        };
-      }
-      if (installedPkg.name !== pkgName) {
-        return {
-          passed: false,
-          details: {
-            error: `Installed package name mismatch: expected ${pkgName}, got ${installedPkg.name}`,
-            packageAtVersion,
-            unitId
-          }
-        };
-      }
-      if (installedPkg.version !== targetVersion) {
-        return {
-          passed: false,
-          details: {
-            error: `Installed version mismatch: expected ${targetVersion}, got ${installedPkg.version}`,
-            packageAtVersion,
-            unitId
-          }
-        };
-      }
-      const pkgRoot = join21(installDir, "node_modules", pkgName);
-      {
-        const dirIndex = await buildDirectoryFileIndex(pkgRoot);
-        const closureResult = checkNpmEntryClosure(installedPkg, dirIndex);
-        if (closureResult.errors.length > 0) {
-          return {
-            passed: false,
-            details: {
-              gate: "npm-entry-closure",
-              error: `npm entry closure check failed for ${packageAtVersion}: ${closureResult.errors.map((e) => e.message).join("; ")}`,
-              packageAtVersion,
-              unitId,
-              entries: closureResult.entries,
-              errors: closureResult.errors,
-              diagnostics: closureResult.diagnostics
-            }
-          };
-        }
-      }
-      if (plan.skillResourceClosure) {
-        const expectedUnitReceipt = plan.skillResourceClosure.unitReceipts.find((item) => item.unitId === unitId);
-        if (!expectedUnitReceipt) {
-          return {
-            passed: false,
-            details: { error: `Skill resource closure receipt missing for npm unit "${unitId}"` }
-          };
-        }
-        const closureResult = await checkSkillResourceClosure({
-          snapshotDir: pkgRoot,
-          host: "npm"
-        });
-        if (closureResult.findings.length > 0) {
-          return {
-            passed: false,
-            details: {
-              error: `Skill resource closure failed for ${packageAtVersion}`,
-              findings: closureResult.findings
-            }
-          };
-        }
-        if (expectedUnitReceipt.skillCount > 0 && closureResult.skillCount === 0) {
-          return {
-            passed: false,
-            details: {
-              error: `Installed npm package ${packageAtVersion} contains no skills`
-            }
-          };
-        }
-        skillResourceClosureReceipts.push(createSkillResourceClosureReceipt(
-          closureResult,
-          {
-            unitId,
-            distribution: "npm",
-            host: "npm",
-            checkedAt: (/* @__PURE__ */ new Date()).toISOString(),
-            exitCode: 0
-          }
-        ));
-      }
-      gateResults.push(...await runConsumerVerificationGates({
-        plan,
-        unitId,
-        distribution: "npm",
-        executionRoot: pkgRoot,
-        evidence: options.evidence,
-        env: options.gateEnv ?? process.env,
-        fixedEnv: { HOME: installDir }
-      }));
-      if (!smokeBin) {
-        results.push({
-          packageName: pkgName,
-          version: targetVersion,
-          packageAtVersion,
-          unitId,
-          cliSmoke: "not-configured"
-        });
-        continue;
-      }
-      const binMapping = installedPkg.bin;
-      if (!binMapping) {
-        return {
-          passed: false,
-          details: {
-            error: `Installed package ${packageAtVersion} has no bin field; smokeBin "${smokeBin}" requested`,
-            packageAtVersion,
-            unitId
-          }
-        };
-      }
-      const binRelative = typeof binMapping === "string" ? binMapping : binMapping[smokeBin];
-      if (typeof binRelative !== "string" || binRelative.length === 0) {
-        return {
-          passed: false,
-          details: {
-            error: `Installed package ${packageAtVersion} does not expose bin "${smokeBin}"`,
-            packageAtVersion,
-            unitId
-          }
-        };
-      }
-      const binPath = resolve26(pkgRoot, binRelative);
-      const relBin = relative23(pkgRoot, binPath);
-      const sep7 = process.platform === "win32" ? "\\" : "/";
-      if (isAbsolute19(relBin) || relBin === ".." || relBin.startsWith(`..${sep7}`)) {
-        return {
-          passed: false,
-          details: {
-            error: `Bin path escapes package root: ${binPath}`,
-            packageAtVersion,
-            unitId
-          }
-        };
-      }
-      let binStat;
-      try {
-        binStat = await lstat15(binPath);
-        const [pkgRootReal, binPathReal] = await Promise.all([realpath14(pkgRoot), realpath14(binPath)]);
-        const relReal = relative23(pkgRootReal, binPathReal);
-        if (!binStat.isFile() || binStat.isSymbolicLink() || isAbsolute19(relReal) || relReal === ".." || relReal.startsWith(`..${sep7}`)) {
-          throw new Error("bin is not a regular file inside the installed package");
-        }
-      } catch (err) {
-        return {
-          passed: false,
-          details: {
-            error: `Invalid installed bin for ${packageAtVersion}: ${err.message}`,
-            packageAtVersion,
-            unitId
-          }
-        };
-      }
-      const cliArgs = smokeArgs.length > 0 ? smokeArgs : [];
-      let binResult;
-      try {
-        binResult = await npmExec.runBin(binPath, cliArgs, {
-          cwd: pkgRoot,
-          env: {
-            HOME: installDir,
-            TMPDIR: installDir,
-            TEMP: installDir,
-            TMP: installDir,
-            PATH: dirname13(process.execPath),
-            CI: "1"
-          }
-        });
-      } catch (binErr) {
-        return {
-          passed: false,
-          details: {
-            error: `CLI smoke execution failed for ${packageAtVersion}: ${binErr.message}`,
-            packageAtVersion,
-            unitId
-          }
-        };
-      }
-      if (binResult.exitCode !== 0 && binResult.exitCode !== void 0) {
-        return {
-          passed: false,
-          details: {
-            error: `CLI smoke exited with code ${binResult.exitCode} for ${packageAtVersion}`,
-            packageAtVersion,
-            unitId
-          }
-        };
-      }
-      if (smokeExpectedJson) {
-        let parsedOutput;
-        try {
-          parsedOutput = JSON.parse(binResult.stdout);
-        } catch {
-          return {
-            passed: false,
-            details: {
-              error: `CLI smoke returned non-JSON output for ${packageAtVersion}`,
-              packageAtVersion,
-              unitId
-            }
-          };
-        }
-        if (!matchesSubset2(parsedOutput, smokeExpectedJson)) {
-          return {
-            passed: false,
-            details: {
-              error: `CLI smoke JSON output does not match expected fields for ${packageAtVersion}`,
-              packageAtVersion,
-              unitId,
-              expected: smokeExpectedJson,
-              actual: parsedOutput
-            }
-          };
-        }
-      } else {
-        try {
-          JSON.parse(binResult.stdout);
-        } catch {
-          return {
-            passed: false,
-            details: {
-              error: `CLI smoke returned non-JSON output for ${packageAtVersion}`,
-              packageAtVersion,
-              unitId
-            }
-          };
-        }
-      }
-      results.push({
-        packageName: pkgName,
-        version: targetVersion,
-        packageAtVersion,
-        unitId,
-        cliSmoke: "passed"
-      });
-    }
-    return {
-      passed: true,
-      details: {
-        distributions: results,
-        count: results.length
-      },
-      gateResults,
-      skillResourceClosureReceipts
-    };
-  } finally {
-    await rm8(tmpDir, { recursive: true, force: true }).catch(() => {
-    });
-  }
-}
-async function verifyRelease(options) {
-  const {
-    planPath,
-    sourceRunPath,
-    adapterRegistry,
-    root = process.cwd(),
-    runDir: runDirOpt,
-    clock: clockOpt,
-    npmExecutor,
-    verificationGatesAuthorized,
-    gateEnv,
-    previousVerifyRun
-  } = options ?? {};
-  const clockFn = typeof clockOpt === "function" ? clockOpt : defaultClock4;
-  if (!sourceRunPath) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      "verify requires a source run path (--run)",
-      { parameter: "sourceRunPath" }
-    );
-  }
-  let planRaw;
-  try {
-    planRaw = await readFile24(planPath, "utf8");
-  } catch (err) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `cannot read release plan: ${err.message}`,
-      { planPath, cause: err.code }
-    );
-  }
+import { readFile as readFile28 } from "node:fs/promises";
+import { resolve as resolve30, join as join23 } from "node:path";
+async function validateInstalledConsumerClosure({
+  root,
+  platform,
+  requirement,
+  installPath
+}) {
+  const planPath = resolve30(root, ".release-skill", "plans", `${requirement.planDigest}.json`);
+  const [
+    { validatePlan: validatePlan2, computePlanDigest: computePlanDigest2, assertImmutablePlanAuthority: assertImmutablePlanAuthority2 },
+    { createPluginMarketplaceAdapter: createPluginMarketplaceAdapter2, verifyInstalledMarketplacePayload: verifyInstalledMarketplacePayload2 }
+  ] = await Promise.all([
+    init_plan().then(() => plan_exports),
+    init_plugin_marketplace().then(() => plugin_marketplace_exports)
+  ]);
   let plan;
   try {
-    plan = JSON.parse(planRaw);
-  } catch (err) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `release plan is not valid JSON: ${err.message}`,
-      { planPath }
-    );
-  }
-  validatePlan(plan);
-  if (plan.production?.mode === "github-npm-v1" && !plan.sourceAuthority) {
-    throw new ReleaseError(
-      CONFIG_MISSING,
-      "production verify requires a frozen sourceAuthority binding; the release must be re-prepared before publish",
-      { gate: "source-authority" }
-    );
-  }
-  const runId = `verify-${Date.now()}`;
-  const requestedRunDir = runDirOpt ?? resolveDefaultRunDir(planPath, "verify", runId);
-  const runDir = plan.production ? await createProductionRunDir(requestedRunDir, planPath) : requestedRunDir;
-  if (!plan.production) await mkdir13(runDir, { recursive: true });
-  const evidence = createEvidenceWriter({ runDir, command: "verify", clock: clockFn });
-  try {
-    await evidence.append({ phase: "verify", step: "plan-load", status: "started" });
-    const consumerGates = (plan.verificationGates ?? []).filter((gate) => gate.phase === "consumer-verify");
-    const configuredSmokeBins = (plan.units ?? []).flatMap((unit) => (unit.distributions ?? []).filter((distribution) => distribution.type === "npm" && distribution.smokeBin).map((distribution) => ({ unitId: unit.id, smokeBin: distribution.smokeBin })));
-    if ((consumerGates.length > 0 || configuredSmokeBins.length > 0) && verificationGatesAuthorized !== true) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `plan declares ${consumerGates.length} consumer verification gate(s) and ${configuredSmokeBins.length} npm CLI smoke process(es). They execute installed project code without an OS or network sandbox. To proceed, pass --acknowledge-gate-side-effects (CLI) or verificationGatesAuthorized=true (API).`,
-        { gateIds: consumerGates.map((gate) => gate.id), configuredSmokeBins }
-      );
-    }
-    await evidence.append({ phase: "verify", step: "plan-load", status: "passed" });
-    await evidence.append({ phase: "verify", step: "source-run-load", status: "started" });
-    const sourceRun = await loadRun(sourceRunPath, {
-      requireDigest: Boolean(plan.production),
-      ...plan.production ? { authorityPlanPath: planPath } : {}
-    });
-    await validateRunLineage(sourceRun, {
-      plan,
-      planPath,
-      runPath: sourceRunPath,
-      production: Boolean(plan.production)
-    });
-    if (sourceRun.command !== "publish" && sourceRun.command !== "reconcile") {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `verify only accepts source runs from publish or reconcile; source run command is "${sourceRun.command}"`,
-        { sourceRunCommand: sourceRun.command, sourceRunId: sourceRun.runId }
-      );
-    }
-    if (sourceRun.status !== "PUBLISHED") {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `cannot verify: source run status is "${sourceRun.status}"; expected PUBLISHED (VERIFIED is terminal)`,
-        { sourceRunStatus: sourceRun.status }
-      );
-    }
-    if (plan.production) {
-      if (!sourceRun.approvalPath || !sourceRun.approvalDigest) {
-        throw new ReleaseError(
-          GATE_FAILED,
-          "production verify requires immutable approvalPath and approvalDigest on the source run"
-        );
-      }
-      let approvalRaw;
-      try {
-        approvalRaw = await readFile24(sourceRun.approvalPath, "utf8");
-      } catch (error) {
-        throw new ReleaseError(
-          GATE_FAILED,
-          `cannot read source run approval authority: ${error.message}`
-        );
-      }
-      let approval;
-      try {
-        approval = JSON.parse(approvalRaw);
-      } catch (error) {
-        throw new ReleaseError(GATE_FAILED, `source run approval is not valid JSON: ${error.message}`);
-      }
-      validateApprovalRecordSchema(approval);
-      const approvalDigest = assertImmutableApprovalAuthority(
-        sourceRun.approvalPath,
-        plan,
-        approvalRaw
-      );
-      if (approvalDigest !== sourceRun.approvalDigest) {
-        throw new ReleaseError(
-          GATE_FAILED,
-          "source run approvalDigest does not match immutable approval bytes"
-        );
-      }
-      validateApproval(plan, approval, { clock: clockFn, requireUnexpired: false });
-    }
-    const completenessResult = validatePlanActionCompleteness(plan, { legacyCompatibility: true });
-    if (!completenessResult.passed) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `plan action completeness gate failed: ${completenessResult.details.failures.join("; ")}`,
-        { failures: completenessResult.details.failures }
-      );
-    }
-    validateRunCheckpointMapping(sourceRun, plan.externalActions ?? []);
-    if (plan.sourceAuthority) {
-      await evidence.append({ phase: "source-authority-receipt", status: "started" });
-      const receiptResult = verifySourceAuthorityReceipt({ plan, run: sourceRun });
-      if (!receiptResult.passed) {
-        await evidence.append({
-          phase: "source-authority-receipt",
-          status: "failed",
-          reason: receiptResult.reason
-        });
-        throw new ReleaseError(
-          GATE_FAILED,
-          `source authority receipt verification failed: ${receiptResult.reason}`,
-          { reason: receiptResult.reason }
-        );
-      }
-      await evidence.append({ phase: "source-authority-receipt", status: "passed" });
-    }
-    const incompleteCheckpoints = sourceRun.checkpoints.filter(
-      (cp2) => cp2.status !== "succeeded" && cp2.status !== "skipped" && !((cp2.status === "failed" || cp2.status === "deferred") && isMarketplaceAction(cp2.actionType))
-    );
-    if (incompleteCheckpoints.length > 0) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `cannot verify: source run has ${incompleteCheckpoints.length} incomplete checkpoint(s): ${incompleteCheckpoints.map((cp2) => `${cp2.actionId}=${cp2.status}`).join(", ")}`,
-        { incompleteCheckpoints: incompleteCheckpoints.map((cp2) => ({ actionId: cp2.actionId, status: cp2.status })) }
-      );
-    }
-    await evidence.append({
-      phase: "verify",
-      step: "source-run-load",
-      status: "passed",
-      sourceRunId: sourceRun.runId
-    });
-    await evidence.append({ phase: "verify", step: "adapter-verify", status: "started" });
-    const adapterChecks = [];
-    const consumerGateResults = [];
-    const consumerVerificationReceipts = [];
-    const actions = plan.externalActions ?? [];
-    const trustedVerifyRuns = [];
-    const planDir = dirname13(planPath);
-    const releaseDir = basename8(planDir) === "plans" ? dirname13(planDir) : planDir;
-    const runsDir = resolve26(releaseDir, "runs");
-    let runsDirReal = null;
-    let authorityDirReal = null;
-    if (previousVerifyRun) {
-      if (previousVerifyRun.status === "VERIFIED" && isValidDigest2(previousVerifyRun.planDigest) && previousVerifyRun.finishedAt && typeof previousVerifyRun.finishedAt === "string" && !isNaN(Date.parse(previousVerifyRun.finishedAt))) {
-        const computedRunDigest = computeRunDigest(previousVerifyRun);
-        if (typeof previousVerifyRun.runDigest === "string" && previousVerifyRun.runDigest.length > 0 && previousVerifyRun.runDigest === computedRunDigest) {
-          trustedVerifyRuns.push(previousVerifyRun);
-        }
-      }
-    }
-    {
-      try {
-        const runsDirStat = await lstat15(runsDir);
-        if (runsDirStat.isSymbolicLink()) {
-          throw new ReleaseError(
-            GATE_FAILED,
-            "runs directory is a symbolic link; authority identity compromised",
-            { runsDir }
-          );
-        }
-        if (!runsDirStat.isDirectory()) {
-          throw new ReleaseError(
-            GATE_FAILED,
-            "runs path is not a directory",
-            { runsDir }
-          );
-        }
-        runsDirReal = realpathSync4(runsDir);
-        authorityDirReal = realpathSync4(releaseDir);
-        if (!runsDirReal.startsWith(authorityDirReal + "/") && runsDirReal !== authorityDirReal) {
-          throw new ReleaseError(
-            GATE_FAILED,
-            "runs directory is not a real child of the plan authority directory",
-            { runsDir, runsDirReal, authorityDirReal }
-          );
-        }
-      } catch (err) {
-        if (err instanceof ReleaseError) throw err;
-        runsDirReal = null;
-      }
-      if (runsDirReal) {
-        const entries = await readdir13(runsDirReal, { withFileTypes: true });
-        for (const entry of entries) {
-          if (!entry.name.startsWith("verify-")) continue;
-          if (!entry.isDirectory() || entry.isSymbolicLink()) {
-            throw new ReleaseError(
-              GATE_FAILED,
-              "verify-* candidate is a symbolic link or not a directory; authority identity compromised",
-              { entry: entry.name, runsDir: runsDirReal }
-            );
-          }
-          const candidateDir = resolve26(runsDirReal, entry.name);
-          const candidateStat = await lstat15(candidateDir).catch(() => null);
-          if (!candidateStat || candidateStat.isSymbolicLink()) {
-            throw new ReleaseError(
-              GATE_FAILED,
-              "verify-* candidate is a symbolic link; authority identity compromised",
-              { candidateDir, runsDir: runsDirReal }
-            );
-          }
-          const candidateReal = realpathSync4(candidateDir);
-          if (!candidateReal.startsWith(runsDirReal + "/") && candidateReal !== runsDirReal) {
-            throw new ReleaseError(
-              GATE_FAILED,
-              "verify-* candidate real path is not contained in authority runs directory",
-              { candidateDir, candidateReal, runsDir: runsDirReal }
-            );
-          }
-          const candidatePath = resolve26(candidateDir, "release-run.json");
-          try {
-            const candidate = await loadRun(candidatePath, { requireDigest: true });
-            if (candidate.status !== "VERIFIED") continue;
-            if (!candidate.planDigest) continue;
-            if (!candidate.finishedAt || typeof candidate.finishedAt !== "string") continue;
-            trustedVerifyRuns.push(candidate);
-          } catch {
-            continue;
-          }
-        }
-      }
-    }
-    for (const action of actions) {
-      const adapterActionType = ADAPTER_ACTION_TYPE_MAP2[action.type];
-      if (!adapterActionType) {
-        adapterChecks.push({
-          actionId: action.id,
-          actionType: action.type,
-          status: "SKIPPED",
-          reason: "meta-checkpoint"
-        });
-        continue;
-      }
-      let adapter;
-      try {
-        adapter = adapterRegistry.getAdapter(adapterActionType);
-      } catch {
-        throw new ReleaseError(
-          POST_PUBLISH_VERIFY_FAILED,
-          `no adapter registered for action type "${adapterActionType}" (plan action "${action.id}")`,
-          { actionId: action.id, adapterActionType }
-        );
-      }
-      if (isMarketplaceAction(action.type)) {
-        const marketplaceContext = {
-          externalWritesAuthorized: false,
-          isolatedConsumerWritesAuthorized: true,
-          plan,
-          baseline: plan.baseline,
-          root,
-          runDir
-        };
-        const actionInput = {
-          actionType: adapterActionType,
-          ...action.parameters
-        };
-        const unit = (plan.units ?? []).find((u) => u.id === action.unitId);
-        const typeToDist = {
-          "claude-marketplace-install": "claude-plugin",
-          "codex-marketplace-install": "codex-plugin",
-          "kimi-marketplace-install": "kimi-plugin",
-          "codebuddy-marketplace-install": "codebuddy-plugin"
-        };
-        const dist = unit?.distributions?.find((d) => d.type === typeToDist[action.type]);
-        const preflightResult = await adapter.preflight(actionInput, marketplaceContext);
-        if (preflightResult.status !== "PREFLIGHT_PASSED") {
-          adapterChecks.push({
-            actionId: action.id,
-            actionType: action.type,
-            status: "FAILED",
-            error: `preflight did not pass: status=${preflightResult.status}, error=${preflightResult.error}`
-          });
-          throw new ReleaseError(
-            POST_PUBLISH_VERIFY_FAILED,
-            `marketplace preflight did not pass for action "${action.id}": status=${preflightResult.status}, error=${preflightResult.error}`,
-            { actionId: action.id }
-          );
-        }
-        if (dist?.installationContractDigest) {
-          const currentDigest = dist.installationContractDigest;
-          const currentPlatform = action.parameters?.consumer ?? action.type.replace("-marketplace-install", "");
-          let previousActionCheck = null;
-          if (trustedVerifyRuns.length > 0) {
-            const sorted = [...trustedVerifyRuns].sort((a, b) => {
-              const ta = Date.parse(a.finishedAt) || 0;
-              const tb = Date.parse(b.finishedAt) || 0;
-              return tb - ta;
-            });
-            const latest = sorted[0];
-            const matchingReceipt = (latest.consumerVerificationReceipts ?? []).find(
-              (r) => r.actionId === action.id && r.unitId === action.unitId && r.platform === currentPlatform && r.planDigest === latest.planDigest
-            );
-            if (matchingReceipt) {
-              previousActionCheck = { ...matchingReceipt, _runFinishedAtTime: Date.parse(latest.finishedAt) };
-            }
-          }
-          const previousDigest = previousActionCheck?.installationContractDigest ?? null;
-          const skipDecision = shouldSkipVerification({
-            currentDigest,
-            previousDigest,
-            previousReceipt: previousActionCheck,
-            algorithmVersion: INSTALLATION_CONTRACT_ALGORITHM_VERSION
-          });
-          if (skipDecision === "NOT_REQUIRED_UNCHANGED" && !plan.skillResourceClosure) {
-            adapterChecks.push({
-              actionId: action.id,
-              actionType: action.type,
-              status: VERIFICATION_RESOLVED_TYPES.NOT_REQUIRED_UNCHANGED,
-              installationContractDigest: currentDigest,
-              reason: "\u5B89\u88C5\u5951\u7EA6\u6458\u8981\u672A\u53D8\u5316\uFF0C\u8DF3\u8FC7\u9A8C\u8BC1"
-            });
-            consumerVerificationReceipts.push({
-              actionId: action.id,
-              unitId: action.unitId,
-              platform: action.parameters?.consumer ?? action.type.replace("-marketplace-install", ""),
-              result: VERIFICATION_RESOLVED_TYPES.NOT_REQUIRED_UNCHANGED,
-              installationContractDigest: currentDigest,
-              algorithmVersion: INSTALLATION_CONTRACT_ALGORITHM_VERSION,
-              planDigest: plan.digest,
-              verifiedAt: clockFn()
-            });
-            await evidence.append({
-              phase: "verify-marketplace",
-              actionId: action.id,
-              actionType: action.type,
-              status: VERIFICATION_RESOLVED_TYPES.NOT_REQUIRED_UNCHANGED,
-              installationContractDigest: currentDigest
-            });
-            continue;
-          }
-        }
-        const executeResult = await adapter.execute(actionInput, marketplaceContext);
-        if (executeResult.status !== "EXECUTED") {
-          adapterChecks.push({
-            actionId: action.id,
-            actionType: action.type,
-            status: "FAILED",
-            error: `execute failed: ${executeResult.error}`
-          });
-          throw new ReleaseError(
-            POST_PUBLISH_VERIFY_FAILED,
-            `marketplace execute failed for action "${action.id}": ${executeResult.error}`,
-            { actionId: action.id }
-          );
-        }
-        const verifyResult = await adapter.verify(
-          { ...actionInput, expected: action.expected },
-          marketplaceContext
-        );
-        const isHumanConfirmed = verifyResult.observation?.humanConfirmed === true;
-        const resolvedStatus = verifyResult.status === "VERIFIED" ? isHumanConfirmed ? VERIFICATION_RESOLVED_TYPES.PASSED_MANUAL : VERIFICATION_RESOLVED_TYPES.PASSED_AUTOMATIC : "FAILED";
-        const check = {
-          actionId: action.id,
-          actionType: action.type,
-          status: resolvedStatus,
-          observation: verifyResult.observation,
-          error: verifyResult.error,
-          ...dist?.installationContractDigest ? { installationContractDigest: dist.installationContractDigest } : {}
-        };
-        adapterChecks.push(check);
-        if (resolvedStatus !== "FAILED" && dist?.installationContractDigest && /^[a-f0-9]{64}$/.test(dist.installationContractDigest)) {
-          consumerVerificationReceipts.push({
-            actionId: action.id,
-            unitId: action.unitId,
-            platform: action.parameters?.consumer ?? action.type.replace("-marketplace-install", ""),
-            result: resolvedStatus,
-            installationContractDigest: dist.installationContractDigest,
-            algorithmVersion: INSTALLATION_CONTRACT_ALGORITHM_VERSION,
-            planDigest: plan.digest,
-            verifiedAt: clockFn()
-          });
-        }
-        await evidence.append({
-          phase: "verify-marketplace",
-          actionId: action.id,
-          actionType: action.type,
-          status: check.status
-        });
-        if (check.status === "FAILED") {
-          throw new ReleaseError(
-            POST_PUBLISH_VERIFY_FAILED,
-            `marketplace verification failed for action "${action.id}": ${verifyResult.error}`,
-            {
-              actionId: action.id,
-              actionType: action.type,
-              verificationResult: check.status,
-              observation: verifyResult.observation,
-              expected: action.expected
-            }
-          );
-        }
-        const distribution = action.type === "claude-marketplace-install" ? "claude-plugin" : action.type === "codex-marketplace-install" ? "codex-plugin" : action.type === "codebuddy-marketplace-install" ? "codebuddy-plugin" : "kimi-plugin";
-        const installPath = verifyResult.observation?.installPath;
-        consumerGateResults.push(...await runConsumerVerificationGates({
-          plan,
-          unitId: action.unitId,
-          distribution,
-          executionRoot: installPath,
-          evidence,
-          env: gateEnv ?? process.env,
-          fixedEnv: action.type === "claude-marketplace-install" ? {
-            HOME: resolve26(runDir, "consumers", `claude-${action.parameters.plugin}`),
-            CLAUDE_CONFIG_DIR: resolve26(runDir, "consumers", `claude-${action.parameters.plugin}`, ".claude")
-          } : action.type === "codex-marketplace-install" ? {
-            HOME: resolve26(runDir, "consumers", `codex-${action.parameters.plugin}`),
-            CODEX_HOME: resolve26(runDir, "consumers", `codex-${action.parameters.plugin}`)
-          } : action.type === "codebuddy-marketplace-install" ? {
-            HOME: resolve26(runDir, "consumers", `codebuddy-${action.parameters.plugin}`)
-          } : {
-            HOME: resolve26(runDir, "consumers", `kimi-${action.parameters.plugin}`)
-          }
-        }));
-      } else {
-        const context = {
-          externalWritesAuthorized: false,
-          plan,
-          baseline: plan.baseline,
-          root,
-          runDir
-        };
-        const verifyResult = await adapter.verify(
-          {
-            actionType: adapterActionType,
-            ...action.parameters,
-            expected: action.expected
-          },
-          context
-        );
-        const check = {
-          actionId: action.id,
-          actionType: action.type,
-          status: verifyResult.status === "VERIFIED" ? VERIFICATION_RESOLVED_TYPES.PASSED_AUTOMATIC : "FAILED",
-          observation: verifyResult.observation,
-          error: verifyResult.error
-        };
-        adapterChecks.push(check);
-        await evidence.append({
-          phase: "verify-adapter",
-          actionId: action.id,
-          actionType: action.type,
-          status: check.status
-        });
-        if (check.status === "FAILED") {
-          throw new ReleaseError(
-            POST_PUBLISH_VERIFY_FAILED,
-            `adapter verification failed for action "${action.id}": ${verifyResult.error}`,
-            {
-              actionId: action.id,
-              actionType: action.type,
-              verificationResult: check.status,
-              observation: verifyResult.observation,
-              expected: action.expected
-            }
-          );
-        }
-      }
-    }
-    await evidence.append({ phase: "verify", step: "adapter-verify", status: "completed" });
-    await evidence.append({ phase: "verify", step: "smoke-test", status: "started" });
-    let smokeTest;
-    try {
-      smokeTest = await runSmokeTest(plan, root, {
-        npmExecutor,
-        baseDir: runDir,
-        evidence,
-        gateEnv: gateEnv ?? process.env
-      });
-    } catch (err) {
-      smokeTest = { passed: false, details: { error: err.message } };
-    }
-    await evidence.append({
-      phase: "verify",
-      step: "smoke-test",
-      status: smokeTest.passed ? "passed" : "failed",
-      details: smokeTest.details
-    });
-    if (!smokeTest.passed) {
-      throw new ReleaseError(
-        POST_PUBLISH_VERIFY_FAILED,
-        `installation smoke test failed: ${smokeTest.details.error}`,
-        { smokeTest: smokeTest.details }
-      );
-    }
-    consumerGateResults.push(...smokeTest.gateResults ?? []);
-    const expectedGateIds = consumerGates.map((gate) => gate.id).sort();
-    const observedGateIds = consumerGateResults.map((result) => result.id).sort();
-    if (JSON.stringify(expectedGateIds) !== JSON.stringify(observedGateIds)) {
-      throw new ReleaseError(
-        POST_PUBLISH_VERIFY_FAILED,
-        "consumer verification gate execution set does not match the frozen plan",
-        { expectedGateIds, observedGateIds }
-      );
-    }
-    const skillResourceClosureReceipts = [
-      ...smokeTest.skillResourceClosureReceipts ?? []
-    ];
-    if (plan.skillResourceClosure) {
-      await evidence.append({ phase: "verify", step: "skill-resource-closure", status: "started" });
-      const installSurfaces = [];
-      const actionDistribution = {
-        "claude-marketplace-install": "claude-plugin",
-        "codex-marketplace-install": "codex-plugin",
-        "kimi-marketplace-install": "kimi-plugin",
-        "codebuddy-marketplace-install": "codebuddy-plugin"
-      };
-      for (const check of adapterChecks) {
-        const distribution = actionDistribution[check.actionType];
-        if (distribution && check.observation?.installPath) {
-          installSurfaces.push({
-            host: distribution.replace("-plugin", ""),
-            distribution,
-            installPath: check.observation.installPath,
-            actionId: check.actionId,
-            unitId: actions.find((a) => a.id === check.actionId)?.unitId
-          });
-        }
-      }
-      for (const surface of installSurfaces) {
-        const closureResult = await checkSkillResourceClosure({
-          snapshotDir: surface.installPath,
-          host: surface.host
-        });
-        if (closureResult.findings.length > 0) {
-          await evidence.append({
-            phase: "verify",
-            step: "skill-resource-closure",
-            status: "failed",
-            host: surface.host,
-            findingCount: closureResult.findings.length,
-            findings: closureResult.findings
-          });
-          throw new ReleaseError(
-            POST_PUBLISH_VERIFY_FAILED,
-            `skill resource closure check failed for ${surface.host} consumer install: ${closureResult.findings.length} finding(s)`,
-            { host: surface.host, findings: closureResult.findings }
-          );
-        }
-        const expectedUnitReceipt = plan.skillResourceClosure.unitReceipts.find((item) => item.unitId === surface.unitId);
-        if (!expectedUnitReceipt || closureResult.skillCount === 0) {
-          throw new ReleaseError(
-            POST_PUBLISH_VERIFY_FAILED,
-            `skill resource closure installed surface is empty or unbound for ${surface.distribution}`,
-            { unitId: surface.unitId, distribution: surface.distribution }
-          );
-        }
-        skillResourceClosureReceipts.push(createSkillResourceClosureReceipt(
-          closureResult,
-          {
-            host: surface.host,
-            distribution: surface.distribution,
-            actionId: surface.actionId,
-            unitId: surface.unitId,
-            checkedAt: clockFn(),
-            exitCode: 0
-          }
-        ));
-      }
-      const receiptCoverage = evaluateConsumerSkillResourceClosureReceipts(
-        plan,
-        skillResourceClosureReceipts
-      );
-      if (!receiptCoverage.passed) {
-        throw new ReleaseError(
-          POST_PUBLISH_VERIFY_FAILED,
-          "skill resource closure receipt set does not match declared consumer distributions",
-          receiptCoverage
-        );
-      }
-      await evidence.append({
-        phase: "verify",
-        step: "skill-resource-closure",
-        status: "completed",
-        surfaceCount: installSurfaces.length,
-        receipts: skillResourceClosureReceipts
-      });
-    }
-    assertTransition(PUBLISHED, VERIFIED);
-    await evidence.append({ phase: "verify", status: "completed", overallStatus: VERIFIED });
-    const sourceRunDigest = sourceRun.runDigest ?? computeRunDigest(sourceRun);
-    const verifyRunPath = join21(runDir, "release-run.json");
-    const verifyRunState = {
-      runId,
-      command: "verify",
-      planDigest: plan.digest,
-      planPath,
-      ...sourceRun.approvalPath ? {
-        approvalPath: sourceRun.approvalPath,
-        approvalDigest: sourceRun.approvalDigest
-      } : {},
-      sourceRunId: sourceRun.runId,
-      sourceRunDigest,
-      sourceRunPath,
-      status: VERIFIED,
-      checkpoints: actions.map((a) => {
-        const check = adapterChecks.find((c) => c.actionId === a.id);
-        let status;
-        if (check?.status === "SKIPPED") {
-          status = "skipped";
-        } else if (check?.status === VERIFICATION_RESOLVED_TYPES.PASSED_AUTOMATIC) {
-          status = "succeeded";
-        } else if (check?.status === VERIFICATION_RESOLVED_TYPES.PASSED_MANUAL) {
-          status = "succeeded";
-        } else if (check?.status === VERIFICATION_RESOLVED_TYPES.NOT_REQUIRED_UNCHANGED) {
-          status = "skipped";
-        } else {
-          status = "succeeded";
-        }
-        return {
-          actionId: a.id,
-          actionType: a.type,
-          status
-        };
-      }),
-      gateResults: consumerGateResults,
-      consumerVerificationReceipts,
-      skillResourceClosureReceipts,
-      startedAt: clockFn(),
-      finishedAt: clockFn()
-    };
-    const persistedVerifyRun = await writeRunAtomic(verifyRunPath, verifyRunState);
-    await evidence.finish({
-      status: VERIFIED,
-      planPath,
-      sourceRunId: sourceRun.runId,
-      sourceRunDigest,
-      runDigest: persistedVerifyRun.runDigest,
-      adapterCheckCount: adapterChecks.length,
-      smokeTestPassed: true,
-      consumerGateCount: consumerGateResults.length,
-      completedAt: clockFn()
-    });
-    return {
-      planPath,
-      status: VERIFIED,
-      adapterChecks,
-      smokeTest,
-      gateResults: consumerGateResults
-    };
-  } catch (err) {
-    await evidence.append({
-      phase: "verify",
-      status: "failed",
-      error: { code: err.code, message: err.message }
-    });
-    await evidence.finish({
-      status: "FAILED",
-      error: { code: err.code, message: err.message },
-      failedAt: clockFn()
-    });
-    throw err;
-  }
-}
-var execFile11, VERIFICATION_RESOLVED_TYPES, ADAPTER_ACTION_TYPE_MAP2, defaultNpmExecutor;
-var init_verify = __esm({
-  async "src/commands/verify.mjs"() {
-    await init_plan();
-    init_evidence();
-    await init_run();
-    await init_approval();
-    init_errors();
-    init_source_authority();
-    init_state_machine();
-    init_public_path();
-    init_npm();
-    init_verification_gates();
-    init_skill_resource_closure();
-    init_checkpoints();
-    init_installation_contract();
-    init_npm_entry_closure();
-    execFile11 = promisify12(execFileCb12);
-    VERIFICATION_RESOLVED_TYPES = Object.freeze({
-      PASSED_AUTOMATIC: "PASSED_AUTOMATIC",
-      PASSED_MANUAL: "PASSED_MANUAL",
-      NOT_REQUIRED_UNCHANGED: "NOT_REQUIRED_UNCHANGED"
-    });
-    ADAPTER_ACTION_TYPE_MAP2 = {
-      "push-commit": "git-push",
-      "push-snapshot": "push-snapshot",
-      "set-default-branch": "set-default-branch",
-      "create-tag": "git-tag",
-      "npm-publish": "npm-publish",
-      "github-release": "github-release",
-      "claude-marketplace-install": "claude-marketplace-install",
-      "codex-marketplace-install": "codex-marketplace-install",
-      "kimi-marketplace-install": "kimi-marketplace-install",
-      "codebuddy-marketplace-install": "codebuddy-marketplace-install"
-    };
-    __name(defaultClock4, "defaultClock");
-    __name(isValidDigest2, "isValidDigest");
-    __name(matchesSubset2, "matchesSubset");
-    __name(runSmokeTest, "runSmokeTest");
-    defaultNpmExecutor = {
-      async install(packageAtVersion, cwd, flags, { registry }) {
-        const normalizedRegistry = normalizeRegistry(registry);
-        const token = await resolveNpmRegistryAuthToken({
-          registry: normalizedRegistry,
-          cwd,
-          exec: execFile11,
-          env: process.env
-        });
-        const userConfig = join21(cwd, ".release-skill-npmrc");
-        await writeFile8(
-          userConfig,
-          `registry=${normalizedRegistry}/
-${registryTokenKey(normalizedRegistry)}=${token}
-`,
-          { encoding: "utf8", mode: 384 }
-        );
-        const env = { ...process.env };
-        for (const name of [
-          "NPM_TOKEN",
-          "NODE_AUTH_TOKEN",
-          "NPM_CONFIG_REGISTRY",
-          "npm_config_registry",
-          "NPM_CONFIG_USERCONFIG",
-          "npm_config_userconfig"
-        ]) delete env[name];
-        try {
-          await execFile11("npm", [
-            "install",
-            packageAtVersion,
-            ...flags,
-            "--userconfig",
-            userConfig
-          ], {
-            cwd,
-            env,
-            shell: false,
-            encoding: "utf8",
-            timeout: 6e4
-          });
-          return { success: true };
-        } catch (err) {
-          return { success: false, error: err.message };
-        } finally {
-          await rm8(userConfig, { force: true }).catch(() => {
-          });
-        }
-      },
-      async runBin(binPath, args2 = [], options = {}) {
-        return execFile11(process.execPath, [binPath, ...args2], {
-          cwd: options.cwd,
-          env: options.env,
-          shell: false,
-          encoding: "utf8",
-          timeout: 3e4
-        });
-      }
-    };
-    __name(verifyRelease, "verifyRelease");
-  }
-});
-
-// src/commands/publish.mjs
-var publish_exports = {};
-__export(publish_exports, {
-  PRE_OBSERVE: () => PRE_OBSERVE,
-  classifyPreObservation: () => classifyPreObservation,
-  publishRelease: () => publishRelease
-});
-import { readFile as readFile25, mkdir as mkdir14 } from "node:fs/promises";
-import { isAbsolute as isAbsolute20, join as join22, relative as relative24 } from "node:path";
-function assertInsideAssetRoot(assetRoot, candidate, label) {
-  const rel = relative24(assetRoot, candidate);
-  if (rel === "" || isAbsolute20(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
-    throw new ReleaseError(GATE_FAILED, `${label} must be a child of the production asset root`);
-  }
-}
-function defaultClock5() {
-  return (/* @__PURE__ */ new Date()).toISOString();
-}
-function deepClone(obj) {
-  return JSON.parse(JSON.stringify(obj));
-}
-function hasExpected(expected) {
-  return !!expected && typeof expected === "object" && Object.keys(expected).length > 0;
-}
-function classifyPreObservation(action, observeResult) {
-  const observation = observeResult?.observation;
-  if (!observation || Object.keys(observation).length === 0) {
-    return PRE_OBSERVE.UNOBSERVABLE;
-  }
-  const expected = action?.expected;
-  const parameters = action?.parameters ?? {};
-  if (action?.type === "push-snapshot") {
-    if (hasExpected(expected) && matchObservation(expected, observation).matches) {
-      return PRE_OBSERVE.CONSISTENT;
-    }
-    if (parameters.expectedBaselineCommit && observation.commit === parameters.expectedBaselineCommit) {
-      return PRE_OBSERVE.MISSING;
-    }
-    if (observation.exists === false) {
-      return PRE_OBSERVE.MISSING;
-    }
-    return PRE_OBSERVE.CONFLICTING;
-  }
-  if (action?.type === "set-default-branch") {
-    if (parameters.expectedNewBranchCommit && observation.newBranchCommit !== parameters.expectedNewBranchCommit) {
-      return PRE_OBSERVE.CONFLICTING;
-    }
-    if (observation.defaultBranch === parameters.newBranch && hasExpected(expected) && matchObservation(expected, observation).matches) {
-      return PRE_OBSERVE.CONSISTENT;
-    }
-    if (observation.defaultBranch === parameters.oldBranch) {
-      return PRE_OBSERVE.MISSING;
-    }
-    return PRE_OBSERVE.CONFLICTING;
-  }
-  if (hasExpected(expected) && matchObservation(expected, observation).matches) {
-    return PRE_OBSERVE.CONSISTENT;
-  }
-  if (isPropagatingMissing(observeResult)) {
-    return PRE_OBSERVE.MISSING;
-  }
-  return PRE_OBSERVE.CONFLICTING;
-}
-async function executeCheckpoint(action, adapterRegistry, context) {
-  const { id: actionId, type: planActionType } = action;
-  if (planActionType === "write-remote-identifier") {
-    return { actionId, status: "SUCCEEDED", error: null };
-  }
-  const adapterActionType = ADAPTER_ACTION_TYPE_MAP[planActionType];
-  if (!adapterActionType) {
-    return {
-      actionId,
-      status: "FAILED",
-      error: `Unknown action type: ${planActionType}`
-    };
-  }
-  const adapter = adapterRegistry.getAdapter(adapterActionType);
-  if (!adapter) {
-    return {
-      actionId,
-      status: "FAILED",
-      error: `No adapter for action type: ${adapterActionType}`
-    };
-  }
-  let preObserve;
-  if (hasExpected(action.expected)) {
-    const preObserveInput = {
-      actionType: adapterActionType,
-      ...action.parameters,
-      expected: action.expected
-    };
-    let preObserveResult;
-    try {
-      preObserveResult = await adapter.observe(preObserveInput, context);
-    } catch (error) {
-      preObserveResult = { observation: null, error: error?.message ?? String(error) };
-    }
-    const classification = classifyPreObservation(action, preObserveResult);
-    await context.evidence?.append?.({
-      phase: "checkpoint-pre-observe",
-      actionId,
-      actionType: planActionType,
-      status: "pre-observe",
-      details: { preObserve: classification }
-    });
-    if (classification === PRE_OBSERVE.CONSISTENT) {
-      return {
-        actionId,
-        status: "SKIPPED",
-        error: null,
-        observation: preObserveResult?.observation ?? null,
-        preObserve: PRE_OBSERVE.CONSISTENT
-      };
-    }
-    if (classification === PRE_OBSERVE.CONFLICTING) {
-      const mismatches = matchObservation(action.expected, preObserveResult?.observation ?? {}).mismatches;
-      return {
-        actionId,
-        status: "FAILED",
-        error: `pre-observe conflict: ${mismatches.join("; ") || "remote state is present but does not match the frozen plan"}`,
-        observation: preObserveResult?.observation ?? null,
-        preObserve: PRE_OBSERVE.CONFLICTING
-      };
-    }
-    if (classification === PRE_OBSERVE.MISSING) {
-      preObserve = PRE_OBSERVE.MISSING;
-    }
-  }
-  const preflightResult = await adapter.preflight(
-    { actionType: adapterActionType, ...action.parameters },
-    context
-  );
-  if (preflightResult.status === "PREFLIGHT_FAILED") {
-    return {
-      actionId,
-      status: "FAILED",
-      error: preflightResult.error ?? "Preflight failed"
-    };
-  }
-  let executeResult;
-  let executeError = null;
-  try {
-    executeResult = await adapter.execute(
-      { actionType: adapterActionType, ...action.parameters },
-      context
-    );
+    plan = JSON.parse(await readFile28(planPath, "utf8"));
   } catch (error) {
-    executeError = error;
+    throw new ReleaseError(
+      GATE_FAILED,
+      `cannot read the frozen plan required to verify the installed ${platform} payload: ${error.message}`
+    );
   }
-  const observeInput = {
-    actionType: adapterActionType,
-    ...action.parameters,
-    expected: action.expected
+  validatePlan2(plan);
+  assertImmutablePlanAuthority2(planPath, plan);
+  if (computePlanDigest2(plan) !== requirement.planDigest) {
+    throw new ReleaseError(GATE_FAILED, "manual requirement planDigest does not match the frozen plan");
+  }
+  const actionType = `${platform}-marketplace-install`;
+  const action = (plan.externalActions ?? []).find((candidate) => candidate.type === actionType && candidate.parameters?.plugin === requirement.plugin && candidate.parameters?.version === requirement.version);
+  if (!action) {
+    throw new ReleaseError(GATE_FAILED, `frozen plan has no matching ${platform} install action`);
+  }
+  const adapter = createPluginMarketplaceAdapter2();
+  const context = {
+    externalWritesAuthorized: false,
+    isolatedConsumerWritesAuthorized: false,
+    plan,
+    baseline: plan.baseline,
+    root
   };
-  let observeResult;
-  if (executeError) {
-    try {
-      observeResult = await adapter.observe(observeInput, context);
-    } catch (error) {
-      return {
-        actionId,
-        status: "UNCERTAIN",
-        error: `execute outcome is uncertain; observe threw: ${error.message}`,
-        ...preObserve ? { preObserve } : {}
-      };
-    }
-  } else {
-    const observePolicy = isMarketplaceAction(planActionType) ? clampPolicyToTimeout(DEFAULT_OBSERVE_RETRY_POLICY, action.parameters?.timeoutMs) : DEFAULT_OBSERVE_RETRY_POLICY;
-    const retryOutcome = await observeWithRetry({
-      observe: /* @__PURE__ */ __name((act, ctx) => adapter.observe(act, ctx), "observe"),
-      action: observeInput,
-      context,
-      policy: observePolicy,
-      sleep: context.observeRetrySleep,
-      onAttempt: /* @__PURE__ */ __name((info) => context.evidence?.append?.({
-        phase: "checkpoint-observe-retry",
-        actionId,
-        actionType: planActionType,
-        attempt: info.attempt,
-        maxAttempts: info.maxAttempts,
-        missing: info.missing,
-        delayMs: info.delayMs,
-        status: info.missing ? "propagating" : "resolved",
-        error: info.error ?? null
-      }), "onAttempt")
-    });
-    observeResult = retryOutcome.result;
+  const actionInput = { actionType, ...action.parameters };
+  const preflight = await adapter.preflight(actionInput, context);
+  if (preflight.status !== "PREFLIGHT_PASSED") {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `${platform} installed-payload preflight failed: ${preflight.error}`
+    );
   }
-  const observation = observeResult?.observation;
-  if (!observation || observeResult.error && Object.keys(observation).length === 0) {
-    return {
-      actionId,
-      status: "UNCERTAIN",
-      error: `execute outcome is uncertain; observe failed: ${observeResult?.error ?? "empty observation"}`,
-      ...preObserve ? { preObserve } : {}
-    };
-  }
-  if (action.expected && matchObservation(action.expected, observation).matches) {
-    return { actionId, status: "SUCCEEDED", error: null, observation, postObserve: PRE_OBSERVE.CONSISTENT, ...preObserve ? { preObserve } : {} };
-  }
-  if (!action.expected && !observation.mismatched && executeResult?.status === "EXECUTED") {
-    return { actionId, status: "SUCCEEDED", error: null, observation, postObserve: PRE_OBSERVE.CONSISTENT, ...preObserve ? { preObserve } : {} };
-  }
-  const explicitlyMissing = observation.exists === false || observation.remoteCommit === "" || observation.commit === "" || observation.published === false;
-  if (explicitlyMissing) {
-    return {
-      actionId,
-      status: "FAILED",
-      error: executeError?.message ?? executeResult?.error ?? "remote state is explicitly missing after execute",
-      observation,
-      postObserve: PRE_OBSERVE.MISSING,
-      ...preObserve ? { preObserve } : {}
-    };
-  }
+  const binding = await verifyInstalledMarketplacePayload2(
+    actionInput,
+    context,
+    installPath,
+    platform
+  );
   return {
-    actionId,
-    status: executeResult?.status === "EXECUTED" ? "FAILED" : "UNCERTAIN",
-    error: executeError?.message ?? executeResult?.error ?? "observation does not match expected state from frozen plan",
-    observation,
-    postObserve: PRE_OBSERVE.CONFLICTING,
-    ...preObserve ? { preObserve } : {}
+    payloadDigest: action.parameters.manifestDigest,
+    manifestDigest: binding.manifestDigest,
+    extraInstalledPaths: binding.extraInstalledPaths ?? []
   };
 }
-async function publishRelease(options) {
+async function recordManualAttestation(options = {}, injected = {}) {
   const {
-    planPath,
-    approvalPath,
-    adapterRegistry,
     root = process.cwd(),
-    runDir: runDirOpt,
-    clock: clockOpt,
-    captureBaselineFn,
-    productionMode = false,
-    productionConfirmation,
-    observePreviousPublicBaselineFn,
-    observeRetrySleep
-  } = options ?? {};
-  const clockFn = typeof clockOpt === "function" ? clockOpt : defaultClock5;
-  const captureBaselineActual = typeof captureBaselineFn === "function" ? captureBaselineFn : captureBaseline;
-  let planRaw;
+    platform,
+    plugin,
+    actor,
+    result,
+    installPath,
+    installChannel,
+    note,
+    clock = /* @__PURE__ */ __name(() => (/* @__PURE__ */ new Date()).toISOString(), "clock")
+  } = options;
+  const descriptor = PLATFORM[platform];
+  if (!descriptor || !SAFE_ID_RE.test(plugin ?? "")) {
+    throw new ReleaseError(
+      MISSING_PARAMETERS,
+      "attest requires --platform <kimi|codebuddy> and a safe --plugin <id>"
+    );
+  }
+  if (typeof actor !== "string" || actor.trim() === "") {
+    throw new ReleaseError(MISSING_PARAMETERS, "attest requires --actor <person>");
+  }
+  if (result !== "passed" && result !== "failed") {
+    throw new ReleaseError(MISSING_PARAMETERS, "attest requires --result <passed|failed>");
+  }
+  const authorityDir = resolve30(root, ".release-skill", descriptor.directory, plugin);
+  const requirementPath = join23(authorityDir, descriptor.requirementFile);
+  let requirement;
   try {
-    planRaw = await readFile25(planPath, "utf8");
-  } catch (err) {
-    throw new ReleaseError(GATE_FAILED, `cannot read release plan: ${err.message}`, { planPath, cause: err.code });
-  }
-  let plan;
-  try {
-    plan = JSON.parse(planRaw);
-  } catch (err) {
-    throw new ReleaseError(GATE_FAILED, `release plan is not valid JSON: ${err.message}`, { planPath });
-  }
-  validatePlan(plan);
-  assertImmutablePlanAuthority(planPath, plan);
-  const isProductionPlan = plan.production?.mode === "github-npm-v1";
-  const runId = `publish-${Date.now()}`;
-  let runDir = runDirOpt ?? resolveDefaultRunDir(planPath, "publish", runId);
-  if (isProductionPlan) {
-    runDir = await createProductionRunDir(runDir, planPath);
-  } else {
-    await mkdir14(runDir, { recursive: true });
-  }
-  const evidence = createEvidenceWriter({ runDir, command: "publish", clock: clockFn });
-  try {
-    await evidence.append({ phase: "safety-gate", gate: "plan-load", status: "started" });
-    await evidence.append({ phase: "safety-gate", gate: "plan-schema", status: "passed" });
-    await evidence.append({ phase: "safety-gate", gate: "plan-digest", status: "started" });
-    const actualDigest = computePlanDigest(plan);
-    if (plan.digest && plan.digest !== actualDigest) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `plan digest mismatch: expected ${plan.digest.slice(0, 16)}..., computed ${actualDigest.slice(0, 16)}...`,
-        { expected: plan.digest, actual: actualDigest }
-      );
-    }
-    await evidence.append({ phase: "safety-gate", gate: "plan-digest", status: "passed" });
-    if (productionMode && !isProductionPlan) {
-      throw new ReleaseError(GATE_FAILED, "production publish requires a github-npm-v1 frozen plan");
-    }
-    if (isProductionPlan && !plan.sourceAuthority) {
-      throw new ReleaseError(
-        CONFIG_MISSING,
-        "production publish requires a frozen sourceAuthority binding; re-run prepare with project.sourceRepository configured",
-        { gate: "source-authority" }
-      );
-    }
-    const verifiedFrozenSnapshots = /* @__PURE__ */ new Map();
-    if (isProductionPlan) {
-      if (!plan.production.assetRoot || plan.production.assetRoot === ".") {
-        throw new ReleaseError(GATE_FAILED, "production plan requires a dedicated assetRoot");
-      }
-      if (!productionConfirmation || productionConfirmation !== actualDigest) {
-        throw new ReleaseError(
-          GATE_FAILED,
-          "production confirmation must exactly match the current plan digest",
-          { planDigest: actualDigest }
-        );
-      }
-    }
-    await evidence.append({ phase: "safety-gate", gate: "action-completeness", status: "started" });
-    const completenessResult = validatePlanActionCompleteness(plan);
-    if (!completenessResult.passed) {
-      await evidence.append({
-        phase: "safety-gate",
-        gate: "action-completeness",
-        status: "failed",
-        failures: completenessResult.details.failures
-      });
-      throw new ReleaseError(
-        GATE_FAILED,
-        `plan action completeness gate failed: ${completenessResult.details.failures.join("; ")}`,
-        { failures: completenessResult.details.failures }
-      );
-    }
-    await evidence.append({ phase: "safety-gate", gate: "action-completeness", status: "passed" });
-    if (isProductionPlan) {
-      await evidence.append({ phase: "safety-gate", gate: "frozen-artifacts", status: "started" });
-      const assetRoot = await resolveFrozenPath(root, plan.production.assetRoot, "production asset root");
-      for (const unit of plan.units) {
-        const frozen = unit.frozenSnapshot;
-        const snapshot = await verifyFrozenSnapshot({
-          root,
-          snapshotPath: frozen.path,
-          expectedDigest: frozen.manifestDigest
-        });
-        verifiedFrozenSnapshots.set(unit.id, snapshot.snapshotDir);
-        assertInsideAssetRoot(assetRoot, snapshot.snapshotDir, "frozen snapshot");
-        const git2 = await verifyFrozenGitRepository({
-          root,
-          gitObjectDir: frozen.gitObjectDir,
-          commit: frozen.commit,
-          tree: frozen.tree,
-          commitTimestamp: frozen.commitTimestamp
-        });
-        assertInsideAssetRoot(assetRoot, git2.gitDir, "frozen git object directory");
-        if (frozen.npm) {
-          const tarball = await verifyFrozenFile({
-            root,
-            filePath: frozen.npm.tarballPath,
-            expectedSha256: frozen.npm.tarballSha256,
-            label: "frozen npm tarball"
-          });
-          assertInsideAssetRoot(assetRoot, tarball.physical, "frozen npm tarball");
-          const npmDistribution = (unit.distributions ?? []).find((item) => item.type === "npm");
-          if (!npmDistribution) {
-            throw new ReleaseError(GATE_FAILED, `unit "${unit.id}" has a frozen npm tarball but no npm distribution`);
-          }
-          await verifyFrozenNpmTarballContract({
-            package: npmDistribution.package,
-            version: unit.targetVersion,
-            tarballPath: frozen.npm.tarballPath,
-            tarballSha256: frozen.npm.tarballSha256,
-            integrity: frozen.npm.integrity
-          }, root);
-        }
-      }
-      await evidence.append({ phase: "safety-gate", gate: "frozen-artifacts", status: "passed" });
-    }
-    if (plan.skillResourceClosure) {
-      await evidence.append({ phase: "safety-gate", gate: "skill-resource-closure", status: "started" });
-      const expectedReceipts = plan.skillResourceClosure.unitReceipts ?? [];
-      if (plan.skillResourceClosure.checkerVersion !== CHECKER_VERSION) {
-        throw new ReleaseError(
-          GATE_FAILED,
-          `skill resource closure checker version mismatch: plan=${plan.skillResourceClosure.checkerVersion}, current=${CHECKER_VERSION}`
-        );
-      }
-      if (expectedReceipts.length !== plan.units.length) {
-        throw new ReleaseError(GATE_FAILED, "skill resource closure receipt set does not cover every release unit");
-      }
-      for (const [unitId, snapshotDir] of verifiedFrozenSnapshots) {
-        const expected = expectedReceipts.find((item) => item.unitId === unitId);
-        if (!expected) {
-          throw new ReleaseError(GATE_FAILED, `skill resource closure receipt missing for unit "${unitId}"`);
-        }
-        const closureResult = await checkSkillResourceClosure({
-          snapshotDir,
-          host: "root"
-        });
-        if (closureResult.findings.length > 0) {
-          await evidence.append({
-            phase: "safety-gate",
-            gate: "skill-resource-closure",
-            status: "failed",
-            unitId,
-            findingCount: closureResult.findings.length
-          });
-          throw new ReleaseError(
-            GATE_FAILED,
-            `skill resource closure recheck failed for unit "${unitId}": ${closureResult.findings.length} finding(s)`,
-            { unitId, findings: closureResult.findings }
-          );
-        }
-        const observed = createSkillResourceClosureReceipt(closureResult, { unitId });
-        assertSkillResourceClosureReceipt(expected, observed, `unit "${unitId}"`);
-      }
-      await evidence.append({
-        phase: "safety-gate",
-        gate: "skill-resource-closure",
-        status: "passed",
-        receiptCount: expectedReceipts.length,
-        recheckedReceiptCount: verifiedFrozenSnapshots.size
-      });
-    }
-    await evidence.append({ phase: "safety-gate", gate: "approval-load", status: "started" });
-    let approvalRaw;
-    try {
-      approvalRaw = await readFile25(approvalPath, "utf8");
-    } catch (err) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `cannot read approval record: ${err.message}`,
-        { approvalPath, cause: err.code }
-      );
-    }
-    let approval;
-    try {
-      approval = JSON.parse(approvalRaw);
-    } catch (err) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `approval record is not valid JSON: ${err.message}`,
-        { approvalPath }
-      );
-    }
-    const approvalDigest = assertImmutableApprovalAuthority(approvalPath, plan, approvalRaw) ?? computeApprovalDigest(approvalRaw);
-    validateApprovalRecordSchema(approval);
-    validateApproval(plan, approval, { clock: clockFn });
-    await evidence.append({ phase: "safety-gate", gate: "approval-validated", status: "passed" });
-    await evidence.append({ phase: "safety-gate", gate: "adapter-availability", status: "started" });
-    for (const action of plan.externalActions) {
-      const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
-      if (!adapterActionType) {
-        continue;
-      }
-      try {
-        adapterRegistry.getAdapter(adapterActionType);
-      } catch {
-        throw new ReleaseError(
-          GATE_FAILED,
-          `no adapter registered for action type "${adapterActionType}" (plan action "${action.id}")`,
-          { actionId: action.id, adapterActionType }
-        );
-      }
-    }
-    await evidence.append({ phase: "safety-gate", gate: "adapter-availability", status: "passed" });
-    await evidence.append({ phase: "safety-gate", gate: "baseline-check", status: "started" });
-    if (plan.production?.mode === "github-npm-v1" && plan.baseline?.workspaceDigestAlgorithm !== WORKSPACE_DIGEST_ALGORITHM) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `production plan workspace digest algorithm is missing or obsolete; re-run prepare (expected ${WORKSPACE_DIGEST_ALGORITHM})`,
-        { expected: WORKSPACE_DIGEST_ALGORITHM, actual: plan.baseline?.workspaceDigestAlgorithm ?? null }
-      );
-    }
-    const currentBaseline = await captureBaselineActual(root);
-    const planV2 = plan.planVersion === 2;
-    if (currentBaseline.gitTreeHash !== plan.baseline.gitTreeHash) {
-      if (planV2) {
-        await evidence.append({
-          phase: "safety-gate",
-          gate: "baseline-check",
-          status: "warning",
-          severity: "warning",
-          reason: "planVersion 2: baseline drift is record-layer audit data; frozen-artifact re-verification remains the integrity authority",
-          planTreeHash: plan.baseline.gitTreeHash,
-          currentTreeHash: currentBaseline.gitTreeHash
-        });
-      } else {
-        await evidence.append({
-          phase: "safety-gate",
-          gate: "baseline-check",
-          status: "failed",
-          planTreeHash: plan.baseline.gitTreeHash,
-          currentTreeHash: currentBaseline.gitTreeHash
-        });
-        throw new ReleaseError(
-          BASELINE_CHANGED,
-          `baseline has changed since plan freeze: plan=${plan.baseline.gitTreeHash}, current=${currentBaseline.gitTreeHash}`,
-          { planTreeHash: plan.baseline.gitTreeHash, currentTreeHash: currentBaseline.gitTreeHash }
-        );
-      }
-    }
-    if (plan.baseline.workspaceDigest && currentBaseline.workspaceDigest !== plan.baseline.workspaceDigest) {
-      if (planV2) {
-        await evidence.append({
-          phase: "safety-gate",
-          gate: "baseline-check",
-          status: "warning",
-          severity: "warning",
-          reason: "planVersion 2: workspace digest drift is record-layer audit data; frozen-artifact re-verification remains the integrity authority",
-          planWorkspaceDigest: plan.baseline.workspaceDigest,
-          currentWorkspaceDigest: currentBaseline.workspaceDigest
-        });
-      } else {
-        await evidence.append({
-          phase: "safety-gate",
-          gate: "baseline-check",
-          status: "failed",
-          planWorkspaceDigest: plan.baseline.workspaceDigest,
-          currentWorkspaceDigest: currentBaseline.workspaceDigest
-        });
-        throw new ReleaseError(
-          BASELINE_CHANGED,
-          `workspace digest has changed since plan freeze: plan=${plan.baseline.workspaceDigest}, current=${currentBaseline.workspaceDigest}`,
-          { planWorkspaceDigest: plan.baseline.workspaceDigest, currentWorkspaceDigest: currentBaseline.workspaceDigest }
-        );
-      }
-    }
-    await evidence.append({
-      phase: "safety-gate",
-      gate: "baseline-check",
-      status: "passed",
-      gitTreeHash: currentBaseline.gitTreeHash
-    });
-    {
-      const defaultPpbObserveFn = /* @__PURE__ */ __name(async (repo, ref, expectedCommit, { githubHost = "github.com" } = {}) => {
-        try {
-          const { execFile: eCb } = await import("node:child_process");
-          const { promisify: p } = await import("node:util");
-          const ef = p(eCb);
-          const host = githubHost || "github.com";
-          const { stdout } = await ef("git", ["ls-remote", `https://${host}/${repo}.git`, ref], {
-            shell: false,
-            encoding: "utf8",
-            timeout: 3e4
-          });
-          const lines = stdout.trim().split("\n").filter((l) => l.length > 0);
-          if (lines.length === 0) return { status: "drifted", actual: null, diff: "ref not found on remote" };
-          const [remoteCommit] = lines[0].split("	");
-          if (remoteCommit === expectedCommit) return { status: "consistent", actual: remoteCommit };
-          return { status: "drifted", actual: remoteCommit, diff: "expected " + expectedCommit + ", got " + remoteCommit };
-        } catch (err) {
-          return { status: "unknown", error: err.message };
-        }
-      }, "defaultPpbObserveFn");
-      const ppbObserveFn = observePreviousPublicBaselineFn ?? defaultPpbObserveFn;
-      for (const unit of plan.units ?? []) {
-        const unitPpb = unit.previousPublicBaseline;
-        if (!unitPpb) {
-          if (isProductionPlan) {
-            await evidence.append({
-              phase: "safety-gate",
-              gate: "previous-public-baseline",
-              unitId: unit.id,
-              status: "failed",
-              error: "missing previousPublicBaseline on unit"
-            });
-            throw new ReleaseError(
-              GATE_FAILED,
-              `unit "${unit.id}" missing previousPublicBaseline in plan; cannot proceed`,
-              { gate: "previous-public-baseline", unitId: unit.id }
-            );
-          }
-          continue;
-        }
-        const githubHost = unit.productionConfig?.githubHost ?? "github.com";
-        assertPreviousPublicBaselineTarget({
-          baseline: unitPpb,
-          githubHost,
-          publicRepo: unit.publicRepo,
-          requireHost: isProductionPlan
-        });
-        if (unitPpb.mode === "none") {
-          await evidence.append({
-            phase: "safety-gate",
-            gate: "previous-public-baseline",
-            unitId: unit.id,
-            status: "passed",
-            reason: "fresh repository"
-          });
-          continue;
-        }
-        if (unitPpb.status !== "consistent") {
-          await evidence.append({
-            phase: "safety-gate",
-            gate: "previous-public-baseline",
-            unitId: unit.id,
-            status: "failed",
-            unitStatus: unitPpb.status,
-            error: `unit "${unit.id}" previous public baseline status is "${unitPpb.status}", expected "consistent"`
-          });
-          throw new ReleaseError(
-            GATE_FAILED,
-            `unit "${unit.id}" previous public baseline not consistent (status: ${unitPpb.status}); all adapter execute blocked`,
-            { gate: "previous-public-baseline", unitId: unit.id, unitStatus: unitPpb.status }
-          );
-        }
-        await evidence.append({
-          phase: "safety-gate",
-          gate: "previous-public-baseline",
-          unitId: unit.id,
-          status: "started"
-        });
-        const reObserveResult = await reObservePreviousPublicBaseline({
-          baseline: unitPpb,
-          observeFn: ppbObserveFn,
-          evidence
-        });
-        if (!reObserveResult.consistent) {
-          await evidence.append({
-            phase: "safety-gate",
-            gate: "previous-public-baseline",
-            unitId: unit.id,
-            status: "failed",
-            error: reObserveResult.error
-          });
-          throw new ReleaseError(
-            GATE_FAILED,
-            `unit "${unit.id}": ${reObserveResult.error ?? "previous public baseline changed since plan freeze"}`,
-            { gate: "previous-public-baseline", unitId: unit.id }
-          );
-        }
-        await evidence.append({
-          phase: "safety-gate",
-          gate: "previous-public-baseline",
-          unitId: unit.id,
-          status: "passed"
-        });
-      }
-    }
-    let sourceAuthorityReceipt = null;
-    if (plan.sourceAuthority) {
-      await evidence.append({ phase: "safety-gate", gate: "source-authority", status: "started" });
-      const sa = plan.sourceAuthority;
-      const frozenClosure = {
-        algorithmVersion: sa.algorithmVersion,
-        digest: sa.inputDigest,
-        entries: sa.entries
-      };
-      const remoteResult = await verifyRemoteSourceContent({
-        sourceRepository: sa.sourceRepository,
-        defaultBranch: sa.defaultBranch,
-        closure: frozenClosure,
-        readRemoteFn: options.readRemoteSourceFn
-      });
-      if (!remoteResult.passed) {
-        const errorCode = remoteResult.error?.code ?? GATE_FAILED;
-        await evidence.append({
-          phase: "safety-gate",
-          gate: "source-authority",
-          status: "failed",
-          error: remoteResult.error
-        });
-        throw new ReleaseError(
-          errorCode,
-          `source authority content gate failed: ${remoteResult.error?.message}`,
-          remoteResult.error
-        );
-      }
-      sourceAuthorityReceipt = createSourceAuthorityReceipt({
-        plan,
-        result: "CONSISTENT",
-        observation: remoteResult.observation,
-        clock: clockFn
-      });
-      await evidence.append({
-        phase: "safety-gate",
-        gate: "source-authority",
-        status: "passed",
-        sourceRepository: sa.sourceRepository,
-        defaultBranch: sa.defaultBranch
-      });
-    }
-    if (isProductionPlan && plan.status === "PREPARED") {
-      assertTransition("PREPARED", "APPROVED");
-      assertTransition("APPROVED", PUBLISHING);
-    } else {
-      assertTransition(plan.status, PUBLISHING);
-    }
-    const publishingPlan = deepClone(plan);
-    publishingPlan.status = PUBLISHING;
-    const orderedActions = sortActionsByCheckpointOrder(publishingPlan.externalActions);
-    const remoteWriteActions = orderedActions.filter((a) => !isMarketplaceAction(a.type));
-    await evidence.append({ phase: "safety-gate", gate: "global-preflight", status: "started" });
-    for (const action of remoteWriteActions) {
-      if (action.type === "write-remote-identifier") continue;
-      const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
-      if (!adapterActionType) continue;
-      const adapter = adapterRegistry.getAdapter(adapterActionType);
-      const preflightContext = {
-        externalWritesAuthorized: false,
-        plan: publishingPlan,
-        baseline: plan.baseline,
-        root,
-        runDir
-      };
-      const preflightResult = await adapter.preflight(
-        { actionType: adapterActionType, ...action.parameters },
-        preflightContext
-      );
-      if (preflightResult.status === "PREFLIGHT_FAILED") {
-        if (hasExpected(action.expected)) {
-          let arbitration;
-          try {
-            arbitration = await adapter.observe(
-              { actionType: adapterActionType, ...action.parameters, expected: action.expected },
-              preflightContext
-            );
-          } catch (error) {
-            arbitration = { observation: null, error: error?.message ?? String(error) };
-          }
-          const verdict = classifyPreObservation(action, arbitration);
-          await evidence.append({
-            phase: "global-preflight-arbitration",
-            actionId: action.id,
-            actionType: action.type,
-            status: "pre-observe",
-            details: { preObserve: verdict, preflightError: preflightResult.error ?? null }
-          });
-          if (verdict === PRE_OBSERVE.CONSISTENT) {
-            continue;
-          }
-        }
-        throw new ReleaseError(
-          GATE_FAILED,
-          `global preflight failed for action "${action.id}": ${preflightResult.error}`,
-          { actionId: action.id, actionType: action.type }
-        );
-      }
-    }
-    await evidence.append({ phase: "safety-gate", gate: "global-preflight", status: "passed" });
-    const runPath = join22(runDir, "release-run.json");
-    const checkpoints = orderedActions.map((action) => {
-      if (isMarketplaceAction(action.type)) {
-        return {
-          actionId: action.id,
-          actionType: action.type,
-          status: "DEFERRED",
-          phase: "post-publish-verification",
-          reason: CONSUMER_VERIFICATION_DEFERRED
-        };
-      }
-      return {
-        actionId: action.id,
-        actionType: action.type,
-        status: "PENDING",
-        error: null
-      };
-    });
-    const startedAt = clockFn();
-    const buildPersistedState = /* @__PURE__ */ __name((status = PUBLISHING, finishedAt2) => ({
-      runId,
-      command: "publish",
-      planDigest: plan.digest,
-      planPath,
-      approvalDigest,
-      approvalPath,
-      status,
-      checkpoints: checkpoints.map((checkpoint) => ({
-        actionId: checkpoint.actionId,
-        actionType: checkpoint.actionType,
-        status: checkpoint.status === "SUCCEEDED" ? "succeeded" : checkpoint.status === "FAILED" ? "failed" : checkpoint.status === "UNCERTAIN" ? "uncertain" : checkpoint.status === "SKIPPED" ? "skipped" : checkpoint.status === "DEFERRED" ? "deferred" : "pending",
-        ...checkpoint.preObserve ? { preObserve: checkpoint.preObserve } : {},
-        ...checkpoint.postObserve ? { postObserve: checkpoint.postObserve } : {},
-        ...checkpoint.error ? { error: { code: "GATE_FAILED", message: checkpoint.error } } : {},
-        ...checkpoint.reason === CONSUMER_VERIFICATION_DEFERRED ? { reason: CONSUMER_VERIFICATION_DEFERRED, phase: checkpoint.phase ?? "post-publish-verification" } : {}
-      })),
-      startedAt,
-      ...sourceAuthorityReceipt ? { sourceAuthorityReceipts: [sourceAuthorityReceipt] } : {},
-      ...finishedAt2 ? { finishedAt: finishedAt2 } : {}
-    }), "buildPersistedState");
-    let stateSequence = 0;
-    let latestState = await appendRunState(runDir, stateSequence, buildPersistedState());
-    await evidence.append({
-      phase: "publish",
-      status: "started",
-      checkpointCount: orderedActions.length,
-      prePersistedRunPath: latestState.statePath
-    });
-    const checkpointByActionId = new Map(checkpoints.map((cp2) => [cp2.actionId, cp2]));
-    const { tiers, unknown } = groupActionsByTier(remoteWriteActions);
-    let stopped = false;
-    if (unknown.length > 0) {
-      for (const action of unknown) {
-        const checkpoint = checkpointByActionId.get(action.id);
-        checkpoint.status = "FAILED";
-        checkpoint.error = `Unknown action type not present in the dependency tier table: ${action.type}`;
-        action.status = "FAILED";
-        await evidence.append({
-          phase: "checkpoint",
-          actionId: action.id,
-          actionType: action.type,
-          status: "failed",
-          error: checkpoint.error
-        });
-      }
-      stopped = true;
-      stateSequence += 1;
-      latestState = await appendRunState(runDir, stateSequence, buildPersistedState(PARTIAL));
-    }
-    for (let tierIndex = 0; tierIndex < tiers.length && !stopped; tierIndex += 1) {
-      const tierActions = tiers[tierIndex];
-      if (tierActions.length === 0) continue;
-      const tierCheckpoints = tierActions.map((action) => checkpointByActionId.get(action.id));
-      for (let i = 0; i < tierActions.length; i += 1) {
-        tierCheckpoints[i].status = "UNCERTAIN";
-        await evidence.append({
-          phase: "checkpoint",
-          actionId: tierActions[i].id,
-          actionType: tierActions[i].type,
-          status: "started",
-          details: { tier: tierIndex }
-        });
-      }
-      stateSequence += 1;
-      latestState = await appendRunState(runDir, stateSequence, buildPersistedState(PARTIAL));
-      const results = await Promise.all(tierActions.map(async (action) => {
-        const isMarketplace = isMarketplaceAction(action.type);
-        const actionContext = {
-          externalWritesAuthorized: !isMarketplace,
-          isolatedConsumerWritesAuthorized: isMarketplace,
-          plan: publishingPlan,
-          baseline: plan.baseline,
-          root,
-          runDir,
-          evidence,
-          observeRetrySleep
-        };
-        try {
-          return await executeCheckpoint(action, adapterRegistry, actionContext);
-        } catch (error) {
-          return { actionId: action.id, status: "UNCERTAIN", error: `checkpoint threw: ${error.message}` };
-        }
-      }));
-      let tierFailed = false;
-      for (let i = 0; i < tierActions.length; i += 1) {
-        const action = tierActions[i];
-        const checkpoint = tierCheckpoints[i];
-        const result = results[i];
-        checkpoint.status = result.status;
-        checkpoint.error = result.error;
-        if (result.preObserve) checkpoint.preObserve = result.preObserve;
-        if (result.postObserve) checkpoint.postObserve = result.postObserve;
-        action.status = result.status;
-        await evidence.append({
-          phase: "checkpoint",
-          actionId: action.id,
-          actionType: action.type,
-          status: result.status === "SUCCEEDED" || result.status === "SKIPPED" ? "completed" : "failed",
-          error: result.error,
-          details: { tier: tierIndex, ...result.status === "SKIPPED" ? { skipped: true } : {} }
-        });
-        if (result.status !== "SUCCEEDED" && result.status !== "SKIPPED") {
-          tierFailed = true;
-        }
-      }
-      stateSequence += 1;
-      latestState = await appendRunState(runDir, stateSequence, buildPersistedState(PARTIAL));
-      if (tierFailed) {
-        stopped = true;
-      }
-    }
-    {
-      const remoteWriteCps = checkpoints.filter((cp2) => isRemoteWriteAction(cp2.actionType));
-      const allRemoteConsistent = remoteWriteCps.every(
-        (cp2) => cp2.status === "SUCCEEDED" || cp2.status === "SKIPPED"
-      );
-      if (allRemoteConsistent) {
-        await evidence.append({ phase: "safety-gate", gate: "final-branch-consistency", status: "started" });
-        for (let index = 0; index < orderedActions.length; index += 1) {
-          const action = orderedActions[index];
-          if (!["push-snapshot", "set-default-branch"].includes(action.type)) continue;
-          const adapterActionType = ADAPTER_ACTION_TYPE_MAP[action.type];
-          const adapter = adapterRegistry.getAdapter(adapterActionType);
-          let observed;
-          try {
-            observed = await adapter.observe(
-              { actionType: adapterActionType, ...action.parameters, expected: action.expected },
-              { externalWritesAuthorized: false, plan: publishingPlan, baseline: plan.baseline, root, runDir }
-            );
-          } catch (error) {
-            observed = { observation: null, error: error.message };
-          }
-          const observation = observed?.observation;
-          const observable = observation && !(observed.error && Object.keys(observation).length === 0);
-          const comparison = observable ? matchObservation(action.expected ?? {}, observation) : { matches: false, mismatches: [] };
-          if (!comparison.matches) {
-            checkpoints[index].status = observable ? "FAILED" : "UNCERTAIN";
-            checkpoints[index].error = observable ? `final branch consistency mismatch: ${comparison.mismatches.join("; ")}` : `final branch consistency unobservable: ${observed?.error ?? "empty observation"}`;
-            await evidence.append({
-              phase: "safety-gate",
-              gate: "final-branch-consistency",
-              status: "failed",
-              actionId: action.id,
-              error: checkpoints[index].error
-            });
-            break;
-          }
-        }
-        const freshRemoteCps = checkpoints.filter((cp2) => isRemoteWriteAction(cp2.actionType));
-        if (freshRemoteCps.every((cp2) => cp2.status === "SUCCEEDED" || cp2.status === "SKIPPED")) {
-          await evidence.append({ phase: "safety-gate", gate: "final-branch-consistency", status: "passed" });
-        }
-      }
-    }
-    const remoteWriteCheckpointsFinal = checkpoints.filter((cp2) => isRemoteWriteAction(cp2.actionType));
-    const remoteWriteAllSucceeded = remoteWriteCheckpointsFinal.every(
-      (cp2) => cp2.status === "SUCCEEDED" || cp2.status === "SKIPPED"
+    requirement = JSON.parse(await readFile28(requirementPath, "utf8"));
+  } catch (error) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `cannot read generated ${platform} requirement: ${error.message}`,
+      { platform, plugin, requirementPath }
     );
-    const remoteWriteHasFailure = remoteWriteCheckpointsFinal.some(
-      (cp2) => cp2.status === "FAILED" || cp2.status === "UNCERTAIN"
-    );
-    let overallStatus;
-    if (remoteWriteAllSucceeded) {
-      overallStatus = PUBLISHED;
-      publishingPlan.status = PUBLISHED;
-    } else if (remoteWriteHasFailure) {
-      overallStatus = PARTIAL;
-      publishingPlan.status = overallStatus;
-    } else {
-      overallStatus = PUBLISHING;
-      publishingPlan.status = PUBLISHING;
-    }
-    assertTransition(PUBLISHING, publishingPlan.status);
-    await evidence.append({
-      phase: "publish",
-      status: "completed",
-      overallStatus,
-      checkpointStatuses: checkpoints.map((cp2) => cp2.status)
-    });
-    const finishedAt = clockFn();
-    stateSequence += 1;
-    latestState = await appendRunState(
-      runDir,
-      stateSequence,
-      buildPersistedState(overallStatus, finishedAt)
-    );
-    const finalRunState = await writeRunAtomic(
-      runPath,
-      buildPersistedState(overallStatus, finishedAt)
-    );
-    await evidence.finish({
-      status: overallStatus,
-      planPath,
-      runPath,
-      finalRunDigest: finalRunState.runDigest,
-      latestStatePath: latestState.statePath,
-      checkpointStatuses: checkpoints.map((cp2) => cp2.status),
-      finishedAt: clockFn()
-    });
-    return { planPath, runPath, status: overallStatus, checkpoints };
-  } catch (err) {
-    await evidence.append({
-      phase: "publish",
-      status: "failed",
-      error: { code: err.code, message: err.message }
-    });
-    await evidence.finish({
-      status: "FAILED",
-      error: { code: err.code, message: err.message },
-      failedAt: clockFn()
-    });
-    throw err;
   }
+  if (requirement.platform !== platform || requirement.plugin !== plugin || typeof requirement.version !== "string" || !/^[a-f0-9]{64}$/.test(requirement.planDigest ?? "") || typeof requirement.attestationFile !== "string") {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `generated ${platform} requirement has invalid identity fields`,
+      { platform, plugin, requirementPath }
+    );
+  }
+  if (result === "passed" && (typeof installPath !== "string" || installPath === "")) {
+    throw new ReleaseError(
+      MISSING_PARAMETERS,
+      `${platform} passed attestation requires --install-path for installed payload verification`
+    );
+  }
+  const needsInstallChannel = Object.hasOwn(requirement.attestationTemplate ?? {}, "installChannel");
+  if (result === "passed" && needsInstallChannel && installChannel !== "desktop" && installChannel !== "cli") {
+    throw new ReleaseError(
+      MISSING_PARAMETERS,
+      `${platform} passed attestation requires --install-channel <desktop|cli>`
+    );
+  }
+  const installBinding = result === "passed" ? await (injected.validateInstalledConsumerClosure ?? validateInstalledConsumerClosure)({
+    root,
+    platform,
+    requirement,
+    installPath
+  }) : null;
+  const receipt = {
+    platform,
+    version: requirement.version,
+    planDigest: requirement.planDigest,
+    result,
+    actor: actor.trim(),
+    confirmedAt: clock(),
+    ...installPath ? { installPath } : {},
+    ...installChannel ? { installChannel } : {},
+    ...note ? { note } : {},
+    ...installBinding ? {
+      payloadDigest: installBinding.payloadDigest,
+      installedClosureVerified: true,
+      extraInstalledPaths: installBinding.extraInstalledPaths
+    } : {}
+  };
+  const attestationPath = join23(authorityDir, requirement.attestationFile);
+  await writeEvidenceAtomic(attestationPath, receipt);
+  return {
+    command: "attest",
+    status: "RECORDED",
+    platform,
+    plugin,
+    version: requirement.version,
+    planDigest: requirement.planDigest,
+    requirementPath,
+    attestationPath
+  };
 }
-var PRE_OBSERVE;
-var init_publish = __esm({
-  async "src/commands/publish.mjs"() {
-    await init_plan();
-    await init_approval();
-    init_baseline();
-    init_previous_public_baseline();
-    init_evidence();
-    init_skill_resource_closure();
-    init_checkpoints();
-    await init_run();
-    init_errors();
-    init_source_authority();
-    init_state_machine();
+var PLATFORM;
+var init_attest = __esm({
+  "src/commands/attest.mjs"() {
     init_contract();
-    init_observe_retry();
-    init_frozen();
-    init_npm();
-    __name(assertInsideAssetRoot, "assertInsideAssetRoot");
-    __name(defaultClock5, "defaultClock");
-    __name(deepClone, "deepClone");
-    PRE_OBSERVE = Object.freeze({
-      CONSISTENT: "CONSISTENT",
-      MISSING: "MISSING",
-      CONFLICTING: "CONFLICTING",
-      UNOBSERVABLE: "UNOBSERVABLE"
+    init_errors();
+    PLATFORM = Object.freeze({
+      kimi: {
+        directory: "kimi-attestations",
+        requirementFile: "release-skill-kimi-manual-install.json"
+      },
+      codebuddy: {
+        directory: "codebuddy-attestations",
+        requirementFile: "release-skill-codebuddy-manual-install.json"
+      }
     });
-    __name(hasExpected, "hasExpected");
-    __name(classifyPreObservation, "classifyPreObservation");
-    __name(executeCheckpoint, "executeCheckpoint");
-    __name(publishRelease, "publishRelease");
+    __name(validateInstalledConsumerClosure, "validateInstalledConsumerClosure");
+    __name(recordManualAttestation, "recordManualAttestation");
   }
 });
 
 // src/artifacts/policy.mjs
-import { readFile as readFile26 } from "node:fs/promises";
-import { join as join23 } from "node:path";
+import { readFile as readFile29 } from "node:fs/promises";
+import { join as join24 } from "node:path";
 import { createHash as createHash11 } from "node:crypto";
 function validateArtifactPolicy(policy) {
   const ok = _validate(policy);
@@ -86802,10 +87681,10 @@ async function parseSafeYamlWithinRoot(root, policyPath) {
     }
     throw err;
   }
-  const fullPath = join23(root, policyPath);
+  const fullPath = join24(root, policyPath);
   let content;
   try {
-    content = await readFile26(fullPath, "utf8");
+    content = await readFile29(fullPath, "utf8");
   } catch (err) {
     throw new ReleaseError(
       ARTIFACT_POLICY_INVALID,
@@ -86815,7 +87694,7 @@ async function parseSafeYamlWithinRoot(root, policyPath) {
   }
   let doc;
   try {
-    doc = import_yaml4.default.parseDocument(content);
+    doc = import_yaml5.default.parseDocument(content);
   } catch (err) {
     throw new ReleaseError(
       ARTIFACT_POLICY_INVALID,
@@ -86891,10 +87770,10 @@ async function loadArtifactPolicy({
     protectionChange: compareProtection(previousLock, policy)
   });
 }
-var import_yaml4, import_ajv6, import_ajv_formats6, ajv5, _validate;
+var import_yaml5, import_ajv6, import_ajv_formats6, ajv5, _validate;
 var init_policy = __esm({
   "src/artifacts/policy.mjs"() {
-    import_yaml4 = __toESM(require_dist(), 1);
+    import_yaml5 = __toESM(require_dist(), 1);
     import_ajv6 = __toESM(require_ajv(), 1);
     import_ajv_formats6 = __toESM(require_dist2(), 1);
     init_errors();
@@ -86916,10 +87795,10 @@ var init_policy = __esm({
 });
 
 // src/artifacts/entry.mjs
-import { lstat as lstat16, readdir as readdir14, readFile as readFile27 } from "node:fs/promises";
-import { join as join24 } from "node:path";
-import { promisify as promisify13 } from "node:util";
-import { execFile as execFile12 } from "node:child_process";
+import { lstat as lstat18, readdir as readdir14, readFile as readFile30 } from "node:fs/promises";
+import { join as join25 } from "node:path";
+import { promisify as promisify14 } from "node:util";
+import { execFile as execFile13 } from "node:child_process";
 function statToGitMode(stat9) {
   if (stat9.isDirectory()) return "040000";
   if (stat9.isSymbolicLink()) return "120000";
@@ -86940,9 +87819,9 @@ async function enumerateTreeEntries(root, dirPath, relBase) {
   const items = await readdir14(dirPath, { withFileTypes: true });
   for (const item of items) {
     if (SKIP_DIRS2.has(item.name)) continue;
-    const absPath = join24(dirPath, item.name);
+    const absPath = join25(dirPath, item.name);
     const relPath = relBase ? `${relBase}/${item.name}` : item.name;
-    const st = await lstat16(absPath);
+    const st = await lstat18(absPath);
     if (st.isSymbolicLink()) {
       throw new ReleaseError(
         PATH_UNSAFE,
@@ -86961,7 +87840,7 @@ async function enumerateTreeEntries(root, dirPath, relBase) {
       const subEntries = await enumerateTreeEntries(root, absPath, relPath);
       entries.push(...subEntries);
     } else {
-      const content = await readFile27(absPath);
+      const content = await readFile30(absPath);
       entries.push(
         Object.freeze({
           path: relPath,
@@ -86991,10 +87870,10 @@ async function readEntry({ root, path: path3, source = "worktree" } = {}) {
   if (source !== "worktree") {
     throw new ReleaseError(PATH_UNSAFE, `unsupported readEntry source: ${source}`, { source });
   }
-  const absPath = join24(root, path3);
+  const absPath = join25(root, path3);
   let st;
   try {
-    st = await lstat16(absPath);
+    st = await lstat18(absPath);
   } catch (err) {
     if (err.code === "ENOENT" || err.code === "ENOTDIR") {
       return Object.freeze({ kind: "absent" });
@@ -87024,7 +87903,7 @@ async function readEntry({ root, path: path3, source = "worktree" } = {}) {
       { path: path3, nlink: st.nlink }
     );
   }
-  const content = await readFile27(absPath);
+  const content = await readFile30(absPath);
   return Object.freeze({
     kind: "regular",
     path: path3,
@@ -87040,7 +87919,7 @@ var init_entry = __esm({
   "src/artifacts/entry.mjs"() {
     init_digest();
     init_errors();
-    execFileAsync2 = promisify13(execFile12);
+    execFileAsync2 = promisify14(execFile13);
     SKIP_DIRS2 = /* @__PURE__ */ new Set([".git"]);
     __name(statToGitMode, "statToGitMode");
     __name(gitHashObject, "gitHashObject");
@@ -87051,8 +87930,8 @@ var init_entry = __esm({
 });
 
 // src/artifacts/inventory.mjs
-import { promisify as promisify14 } from "node:util";
-import { execFile as execFile13 } from "node:child_process";
+import { promisify as promisify15 } from "node:util";
+import { execFile as execFile14 } from "node:child_process";
 import { access } from "node:fs/promises";
 function isReservedPath(relPath) {
   if (relPath === ".git" || relPath === "transactions" || relPath === "objects") {
@@ -87137,7 +88016,7 @@ var init_inventory = __esm({
   "src/artifacts/inventory.mjs"() {
     init_digest();
     init_entry();
-    execFileAsync3 = promisify14(execFile13);
+    execFileAsync3 = promisify15(execFile14);
     RESERVED_PREFIXES = Object.freeze([
       ".git/",
       ".release-skill/runs/",
@@ -87287,8 +88166,8 @@ var init_graph = __esm({
 });
 
 // src/artifacts/producer-registry.mjs
-import { readFile as readFile28, readdir as readdir15, stat as stat6, mkdir as mkdir15, writeFile as writeFile9, rm as rm9 } from "node:fs/promises";
-import { join as join25 } from "node:path";
+import { readFile as readFile31, readdir as readdir15, stat as stat6, mkdir as mkdir17, writeFile as writeFile11, rm as rm11 } from "node:fs/promises";
+import { join as join26 } from "node:path";
 import { mkdtemp as mkdtemp5 } from "node:fs/promises";
 import { tmpdir as tmpdir5 } from "node:os";
 import { createHash as createHash12 } from "node:crypto";
@@ -87309,7 +88188,7 @@ function collectStaticImports(filePath, visited = /* @__PURE__ */ new Set()) {
   const dir = abs.replace(/\/[^/]*$/, "");
   while ((match = importRe.exec(source)) !== null) {
     const spec = match[1];
-    let resolved = join25(dir, spec);
+    let resolved = join26(dir, spec);
     if (!resolved.endsWith(".mjs")) resolved += ".mjs";
     results.push(...collectStaticImports(resolved, visited));
   }
@@ -87317,10 +88196,10 @@ function collectStaticImports(filePath, visited = /* @__PURE__ */ new Set()) {
 }
 async function createBuiltInProducerRegistry() {
   const producers = /* @__PURE__ */ new Map();
-  const lockfilePath = join25(new URL("../../..", import.meta.url).pathname, "pnpm-lock.yaml");
+  const lockfilePath = join26(new URL("../../..", import.meta.url).pathname, "pnpm-lock.yaml");
   let lockfileBytes;
   try {
-    lockfileBytes = await readFile28(lockfilePath);
+    lockfileBytes = await readFile31(lockfilePath);
   } catch {
     lockfileBytes = Buffer.from("");
   }
@@ -87337,7 +88216,7 @@ async function createBuiltInProducerRegistry() {
     const allModuleBytes = await Promise.all(
       allModulePaths.map(async (p) => {
         try {
-          return await readFile28(p);
+          return await readFile31(p);
         } catch {
           return Buffer.from("");
         }
@@ -87357,13 +88236,13 @@ async function readDirEntries(dirPath, relBase = "") {
   const items = await readdir15(dirPath, { withFileTypes: true });
   for (const item of items) {
     if (item.name === ".git") continue;
-    const absPath = join25(dirPath, item.name);
+    const absPath = join26(dirPath, item.name);
     const relPath = relBase ? `${relBase}/${item.name}` : item.name;
     const st = await stat6(absPath);
     if (st.isDirectory()) {
       entries.push(...await readDirEntries(absPath, relPath));
     } else {
-      const content = await readFile28(absPath);
+      const content = await readFile31(absPath);
       entries.push(Object.freeze({
         path: relPath,
         type: "blob",
@@ -87380,13 +88259,13 @@ async function readDirEntries(dirPath, relBase = "") {
 async function materializeEntries(entries, dirPath) {
   for (const entry of entries) {
     if (!entry.path) continue;
-    const targetPath = join25(dirPath, entry.path);
+    const targetPath = join26(dirPath, entry.path);
     if (entry.type === "tree" || entry.kind === "tree") {
-      await mkdir15(targetPath, { recursive: true });
+      await mkdir17(targetPath, { recursive: true });
     } else {
-      await mkdir15(join25(targetPath, ".."), { recursive: true });
+      await mkdir17(join26(targetPath, ".."), { recursive: true });
       if (entry.content) {
-        await writeFile9(targetPath, entry.content);
+        await writeFile11(targetPath, entry.content);
       }
     }
   }
@@ -87405,7 +88284,7 @@ async function verifyDeterminism(produce, runOptions, dir1, dir2) {
       { digest1, digest2 }
     );
   }
-  await rm9(dir1, { recursive: true, force: true }).catch(() => {
+  await rm11(dir1, { recursive: true, force: true }).catch(() => {
   });
   return { entries: entries2, outputDir: dir2 };
 }
@@ -87428,7 +88307,7 @@ async function runProducerClosure({
   graph,
   inputSnapshot,
   artifactIds,
-  tempRootFactory = /* @__PURE__ */ __name(async () => mkdtemp5(join25(tmpdir5(), "producer-")), "tempRootFactory")
+  tempRootFactory = /* @__PURE__ */ __name(async () => mkdtemp5(join26(tmpdir5(), "producer-")), "tempRootFactory")
 } = {}) {
   const generatedSet = new Set(graph.topologicalOrder);
   for (const id of artifactIds) {
@@ -87465,7 +88344,7 @@ async function runProducerClosure({
         if (inputEntries) {
           const first = inputEntries[0];
           if (first && first.path) {
-            const absPath = first.path.startsWith("/") ? first.path : join25(process.cwd(), first.path);
+            const absPath = first.path.startsWith("/") ? first.path : join26(process.cwd(), first.path);
             try {
               const st = await stat6(absPath);
               if (st.isDirectory()) {
@@ -87555,8 +88434,8 @@ var init_producer_registry = __esm({
 });
 
 // src/artifacts/git-authority.mjs
-import { promisify as promisify15 } from "node:util";
-import { execFile as execFile14 } from "node:child_process";
+import { promisify as promisify16 } from "node:util";
+import { execFile as execFile15 } from "node:child_process";
 import { createHash as createHash13 } from "node:crypto";
 async function git(cwd, ...args2) {
   const { stdout } = await execFileAsync4("git", args2, { cwd, shell: false });
@@ -87591,7 +88470,7 @@ var init_git_authority = __esm({
   "src/artifacts/git-authority.mjs"() {
     init_errors();
     init_entry();
-    execFileAsync4 = promisify15(execFile14);
+    execFileAsync4 = promisify16(execFile15);
     __name(git, "git");
     __name(sha256Hex3, "sha256Hex");
     __name(readRepositoryIdentity, "readRepositoryIdentity");
@@ -87889,8 +88768,8 @@ var init_state = __esm({
 });
 
 // src/artifacts/artifact-plan.mjs
-import { writeFile as writeFile10, mkdir as mkdir16, readFile as readFile29, rename as rename3, open as open8 } from "node:fs/promises";
-import { dirname as dirname14 } from "node:path";
+import { writeFile as writeFile12, mkdir as mkdir18, readFile as readFile32, rename as rename5, open as open8 } from "node:fs/promises";
+import { dirname as dirname15 } from "node:path";
 function assemblePlan({
   operation,
   bindings,
@@ -87913,18 +88792,18 @@ function assemblePlan({
   return Object.freeze(plan);
 }
 async function writePlan(plan, outputPath) {
-  const dir = dirname14(outputPath);
-  await mkdir16(dir, { recursive: true });
+  const dir = dirname15(outputPath);
+  await mkdir18(dir, { recursive: true });
   const tmpPath = `${outputPath}.tmp`;
   const content = JSON.stringify(plan, null, 2);
   const fh = await open8(tmpPath, "w");
   try {
-    await writeFile10(fh, content, "utf8");
+    await writeFile12(fh, content, "utf8");
     await fh.sync();
   } finally {
     await fh.close();
   }
-  await rename3(tmpPath, outputPath);
+  await rename5(tmpPath, outputPath);
 }
 function chooseNextAction(operation, artifacts, safeToWrite) {
   const BLOCKING = /* @__PURE__ */ new Set([
@@ -88003,10 +88882,10 @@ var init_json = __esm({
 });
 
 // src/artifacts/merge/yaml.mjs
-var import_yaml5;
+var import_yaml6;
 var init_yaml = __esm({
   "src/artifacts/merge/yaml.mjs"() {
-    import_yaml5 = __toESM(require_dist(), 1);
+    import_yaml6 = __toESM(require_dist(), 1);
   }
 });
 
@@ -88576,10 +89455,10 @@ var init_adoption = __esm({
 });
 
 // src/artifacts/inspect.mjs
-import { promisify as promisify16 } from "node:util";
-import { execFile as execFile15 } from "node:child_process";
-import { readdir as readdir16, stat as stat7, readFile as readFile30 } from "node:fs/promises";
-import { join as join26 } from "node:path";
+import { promisify as promisify17 } from "node:util";
+import { execFile as execFile16 } from "node:child_process";
+import { readdir as readdir16, stat as stat7, readFile as readFile33 } from "node:fs/promises";
+import { join as join27 } from "node:path";
 async function hasNestedGitRoots(root) {
   try {
     const { stdout } = await execFileAsync5(
@@ -88589,9 +89468,9 @@ async function hasNestedGitRoots(root) {
     );
     const dirs = stdout.split("\n").filter((s) => s.length > 0);
     for (const dir of dirs) {
-      const absDir = join26(root, dir);
+      const absDir = join27(root, dir);
       try {
-        const nestedGit = join26(absDir, ".git");
+        const nestedGit = join27(absDir, ".git");
         await stat7(nestedGit);
         return true;
       } catch {
@@ -88741,7 +89620,7 @@ async function inspectArtifacts({
 }
 async function captureInspectInputs({ root } = {}) {
   const { policy, policyDigest } = await loadArtifactPolicy({ root });
-  const identity = await readRepositoryIdentity(root);
+  const identity2 = await readRepositoryIdentity(root);
   const inventory = await buildInventory({ root, policy });
   const currentEntries = await readDeclaredEntries(root, policy);
   const currentManifestDigest = computeCurrentManifestDigest(currentEntries);
@@ -88751,7 +89630,7 @@ async function captureInspectInputs({ root } = {}) {
     root,
     policy,
     policyDigest,
-    identity,
+    identity: identity2,
     inventory,
     currentEntries,
     currentManifestDigest,
@@ -88761,14 +89640,14 @@ async function captureInspectInputs({ root } = {}) {
   });
 }
 function inspectFromInputs({ inputs, mode = "inspect" } = {}) {
-  const { policy, policyDigest, identity, currentEntries, currentManifestDigest, baseManifestDigest, producerClosureDigest } = inputs;
+  const { policy, policyDigest, identity: identity2, currentEntries, currentManifestDigest, baseManifestDigest, producerClosureDigest } = inputs;
   const decisions = classifyArtifacts(currentEntries, policy, mode);
   const status = determineOverallStatus(decisions, mode);
   const safeToWrite = decisions.every((d) => d.safeToWrite);
   const plan = assemblePlan({
     operation: mode,
     bindings: {
-      repositoryIdentity: identity.remoteUrlHash,
+      repositoryIdentity: identity2.remoteUrlHash,
       policyDigest,
       baseManifestDigest,
       currentManifestDigest,
@@ -88833,7 +89712,7 @@ var init_inspect = __esm({
     init_artifact_plan();
     init_entry_merge();
     init_adoption();
-    execFileAsync5 = promisify16(execFile15);
+    execFileAsync5 = promisify17(execFile16);
     __name(hasNestedGitRoots, "hasNestedGitRoots");
     __name(hasPartialStage, "hasPartialStage");
     __name(readDeclaredEntries, "readDeclaredEntries");
@@ -88850,8 +89729,8 @@ var init_inspect = __esm({
 });
 
 // src/artifacts/resolution.mjs
-import { mkdir as mkdir17, open as open9, readFile as readFile31, stat as stat8, lstat as lstat17, chmod as chmod4 } from "node:fs/promises";
-import { join as join27, resolve as resolve27, relative as relative25, isAbsolute as isAbsolute21, basename as basename9 } from "node:path";
+import { mkdir as mkdir19, open as open9, readFile as readFile34, stat as stat8, lstat as lstat19, chmod as chmod4 } from "node:fs/promises";
+import { join as join28, resolve as resolve31, relative as relative25, isAbsolute as isAbsolute21, basename as basename9 } from "node:path";
 function decodeBuffer(value, label) {
   if (value == null) return null;
   if (Buffer.isBuffer(value)) return value;
@@ -88953,13 +89832,13 @@ function assertSafeArtifactId(id) {
 }
 async function assertNoSymlinksInPath(root, artifactId) {
   const levels = [
-    join27(root, ".release-skill"),
-    join27(root, ".release-skill", "resolution"),
-    join27(root, ".release-skill", "resolution", artifactId)
+    join28(root, ".release-skill"),
+    join28(root, ".release-skill", "resolution"),
+    join28(root, ".release-skill", "resolution", artifactId)
   ];
   for (const dir of levels) {
     try {
-      const st = await lstat17(dir);
+      const st = await lstat19(dir);
       if (st.isSymbolicLink()) {
         throw new ReleaseError(PATH_UNSAFE, `directory is a symlink: ${dir}`, { path: dir });
       }
@@ -88971,8 +89850,8 @@ async function assertNoSymlinksInPath(root, artifactId) {
   }
 }
 async function assertSafeResolvedPath(root, artifactId, resolvedPath) {
-  const resolutionDir = resolve27(root, ".release-skill", "resolution", artifactId);
-  const resolved = resolve27(resolvedPath);
+  const resolutionDir = resolve31(root, ".release-skill", "resolution", artifactId);
+  const resolved = resolve31(resolvedPath);
   await assertNoSymlinksInPath(root, artifactId);
   const rel = relative25(resolutionDir, resolved);
   if (rel.startsWith("..") || isAbsolute21(rel)) {
@@ -88990,7 +89869,7 @@ async function assertSafeResolvedPath(root, artifactId, resolvedPath) {
       { resolvedPath, expected: `${artifactId}.resolved`, actual: filename }
     );
   }
-  if (resolved !== resolve27(resolutionDir, `${artifactId}.resolved`)) {
+  if (resolved !== resolve31(resolutionDir, `${artifactId}.resolved`)) {
     throw new ReleaseError(
       PATH_UNSAFE,
       "resolvedPath must be the exact materialized resolution file",
@@ -88999,7 +89878,7 @@ async function assertSafeResolvedPath(root, artifactId, resolvedPath) {
   }
   let st;
   try {
-    st = await lstat17(resolvedPath);
+    st = await lstat19(resolvedPath);
   } catch (err) {
     throw new ReleaseError(
       MISSING_PARAMETERS,
@@ -89134,13 +90013,13 @@ async function materializeResolution({
   const template = buildConflictTemplate(artifact.conflict ?? {}, decodedBuffers);
   const templateDigest = sha256Hex(template);
   await assertNoSymlinksInPath(root, artifactId);
-  const resolutionDir = join27(root, ".release-skill", "resolution", artifactId);
-  await mkdir17(resolutionDir, { recursive: true, mode: 448 });
+  const resolutionDir = join28(root, ".release-skill", "resolution", artifactId);
+  await mkdir19(resolutionDir, { recursive: true, mode: 448 });
   const dirStat = await stat8(resolutionDir);
   if ((dirStat.mode & 511) !== 448) {
     await chmod4(resolutionDir, 448);
   }
-  const resolvedPath = join27(resolutionDir, `${artifactId}.resolved`);
+  const resolvedPath = join28(resolutionDir, `${artifactId}.resolved`);
   const fh = await open9(resolvedPath, "wx", 384);
   try {
     await fh.write(template, 0, template.length);
@@ -89182,7 +90061,7 @@ async function submitResolution({
 async function readAndValidateResolvedFile(resolvedPath) {
   let content;
   try {
-    content = await readFile31(resolvedPath);
+    content = await readFile34(resolvedPath);
   } catch (err) {
     throw new ReleaseError(MISSING_PARAMETERS, `cannot read resolved file: ${err.message}`, { resolvedPath, cause: err.code });
   }
@@ -89350,8 +90229,8 @@ var artifacts_exports = {};
 __export(artifacts_exports, {
   runArtifactsCommand: () => runArtifactsCommand
 });
-import { readFile as readFile32 } from "node:fs/promises";
-import { join as join28 } from "node:path";
+import { readFile as readFile35 } from "node:fs/promises";
+import { join as join29 } from "node:path";
 async function runArtifactsCommand({ subcommand, args: args2, root } = {}) {
   if (!VALID_SUBCOMMANDS.has(subcommand)) {
     throw new ReleaseError(
@@ -89479,7 +90358,7 @@ async function handleAdopt({ args: args2, root }) {
       { subcommand: "adopt" }
     );
   }
-  const planRaw = await readFile32(planPath, "utf8");
+  const planRaw = await readFile35(planPath, "utf8");
   const plan = JSON.parse(planRaw);
   if (expectedDigest && plan.planDigest !== expectedDigest) {
     throw new ReleaseError(
@@ -89494,7 +90373,7 @@ async function handleAdopt({ args: args2, root }) {
     if (artifact.path) {
       const entry = await readEntry({ root, path: artifact.path, source: "worktree" });
       if (entry.kind === "regular") {
-        const bytes = await readFile32(join28(root, artifact.path));
+        const bytes = await readFile35(join29(root, artifact.path));
         currentEntries.set(artifact.id, Object.freeze({ ...entry, bytes, content: bytes }));
       } else {
         currentEntries.set(artifact.id, entry);
@@ -89559,7 +90438,7 @@ async function handleBootstrap({ args: args2, root }) {
       { subcommand: "bootstrap" }
     );
   }
-  const planRaw = await readFile32(planPath, "utf8");
+  const planRaw = await readFile35(planPath, "utf8");
   const adoptionPlan = JSON.parse(planRaw);
   const currentEntries = /* @__PURE__ */ new Map();
   for (const id of new Set((adoptionPlan.protectedHunks ?? []).map((h) => h.artifactId))) {
@@ -89571,12 +90450,12 @@ async function handleBootstrap({ args: args2, root }) {
     if (entry.kind !== "regular") {
       throw new ReleaseError("PLAN_STALE", `artifact is no longer a regular file: ${id}`, { id });
     }
-    const bytes = await readFile32(join28(root, artifactPath));
+    const bytes = await readFile35(join29(root, artifactPath));
     currentEntries.set(id, Object.freeze({ ...entry, bytes, content: bytes }));
   }
   let replacementBytes;
   if (action === "replace" && replacementPath) {
-    replacementBytes = await readFile32(replacementPath);
+    replacementBytes = await readFile35(replacementPath);
   }
   const updated = await discardBootstrapHunk({
     adoptionPlan,
@@ -89614,7 +90493,7 @@ async function handleResolve({ args: args2, root }) {
       { subcommand: "resolve" }
     );
   }
-  const planRaw = await readFile32(planPath, "utf8");
+  const planRaw = await readFile35(planPath, "utf8");
   const plan = JSON.parse(planRaw);
   if (plan.planDigest !== expectedDigest) {
     throw new ReleaseError(
@@ -89982,9 +90861,9 @@ var init_docs = __esm({
 });
 
 // bin/release-skill-cli.mjs
-import { basename as basename10, dirname as dirname15, join as join29, resolve as resolve28 } from "node:path";
-import { execFile as execFileCb13 } from "node:child_process";
-import { promisify as promisify17 } from "node:util";
+import { basename as basename10, dirname as dirname16, join as join30, resolve as resolve32 } from "node:path";
+import { execFile as execFileCb14 } from "node:child_process";
+import { promisify as promisify18 } from "node:util";
 
 // src/core/node-version.mjs
 function parseNodeMajor(versionString) {
@@ -90021,11 +90900,11 @@ __name(computeReadinessStatus, "computeReadinessStatus");
 init_errors();
 init_redact();
 registerPathRedactor(redactSensitivePaths);
-var execFile16 = promisify17(execFileCb13);
-var COMMANDS = /* @__PURE__ */ new Set(["help", "setup", "assess", "prepare", "approve", "publish", "reconcile", "verify", "artifacts", "docs"]);
+var execFile17 = promisify18(execFileCb14);
+var COMMANDS = /* @__PURE__ */ new Set(["help", "setup", "assess", "prepare", "approve", "publish", "reconcile", "verify", "ship", "attest", "hooks", "artifacts", "docs"]);
 async function checkDependency(command2, versionArgs = ["--version"]) {
   try {
-    const { stdout } = await execFile16(command2, versionArgs, {
+    const { stdout } = await execFile17(command2, versionArgs, {
       shell: false,
       encoding: "utf8",
       timeout: 5e3
@@ -90180,6 +91059,9 @@ Commands:
   publish    Publish frozen GitHub/npm artifacts after approval and digest confirmation
   reconcile  Resume PARTIAL state from evidence; conflicts require a human
   verify     Fresh remote and consumer verification; only this reaches VERIFIED
+  ship       Resume one durable prepare -> approve -> publish -> verify flow
+  attest     Record a generated Kimi/CodeBuddy manual result without editing JSON
+  hooks      Run declared development hooks and populate reusable receipts
   artifacts  Artifact status, inspect, update/apply, resolution, and diagnostics
   docs       Refresh declared release documents (read-only dry-run by default)
 
@@ -90200,6 +91082,15 @@ Options:
   --ack-local-document-write Acknowledge the explicit local release-document write (docs refresh --write)
   --acknowledge-hook-side-effects Acknowledge unsandboxed legacy hook execution
   --acknowledge-gate-side-effects Acknowledge unsandboxed local verification gate execution
+  --platform <id>   Manual attestation platform: kimi or codebuddy
+  --plugin <id>     Plugin id for a generated manual requirement
+  --actor <name>    Person confirming an approval or manual result
+  --result <value>  Manual result: passed or failed
+  --install-path <path> Actual managed plugin path when closure verification requires it
+  --install-channel <desktop|cli> CodeBuddy installation channel when required
+  --authorize-hooks <digest> Authorize the exact ship hook/config digest
+  --approve-plan <digest> Approve the exact ship plan and its verification gates
+  --state <path>    Override the durable ship state file
   --no-hook-cache  Force every prepare hook to run in full; neither read nor write the hook cache
   --json           Output results as JSON
   --version        Show version and exit
@@ -90236,7 +91127,7 @@ if (!command && (args.includes("--version") || args.includes("-v"))) {
   } else {
     const { readFileSync: readFileSync5 } = await import("node:fs");
     const { fileURLToPath: fileURLToPath3 } = await import("node:url");
-    const pkgPath = join29(dirname15(fileURLToPath3(import.meta.url)), "..", "package.json");
+    const pkgPath = join30(dirname16(fileURLToPath3(import.meta.url)), "..", "package.json");
     pkg = JSON.parse(readFileSync5(pkgPath, "utf8"));
   }
   if (hasJson) {
@@ -90357,7 +91248,7 @@ if (!COMMANDS.has(command)) {
 if (command === "setup") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve28(rawRoot);
+  const root = resolve32(rawRoot);
   const answersIdx = args.indexOf("--answers");
   const answersPath = answersIdx !== -1 && args[answersIdx + 1] ? args[answersIdx + 1] : void 0;
   const confirmationIdx = args.indexOf("--confirm-setup");
@@ -90392,7 +91283,7 @@ if (command === "setup") {
 if (command === "assess") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve28(rawRoot);
+  const root = resolve32(rawRoot);
   const offline = args.includes("--offline") || !args.includes("--online");
   const outputIdx = args.indexOf("--output");
   const output = outputIdx !== -1 && args[outputIdx + 1] ? args[outputIdx + 1] : void 0;
@@ -90420,10 +91311,152 @@ if (command === "assess") {
     process.exit(err.exitCode ?? 1);
   }
 }
+if (command === "hooks") {
+  const subcommand = positional[1];
+  const rootIdx = args.indexOf("--root");
+  const root = resolve32(rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd());
+  if (subcommand !== "validate") {
+    const message = "hooks requires subcommand: hooks validate";
+    if (hasJson) console.log(JSON.stringify({ error: "MISSING_PARAMETERS", message }));
+    else console.error(`Error: ${message}`);
+    process.exit(1);
+  }
+  try {
+    const { validateDeclaredHooks: validateDeclaredHooks2 } = await init_hooks2().then(() => hooks_exports);
+    const result = await validateDeclaredHooks2({
+      root,
+      hooksAuthorized: args.includes("--acknowledge-hook-side-effects"),
+      hookCache: !args.includes("--no-hook-cache")
+    });
+    if (hasJson) console.log(JSON.stringify(result, null, 2));
+    else {
+      console.log(`Declared hooks: ${result.status}`);
+      console.log(`Reusable receipt evidence: ${result.evidenceDir}`);
+    }
+    process.exit(0);
+  } catch (err) {
+    if (hasJson) {
+      console.log(JSON.stringify({
+        error: err.code ?? "UNKNOWN_ERROR",
+        message: err.message,
+        details: err.details ?? {},
+        exitCode: err.exitCode ?? 1
+      }));
+    } else console.error(`Error: ${err.message}`);
+    process.exit(err.exitCode ?? 1);
+  }
+}
+if (command === "ship") {
+  const value = /* @__PURE__ */ __name((flag) => {
+    const idx = args.indexOf(flag);
+    return idx !== -1 && args[idx + 1] ? args[idx + 1] : void 0;
+  }, "value");
+  const root = resolve32(value("--root") ?? process.cwd());
+  try {
+    const [
+      { advanceShip: advanceShip2 },
+      { createGitGithubAdapter: createGitGithubAdapter2 },
+      { createNpmAdapter: createNpmAdapter2 },
+      { createPluginMarketplaceAdapter: createPluginMarketplaceAdapter2 },
+      { createPushSnapshotAdapter: createPushSnapshotAdapter2 },
+      { createAdapterRegistry: createAdapterRegistry2 }
+    ] = await Promise.all([
+      Promise.resolve().then(() => (init_ship(), ship_exports)),
+      Promise.resolve().then(() => (init_git_github(), git_github_exports)),
+      Promise.resolve().then(() => (init_npm(), npm_exports)),
+      init_plugin_marketplace().then(() => plugin_marketplace_exports),
+      Promise.resolve().then(() => (init_push_snapshot(), push_snapshot_exports)),
+      Promise.resolve().then(() => (init_contract(), contract_exports))
+    ]);
+    const adapterRegistry = createAdapterRegistry2([
+      createGitGithubAdapter2(),
+      createNpmAdapter2(),
+      createPluginMarketplaceAdapter2(),
+      createPushSnapshotAdapter2()
+    ]);
+    const result = await advanceShip2({
+      root,
+      statePath: value("--state"),
+      targetVersion: value("--target-version") ?? value("--version"),
+      hookAuthorizationDigest: value("--authorize-hooks"),
+      planApprovalDigest: value("--approve-plan"),
+      actor: value("--actor"),
+      adapterRegistry
+    });
+    if (hasJson) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log(`Ship status: ${result.status}`);
+      console.log(`State: ${result.statePath}`);
+      if (result.hookAuthorizationDigest && result.status === "NEEDS_HOOK_AUTHORIZATION") {
+        console.log(`Authorize hooks: --authorize-hooks ${result.hookAuthorizationDigest}`);
+      }
+      if (result.planDigest && result.status === "NEEDS_PLAN_APPROVAL") {
+        console.log(`Approve plan and verification gates: --approve-plan ${result.planDigest} --actor <person>`);
+      }
+      for (const requirement of result.requirements ?? []) {
+        console.log(`Manual requirement [${requirement.platform}]: ${requirement.requirementPath}`);
+      }
+    }
+    process.exit(0);
+  } catch (err) {
+    if (hasJson) {
+      console.log(JSON.stringify({
+        error: err.code ?? "UNKNOWN_ERROR",
+        message: err.message,
+        details: err.details ?? {},
+        exitCode: err.exitCode ?? 1
+      }));
+    } else {
+      console.error(`Error: ${err.message}`);
+    }
+    process.exit(err.exitCode ?? 1);
+  }
+}
+if (command === "attest") {
+  const value = /* @__PURE__ */ __name((flag) => {
+    const idx = args.indexOf(flag);
+    return idx !== -1 && args[idx + 1] ? args[idx + 1] : void 0;
+  }, "value");
+  const root = resolve32(value("--root") ?? process.cwd());
+  try {
+    const { recordManualAttestation: recordManualAttestation2 } = await Promise.resolve().then(() => (init_attest(), attest_exports));
+    const result = await recordManualAttestation2({
+      root,
+      platform: value("--platform"),
+      plugin: value("--plugin"),
+      actor: value("--actor"),
+      result: value("--result"),
+      installPath: value("--install-path"),
+      installChannel: value("--install-channel"),
+      note: value("--note")
+    });
+    if (hasJson) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log(`Manual attestation recorded: ${result.platform}/${result.plugin} ${result.version}`);
+      console.log(`Bound plan digest: ${result.planDigest}`);
+      console.log(`Receipt: ${result.attestationPath}`);
+    }
+    process.exit(0);
+  } catch (err) {
+    if (hasJson) {
+      console.log(JSON.stringify({
+        error: err.code ?? "UNKNOWN_ERROR",
+        message: err.message,
+        details: err.details ?? {},
+        exitCode: err.exitCode ?? 1
+      }));
+    } else {
+      console.error(`Error: ${err.message}`);
+    }
+    process.exit(err.exitCode ?? 1);
+  }
+}
 if (command === "prepare") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve28(rawRoot);
+  const root = resolve32(rawRoot);
   const offline = args.includes("--offline") || !args.includes("--online");
   let targetVersion;
   for (const flag of ["--target-version", "--version"]) {
@@ -90438,9 +91471,9 @@ if (command === "prepare") {
   const hookCache = !args.includes("--no-hook-cache");
   const production = args.includes("--production");
   const outputIdx = args.indexOf("--output");
-  const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve28(args[outputIdx + 1]) : void 0;
+  const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve32(args[outputIdx + 1]) : void 0;
   const runDirIdx = args.indexOf("--run-dir");
-  const runDir = runDirIdx !== -1 && args[runDirIdx + 1] ? resolve28(args[runDirIdx + 1]) : void 0;
+  const runDir = runDirIdx !== -1 && args[runDirIdx + 1] ? resolve32(args[runDirIdx + 1]) : void 0;
   try {
     const { prepareRelease: prepareRelease2 } = await init_prepare().then(() => prepare_exports);
     const { readFile: readFileFs } = await import("node:fs/promises");
@@ -90459,10 +91492,21 @@ if (command === "prepare") {
       const planContent = await readFileFs(result.planPath, "utf8");
       const plan = JSON.parse(planContent);
       console.log(JSON.stringify({
-        ...plan,
+        command: "prepare",
+        status: plan.status,
         planPath: result.planPath,
         planDigest: result.planDigest,
         evidenceDir: result.evidenceDir,
+        units: (plan.units ?? []).map((unit) => ({
+          id: unit.id,
+          targetVersion: unit.targetVersion ?? unit.version
+        })),
+        actionCount: (plan.externalActions ?? []).length,
+        actions: (plan.externalActions ?? []).map((action) => ({
+          id: action.id,
+          type: action.type,
+          unitId: action.unitId
+        })),
         warnings: result.warnings
       }, null, 2));
     } else {
@@ -90497,7 +91541,7 @@ if (command === "approve") {
   const actorIdx = args.indexOf("--actor");
   const actor = actorIdx !== -1 && args[actorIdx + 1] ? args[actorIdx + 1] : void 0;
   const outputIdx = args.indexOf("--output");
-  const outputPath = outputIdx !== -1 && args[outputIdx + 1] ? resolve28(args[outputIdx + 1]) : void 0;
+  const outputPath = outputIdx !== -1 && args[outputIdx + 1] ? resolve32(args[outputIdx + 1]) : void 0;
   if (!planPath || !expectedDigest || !actor) {
     const msg = "approve requires --plan <path>, --digest <sha256>, and --actor <name>";
     if (hasJson) {
@@ -90509,10 +91553,10 @@ if (command === "approve") {
   }
   try {
     const { approvePlan: approvePlan2 } = await init_approve().then(() => approve_exports);
-    const resolvedPlanPath = resolve28(planPath);
-    const planDir = dirname15(resolvedPlanPath);
-    const releaseDir = basename10(planDir) === "plans" && basename10(resolvedPlanPath) === `${expectedDigest}.json` ? dirname15(planDir) : planDir;
-    const approvalPath = outputPath ?? join29(releaseDir, "approval-record.json");
+    const resolvedPlanPath = resolve32(planPath);
+    const planDir = dirname16(resolvedPlanPath);
+    const releaseDir = basename10(planDir) === "plans" && basename10(resolvedPlanPath) === `${expectedDigest}.json` ? dirname16(planDir) : planDir;
+    const approvalPath = outputPath ?? join30(releaseDir, "approval-record.json");
     const record = await approvePlan2({ planPath, expectedDigest, actor, outputPath: approvalPath });
     if (hasJson) {
       console.log(JSON.stringify(record, null, 2));
@@ -90539,13 +91583,13 @@ if (command === "approve") {
 if (command === "reconcile") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve28(rawRoot);
+  const root = resolve32(rawRoot);
   const planIdx = args.indexOf("--plan");
-  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve28(args[planIdx + 1]) : void 0;
+  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve32(args[planIdx + 1]) : void 0;
   const runIdx = args.indexOf("--run");
-  const runPath = runIdx !== -1 && args[runIdx + 1] ? resolve28(args[runIdx + 1]) : void 0;
+  const runPath = runIdx !== -1 && args[runIdx + 1] ? resolve32(args[runIdx + 1]) : void 0;
   const approvalIdx = args.indexOf("--approval");
-  const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve28(args[approvalIdx + 1]) : void 0;
+  const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve32(args[approvalIdx + 1]) : void 0;
   const confirmationIdx = args.indexOf("--confirm-production");
   const productionConfirmation = confirmationIdx !== -1 && args[confirmationIdx + 1] ? args[confirmationIdx + 1] : void 0;
   if (!planPath || !runPath) {
@@ -90604,11 +91648,11 @@ if (command === "reconcile") {
 if (command === "verify") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve28(rawRoot);
+  const root = resolve32(rawRoot);
   const planIdx = args.indexOf("--plan");
-  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve28(args[planIdx + 1]) : void 0;
+  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve32(args[planIdx + 1]) : void 0;
   const runIdx = args.indexOf("--run");
-  const runPath = runIdx !== -1 && args[runIdx + 1] ? resolve28(args[runIdx + 1]) : void 0;
+  const runPath = runIdx !== -1 && args[runIdx + 1] ? resolve32(args[runIdx + 1]) : void 0;
   const verificationGatesAuthorized = args.includes("--acknowledge-gate-side-effects");
   if (!planPath || !runPath) {
     const msg = "verify requires --plan <path> and --run <path>";
@@ -90664,11 +91708,11 @@ if (command === "verify") {
 if (command === "publish") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve28(rawRoot);
+  const root = resolve32(rawRoot);
   const planIdx = args.indexOf("--plan");
-  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve28(args[planIdx + 1]) : void 0;
+  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve32(args[planIdx + 1]) : void 0;
   const approvalIdx = args.indexOf("--approval");
-  const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve28(args[approvalIdx + 1]) : void 0;
+  const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve32(args[approvalIdx + 1]) : void 0;
   const confirmationIdx = args.indexOf("--confirm-production");
   const productionConfirmation = confirmationIdx !== -1 && args[confirmationIdx + 1] ? args[confirmationIdx + 1] : void 0;
   if (!planPath || !approvalPath || !productionConfirmation) {
@@ -90727,9 +91771,9 @@ if (command === "publish") {
 if (command === "artifacts") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve28(rawRoot);
+  const root = resolve32(rawRoot);
   const outputIdx = args.indexOf("--output");
-  const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve28(args[outputIdx + 1]) : void 0;
+  const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve32(args[outputIdx + 1]) : void 0;
   const subcommand = positional[1] ?? "status";
   try {
     const { runArtifactsCommand: runArtifactsCommand2 } = await Promise.resolve().then(() => (init_artifacts(), artifacts_exports));
@@ -90796,7 +91840,7 @@ if (command === "docs") {
         );
       }
     }
-    const root = resolve28(rawRoot);
+    const root = resolve32(rawRoot);
     const valuedDocsFlags = /* @__PURE__ */ new Set(["--root", "--unit", "--confirm-refresh"]);
     const booleanDocsFlags = /* @__PURE__ */ new Set(["--json", "--write", "--ack-local-document-write"]);
     let docsSubcommand;

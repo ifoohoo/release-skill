@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.2.9 -->
+<!-- release-skill:release-version: 0.3.0 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,21 +14,27 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.2.9** (2026-07-31)
+**0.3.0** (2026-07-31)
 
-v0.2.9 makes missing expected public-surface configuration visible during assessment and preparation without blocking existing projects.
+v0.3.0 streamlines production releases into a resumable orchestration with reusable hook receipts, consolidated approvals, and stronger consumer-install evidence.
 
 **Added**
 
-- **Adoption warning**: assess reports `PUBLIC_SURFACE_CONFIG_MISSING` for every release unit that has not configured `expectedPublicSurface`.
+- **Resumable ship orchestration**: the new `ship` command persists the active release state and resumes prepare, approval, publish, reconcile, and verification without rebuilding authority from conversational context.
+- **Reusable hook receipts**: `hooks validate` executes declared hooks through the same content-bound cache used by prepare, so unchanged checks do not need to run again.
+- **Verified manual attestations**: `attest` validates a reported Kimi or CodeBuddy installation against the exact frozen plugin payload before recording consumer evidence.
+- **Git transport preflight**: production publishing selects one repository-consistent HTTPS or SSH transport before any remote write and blocks conflicting remote identities.
 
 **Changed**
 
-- **Prepare visibility**: prepare records and returns the same non-blocking warning, and the CLI exposes it in both JSON and human-readable output.
+- **Consolidated human decisions**: the normal path requires at most one hook-side-effect authorization and one immutable-plan approval; manual consumer requirements are collected before automatic verification.
+- **Parallel consumer verification**: independent consumer checks run concurrently, drain before failure reporting, and produce deterministically ordered evidence.
+- **Automatic release metadata**: successful verification advances each unit's `previousPublicBaseline` to the frozen public commit, tree, and manifest digest.
+- **Compact prepare output**: JSON output references the immutable plan by path and digest instead of embedding the full plan.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.2.9 is the current release (v0.2.2 previously held
+> **Current boundary:** v0.3.0 is the current release (v0.2.2 previously held
 > published status before the platform verification convergence fix was added).
 > v0.1.1 completed a real production release to GitHub and npm — the first
 > production-verified milestone — followed by
@@ -46,7 +52,7 @@ v0.2.9 makes missing expected public-surface configuration visible during assess
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.2.9 is the current
+> **Production path verified since the v0.1.1 milestone; v0.3.0 is the current
 > release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
@@ -111,6 +117,31 @@ pinned release tag — see [INSTALL.md](INSTALL.md#install-as-a-kimi-code-plugin
 See [INSTALL.md](INSTALL.md) for CodeBuddy, Codex, and Kimi Code commands.
 
 ### Main workflow
+
+For routine releases, use the durable fast path. It persists authoritative
+paths and resumes safely, so a normal run needs at most two authorization
+digests: one for the exact configured hooks and one for the frozen plan. The
+plan approval also authorizes that plan's post-publish verification gates.
+
+```bash
+release-skill ship --root "$PROJECT" --target-version 1.2.3 --json
+release-skill ship --root "$PROJECT" --authorize-hooks <hookDigest> --actor "$ACTOR" --json
+release-skill ship --root "$PROJECT" --approve-plan <planDigest> --actor "$ACTOR" --json
+```
+
+If interactive consumers are required, `ship` returns every Kimi/CodeBuddy
+requirement at once. After installing/reloading, record the human fact without
+editing JSON and rerun `ship`:
+
+```bash
+release-skill attest --root "$PROJECT" --platform kimi --plugin my-plugin \
+  --result passed --actor "$ACTOR" --install-path /actual/managed/plugin/path
+release-skill ship --root "$PROJECT" --json
+```
+
+During development, `release-skill hooks validate
+--acknowledge-hook-side-effects` runs declared hooks and writes the same
+content-bound cache receipts that `prepare` consumes.
 
 Run these steps in order. Steps 1-4 are safe (read-only or local-only);
 steps 5-9 require explicit human gates.

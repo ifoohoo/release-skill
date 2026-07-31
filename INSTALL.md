@@ -2,7 +2,7 @@
 
 [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.2.9 -->
+<!-- release-skill:release-version: 0.3.0 -->
 ## Prerequisites
 
 - Node.js 22.0.0 or later
@@ -128,7 +128,7 @@ as a version-pinned **manual** install plus trusted observation/attestation:
    frozen version; otherwise do NOT issue an attestation.
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.2.9
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.3.0
    /plugins reload
    ```
 
@@ -140,7 +140,7 @@ as a version-pinned **manual** install plus trusted observation/attestation:
 ```json
 {
   "platform": "kimi",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "planDigest": "<64-hex frozen plan digest>",
   "result": "passed",
   "actor": "<person who confirmed>",
@@ -204,7 +204,7 @@ attestation (the same capability gap and closed loop as Kimi Code):
 ```json
 {
   "platform": "codebuddy",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "planDigest": "<64-hex frozen plan digest>",
   "result": "passed",
   "actor": "<person who confirmed>",
