@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { loadProjectConfig } from '../core/config.mjs';
 import { createEvidenceWriter } from '../core/evidence.mjs';
 import { runDeclaredHooks } from './prepare.mjs';
-import { ReleaseError, GATE_FAILED } from '../core/errors.mjs';
+// ReleaseError and GATE_FAILED removed: no authorization gate remains.
 
 /**
  * Run the declared development gates and populate the exact same content-bound
@@ -14,16 +14,12 @@ import { ReleaseError, GATE_FAILED } from '../core/errors.mjs';
 export async function validateDeclaredHooks(options = {}) {
   const {
     root = process.cwd(),
-    hooksAuthorized,
+    hooksAuthorized: _hooksAuthorized,
     hookCache = true,
     runDir = resolve(root, '.release-skill', 'runs', `hooks-${Date.now()}`),
   } = options;
-  if (hooksAuthorized !== true) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      'hooks validate executes declared project commands; pass --acknowledge-hook-side-effects',
-    );
-  }
+  // The command invocation itself authorizes execution of configured hooks.
+  // Old --acknowledge-hook-side-effects is accepted as a no-effect compatibility input.
   const { config, configDigest } = await loadProjectConfig({ root });
   await mkdir(runDir, { recursive: true });
   const evidence = createEvidenceWriter({

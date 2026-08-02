@@ -20,9 +20,7 @@ description: Freeze an immutable release plan with local configuration, document
 
 运行项目构建/测试 hook，生成公开快照并扫描泄漏，冻结不可变发布计划。prepare 自身不调用发布 adapter，但会执行用户配置的 hook。hook 是任意本地进程，不受文件系统/网络隔离，可能产生项目目录外的副作用或远端写入。
 
-**Hook 授权门**: 当项目配置含任何 hook 时，prepare 默认失败关闭并展示将执行的 executable/args/cwd。只有显式传入 `--acknowledge-hook-side-effects`（CLI）或 `hooksAuthorized: true`（API）才能执行。授权表示用户接受 hook 风险，不表示 hook 安全。
-
-**Gate 授权门**: 当项目含 `snapshot-verify` gate 时，prepare 同样默认失败关闭。逐项审阅后才可传入 `--acknowledge-gate-side-effects`（CLI）或 `verificationGatesAuthorized: true`（API）；gate 也没有操作系统或网络沙箱。
+**Hook 与 Gate 执行**: 命令调用本身即授权执行已配置的 hook 和 gate，不再设置额外人工授权环节。
 
 **阶段通过规则**: 本阶段的通过只能由 CLI exit code 0 和结构化状态码 `PREPARED` 确认。Agent 无权自行宣布计划冻结成功。
 
@@ -37,9 +35,8 @@ description: Freeze an immutable release plan with local configuration, document
 1. 使用插件根相对路径运行 CLI：`CLI="node $RELEASE_SKILL_ENTRY"`
 2. 配置含 `releaseDocuments` 时，先运行只读演练 `${CLI} docs refresh --unit <id> --json`；`status: "changes"` 时展示逐文件路径/语种/版本/`refreshDigest`，取得"本地发布文档写入"明确授权后才执行 `nextCommand.argv` 写入，审阅并提交刷新结果后再继续；`status: "clean"` 时直接进入 prepare
 3. 运行 `${CLI} prepare --root <path> --offline --json`
-4. 若遇到 hook/gate 授权门失败，分别展示命令和风险，获取授权后只增加实际需要的 `--acknowledge-hook-side-effects` / `--acknowledge-gate-side-effects`
-5. 检查 exit code 0，读取 JSON 返回的 immutable `planPath=plans/<planDigest>.json`，再从该文件读取 `status`、`units`、`externalActions`
-6. 向用户展示 targetVersion、externalActions、planDigest 和 planPath；后续 approve/publish 只能使用该 immutable planPath，等待确认后再 approve
+4. 检查 exit code 0，读取 JSON 返回的 immutable `planPath=plans/<planDigest>.json`，再从该文件读取 `status`、`units`、`externalActions`
+5. 向用户展示可读的 `approvalSummary`（版本、仓库/包、branch/tag、外部动作和例外）；`planDigest` 仅作为内部绑定字段，不要求用户复制或确认。后续 approve/publish 只能使用该 immutable planPath，等待确认后再 approve
 
 若用户明确要求 GitHub+npm 生产发布，加入 `--production`。该模式还会封存独立
 Git commit/tree 和 npm tarball，并把路径、SHA/integrity、branch/tag 写入计划。
@@ -70,24 +67,18 @@ node "$RELEASE_SKILL_ENTRY" docs refresh --unit <id> \
 node "$RELEASE_SKILL_ENTRY" prepare --root <path> --offline --json
 # 生产 happy end：bound 基线必须 online；远端目标唯一性仍由 publish 全局预检
 node "$RELEASE_SKILL_ENTRY" prepare --root <path> --online --production --json
-# 项目含 hook 时需显式授权:
-node "$RELEASE_SKILL_ENTRY" prepare --root <path> --offline --acknowledge-hook-side-effects --json
-# 项目含 snapshot gate 时另行显式授权:
-node "$RELEASE_SKILL_ENTRY" prepare --root <path> --offline --acknowledge-gate-side-effects --json
 ```
 
 ## 执行顺序
 
 1. 校验配置 schema → 2. 版本解析与发布文档新鲜度门（只读，RELEASE_DOCS_STALE）→
-3. Hook 授权门 → 4. 运行 hooks 并复检文档新鲜度 → 5. 捕获 Git baseline →
-6. 逐 unit 观察前序公开基线 → 7. 生成快照/扫描/README → 8. 原子写入 plan
+3. 运行 hooks 并复检文档新鲜度 → 4. 捕获 Git baseline →
+5. 逐 unit 观察前序公开基线 → 6. 生成快照/扫描/README → 7. 原子写入 plan
 
 ## 故障路由
 
 | 错误码 | 处理 |
 |---|---|
-| GATE_FAILED (hook 授权) | 向用户展示 hook 命令和风险，获得授权后加 `--acknowledge-hook-side-effects` 重试 |
-| GATE_FAILED (gate 授权) | 向用户展示 snapshot gate 命令和风险，获得授权后加 `--acknowledge-gate-side-effects` 重试 |
 | GATE_FAILED (bound + offline) | 改用 `--online --production`，不得把 unobserved-offline plan 交给 publish |
 | GATE_FAILED (前序基线漂移) | 先取得并比较实际远端内容；人工选择 merge/adopt/reject。merge/adopt 都必须把接受内容落回 human-owned 权威源，并把 `previousPublicBaseline` 更新为接受状态的精确 repo/ref/commit 后重新 online production prepare；reject 停止调查，禁止改 `mode: none` 绕过 |
 | GATE_FAILED (`npm-entry-closure`) | 修复打包内容或入口声明后重新 prepare；不得用 `requiredPublicFiles`/`smokeBin` 缺省绕过 |
@@ -101,4 +92,4 @@ node "$RELEASE_SKILL_ENTRY" prepare --root <path> --offline --acknowledge-gate-s
 
 ## 后续引导
 
-计划冻结后，读取命令返回的 immutable `planPath` 展示给用户，等待确认后再 approve。`release-plan.json` 等 latest alias 只用于浏览，不得作为生产 authority 传递。
+计划冻结后，读取命令返回的 immutable `planPath` 和 `approvalSummary` 展示给用户，等待确认后再 approve。`planDigest` 由系统自动计算和绑定，不作为人工交互口令。`release-plan.json` 等 latest alias 只用于浏览，不得作为生产 authority 传递。

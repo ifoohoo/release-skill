@@ -149,14 +149,14 @@ async function performEnvironmentChecks() {
   checks.kimi = {
     ...kimiCheck,
     required: false,
-    usage: '仅当计划声明 kimi-plugin distribution 时用于消费者安装验证',
+    usage: '仅供发布后的人工安装使用；release-skill 不核验 Kimi 安装',
   };
 
   const codebuddyCheck = await checkCodeBuddyDependency();
   checks.codebuddy = {
     ...codebuddyCheck,
     required: false,
-    usage: '仅当计划声明 codebuddy-plugin distribution 时用于消费者安装验证（人工 attestation 闭环；CLI 无法钉死冻结 ref，安装由人工完成并出具 attestation）',
+    usage: '仅供发布后的人工安装使用；release-skill 不核验 CodeBuddy/WorkBuddy 安装',
   };
 
   return checks;
@@ -182,7 +182,7 @@ function getCapabilityMaturity() {
     prepare: {
       available: true,
       mode: 'offline local writes',
-      description: 'Freeze a release plan with snapshots and gates',
+      description: 'Freeze a release plan with snapshots and gates; the command invocation authorizes hook and gate execution',
     },
     docs: {
       available: true,
@@ -192,7 +192,7 @@ function getCapabilityMaturity() {
     publish: {
       available: true,
       mode: 'controlled production (protocol-tested; no OS/network sandbox)',
-      description: 'Publishes frozen GitHub/npm artifacts and runs configured Claude/Codex/Kimi/CodeBuddy consumer checkpoints (CodeBuddy via human attestation closed loop) with approval and exact digest confirmation',
+      description: 'Publishes frozen GitHub/npm artifacts after one readable-plan approval, runs automated Claude/Codex checkpoints, and emits non-blocking Kimi/CodeBuddy manual follow-ups',
     },
     reconcile: {
       available: true,
@@ -202,7 +202,7 @@ function getCapabilityMaturity() {
     verify: {
       available: true,
       mode: 'fresh consumer verification (protocol-tested; no OS/network sandbox)',
-      description: 'Recheck remote state, exact npm installation, CLI help, and configured Claude/Codex/Kimi/CodeBuddy installs (CodeBuddy via human attestation) before VERIFIED',
+      description: 'Recheck remote state, exact npm installation, CLI help, and automated Claude/Codex installs before VERIFIED; Kimi/CodeBuddy remain unverified manual follow-ups',
     },
   };
 }
@@ -219,11 +219,11 @@ Commands:
   assess     Read-only assessment of project release readiness
   prepare    Freeze a release plan (release-skill output to .release-skill/; hooks may do remote ops)
   approve    Record local approval for a frozen release plan
-  publish    Publish frozen GitHub/npm artifacts after approval and digest confirmation
+  publish    Publish frozen GitHub/npm artifacts after approval
   reconcile  Resume PARTIAL state from evidence; conflicts require a human
   verify     Fresh remote and consumer verification; only this reaches VERIFIED
   ship       Resume one durable prepare -> approve -> publish -> verify flow
-  attest     Record a generated Kimi/CodeBuddy manual result without editing JSON
+  attest     Legacy only: record a Kimi/CodeBuddy result for an old frozen plan
   hooks      Run declared development hooks and populate reusable receipts
   artifacts  Artifact status, inspect, update/apply, resolution, and diagnostics
   docs       Refresh declared release documents (read-only dry-run by default)
@@ -234,7 +234,6 @@ Options:
   --run <path>     Path to the release run file (required for reconcile/verify)
   --approval <path> Path to the approval record
   --production     Prepare immutable Git/npm production artifacts
-  --confirm-production <digest> Confirm the exact production plan digest
   --output <path>  Override prepare/approve output path (non-production only)
   --run-dir <path> Override prepare run directory; production requires one direct child of .release-skill/runs
   --answers <path> Human-reviewed setup answers JSON
@@ -243,16 +242,13 @@ Options:
   --unit <id>      Release unit whose declared release documents are refreshed (docs refresh)
   --confirm-refresh <sha256:...> Confirm the exact dry-run refreshDigest before any document write
   --ack-local-document-write Acknowledge the explicit local release-document write (docs refresh --write)
-  --acknowledge-hook-side-effects Acknowledge unsandboxed legacy hook execution
-  --acknowledge-gate-side-effects Acknowledge unsandboxed local verification gate execution
-  --platform <id>   Manual attestation platform: kimi or codebuddy
+  --platform <id>   Legacy attestation platform: kimi or codebuddy
   --plugin <id>     Plugin id for a generated manual requirement
   --actor <name>    Person confirming an approval or manual result
   --result <value>  Manual result: passed or failed
   --install-path <path> Actual managed plugin path when closure verification requires it
   --install-channel <desktop|cli> CodeBuddy installation channel when required
-  --authorize-hooks <digest> Authorize the exact ship hook/config digest
-  --approve-plan <digest> Approve the exact ship plan and its verification gates
+  --approve         Approve the ship plan (boolean; plan digest is auto-resolved)
   --state <path>    Override the durable ship state file
   --no-hook-cache  Force every prepare hook to run in full; neither read nor write the hook cache
   --json           Output results as JSON
@@ -261,14 +257,16 @@ Options:
 
 Safety:
   Safe default: help -> setup (when config is absent) -> assess -> prepare --offline -> human review.
-  Production happy end: prepare --production -> approve -> publish -> verify.
+  Production happy end: ship --target-version <ver> -> ship --approve --actor <name>.
+  The ship command runs configured hooks and gates automatically; the only human gate is plan approval.
+  Kimi/CodeBuddy installations are non-blocking manual follow-up tasks (not verified by system).
   prepare copies current public files into a local snapshot; it does not rewrite source files.
   - Default mode is offline (release-skill pipeline does no remote writes)
   - prepare output goes to .release-skill/ directory only
   - User-configured hooks may write anywhere and perform remote operations
   - To ensure zero remote writes, disable hooks or audit them separately
   - docs refresh --write rewrites only declared README managed regions and the current CHANGELOG entry after exact refreshDigest confirmation; it never commits, pushes, tags, publishes, or installs.
-  - publish requires explicit approval and an exact plan-digest confirmation
+  - publish requires explicit approval; plan digest is auto-read from the plan file
   - publish consumes frozen Git/npm artifacts, never the live workspace
   - existing remote objects and uncertain checks stop for human intervention
   - production-equivalent protocol sandbox is verified; a real remote canary is not
@@ -355,8 +353,8 @@ if (!command || command === 'help') {
           conditionalConsumers: {
             claude: '声明 claude-plugin distribution 时必须可用',
             codex: '声明 codex-plugin distribution 时必须可用',
-            kimi: '声明 kimi-plugin distribution 时必须可用',
-            codebuddy: '声明 codebuddy-plugin distribution 时用于人工 attestation 闭环（CLI 无法钉死冻结 ref，安装由人工完成并出具 attestation）',
+            kimi: '发布后人工安装待办；不影响生产发布就绪度，系统不核验',
+            codebuddy: '发布后人工安装待办；不影响生产发布就绪度，系统不核验',
           },
         },
       },
@@ -365,12 +363,12 @@ if (!command || command === 'help') {
       maturity: {
         setup: 'read-only by default; create-once requires answers plus exact setupDigest confirmation',
         assess: 'read-only (default); --output writes local report',
-        prepare: 'offline local writes; configured hooks/gates require their explicit side-effect acknowledgements',
+        prepare: 'offline local writes; the command invocation authorizes configured hook and gate execution',
         docs: 'read-only dry-run by default; write requires --write, exact --confirm-refresh, and --ack-local-document-write; never commits, pushes, or publishes',
         onlinePrepare: 'previous-public-baseline observation available; production mode freezes publish artifacts and fails closed on drift or unknown state',
-        publish: 'GitHub/npm plus configured Claude/Codex/Kimi/CodeBuddy consumer checkpoints are protocol-tested without an OS/network sandbox (CodeBuddy via human attestation closed loop); approval and exact digest confirmation required',
+        publish: 'GitHub/npm plus automated Claude/Codex consumer checkpoints are protocol-tested without an OS/network sandbox; one approval is required and the internal plan digest is checked automatically',
         reconcile: 'PARTIAL recovery is protocol-tested without an OS/network sandbox; remote conflicts require human intervention',
-        verify: 'fresh exact npm and Claude/Codex/Kimi/CodeBuddy consumer installation checks are protocol-tested without an OS/network sandbox (CodeBuddy via human attestation); configured consumer processes require explicit acknowledgement; success reaches VERIFIED',
+        verify: 'fresh exact npm and Claude/Codex consumer installation checks are protocol-tested without an OS/network sandbox; Kimi/CodeBuddy are unverified manual follow-ups; command invocation authorizes configured gates',
       },
       recommendations: [],
     };
@@ -406,13 +404,8 @@ if (!command || command === 'help') {
       output.recommendations.push('Install Codex CLI before releasing a configured codex-plugin distribution');
     }
 
-    if (!checks.kimi.available) {
-      output.recommendations.push('Install Kimi Code CLI before releasing a configured kimi-plugin distribution');
-    }
-
-    if (!checks.codebuddy.available) {
-      output.recommendations.push('Install WorkBuddy (bundled codebuddy CLI) before releasing a configured codebuddy-plugin distribution; the install is a manual attestation closed loop because the CLI cannot pin a frozen ref');
-    }
+    // Kimi/CodeBuddy are post-release manual follow-ups. Their local CLI
+    // availability is informational and never blocks release readiness.
 
     console.log(JSON.stringify(output, null, 2));
     process.exit(readiness.status === 'READY' ? 0 : 1);
@@ -527,6 +520,7 @@ if (command === 'hooks') {
     const { validateDeclaredHooks } = await import('../src/commands/hooks.mjs');
     const result = await validateDeclaredHooks({
       root,
+      // --acknowledge-hook-side-effects is accepted as a no-effect compatibility input
       hooksAuthorized: args.includes('--acknowledge-hook-side-effects'),
       hookCache: !args.includes('--no-hook-cache'),
     });
@@ -582,7 +576,7 @@ if (command === 'ship') {
       root,
       statePath: value('--state'),
       targetVersion: value('--target-version') ?? value('--version'),
-      hookAuthorizationDigest: value('--authorize-hooks'),
+      approve: args.includes('--approve'),
       planApprovalDigest: value('--approve-plan'),
       actor: value('--actor'),
       adapterRegistry,
@@ -592,11 +586,11 @@ if (command === 'ship') {
     } else {
       console.log(`Ship status: ${result.status}`);
       console.log(`State: ${result.statePath}`);
-      if (result.hookAuthorizationDigest && result.status === 'NEEDS_HOOK_AUTHORIZATION') {
-        console.log(`Authorize hooks: --authorize-hooks ${result.hookAuthorizationDigest}`);
-      }
       if (result.planDigest && result.status === 'NEEDS_PLAN_APPROVAL') {
-        console.log(`Approve plan and verification gates: --approve-plan ${result.planDigest} --actor <person>`);
+        console.log(`Approve plan: ship --approve --actor <person>`);
+      }
+      for (const followUp of result.manualFollowUps ?? []) {
+        console.log(`Manual follow-up [${followUp.platform}] ${followUp.plugin}: not verified by system`);
       }
       for (const requirement of result.requirements ?? []) {
         console.log(`Manual requirement [${requirement.platform}]: ${requirement.requirementPath}`);
@@ -763,8 +757,8 @@ if (command === 'approve') {
   const outputIdx = args.indexOf('--output');
   const outputPath = outputIdx !== -1 && args[outputIdx + 1] ? resolve(args[outputIdx + 1]) : undefined;
 
-  if (!planPath || !expectedDigest || !actor) {
-    const msg = 'approve requires --plan <path>, --digest <sha256>, and --actor <name>';
+  if (!planPath || !actor) {
+    const msg = 'approve requires --plan <path> and --actor <name>';
     if (hasJson) {
       console.log(JSON.stringify({ error: 'MISSING_PARAMETERS', message: msg, exitCode: 1 }));
     } else {
@@ -775,13 +769,24 @@ if (command === 'approve') {
 
   try {
     const { approvePlan } = await import('../src/commands/approve.mjs');
+    const { computePlanDigest } = await import('../src/core/plan.mjs');
+    const { readFile: readFileFs } = await import('node:fs/promises');
+
+    // Auto-read digest from plan when --digest is omitted
+    let resolvedDigest = expectedDigest;
+    if (!resolvedDigest) {
+      const planRaw = await readFileFs(resolve(planPath), 'utf8');
+      const planObj = JSON.parse(planRaw);
+      resolvedDigest = computePlanDigest(planObj);
+    }
+
     const resolvedPlanPath = resolve(planPath);
     const planDir = dirname(resolvedPlanPath);
-    const releaseDir = basename(planDir) === 'plans' && basename(resolvedPlanPath) === `${expectedDigest}.json`
+    const releaseDir = basename(planDir) === 'plans' && basename(resolvedPlanPath) === `${resolvedDigest}.json`
       ? dirname(planDir)
       : planDir;
     const approvalPath = outputPath ?? join(releaseDir, 'approval-record.json');
-    const record = await approvePlan({ planPath, expectedDigest, actor, outputPath: approvalPath });
+    const record = await approvePlan({ planPath, expectedDigest: resolvedDigest, actor, outputPath: approvalPath });
 
     if (hasJson) {
       console.log(JSON.stringify(record, null, 2));
@@ -819,10 +824,6 @@ if (command === 'reconcile') {
   const runPath = runIdx !== -1 && args[runIdx + 1] ? resolve(args[runIdx + 1]) : undefined;
   const approvalIdx = args.indexOf('--approval');
   const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve(args[approvalIdx + 1]) : undefined;
-  const confirmationIdx = args.indexOf('--confirm-production');
-  const productionConfirmation = confirmationIdx !== -1 && args[confirmationIdx + 1]
-    ? args[confirmationIdx + 1]
-    : undefined;
 
   if (!planPath || !runPath) {
     const msg = 'reconcile requires --plan <path> and --run <path>';
@@ -841,6 +842,7 @@ if (command === 'reconcile') {
     const { createPluginMarketplaceAdapter } = await import('../src/adapters/plugin-marketplace.mjs');
     const { createPushSnapshotAdapter } = await import('../src/adapters/push-snapshot.mjs');
     const { createAdapterRegistry } = await import('../src/adapters/contract.mjs');
+
     const registry = createAdapterRegistry([
       createGitGithubAdapter(),
       createNpmAdapter(),
@@ -854,7 +856,6 @@ if (command === 'reconcile') {
       approvalPath,
       adapterRegistry: registry,
       root,
-      productionConfirmation,
     });
 
     if (hasJson) {
@@ -960,13 +961,9 @@ if (command === 'publish') {
   const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve(args[planIdx + 1]) : undefined;
   const approvalIdx = args.indexOf('--approval');
   const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve(args[approvalIdx + 1]) : undefined;
-  const confirmationIdx = args.indexOf('--confirm-production');
-  const productionConfirmation = confirmationIdx !== -1 && args[confirmationIdx + 1]
-    ? args[confirmationIdx + 1]
-    : undefined;
 
-  if (!planPath || !approvalPath || !productionConfirmation) {
-    const msg = 'publish requires --plan <path>, --approval <path>, and --confirm-production <plan-digest>';
+  if (!planPath || !approvalPath) {
+    const msg = 'publish requires --plan <path> and --approval <path>';
     if (hasJson) {
       console.log(JSON.stringify({ error: 'MISSING_PARAMETERS', message: msg, exitCode: 1 }));
     } else {
@@ -982,6 +979,7 @@ if (command === 'publish') {
     const { createPluginMarketplaceAdapter } = await import('../src/adapters/plugin-marketplace.mjs');
     const { createPushSnapshotAdapter } = await import('../src/adapters/push-snapshot.mjs');
     const { createAdapterRegistry } = await import('../src/adapters/contract.mjs');
+
     const registry = createAdapterRegistry([
       createGitGithubAdapter(),
       createNpmAdapter(),
@@ -995,7 +993,6 @@ if (command === 'publish') {
       adapterRegistry: registry,
       root,
       productionMode: true,
-      productionConfirmation,
     });
 
     if (hasJson) {

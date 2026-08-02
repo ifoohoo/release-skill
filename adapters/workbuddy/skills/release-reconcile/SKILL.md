@@ -32,7 +32,7 @@ marketplace 隔离消费者 checkpoint，但只恢复到 `PUBLISHED`；最终 np
 1. 使用插件根相对路径运行 CLI，确认有 `--run` 路径（必需），且源 run 状态为 `PARTIAL`
 2. 运行 `node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" reconcile --root <path> --plan <plan-path> --run <run-path> --json`
 3. 检查 exit code 和结构化状态：`PUBLISHED`（恢复完成，待 verify）/ `PARTIAL`（需重试）/ `BLOCKED`（需人工决策）
-4. 若 PARTIAL 且需重试，加 `--approval`；生产计划还必须加 `--confirm-production <planDigest>`
+4. 若 PARTIAL 且需重试，加 `--approval`；批准记录由系统核验与冻结计划的内部摘要绑定，不再要求二次摘要确认
 
 ## 确定性脚本调用
 
@@ -42,7 +42,7 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" reconcile --root <path> --
 # verify
 node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" verify --root <path> --plan <plan-path> --run <reconcile-run-path> --json
 # 重试（需 --approval）
-node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" reconcile --root <path> --plan <plan-path> --run <run-path> --approval <approval-path> --confirm-production <planDigest> --json
+node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" reconcile --root <path> --plan <plan-path> --run <run-path> --approval <approval-path> --json
 ```
 
 ## 幂等跳过逻辑

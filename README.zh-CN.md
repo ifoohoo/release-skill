@@ -2,33 +2,32 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.3.0 -->
+<!-- release-skill:release-version: 0.4.0 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.3.0** (2026-07-31)
+**0.4.0** (2026-08-02)
 
-v0.3.0 将生产发布收敛为可恢复总编排，通过复用钩子收据、合并人工授权并加强消费者安装证据，缩短发布链路。
+v0.4.0 将生产发布收敛为一次冻结计划批准，并把无法自动安装的 Kimi 或 CodeBuddy 转为不阻塞发布的人工后续任务。
 
 **新增**
 
-- **可恢复的 ship 总编排**：新增 `ship` 命令持久化当前发布状态，可连续恢复 prepare、审批、publish、reconcile 与 verify，不依赖对话上下文重建发布权限。
-- **可复用钩子收据**：`hooks validate` 通过与 prepare 相同的内容绑定缓存执行项目钩子，输入未变化时无需重复运行。
-- **可验证的人工证明**：`attest` 在记录 Kimi 或 CodeBuddy 消费者证据前，会把申报的安装目录与精确冻结插件载荷进行核验。
-- **Git 传输预检**：任何远端写入前，生产发布会在全部仓库间选择一致可用的 HTTPS 或 SSH 传输，并阻断远端身份冲突。
+- **人工消费者后续任务**：Kimi 或 CodeBuddy 无法自动安装时，发布完成后记录人工安装待办，系统不再要求安装证明。
 
 **变更**
 
-- **合并人工决策**：普通路径最多只需一次钩子副作用授权和一次不可变计划审批；人工消费者要求会在自动验证前集中生成。
-- **并行消费者验证**：相互独立的消费者检查并行执行，全部收敛后再报告失败，并确定性排序证据。
-- **自动推进发布元数据**：验证成功后，各发布单元的 `previousPublicBaseline` 自动更新为冻结的公开 commit、tree 与 manifest digest。
-- **精简 prepare 输出**：JSON 结果改为通过路径和摘要引用不可变计划，不再内嵌完整计划。
+- **单次发布批准**：普通生产发布只需批准一次不可变发布计划；调用命令即授权执行其配置的 hook 和 gate。
+- **人工消费者不阻塞发布**：Kimi 和 CodeBuddy 的人工安装待办不再阻止自动发布达到 `VERIFIED`。
+
+**移除**
+
+- **冗余确认参数**：普通发布路径移除了重复输入 plan digest、production confirmation、hook authorization 和人工证明等交互。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.3.0 是当前发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.4.0 是当前发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -41,7 +40,7 @@ v0.3.0 将生产发布收敛为可恢复总编排，通过复用钩子收据、�
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.3.0 是当前发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.4.0 是当前发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -51,9 +50,9 @@ v0.3.0 将生产发布收敛为可恢复总编排，通过复用钩子收据、�
 <!-- release-skill:maturity:v0.1-boundary -->
 <!-- release-skill:maturity:boundary -->
 > **安全默认路径：** 推荐 `help → assess → prepare --offline → 人工审阅`；
-> 生产发布在此基础上显式增加 `prepare --production → approve → publish
-> --confirm-production <planDigest>`；`bound` 前序公开基线必须使用
-> `prepare --online --production`。没有摘要确认就不会预检或写远端。
+> 生产发布使用 `ship --target-version <ver> → ship --approve --actor <name>`。
+> `ship` 自动执行 hooks 和门禁，唯一的人工门禁是计划批准。
+> Kimi/CodeBuddy 安装是非阻塞的人工后续任务（系统不核验）。
 
 ## 目录
 
@@ -105,28 +104,18 @@ CodeBuddy、Codex 和 Kimi Code 的完整命令见 [INSTALL.zh-CN.md](INSTALL.zh
 
 ### 主流程
 
-日常发布优先使用可恢复的快速路径。它会持久化所有权威文件路径，正常流程最多
-只需确认两个摘要：一次绑定当前配置与 hooks，一次绑定冻结计划；计划审批同时
-授权该计划的发布后验证门禁。
+日常发布优先使用可恢复的快速路径。它会持久化所有权威文件路径，正常流程只需
+一次可读的冻结计划批准。`ship` 自动执行配置中的 hooks 和验证门禁，不进入
+hook 授权等待态。Kimi/CodeBuddy 安装是发布完成后的非阻塞人工后续任务，
+系统不核验其完成结果。
 
 ```bash
 release-skill ship --root "$PROJECT" --target-version 1.2.3 --json
-release-skill ship --root "$PROJECT" --authorize-hooks <hookDigest> --actor "$ACTOR" --json
-release-skill ship --root "$PROJECT" --approve-plan <planDigest> --actor "$ACTOR" --json
+release-skill ship --root "$PROJECT" --approve --actor "$ACTOR" --json
 ```
 
-如果存在交互式消费者，`ship` 会一次列出全部 Kimi/CodeBuddy 人工事项。安装并
-reload 后，用命令记录人工事实，不再手改 JSON，然后续跑 `ship`：
-
-```bash
-release-skill attest --root "$PROJECT" --platform kimi --plugin my-plugin \
-  --result passed --actor "$ACTOR" --install-path /actual/managed/plugin/path
-release-skill ship --root "$PROJECT" --json
-```
-
-开发阶段可运行 `release-skill hooks validate
---acknowledge-hook-side-effects`；它会执行声明的 hooks，并写入 `prepare`
-可复用的内容绑定收据。
+开发阶段可运行 `release-skill hooks validate`；它会执行声明的 hooks，并写入
+`prepare` 可复用的内容绑定收据。
 
 按以下顺序执行。步骤 1-4 是安全默认（只读或仅本地）；步骤 5-9 需要显式人工门禁。
 
@@ -189,39 +178,32 @@ ACTOR=your-name
    ```
 4. **prepare** — 本地快照与计划冻结：
    ```bash
-   "${CLI[@]}" prepare --root "$PROJECT" --offline \
-     --acknowledge-hook-side-effects \
-     --acknowledge-gate-side-effects --json
+   "${CLI[@]}" prepare --root "$PROJECT" --offline --json
    ```
-   只有项目配置没有对应 hook 或 snapshot gate 时，才省略相应授权参数。授权前必须审阅可执行文件、参数、工作目录和副作用，不能把授权参数当固定样板。
 5. **人工审阅：** 检查 `planPath`、`externalActions`、`targetVersion` 和 `planDigest`。
 6. **prepare --production** — 冻结生产计划：
    ```bash
-   PLAN_JSON=$("${CLI[@]}" prepare --root "$PROJECT" --online --production \
-     --acknowledge-hook-side-effects \
-     --acknowledge-gate-side-effects --json)
+   PLAN_JSON=$("${CLI[@]}" prepare --root "$PROJECT" --online --production --json)
    PLAN_PATH=$(printf '%s\n' "$PLAN_JSON" | jq -r '.planPath')
    PLAN_DIGEST=$(printf '%s\n' "$PLAN_JSON" | jq -r '.planDigest')
    ```
-7. **approve** — 人工批准（24 小时有效期）：
+7. **approve** — 人工批准（24 小时有效期，摘要从计划自动读取）：
    ```bash
    APPROVAL_JSON=$("${CLI[@]}" approve --plan "$PLAN_PATH" \
-     --digest "$PLAN_DIGEST" --actor "$ACTOR" --json)
+     --actor "$ACTOR" --json)
    APPROVAL_PATH=$(printf '%s\n' "$APPROVAL_JSON" | jq -r '.approvalPath')
    ```
 8. **publish** — 远端写入开始：
    ```bash
    PUBLISH_JSON=$("${CLI[@]}" publish --root "$PROJECT" \
-     --plan "$PLAN_PATH" --approval "$APPROVAL_PATH" \
-     --confirm-production "$PLAN_DIGEST" --json)
+     --plan "$PLAN_PATH" --approval "$APPROVAL_PATH" --json)
    PUBLISH_RUN_PATH=$(printf '%s\n' "$PUBLISH_JSON" | jq -r '.runPath')
    ```
    `PUBLISHED` **不是**终态。
 9. **verify** — 消费者安装检查：
    ```bash
    "${CLI[@]}" verify --root "$PROJECT" \
-     --plan "$PLAN_PATH" --run "$PUBLISH_RUN_PATH" \
-     --acknowledge-gate-side-effects --json
+     --plan "$PLAN_PATH" --run "$PUBLISH_RUN_PATH" --json
    ```
 
 示例需要 `jq`。没有 jq 时，直接复制返回的 JSON 字段；不要把尖括号占位符当作 shell 语法。
@@ -234,12 +216,10 @@ ACTOR=your-name
 RECONCILE_JSON=$("${CLI[@]}" reconcile --root "$PROJECT" \
   --run "$PUBLISH_RUN_PATH" \
   --plan "$PLAN_PATH" \
-  --approval "$APPROVAL_PATH" \
-  --confirm-production "$PLAN_DIGEST" --json)
+  --approval "$APPROVAL_PATH" --json)
 RECONCILE_RUN_PATH=$(printf '%s\n' "$RECONCILE_JSON" | jq -r '.runPath')
 "${CLI[@]}" verify --root "$PROJECT" \
-  --plan "$PLAN_PATH" --run "$RECONCILE_RUN_PATH" \
-  --acknowledge-gate-side-effects --json
+  --plan "$PLAN_PATH" --run "$RECONCILE_RUN_PATH" --json
 ```
 
 `reconcile` 查询实际远端状态，跳过已一致步骤，只重试安全未完成的动作。远端冲突需人工决策。reconcile 成功只返回 `PUBLISHED`，不返回 `VERIFIED`。
@@ -257,7 +237,7 @@ DISCOVERED -> ASSESSED -> PREPARED -> APPROVED -> PUBLISHING -> PUBLISHED -> VER
 
 **保存契约：** release-skill 不重新生成或回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节。后续 prepare 重新读取当前文件，不会从模板重建。只有 `publicFiles` 列出的文件会被复制。`prepare` 不会刷新或重写人工文档——维护者先更新 README、INSTALL 和 CHANGELOG，再 prepare、审阅和批准。
 
-**写入安全：** `setup` 默认只读（摘要确认后仅首次创建配置）。`prepare` 只写 `.release-skill/`。`publish` 是生产写入入口，需要同时提供批准和当前计划摘要。项目 hook 和 gate 是已确认的本地进程，没有操作系统沙箱。
+**写入安全：** `setup` 默认只读（摘要确认后仅首次创建配置）。`prepare` 只写 `.release-skill/`。`publish` 是生产写入入口，需要有效批准；内部计划摘要由系统自动绑定和校验。项目 hook 和 gate 在对应命令调用时获得授权，没有操作系统沙箱。
 
 **Workspace 源码权威：** 生产配置使用 `project.sourceRepository` 指定 workspace
 源仓库，并用 `project.defaultBranch` 指定其真实远端默认分支。prepare 冻结所有
@@ -438,7 +418,7 @@ hooks:
     envAllowlist: []
 ```
 
-hook 仅在人工审阅后、以 `--acknowledge-hook-side-effects` 显式授权后运行。gate 是发布校准的受控扩展点（见 `references/02-project-config.md`）。
+hook 在 `prepare` 调用时运行，命令调用本身即授权执行。gate 是发布校准的受控扩展点（见 `references/02-project-config.md`）。
 
 ## Skills
 
@@ -446,7 +426,7 @@ hook 仅在人工审阅后、以 `--acknowledge-hook-side-effects` 显式授权�
 - `release-setup`：首次接入的只读发现、人工校准和 create-once 配置创建。
 - `release-assess`：只读发布就绪度报告。
 - `release-prepare`：本地快照和可审阅发布计划。
-- `release-publish`：经批准、摘要确认的冻结 GitHub+npm 发布。
+- `release-publish`：经批准的冻结 GitHub+npm 发布；内部摘要由系统自动校验。
 - `release-reconcile`：基于证据恢复 PARTIAL；冲突时人工介入。
 - `release-verify`：发布后验证；只有 `VERIFIED` 才是 happy end。
 
@@ -459,10 +439,10 @@ hook 仅在人工审阅后、以 `--acknowledge-hook-side-effects` 显式授权�
 | `npm` | 带 CLI 入口的 npm 包 | `npm install -g release-skill` |
 | `claude-plugin` | `adapters/claude/` 下的自包含闭包 | 自动化 marketplace 检查点 |
 | `codex-plugin` | `adapters/codex/` 下的自包含闭包 | 自动化 marketplace 检查点 |
-| `kimi-plugin` | 自包含闭包（无可脚本化安装接口） | 手动，需可信证明 |
-| `codebuddy-plugin` | 生成的 `adapters/workbuddy/`，带 `.codebuddy-plugin/plugin.json` | 手动，需可信证明 |
+| `kimi-plugin` | 自包含闭包（无可脚本化安装接口） | 发布后非阻塞人工任务 |
+| `codebuddy-plugin` | 生成的 `adapters/workbuddy/`，带 `.codebuddy-plugin/plugin.json` | 发布后非阻塞人工任务 |
 
-每个适配器闭包都自带 CLI、skills 和 schemas 副本，安装后无需外部依赖即可运行。Claude/Codex 验证是自动化的；Kimi Code 和 CodeBuddy/WorkBuddy 需要绑定冻结计划摘要的可信证明。
+每个适配器闭包都自带 CLI、skills 和 schemas 副本，安装后无需外部依赖即可运行。Claude/Codex 验证是自动化的；Kimi Code 和 CodeBuddy/WorkBuddy 以 `manualFollowUps` 返回并标记 `verifiedBySystem: false`，其完成情况不阻塞自动发布进入 `VERIFIED`。
 
 每个 npm 分发在 `prepare` 时都会针对精确封装的 tarball 静态校验
 `package.json` 声明的具体入口。`publish` 与 `reconcile` 在任何远端动作前对同一
@@ -477,7 +457,7 @@ hook 仅在人工审阅后、以 `--acknowledge-hook-side-effects` 显式授权�
 - 不声称已经替项目完成真实生产 canary，不声称已完成真实插件市场验证；
 - `prepare --online` 只观察 bound 前序基线；目标唯一性由 publish 全局预检完成；
 - 不覆盖已有 branch/tag/Release，不 unpublish npm；
-- 不提供自动化 CodeBuddy/WorkBuddy marketplace 安装检查点——codebuddy CLI 无法钉死冻结 ref，安装为手动步骤，经与 Kimi Code 相同的可信证明闭环确认；
+- 不提供 Kimi 或 CodeBuddy/WorkBuddy marketplace 自动安装检查点——这些安装是发布后明确的团队待办，系统不核验其完成结果；
 - 不承诺 Windows 或广泛的跨平台原生写入；
 - 不会隐藏地 commit、push、打 tag、创建 Release 或发布包。
 

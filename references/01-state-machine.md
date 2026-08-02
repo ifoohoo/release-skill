@@ -48,7 +48,7 @@
 | PUBLISHING | PUBLISHED | 所有检查点成功 |
 | PUBLISHING | PARTIAL | 至少一个检查点成功但后续失败 |
 | PUBLISHING | BLOCKED | 外部服务阻断且无法继续 |
-| PUBLISHED | VERIFIED | `verify` 全部通过 |
+| PUBLISHED | VERIFIED | `verify` 的远端、npm、Claude/Codex 等自动化检查全部通过；新计划中的 Kimi/CodeBuddy 人工安装任务不由系统核验且不阻塞该状态 |
 | PUBLISHED | POST_PUBLISH_VERIFY_FAILED | 发布后验证失败（保留 PUBLISHED 事实但标记验证失败） |
 | NEEDS_INPUT | DISCOVERED | 用户提供输入后重新开始评估 |
 | NEEDS_INPUT | ASSESSED | 用户提供输入后恢复评估 |

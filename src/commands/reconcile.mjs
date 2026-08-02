@@ -91,7 +91,6 @@ function defaultClock() {
  * @param {string} options.planPath - Absolute path to the frozen release plan.
  * @param {string} options.sourceRunPath - Absolute path to the source run (publish or prior reconcile).
  * @param {string} [options.approvalPath] - Path to the approval record (required if any action needs retry).
- * @param {string} [options.productionConfirmation] - Exact plan digest required before retrying production writes.
  * @param {Object} options.adapterRegistry - Adapter registry for action execution.
  * @param {string} [options.runDir] - Evidence directory. Defaults to `<planDir>/runs/reconcile-<ts>`.
  * @param {string} [options.root] - Project root for baseline capture.
@@ -114,7 +113,6 @@ export async function reconcileRelease(options) {
     root = process.cwd(),
     clock: clockOpt,
     captureBaselineFn,
-    productionConfirmation,
     observePreviousPublicBaselineFn,
     observeRetrySleep,
   } = options ?? {};
@@ -329,29 +327,6 @@ export async function reconcileRelease(options) {
         `reconcile only accepts PARTIAL runs; source status is "${sourceRun.status}". ` +
         'For BLOCKED with no durable writes, fix the gate and rerun publish; VERIFIED is terminal.',
         { sourceRunId: sourceRun.runId, sourceRunStatus: sourceRun.status },
-      );
-    }
-
-    // A production retry authority must be confirmed before any remote
-    // observation can influence whether a permanent write will be retried.
-    // Isolated marketplace consumer checks remain outside this requirement.
-    const planActionsById = new Map(
-      (plan.externalActions ?? []).map((action) => [action.id, action]),
-    );
-    const hasNonMarketplaceRetryCandidate = sourceRun.checkpoints.some((checkpoint) => {
-      if (checkpoint.status === 'succeeded') return false;
-      const action = planActionsById.get(checkpoint.actionId);
-      return action && !isMarketplaceAction(action.type);
-    });
-    if (
-      plan.production?.mode === 'github-npm-v1' &&
-      hasNonMarketplaceRetryCandidate &&
-      productionConfirmation !== actualDigest
-    ) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        'production reconcile confirmation must exactly match the current plan digest before retry',
-        { planDigest: actualDigest },
       );
     }
 
@@ -918,7 +893,7 @@ export async function reconcileRelease(options) {
     // --- Phase 2: Validate approval and global preflight before retrying ---
     //
     // Marketplace recovery is deferred to phase 4 and does NOT require
-    // approval or productionConfirmation; marketplace actions are isolated
+    // approval; marketplace actions are isolated
     // consumer checks, not permanent remote writes. Only non-marketplace
     // retries require approval.
     // =======================================================================
@@ -926,17 +901,8 @@ export async function reconcileRelease(options) {
     const nonMarketplaceRetries = actionsToRetry.filter((a) => !isMarketplaceAction(a.type));
 
     if (nonMarketplaceRetries.length > 0) {
-      // Non-marketplace retries require approval and productionConfirmation
-      if (
-        plan.production?.mode === 'github-npm-v1' &&
-        productionConfirmation !== actualDigest
-      ) {
-        throw new ReleaseError(
-          GATE_FAILED,
-          'production reconcile confirmation must exactly match the current plan digest before retry',
-          { planDigest: actualDigest, actionsToRetry: nonMarketplaceRetries.map((action) => action.id) },
-        );
-      }
+      // Non-marketplace retries require a current immutable approval. The
+      // approval already binds the exact plan digest and action set.
       if (!approval) {
         throw new ReleaseError(
           GATE_FAILED,

@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.3.0 -->
+<!-- release-skill:release-version: 0.4.0 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,27 +14,26 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.3.0** (2026-07-31)
+**0.4.0** (2026-08-02)
 
-v0.3.0 streamlines production releases into a resumable orchestration with reusable hook receipts, consolidated approvals, and stronger consumer-install evidence.
+v0.4.0 simplifies the production release path to one frozen-plan approval and moves unavailable Kimi or CodeBuddy installations into non-blocking manual follow-up tasks.
 
 **Added**
 
-- **Resumable ship orchestration**: the new `ship` command persists the active release state and resumes prepare, approval, publish, reconcile, and verification without rebuilding authority from conversational context.
-- **Reusable hook receipts**: `hooks validate` executes declared hooks through the same content-bound cache used by prepare, so unchanged checks do not need to run again.
-- **Verified manual attestations**: `attest` validates a reported Kimi or CodeBuddy installation against the exact frozen plugin payload before recording consumer evidence.
-- **Git transport preflight**: production publishing selects one repository-consistent HTTPS or SSH transport before any remote write and blocks conflicting remote identities.
+- **Manual consumer follow-ups**: when Kimi or CodeBuddy cannot be installed automatically, the release records an installation task after publishing without requiring system attestation.
 
 **Changed**
 
-- **Consolidated human decisions**: the normal path requires at most one hook-side-effect authorization and one immutable-plan approval; manual consumer requirements are collected before automatic verification.
-- **Parallel consumer verification**: independent consumer checks run concurrently, drain before failure reporting, and produce deterministically ordered evidence.
-- **Automatic release metadata**: successful verification advances each unit's `previousPublicBaseline` to the frozen public commit, tree, and manifest digest.
-- **Compact prepare output**: JSON output references the immutable plan by path and digest instead of embedding the full plan.
+- **Single release approval**: the normal production path now asks only for approval of the immutable release plan; invoking a command authorizes its configured hooks and gates.
+- **Non-blocking human consumers**: Kimi and CodeBuddy manual installation tasks no longer prevent the automated release from reaching `VERIFIED`.
+
+**Removed**
+
+- **Redundant confirmation flags**: legacy plan-digest repetition, production-confirmation, hook-authorization, and manual-attestation interactions were removed from the normal release path.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.3.0 is the current release (v0.2.2 previously held
+> **Current boundary:** v0.4.0 is the current release (v0.2.2 previously held
 > published status before the platform verification convergence fix was added).
 > v0.1.1 completed a real production release to GitHub and npm — the first
 > production-verified milestone — followed by
@@ -52,7 +51,7 @@ v0.3.0 streamlines production releases into a resumable orchestration with reusa
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.3.0 is the current
+> **Production path verified since the v0.1.1 milestone; v0.4.0 is the current
 > release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
@@ -63,10 +62,9 @@ v0.3.0 streamlines production releases into a resumable orchestration with reusa
 <!-- release-skill:maturity:v0.1-boundary -->
 <!-- release-skill:maturity:boundary -->
 > **Safe defaults:** the recommended path is `help → assess → prepare --offline →
-> human review`. Production publishing adds `prepare --production → approve →
-> publish --confirm-production <planDigest>`; a `bound` previous-public baseline
-> specifically requires `prepare --online --production`. Without digest confirmation,
-> no remote preflight or write starts.
+> human review`. Production publishing uses `ship --target-version <ver> → ship --approve --actor <name>`.
+> The `ship` command runs hooks and gates automatically; the only human gate is plan approval.
+> Kimi/CodeBuddy installations are non-blocking manual follow-up tasks (not verified by system).
 
 ## Table of contents
 
@@ -119,29 +117,18 @@ See [INSTALL.md](INSTALL.md) for CodeBuddy, Codex, and Kimi Code commands.
 ### Main workflow
 
 For routine releases, use the durable fast path. It persists authoritative
-paths and resumes safely, so a normal run needs at most two authorization
-digests: one for the exact configured hooks and one for the frozen plan. The
-plan approval also authorizes that plan's post-publish verification gates.
+paths and resumes safely, so a normal run needs at most one human gate: the
+frozen plan approval. `ship` runs configured hooks and verification gates
+automatically. Kimi/CodeBuddy installations are non-blocking post-release
+manual tasks; the system does not verify their completion.
 
 ```bash
 release-skill ship --root "$PROJECT" --target-version 1.2.3 --json
-release-skill ship --root "$PROJECT" --authorize-hooks <hookDigest> --actor "$ACTOR" --json
-release-skill ship --root "$PROJECT" --approve-plan <planDigest> --actor "$ACTOR" --json
+release-skill ship --root "$PROJECT" --approve --actor "$ACTOR" --json
 ```
 
-If interactive consumers are required, `ship` returns every Kimi/CodeBuddy
-requirement at once. After installing/reloading, record the human fact without
-editing JSON and rerun `ship`:
-
-```bash
-release-skill attest --root "$PROJECT" --platform kimi --plugin my-plugin \
-  --result passed --actor "$ACTOR" --install-path /actual/managed/plugin/path
-release-skill ship --root "$PROJECT" --json
-```
-
-During development, `release-skill hooks validate
---acknowledge-hook-side-effects` runs declared hooks and writes the same
-content-bound cache receipts that `prepare` consumes.
+During development, `release-skill hooks validate` runs declared hooks and
+writes the same content-bound cache receipts that `prepare` consumes.
 
 Run these steps in order. Steps 1-4 are safe (read-only or local-only);
 steps 5-9 require explicit human gates.
@@ -208,41 +195,32 @@ ACTOR=your-name
    ```
 4. **prepare** — local snapshot and plan freeze:
    ```bash
-   "${CLI[@]}" prepare --root "$PROJECT" --offline \
-     --acknowledge-hook-side-effects \
-     --acknowledge-gate-side-effects --json
+   "${CLI[@]}" prepare --root "$PROJECT" --offline --json
    ```
-   Omit an acknowledgement only when that project config has no corresponding
-   hook or snapshot gate. Never grant either acknowledgement before reviewing
-   the configured executable, arguments, working directory, and side effects.
 5. **Human review:** inspect `planPath`, `externalActions`, `targetVersion`, and `planDigest`.
 6. **prepare --production** — freeze the production plan:
    ```bash
-   PLAN_JSON=$("${CLI[@]}" prepare --root "$PROJECT" --online --production \
-     --acknowledge-hook-side-effects \
-     --acknowledge-gate-side-effects --json)
+   PLAN_JSON=$("${CLI[@]}" prepare --root "$PROJECT" --online --production --json)
    PLAN_PATH=$(printf '%s\n' "$PLAN_JSON" | jq -r '.planPath')
    PLAN_DIGEST=$(printf '%s\n' "$PLAN_JSON" | jq -r '.planDigest')
    ```
-7. **approve** — human approval bound to the plan digest (24-hour expiry):
+7. **approve** — human approval (digest auto-read from plan, 24-hour expiry):
    ```bash
    APPROVAL_JSON=$("${CLI[@]}" approve --plan "$PLAN_PATH" \
-     --digest "$PLAN_DIGEST" --actor "$ACTOR" --json)
+     --actor "$ACTOR" --json)
    APPROVAL_PATH=$(printf '%s\n' "$APPROVAL_JSON" | jq -r '.approvalPath')
    ```
 8. **publish** — remote writes start here:
    ```bash
    PUBLISH_JSON=$("${CLI[@]}" publish --root "$PROJECT" \
-     --plan "$PLAN_PATH" --approval "$APPROVAL_PATH" \
-     --confirm-production "$PLAN_DIGEST" --json)
+     --plan "$PLAN_PATH" --approval "$APPROVAL_PATH" --json)
    PUBLISH_RUN_PATH=$(printf '%s\n' "$PUBLISH_JSON" | jq -r '.runPath')
    ```
    `PUBLISHED` is **not** the terminal state.
 9. **verify** — consumer install check:
    ```bash
    "${CLI[@]}" verify --root "$PROJECT" \
-     --plan "$PLAN_PATH" --run "$PUBLISH_RUN_PATH" \
-     --acknowledge-gate-side-effects --json
+     --plan "$PLAN_PATH" --run "$PUBLISH_RUN_PATH" --json
    ```
 
 The handoff example requires `jq`. Without it, copy the returned JSON fields
@@ -257,12 +235,10 @@ When `publish` succeeds at some checkpoints but fails at others, the run enters
 RECONCILE_JSON=$("${CLI[@]}" reconcile --root "$PROJECT" \
   --run "$PUBLISH_RUN_PATH" \
   --plan "$PLAN_PATH" \
-  --approval "$APPROVAL_PATH" \
-  --confirm-production "$PLAN_DIGEST" --json)
+  --approval "$APPROVAL_PATH" --json)
 RECONCILE_RUN_PATH=$(printf '%s\n' "$RECONCILE_JSON" | jq -r '.runPath')
 "${CLI[@]}" verify --root "$PROJECT" \
-  --plan "$PLAN_PATH" --run "$RECONCILE_RUN_PATH" \
-  --acknowledge-gate-side-effects --json
+  --plan "$PLAN_PATH" --run "$RECONCILE_RUN_PATH" --json
 ```
 
 `reconcile` queries the actual remote state, skips already-consistent steps,
@@ -482,9 +458,9 @@ hooks:
     envAllowlist: []
 ```
 
-Hooks run only after human review and with
-`prepare --acknowledge-hook-side-effects`. Gates are the controlled extension
-point for release calibration (see `references/02-project-config.md`).
+Hooks run when `prepare` is invoked; the command call itself authorizes
+execution. Gates are the controlled extension point for release calibration
+(see `references/02-project-config.md`).
 
 ## Skills
 
@@ -492,7 +468,7 @@ point for release calibration (see `references/02-project-config.md`).
 - `release-setup`: read-only discovery, human calibration, and create-once configuration.
 - `release-assess`: read-only release readiness report.
 - `release-prepare`: local snapshot and reviewable release plan.
-- `release-publish`: approved, digest-confirmed frozen GitHub+npm publishing.
+- `release-publish`: approved frozen GitHub+npm publishing; the internal digest is checked automatically.
 - `release-reconcile`: evidence-based PARTIAL recovery with human intervention on conflicts.
 - `release-verify`: post-publish verification; only `VERIFIED` is the happy end.
 
@@ -506,14 +482,15 @@ closures. A release unit declares what reaches users via `distributions`:
 | `npm` | npm package with CLI entry | `npm install -g release-skill` |
 | `claude-plugin` | self-contained closure under `adapters/claude/` | automated marketplace checkpoint |
 | `codex-plugin` | self-contained closure under `adapters/codex/` | automated marketplace checkpoint |
-| `kimi-plugin` | self-contained closure (no scriptable install API) | manual, attestation-bound |
-| `codebuddy-plugin` | generated `adapters/workbuddy/` with `.codebuddy-plugin/plugin.json` | manual, attestation-bound |
+| `kimi-plugin` | self-contained closure (no scriptable install API) | non-blocking post-release manual task |
+| `codebuddy-plugin` | generated `adapters/workbuddy/` with `.codebuddy-plugin/plugin.json` | non-blocking post-release manual task |
 
 Each adapter closure bundles its own CLI, skills, and schemas for zero external
 dependency after installation. `publish` only publishes frozen Git objects and
 npm tarballs, then checks remote commit/tree/tag integrity. Claude/Codex
-verification is automated; Kimi Code and CodeBuddy/WorkBuddy require a trusted
-attestation bound to the frozen plan digest.
+verification is automated. Kimi Code and CodeBuddy/WorkBuddy are returned as
+`manualFollowUps` with `verifiedBySystem: false`; their completion is not a
+condition for the automated release to reach `VERIFIED`.
 
 For every npm distribution, `prepare` statically checks the exact packed
 tarball against concrete `package.json` entry targets. `publish` and
@@ -534,9 +511,9 @@ declaration is narrowed to concrete targets.
 - no overwrite of branches/tags/releases or npm unpublish; create-only refs use
   `--force-with-lease=<ref>:` solely as an atomic compare-and-set assertion that
   the ref is absent, while existing branches use an ordinary non-force push;
-- no automated CodeBuddy/WorkBuddy marketplace install checkpoint — the
-  codebuddy CLI cannot pin a frozen ref, so installation is a manual step proven
-  by the same attestation closed loop as Kimi Code;
+- no automated Kimi or CodeBuddy/WorkBuddy marketplace install checkpoint —
+  these installations remain explicit post-release team tasks and the system
+  does not verify their completion;
 - no promise of Windows or broad multi-platform native write support;
 - no hidden commit, push, tag, release, or package publication.
 

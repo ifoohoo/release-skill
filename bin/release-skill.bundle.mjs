@@ -9,7 +9,7 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.3.0"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.4.0"});
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -24274,10 +24274,11 @@ function evaluateConsumerSkillResourceClosureReceipts(plan, receipts) {
     "kimi-plugin",
     "codebuddy-plugin"
   ]);
+  const humanConsumerTypes = plan.humanConsumersStrategy === "manualFollowUps" ? /* @__PURE__ */ new Set(["kimi-plugin", "codebuddy-plugin"]) : /* @__PURE__ */ new Set();
   const expectedKeys = [];
   for (const unit of plan.units ?? []) {
     for (const distribution of unit.distributions ?? []) {
-      if (supported.has(distribution.type)) {
+      if (supported.has(distribution.type) && !humanConsumerTypes.has(distribution.type)) {
         expectedKeys.push(`${unit.id}:${distribution.type}`);
       }
     }
@@ -40520,11 +40521,11 @@ var require_lib7 = __commonJS({
         stream.pipe(checker);
         stream.on("error", reject);
         checker.on("error", reject);
-        let verified2;
+        let verified;
         checker.on("verified", (s) => {
-          verified2 = s;
+          verified = s;
         });
-        checker.on("end", () => resolve33(verified2));
+        checker.on("end", () => resolve33(verified));
         checker.resume();
       });
     }
@@ -64312,8 +64313,8 @@ var require_timestamp3 = __commonJS({
       verifySignature(key) {
         const signedAttrs = this.signedAttrsObj.toDER();
         signedAttrs[0] = 49;
-        const verified2 = crypto.verify(signedAttrs, key, this.signatureValue, this.signatureAlgorithm);
-        if (!verified2) {
+        const verified = crypto.verify(signedAttrs, key, this.signatureValue, this.signatureAlgorithm);
+        if (!verified) {
           throw new error_1.RFC3161TimestampVerificationError("signature verification failed");
         }
       }
@@ -69374,8 +69375,8 @@ var require_sct2 = __commonJS({
           logID: sct.logID,
           targetDate: sct.datetime
         });
-        const verified2 = validCTLogs.some((log) => sct.verify(preCert.buffer, log.publicKey));
-        if (!verified2) {
+        const verified = validCTLogs.some((log) => sct.verify(preCert.buffer, log.publicKey));
+        if (!verified) {
           throw new error_1.VerificationError({
             code: "CERTIFICATE_ERROR",
             message: "SCT verification failed"
@@ -69692,13 +69693,13 @@ var require_set2 = __commonJS({
         logID: entry.logId.keyId,
         targetDate: new Date(Number(entry.integratedTime) * 1e3)
       });
-      const verified2 = validTLogs.some((tlog) => {
+      const verified = validTLogs.some((tlog) => {
         const payload = toVerificationPayload(entry);
         const data = Buffer.from(core_1.json.canonicalize(payload), "utf8");
         const signature = entry.inclusionPromise.signedEntryTimestamp;
         return core_1.crypto.verify(data, tlog.publicKey, signature);
       });
-      if (!verified2) {
+      if (!verified) {
         throw new error_1.VerificationError({
           code: "TLOG_INCLUSION_PROMISE_ERROR",
           message: "inclusion promise could not be verified"
@@ -69736,7 +69737,7 @@ var require_tsa3 = __commonJS({
         serialNumber: timestamp.signerSerialNumber,
         issuer: timestamp.signerIssuer
       });
-      const verified2 = timestampAuthorities.some((ca) => {
+      const verified = timestampAuthorities.some((ca) => {
         try {
           verifyTimestampForCA(timestamp, data, ca);
           return true;
@@ -69744,7 +69745,7 @@ var require_tsa3 = __commonJS({
           return false;
         }
       });
-      if (!verified2) {
+      if (!verified) {
         throw new error_1.VerificationError({
           code: "TIMESTAMP_ERROR",
           message: "timestamp could not be verified"
@@ -81249,39 +81250,16 @@ async function prepareRelease(options) {
     if (declaredHooks.length > 0) {
       await evidence.append({
         phase: "hook-authorization",
-        status: "started",
+        status: "authorized",
         hookCount: declaredHooks.length,
         hooks: declaredHooks.map((h) => `${h.name}: ${h.executable} ${h.args.join(" ")}`)
-      });
-      if (hooksAuthorized !== true) {
-        const hookList = declaredHooks.map((h) => `  - ${h.name}: executable="${h.executable}", args=[${h.args.join(", ")}], cwd="${h.cwd}"`).join("\n");
-        await evidence.append({
-          phase: "hook-authorization",
-          status: "denied",
-          reason: "hooks not explicitly authorized"
-        });
-        throw new ReleaseError(
-          GATE_FAILED,
-          `project declares ${declaredHooks.length} hook(s) that will be executed as arbitrary local processes.
-These hooks are NOT sandboxed \u2014 they may write to the filesystem outside the project, access local credentials, or make network calls.
-The following hooks will run:
-${hookList}
-
-To proceed, pass --acknowledge-hook-side-effects (CLI) or hooksAuthorized=true (API). Authorization means you accept hook side-effect risks; it does NOT make hooks safe.`,
-          { hookNames: declaredHooks.map((h) => h.name), hookCount: declaredHooks.length }
-        );
-      }
-      await evidence.append({
-        phase: "hook-authorization",
-        status: "authorized",
-        hookCount: declaredHooks.length
       });
     }
     const declaredVerificationGates = config.verificationGates ?? [];
     if (declaredVerificationGates.length > 0) {
       await evidence.append({
         phase: "verification-gate-authorization",
-        status: "started",
+        status: "authorized",
         gateCount: declaredVerificationGates.length,
         gates: declaredVerificationGates.map((gate) => ({
           id: gate.id,
@@ -81292,23 +81270,6 @@ To proceed, pass --acknowledge-hook-side-effects (CLI) or hooksAuthorized=true (
           args: gate.command.slice(1),
           cwd: gate.cwd
         }))
-      });
-      if (verificationGatesAuthorized !== true) {
-        await evidence.append({
-          phase: "verification-gate-authorization",
-          status: "denied",
-          gateCount: declaredVerificationGates.length
-        });
-        throw new ReleaseError(
-          GATE_FAILED,
-          `project declares ${declaredVerificationGates.length} verification gate(s). They run local project commands without a network sandbox. To proceed, pass --acknowledge-gate-side-effects (CLI) or verificationGatesAuthorized=true (API).`,
-          { gateIds: declaredVerificationGates.map((gate) => gate.id) }
-        );
-      }
-      await evidence.append({
-        phase: "verification-gate-authorization",
-        status: "authorized",
-        gateCount: declaredVerificationGates.length
       });
     }
     await evidence.append({ phase: "hooks", status: "started" });
@@ -82080,6 +82041,9 @@ To proceed, pass --acknowledge-hook-side-effects (CLI) or hooksAuthorized=true (
     const frozenDistributionsMap = new Map(units.map((u) => [u.id, u.distributions]));
     const externalActions = buildExternalActions(unitResults, resolvedVersions, productionAssets, externalMarketplaceFreezes, frozenDistributionsMap);
     const overallSnapshotDigest = sha256Hex(snapshotDigests.join(":"));
+    const hasHumanConsumerActions = externalActions.some(
+      (a) => a.type === "kimi-marketplace-install" || a.type === "codebuddy-marketplace-install"
+    );
     const plan = {
       planVersion: 2,
       status: "PREPARED",
@@ -82102,6 +82066,7 @@ To proceed, pass --acknowledge-hook-side-effects (CLI) or hooksAuthorized=true (
       },
       verificationGates: config.verificationGates ?? [],
       snapshotDigest: overallSnapshotDigest,
+      ...hasHumanConsumerActions ? { humanConsumersStrategy: "manualFollowUps" } : {},
       ...production ? {
         production: {
           mode: "github-npm-v1",
@@ -82224,16 +82189,10 @@ import { resolve as resolve24 } from "node:path";
 async function validateDeclaredHooks(options = {}) {
   const {
     root = process.cwd(),
-    hooksAuthorized,
+    hooksAuthorized: _hooksAuthorized,
     hookCache = true,
     runDir = resolve24(root, ".release-skill", "runs", `hooks-${Date.now()}`)
   } = options;
-  if (hooksAuthorized !== true) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      "hooks validate executes declared project commands; pass --acknowledge-hook-side-effects"
-    );
-  }
   const { config, configDigest } = await loadProjectConfig({ root });
   await mkdir12(runDir, { recursive: true });
   const evidence = createEvidenceWriter({
@@ -82259,7 +82218,6 @@ var init_hooks2 = __esm({
     await init_config();
     init_evidence();
     await init_prepare();
-    init_errors();
     __name(validateDeclaredHooks, "validateDeclaredHooks");
   }
 });
@@ -82560,7 +82518,7 @@ function defaultClock() {
 async function approvePlan(options) {
   const {
     planPath,
-    expectedDigest,
+    expectedDigest: expectedDigestInput,
     actor,
     expiresInMs = 24 * 60 * 60 * 1e3,
     // 24 hours
@@ -82570,9 +82528,6 @@ async function approvePlan(options) {
   const clockFn = typeof clock === "function" ? clock : defaultClock;
   if (!planPath || typeof planPath !== "string") {
     throw new ReleaseError(PLAN_DIGEST_MISMATCH, "planPath must be a non-empty string");
-  }
-  if (!expectedDigest || typeof expectedDigest !== "string") {
-    throw new ReleaseError(PLAN_DIGEST_MISMATCH, "expectedDigest must be a non-empty string");
   }
   if (!actor || typeof actor !== "string") {
     throw new ReleaseError(GATE_FAILED, "actor must be a non-empty string");
@@ -82599,6 +82554,7 @@ async function approvePlan(options) {
   }
   const actualDigest = computePlanDigest(plan);
   assertImmutablePlanAuthority(planPath, plan);
+  const expectedDigest = expectedDigestInput ?? actualDigest;
   if (actualDigest !== expectedDigest) {
     throw new ReleaseError(
       PLAN_DIGEST_MISMATCH,
@@ -83234,7 +83190,6 @@ async function publishRelease(options) {
     clock: clockOpt,
     captureBaselineFn,
     productionMode = false,
-    productionConfirmation,
     observePreviousPublicBaselineFn,
     observeRetrySleep
   } = options ?? {};
@@ -83290,13 +83245,6 @@ async function publishRelease(options) {
     if (isProductionPlan) {
       if (!plan.production.assetRoot || plan.production.assetRoot === ".") {
         throw new ReleaseError(GATE_FAILED, "production plan requires a dedicated assetRoot");
-      }
-      if (!productionConfirmation || productionConfirmation !== actualDigest) {
-        throw new ReleaseError(
-          GATE_FAILED,
-          "production confirmation must exactly match the current plan digest",
-          { planDigest: actualDigest }
-        );
       }
     }
     await evidence.append({ phase: "safety-gate", gate: "action-completeness", status: "started" });
@@ -84009,7 +83957,6 @@ async function reconcileRelease(options) {
     root = process.cwd(),
     clock: clockOpt,
     captureBaselineFn,
-    productionConfirmation,
     observePreviousPublicBaselineFn,
     observeRetrySleep
   } = options ?? {};
@@ -84177,21 +84124,6 @@ async function reconcileRelease(options) {
         GATE_FAILED,
         `reconcile only accepts PARTIAL runs; source status is "${sourceRun.status}". For BLOCKED with no durable writes, fix the gate and rerun publish; VERIFIED is terminal.`,
         { sourceRunId: sourceRun.runId, sourceRunStatus: sourceRun.status }
-      );
-    }
-    const planActionsById = new Map(
-      (plan.externalActions ?? []).map((action) => [action.id, action])
-    );
-    const hasNonMarketplaceRetryCandidate = sourceRun.checkpoints.some((checkpoint) => {
-      if (checkpoint.status === "succeeded") return false;
-      const action = planActionsById.get(checkpoint.actionId);
-      return action && !isMarketplaceAction(action.type);
-    });
-    if (plan.production?.mode === "github-npm-v1" && hasNonMarketplaceRetryCandidate && productionConfirmation !== actualDigest) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        "production reconcile confirmation must exactly match the current plan digest before retry",
-        { planDigest: actualDigest }
       );
     }
     await evidence.append({
@@ -84622,13 +84554,6 @@ async function reconcileRelease(options) {
     }
     const nonMarketplaceRetries = actionsToRetry.filter((a) => !isMarketplaceAction(a.type));
     if (nonMarketplaceRetries.length > 0) {
-      if (plan.production?.mode === "github-npm-v1" && productionConfirmation !== actualDigest) {
-        throw new ReleaseError(
-          GATE_FAILED,
-          "production reconcile confirmation must exactly match the current plan digest before retry",
-          { planDigest: actualDigest, actionsToRetry: nonMarketplaceRetries.map((action) => action.id) }
-        );
-      }
       if (!approval) {
         throw new ReleaseError(
           GATE_FAILED,
@@ -85473,7 +85398,7 @@ async function verifyRelease(options) {
     runDir: runDirOpt,
     clock: clockOpt,
     npmExecutor,
-    verificationGatesAuthorized,
+    verificationGatesAuthorized: _verificationGatesAuthorized,
     gateEnv,
     previousVerifyRun
   } = options ?? {};
@@ -85522,13 +85447,6 @@ async function verifyRelease(options) {
     await evidence.append({ phase: "verify", step: "plan-load", status: "started" });
     const consumerGates = (plan.verificationGates ?? []).filter((gate) => gate.phase === "consumer-verify");
     const configuredSmokeBins = (plan.units ?? []).flatMap((unit) => (unit.distributions ?? []).filter((distribution) => distribution.type === "npm" && distribution.smokeBin).map((distribution) => ({ unitId: unit.id, smokeBin: distribution.smokeBin })));
-    if ((consumerGates.length > 0 || configuredSmokeBins.length > 0) && verificationGatesAuthorized !== true) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `plan declares ${consumerGates.length} consumer verification gate(s) and ${configuredSmokeBins.length} npm CLI smoke process(es). They execute installed project code without an OS or network sandbox. To proceed, pass --acknowledge-gate-side-effects (CLI) or verificationGatesAuthorized=true (API).`,
-        { gateIds: consumerGates.map((gate) => gate.id), configuredSmokeBins }
-      );
-    }
     await evidence.append({ phase: "verify", step: "plan-load", status: "passed" });
     await evidence.append({ phase: "verify", step: "source-run-load", status: "started" });
     const sourceRun = await loadRun(sourceRunPath, {
@@ -85723,7 +85641,8 @@ async function verifyRelease(options) {
         }
       }
     }
-    const missingManualAttestations = await collectMissingManualAttestations({
+    const isHumanConsumerFollowUp = plan.humanConsumersStrategy === "manualFollowUps";
+    const missingManualAttestations = isHumanConsumerFollowUp ? [] : await collectMissingManualAttestations({
       actions,
       adapterRegistry,
       plan,
@@ -85744,6 +85663,7 @@ async function verifyRelease(options) {
         { requirements: missingManualAttestations }
       );
     }
+    const manualFollowUps = [];
     const actionResults = await Promise.allSettled(actions.map(async (action) => {
       const adapterActionType = ADAPTER_ACTION_TYPE_MAP2[action.type];
       if (!adapterActionType) {
@@ -85766,6 +85686,33 @@ async function verifyRelease(options) {
         );
       }
       if (isMarketplaceAction(action.type)) {
+        const isHumanConsumerPlatform = action.type === "kimi-marketplace-install" || action.type === "codebuddy-marketplace-install";
+        if (isHumanConsumerFollowUp && isHumanConsumerPlatform) {
+          const platform = action.type === "kimi-marketplace-install" ? "kimi" : "codebuddy";
+          manualFollowUps.push({
+            actionId: action.id,
+            platform,
+            plugin: action.parameters?.plugin,
+            version: action.parameters?.version,
+            unitId: action.unitId,
+            verifiedBySystem: false,
+            reason: "human consumer platform \u2014 installation is a manual post-release task; not verified by system"
+          });
+          adapterChecks.push({
+            actionId: action.id,
+            actionType: action.type,
+            status: "SKIPPED",
+            reason: "manual-follow-up"
+          });
+          await evidence.append({
+            phase: "verify-marketplace",
+            actionId: action.id,
+            actionType: action.type,
+            status: "SKIPPED",
+            reason: "manual-follow-up"
+          });
+          return;
+        }
         const marketplaceContext = {
           externalWritesAuthorized: false,
           isolatedConsumerWritesAuthorized: true,
@@ -86143,6 +86090,7 @@ async function verifyRelease(options) {
       gateResults: consumerGateResults,
       consumerVerificationReceipts,
       skillResourceClosureReceipts,
+      ...manualFollowUps.length > 0 ? { manualFollowUps } : {},
       startedAt: clockFn(),
       finishedAt: clockFn()
     };
@@ -86163,7 +86111,8 @@ async function verifyRelease(options) {
       status: VERIFIED,
       adapterChecks,
       smokeTest,
-      gateResults: consumerGateResults
+      gateResults: consumerGateResults,
+      ...manualFollowUps.length > 0 ? { manualFollowUps } : {}
     };
   } catch (err) {
     await evidence.append({
@@ -86567,8 +86516,7 @@ function publicState(state) {
     status: state.status,
     statePath: state.statePath,
     targetVersion: state.targetVersion,
-    ...state.hookAuthorizationDigest ? {
-      hookAuthorizationDigest: state.hookAuthorizationDigest,
+    ...state.hooks && state.hooks.length > 0 ? {
       hooks: state.hooks
     } : {},
     ...state.planPath ? {
@@ -86577,25 +86525,32 @@ function publicState(state) {
       evidenceDir: state.evidenceDir,
       warnings: state.warnings ?? []
     } : {},
+    ...state.approvalSummary ? { approvalSummary: state.approvalSummary } : {},
     ...state.approvalPath ? { approvalPath: state.approvalPath } : {},
     ...state.sourceRunPath ? { sourceRunPath: state.sourceRunPath } : {},
     ...state.requirements ? { requirements: state.requirements } : {},
+    ...state.manualFollowUps ? { manualFollowUps: state.manualFollowUps } : {},
     ...state.metadataUpdate ? { metadataUpdate: state.metadataUpdate } : {},
-    verificationGateAuthorizationIncludedInPlanApproval: state.status !== "NEEDS_HOOK_AUTHORIZATION",
-    postVerifyMetadataUpdateIncludedInPlanApproval: state.status !== "NEEDS_HOOK_AUTHORIZATION"
+    verificationGateAuthorizationIncludedInPlanApproval: true,
+    postVerifyMetadataUpdateIncludedInPlanApproval: true
   };
 }
-function hookAuthority(loaded, targetVersion) {
-  const hooks = Object.keys(loaded.config.hooks ?? {}).sort();
-  return {
-    hooks,
-    digest: sha256Hex(canonicalJson({
-      kind: "release-skill-hook-authorization/v1",
-      configDigest: loaded.configDigest,
-      hooks: loaded.config.hooks ?? {},
-      targetVersion: targetVersion ?? null
-    }))
-  };
+async function buildApprovalSummary(planPath) {
+  try {
+    const plan = JSON.parse(await readFile27(planPath, "utf8"));
+    const units = (plan.units ?? []).map((unit) => ({
+      id: unit.id,
+      targetVersion: unit.targetVersion ?? unit.version
+    }));
+    const actions = (plan.externalActions ?? []).map((action) => ({
+      id: action.id,
+      type: action.type,
+      unitId: action.unitId
+    }));
+    return { units, actions };
+  } catch {
+    return { units: [], actions: [] };
+  }
 }
 async function advanceShip(options = {}, injected = {}) {
   const root = resolve29(options.root ?? process.cwd());
@@ -86609,65 +86564,21 @@ async function advanceShip(options = {}, injected = {}) {
   }
   if (!state) {
     const loaded = await deps.loadProjectConfig({ root });
-    const authority = hookAuthority(loaded, options.targetVersion);
-    const hooks = authority.hooks;
-    const hookAuthorizationDigest = authority.digest;
+    const hooks = Object.keys(loaded.config.hooks ?? {}).sort();
     state = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       root,
       statePath,
       targetVersion: options.targetVersion ?? null,
       configDigest: loaded.configDigest,
       hooks,
-      hookAuthorizationDigest,
-      status: hooks.length > 0 ? "NEEDS_HOOK_AUTHORIZATION" : "NEW",
+      status: "NEW",
       createdAt: (/* @__PURE__ */ new Date()).toISOString(),
       updatedAt: (/* @__PURE__ */ new Date()).toISOString()
     };
     await writeJsonAtomic(statePath, state);
-    if (hooks.length > 0 && options.hookAuthorizationDigest !== hookAuthorizationDigest) {
-      return publicState(state);
-    }
   }
   if (state.status === "NEEDS_HOOK_AUTHORIZATION") {
-    const loaded = await deps.loadProjectConfig({ root });
-    const current = hookAuthority(loaded, state.targetVersion);
-    if (loaded.configDigest !== state.configDigest || current.digest !== state.hookAuthorizationDigest) {
-      state = {
-        ...state,
-        configDigest: loaded.configDigest,
-        hooks: current.hooks,
-        hookAuthorizationDigest: current.digest,
-        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      await writeJsonAtomic(statePath, state);
-      if (verified.status === "VERIFIED" && deps.updatePreviousPublicBaselines) {
-        try {
-          state.metadataUpdate = await deps.updatePreviousPublicBaselines({
-            root,
-            planPath: state.planPath
-          });
-        } catch (error) {
-          state.metadataUpdate = {
-            status: "FAILED",
-            error: error.message
-          };
-        }
-        state.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
-        await writeJsonAtomic(statePath, state);
-      }
-      return publicState(state);
-    }
-    if (options.hookAuthorizationDigest !== state.hookAuthorizationDigest) {
-      if (options.hookAuthorizationDigest) {
-        throw new ReleaseError(
-          PLAN_DIGEST_MISMATCH,
-          "hook authorization digest does not match the current config, hooks and target version"
-        );
-      }
-      return publicState(state);
-    }
-    state.hookAuthorizedBy = options.actor ?? null;
     state.status = "NEW";
     state.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
     await writeJsonAtomic(statePath, state);
@@ -86675,17 +86586,15 @@ async function advanceShip(options = {}, injected = {}) {
   if (state.status === "NEW") {
     const loaded = await deps.loadProjectConfig({ root });
     if (loaded.configDigest !== state.configDigest) {
-      const current = hookAuthority(loaded, state.targetVersion);
+      const hooks = Object.keys(loaded.config.hooks ?? {}).sort();
       state = {
         ...state,
         configDigest: loaded.configDigest,
-        hooks: current.hooks,
-        hookAuthorizationDigest: current.digest,
-        status: current.hooks.length > 0 ? "NEEDS_HOOK_AUTHORIZATION" : "NEW",
+        hooks,
+        status: "NEW",
         updatedAt: (/* @__PURE__ */ new Date()).toISOString()
       };
       await writeJsonAtomic(statePath, state);
-      if (state.status === "NEEDS_HOOK_AUTHORIZATION") return publicState(state);
     }
     const prepared = await deps.prepareRelease({
       root,
@@ -86693,7 +86602,7 @@ async function advanceShip(options = {}, injected = {}) {
       offline: false,
       production: true,
       hooksAuthorized: true,
-      verificationGatesAuthorized: false,
+      verificationGatesAuthorized: true,
       hookCache: true
     });
     let transportPreflight = null;
@@ -86702,6 +86611,7 @@ async function advanceShip(options = {}, injected = {}) {
       transportPreflight = await deps.preflightGitTransports(frozenPlan);
       process.env.RELEASE_SKILL_GIT_TRANSPORT = transportPreflight.transport;
     }
+    const approvalSummary = await buildApprovalSummary(prepared.planPath);
     state = {
       ...state,
       status: "NEEDS_PLAN_APPROVAL",
@@ -86709,6 +86619,7 @@ async function advanceShip(options = {}, injected = {}) {
       planDigest: prepared.planDigest,
       evidenceDir: prepared.evidenceDir,
       warnings: prepared.warnings,
+      approvalSummary,
       ...transportPreflight ? {
         gitTransport: transportPreflight.transport,
         gitTransportPreflight: transportPreflight.repositories
@@ -86718,8 +86629,10 @@ async function advanceShip(options = {}, injected = {}) {
     await writeJsonAtomic(statePath, state);
   }
   if (state.status === "NEEDS_PLAN_APPROVAL") {
-    if (!options.planApprovalDigest) return publicState(state);
-    if (options.planApprovalDigest !== state.planDigest) {
+    const approveRequested = options.approve === true || typeof options.planApprovalDigest === "string" && options.planApprovalDigest.length > 0;
+    if (!approveRequested) return publicState(state);
+    if (options.approve === true) {
+    } else if (options.planApprovalDigest !== state.planDigest) {
       throw new ReleaseError(PLAN_DIGEST_MISMATCH, "ship plan approval digest does not match the frozen plan");
     }
     if (!options.actor) {
@@ -86751,8 +86664,7 @@ async function advanceShip(options = {}, injected = {}) {
       approvalPath: state.approvalPath,
       adapterRegistry: options.adapterRegistry,
       root,
-      productionMode: true,
-      productionConfirmation: state.planDigest
+      productionMode: true
     });
     state = {
       ...state,
@@ -86768,8 +86680,7 @@ async function advanceShip(options = {}, injected = {}) {
       sourceRunPath: state.sourceRunPath,
       approvalPath: state.approvalPath,
       adapterRegistry: options.adapterRegistry,
-      root,
-      productionConfirmation: state.planDigest
+      root
     });
     state = {
       ...state,
@@ -86781,7 +86692,7 @@ async function advanceShip(options = {}, injected = {}) {
   }
   if (state.status === "PUBLISHED" || state.status === "NEEDS_MANUAL_ATTESTATIONS") {
     try {
-      const verified2 = await deps.verifyRelease({
+      const verified = await deps.verifyRelease({
         planPath: state.planPath,
         sourceRunPath: state.sourceRunPath,
         adapterRegistry: options.adapterRegistry,
@@ -86790,9 +86701,10 @@ async function advanceShip(options = {}, injected = {}) {
       });
       state = {
         ...state,
-        status: verified2.status,
-        verifyRunPath: verified2.runPath,
+        status: verified.status,
+        verifyRunPath: verified.runPath,
         requirements: void 0,
+        manualFollowUps: verified.manualFollowUps ?? void 0,
         updatedAt: (/* @__PURE__ */ new Date()).toISOString()
       };
       await writeJsonAtomic(statePath, state);
@@ -86817,7 +86729,7 @@ var init_ship = __esm({
     __name(readState, "readState");
     __name(defaultDependencies, "defaultDependencies");
     __name(publicState, "publicState");
-    __name(hookAuthority, "hookAuthority");
+    __name(buildApprovalSummary, "buildApprovalSummary");
     __name(advanceShip, "advanceShip");
   }
 });
@@ -90993,13 +90905,13 @@ async function performEnvironmentChecks() {
   checks.kimi = {
     ...kimiCheck,
     required: false,
-    usage: "\u4EC5\u5F53\u8BA1\u5212\u58F0\u660E kimi-plugin distribution \u65F6\u7528\u4E8E\u6D88\u8D39\u8005\u5B89\u88C5\u9A8C\u8BC1"
+    usage: "\u4EC5\u4F9B\u53D1\u5E03\u540E\u7684\u4EBA\u5DE5\u5B89\u88C5\u4F7F\u7528\uFF1Brelease-skill \u4E0D\u6838\u9A8C Kimi \u5B89\u88C5"
   };
   const codebuddyCheck = await checkCodeBuddyDependency();
   checks.codebuddy = {
     ...codebuddyCheck,
     required: false,
-    usage: "\u4EC5\u5F53\u8BA1\u5212\u58F0\u660E codebuddy-plugin distribution \u65F6\u7528\u4E8E\u6D88\u8D39\u8005\u5B89\u88C5\u9A8C\u8BC1\uFF08\u4EBA\u5DE5 attestation \u95ED\u73AF\uFF1BCLI \u65E0\u6CD5\u9489\u6B7B\u51BB\u7ED3 ref\uFF0C\u5B89\u88C5\u7531\u4EBA\u5DE5\u5B8C\u6210\u5E76\u51FA\u5177 attestation\uFF09"
+    usage: "\u4EC5\u4F9B\u53D1\u5E03\u540E\u7684\u4EBA\u5DE5\u5B89\u88C5\u4F7F\u7528\uFF1Brelease-skill \u4E0D\u6838\u9A8C CodeBuddy/WorkBuddy \u5B89\u88C5"
   };
   return checks;
 }
@@ -91019,7 +90931,7 @@ function getCapabilityMaturity() {
     prepare: {
       available: true,
       mode: "offline local writes",
-      description: "Freeze a release plan with snapshots and gates"
+      description: "Freeze a release plan with snapshots and gates; the command invocation authorizes hook and gate execution"
     },
     docs: {
       available: true,
@@ -91029,7 +90941,7 @@ function getCapabilityMaturity() {
     publish: {
       available: true,
       mode: "controlled production (protocol-tested; no OS/network sandbox)",
-      description: "Publishes frozen GitHub/npm artifacts and runs configured Claude/Codex/Kimi/CodeBuddy consumer checkpoints (CodeBuddy via human attestation closed loop) with approval and exact digest confirmation"
+      description: "Publishes frozen GitHub/npm artifacts after one readable-plan approval, runs automated Claude/Codex checkpoints, and emits non-blocking Kimi/CodeBuddy manual follow-ups"
     },
     reconcile: {
       available: true,
@@ -91039,7 +90951,7 @@ function getCapabilityMaturity() {
     verify: {
       available: true,
       mode: "fresh consumer verification (protocol-tested; no OS/network sandbox)",
-      description: "Recheck remote state, exact npm installation, CLI help, and configured Claude/Codex/Kimi/CodeBuddy installs (CodeBuddy via human attestation) before VERIFIED"
+      description: "Recheck remote state, exact npm installation, CLI help, and automated Claude/Codex installs before VERIFIED; Kimi/CodeBuddy remain unverified manual follow-ups"
     }
   };
 }
@@ -91056,11 +90968,11 @@ Commands:
   assess     Read-only assessment of project release readiness
   prepare    Freeze a release plan (release-skill output to .release-skill/; hooks may do remote ops)
   approve    Record local approval for a frozen release plan
-  publish    Publish frozen GitHub/npm artifacts after approval and digest confirmation
+  publish    Publish frozen GitHub/npm artifacts after approval
   reconcile  Resume PARTIAL state from evidence; conflicts require a human
   verify     Fresh remote and consumer verification; only this reaches VERIFIED
   ship       Resume one durable prepare -> approve -> publish -> verify flow
-  attest     Record a generated Kimi/CodeBuddy manual result without editing JSON
+  attest     Legacy only: record a Kimi/CodeBuddy result for an old frozen plan
   hooks      Run declared development hooks and populate reusable receipts
   artifacts  Artifact status, inspect, update/apply, resolution, and diagnostics
   docs       Refresh declared release documents (read-only dry-run by default)
@@ -91071,7 +90983,6 @@ Options:
   --run <path>     Path to the release run file (required for reconcile/verify)
   --approval <path> Path to the approval record
   --production     Prepare immutable Git/npm production artifacts
-  --confirm-production <digest> Confirm the exact production plan digest
   --output <path>  Override prepare/approve output path (non-production only)
   --run-dir <path> Override prepare run directory; production requires one direct child of .release-skill/runs
   --answers <path> Human-reviewed setup answers JSON
@@ -91080,16 +90991,13 @@ Options:
   --unit <id>      Release unit whose declared release documents are refreshed (docs refresh)
   --confirm-refresh <sha256:...> Confirm the exact dry-run refreshDigest before any document write
   --ack-local-document-write Acknowledge the explicit local release-document write (docs refresh --write)
-  --acknowledge-hook-side-effects Acknowledge unsandboxed legacy hook execution
-  --acknowledge-gate-side-effects Acknowledge unsandboxed local verification gate execution
-  --platform <id>   Manual attestation platform: kimi or codebuddy
+  --platform <id>   Legacy attestation platform: kimi or codebuddy
   --plugin <id>     Plugin id for a generated manual requirement
   --actor <name>    Person confirming an approval or manual result
   --result <value>  Manual result: passed or failed
   --install-path <path> Actual managed plugin path when closure verification requires it
   --install-channel <desktop|cli> CodeBuddy installation channel when required
-  --authorize-hooks <digest> Authorize the exact ship hook/config digest
-  --approve-plan <digest> Approve the exact ship plan and its verification gates
+  --approve         Approve the ship plan (boolean; plan digest is auto-resolved)
   --state <path>    Override the durable ship state file
   --no-hook-cache  Force every prepare hook to run in full; neither read nor write the hook cache
   --json           Output results as JSON
@@ -91098,14 +91006,16 @@ Options:
 
 Safety:
   Safe default: help -> setup (when config is absent) -> assess -> prepare --offline -> human review.
-  Production happy end: prepare --production -> approve -> publish -> verify.
+  Production happy end: ship --target-version <ver> -> ship --approve --actor <name>.
+  The ship command runs configured hooks and gates automatically; the only human gate is plan approval.
+  Kimi/CodeBuddy installations are non-blocking manual follow-up tasks (not verified by system).
   prepare copies current public files into a local snapshot; it does not rewrite source files.
   - Default mode is offline (release-skill pipeline does no remote writes)
   - prepare output goes to .release-skill/ directory only
   - User-configured hooks may write anywhere and perform remote operations
   - To ensure zero remote writes, disable hooks or audit them separately
   - docs refresh --write rewrites only declared README managed regions and the current CHANGELOG entry after exact refreshDigest confirmation; it never commits, pushes, tags, publishes, or installs.
-  - publish requires explicit approval and an exact plan-digest confirmation
+  - publish requires explicit approval; plan digest is auto-read from the plan file
   - publish consumes frozen Git/npm artifacts, never the live workspace
   - existing remote objects and uncertain checks stop for human intervention
   - production-equivalent protocol sandbox is verified; a real remote canary is not
@@ -91176,8 +91086,8 @@ if (!command || command === "help") {
           conditionalConsumers: {
             claude: "\u58F0\u660E claude-plugin distribution \u65F6\u5FC5\u987B\u53EF\u7528",
             codex: "\u58F0\u660E codex-plugin distribution \u65F6\u5FC5\u987B\u53EF\u7528",
-            kimi: "\u58F0\u660E kimi-plugin distribution \u65F6\u5FC5\u987B\u53EF\u7528",
-            codebuddy: "\u58F0\u660E codebuddy-plugin distribution \u65F6\u7528\u4E8E\u4EBA\u5DE5 attestation \u95ED\u73AF\uFF08CLI \u65E0\u6CD5\u9489\u6B7B\u51BB\u7ED3 ref\uFF0C\u5B89\u88C5\u7531\u4EBA\u5DE5\u5B8C\u6210\u5E76\u51FA\u5177 attestation\uFF09"
+            kimi: "\u53D1\u5E03\u540E\u4EBA\u5DE5\u5B89\u88C5\u5F85\u529E\uFF1B\u4E0D\u5F71\u54CD\u751F\u4EA7\u53D1\u5E03\u5C31\u7EEA\u5EA6\uFF0C\u7CFB\u7EDF\u4E0D\u6838\u9A8C",
+            codebuddy: "\u53D1\u5E03\u540E\u4EBA\u5DE5\u5B89\u88C5\u5F85\u529E\uFF1B\u4E0D\u5F71\u54CD\u751F\u4EA7\u53D1\u5E03\u5C31\u7EEA\u5EA6\uFF0C\u7CFB\u7EDF\u4E0D\u6838\u9A8C"
           }
         }
       },
@@ -91186,12 +91096,12 @@ if (!command || command === "help") {
       maturity: {
         setup: "read-only by default; create-once requires answers plus exact setupDigest confirmation",
         assess: "read-only (default); --output writes local report",
-        prepare: "offline local writes; configured hooks/gates require their explicit side-effect acknowledgements",
+        prepare: "offline local writes; the command invocation authorizes configured hook and gate execution",
         docs: "read-only dry-run by default; write requires --write, exact --confirm-refresh, and --ack-local-document-write; never commits, pushes, or publishes",
         onlinePrepare: "previous-public-baseline observation available; production mode freezes publish artifacts and fails closed on drift or unknown state",
-        publish: "GitHub/npm plus configured Claude/Codex/Kimi/CodeBuddy consumer checkpoints are protocol-tested without an OS/network sandbox (CodeBuddy via human attestation closed loop); approval and exact digest confirmation required",
+        publish: "GitHub/npm plus automated Claude/Codex consumer checkpoints are protocol-tested without an OS/network sandbox; one approval is required and the internal plan digest is checked automatically",
         reconcile: "PARTIAL recovery is protocol-tested without an OS/network sandbox; remote conflicts require human intervention",
-        verify: "fresh exact npm and Claude/Codex/Kimi/CodeBuddy consumer installation checks are protocol-tested without an OS/network sandbox (CodeBuddy via human attestation); configured consumer processes require explicit acknowledgement; success reaches VERIFIED"
+        verify: "fresh exact npm and Claude/Codex consumer installation checks are protocol-tested without an OS/network sandbox; Kimi/CodeBuddy are unverified manual follow-ups; command invocation authorizes configured gates"
       },
       recommendations: []
     };
@@ -91217,12 +91127,6 @@ if (!command || command === "help") {
     }
     if (!checks.codex.available) {
       output.recommendations.push("Install Codex CLI before releasing a configured codex-plugin distribution");
-    }
-    if (!checks.kimi.available) {
-      output.recommendations.push("Install Kimi Code CLI before releasing a configured kimi-plugin distribution");
-    }
-    if (!checks.codebuddy.available) {
-      output.recommendations.push("Install WorkBuddy (bundled codebuddy CLI) before releasing a configured codebuddy-plugin distribution; the install is a manual attestation closed loop because the CLI cannot pin a frozen ref");
     }
     console.log(JSON.stringify(output, null, 2));
     process.exit(readiness.status === "READY" ? 0 : 1);
@@ -91325,6 +91229,7 @@ if (command === "hooks") {
     const { validateDeclaredHooks: validateDeclaredHooks2 } = await init_hooks2().then(() => hooks_exports);
     const result = await validateDeclaredHooks2({
       root,
+      // --acknowledge-hook-side-effects is accepted as a no-effect compatibility input
       hooksAuthorized: args.includes("--acknowledge-hook-side-effects"),
       hookCache: !args.includes("--no-hook-cache")
     });
@@ -91378,7 +91283,7 @@ if (command === "ship") {
       root,
       statePath: value("--state"),
       targetVersion: value("--target-version") ?? value("--version"),
-      hookAuthorizationDigest: value("--authorize-hooks"),
+      approve: args.includes("--approve"),
       planApprovalDigest: value("--approve-plan"),
       actor: value("--actor"),
       adapterRegistry
@@ -91388,11 +91293,11 @@ if (command === "ship") {
     } else {
       console.log(`Ship status: ${result.status}`);
       console.log(`State: ${result.statePath}`);
-      if (result.hookAuthorizationDigest && result.status === "NEEDS_HOOK_AUTHORIZATION") {
-        console.log(`Authorize hooks: --authorize-hooks ${result.hookAuthorizationDigest}`);
-      }
       if (result.planDigest && result.status === "NEEDS_PLAN_APPROVAL") {
-        console.log(`Approve plan and verification gates: --approve-plan ${result.planDigest} --actor <person>`);
+        console.log(`Approve plan: ship --approve --actor <person>`);
+      }
+      for (const followUp of result.manualFollowUps ?? []) {
+        console.log(`Manual follow-up [${followUp.platform}] ${followUp.plugin}: not verified by system`);
       }
       for (const requirement of result.requirements ?? []) {
         console.log(`Manual requirement [${requirement.platform}]: ${requirement.requirementPath}`);
@@ -91542,8 +91447,8 @@ if (command === "approve") {
   const actor = actorIdx !== -1 && args[actorIdx + 1] ? args[actorIdx + 1] : void 0;
   const outputIdx = args.indexOf("--output");
   const outputPath = outputIdx !== -1 && args[outputIdx + 1] ? resolve32(args[outputIdx + 1]) : void 0;
-  if (!planPath || !expectedDigest || !actor) {
-    const msg = "approve requires --plan <path>, --digest <sha256>, and --actor <name>";
+  if (!planPath || !actor) {
+    const msg = "approve requires --plan <path> and --actor <name>";
     if (hasJson) {
       console.log(JSON.stringify({ error: "MISSING_PARAMETERS", message: msg, exitCode: 1 }));
     } else {
@@ -91553,11 +91458,19 @@ if (command === "approve") {
   }
   try {
     const { approvePlan: approvePlan2 } = await init_approve().then(() => approve_exports);
+    const { computePlanDigest: computePlanDigest2 } = await init_plan().then(() => plan_exports);
+    const { readFile: readFileFs } = await import("node:fs/promises");
+    let resolvedDigest = expectedDigest;
+    if (!resolvedDigest) {
+      const planRaw = await readFileFs(resolve32(planPath), "utf8");
+      const planObj = JSON.parse(planRaw);
+      resolvedDigest = computePlanDigest2(planObj);
+    }
     const resolvedPlanPath = resolve32(planPath);
     const planDir = dirname16(resolvedPlanPath);
-    const releaseDir = basename10(planDir) === "plans" && basename10(resolvedPlanPath) === `${expectedDigest}.json` ? dirname16(planDir) : planDir;
+    const releaseDir = basename10(planDir) === "plans" && basename10(resolvedPlanPath) === `${resolvedDigest}.json` ? dirname16(planDir) : planDir;
     const approvalPath = outputPath ?? join30(releaseDir, "approval-record.json");
-    const record = await approvePlan2({ planPath, expectedDigest, actor, outputPath: approvalPath });
+    const record = await approvePlan2({ planPath, expectedDigest: resolvedDigest, actor, outputPath: approvalPath });
     if (hasJson) {
       console.log(JSON.stringify(record, null, 2));
     } else {
@@ -91590,8 +91503,6 @@ if (command === "reconcile") {
   const runPath = runIdx !== -1 && args[runIdx + 1] ? resolve32(args[runIdx + 1]) : void 0;
   const approvalIdx = args.indexOf("--approval");
   const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve32(args[approvalIdx + 1]) : void 0;
-  const confirmationIdx = args.indexOf("--confirm-production");
-  const productionConfirmation = confirmationIdx !== -1 && args[confirmationIdx + 1] ? args[confirmationIdx + 1] : void 0;
   if (!planPath || !runPath) {
     const msg = "reconcile requires --plan <path> and --run <path>";
     if (hasJson) {
@@ -91619,8 +91530,7 @@ if (command === "reconcile") {
       sourceRunPath: runPath,
       approvalPath,
       adapterRegistry: registry,
-      root,
-      productionConfirmation
+      root
     });
     if (hasJson) {
       console.log(JSON.stringify(result, null, 2));
@@ -91713,10 +91623,8 @@ if (command === "publish") {
   const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve32(args[planIdx + 1]) : void 0;
   const approvalIdx = args.indexOf("--approval");
   const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve32(args[approvalIdx + 1]) : void 0;
-  const confirmationIdx = args.indexOf("--confirm-production");
-  const productionConfirmation = confirmationIdx !== -1 && args[confirmationIdx + 1] ? args[confirmationIdx + 1] : void 0;
-  if (!planPath || !approvalPath || !productionConfirmation) {
-    const msg = "publish requires --plan <path>, --approval <path>, and --confirm-production <plan-digest>";
+  if (!planPath || !approvalPath) {
+    const msg = "publish requires --plan <path> and --approval <path>";
     if (hasJson) {
       console.log(JSON.stringify({ error: "MISSING_PARAMETERS", message: msg, exitCode: 1 }));
     } else {
@@ -91742,8 +91650,7 @@ if (command === "publish") {
       approvalPath,
       adapterRegistry: registry,
       root,
-      productionMode: true,
-      productionConfirmation
+      productionMode: true
     });
     if (hasJson) {
       console.log(JSON.stringify(result, null, 2));

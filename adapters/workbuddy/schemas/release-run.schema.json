@@ -432,6 +432,49 @@
         }
       }
     },
+    "manualFollowUps": {
+      "type": "array",
+      "description": "Non-blocking manual follow-up tasks for human consumer platforms (Kimi/CodeBuddy) when plan declares humanConsumersStrategy: 'manualFollowUps'",
+      "items": {
+        "type": "object",
+        "required": [
+          "actionId",
+          "platform",
+          "plugin",
+          "verifiedBySystem"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "actionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "kimi",
+              "codebuddy"
+            ]
+          },
+          "plugin": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "unitId": {
+            "type": "string"
+          },
+          "verifiedBySystem": {
+            "const": false,
+            "description": "Always false — these tasks are not verified by the system"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "skillResourceClosureReceipts": {
       "type": "array",
       "description": "Per-surface skill resource closure verification receipts from verify phase",

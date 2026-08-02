@@ -2,7 +2,7 @@
 
 [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.3.0 -->
+<!-- release-skill:release-version: 0.4.0 -->
 ## 前置条件
 
 - Node.js 22.0.0 或更高版本
@@ -73,8 +73,8 @@ codex plugin marketplace add ifoohoo/release-skill
 
 **Kimi Code**（交互会话中）：
 
-Kimi Code 没有市场安装接口，需手动安装并钉死到特定 release tag。详见
-[Kimi Code 小节](#安装为-kimi-code-插件)的版本钉死手动安装与证明闭环。
+Kimi Code 没有市场安装接口，发布后需手动安装并钉死到特定 release tag。
+release-skill 会返回待办，但不核验其完成结果。
 
 ### 备选：直接从仓库安装（进阶）
 
@@ -95,51 +95,21 @@ Kimi Code 是与 Claude Code 和 Codex 并列的受支持插件宿主。Kimi Cod
 `.codex-plugin/plugin.json` 对应；包内同时提供 `adapters/kimi/`，与
 `adapters/claude/`、`adapters/codex/` 并列。
 
-日常安装请优先使用上文的
-[统一市场路径](#安装为插件统一市场推荐)。本节其余部分记录的是
-release-skill 自身 publish/verify 流水线所依赖的“版本钉死手动闭环”。
-
 Kimi Code 有交互式插件市场，但**没有可脚本化的非交互安装接口**。因此
-release-skill 把 Kimi 安装建模为“版本钉死的手动安装 + 可信观测/人工证明”：
-`publish`/`verify` 从不对 Kimi 执行自动安装。完整闭环如下：
+新发布计划中，`publish` 完成自动化远端写入后返回非阻塞的
+`manualFollowUps`，其中含钉死的安装 URL；`verify` 不安装也不检查 Kimi，返回
+`verifiedBySystem: false`，该待办不阻塞 `VERIFIED`。
 
-1. `publish` 先完成自动化远端写入（Git branch/tag、npm、GitHub Release）。
-   `kimi-marketplace-install` 动作在 publish 阶段记录为 `DEFERRED`，不调用市场适配器，自动化安装路径失败关闭。全部远端永久写入一致后运行进入 `PUBLISHED`。运行记录会给出钉死的安装 URL 与证明写入路径。
-2. 读取 requirement：
-   `<root>/.release-skill/kimi-attestations/<plugin>/release-skill-kimi-manual-install.json`。
-3. 启动 Kimi Code，从钉死到精确版本的 release tag 安装（切勿使用裸仓库地址，
-   它会安装最新 release 或默认分支），确认信任提示后重新加载。写出证明之前，
-   必须核实已安装插件清单版本等于冻结版本；否则**不得**出具证明。
+发布完成后，维护者可启动 Kimi Code，从钉死到精确版本的 release tag 安装
+（切勿使用裸仓库地址，它会安装最新 release 或默认分支），确认信任提示后重新加载：
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.3.0
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.4.0
    /plugins reload
    ```
 
-4. 把人工结果 JSON 写入
-   `<root>/.release-skill/kimi-attestations/<plugin>/release-skill-kimi-attestation.json`。
-   `planDigest` 必须是冻结**计划**摘要；`result` 只接受 `"passed"` 或 `"failed"`。
-   示例：
-
-```json
-{
-  "platform": "kimi",
-  "version": "0.3.0",
-  "planDigest": "<64 位十六进制冻结计划摘要>",
-  "result": "passed",
-  "actor": "<确认人>",
-  "confirmedAt": "2026-07-23T00:00:00.000Z",
-  "note": "<可选备注>"
-}
-```
-
-5. 运行 `release-skill verify --run <publish-run>`（→
-   `VERIFIED`）。verify 命令从稳定的插件级目录读取证明，因此新的
-   run 目录不会丢失该证明。
-
-当平台没有可靠的自动化验证时，绑定后的人工 `passed`/`failed` 结果即为权威判定。
-`verify` 命令消费人工结果，成功后进入 `VERIFIED`。但身份、版本、载荷、市场来源
-或安装契约不一致时，不可被人工 `passed` 结果覆盖。
+新计划无需收据或人工证明。`attest` 命令仅兼容缺少
+`humanConsumersStrategy: manualFollowUps` 标记的旧冻结计划。
 
 ## 安装为 CodeBuddy/WorkBuddy 插件
 
@@ -152,48 +122,12 @@ CodeBuddy（桌面端产品 WorkBuddy）是与 Claude Code、Codex、Kimi Code �
 `${CLAUDE_PLUGIN_ROOT}` 一样内联展开该变量。build adapter 目录名为 `workbuddy`，
 而平台 / 分发 id 为 `codebuddy`，两个名字指向同一目标。
 
-日常安装请优先使用上文的
-[统一市场路径](#安装为插件统一市场推荐)。本节其余部分记录的是
-release-skill 自身 publish/verify 流水线所依赖的“手动安装 + 可信证明闭环”。
-
 codebuddy CLI 可以添加市场并安装插件，但 **`plugin marketplace add` 与
 `plugin install` 均无 ref 选项**——安装会跟踪市场默认分支 / latest。因此自动化
 安装检查点无法保证冻结产物的同一性，release-skill 把 CodeBuddy 安装建模为
-“**手动**安装 + 可信观测/人工证明”（与 Kimi Code 相同的能力缺口与闭环）：
-`publish`/`verify` 从不对 CodeBuddy 执行自动安装。完整闭环如下：
-
-1. `publish` 先完成自动化远端写入（Git branch/tag、npm、GitHub Release）。
-   `codebuddy-marketplace-install` 动作在 publish 阶段记录为 `DEFERRED`，不调用
-   市场适配器，自动化安装路径失败关闭。全部远端永久写入一致后运行进入 `PUBLISHED`。运行记录会给出证明写入路径。
-2. 读取 requirement：
-   `<root>/.release-skill/codebuddy-attestations/<plugin>/release-skill-codebuddy-manual-install.json`。
-3. 从 bundled-family 市场 `ifoohoo/release-skill`
-   （https://github.com/ifoohoo/release-skill）安装 release-skill。
-   写出证明之前，必须核实已安装插件清单版本等于冻结版本；否则**不得**出具证明。
-4. 把人工结果 JSON 写入
-   `<root>/.release-skill/codebuddy-attestations/<plugin>/release-skill-codebuddy-attestation.json`。
-   `planDigest` 必须是冻结**计划**摘要；`result` 只接受 `"passed"` 或 `"failed"`。
-   示例：
-
-```json
-{
-  "platform": "codebuddy",
-  "version": "0.3.0",
-  "planDigest": "<64 位十六进制冻结计划摘要>",
-  "result": "passed",
-  "actor": "<确认人>",
-  "confirmedAt": "2026-07-23T00:00:00.000Z",
-  "note": "<可选备注>"
-}
-```
-
-5. 运行 `release-skill verify --run <publish-run>`（→
-   `VERIFIED`）。verify 命令从稳定的插件级目录读取证明，因此新的
-   run 目录不会丢失该证明。
-
-当平台没有可靠的自动化验证时，绑定后的人工 `passed`/`failed` 结果即为权威判定。
-`verify` 命令消费人工结果，成功后进入 `VERIFIED`。但身份、版本、载荷、市场来源
-或安装契约不一致时，不可被人工 `passed` 结果覆盖。
+发布后的非阻塞团队待办。`publish` 在 `manualFollowUps` 中返回任务；`verify`
+不检查安装并返回 `verifiedBySystem: false`。发布后从 bundled-family 市场
+`ifoohoo/release-skill` 安装即可。新计划无需收据或人工证明；`attest` 只兼容旧冻结计划。
 
 源码检出后也可以用 `--plugin-dir <path>/adapters/workbuddy` 把 CodeBuddy 指向
 生成的插件目录做单会话使用；适配器不引用自身目录之外的任何文件。
@@ -346,7 +280,7 @@ node -e 'require("node:fs").rmSync(process.argv[1],{recursive:true,force:false})
 
 该命令只读地检查项目结构、配置、文档和供应链；未显式传入 `--output` 时不写报告，也不运行项目 hook。
 
-`prepare` 不同：它在目标项目的 `.release-skill/` 下写入发布工件，并可能运行已配置 hook。hook 是无沙箱的任意进程，可能写到项目外、访问凭据、使用网络或执行远端写入。授予 `--acknowledge-hook-side-effects` 前必须审阅可执行文件、参数和工作目录。
+`prepare` 不同：它在目标项目的 `.release-skill/` 下写入发布工件，并可能运行已配置 hook。hook 是无沙箱的任意进程，可能写到项目外、访问凭据、使用网络或执行远端写入。`prepare` 命令调用本身即授权执行已配置的 hook 和 gate，无需额外授权参数。
 
 Git 仓库应保留人工配置，同时忽略生成的权威文件和证据：
 
@@ -400,7 +334,7 @@ releaseUnits:
 
 ### 进阶：hook（可选）
 
-hook 是可选的任意本地进程。prepare 使用 hook 时必须显式授予 `--acknowledge-hook-side-effects`：
+hook 是可选的任意本地进程。`prepare` 命令调用本身即授权执行已配置的 hook：
 
 ```yaml
 hooks:
@@ -432,7 +366,7 @@ verificationGates:
 
 这个自包含示例只读取已映射的公开文件。若替换成项目脚本，该脚本及全部依赖必须存在于冻结公开快照；gate 不能借用父工作空间中的测试、开发依赖或 `node_modules`。
 
-当计划的当前阶段包含 gate 时，prepare 或 verify 必须传入 `--acknowledge-gate-side-effects`。hook/gate 都是无网络沙箱的项目进程；release-skill 约束其输入与证据，但无法保证自定义命令不修改文件或不访问网络。禁止把 Git push、tag、默认分支修改、GitHub Release 或 npm publish 注册为 hook/gate，它们只能由受控的计划动作完成。
+`prepare` 和 `verify` 命令调用本身即授权执行已配置的 gate，无需额外授权参数。hook/gate 都是无网络沙箱的项目进程；release-skill 约束其输入与证据，但无法保证自定义命令不修改文件或不访问网络。禁止把 Git push、tag、默认分支修改、GitHub Release 或 npm publish 注册为 hook/gate，它们只能由受控的计划动作完成。
 
 ### 进阶：发布文档刷新（可选）
 

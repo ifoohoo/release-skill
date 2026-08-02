@@ -17,7 +17,7 @@ verify 只接受 `PUBLISHED` 状态的源 run；`VERIFIED` 是终态，不会再
 
 ## 职责与边界
 
-验证远端所有 action 的实际状态与冻结计划一致。执行精确 `<package>@<version>` npm 安装到隔离目录，验证包名、版本、静态入口闭包，并在配置时验证 bin 路径安全和 CLI 烟雾输出。对每个声明的 marketplace distribution 执行全新隔离消费者安装验证。
+验证远端所有自动化 action 的实际状态与冻结计划一致。执行精确 `<package>@<version>` npm 安装到隔离目录，验证包名、版本、静态入口闭包，并在配置时验证 bin 路径安全和 CLI 烟雾输出。对 Claude/Codex marketplace distribution 执行全新隔离消费者安装验证。新计划中的 Kimi/CodeBuddy 安装只返回 `manualFollowUps`，明确标记 `verifiedBySystem: false`，不阻塞 `VERIFIED`；缺少该策略字段的旧冻结计划继续走历史 attestation 兼容路径。
 
 **阶段通过规则**: 只有 CLI exit code 0 和结构化状态码 `VERIFIED` 才是完整终态。
 
@@ -28,7 +28,7 @@ verify 只接受 `PUBLISHED` 状态的源 run；`VERIFIED` 是终态，不会再
 ## 正向执行路径
 
 1. 确认有 `--run` 路径（必需），且源 run 状态为 PUBLISHED
-2. 使用插件根相对路径运行 CLI；若存在 consumer gate 或 npm `smokeBin`，先逐项审阅并增加 `--acknowledge-gate-side-effects`
+2. 使用插件根相对路径运行 CLI；命令调用本身即授权执行已配置的 verification gate 和 smoke process
 3. 检查 exit code 和结构化状态：`VERIFIED`（全部通过）/ 失败（具体错误）
 4. 只有 `VERIFIED` 才是 happy end
 
@@ -37,8 +37,6 @@ verify 只接受 `PUBLISHED` 状态的源 run；`VERIFIED` 是终态，不会再
 ```bash
 # 从插件根运行
 node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" verify --root <path> --plan <plan-path> --run <run-path> --json
-# 计划含 consumer gate 或 smokeBin 时：
-node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" verify --root <path> --plan <plan-path> --run <run-path> --acknowledge-gate-side-effects --json
 ```
 
 ## 验证步骤
@@ -47,7 +45,7 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" verify --root <path> --plan <
 2. 加载源 run，验证 planDigest 匹配和 checkpoint 完整性
 3. 对每个 plan action 执行 adapter.verify()（远端状态重检）
 4. 对每个 npm distribution 执行隔离安装烟雾测试
-5. 对每个 marketplace distribution 执行全新隔离消费者安装验证
+5. 对 Claude/Codex marketplace distribution 执行全新隔离消费者安装验证；收集 Kimi/CodeBuddy 的非阻塞 `manualFollowUps`
 6. 全部通过 → `VERIFIED`
 
 ## 烟雾测试
@@ -69,4 +67,4 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" verify --root <path> --plan <
 | 远端状态不匹配 | POST_PUBLISH_VERIFY_FAILED | 停止 |
 | npm 安装失败 | POST_PUBLISH_VERIFY_FAILED | 停止 |
 | CLI 烟雾输出不匹配 | POST_PUBLISH_VERIFY_FAILED | 停止 |
-| consumer gate / smokeBin 未授权 | GATE_FAILED | 展示命令和副作用，人工确认后加 `--acknowledge-gate-side-effects` |
+| consumer gate / smokeBin 执行失败 | GATE_FAILED | 检查失败原因，修复后重试 |

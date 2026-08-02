@@ -2,7 +2,7 @@
 
 [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.3.0 -->
+<!-- release-skill:release-version: 0.4.0 -->
 ## Prerequisites
 
 - Node.js 22.0.0 or later
@@ -78,9 +78,9 @@ Then install `release-skill` from the interactive `/plugins` browser.
 
 **Kimi Code** (interactive session):
 
-Kimi Code has no marketplace install API. Installation is manual, pinned to a
-specific release tag. See the [Kimi Code section](#install-as-a-kimi-code-plugin)
-for the version-pinned manual install and attestation closed loop.
+Kimi Code has no marketplace install API. Installation is a post-release manual
+task pinned to a specific release tag. release-skill reports the task but does
+not verify its completion.
 
 ### Alternative: direct repository install (advanced)
 
@@ -103,61 +103,24 @@ Kimi Code plugin manifest lives at `.kimi-plugin/plugin.json`, mirroring
 `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json`, and the package
 ships `adapters/kimi/` next to `adapters/claude/` and `adapters/codex/`.
 
-For day-to-day installation, prefer the
-[unified marketplace path](#install-as-a-plugin-unified-marketplace--recommended)
-above. The remainder of this section documents the version-pinned manual
-closed loop that release-skill's own publish/verify pipeline relies on.
-
 Kimi Code has an interactive plugin marketplace but **no scriptable,
-non-interactive install API**. release-skill therefore models Kimi installation
-as a version-pinned **manual** install plus trusted observation/attestation:
-`publish`/`verify` never auto-install Kimi plugins. The closed loop is:
+non-interactive install API**. For new release plans, `publish` completes the
+automated remote writes and returns a non-blocking `manualFollowUps` entry with
+the pinned install URL. `verify` does not install or inspect Kimi and reports
+`verifiedBySystem: false`; the task does not block `VERIFIED`.
 
-1. `publish` performs the automated remote writes (Git branch/tag, npm, GitHub
-   Release). The `kimi-marketplace-install` action is recorded as `DEFERRED`
-   during publish — the marketplace adapter is not called, and the automated
-   install path fails closed. The run enters `PUBLISHED` after all remote
-   permanent writes are consistent. The run record gives the pinned install URL
-   and the attestation path.
-2. Read the requirement at
-   `<root>/.release-skill/kimi-attestations/<plugin>/release-skill-kimi-manual-install.json`.
-3. Launch Kimi Code and install from the release tag pinned to the exact
-   version (never the bare repository URL, which installs the latest release or
-   default branch), confirm the trust prompt, then reload. Before writing the
-   attestation you MUST confirm the installed plugin manifest version equals the
-   frozen version; otherwise do NOT issue an attestation.
+After publishing, a maintainer can launch Kimi Code and install from the release
+tag pinned to the exact version (never the bare repository URL, which installs
+the latest release or default branch), confirm the trust prompt, then reload:
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.3.0
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.4.0
    /plugins reload
    ```
 
-4. Write the attestation JSON to
-   `<root>/.release-skill/kimi-attestations/<plugin>/release-skill-kimi-attestation.json`.
-   `planDigest` MUST be the frozen **plan** digest; `result` accepts only
-   `"passed"` or `"failed"`. Example:
-
-```json
-{
-  "platform": "kimi",
-  "version": "0.3.0",
-  "planDigest": "<64-hex frozen plan digest>",
-  "result": "passed",
-  "actor": "<person who confirmed>",
-  "confirmedAt": "2026-07-23T00:00:00.000Z",
-  "note": "<optional note>"
-}
-```
-
-5. Run `release-skill verify --run <publish-run>` (→
-   `VERIFIED`). The verify command reads the attestation from the stable
-   plugin-level directory, so the fresh run directory does not lose the proof.
-
-When a platform has no reliable automated verification, the bound human
-`passed`/`failed` attestation is authoritative. The `verify` command consumes
-the human result and transitions to `VERIFIED` on success. However, identity,
-version, payload, marketplace source, or installation contract inconsistencies
-MUST NOT be overridden by a human `passed` result.
+No receipt or attestation is required. The `attest` command remains available
+only for frozen plans created by older versions that lack the
+`humanConsumersStrategy: manualFollowUps` marker.
 
 ## Install as a CodeBuddy/WorkBuddy plugin
 
@@ -172,56 +135,15 @@ expands inline like Claude Code expands `${CLAUDE_PLUGIN_ROOT}`. The build
 adapter directory is named `workbuddy` while the platform / distribution id is
 `codebuddy`; the two names refer to the same target.
 
-For day-to-day installation, prefer the
-[unified marketplace path](#install-as-a-plugin-unified-marketplace--recommended)
-above. The remainder of this section documents the manual attestation closed loop
-that release-skill's own publish/verify pipeline relies on.
-
 The codebuddy CLI can add a marketplace and install a plugin, but **neither
 `plugin marketplace add` nor `plugin install` accepts a ref option** — the install
 tracks the marketplace default branch / latest. An automated install checkpoint
 therefore cannot guarantee the frozen artifact's identity, so release-skill models
-CodeBuddy installation as a **manual** install plus trusted observation/
-attestation (the same capability gap and closed loop as Kimi Code):
-`publish`/`verify` never auto-install CodeBuddy plugins. The closed loop is:
-
-1. `publish` performs the automated remote writes (Git branch/tag, npm, GitHub
-   Release). The `codebuddy-marketplace-install` action is recorded as `DEFERRED`
-   during publish — the marketplace adapter is not called, and the automated
-   install path fails closed. The run enters `PUBLISHED` after all remote
-   permanent writes are consistent. The run record gives the attestation path.
-2. Read the requirement at
-   `<root>/.release-skill/codebuddy-attestations/<plugin>/release-skill-codebuddy-manual-install.json`.
-3. Install release-skill from the bundled-family marketplace `ifoohoo/release-skill`
-   (https://github.com/ifoohoo/release-skill). Before writing the
-   attestation you MUST confirm the installed plugin manifest version equals the
-   frozen version; otherwise do NOT issue an attestation.
-4. Write the attestation JSON to
-   `<root>/.release-skill/codebuddy-attestations/<plugin>/release-skill-codebuddy-attestation.json`.
-   `planDigest` MUST be the frozen **plan** digest; `result` accepts only
-   `"passed"` or `"failed"`. Example:
-
-```json
-{
-  "platform": "codebuddy",
-  "version": "0.3.0",
-  "planDigest": "<64-hex frozen plan digest>",
-  "result": "passed",
-  "actor": "<person who confirmed>",
-  "confirmedAt": "2026-07-23T00:00:00.000Z",
-  "note": "<optional note>"
-}
-```
-
-5. Run `release-skill verify --run <publish-run>` (→
-   `VERIFIED`). The verify command reads the attestation from the stable
-   plugin-level directory, so the fresh run directory does not lose the proof.
-
-When a platform has no reliable automated verification, the bound human
-`passed`/`failed` attestation is authoritative. The `verify` command consumes
-the human result and transitions to `VERIFIED` on success. However, identity,
-version, payload, marketplace source, or installation contract inconsistencies
-MUST NOT be overridden by a human `passed` result.
+CodeBuddy installation as a non-blocking post-release team task. `publish`
+returns it in `manualFollowUps`; `verify` does not inspect the installation and
+reports `verifiedBySystem: false`. Install from the bundled-family marketplace
+`ifoohoo/release-skill` after publishing. No receipt or attestation is required
+for new plans; `attest` exists only for old frozen-plan compatibility.
 
 For a single session from a source checkout you can also point CodeBuddy at the
 generated plugin directory with `--plugin-dir <path>/adapters/workbuddy`; the
@@ -408,9 +330,9 @@ documentation, and supply chain, then outputs a gap report. Without an explicit
 `prepare` is different: it writes release artifacts under the target project's
 `.release-skill/` directory and may run configured hooks. Hooks are unsandboxed
 arbitrary processes. They may write outside the project, access credentials,
-use the network, or perform remote writes. Review the displayed executable,
-arguments, and working directory before granting
-`--acknowledge-hook-side-effects`.
+use the network, or perform remote writes. The `prepare` command invocation
+itself authorizes execution of configured hooks and gates; no separate
+acknowledgement flag is required.
 
 For a Git repository, keep the human-owned project configuration while ignoring
 generated authority and evidence:
@@ -466,8 +388,9 @@ releaseUnits:
 
 ### Advanced: hooks (optional)
 
-Hooks are optional and run arbitrary local processes. They require explicit
-`--acknowledge-hook-side-effects` authorization when used with `prepare`.
+Hooks are optional and run arbitrary local processes. The `prepare` command
+invocation itself authorizes execution of configured hooks; no separate
+acknowledgement flag is required.
 
 ```yaml
 hooks:
@@ -507,12 +430,13 @@ script and every dependency it needs must exist in the frozen public snapshot;
 the gate cannot borrow tests, development dependencies, or `node_modules` from
 the parent workspace.
 
-Prepare and verify require `--acknowledge-gate-side-effects` whenever their
-planned phase contains gates. Hooks and gates are project processes without a
-network sandbox; release-skill limits their inputs and evidence but cannot
-guarantee that a custom command will not modify files or access the network.
-Never register Git push, tag, default-branch changes, GitHub Releases, or npm
-publish as a hook/gate; those are controlled plan actions.
+The `prepare` and `verify` command invocations authorize execution of
+configured gates; no separate acknowledgement flag is required. Hooks and
+gates are project processes without a network sandbox; release-skill limits
+their inputs and evidence but cannot guarantee that a custom command will not
+modify files or access the network. Never register Git push, tag,
+default-branch changes, GitHub Releases, or npm publish as a hook/gate; those
+are controlled plan actions.
 
 ### Advanced: release-document refresh (optional)
 

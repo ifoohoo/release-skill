@@ -465,7 +465,6 @@ export async function publishRelease(options) {
     clock: clockOpt,
     captureBaselineFn,
     productionMode = false,
-    productionConfirmation,
     observePreviousPublicBaselineFn,
     observeRetrySleep,
   } = options ?? {};
@@ -543,13 +542,6 @@ export async function publishRelease(options) {
     if (isProductionPlan) {
       if (!plan.production.assetRoot || plan.production.assetRoot === '.') {
         throw new ReleaseError(GATE_FAILED, 'production plan requires a dedicated assetRoot');
-      }
-      if (!productionConfirmation || productionConfirmation !== actualDigest) {
-        throw new ReleaseError(
-          GATE_FAILED,
-          'production confirmation must exactly match the current plan digest',
-          { planDigest: actualDigest },
-        );
       }
     }
 

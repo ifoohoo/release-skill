@@ -1,6 +1,26 @@
 # Changelog
 
-<!-- release-skill:changelog:start version=0.3.0 locale=en baseline=sha256:e3dacdaf9c7f780ccbd530d85cd16994b1a33747146475ac77f21e6f09be1493 -->
+<!-- release-skill:changelog:start version=0.4.0 locale=en baseline=sha256:099d9db24049aeaae78a21d3bd5152582bb20d4efad1ceff085f9609e8e6d52e -->
+## [0.4.0] - 2026-08-02
+
+v0.4.0 simplifies the production release path to one frozen-plan approval and moves unavailable Kimi or CodeBuddy installations into non-blocking manual follow-up tasks.
+
+### Added
+
+- **Manual consumer follow-ups**: when Kimi or CodeBuddy cannot be installed automatically, the release records an installation task after publishing without requiring system attestation.
+
+### Changed
+
+- **Single release approval**: the normal production path now asks only for approval of the immutable release plan; invoking a command authorizes its configured hooks and gates.
+- **Non-blocking human consumers**: Kimi and CodeBuddy manual installation tasks no longer prevent the automated release from reaching `VERIFIED`.
+
+### Removed
+
+- **Redundant confirmation flags**: legacy plan-digest repetition, production-confirmation, hook-authorization, and manual-attestation interactions were removed from the normal release path.
+<!-- release-skill:changelog:end version=0.4.0 locale=en -->
+
+
+<!-- release-skill:changelog:start version=0.3.0 locale=en baseline=sha256:ee0626856918a8fae3b49f3e1645b8f2dc4149519499edbd04e175939faa1b2e -->
 ## [0.3.0] - 2026-07-31
 
 v0.3.0 streamlines production releases into a resumable orchestration with reusable hook receipts, consolidated approvals, and stronger consumer-install evidence.
@@ -9,12 +29,12 @@ v0.3.0 streamlines production releases into a resumable orchestration with reusa
 
 - **Resumable ship orchestration**: the new `ship` command persists the active release state and resumes prepare, approval, publish, reconcile, and verification without rebuilding authority from conversational context.
 - **Reusable hook receipts**: `hooks validate` executes declared hooks through the same content-bound cache used by prepare, so unchanged checks do not need to run again.
-- **Verified manual attestations**: `attest` validates a reported Kimi or CodeBuddy installation against the exact frozen plugin payload before recording consumer evidence.
+- **Manual consumer follow-ups**: Kimi and CodeBuddy installation tasks are emitted after automated publishing and explicitly remain outside system verification.
 - **Git transport preflight**: production publishing selects one repository-consistent HTTPS or SSH transport before any remote write and blocks conflicting remote identities.
 
 ### Changed
 
-- **Consolidated human decisions**: the normal path requires at most one hook-side-effect authorization and one immutable-plan approval; manual consumer requirements are collected before automatic verification.
+- **Consolidated human decisions**: the normal path requires one immutable-plan approval; invoking a command authorizes its configured hooks and gates, while manual consumer tasks are collected after publishing.
 - **Parallel consumer verification**: independent consumer checks run concurrently, drain before failure reporting, and produce deterministically ordered evidence.
 - **Automatic release metadata**: successful verification advances each unit's `previousPublicBaseline` to the frozen public commit, tree, and manifest digest.
 - **Compact prepare output**: JSON output references the immutable plan by path and digest instead of embedding the full plan.

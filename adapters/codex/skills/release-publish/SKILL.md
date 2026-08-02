@@ -1,6 +1,6 @@
 ---
 name: release-publish
-description: 从已批准且摘要确认的生产计划发布冻结 Git branch/tag、npm tarball 与 GitHub Release，并执行已配置的 Claude/Codex marketplace 隔离消费者安装检查以达到 PUBLISHED；随后必须路由 release-verify 才可能达到 VERIFIED；遇到冲突或不确定远端状态时失败关闭并要求人工介入
+description: 从已批准的生产计划发布冻结 Git branch/tag、npm tarball 与 GitHub Release，并执行已配置的 Claude/Codex marketplace 隔离消费者安装检查以达到 PUBLISHED；随后必须路由 release-verify 才可能达到 VERIFIED；遇到冲突或不确定远端状态时失败关闭并要求人工介入
 ---
 
 > **Codex 安装入口解析协议**：在调用 CLI 前，Agent 必须从宿主当前已加载技能的元数据中取得本 `SKILL.md` 的实际绝对路径，并将该字面量记为 `SKILL_FILE`。
@@ -32,16 +32,15 @@ description: 从已批准且摘要确认的生产计划发布冻结 Git branch/t
 
 ## 授权门
 
-1. 展示 `planDigest`、版本、仓库/包名、branch/tag 和全部 actions。
-2. 必须存在未过期且绑定同一 digest 的 approval record。
-3. 用户必须明确提供 `--confirm-production <planDigest>`；Agent 不得代替用户猜测确认值。
-4. 只有 CLI exit code 0 且结构化状态为 `PUBLISHED` 才算外写阶段通过；随后必须运行 verify，只有 `VERIFIED` 才是完整终态。
+1. 展示可读的 `approvalSummary`：版本、仓库/包名、branch/tag、全部 actions 和例外。
+2. 必须存在未过期且由系统绑定同一内部 digest 的 approval record；批准后不再要求用户复制摘要做二次确认。
+3. 只有 CLI exit code 0 且结构化状态为 `PUBLISHED` 才算外写阶段通过；随后必须运行 verify，只有 `VERIFIED` 才是完整终态。
 
 ## 确定性执行
 
 ```bash
 node "$RELEASE_SKILL_ENTRY" publish --root <path> --plan <plan-path> \
-  --approval <approval-path> --confirm-production <planDigest> --json
+  --approval <approval-path> --json
 ```
 
 执行顺序：全局只读预检 → 配置的公开分支（按三种 `branchStrategy` 执行）→ 必要时

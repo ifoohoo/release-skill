@@ -90,8 +90,7 @@ function publicState(state) {
     status: state.status,
     statePath: state.statePath,
     targetVersion: state.targetVersion,
-    ...(state.hookAuthorizationDigest ? {
-      hookAuthorizationDigest: state.hookAuthorizationDigest,
+    ...(state.hooks && state.hooks.length > 0 ? {
       hooks: state.hooks,
     } : {}),
     ...(state.planPath ? {
@@ -100,34 +99,52 @@ function publicState(state) {
       evidenceDir: state.evidenceDir,
       warnings: state.warnings ?? [],
     } : {}),
+    ...(state.approvalSummary ? { approvalSummary: state.approvalSummary } : {}),
     ...(state.approvalPath ? { approvalPath: state.approvalPath } : {}),
     ...(state.sourceRunPath ? { sourceRunPath: state.sourceRunPath } : {}),
     ...(state.requirements ? { requirements: state.requirements } : {}),
+    ...(state.manualFollowUps ? { manualFollowUps: state.manualFollowUps } : {}),
     ...(state.metadataUpdate ? { metadataUpdate: state.metadataUpdate } : {}),
-    verificationGateAuthorizationIncludedInPlanApproval:
-      state.status !== 'NEEDS_HOOK_AUTHORIZATION',
-    postVerifyMetadataUpdateIncludedInPlanApproval:
-      state.status !== 'NEEDS_HOOK_AUTHORIZATION',
+    verificationGateAuthorizationIncludedInPlanApproval: true,
+    postVerifyMetadataUpdateIncludedInPlanApproval: true,
   };
 }
 
-function hookAuthority(loaded, targetVersion) {
-  const hooks = Object.keys(loaded.config.hooks ?? {}).sort();
-  return {
-    hooks,
-    digest: sha256Hex(canonicalJson({
-      kind: 'release-skill-hook-authorization/v1',
-      configDigest: loaded.configDigest,
-      hooks: loaded.config.hooks ?? {},
-      targetVersion: targetVersion ?? null,
-    })),
-  };
+/**
+ * Build a human-readable approval summary from the frozen plan.
+ * Lists each unit's version and every external action's id/type/unitId.
+ * Returns an empty summary when the plan file is not yet available (e.g., in tests).
+ *
+ * @param {string} planPath - Path to the frozen release plan.
+ * @returns {Promise<object>} The approval summary.
+ */
+async function buildApprovalSummary(planPath) {
+  try {
+    const plan = JSON.parse(await readFile(planPath, 'utf8'));
+    const units = (plan.units ?? []).map((unit) => ({
+      id: unit.id,
+      targetVersion: unit.targetVersion ?? unit.version,
+    }));
+    const actions = (plan.externalActions ?? []).map((action) => ({
+      id: action.id,
+      type: action.type,
+      unitId: action.unitId,
+    }));
+    return { units, actions };
+  } catch {
+    return { units: [], actions: [] };
+  }
 }
 
 /**
  * Advance one durable production release. Re-running is safe: the state file
  * carries the immutable plan, approval and source-run paths so the command
  * resumes instead of reconstructing authority from terminal/chat output.
+ *
+ * New flow (v0.4+): ship directly runs configured hooks and verification gates
+ * without a separate hook authorization step. The only human gate is plan
+ * approval. Kimi/CodeBuddy installations are non-blocking manual follow-up
+ * tasks when the plan declares humanConsumersStrategy: 'manualFollowUps'.
  */
 export async function advanceShip(options = {}, injected = {}) {
   const root = resolve(options.root ?? process.cwd());
@@ -144,69 +161,25 @@ export async function advanceShip(options = {}, injected = {}) {
 
   if (!state) {
     const loaded = await deps.loadProjectConfig({ root });
-    const authority = hookAuthority(loaded, options.targetVersion);
-    const hooks = authority.hooks;
-    const hookAuthorizationDigest = authority.digest;
+    const hooks = Object.keys(loaded.config.hooks ?? {}).sort();
     state = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       root,
       statePath,
       targetVersion: options.targetVersion ?? null,
       configDigest: loaded.configDigest,
       hooks,
-      hookAuthorizationDigest,
-      status: hooks.length > 0 ? 'NEEDS_HOOK_AUTHORIZATION' : 'NEW',
+      status: 'NEW',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
     await writeJsonAtomic(statePath, state);
-    if (hooks.length > 0 && options.hookAuthorizationDigest !== hookAuthorizationDigest) {
-      return publicState(state);
-    }
   }
 
+  // Backward compatibility: auto-recover from legacy NEEDS_HOOK_AUTHORIZATION
+  // state. Old state files may have this status from the previous two-gate
+  // flow; the new flow runs hooks directly so we advance to NEW immediately.
   if (state.status === 'NEEDS_HOOK_AUTHORIZATION') {
-    const loaded = await deps.loadProjectConfig({ root });
-    const current = hookAuthority(loaded, state.targetVersion);
-    if (
-      loaded.configDigest !== state.configDigest
-      || current.digest !== state.hookAuthorizationDigest
-    ) {
-      state = {
-        ...state,
-        configDigest: loaded.configDigest,
-        hooks: current.hooks,
-        hookAuthorizationDigest: current.digest,
-        updatedAt: new Date().toISOString(),
-      };
-      await writeJsonAtomic(statePath, state);
-      if (verified.status === 'VERIFIED' && deps.updatePreviousPublicBaselines) {
-        try {
-          state.metadataUpdate = await deps.updatePreviousPublicBaselines({
-            root,
-            planPath: state.planPath,
-          });
-        } catch (error) {
-          state.metadataUpdate = {
-            status: 'FAILED',
-            error: error.message,
-          };
-        }
-        state.updatedAt = new Date().toISOString();
-        await writeJsonAtomic(statePath, state);
-      }
-      return publicState(state);
-    }
-    if (options.hookAuthorizationDigest !== state.hookAuthorizationDigest) {
-      if (options.hookAuthorizationDigest) {
-        throw new ReleaseError(
-          PLAN_DIGEST_MISMATCH,
-          'hook authorization digest does not match the current config, hooks and target version',
-        );
-      }
-      return publicState(state);
-    }
-    state.hookAuthorizedBy = options.actor ?? null;
     state.status = 'NEW';
     state.updatedAt = new Date().toISOString();
     await writeJsonAtomic(statePath, state);
@@ -215,17 +188,15 @@ export async function advanceShip(options = {}, injected = {}) {
   if (state.status === 'NEW') {
     const loaded = await deps.loadProjectConfig({ root });
     if (loaded.configDigest !== state.configDigest) {
-      const current = hookAuthority(loaded, state.targetVersion);
+      const hooks = Object.keys(loaded.config.hooks ?? {}).sort();
       state = {
         ...state,
         configDigest: loaded.configDigest,
-        hooks: current.hooks,
-        hookAuthorizationDigest: current.digest,
-        status: current.hooks.length > 0 ? 'NEEDS_HOOK_AUTHORIZATION' : 'NEW',
+        hooks,
+        status: 'NEW',
         updatedAt: new Date().toISOString(),
       };
       await writeJsonAtomic(statePath, state);
-      if (state.status === 'NEEDS_HOOK_AUTHORIZATION') return publicState(state);
     }
     const prepared = await deps.prepareRelease({
       root,
@@ -233,7 +204,7 @@ export async function advanceShip(options = {}, injected = {}) {
       offline: false,
       production: true,
       hooksAuthorized: true,
-      verificationGatesAuthorized: false,
+      verificationGatesAuthorized: true,
       hookCache: true,
     });
     let transportPreflight = null;
@@ -242,6 +213,7 @@ export async function advanceShip(options = {}, injected = {}) {
       transportPreflight = await deps.preflightGitTransports(frozenPlan);
       process.env.RELEASE_SKILL_GIT_TRANSPORT = transportPreflight.transport;
     }
+    const approvalSummary = await buildApprovalSummary(prepared.planPath);
     state = {
       ...state,
       status: 'NEEDS_PLAN_APPROVAL',
@@ -249,6 +221,7 @@ export async function advanceShip(options = {}, injected = {}) {
       planDigest: prepared.planDigest,
       evidenceDir: prepared.evidenceDir,
       warnings: prepared.warnings,
+      approvalSummary,
       ...(transportPreflight ? {
         gitTransport: transportPreflight.transport,
         gitTransportPreflight: transportPreflight.repositories,
@@ -259,8 +232,14 @@ export async function advanceShip(options = {}, injected = {}) {
   }
 
   if (state.status === 'NEEDS_PLAN_APPROVAL') {
-    if (!options.planApprovalDigest) return publicState(state);
-    if (options.planApprovalDigest !== state.planDigest) {
+    // Boolean --approve: auto-use the stored planDigest (no user digest input needed).
+    // Legacy --approve-plan <digest>: explicit digest must match.
+    const approveRequested = options.approve === true
+      || (typeof options.planApprovalDigest === 'string' && options.planApprovalDigest.length > 0);
+    if (!approveRequested) return publicState(state);
+    if (options.approve === true) {
+      // Boolean approve: no digest input; the stored planDigest is authoritative.
+    } else if (options.planApprovalDigest !== state.planDigest) {
       throw new ReleaseError(PLAN_DIGEST_MISMATCH, 'ship plan approval digest does not match the frozen plan');
     }
     if (!options.actor) {
@@ -294,7 +273,6 @@ export async function advanceShip(options = {}, injected = {}) {
       adapterRegistry: options.adapterRegistry,
       root,
       productionMode: true,
-      productionConfirmation: state.planDigest,
     });
     state = {
       ...state,
@@ -312,7 +290,6 @@ export async function advanceShip(options = {}, injected = {}) {
       approvalPath: state.approvalPath,
       adapterRegistry: options.adapterRegistry,
       root,
-      productionConfirmation: state.planDigest,
     });
     state = {
       ...state,
@@ -337,6 +314,7 @@ export async function advanceShip(options = {}, injected = {}) {
         status: verified.status,
         verifyRunPath: verified.runPath,
         requirements: undefined,
+        manualFollowUps: verified.manualFollowUps ?? undefined,
         updatedAt: new Date().toISOString(),
       };
       await writeJsonAtomic(statePath, state);

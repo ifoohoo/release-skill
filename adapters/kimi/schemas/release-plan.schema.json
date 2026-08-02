@@ -988,6 +988,13 @@
       "type": "string",
       "description": "Overall snapshot digest across all units"
     },
+    "humanConsumersStrategy": {
+      "type": "string",
+      "enum": [
+        "manualFollowUps"
+      ],
+      "description": "Human consumer strategy marker. 'manualFollowUps': Kimi/CodeBuddy installations are non-blocking post-release manual tasks; verify returns VERIFIED with manualFollowUps list and does not block on attestation. Absent: legacy attestation closed loop (backward compatibility)."
+    },
     "digest": {
       "type": "string",
       "minLength": 1

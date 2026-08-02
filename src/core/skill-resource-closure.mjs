@@ -275,10 +275,16 @@ export function evaluateConsumerSkillResourceClosureReceipts(plan, receipts) {
     'kimi-plugin',
     'codebuddy-plugin',
   ]);
+  // When plan declares humanConsumersStrategy: 'manualFollowUps', Kimi/CodeBuddy
+  // are non-blocking manual follow-up tasks and are not verified by the system.
+  // Exclude them from the expected receipt set.
+  const humanConsumerTypes = plan.humanConsumersStrategy === 'manualFollowUps'
+    ? new Set(['kimi-plugin', 'codebuddy-plugin'])
+    : new Set();
   const expectedKeys = [];
   for (const unit of plan.units ?? []) {
     for (const distribution of unit.distributions ?? []) {
-      if (supported.has(distribution.type)) {
+      if (supported.has(distribution.type) && !humanConsumerTypes.has(distribution.type)) {
         expectedKeys.push(`${unit.id}:${distribution.type}`);
       }
     }

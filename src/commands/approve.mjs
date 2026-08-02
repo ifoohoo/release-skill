@@ -54,7 +54,8 @@ function defaultClock() {
  *
  * @param {Object} options
  * @param {string} options.planPath - Absolute path to the frozen release plan.
- * @param {string} options.expectedDigest - Expected SHA-256 digest of the plan.
+ * @param {string} [options.expectedDigest] - Expected SHA-256 digest of the plan.
+ *   When omitted, the digest is computed from the immutable plan file.
  * @param {string} options.actor - Identity of the approver.
  * @param {number} [options.expiresInMs=86400000] - Approval validity in ms (default 24h).
  * @param {() => string} [options.clock] - Clock function returning ISO-8601 strings.
@@ -70,7 +71,7 @@ function defaultClock() {
 export async function approvePlan(options) {
   const {
     planPath,
-    expectedDigest,
+    expectedDigest: expectedDigestInput,
     actor,
     expiresInMs = 24 * 60 * 60 * 1000, // 24 hours
     clock,
@@ -82,9 +83,6 @@ export async function approvePlan(options) {
   // --- Validate required parameters ---
   if (!planPath || typeof planPath !== 'string') {
     throw new ReleaseError(PLAN_DIGEST_MISMATCH, 'planPath must be a non-empty string');
-  }
-  if (!expectedDigest || typeof expectedDigest !== 'string') {
-    throw new ReleaseError(PLAN_DIGEST_MISMATCH, 'expectedDigest must be a non-empty string');
   }
   if (!actor || typeof actor !== 'string') {
     throw new ReleaseError(GATE_FAILED, 'actor must be a non-empty string');
@@ -119,7 +117,11 @@ export async function approvePlan(options) {
   const actualDigest = computePlanDigest(plan);
   assertImmutablePlanAuthority(planPath, plan);
 
-  // --- Step 3: Compare digests ---
+  // --- Step 3: Resolve expectedDigest ---
+  // When expectedDigest is omitted, auto-compute from the immutable plan file.
+  const expectedDigest = expectedDigestInput ?? actualDigest;
+
+  // --- Step 4: Compare digests ---
   if (actualDigest !== expectedDigest) {
     throw new ReleaseError(
       PLAN_DIGEST_MISMATCH,

@@ -755,7 +755,7 @@ export async function verifyRelease(options) {
     runDir: runDirOpt,
     clock: clockOpt,
     npmExecutor,
-    verificationGatesAuthorized,
+    verificationGatesAuthorized: _verificationGatesAuthorized,
     gateEnv,
     previousVerifyRun,
   } = options ?? {};
@@ -826,16 +826,9 @@ export async function verifyRelease(options) {
         .filter((distribution) => distribution.type === 'npm' && distribution.smokeBin)
         .map((distribution) => ({ unitId: unit.id, smokeBin: distribution.smokeBin }))
     ));
-    if ((consumerGates.length > 0 || configuredSmokeBins.length > 0) && verificationGatesAuthorized !== true) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `plan declares ${consumerGates.length} consumer verification gate(s) and ` +
-        `${configuredSmokeBins.length} npm CLI smoke process(es). ` +
-        'They execute installed project code without an OS or network sandbox. ' +
-        'To proceed, pass --acknowledge-gate-side-effects (CLI) or verificationGatesAuthorized=true (API).',
-        { gateIds: consumerGates.map((gate) => gate.id), configuredSmokeBins },
-      );
-    }
+    // The command invocation itself authorizes execution of configured
+    // verification gates and smoke processes. Old --acknowledge-gate-side-effects
+    // is accepted as a no-effect compatibility input.
 
     await evidence.append({ phase: 'verify', step: 'plan-load', status: 'passed' });
 
@@ -1112,14 +1105,21 @@ export async function verifyRelease(options) {
       }
     }
 
-    const missingManualAttestations = await collectMissingManualAttestations({
-      actions,
-      adapterRegistry,
-      plan,
-      root,
-      runDir,
-      clockFn,
-    });
+    // When the plan declares humanConsumersStrategy: 'manualFollowUps',
+    // Kimi/CodeBuddy installations are non-blocking post-release manual tasks.
+    // Skip attestation collection and blocking for these platforms.
+    const isHumanConsumerFollowUp = plan.humanConsumersStrategy === 'manualFollowUps';
+
+    const missingManualAttestations = isHumanConsumerFollowUp
+      ? []
+      : await collectMissingManualAttestations({
+          actions,
+          adapterRegistry,
+          plan,
+          root,
+          runDir,
+          clockFn,
+        });
     if (missingManualAttestations.length > 0) {
       await evidence.append({
         phase: 'verify',
@@ -1133,6 +1133,9 @@ export async function verifyRelease(options) {
         { requirements: missingManualAttestations },
       );
     }
+
+    // Collect non-blocking manual follow-up tasks for human consumer platforms
+    const manualFollowUps = [];
 
     // Every action is identity-bound and adapters receive read-only or
     // per-action isolated consumer paths. Run independent checks concurrently;
@@ -1165,6 +1168,38 @@ export async function verifyRelease(options) {
       }
 
       if (isMarketplaceAction(action.type)) {
+        // When humanConsumersStrategy is 'manualFollowUps', Kimi/CodeBuddy
+        // installations are non-blocking manual follow-up tasks. Skip adapter
+        // processing and collect them as manualFollowUps.
+        const isHumanConsumerPlatform = action.type === 'kimi-marketplace-install'
+          || action.type === 'codebuddy-marketplace-install';
+        if (isHumanConsumerFollowUp && isHumanConsumerPlatform) {
+          const platform = action.type === 'kimi-marketplace-install' ? 'kimi' : 'codebuddy';
+          manualFollowUps.push({
+            actionId: action.id,
+            platform,
+            plugin: action.parameters?.plugin,
+            version: action.parameters?.version,
+            unitId: action.unitId,
+            verifiedBySystem: false,
+            reason: 'human consumer platform — installation is a manual post-release task; not verified by system',
+          });
+          adapterChecks.push({
+            actionId: action.id,
+            actionType: action.type,
+            status: 'SKIPPED',
+            reason: 'manual-follow-up',
+          });
+          await evidence.append({
+            phase: 'verify-marketplace',
+            actionId: action.id,
+            actionType: action.type,
+            status: 'SKIPPED',
+            reason: 'manual-follow-up',
+          });
+          return;
+        }
+
         // --- Marketplace: fresh consumer verification in verify's own runDir ---
         // Context: isolatedConsumerWritesAuthorized allows writing to verify's
         // runDir/consumers/ directory; externalWritesAuthorized stays false.
@@ -1637,6 +1672,7 @@ export async function verifyRelease(options) {
       gateResults: consumerGateResults,
       consumerVerificationReceipts,
       skillResourceClosureReceipts,
+      ...(manualFollowUps.length > 0 ? { manualFollowUps } : {}),
       startedAt: clockFn(),
       finishedAt: clockFn(),
     };
@@ -1660,6 +1696,7 @@ export async function verifyRelease(options) {
       adapterChecks,
       smokeTest,
       gateResults: consumerGateResults,
+      ...(manualFollowUps.length > 0 ? { manualFollowUps } : {}),
     };
   } catch (err) {
     await evidence.append({

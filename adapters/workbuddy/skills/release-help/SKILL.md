@@ -35,12 +35,12 @@ description: "Discoverable entry point for release-skill: dependency and environ
 node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" help --json
 node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" setup --root <path> --json
 node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" assess --root <path> --offline --json
-# 日常发布快速路径：最多两个授权摘要，状态文件可恢复
+# 日常发布快速路径：仅在发布前确认一次可读计划摘要，状态文件可恢复
 node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" ship --root <path> --target-version <version> --json
 # 开发阶段执行声明 hooks 并生成 prepare 可复用的内容绑定收据
-node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" hooks validate --root <path> \
-  --acknowledge-hook-side-effects --json
-# Kimi/CodeBuddy 安装完成后记录人工事实，不手改 JSON
+# 命令调用本身即授权执行配置中的 hooks
+node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" hooks validate --root <path> --json
+# 仅旧冻结计划兼容：记录历史 Kimi/CodeBuddy 人工证明
 node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" attest --root <path> \
   --platform <kimi|codebuddy> --plugin <id> --result <passed|failed> --actor <person> --json
 # 发布文档刷新：默认只读演练
@@ -59,7 +59,7 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" docs refresh --unit <id> \
 - **只读演练**：`docs refresh --unit <id> --json` 输出逐文件相对路径、locale、新旧摘要、`version`、`locales`、`inputDigest`、`refreshDigest` 和 `nextCommand.argv`；候选无变化时 `status: "clean"`。
 - **确认写入**：必须同时提供 `--write`、精确 `--confirm-refresh <refreshDigest>` 和 `--ack-local-document-write`，全部目标作为一个事务提交；成功后立即复演必须为 `clean`。
 
-**授权边界**：本地发布文档写入授权只覆盖声明的本地文档目标，不是 hook、Git 提交、push、publish 或安装的授权。写入后必须审阅、提交，再重新 prepare。
+**授权边界**：本地发布文档写入授权只覆盖声明的本地文档目标，不是 Git 提交、push、publish 或安装的授权。hook/gate 由对应命令调用直接授权。写入后必须审阅、提交，再重新 prepare。
 
 ## 故障路由
 

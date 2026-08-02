@@ -108,13 +108,14 @@
 | 查询插件状态 | observe | 检查插件是否可被发现 |
 | 验证安装性 | verify | 在全新环境中安装并验证插件可调用 |
 
-支持目标：Claude Code plugin marketplace、Codex plugin manifest/marketplace、Kimi Code（人工 attestation 闭环）、CodeBuddy/WorkBuddy（人工 attestation 闭环）。
+支持目标：Claude Code plugin marketplace、Codex plugin manifest/marketplace、Kimi Code（发布后人工安装任务）、CodeBuddy/WorkBuddy（发布后人工安装任务）。
 
-**CodeBuddy/WorkBuddy 接入形态（人工 attestation 闭环）**：目录名 `workbuddy` 与平台名 `codebuddy` 指同一目标——build adapter 目录保持 `adapters/workbuddy/`（由 build-adapters 生成的自包含分发适配器，清单 `.codebuddy-plugin/plugin.json`，组件位于插件根，技能以 `${CODEBUDDY_PLUGIN_ROOT}` 渲染），而 platform id / distributionType / actionType 分别为 `codebuddy` / `codebuddy-plugin` / `codebuddy-marketplace-install`。codebuddy CLI 的 `plugin marketplace add` 与 `plugin install` 均无 ref 选项、安装跟踪市场默认分支，**无法钉死冻结 ref**，自动化安装检查点无法保证冻结产物同一性，因此**不采用自动化安装检查点**，改与 Kimi Code 同级的人工 attestation 闭环：
+**Kimi/CodeBuddy/WorkBuddy 接入形态（非阻塞人工跟进）**：目录名 `workbuddy` 与平台名 `codebuddy` 指同一目标——build adapter 目录保持 `adapters/workbuddy/`（由 build-adapters 生成的自包含分发适配器，清单 `.codebuddy-plugin/plugin.json`，组件位于插件根，技能以 `${CODEBUDDY_PLUGIN_ROOT}` 渲染），而 platform id / distributionType / actionType 分别为 `codebuddy` / `codebuddy-plugin` / `codebuddy-marketplace-install`。Kimi 没有可脚本化安装接口；codebuddy CLI 的 `plugin marketplace add` 与 `plugin install` 均无 ref 选项、安装跟踪市场默认分支，无法可靠核验冻结产物同一性。因此新计划设置 `humanConsumersStrategy: manualFollowUps`：
 
-- `execute` 不 exec 任何 codebuddy 命令，写出绑定冻结计划摘要与身份的手动安装 requirement（声明桌面端/CLI 双安装通道与统一市场 `ifoohoo/artifact-skill-set`），检查点失败关闭、run 置 `PARTIAL`（其余自动化外写先完成）。
-- 操作者经 **WorkBuddy 桌面端统一市场**（`ifoohoo/artifact-skill-set`，落点 `~/.workbuddy/plugins/marketplaces/artifact-skill-set/plugins/<plugin>/`）或 **codebuddy CLI**（隔离 `HOME` 下 `plugin marketplace add https://github.com/ifoohoo/artifact-skill-set` 再 `plugin install <plugin>@artifact-skill-set`）安装；因无法钉死 ref，出具 attestation 前必须核实已安装清单版本等于冻结版本。
-- `observe`/`verify` 仅消费结构化人工 attestation 并只读核验安装点 manifest：校验 `planDigest`/`payloadDigest` 绑定、`consumer==='codebuddy'`、`installChannel`（`desktop`/`cli`）与 `marketplace`、按通道校验 `installPath` 布局，以及时间窗（`attestedAt` 不在未来、`expiresAt` 在 `attestedAt` 后 24 小时内且未过期），任一不符即 fail-closed；缺失或失配证明时 CodeBuddy 单元绝不进入 `VERIFIED`，与 Kimi 同阶（发布后验证不可豁免）。
+- `publish` 不执行 Kimi/CodeBuddy 安装，也不因其尚未安装进入 `PARTIAL`；自动化发布完成后进入 `PUBLISHED`，并返回含平台、插件、版本和安装说明的 `manualFollowUps`。
+- `verify` 跳过这两个平台的安装核验，为每个任务返回 `verifiedBySystem: false`；任务完成与否不改变自动化发布的 `VERIFIED` 状态，系统不得声称已验证其安装。
+- 操作者可在发布完成后经 Kimi 交互安装、WorkBuddy 桌面市场或 codebuddy CLI 安装；这是团队待办，不是 release-skill 门禁。
+- 缺少 `humanConsumersStrategy` 的旧冻结计划继续按历史 attestation 契约读取证明，避免升级后破坏进行中的旧发布；`attest` 只用于该兼容路径。
 
 **外部独立市场形态（claude/codex）**：distribution 声明可选字段 `marketplaceRepo`（`owner/name`）即启用外部形态，marketplace 索引与插件仓库解耦：
 

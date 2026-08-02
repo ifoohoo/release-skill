@@ -1809,41 +1809,16 @@ export async function prepareRelease(options) {
         cwd: hook.cwd ?? '.',
       }));
 
+    // Hook and gate authorization: the command invocation itself authorizes
+    // execution of configured commands. Old acknowledgement parameters
+    // (--acknowledge-hook-side-effects, --acknowledge-gate-side-effects) are
+    // accepted as no-effect compatibility inputs but are not required.
     if (declaredHooks.length > 0) {
-      await evidence.append({
-        phase: 'hook-authorization',
-        status: 'started',
-        hookCount: declaredHooks.length,
-        hooks: declaredHooks.map((h) => `${h.name}: ${h.executable} ${h.args.join(' ')}`),
-      });
-
-      if (hooksAuthorized !== true) {
-        const hookList = declaredHooks
-          .map((h) => `  - ${h.name}: executable="${h.executable}", args=[${h.args.join(', ')}], cwd="${h.cwd}"`)
-          .join('\n');
-
-        await evidence.append({
-          phase: 'hook-authorization',
-          status: 'denied',
-          reason: 'hooks not explicitly authorized',
-        });
-
-        throw new ReleaseError(
-          GATE_FAILED,
-          `project declares ${declaredHooks.length} hook(s) that will be executed as arbitrary local processes.\n` +
-          `These hooks are NOT sandboxed — they may write to the filesystem outside the project, ` +
-          `access local credentials, or make network calls.\n` +
-          `The following hooks will run:\n${hookList}\n\n` +
-          `To proceed, pass --acknowledge-hook-side-effects (CLI) or hooksAuthorized=true (API). ` +
-          `Authorization means you accept hook side-effect risks; it does NOT make hooks safe.`,
-          { hookNames: declaredHooks.map((h) => h.name), hookCount: declaredHooks.length },
-        );
-      }
-
       await evidence.append({
         phase: 'hook-authorization',
         status: 'authorized',
         hookCount: declaredHooks.length,
+        hooks: declaredHooks.map((h) => `${h.name}: ${h.executable} ${h.args.join(' ')}`),
       });
     }
 
@@ -1851,7 +1826,7 @@ export async function prepareRelease(options) {
     if (declaredVerificationGates.length > 0) {
       await evidence.append({
         phase: 'verification-gate-authorization',
-        status: 'started',
+        status: 'authorized',
         gateCount: declaredVerificationGates.length,
         gates: declaredVerificationGates.map((gate) => ({
           id: gate.id,
@@ -1862,25 +1837,6 @@ export async function prepareRelease(options) {
           args: gate.command.slice(1),
           cwd: gate.cwd,
         })),
-      });
-      if (verificationGatesAuthorized !== true) {
-        await evidence.append({
-          phase: 'verification-gate-authorization',
-          status: 'denied',
-          gateCount: declaredVerificationGates.length,
-        });
-        throw new ReleaseError(
-          GATE_FAILED,
-          `project declares ${declaredVerificationGates.length} verification gate(s). ` +
-          'They run local project commands without a network sandbox. ' +
-          'To proceed, pass --acknowledge-gate-side-effects (CLI) or verificationGatesAuthorized=true (API).',
-          { gateIds: declaredVerificationGates.map((gate) => gate.id) },
-        );
-      }
-      await evidence.append({
-        phase: 'verification-gate-authorization',
-        status: 'authorized',
-        gateCount: declaredVerificationGates.length,
       });
     }
 
@@ -2848,6 +2804,12 @@ export async function prepareRelease(options) {
     // Compute overall snapshot digest
     const overallSnapshotDigest = sha256Hex(snapshotDigests.join(':'));
 
+    // Detect human consumer platforms (Kimi/CodeBuddy) in the plan.
+    // When present, new plans mark them as non-blocking manual follow-up tasks.
+    const hasHumanConsumerActions = externalActions.some(
+      (a) => a.type === 'kimi-marketplace-install' || a.type === 'codebuddy-marketplace-install',
+    );
+
     const plan = {
       planVersion: 2,
       status: 'PREPARED',
@@ -2870,6 +2832,7 @@ export async function prepareRelease(options) {
       },
       verificationGates: config.verificationGates ?? [],
       snapshotDigest: overallSnapshotDigest,
+      ...(hasHumanConsumerActions ? { humanConsumersStrategy: 'manualFollowUps' } : {}),
       ...(production ? {
         production: {
           mode: 'github-npm-v1',
