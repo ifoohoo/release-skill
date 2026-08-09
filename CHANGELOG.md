@@ -1,5 +1,18 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.4.1 locale=en baseline=sha256:e2ccb5ddfef6c5e00b047bbf4fa009f5f5c10b003aa2254756f6f9b73a9b3346 -->
+## [0.4.1] - 2026-08-03
+
+v0.4.1 is the unreleased source candidate that migrates release-skill to Apache License 2.0 and aligns public author metadata while preserving repository ownership and historical attribution.
+
+### Changed
+
+- **Open-source license**: package, plugin manifests, README, LICENSE, and NOTICE now consistently use Apache-2.0.
+- **Identity separation**: project author and developer metadata names 广州市风荷科技有限公司, while the `ifoohoo` repository and Marketplace owner coordinates remain unchanged.
+- **Historical attribution**: existing contributor and company copyright notices remain; metadata and license changes do not assert a copyright transfer.
+<!-- release-skill:changelog:end version=0.4.1 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.4.0 locale=en baseline=sha256:099d9db24049aeaae78a21d3bd5152582bb20d4efad1ceff085f9609e8e6d52e -->
 ## [0.4.0] - 2026-08-02
 

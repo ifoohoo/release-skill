@@ -2,32 +2,25 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.4.0 -->
+<!-- release-skill:release-version: 0.4.1 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.4.0** (2026-08-02)
+**0.4.1** (2026-08-03)
 
-v0.4.0 将生产发布收敛为一次冻结计划批准，并把无法自动安装的 Kimi 或 CodeBuddy 转为不阻塞发布的人工后续任务。
-
-**新增**
-
-- **人工消费者后续任务**：Kimi 或 CodeBuddy 无法自动安装时，发布完成后记录人工安装待办，系统不再要求安装证明。
+v0.4.1 是尚未发布的源码候选：将 release-skill 调整为 Apache License 2.0，并统一公开作者元数据，同时保留仓库 owner 与历史归属。
 
 **变更**
 
-- **单次发布批准**：普通生产发布只需批准一次不可变发布计划；调用命令即授权执行其配置的 hook 和 gate。
-- **人工消费者不阻塞发布**：Kimi 和 CodeBuddy 的人工安装待办不再阻止自动发布达到 `VERIFIED`。
-
-**移除**
-
-- **冗余确认参数**：普通发布路径移除了重复输入 plan digest、production confirmation、hook authorization 和人工证明等交互。
+- **开源许可证**：package、插件清单、README、LICENSE 与 NOTICE 统一使用 Apache-2.0。
+- **身份分层**：项目作者和开发者字段使用广州市风荷科技有限公司，`ifoohoo` 仓库与 Marketplace owner 坐标保持不变。
+- **历史归属**：继续保留贡献者和公司的既有版权声明；元数据与许可证变化不声明版权转让。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.4.0 是当前发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.4.1 是当前源码候选，v0.4.0 仍是最新已发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -40,7 +33,7 @@ v0.4.0 将生产发布收敛为一次冻结计划批准，并把无法自动安�
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.4.0 是当前发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.4.1 是当前源码候选，v0.4.0 是最新已发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -49,8 +42,12 @@ v0.4.0 将生产发布收敛为一次冻结计划批准，并把无法自动安�
 
 <!-- release-skill:maturity:v0.1-boundary -->
 <!-- release-skill:maturity:boundary -->
-> **安全默认路径：** 推荐 `help → assess → prepare --offline → 人工审阅`；
-> 生产发布使用 `ship --target-version <ver> → ship --approve --actor <name>`。
+> **安全默认路径：** 推荐 `help → assess → prepare --offline → 人工审阅`。
+> `help` 与 `assess` 只读；`prepare --offline` 中由 release-skill 自身控制的部分只写
+> `.release-skill/`，且不调用远端发布适配器。但配置的 hook 和 gate 是无操作系统沙箱的进程，
+> 可以写出项目目录、访问凭据、发起网络请求或执行远端发布。只有未配置这些进程，或已单独审计并
+> 显式确认其副作用时，才可以把 `prepare` 视为“仅本地”。生产发布使用
+> `ship --target-version <ver> → ship --approve --actor <name>`。
 > `ship` 自动执行 hooks 和门禁，唯一的人工门禁是计划批准。
 > Kimi/CodeBuddy 安装是非阻塞的人工后续任务（系统不核验）。
 
@@ -117,7 +114,10 @@ release-skill ship --root "$PROJECT" --approve --actor "$ACTOR" --json
 开发阶段可运行 `release-skill hooks validate`；它会执行声明的 hooks，并写入
 `prepare` 可复用的内容绑定收据。
 
-按以下顺序执行。步骤 1-4 是安全默认（只读或仅本地）；步骤 5-9 需要显式人工门禁。
+按以下顺序执行。步骤 1-3 只读。步骤 4 中，release-skill 自身的 prepare 流水线仅在本地写入，
+且不会调用远端发布适配器；配置的 hook 和 gate 仍是可产生本地或远端副作用的任意无沙箱进程。
+只有这些进程不存在，或已单独审计并显式确认副作用时，步骤 4 才能视为“仅本地”。步骤 5-9
+需要显式人工门禁。
 
 ```bash
 CLI=(release-skill)           # 或：CLI=(node "$RELEASE_SKILL_HOME/packages/release-skill/bin/release-skill.mjs")
@@ -193,6 +193,8 @@ ACTOR=your-name
      --actor "$ACTOR" --json)
    APPROVAL_PATH=$(printf '%s\n' "$APPROVAL_JSON" | jq -r '.approvalPath')
    ```
+   `--actor` 只是未经身份认证的本地审计字符串，不是身份核验、数字签名，也不能证明某位特定人员
+   已批准计划；需要此类保证时，应接入外部已认证的审批系统。
 8. **publish** — 远端写入开始：
    ```bash
    PUBLISH_JSON=$("${CLI[@]}" publish --root "$PROJECT" \
@@ -237,7 +239,10 @@ DISCOVERED -> ASSESSED -> PREPARED -> APPROVED -> PUBLISHING -> PUBLISHED -> VER
 
 **保存契约：** release-skill 不重新生成或回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节。后续 prepare 重新读取当前文件，不会从模板重建。只有 `publicFiles` 列出的文件会被复制。`prepare` 不会刷新或重写人工文档——维护者先更新 README、INSTALL 和 CHANGELOG，再 prepare、审阅和批准。
 
-**写入安全：** `setup` 默认只读（摘要确认后仅首次创建配置）。`prepare` 只写 `.release-skill/`。`publish` 是生产写入入口，需要有效批准；内部计划摘要由系统自动绑定和校验。项目 hook 和 gate 在对应命令调用时获得授权，没有操作系统沙箱。
+**写入安全：** `setup` 默认只读（摘要确认后仅首次创建配置）。release-skill 自身的 `prepare`
+流水线只写 `.release-skill/`，且不调用远端发布适配器。项目 hook 和 gate 在对应命令调用时获得
+授权，但没有操作系统沙箱；它们可以写出项目目录、访问凭据、发起网络请求或执行远端发布。
+`publish` 是 release-skill 自身的生产写入入口，需要有效批准；内部计划摘要由系统自动绑定和校验。
 
 **Workspace 源码权威：** 生产配置使用 `project.sourceRepository` 指定 workspace
 源仓库，并用 `project.defaultBranch` 指定其真实远端默认分支。prepare 冻结所有
@@ -463,4 +468,4 @@ hook 在 `prepare` 调用时运行，命令调用本身即授权执行。gate �
 
 ## 许可证
 
-MIT，见 [LICENSE](LICENSE)。
+Apache License 2.0，见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。

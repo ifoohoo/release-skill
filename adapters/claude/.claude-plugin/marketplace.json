@@ -9,8 +9,12 @@
     {
       "name": "release-skill",
       "source": "./",
-      "version": "0.4.0",
-      "description": "Safe preparation and frozen GitHub/npm production publishing with full happy end verification"
+      "version": "0.4.1",
+      "description": "Safe preparation and frozen GitHub/npm production publishing with full happy end verification",
+      "author": {
+        "name": "广州市风荷科技有限公司"
+      },
+      "license": "Apache-2.0"
     }
   ]
 }

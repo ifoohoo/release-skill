@@ -1,11 +1,11 @@
 {
   "name": "release-skill",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Safe preparation and frozen GitHub/npm production publishing with full happy end verification",
   "author": {
     "name": "广州市风荷科技有限公司"
   },
-  "license": "MIT",
+  "license": "Apache-2.0",
   "homepage": "https://github.com/ifoohoo/release-skill#readme",
   "keywords": [
     "release",
@@ -21,7 +21,7 @@
     "displayName": "Release Skill",
     "shortDescription": "Safe preparation and frozen GitHub/npm publishing",
     "longDescription": "Prepares byte-faithful public snapshots without rewriting project source files and publishes approved frozen GitHub/npm artifacts. Full happy end verification confirms consumer installation from frozen Git ref.",
-    "developerName": "ifoohoo",
+    "developerName": "广州市风荷科技有限公司",
     "websiteURL": "https://github.com/ifoohoo/release-skill"
   }
 }

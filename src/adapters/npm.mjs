@@ -257,6 +257,13 @@ async function readVerifiedTarballBytes(action, root) {
  * is missing, not valid JSON, or the extracted name/version do not match the
  * expected action values.
  *
+ * When the tarball contains a package/README.md entry (matched
+ * case-insensitively), its content is injected as manifest.readme and its
+ * real entry file name as manifest.readmeFilename, so the registry listing
+ * displays the package README. Ambiguous or unsafe README entries
+ * (duplicate or case-colliding names, non-regular files, out-of-bounds or
+ * oversized bodies) fail closed instead of being treated as metadata.
+ *
  * @param {Buffer} tarballBuffer - the raw tarball bytes (gzipped or plain tar)
  * @param {{ name: string, version: string }} expected - must match manifest
  * @returns {object} the parsed package.json manifest
@@ -275,6 +282,7 @@ function extractManifestFromTarball(tarballBuffer, expected) {
   // Walk tar entries to find package/package.json
   let offset = 0;
   let manifest = null;
+  let readme = null;
   while (offset + 512 <= data.length) {
     // Check for all-zero end-of-archive block
     let allZero = true;
@@ -330,6 +338,25 @@ function extractManifestFromTarball(tarballBuffer, expected) {
       }
     }
 
+    // Match package/README.md case-insensitively (npm registry metadata).
+    // The real entry file name is preserved in readmeFilename, and any
+    // duplicate, case-colliding, or non-regular README entry fails closed,
+    // mirroring the package/package.json checks above.
+    if (entryName.toLowerCase() === 'package/readme.md') {
+      if (readme) throw new Error('tarball contains conflicting package README entries');
+      if (!(typeFlag === 0 || typeFlag === 48 /* '0' */)) {
+        throw new Error('tarball package README must be a regular file');
+      }
+      const bodyStart = offset + 512;
+      const bodyEnd = bodyStart + size;
+      if (bodyEnd > data.length) throw new Error('frozen npm tarball entry exceeds archive bounds');
+      if (size > 10 * 1024 * 1024) throw new Error('tarball package README is unreasonably large');
+      readme = {
+        content: data.subarray(bodyStart, bodyEnd).toString('utf8'),
+        filename: entryName.slice('package/'.length),
+      };
+    }
+
     // Advance to next header: 512 header + ceil(size/512)*512 data
     const nextOffset = offset + 512 + Math.ceil(size / 512) * 512;
     if (!Number.isSafeInteger(nextOffset) || nextOffset > data.length) {
@@ -338,6 +365,10 @@ function extractManifestFromTarball(tarballBuffer, expected) {
     offset = nextOffset;
   }
   if (!manifest) throw new Error('tarball does not contain package/package.json');
+  if (readme) {
+    manifest.readme = readme.content;
+    manifest.readmeFilename = readme.filename;
+  }
   return manifest;
 }
 

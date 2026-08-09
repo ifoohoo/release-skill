@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.4.0 -->
+<!-- release-skill:release-version: 0.4.1 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,26 +14,20 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.4.0** (2026-08-02)
+**0.4.1** (2026-08-03)
 
-v0.4.0 simplifies the production release path to one frozen-plan approval and moves unavailable Kimi or CodeBuddy installations into non-blocking manual follow-up tasks.
-
-**Added**
-
-- **Manual consumer follow-ups**: when Kimi or CodeBuddy cannot be installed automatically, the release records an installation task after publishing without requiring system attestation.
+v0.4.1 is the unreleased source candidate that migrates release-skill to Apache License 2.0 and aligns public author metadata while preserving repository ownership and historical attribution.
 
 **Changed**
 
-- **Single release approval**: the normal production path now asks only for approval of the immutable release plan; invoking a command authorizes its configured hooks and gates.
-- **Non-blocking human consumers**: Kimi and CodeBuddy manual installation tasks no longer prevent the automated release from reaching `VERIFIED`.
-
-**Removed**
-
-- **Redundant confirmation flags**: legacy plan-digest repetition, production-confirmation, hook-authorization, and manual-attestation interactions were removed from the normal release path.
+- **Open-source license**: package, plugin manifests, README, LICENSE, and NOTICE now consistently use Apache-2.0.
+- **Identity separation**: project author and developer metadata names 广州市风荷科技有限公司, while the `ifoohoo` repository and Marketplace owner coordinates remain unchanged.
+- **Historical attribution**: existing contributor and company copyright notices remain; metadata and license changes do not assert a copyright transfer.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.4.0 is the current release (v0.2.2 previously held
+> **Current boundary:** v0.4.1 is the current source candidate; v0.4.0 remains
+> the latest published release (v0.2.2 previously held
 > published status before the platform verification convergence fix was added).
 > v0.1.1 completed a real production release to GitHub and npm — the first
 > production-verified milestone — followed by
@@ -51,8 +45,8 @@ v0.4.0 simplifies the production release path to one frozen-plan approval and mo
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.4.0 is the current
-> release.** The npm-installed CLI is the supported user entry. Source checkout
+> **Production path verified since the v0.1.1 milestone; v0.4.1 is the current
+> source candidate and v0.4.0 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
 > **Start here:**
@@ -62,7 +56,13 @@ v0.4.0 simplifies the production release path to one frozen-plan approval and mo
 <!-- release-skill:maturity:v0.1-boundary -->
 <!-- release-skill:maturity:boundary -->
 > **Safe defaults:** the recommended path is `help → assess → prepare --offline →
-> human review`. Production publishing uses `ship --target-version <ver> → ship --approve --actor <name>`.
+> human review`. `help` and `assess` are read-only. The release-skill-owned part of
+> `prepare --offline` writes only under `.release-skill/` and does not call remote
+> publish adapters, but configured hooks and gates are unsandboxed processes: they
+> may write outside the project, access credentials, make network calls, or publish.
+> Treat `prepare` as local-only only when those processes are absent or separately
+> audited and explicitly acknowledged. Production publishing uses
+> `ship --target-version <ver> → ship --approve --actor <name>`.
 > The `ship` command runs hooks and gates automatically; the only human gate is plan approval.
 > Kimi/CodeBuddy installations are non-blocking manual follow-up tasks (not verified by system).
 
@@ -130,8 +130,11 @@ release-skill ship --root "$PROJECT" --approve --actor "$ACTOR" --json
 During development, `release-skill hooks validate` runs declared hooks and
 writes the same content-bound cache receipts that `prepare` consumes.
 
-Run these steps in order. Steps 1-4 are safe (read-only or local-only);
-steps 5-9 require explicit human gates.
+Run these steps in order. Steps 1-3 are read-only. In step 4, release-skill's own
+prepare pipeline is local-only and never invokes remote publish adapters; configured
+hooks and gates remain arbitrary unsandboxed processes and can perform local or remote
+side effects. Step 4 is therefore local-only only when those processes are absent or
+separately audited and explicitly acknowledged. Steps 5-9 require explicit human gates.
 
 ```bash
 CLI=(release-skill)           # or: CLI=(node "$RELEASE_SKILL_HOME/packages/release-skill/bin/release-skill.mjs")
@@ -210,6 +213,9 @@ ACTOR=your-name
      --actor "$ACTOR" --json)
    APPROVAL_PATH=$(printf '%s\n' "$APPROVAL_JSON" | jq -r '.approvalPath')
    ```
+   `--actor` is an unauthenticated local audit string. It is not identity
+   verification, a signature, or proof that a particular human approved the plan;
+   use an external authenticated approval system when that assurance is required.
 8. **publish** — remote writes start here:
    ```bash
    PUBLISH_JSON=$("${CLI[@]}" publish --root "$PROJECT" \
@@ -276,9 +282,12 @@ but blocks a lost or reverted README by path. It never merges, switches
 branches, pushes, or creates a PR.
 
 **Write safety:** `setup` is read-only by default (create-once after digest
-confirmation). `prepare` writes only under `.release-skill/`. `publish` is the
-production write entry, requiring both approval and the current plan digest.
-Project hooks and gates are acknowledged local processes without an OS sandbox.
+confirmation). Release-skill's own `prepare` pipeline writes only under
+`.release-skill/` and does not invoke remote publish adapters. Project hooks and
+gates are acknowledged processes without an OS sandbox; they may write outside the
+project, access credentials, make network calls, or publish. `publish` is the
+release-skill-owned production write entry and requires both approval and the current
+plan digest.
 
 ## Documentation
 
@@ -519,4 +528,4 @@ declaration is narrowed to concrete targets.
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

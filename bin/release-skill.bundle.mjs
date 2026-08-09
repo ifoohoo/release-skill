@@ -9,7 +9,7 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.4.0"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.4.1"});
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -71134,6 +71134,7 @@ function extractManifestFromTarball(tarballBuffer, expected) {
   }
   let offset = 0;
   let manifest = null;
+  let readme = null;
   while (offset + 512 <= data.length) {
     let allZero = true;
     for (let i = 0; i < 512; i++) {
@@ -71183,6 +71184,20 @@ function extractManifestFromTarball(tarballBuffer, expected) {
         throw new Error(`tarball manifest version "${manifest.version}" does not match expected "${expected.version}"`);
       }
     }
+    if (entryName.toLowerCase() === "package/readme.md") {
+      if (readme) throw new Error("tarball contains conflicting package README entries");
+      if (!(typeFlag === 0 || typeFlag === 48)) {
+        throw new Error("tarball package README must be a regular file");
+      }
+      const bodyStart = offset + 512;
+      const bodyEnd = bodyStart + size;
+      if (bodyEnd > data.length) throw new Error("frozen npm tarball entry exceeds archive bounds");
+      if (size > 10 * 1024 * 1024) throw new Error("tarball package README is unreasonably large");
+      readme = {
+        content: data.subarray(bodyStart, bodyEnd).toString("utf8"),
+        filename: entryName.slice("package/".length)
+      };
+    }
     const nextOffset = offset + 512 + Math.ceil(size / 512) * 512;
     if (!Number.isSafeInteger(nextOffset) || nextOffset > data.length) {
       throw new Error("frozen npm tarball entry exceeds archive bounds");
@@ -71190,6 +71205,10 @@ function extractManifestFromTarball(tarballBuffer, expected) {
     offset = nextOffset;
   }
   if (!manifest) throw new Error("tarball does not contain package/package.json");
+  if (readme) {
+    manifest.readme = readme.content;
+    manifest.readmeFilename = readme.filename;
+  }
   return manifest;
 }
 async function verifyFrozenNpmTarballIdentity(action, root) {

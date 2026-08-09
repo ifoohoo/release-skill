@@ -98,6 +98,12 @@ node -e 'const fs=require("node:fs");const [c,p,a]=process.argv.slice(1).map(x=>
 node -e 'require("node:fs").rmSync(process.argv[1],{recursive:true,force:false})' "$SETUP_SESSION"
 ```
 
+## publisher 字段与个人片段泄漏策略
+
+setup 生成的 `.release-skill/project.yaml` 中 `publisher` 是**已批准的公开发布身份**：它是人工确认的对外发布署名，属于公开面的一部分，而非需要隐藏的私有信息。
+
+若目标仓库用“个人片段”类泄漏策略扫描仓树，而该策略按片段匹配恰好覆盖到 `publisher` 字段，正确做法不是删除或改写策略，而是由贡献者在**本地、gitignore 的个人片段 overlay** 中为该规则声明位置豁免（如 `approvedPlacements`：限定 `publisher` 所在的确切文件路径与行键前缀）。豁免只放行已批准的放置位置，其余出现照常命中；overlay 不入库，个人片段本身不进 committed 策略。
+
 ## 故障路由
 
 - `NEEDS_INPUT`：审阅紧凑摘要；有冲突先修正权威事实并重跑。
