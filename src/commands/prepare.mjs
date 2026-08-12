@@ -1289,19 +1289,17 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
       });
       // Consumer marketplace install actions (only when distribution
       // declared), driven by the platform registry (T2.2 step 3): one loop
-      // body for every platform; the registry declares the per-platform
-      // differences (actionType, distributionType, adapter, and — via the
-      // schema required fields — marketplace identity, which kimi does not
-      // carry: Kimi Code has no non-interactive install/marketplace API, so
-      // the kimi action carries no marketplace identity (MINOR-1); plugin +
-      // entrySkill are the meaningful identity fields there).
+      // body for every platform. Marketplace identity follows the distribution
+      // declaration: claude/codex require it via the registry schema fields;
+      // kimi/codebuddy tolerate an optional declaration (codebuddy defaults to
+      // its unified marketplace constant downstream when undeclared).
+      // Undeclared stays absent so legacy frozen plans remain byte-identical.
       const frozenUnitDists = frozenDistributions?.get(unit.id) ?? null;
       for (const platform of PLATFORMS) {
         const dist = frozenUnitDists
           ? frozenUnitDists.find((d) => d.type === platform.distributionType)
           : (unit.distributions ?? []).find((d) => d.type === platform.distributionType);
         if (!dist) continue;
-        const requiresMarketplace = platform.schemaRequiredFields.includes('marketplace');
         const timeoutMs = Number.isInteger(dist.timeoutMs) ? dist.timeoutMs : 300000;
         // External independent marketplace form: the distribution declares
         // marketplaceRepo, so the install targets the external marketplace repo
@@ -1350,7 +1348,8 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
           parameters: {
             consumer: platform.id,
             plugin: dist.plugin,
-            ...(requiresMarketplace ? { marketplace: dist.marketplace } : {}),
+            ...(dist.marketplace !== undefined ? { marketplace: dist.marketplace } : {}),
+            ...(dist.marketplaceSource !== undefined ? { marketplaceSource: dist.marketplaceSource } : {}),
             repo: externalMarketplace ? dist.marketplaceRepo : unit.publicRepo,
             version,
             entrySkill: dist.entrySkill,
@@ -1377,7 +1376,8 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
           expected: {
             installed: true,
             plugin: dist.plugin,
-            ...(requiresMarketplace ? { marketplace: dist.marketplace } : {}),
+            ...(dist.marketplace !== undefined ? { marketplace: dist.marketplace } : {}),
+            ...(dist.marketplaceSource !== undefined ? { marketplaceSource: dist.marketplaceSource } : {}),
             version,
             entrySkill: dist.entrySkill,
             ...(externalMarketplace ? { marketplaceLocation: 'external', repo: dist.marketplaceRepo } : {}),
@@ -1532,13 +1532,17 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
     // non-production loop above plus the production-only bindings
     // (ref/snapshotPath/manifestDigest parameters; consumer/repo/ref/
     // entrySkillFound/manifestDigest expected). Marketplace identity follows
-    // the registry's schema required fields — kimi carries none (MINOR-1).
+    // the distribution declaration, same as the non-production loop.
     for (const platform of PLATFORMS) {
       const dist = frozenUnitDists
         ? frozenUnitDists.find((d) => d.type === platform.distributionType)
         : (unit.distributions ?? []).find((d) => d.type === platform.distributionType);
       if (!dist) continue;
-      const requiresMarketplace = platform.schemaRequiredFields.includes('marketplace');
+      // Marketplace identity follows the distribution declaration: claude/codex
+      // require it via the registry schema fields; kimi/codebuddy tolerate an
+      // optional declaration (codebuddy defaults to its unified marketplace
+      // constant downstream when undeclared). Undeclared stays absent so
+      // legacy frozen plans remain byte-identical.
       const timeoutMs = Number.isInteger(dist.timeoutMs) ? dist.timeoutMs : 300000;
       // External independent marketplace form: the install targets the external
       // marketplace repo with the add-ref + marketplaceCommitSha frozen online
@@ -1583,7 +1587,8 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
         parameters: {
           consumer: platform.id,
           plugin: dist.plugin,
-          ...(requiresMarketplace ? { marketplace: dist.marketplace } : {}),
+          ...(dist.marketplace !== undefined ? { marketplace: dist.marketplace } : {}),
+          ...(dist.marketplaceSource !== undefined ? { marketplaceSource: dist.marketplaceSource } : {}),
           repo: externalMarketplace ? dist.marketplaceRepo : unit.publicRepo,
           ref: externalMarketplace ? freeze.ref : resolvedTag,
           version: unitVersion,
@@ -1622,7 +1627,8 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
           installed: true,
           consumer: platform.id,
           plugin: dist.plugin,
-          ...(requiresMarketplace ? { marketplace: dist.marketplace } : {}),
+          ...(dist.marketplace !== undefined ? { marketplace: dist.marketplace } : {}),
+          ...(dist.marketplaceSource !== undefined ? { marketplaceSource: dist.marketplaceSource } : {}),
           repo: externalMarketplace ? dist.marketplaceRepo : unit.publicRepo,
           version: unitVersion,
           ref: externalMarketplace ? freeze.ref : resolvedTag,

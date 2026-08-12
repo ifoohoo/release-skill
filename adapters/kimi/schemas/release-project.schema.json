@@ -191,6 +191,11 @@
                   "minLength": 1,
                   "pattern": "^[a-z0-9][a-z0-9._-]*$"
                 },
+                "marketplaceSource": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "消费者添加统一市场所用的来源 URL（如 codebuddy plugin marketplace add）；可选，仅在可知时声明"
+                },
                 "marketplaceRepo": {
                   "type": "string",
                   "pattern": "^[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*$",

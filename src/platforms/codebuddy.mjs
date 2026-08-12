@@ -88,14 +88,54 @@ export const CODEBUDDY_REQUIREMENT_FILE = 'release-skill-codebuddy-manual-instal
 export const CODEBUDDY_ATTESTATION_FILE = 'release-skill-codebuddy-attestation.json';
 
 /**
- * Unified marketplace the WorkBuddy desktop app and the codebuddy CLI install
- * release-skill from (verified fact). The attestation `marketplace` field must
- * equal this value; the install path is validated against this marketplace
- * segment in both channels.
+ * Default unified marketplace the WorkBuddy desktop app and the codebuddy CLI
+ * install from (verified fact). A distribution may override this by declaring
+ * `marketplace` (see resolveCodeBuddyMarketplace); the install path is
+ * validated against the resolved marketplace segment in both channels, and a
+ * declared attestation `marketplace` field must equal the resolved name.
  */
 export const CODEBUDDY_MARKETPLACE_NAME = 'artifact-skill-set';
-/** Marketplace source URL used by the isolated-CLI install path. */
+/** Default marketplace source URL (used only when no marketplace override is declared). */
 export const CODEBUDDY_MARKETPLACE_SOURCE = 'https://github.com/ifoohoo/artifact-skill-set';
+
+/**
+ * Resolve the unified marketplace name for a codebuddy action.
+ *
+ * Falls back to CODEBUDDY_MARKETPLACE_NAME when the action carries no
+ * `marketplace` (legacy frozen plans, byte-identical behavior). A declared
+ * marketplace must be a non-empty string; anything else fails closed.
+ *
+ * @param {object} [action] - expanded codebuddy action (may be undefined).
+ * @returns {string} the resolved marketplace name.
+ * @throws {Error} when a declared marketplace is not a non-empty string.
+ */
+export function resolveCodeBuddyMarketplace(action) {
+  const marketplace = action?.marketplace ?? CODEBUDDY_MARKETPLACE_NAME;
+  if (typeof marketplace !== 'string' || marketplace.length === 0) {
+    throw new Error(`codebuddy marketplace must be a non-empty string when declared, got ${JSON.stringify(action?.marketplace)}`);
+  }
+  return marketplace;
+}
+
+/**
+ * Resolve the marketplace source URL for a codebuddy action, when knowable.
+ *
+ * The default marketplace has a verified source constant; a configured
+ * marketplace only has a source when the distribution declared
+ * `marketplaceSource`. When neither applies, null is returned and callers
+ * must NOT fabricate a URL.
+ *
+ * @param {object} [action] - expanded codebuddy action (may be undefined).
+ * @returns {string|null} the source URL, or null when unknown.
+ */
+export function resolveCodeBuddyMarketplaceSource(action) {
+  if (action?.marketplace === undefined || action?.marketplace === null) {
+    return CODEBUDDY_MARKETPLACE_SOURCE;
+  }
+  return typeof action.marketplaceSource === 'string' && action.marketplaceSource.length > 0
+    ? action.marketplaceSource
+    : null;
+}
 
 /** Authoritative codebuddy plugin manifest (single candidate, no precedence). */
 export const CODEBUDDY_PLUGIN_MANIFEST_RELATIVE = join('.codebuddy-plugin', 'plugin.json');
@@ -185,7 +225,7 @@ export function codebuddyAuthorityDir(context, planDigest, plugin) {
 /**
  * 统一人工安装说明：面向 CodeBuddy / WorkBuddy 的人工结果流程。
  *
- * @param {{plugin:string, version:string, ref:string, attestationDir:string, requiresInstalledClosure:boolean}} p
+ * @param {{plugin:string, version:string, ref:string, attestationDir:string, requiresInstalledClosure:boolean, marketplace:string, marketplaceSource:string|null}} p
  * @returns {string[]}
  */
 function buildCodeBuddyManualInstructions({
@@ -194,11 +234,13 @@ function buildCodeBuddyManualInstructions({
   ref,
   attestationDir,
   requiresInstalledClosure,
+  marketplace,
+  marketplaceSource,
 }) {
   return [
     `CodeBuddy/WorkBuddy 插件安装无法锁定冻结 ref（codebuddy CLI marketplace add/install 没有 ref 选项，跟踪默认分支），因此安装是需要人工结果证明的手动步骤。`,
     `1) publish 完成所有远端写入后进入 PUBLISHED 状态（自动化 Git 分支/标签、npm 和 GitHub Release 写入已完成）。此 codebuddy 检查点标记为需要人工安装。`,
-    `2) 从统一市场 "${CODEBUDDY_MARKETPLACE_NAME}" (${CODEBUDDY_MARKETPLACE_SOURCE}) 安装 release-skill。确认安装的插件版本等于冻结版本 ${version}。`,
+    `2) 从统一市场 "${marketplace}"${marketplaceSource ? ` (${marketplaceSource})` : ''} 安装 ${plugin}。确认安装的插件版本等于冻结版本 ${version}。`,
     `3) 将人工结果 JSON 写入: ${attestationDir}/${CODEBUDDY_ATTESTATION_FILE}`,
     `   必填字段: platform="codebuddy", version, planDigest（冻结计划摘要）, result("passed" 或 "failed"), actor（确认人）, confirmedAt（ISO 8601 时间戳）${requiresInstalledClosure ? '，installChannel("desktop" 或 "cli")，installPath（实际安装后的插件目录）' : ''}`,
     `   可选字段: note（备注）`,
@@ -312,12 +354,32 @@ export function validateCodeBuddyAttestation(attestation, action, isoNow, boundP
     if (normalized.installPath.includes('..')) {
       return { valid: false, error: 'codebuddy attestation installPath must not contain path traversal ("..")', normalized: null };
     }
-    // CLI 通道：installPath 必须以预期后缀结尾
+    // CLI 通道：installPath 必须以预期后缀结尾（市场名解析自冻结动作，
+    // 未声明时回落到默认统一市场常量）
     if (normalized.installChannel === 'cli') {
-      const expectedSuffix = `.workbuddy/plugins/marketplaces/${CODEBUDDY_MARKETPLACE_NAME}/plugins/${action.plugin}`;
+      let resolvedMarketplace;
+      try {
+        resolvedMarketplace = resolveCodeBuddyMarketplace(action);
+      } catch (resolveErr) {
+        return { valid: false, error: resolveErr.message, normalized: null };
+      }
+      const expectedSuffix = `.workbuddy/plugins/marketplaces/${resolvedMarketplace}/plugins/${action.plugin}`;
       if (!normalized.installPath.endsWith(expectedSuffix)) {
         return { valid: false, error: `codebuddy CLI attestation installPath must end with "${expectedSuffix}", got "${normalized.installPath}"`, normalized: null };
       }
+    }
+  }
+
+  // 可选 marketplace 字段：一旦声明必须等于冻结动作解析出的市场名
+  if (normalized.marketplace !== undefined) {
+    let resolvedMarketplace;
+    try {
+      resolvedMarketplace = resolveCodeBuddyMarketplace(action);
+    } catch (resolveErr) {
+      return { valid: false, error: resolveErr.message, normalized: null };
+    }
+    if (normalized.marketplace !== resolvedMarketplace) {
+      return { valid: false, error: `codebuddy attestation marketplace "${normalized.marketplace}" does not match the resolved marketplace "${resolvedMarketplace}"`, normalized: null };
     }
   }
 
@@ -454,6 +516,22 @@ export async function executeCodeBuddyManualRequirement(action, context) {
 
   const ref = action.ref ?? `v${action.version}`;
 
+  // Unified marketplace identity: resolved from the frozen action (declared
+  // `marketplace`/`marketplaceSource`), falling back to the default constants
+  // for legacy plans. A fabricated source URL is never emitted for a
+  // configured marketplace without a declared marketplaceSource.
+  let marketplace;
+  try {
+    marketplace = resolveCodeBuddyMarketplace(action);
+  } catch (marketplaceErr) {
+    return createResult({
+      actionType,
+      status: ActionStatus.EXECUTE_FAILED,
+      error: marketplaceErr.message,
+    });
+  }
+  const marketplaceSource = resolveCodeBuddyMarketplaceSource(action);
+
   // (B) Stable plugin-level authority dir, shared across
   // publish/reconcile/verify run dirs.
   let attestationDir;
@@ -473,6 +551,8 @@ export async function executeCodeBuddyManualRequirement(action, context) {
     ref,
     attestationDir,
     requiresInstalledClosure: Boolean(context.plan?.skillResourceClosure),
+    marketplace,
+    marketplaceSource,
   });
 
   // 统一 requirement 结构：不再包含隔离目录信息
@@ -484,6 +564,8 @@ export async function executeCodeBuddyManualRequirement(action, context) {
     repo: action.repo,
     ref,
     entrySkill: action.entrySkill,
+    marketplace,
+    ...(marketplaceSource ? { marketplaceSource } : {}),
     planDigest,
     attestationDir,
     attestationFile: CODEBUDDY_ATTESTATION_FILE,
@@ -497,7 +579,7 @@ export async function executeCodeBuddyManualRequirement(action, context) {
       ...(context.plan?.skillResourceClosure
         ? {
             installChannel: '<"desktop" or "cli">',
-            installPath: `<actual .workbuddy/plugins/marketplaces/${CODEBUDDY_MARKETPLACE_NAME}/plugins/${action.plugin} directory>`,
+            installPath: `<actual .workbuddy/plugins/marketplaces/${marketplace}/plugins/${action.plugin} directory>`,
           }
         : {}),
       note: '<optional note>',

@@ -2,25 +2,27 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.4.1 -->
+<!-- release-skill:release-version: 0.4.2 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.4.1** (2026-08-03)
+**0.4.2** (2026-08-12)
 
-v0.4.1 是尚未发布的源码候选：将 release-skill 调整为 Apache License 2.0，并统一公开作者元数据，同时保留仓库 owner 与历史归属。
+v0.4.2 将 CodeBuddy 消费者市场改为按分发渠道可配置，不再硬编码单一市场，CodeBuddy 插件分发可以指向项目声明的市场来源。
 
 **变更**
 
-- **开源许可证**：package、插件清单、README、LICENSE 与 NOTICE 统一使用 Apache-2.0。
-- **身份分层**：项目作者和开发者字段使用广州市风荷科技有限公司，`ifoohoo` 仓库与 Marketplace owner 坐标保持不变。
-- **历史归属**：继续保留贡献者和公司的既有版权声明；元数据与许可证变化不声明版权转让。
+- **计划模式**：生产计划携带解析后的 CodeBuddy 市场坐标，审批与发布时可核对确切的市场目标。
+
+**修复**
+
+- **CodeBuddy 市场可配置**：codebuddy-plugin 分发在项目配置中接受 `marketplace` 与 `marketplaceSource`，prepare 将两个值透传进消费者安装动作，不再假定固定市场。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.4.1 是当前源码候选，v0.4.0 仍是最新已发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.4.2 是当前源码候选，v0.4.1 仍是最新已发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -33,7 +35,7 @@ v0.4.1 是尚未发布的源码候选：将 release-skill 调整为 Apache Licen
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.4.1 是当前源码候选，v0.4.0 是最新已发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.4.2 是当前源码候选，v0.4.1 是最新已发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -448,6 +450,8 @@ hook 在 `prepare` 调用时运行，命令调用本身即授权执行。gate �
 | `codebuddy-plugin` | 生成的 `adapters/workbuddy/`，带 `.codebuddy-plugin/plugin.json` | 发布后非阻塞人工任务 |
 
 每个适配器闭包都自带 CLI、skills 和 schemas 副本，安装后无需外部依赖即可运行。Claude/Codex 验证是自动化的；Kimi Code 和 CodeBuddy/WorkBuddy 以 `manualFollowUps` 返回并标记 `verifiedBySystem: false`，其完成情况不阻塞自动发布进入 `VERIFIED`。
+
+`codebuddy-plugin` 分发可以可选地声明 `marketplace`（以及 `marketplaceSource`，即消费者添加市场所用的 URL）来覆盖默认统一市场 `artifact-skill-set`；未声明的分发保持默认值，冻结计划字节不变。
 
 每个 npm 分发在 `prepare` 时都会针对精确封装的 tarball 静态校验
 `package.json` 声明的具体入口。`publish` 与 `reconcile` 在任何远端动作前对同一

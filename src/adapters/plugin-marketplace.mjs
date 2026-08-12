@@ -48,8 +48,8 @@ import {
 import {
   CODEBUDDY_REQUIREMENT_FILE,
   CODEBUDDY_ATTESTATION_FILE,
-  CODEBUDDY_MARKETPLACE_NAME,
-  CODEBUDDY_MARKETPLACE_SOURCE,
+  resolveCodeBuddyMarketplace,
+  resolveCodeBuddyMarketplaceSource,
   resolveCodeBuddyBoundPlanDigest,
   codebuddyAuthorityDir,
   validateCodeBuddyAttestation,
@@ -3095,15 +3095,19 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             try {
               attestation = JSON.parse(await readFile(resolve(attestationDir, CODEBUDDY_ATTESTATION_FILE), 'utf8'));
             } catch {
+              // The marketplace source hint follows the frozen action's
+              // resolved marketplace; unknown configured marketplaces cite no
+              // fabricated URL.
+              const marketplaceSource = resolveCodeBuddyMarketplaceSource(action);
               return createResult({
                 actionType,
                 status: ActionStatus.OBSERVED,
                 observation: {
                   installed: false,
                   manualInstallRequired: true,
-                  marketplaceSource: CODEBUDDY_MARKETPLACE_SOURCE,
+                  ...(marketplaceSource ? { marketplaceSource } : {}),
                   attestationDir,
-                  error: `codebuddy attestation is missing; write ${resolve(attestationDir, CODEBUDDY_ATTESTATION_FILE)} after the manual install (marketplace ${CODEBUDDY_MARKETPLACE_SOURCE})`,
+                  error: `codebuddy attestation is missing; write ${resolve(attestationDir, CODEBUDDY_ATTESTATION_FILE)} after the manual install${marketplaceSource ? ` (marketplace ${marketplaceSource})` : ''}`,
                 },
               });
             }
@@ -3162,7 +3166,19 @@ export function createPluginMarketplaceAdapter(deps = {}) {
                 });
               }
               const normalizedPath = normalizedAttestation.installPath.replaceAll('\\', '/');
-              const expectedSuffix = `.workbuddy/plugins/marketplaces/${CODEBUDDY_MARKETPLACE_NAME}/plugins/${action.plugin}`;
+              // The expected suffix follows the frozen action's resolved
+              // marketplace (default constant for legacy plans).
+              let resolvedMarketplace;
+              try {
+                resolvedMarketplace = resolveCodeBuddyMarketplace(action);
+              } catch (resolveErr) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: { installed: false, error: resolveErr.message },
+                });
+              }
+              const expectedSuffix = `.workbuddy/plugins/marketplaces/${resolvedMarketplace}/plugins/${action.plugin}`;
               if (!normalizedPath.endsWith(expectedSuffix)) {
                 return createResult({
                   actionType,

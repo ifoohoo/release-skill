@@ -9,7 +9,7 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.4.1"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.4.2"});
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -17400,6 +17400,19 @@ function normalizePlanForDigest2(plan) {
   }
   return normalized;
 }
+function resolveCodeBuddyMarketplace(action) {
+  const marketplace = action?.marketplace ?? CODEBUDDY_MARKETPLACE_NAME;
+  if (typeof marketplace !== "string" || marketplace.length === 0) {
+    throw new Error(`codebuddy marketplace must be a non-empty string when declared, got ${JSON.stringify(action?.marketplace)}`);
+  }
+  return marketplace;
+}
+function resolveCodeBuddyMarketplaceSource(action) {
+  if (action?.marketplace === void 0 || action?.marketplace === null) {
+    return CODEBUDDY_MARKETPLACE_SOURCE;
+  }
+  return typeof action.marketplaceSource === "string" && action.marketplaceSource.length > 0 ? action.marketplaceSource : null;
+}
 async function resolveCodeBuddyBoundPlanDigest(context) {
   const plan = context?.plan;
   if (!plan || typeof plan !== "object" || Array.isArray(plan)) {
@@ -17440,12 +17453,14 @@ function buildCodeBuddyManualInstructions({
   version,
   ref,
   attestationDir,
-  requiresInstalledClosure
+  requiresInstalledClosure,
+  marketplace,
+  marketplaceSource
 }) {
   return [
     `CodeBuddy/WorkBuddy \u63D2\u4EF6\u5B89\u88C5\u65E0\u6CD5\u9501\u5B9A\u51BB\u7ED3 ref\uFF08codebuddy CLI marketplace add/install \u6CA1\u6709 ref \u9009\u9879\uFF0C\u8DDF\u8E2A\u9ED8\u8BA4\u5206\u652F\uFF09\uFF0C\u56E0\u6B64\u5B89\u88C5\u662F\u9700\u8981\u4EBA\u5DE5\u7ED3\u679C\u8BC1\u660E\u7684\u624B\u52A8\u6B65\u9AA4\u3002`,
     `1) publish \u5B8C\u6210\u6240\u6709\u8FDC\u7AEF\u5199\u5165\u540E\u8FDB\u5165 PUBLISHED \u72B6\u6001\uFF08\u81EA\u52A8\u5316 Git \u5206\u652F/\u6807\u7B7E\u3001npm \u548C GitHub Release \u5199\u5165\u5DF2\u5B8C\u6210\uFF09\u3002\u6B64 codebuddy \u68C0\u67E5\u70B9\u6807\u8BB0\u4E3A\u9700\u8981\u4EBA\u5DE5\u5B89\u88C5\u3002`,
-    `2) \u4ECE\u7EDF\u4E00\u5E02\u573A "${CODEBUDDY_MARKETPLACE_NAME}" (${CODEBUDDY_MARKETPLACE_SOURCE}) \u5B89\u88C5 release-skill\u3002\u786E\u8BA4\u5B89\u88C5\u7684\u63D2\u4EF6\u7248\u672C\u7B49\u4E8E\u51BB\u7ED3\u7248\u672C ${version}\u3002`,
+    `2) \u4ECE\u7EDF\u4E00\u5E02\u573A "${marketplace}"${marketplaceSource ? ` (${marketplaceSource})` : ""} \u5B89\u88C5 ${plugin}\u3002\u786E\u8BA4\u5B89\u88C5\u7684\u63D2\u4EF6\u7248\u672C\u7B49\u4E8E\u51BB\u7ED3\u7248\u672C ${version}\u3002`,
     `3) \u5C06\u4EBA\u5DE5\u7ED3\u679C JSON \u5199\u5165: ${attestationDir}/${CODEBUDDY_ATTESTATION_FILE}`,
     `   \u5FC5\u586B\u5B57\u6BB5: platform="codebuddy", version, planDigest\uFF08\u51BB\u7ED3\u8BA1\u5212\u6458\u8981\uFF09, result("passed" \u6216 "failed"), actor\uFF08\u786E\u8BA4\u4EBA\uFF09, confirmedAt\uFF08ISO 8601 \u65F6\u95F4\u6233\uFF09${requiresInstalledClosure ? '\uFF0CinstallChannel("desktop" \u6216 "cli")\uFF0CinstallPath\uFF08\u5B9E\u9645\u5B89\u88C5\u540E\u7684\u63D2\u4EF6\u76EE\u5F55\uFF09' : ""}`,
     `   \u53EF\u9009\u5B57\u6BB5: note\uFF08\u5907\u6CE8\uFF09`,
@@ -17509,10 +17524,27 @@ function validateCodeBuddyAttestation(attestation, action, isoNow, boundPlanDige
       return { valid: false, error: 'codebuddy attestation installPath must not contain path traversal ("..")', normalized: null };
     }
     if (normalized.installChannel === "cli") {
-      const expectedSuffix = `.workbuddy/plugins/marketplaces/${CODEBUDDY_MARKETPLACE_NAME}/plugins/${action.plugin}`;
+      let resolvedMarketplace;
+      try {
+        resolvedMarketplace = resolveCodeBuddyMarketplace(action);
+      } catch (resolveErr) {
+        return { valid: false, error: resolveErr.message, normalized: null };
+      }
+      const expectedSuffix = `.workbuddy/plugins/marketplaces/${resolvedMarketplace}/plugins/${action.plugin}`;
       if (!normalized.installPath.endsWith(expectedSuffix)) {
         return { valid: false, error: `codebuddy CLI attestation installPath must end with "${expectedSuffix}", got "${normalized.installPath}"`, normalized: null };
       }
+    }
+  }
+  if (normalized.marketplace !== void 0) {
+    let resolvedMarketplace;
+    try {
+      resolvedMarketplace = resolveCodeBuddyMarketplace(action);
+    } catch (resolveErr) {
+      return { valid: false, error: resolveErr.message, normalized: null };
+    }
+    if (normalized.marketplace !== resolvedMarketplace) {
+      return { valid: false, error: `codebuddy attestation marketplace "${normalized.marketplace}" does not match the resolved marketplace "${resolvedMarketplace}"`, normalized: null };
     }
   }
   if (normalized.result !== "passed" && normalized.result !== "failed") {
@@ -17607,6 +17639,17 @@ async function executeCodeBuddyManualRequirement(action, context) {
     });
   }
   const ref = action.ref ?? `v${action.version}`;
+  let marketplace;
+  try {
+    marketplace = resolveCodeBuddyMarketplace(action);
+  } catch (marketplaceErr) {
+    return createResult({
+      actionType,
+      status: ActionStatus.EXECUTE_FAILED,
+      error: marketplaceErr.message
+    });
+  }
+  const marketplaceSource = resolveCodeBuddyMarketplaceSource(action);
   let attestationDir;
   try {
     attestationDir = codebuddyAuthorityDir(context, planDigest, action.plugin);
@@ -17622,7 +17665,9 @@ async function executeCodeBuddyManualRequirement(action, context) {
     version: action.version,
     ref,
     attestationDir,
-    requiresInstalledClosure: Boolean(context.plan?.skillResourceClosure)
+    requiresInstalledClosure: Boolean(context.plan?.skillResourceClosure),
+    marketplace,
+    marketplaceSource
   });
   const requirement = {
     kind: "codebuddy-manual-install-requirement",
@@ -17632,6 +17677,8 @@ async function executeCodeBuddyManualRequirement(action, context) {
     repo: action.repo,
     ref,
     entrySkill: action.entrySkill,
+    marketplace,
+    ...marketplaceSource ? { marketplaceSource } : {},
     planDigest,
     attestationDir,
     attestationFile: CODEBUDDY_ATTESTATION_FILE,
@@ -17644,7 +17691,7 @@ async function executeCodeBuddyManualRequirement(action, context) {
       confirmedAt: "<ISO 8601 timestamp>",
       ...context.plan?.skillResourceClosure ? {
         installChannel: '<"desktop" or "cli">',
-        installPath: `<actual .workbuddy/plugins/marketplaces/${CODEBUDDY_MARKETPLACE_NAME}/plugins/${action.plugin} directory>`
+        installPath: `<actual .workbuddy/plugins/marketplaces/${marketplace}/plugins/${action.plugin} directory>`
       } : {},
       note: "<optional note>"
     },
@@ -17736,6 +17783,8 @@ var init_codebuddy = __esm({
     CODEBUDDY_ATTESTATION_FILE = "release-skill-codebuddy-attestation.json";
     CODEBUDDY_MARKETPLACE_NAME = "artifact-skill-set";
     CODEBUDDY_MARKETPLACE_SOURCE = "https://github.com/ifoohoo/artifact-skill-set";
+    __name(resolveCodeBuddyMarketplace, "resolveCodeBuddyMarketplace");
+    __name(resolveCodeBuddyMarketplaceSource, "resolveCodeBuddyMarketplaceSource");
     CODEBUDDY_PLUGIN_MANIFEST_RELATIVE = join4(".codebuddy-plugin", "plugin.json");
     CODEBUDDY_MAX_ATTESTATION_VALIDITY_MS = 24 * 60 * 60 * 1e3;
     __name(resolveCodeBuddyBoundPlanDigest, "resolveCodeBuddyBoundPlanDigest");
@@ -18465,9 +18514,10 @@ var init_registry = __esm({
         marketplace: ".claude-plugin/marketplace.json"
       }),
       marketplaceSourceForm: null,
-      // codebuddy installs from a unified marketplace but carries no marketplace
-      // identity in the action (the marketplace is a fixed constant in
-      // ./codebuddy.mjs); the entry-version binding does not apply (null = N/A).
+      // codebuddy installs from a unified marketplace whose identity is optional
+      // on the action: a distribution may declare `marketplace` to override the
+      // default constant in ./codebuddy.mjs (resolveCodeBuddyMarketplace); the
+      // entry-version binding does not apply either way (null = N/A).
       marketplaceEntryCarriesVersion: null,
       // codebuddy has no marketplace add that can pin a frozen ref (attestation
       // loop instead), so the marketplace ref form does not apply (null = N/A).
@@ -74267,15 +74317,16 @@ function createPluginMarketplaceAdapter(deps = {}) {
             try {
               attestation = JSON.parse(await readFile18(resolve21(attestationDir, CODEBUDDY_ATTESTATION_FILE), "utf8"));
             } catch {
+              const marketplaceSource = resolveCodeBuddyMarketplaceSource(action);
               return createResult({
                 actionType,
                 status: ActionStatus.OBSERVED,
                 observation: {
                   installed: false,
                   manualInstallRequired: true,
-                  marketplaceSource: CODEBUDDY_MARKETPLACE_SOURCE,
+                  ...marketplaceSource ? { marketplaceSource } : {},
                   attestationDir,
-                  error: `codebuddy attestation is missing; write ${resolve21(attestationDir, CODEBUDDY_ATTESTATION_FILE)} after the manual install (marketplace ${CODEBUDDY_MARKETPLACE_SOURCE})`
+                  error: `codebuddy attestation is missing; write ${resolve21(attestationDir, CODEBUDDY_ATTESTATION_FILE)} after the manual install${marketplaceSource ? ` (marketplace ${marketplaceSource})` : ""}`
                 }
               });
             }
@@ -74328,7 +74379,17 @@ function createPluginMarketplaceAdapter(deps = {}) {
                 });
               }
               const normalizedPath = normalizedAttestation.installPath.replaceAll("\\", "/");
-              const expectedSuffix = `.workbuddy/plugins/marketplaces/${CODEBUDDY_MARKETPLACE_NAME}/plugins/${action.plugin}`;
+              let resolvedMarketplace;
+              try {
+                resolvedMarketplace = resolveCodeBuddyMarketplace(action);
+              } catch (resolveErr) {
+                return createResult({
+                  actionType,
+                  status: ActionStatus.OBSERVED,
+                  observation: { installed: false, error: resolveErr.message }
+                });
+              }
+              const expectedSuffix = `.workbuddy/plugins/marketplaces/${resolvedMarketplace}/plugins/${action.plugin}`;
               if (!normalizedPath.endsWith(expectedSuffix)) {
                 return createResult({
                   actionType,
@@ -80887,7 +80948,6 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
       for (const platform of PLATFORMS) {
         const dist = frozenUnitDists ? frozenUnitDists.find((d) => d.type === platform.distributionType) : (unit.distributions ?? []).find((d) => d.type === platform.distributionType);
         if (!dist) continue;
-        const requiresMarketplace = platform.schemaRequiredFields.includes("marketplace");
         const timeoutMs = Number.isInteger(dist.timeoutMs) ? dist.timeoutMs : 3e5;
         const externalMarketplace = dist.marketplaceRepo !== void 0 && dist.marketplaceRepo !== null;
         const marketplaceSourceType = dist.marketplaceSourceType ?? (externalMarketplace ? "standalone-index" : "bundled-family");
@@ -80921,7 +80981,8 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
           parameters: {
             consumer: platform.id,
             plugin: dist.plugin,
-            ...requiresMarketplace ? { marketplace: dist.marketplace } : {},
+            ...dist.marketplace !== void 0 ? { marketplace: dist.marketplace } : {},
+            ...dist.marketplaceSource !== void 0 ? { marketplaceSource: dist.marketplaceSource } : {},
             repo: externalMarketplace ? dist.marketplaceRepo : unit.publicRepo,
             version,
             entrySkill: dist.entrySkill,
@@ -80948,7 +81009,8 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
           expected: {
             installed: true,
             plugin: dist.plugin,
-            ...requiresMarketplace ? { marketplace: dist.marketplace } : {},
+            ...dist.marketplace !== void 0 ? { marketplace: dist.marketplace } : {},
+            ...dist.marketplaceSource !== void 0 ? { marketplaceSource: dist.marketplaceSource } : {},
             version,
             entrySkill: dist.entrySkill,
             ...externalMarketplace ? { marketplaceLocation: "external", repo: dist.marketplaceRepo } : {}
@@ -81085,7 +81147,6 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
     for (const platform of PLATFORMS) {
       const dist = frozenUnitDists ? frozenUnitDists.find((d) => d.type === platform.distributionType) : (unit.distributions ?? []).find((d) => d.type === platform.distributionType);
       if (!dist) continue;
-      const requiresMarketplace = platform.schemaRequiredFields.includes("marketplace");
       const timeoutMs = Number.isInteger(dist.timeoutMs) ? dist.timeoutMs : 3e5;
       const externalMarketplace = dist.marketplaceRepo !== void 0 && dist.marketplaceRepo !== null;
       const freeze = externalMarketplace ? externalFreezes.get(`${unit.id} ${dist.type}`) : null;
@@ -81119,7 +81180,8 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
         parameters: {
           consumer: platform.id,
           plugin: dist.plugin,
-          ...requiresMarketplace ? { marketplace: dist.marketplace } : {},
+          ...dist.marketplace !== void 0 ? { marketplace: dist.marketplace } : {},
+          ...dist.marketplaceSource !== void 0 ? { marketplaceSource: dist.marketplaceSource } : {},
           repo: externalMarketplace ? dist.marketplaceRepo : unit.publicRepo,
           ref: externalMarketplace ? freeze.ref : resolvedTag,
           version: unitVersion,
@@ -81158,7 +81220,8 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
           installed: true,
           consumer: platform.id,
           plugin: dist.plugin,
-          ...requiresMarketplace ? { marketplace: dist.marketplace } : {},
+          ...dist.marketplace !== void 0 ? { marketplace: dist.marketplace } : {},
+          ...dist.marketplaceSource !== void 0 ? { marketplaceSource: dist.marketplaceSource } : {},
           repo: externalMarketplace ? dist.marketplaceRepo : unit.publicRepo,
           version: unitVersion,
           ref: externalMarketplace ? freeze.ref : resolvedTag,

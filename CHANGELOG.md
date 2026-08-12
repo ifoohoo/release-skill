@@ -1,5 +1,20 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.4.2 locale=en baseline=sha256:b8676f90eb68c93e40f84ff16de18a8c472e6a06e321bcc25895799e9e6f3896 -->
+## [0.4.2] - 2026-08-12
+
+v0.4.2 makes the CodeBuddy consumer marketplace configurable per distribution instead of hardcoding a single marketplace, so CodeBuddy plugin distributions can target a project-declared marketplace source.
+
+### Changed
+
+- **Plan schema**: production plans carry the resolved codebuddy marketplace coordinates so approval and publish review the exact marketplace target.
+
+### Fixed
+
+- **Configurable CodeBuddy marketplace**: codebuddy-plugin distributions now accept `marketplace` and `marketplaceSource` in project configuration, and prepare threads both values into the consumer install action instead of assuming a fixed marketplace.
+<!-- release-skill:changelog:end version=0.4.2 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.4.1 locale=en baseline=sha256:e2ccb5ddfef6c5e00b047bbf4fa009f5f5c10b003aa2254756f6f9b73a9b3346 -->
 ## [0.4.1] - 2026-08-03
 

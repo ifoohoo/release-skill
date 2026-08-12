@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.4.1 -->
+<!-- release-skill:release-version: 0.4.2 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,19 +14,21 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.4.1** (2026-08-03)
+**0.4.2** (2026-08-12)
 
-v0.4.1 is the unreleased source candidate that migrates release-skill to Apache License 2.0 and aligns public author metadata while preserving repository ownership and historical attribution.
+v0.4.2 makes the CodeBuddy consumer marketplace configurable per distribution instead of hardcoding a single marketplace, so CodeBuddy plugin distributions can target a project-declared marketplace source.
 
 **Changed**
 
-- **Open-source license**: package, plugin manifests, README, LICENSE, and NOTICE now consistently use Apache-2.0.
-- **Identity separation**: project author and developer metadata names 广州市风荷科技有限公司, while the `ifoohoo` repository and Marketplace owner coordinates remain unchanged.
-- **Historical attribution**: existing contributor and company copyright notices remain; metadata and license changes do not assert a copyright transfer.
+- **Plan schema**: production plans carry the resolved codebuddy marketplace coordinates so approval and publish review the exact marketplace target.
+
+**Fixed**
+
+- **Configurable CodeBuddy marketplace**: codebuddy-plugin distributions now accept `marketplace` and `marketplaceSource` in project configuration, and prepare threads both values into the consumer install action instead of assuming a fixed marketplace.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.4.1 is the current source candidate; v0.4.0 remains
+> **Current boundary:** v0.4.2 is the current source candidate; v0.4.1 remains
 > the latest published release (v0.2.2 previously held
 > published status before the platform verification convergence fix was added).
 > v0.1.1 completed a real production release to GitHub and npm — the first
@@ -45,8 +47,8 @@ v0.4.1 is the unreleased source candidate that migrates release-skill to Apache 
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.4.1 is the current
-> source candidate and v0.4.0 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
+> **Production path verified since the v0.1.1 milestone; v0.4.2 is the current
+> source candidate and v0.4.1 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
 > **Start here:**
@@ -500,6 +502,11 @@ npm tarballs, then checks remote commit/tree/tag integrity. Claude/Codex
 verification is automated. Kimi Code and CodeBuddy/WorkBuddy are returned as
 `manualFollowUps` with `verifiedBySystem: false`; their completion is not a
 condition for the automated release to reach `VERIFIED`.
+
+A `codebuddy-plugin` distribution may optionally declare `marketplace` (and
+`marketplaceSource`, the URL consumers use to add the marketplace) to override
+the default unified marketplace `artifact-skill-set`; undeclared distributions
+keep the default and produce byte-identical frozen plans.
 
 For every npm distribution, `prepare` statically checks the exact packed
 tarball against concrete `package.json` entry targets. `publish` and

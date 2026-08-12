@@ -359,9 +359,10 @@ const CODEBUDDY = Object.freeze({
     marketplace: '.claude-plugin/marketplace.json',
   }),
   marketplaceSourceForm: null,
-  // codebuddy installs from a unified marketplace but carries no marketplace
-  // identity in the action (the marketplace is a fixed constant in
-  // ./codebuddy.mjs); the entry-version binding does not apply (null = N/A).
+  // codebuddy installs from a unified marketplace whose identity is optional
+  // on the action: a distribution may declare `marketplace` to override the
+  // default constant in ./codebuddy.mjs (resolveCodeBuddyMarketplace); the
+  // entry-version binding does not apply either way (null = N/A).
   marketplaceEntryCarriesVersion: null,
   // codebuddy has no marketplace add that can pin a frozen ref (attestation
   // loop instead), so the marketplace ref form does not apply (null = N/A).

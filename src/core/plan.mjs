@@ -751,9 +751,10 @@ export function validatePlanActionCompleteness(plan, options = {}) {
     // consumer id, and — via the schema required fields — whether marketplace
     // identity is a required binding). Platforms without a required
     // marketplace (kimi, MINOR-1: Kimi Code has an interactive marketplace
-    // but no non-interactive install API) tolerate a declared marketplace as
-    // an optional legacy value but never bind it as a required condition, in
-    // parameters or in expected.
+    // but no non-interactive install API; codebuddy, whose unified marketplace
+    // defaults to a constant but may be overridden by the distribution)
+    // tolerate a declared marketplace as an optional value but never bind it
+    // as a required condition, in parameters or in expected.
     for (const platform of PLATFORMS) {
       const dist = distributions.find((d) => d.type === platform.distributionType);
       if (!dist) continue;
