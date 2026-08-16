@@ -11,9 +11,9 @@ description: Freeze an immutable release plan with local configuration, document
 
 ## 职责与边界
 
-运行项目构建/测试 hook，生成公开快照并扫描泄漏，冻结不可变发布计划。prepare 自身不调用发布 adapter，但会执行用户配置的 hook。hook 是任意本地进程，不受文件系统/网络隔离，可能产生项目目录外的副作用或远端写入。
+运行项目构建/测试 hook，生成公开快照并扫描泄漏，冻结不可变发布计划。prepare 自身不调用发布 adapter，但会执行用户配置的 hook。
 
-**Hook 与 Gate 执行**: 命令调用本身即授权执行已配置的 hook 和 gate，不再设置额外人工授权环节。
+**Hook 授权契约（配置时刻即授权，FM-16 处置 A）**: hook 是任意本地进程——在 `.release-skill/project.yaml` 中配置 hook 命令即完成授权，构成「配置时刻即授权」的显式契约。hook 不提供沙箱、无文件系统/网络隔离、触发前无确认点，命令调用本身即授权执行已配置的 hook 和 gate，不再设置额外人工授权环节；hook 可能产生项目目录外的副作用或远端写入，配置者须对其内容负责。恢复「触发前强制确认门」属于后续加固项（属设计变更，需随新版本引入），当前版本不提供该确认门。
 
 **阶段通过规则**: 本阶段的通过只能由 CLI exit code 0 和结构化状态码 `PREPARED` 确认。Agent 无权自行宣布计划冻结成功。
 

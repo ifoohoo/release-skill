@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.contracts.rules",
+  "contractsVersion": "1.4.0",
+  "budget": {
+    "firstVersionMax": 20,
+    "absoluteMax": 30,
+    "note": "Mechanical gate: runChecks fails with SFC1008 when the mandatory rule count exceeds firstVersionMax, and fails harder when it exceeds absoluteMax. The count includes every rule with severity mandatory, including budget rules themselves."
+  },
+  "checkTypes": [
+    {
+      "type": "schema.compile",
+      "description": "Each registered schema must compile under its declared dialect; an uncompilable schema fails with SFC1012."
+    },
+    {
+      "type": "schema.unique-id",
+      "description": "No two registered schemas may share a $id; duplicates fail with SFC1003."
+    },
+    {
+      "type": "protocol.unique-name",
+      "description": "No two registered protocols may share the same name and version; duplicates fail with SFC1004."
+    },
+    {
+      "type": "schema.ref-resolves",
+      "description": "Every $ref in registered schemas must resolve within the registered schema set; unresolved targets fail with SFC1005."
+    },
+    {
+      "type": "schema.dialect-declared",
+      "description": "Every registered schema must declare a dialect from the supported set, consistent with its $schema URI; violations fail with SFC1006."
+    },
+    {
+      "type": "fixture.positive-passes",
+      "description": "Every fixture expecting validity must validate against its target schema under its declared dialect and policy; mismatches fail with SFC1010."
+    },
+    {
+      "type": "fixture.negative-coded",
+      "description": "Every fixture expecting invalidity must fail with exactly its declared stable error code; mismatches fail with SFC1010."
+    },
+    {
+      "type": "error-code.registered",
+      "description": "Every error code declared in fixture expectations must exist in the frozen error registry; unknown codes fail with SFC1009."
+    },
+    {
+      "type": "rules.budget",
+      "description": "The mandatory rule count must stay within the first-version budget (and never exceed the absolute cap); excess fails with SFC1008."
+    }
+  ],
+  "rules": [
+    {
+      "ruleId": "CR-001",
+      "severity": "mandatory",
+      "checkType": "schema.compile",
+      "target": { "registry": "schemas" }
+    },
+    {
+      "ruleId": "CR-006",
+      "severity": "mandatory",
+      "checkType": "schema.unique-id",
+      "target": { "registry": "schemas" }
+    },
+    {
+      "ruleId": "CR-007",
+      "severity": "mandatory",
+      "checkType": "protocol.unique-name",
+      "target": { "registry": "protocols" }
+    },
+    {
+      "ruleId": "CR-008",
+      "severity": "mandatory",
+      "checkType": "schema.ref-resolves",
+      "target": { "registry": "schemas" }
+    },
+    {
+      "ruleId": "CR-009",
+      "severity": "mandatory",
+      "checkType": "schema.dialect-declared",
+      "target": { "registry": "schemas" }
+    },
+    {
+      "ruleId": "CR-010",
+      "severity": "mandatory",
+      "checkType": "fixture.positive-passes",
+      "target": { "fixtures": "expect-valid" }
+    },
+    {
+      "ruleId": "CR-011",
+      "severity": "mandatory",
+      "checkType": "fixture.negative-coded",
+      "target": { "fixtures": "expect-invalid" }
+    },
+    {
+      "ruleId": "CR-012",
+      "severity": "mandatory",
+      "checkType": "error-code.registered",
+      "target": { "references": "fixture-expectations" }
+    },
+    {
+      "ruleId": "CR-013",
+      "severity": "mandatory",
+      "checkType": "rules.budget",
+      "target": { "budget": "firstVersionMax" }
+    }
+  ]
+}

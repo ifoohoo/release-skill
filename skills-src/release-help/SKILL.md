@@ -38,9 +38,11 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" assess --root <path> --offlin
 # 日常发布快速路径：仅在发布前确认一次可读计划摘要，状态文件可恢复
 node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" ship --root <path> --target-version <version> --json
 # 开发阶段执行声明 hooks 并生成 prepare 可复用的内容绑定收据
+# 配置时刻即授权（FM-16 处置 A）：hook 是任意本地进程、无隔离、触发前无确认点，
 # 命令调用本身即授权执行配置中的 hooks
 node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" hooks validate --root <path> --json
 # 仅旧冻结计划兼容：记录历史 Kimi/CodeBuddy 人工证明
+# （本地自声明收据，证明力弱：--actor 仅非空字符串校验、无外部签名核验；新计划不适用）
 node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" attest --root <path> \
   --platform <kimi|codebuddy> --plugin <id> --result <passed|failed> --actor <person> --json
 # 发布文档刷新：默认只读演练
@@ -59,7 +61,7 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" docs refresh --unit <id> \
 - **只读演练**：`docs refresh --unit <id> --json` 输出逐文件相对路径、locale、新旧摘要、`version`、`locales`、`inputDigest`、`refreshDigest` 和 `nextCommand.argv`；候选无变化时 `status: "clean"`。
 - **确认写入**：必须同时提供 `--write`、精确 `--confirm-refresh <refreshDigest>` 和 `--ack-local-document-write`，全部目标作为一个事务提交；成功后立即复演必须为 `clean`。
 
-**授权边界**：本地发布文档写入授权只覆盖声明的本地文档目标，不是 Git 提交、push、publish 或安装的授权。hook/gate 由对应命令调用直接授权。写入后必须审阅、提交，再重新 prepare。
+**授权边界**：本地发布文档写入授权只覆盖声明的本地文档目标，不是 Git 提交、push、publish 或安装的授权。hook/gate 由对应命令调用直接授权——在 project.yaml 配置 hook 即完成授权（配置时刻即授权契约，FM-16 处置 A）：hook 是任意本地进程、无文件系统/网络隔离、触发前无确认点，配置者须对其内容负责；恢复触发前强制确认门为后续加固项。写入后必须审阅、提交，再重新 prepare。
 
 ## 故障路由
 

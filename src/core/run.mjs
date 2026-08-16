@@ -12,7 +12,7 @@
  * @module core/run
  */
 
-import { link, lstat, mkdir, open, readFile, unlink } from 'node:fs/promises';
+import { lstat, mkdir, readFile } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import { dirname, join, resolve, basename, relative, isAbsolute } from 'node:path';
 import Ajv from 'ajv';
@@ -22,6 +22,7 @@ import { assertImmutablePlanAuthority, computePlanDigest } from './plan.mjs';
 import { sha256Hex } from './digest.mjs';
 import { ReleaseError, GATE_FAILED } from './errors.mjs';
 import { readTrustedPackageResource } from './trusted-resource.mjs';
+import { publishFileExclusive, HARNESS_ERROR_KINDS as INFLIGHT_KINDS } from './foundation-inflight.mjs';
 
 const RELEASE_RUN_SCHEMA = JSON.parse((await readTrustedPackageResource(
   'schemas/release-run.schema.json',
@@ -578,25 +579,18 @@ function sealRun(run) {
   return sealed;
 }
 
-async function syncDirectory(dir) {
-  const handle = await open(dir, 'r');
-  try {
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
-}
-
 /**
  * Write a run file atomically to disk.
  *
  * Validates the run against the schema before writing.
- * Uses temp-file + rename for atomicity.
+ * Delegates to Foundation `publishFileExclusive` (temp + fsync + exclusive
+ * link + byte/mode/identity verification + directory fsync).
  *
  * **Exclusive-create semantics**: if a file already exists at `runPath`
  * with different bytes, the write fails.  This prevents a stale run from
  * silently overwriting a newer run record.  Writes are idempotent when
- * the content is byte-identical.
+ * the content is byte-identical (wrapper-supplied branch; the in-flight
+ * Foundation version has no same-bytes idempotency — G4 conflict-surface.md).
  *
  * @param {string} runPath - Absolute path to write the run to.
  * @param {Object} run - The run object to write.
@@ -608,34 +602,26 @@ export async function writeRunAtomic(runPath, run) {
   const sealed = sealRun(run);
   const json = JSON.stringify(sealed, null, 2);
   const dir = dirname(runPath);
-  const tmpPath = `${dir}/.release-run-${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`;
   await mkdir(dir, { recursive: true });
 
-  const handle = await open(tmpPath, 'wx', 0o600);
   try {
-    await handle.writeFile(json, 'utf8');
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
-
-  try {
-    try {
-      await link(tmpPath, runPath);
-      await syncDirectory(dir);
-    } catch (error) {
-      if (error.code !== 'EEXIST') throw error;
-      const existing = await readFile(runPath, 'utf8');
-      if (existing !== json) {
-        throw new ReleaseError(
-          GATE_FAILED,
-          'run file already exists with different bytes; exclusive-create rejected overwrite',
-          { runPath },
-        );
-      }
+    await publishFileExclusive(dir, basename(runPath), json, { mode: 0o600 });
+  } catch (cause) {
+    if (cause?.details?.kind === INFLIGHT_KINDS.EXCLUSIVE_PUBLISH_CONFLICT) {
+      // 同字节幂等：目标已存在且字节相同 → 幂等成功（fail-closed 无双路径）。
+      const existing = await readFile(runPath, 'utf8').catch(() => null);
+      if (existing === json) return Object.freeze(sealed);
+      throw new ReleaseError(
+        GATE_FAILED,
+        'run file already exists with different bytes; exclusive-create rejected overwrite',
+        { runPath },
+      );
     }
-  } finally {
-    await unlink(tmpPath).catch(() => {});
+    throw new ReleaseError(
+      GATE_FAILED,
+      `run file write failed: ${cause?.message ?? String(cause)}`,
+      { runPath },
+    );
   }
 
   return Object.freeze(sealed);

@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.contracts.error-codes",
+  "contractsVersion": "1.4.0",
+  "policy": {
+    "format": "^SFC[0-9]{4}$",
+    "ranges": [
+      {
+        "prefix": "SFC1",
+        "category": "contract",
+        "note": "Contracts authority errors: schemas, registry, dialects, rules, fixtures."
+      },
+      {
+        "prefix": "SFC2",
+        "category": "kernel",
+        "note": "Kernel protocol operation errors."
+      },
+      {
+        "prefix": "SFC3",
+        "category": "report",
+        "note": "Report contract errors: digest binding, mandatory elements, fact drift. Style findings are never coded here; they are advisory output of the report check, not errors."
+      }
+    ],
+    "stability": "Codes are append-only. A frozen code is never reused for a different meaning; a deprecated code stays reserved. New codes require a contracts change."
+  },
+  "codes": [
+    {
+      "code": "SFC1001",
+      "name": "SCHEMA_VALIDATION_FAILED",
+      "category": "contract",
+      "stableSince": "1.0.0",
+      "meaning": "A document failed validation against its registered schema under the declared dialect and policy."
+    },
+    {
+      "code": "SFC1002",
+      "name": "UNKNOWN_SCHEMA_ID",
+      "category": "contract",
+      "stableSince": "1.0.0",
+      "meaning": "The referenced $id is not present in the schema registry."
+    },
+    {
+      "code": "SFC1003",
+      "name": "DUPLICATE_SCHEMA_ID",
+      "category": "contract",
+      "stableSince": "1.0.0",
+      "meaning": "Two schema registrations share the same $id; the registration is mechanically rejected."
+    },
+    {
+      "code": "SFC1004",
+      "name": "DUPLICATE_PROTOCOL_NAME",
+      "category": "contract",
+      "stableSince": "1.0.0",
+      "meaning": "Two protocol registrations share the same name and version; the registration is mechanically rejected."
+    },
+    {
+      "code": "SFC1005",
+      "name": "UNRESOLVED_REF",
+      "category": "contract",
+      "stableSince": "1.0.0",
+      "meaning": "A $ref target cannot be resolved within the registered schema set."
+    },
+    {
+      "code": "SFC1006",
+      "name": "UNSUPPORTED_DIALECT",
+      "category": "contract",
+      "stableSince": "1.0.0",
+      "meaning": "The declared JSON Schema dialect is not in the frozen supported dialect set."
+    },
+    {
+      "code": "SFC1007",
+      "name": "UNKNOWN_CHECK_TYPE",
+      "category": "contract",
+      "stableSince": "1.0.0",
+      "meaning": "A rule uses a check type outside the finite set of nine."
+    },
+    {
+      "code": "SFC1008",
+      "name": "RULE_BUDGET_EXCEEDED",
+      "category": "contract",
+      "stableSince": "1.0.0",
+      "meaning": "The mandatory rule count exceeds the first-version budget or the absolute cap."
+    },
+    {
+      "code": "SFC1009",
+      "name": "UNKNOWN_ERROR_CODE",
+      "category": "contract",
+      "stableSince": "1.0.0",
+      "meaning": "A fixture expectation references an error code that is not in this frozen registry."
+    },
+    {
+      "code": "SFC1010",
+      "name": "FIXTURE_EXPECTATION_MISMATCH",
+      "category": "contract",
+      "stableSince": "1.0.0",
+      "meaning": "A fixture did not behave as declared: a valid-expecting fixture failed, or an invalid-expecting fixture did not fail with the declared stable code."
+    },
+    {
+      "code": "SFC1011",
+      "name": "UNKNOWN_PROTOCOL",
+      "category": "contract",
+      "stableSince": "1.0.0",
+      "meaning": "A request references a protocol name/version that is not registered."
+    },
+    {
+      "code": "SFC1012",
+      "name": "SCHEMA_COMPILE_FAILED",
+      "category": "contract",
+      "stableSince": "1.0.0",
+      "meaning": "A registered schema does not compile under its declared dialect (the schema document itself is invalid)."
+    },
+    {
+      "code": "SFC2002",
+      "name": "UNKNOWN_OPERATION",
+      "category": "kernel",
+      "stableSince": "1.0.0",
+      "meaning": "The requested operation name is not in the frozen operation vocabulary of the referenced protocol version."
+    },
+    {
+      "code": "SFC2003",
+      "name": "INVALID_PARAMS",
+      "category": "kernel",
+      "stableSince": "1.0.0",
+      "meaning": "Operation params do not satisfy the frozen params contract of the requested operation."
+    },
+    {
+      "code": "SFC2004",
+      "name": "EXECUTION_FAILED",
+      "category": "kernel",
+      "stableSince": "1.0.0",
+      "meaning": "The mechanism runtime failed while executing a well-formed operation; details carry the mechanism evidence. Demonstrable only by a mechanism runtime, not by static contracts checks."
+    },
+    {
+      "code": "SFC3001",
+      "name": "REPORT_DIGEST_MISMATCH",
+      "category": "report",
+      "stableSince": "1.2.0",
+      "meaning": "A report binding digest (model, result, or report digest) does not match the recomputed sha256 digest, or the report is not the canonical render of its model; the binding is stale or tampered and is never trusted."
+    },
+    {
+      "code": "SFC3002",
+      "name": "REPORT_ELEMENT_MISSING",
+      "category": "report",
+      "stableSince": "1.2.0",
+      "meaning": "A mandatory report element is absent, empty where it must not be, or declared in an unsupported form: the conclusion, non-empty evidence, risks/next-action sections, a supported locale, or a coded outcome for failed/blocked runs. No half report is issued for a missing element."
+    },
+    {
+      "code": "SFC3003",
+      "name": "REPORT_FACT_DRIFT",
+      "category": "report",
+      "stableSince": "1.2.0",
+      "meaning": "A report model misstates the bound operation result's terminal state/errors, or rendered report bytes diverge from the deterministic re-render of the bound report model: fact fields rewritten, sections deleted, duplicated, or injected."
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.4.2 -->
+<!-- release-skill:release-version: 0.5.0 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,21 +14,32 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.4.2** (2026-08-12)
+**0.5.0** (2026-08-16)
 
-v0.4.2 makes the CodeBuddy consumer marketplace configurable per distribution instead of hardcoding a single marketplace, so CodeBuddy plugin distributions can target a project-declared marketplace source.
+v0.5.0 adopts the released Skill Family Foundation 0.4.0 packages (skill-family-contracts / skill-family-harness-node) for digest computation, atomic writes, contained file reads, and project locking; migrates the project lock domain to a single-file token lock with fail-closed legacy detection; hardens the online assess npm check against fail-open; and documents the hooks authorization contract as config-time authorization.
+
+**Added**
+
+- **Negative test coverage**: 12 additional tests covering exclusive publication, token-lock migration, and the assess npm-check behavior.
 
 **Changed**
 
+- **Foundation adoption**: digest computation, atomic writes, contained-path reads and project locking now delegate to the published `skill-family-contracts@0.4.0` / `skill-family-harness-node@0.4.0` packages instead of local implementations; dependencies bumped from 0.3.0 to 0.4.0.
+- **Token lock domain**: project locks migrated from a directory-based domain to a single `.release-skill/lock` file (0600, token record). Legacy directory-form locks are detected and fail closed with `LOCK_MIGRATION_REQUIRED`; no automatic conversion or deletion is performed.
+- **Exclusive plan/run publication**: immutable plan and run records are published via `publishFileExclusive` — identical bytes are idempotent, divergent bytes fail with `GATE_FAILED`.
+- **Assess npm check semantics**: the online `assess` npm check no longer treats every registry error as version-not-found; only E404/ETARGET mean a missing version, other failures surface as an `NPM_VERSION_CHECK_FAILED` warning.
+- **Hooks authorization contract**: release-prepare/release-help now document the explicit contract that configuring a hook in project configuration IS the authorization (hooks are arbitrary local processes with no sandbox, no filesystem/network isolation, and no pre-trigger confirmation point); restoring a mandatory pre-trigger confirmation gate is a future hardening item.
+- **Audit-scope ruling**: the bundled-family marketplace configuration is recorded as not applicable to the `release_artifact` target type (G3 target-side T4 ruling); T3/T5/T6 deferred to independent tasks.
 - **Plan schema**: production plans carry the resolved codebuddy marketplace coordinates so approval and publish review the exact marketplace target.
 
 **Fixed**
 
-- **Configurable CodeBuddy marketplace**: codebuddy-plugin distributions now accept `marketplace` and `marketplaceSource` in project configuration, and prepare threads both values into the consumer install action instead of assuming a fixed marketplace.
+- **Configurable CodeBuddy marketplace**: codebuddy-plugin distributions accept `marketplace` and `marketplaceSource` in project configuration, and prepare threads both values into the consumer install action instead of assuming a fixed marketplace.
+- **Assess fail-open**: an online `assess` no longer silently reports no gaps when the npm registry check fails for reasons other than a missing version.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.4.2 is the current source candidate; v0.4.1 remains
+> **Current boundary:** v0.5.0 is the current source candidate; v0.4.1 remains
 > the latest published release (v0.2.2 previously held
 > published status before the platform verification convergence fix was added).
 > v0.1.1 completed a real production release to GitHub and npm — the first
@@ -47,7 +58,7 @@ v0.4.2 makes the CodeBuddy consumer marketplace configurable per distribution in
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.4.2 is the current
+> **Production path verified since the v0.1.1 milestone; v0.5.0 is the current
 > source candidate and v0.4.1 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >

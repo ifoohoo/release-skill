@@ -21,9 +21,10 @@
 import { readdir, mkdir, lstat, realpath, open, rm } from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
 import { join, dirname, relative, isAbsolute, sep, resolve, posix as pathPosix } from 'node:path';
-import { createHash } from 'node:crypto';
 
 import { canonicalJson, sha256Hex } from '../core/digest.mjs';
+import { digestDocument } from 'skill-family-contracts';
+import { digestBytes } from 'skill-family-harness-node';
 import { PLATFORMS as PLATFORM_REGISTRY } from '../platforms/registry.mjs';
 
 /**
@@ -186,11 +187,14 @@ async function ensureTrustedOutputDirectory(rootPath, rootIdentity, relativeDir,
  * @returns {string}
  */
 export function computeBuildAdaptersDigest(sourceBytes) {
-  const h = createHash('sha256');
-  for (const buf of sourceBytes) h.update(buf);
-  h.update(`node:${process.version}`);
-  h.update('locale:en-US timezone:UTC');
-  return `sha256:${h.digest('hex')}`;
+  // 多段哈希（源字节 + node 版本 + 固定 locale/timezone）等价于对拼接字节
+  // 的 sha256，委托 Foundation digestBytes 实现，字节逐位一致。
+  const bytes = Buffer.concat([
+    ...sourceBytes,
+    Buffer.from(`node:${process.version}`),
+    Buffer.from('locale:en-US timezone:UTC'),
+  ]);
+  return `sha256:${digestBytes(bytes)}`;
 }
 
 // Platform definitions, derived from the platform registry (the single source
@@ -488,8 +492,21 @@ async function generateAdapterFiles(platform, skills, templateJson, root, market
     });
   }
 
-  // Copy bin/ entry point and bundle (text files)
-  const binFiles = ['release-skill.mjs', 'release-skill.bundle.mjs'];
+  // Copy bin/ entry point and bundle (text files). The self-contained
+  // bundle ships runtime sidecars next to it (JSON resources read via
+  // new URL(<rel>, import.meta.url) by inlined Foundation modules, e.g.
+  // error-codes.json); enumerate the directory so every sidecar is
+  // replicated deterministically. The source CLI (release-skill-cli.mjs)
+  // is never shipped into adapters. The wrapper and the bundle are
+  // required entries: a missing one fails closed before any write.
+  const binFiles = (await readdir(join(root, 'bin')))
+    .filter((name) => name !== 'release-skill-cli.mjs')
+    .sort();
+  for (const required of ['release-skill.mjs', 'release-skill.bundle.mjs']) {
+    if (!binFiles.includes(required)) {
+      throw new Error(`SECURITY: required bundle entry is missing: bin/${required}`);
+    }
+  }
   for (const name of binFiles) {
     const srcPath = join(root, 'bin', name);
     const content = await readTrustedFile(srcPath, root, `bin/${name}`);
@@ -752,8 +769,9 @@ export async function produceBuildAdapters({ inputs, output, outputRoots, platfo
  * @returns {string}
  */
 export function digestEntryOutputs(entries) {
+  // 纯 JSON 投影（platform 条件展开 + 定字段），直接委托 Foundation digestDocument。
   const canonical = entries.map(({ platform, path, type, mode, sha256, size }) => ({
     ...(platform ? { platform } : {}), path, type, mode, size, sha256,
   }));
-  return `sha256:${sha256Hex(canonicalJson(canonical))}`;
+  return `sha256:${digestDocument(canonical)}`;
 }

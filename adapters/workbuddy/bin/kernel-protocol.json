@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.kernel-protocol",
+  "name": "skill-family.kernel.operation",
+  "version": 1,
+  "status": "stable",
+  "contractsVersion": "1.4.0",
+  "description": "Frozen v1 kernel protocol: request/result envelope, operation lifecycle states, and the operation vocabulary. Extensible only by a new protocol version; v1 content is frozen.",
+  "states": ["accepted", "running", "succeeded", "failed", "rejected"],
+  "initialStates": ["accepted", "rejected"],
+  "terminalStates": ["succeeded", "failed", "rejected"],
+  "transitions": [
+    { "from": "accepted", "to": "running" },
+    { "from": "accepted", "to": "failed" },
+    { "from": "running", "to": "succeeded" },
+    { "from": "running", "to": "failed" }
+  ],
+  "stateRules": {
+    "intake": "A well-formed request enters accepted; an intake rejection (for example an unregistered protocol) enters rejected directly.",
+    "result": "An operation-result carries only terminal states; non-terminal states are never serialized in results.",
+    "synchronous": "A synchronous mechanism implementation may move accepted through running to a terminal state without exposing intermediate states."
+  },
+  "operations": [
+    {
+      "name": "validate",
+      "status": "stable",
+      "description": "Validate one document against one registered schema under a declared dialect and policy.",
+      "params": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["schemaId", "document"],
+        "properties": {
+          "schemaId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Registered $id of the target schema."
+          },
+          "document": {
+            "type": "object",
+            "description": "The document to validate."
+          },
+          "dialect": {
+            "type": "string",
+            "description": "Optional dialect override; must be in the supported dialect set."
+          },
+          "policy": {
+            "type": "string",
+            "description": "Optional validation policy name; defaults to strict."
+          }
+        }
+      }
+    }
+  ],
+  "resultContract": {
+    "outputs": {
+      "validate": "On success, outputs.report is an object with valid (boolean) and errors (array of normalized validation findings)."
+    },
+    "errors": "Every error entry carries a code from the frozen contracts error registry."
+  }
+}

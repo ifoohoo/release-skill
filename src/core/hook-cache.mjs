@@ -166,6 +166,9 @@ export async function computeHookCacheKey(hook, root) {
     fileEntries.push({ path: relPath, sha256: sha256Hex(content) });
   }
 
+  // 摘要机制已委托 Foundation：canonicalJson（contracts 权威序列化 + 本地宽松
+  // 输入域包装）与 sha256Hex（harness-node digestBytes）。拼接哈希组合无法用
+  // digestDocument 表达，保持组合结构不变（迁移前后字节一致）。
   const cacheKey = sha256Hex(canonicalJson(hook) + canonicalJson(fileEntries));
   return { cacheKey, matchedFiles: matched };
 }

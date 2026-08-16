@@ -15,10 +15,13 @@
  * @module core/plan
  */
 
-import { readFile, writeFile, rename, mkdir, open, link, unlink, lstat } from 'node:fs/promises';
+import { readFile, mkdir, lstat } from 'node:fs/promises';
 import { basename, dirname, join, resolve, parse, sep } from 'node:path';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
+import { digestDocument } from 'skill-family-contracts';
+import { writeFileAtomic } from 'skill-family-harness-node';
+import { publishFileExclusive, HARNESS_ERROR_KINDS as INFLIGHT_KINDS } from './foundation-inflight.mjs';
 import { canonicalJson, sha256Hex } from './digest.mjs';
 import { ReleaseError, GATE_FAILED } from './errors.mjs';
 import { readTrustedPackageResource } from './trusted-resource.mjs';
@@ -248,6 +251,11 @@ function stripRecordLayerV2(plan) {
  * @returns {string} Lowercase 64-char hex SHA-256 digest.
  */
 export function computePlanDigest(plan) {
+  // 输入域适配：计划绑定层可能含条件置 undefined 的字段（如 codebuddy 的
+  // marketplace），本地语义为省略该字段。因此不直接用严格 digestDocument，
+  // 而是经 digest.mjs 的宽松输入域包装（contracts 权威序列化 + 本地归一化）
+  // 后由 Foundation digestBytes 摘要 —— 对纯 JSON 计划与 digestDocument 字节
+  // 完全一致，对含 undefined 的计划保持迁移前字节语义。
   if (plan.planVersion === 2) {
     return sha256Hex(canonicalJson(stripRecordLayerV2(plan)));
   }
@@ -286,15 +294,11 @@ export async function writePlanAtomic(planPath, plan) {
   // 4. Serialise
   const json = JSON.stringify(augmented, null, 2);
 
-  // 5. Write to temp file in the same directory
+  // 5. Write atomically via Foundation (contained, exclusive temp, fsync, rename)
   const dir = dirname(planPath);
   await prepareAuthorityDirectory(dir);
   await assertAuthorityFileTarget(planPath);
-  const tmpPath = `${dir}/.release-plan-${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`;
-  await writeFile(tmpPath, json, 'utf8');
-
-  // 6. Atomic rename
-  await rename(tmpPath, planPath);
+  await writeFileAtomic(dir, basename(planPath), json);
 
   return { planPath, planDigest };
 }
@@ -303,9 +307,11 @@ export async function writePlanAtomic(planPath, plan) {
  * Create a digest-addressed plan authority exactly once.
  *
  * The target must be named by the computed digest. An existing byte-identical
- * authority is reused; an existing divergent file fails closed. A temporary
- * file is fsynced and atomically linked into place so concurrent prepares can
- * never replace an authority that another process already created.
+ * authority is reused; an existing divergent file fails closed. The write
+ * delegates to Foundation `publishFileExclusive` (temp + fsync + exclusive
+ * link + byte/mode/identity verification + directory fsync); this wrapper
+ * supplies the idempotent-same-bytes branch that the in-flight Foundation
+ * version does not have (G4 conflict-surface.md 第一节).
  */
 export async function writePlanImmutable(planPath, plan) {
   const planDigest = computePlanDigest(plan);
@@ -324,21 +330,15 @@ export async function writePlanImmutable(planPath, plan) {
   const dir = dirname(planPath);
   await prepareAuthorityDirectory(dir);
   await assertAuthorityFileTarget(planPath);
-  const tmpPath = join(dir, `.release-plan-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}.tmp`);
-  const handle = await open(tmpPath, 'wx', 0o600);
-  try {
-    await handle.writeFile(json, 'utf8');
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
 
   try {
-    await link(tmpPath, planPath);
-  } catch (error) {
-    if (error.code !== 'EEXIST') throw error;
-    const existing = await readFile(planPath, 'utf8');
-    if (existing !== json) {
+    await publishFileExclusive(dir, basename(planPath), json, { mode: 0o600 });
+  } catch (cause) {
+    if (cause?.details?.kind === INFLIGHT_KINDS.EXCLUSIVE_PUBLISH_CONFLICT) {
+      // 同字节幂等：目标已存在且字节相同 → 幂等成功（Foundation 在途版
+      // EEXIST 直接抛冲突，无幂等分支；wrapper 补齐，fail-closed 无双路径）。
+      const existing = await readFile(planPath, 'utf8').catch(() => null);
+      if (existing === json) return { planPath, planDigest };
       // planVersion 2 (design: t1-2-digest-decoupling.md §4.1): record-layer
       // fields (status/createdAt/baseline) are excluded from the digest, so
       // re-preparing over identical binding content yields the SAME digest
@@ -346,7 +346,7 @@ export async function writePlanImmutable(planPath, plan) {
       // it is genuinely self-consistent (its embedded digest and recomputed
       // digest both equal this digest) -- the authority is never replaced.
       // Any other divergence (tampering, malformed file) still fails closed.
-      if (plan.planVersion === 2) {
+      if (plan.planVersion === 2 && existing !== null) {
         let existingPlan = null;
         try {
           existingPlan = JSON.parse(existing);
@@ -367,8 +367,11 @@ export async function writePlanImmutable(planPath, plan) {
         { planPath, planDigest },
       );
     }
-  } finally {
-    await unlink(tmpPath).catch(() => {});
+    throw new ReleaseError(
+      GATE_FAILED,
+      `immutable plan authority write failed: ${cause?.message ?? String(cause)}`,
+      { planPath, planDigest },
+    );
   }
 
   return { planPath, planDigest };
@@ -1149,7 +1152,7 @@ export function validatePlanActionCompleteness(plan, options = {}) {
         // 不能只比较两个可一起篡改的字符串；必须重新由 distribution 的 installationContract 计算并验证
         if (hasFieldGroup && dist.installationContract) {
           // 从 distribution 的 installationContract 重新计算摘要
-          const recomputedDigest = sha256Hex(canonicalJson(dist.installationContract));
+          const recomputedDigest = digestDocument(dist.installationContract);
           const actionDigest = action.parameters?.installationContractDigest;
           const distDigest = dist.installationContractDigest;
 

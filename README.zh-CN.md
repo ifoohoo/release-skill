@@ -2,27 +2,38 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.4.2 -->
+<!-- release-skill:release-version: 0.5.0 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.4.2** (2026-08-12)
+**0.5.0** (2026-08-16)
 
-v0.4.2 将 CodeBuddy 消费者市场改为按分发渠道可配置，不再硬编码单一市场，CodeBuddy 插件分发可以指向项目声明的市场来源。
+v0.5.0 采用已发布的 Skill Family Foundation 0.4.0 包（skill-family-contracts / skill-family-harness-node）承载摘要计算、原子写、受控读取与项目锁；项目锁域迁移为单文件 token 锁并对旧目录形态 fail-closed；修复在线 assess npm 检查的 fail-open；并把 hooks 授权契约文档化为「配置时刻即授权」。
+
+**新增**
+
+- **新增负向测试**：新增 12 条测试覆盖排他发布、token 锁迁移与 assess npm 检查行为。
 
 **变更**
 
+- **Foundation 采用**：摘要计算、原子写、受控路径读取与项目锁改为委托已发布的 `skill-family-contracts@0.4.0` / `skill-family-harness-node@0.4.0` 包，依赖由 0.3.0 提升至 0.4.0。
+- **Token 锁域**：项目锁由目录形态迁移为单文件 `.release-skill/lock`（0600、token 记录）；旧目录形态锁被检测后 fail-closed（`LOCK_MIGRATION_REQUIRED`），不自动转换或删除。
+- **排他发布**：不可变计划与运行记录经 `publishFileExclusive` 发布——同字节幂等，异字节以 `GATE_FAILED` 失败。
+- **assess npm 检查语义**：在线 `assess` 的 npm 检查不再把一切 registry 错误当作「版本不存在」；仅 E404/ETARGET 视为缺失，其余失败以 `NPM_VERSION_CHECK_FAILED` 告警呈现。
+- **Hooks 授权契约**：release-prepare/release-help 现把「配置时刻即授权」写为显式契约——hook 是任意本地进程、无沙箱、无文件系统/网络隔离、触发前无确认点；恢复触发前强制确认门列为后续加固项。
+- **审计范围裁决**：bundled-family 市场型配置记录为不适用 `release_artifact` 目标类型（G3 目标侧 T4 裁决）；T3/T5/T6 延后为独立任务。
 - **计划模式**：生产计划携带解析后的 CodeBuddy 市场坐标，审批与发布时可核对确切的市场目标。
 
 **修复**
 
 - **CodeBuddy 市场可配置**：codebuddy-plugin 分发在项目配置中接受 `marketplace` 与 `marketplaceSource`，prepare 将两个值透传进消费者安装动作，不再假定固定市场。
+- **assess fail-open 修复**：在线 `assess` 不再因版本缺失以外的 npm registry 检查失败而静默报告无缺口。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.4.2 是当前源码候选，v0.4.1 仍是最新已发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.5.0 是当前源码候选，v0.4.1 仍是最新已发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -35,7 +46,7 @@ v0.4.2 将 CodeBuddy 消费者市场改为按分发渠道可配置，不再硬�
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.4.2 是当前源码候选，v0.4.1 是最新已发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.5.0 是当前源码候选，v0.4.1 是最新已发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**

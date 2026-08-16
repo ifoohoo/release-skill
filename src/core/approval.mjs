@@ -24,7 +24,7 @@
 
 import { ReleaseError, GATE_FAILED } from './errors.mjs';
 import { computePlanDigest } from './plan.mjs';
-import { sha256Hex } from './digest.mjs';
+import { digestBytes } from 'skill-family-harness-node';
 import { readFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import Ajv from 'ajv';
@@ -50,7 +50,10 @@ export function validateApprovalRecordSchema(approval) {
 }
 
 export function computeApprovalDigest(rawApproval) {
-  return sha256Hex(typeof rawApproval === 'string' || Buffer.isBuffer(rawApproval)
+  // 摘要机制委托 Foundation digestBytes。注意：rawApproval 对象保持本地
+  // 插入序 pretty-print JSON.stringify（approval 记录格式语义），不用
+  // canonicalJson —— 迁移前后字节必须逐位一致（冻结证据见 1.6/pre-freeze）。
+  return digestBytes(typeof rawApproval === 'string' || Buffer.isBuffer(rawApproval)
     ? rawApproval
     : JSON.stringify(rawApproval, null, 2));
 }

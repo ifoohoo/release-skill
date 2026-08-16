@@ -106,6 +106,50 @@ function unitFile(unit, file) {
 }
 
 /**
+ * Decide whether a failed `npm view` check proves the queried version is
+ * absent from the registry.
+ *
+ * Only an explicit E404/ETARGET from npm (the registry answered "not found",
+ * either for the package or for the exact version) is trusted as proof of
+ * absence. Network errors, auth failures, timeouts, a missing npm CLI, and
+ * any other failure remain unknown: they must be reported as a failed check
+ * instead of being silently treated as "no gap".
+ *
+ * @param {Error & { stdout?: string, stderr?: string, message?: string }} error - execFile rejection.
+ * @returns {boolean} true when npm explicitly reported the version as absent.
+ */
+function isVersionAbsentError(error) {
+  const text = [
+    error?.stdout,
+    error?.stderr,
+    error?.message,
+  ]
+    .filter((part) => typeof part === 'string')
+    .join('\n');
+  return /\bE404\b|\bETARGET\b/i.test(text);
+}
+
+/**
+ * Extract a short, safe error token from a failed `npm view` invocation.
+ *
+ * Only npm's machine error code (e.g. ECONNREFUSED, E404) or a spawn-level
+ * code (e.g. ENOENT for a missing npm CLI) is returned. Raw stderr is never
+ * embedded because it can contain absolute paths and npm log file locations.
+ *
+ * @param {Error & { code?: unknown, stderr?: string, message?: string }} error - execFile rejection.
+ * @returns {string} npm error code, spawn-level code, or 'UNKNOWN'.
+ */
+function describeNpmError(error) {
+  const spawnCode = error?.code;
+  if (typeof spawnCode === 'string' && /^[A-Z][A-Z0-9_]{2,}$/.test(spawnCode)) {
+    return spawnCode;
+  }
+  const text = `${error?.stderr ?? ''}\n${error?.message ?? ''}`;
+  const match = /\bcode\s+([A-Z][A-Z0-9_]{2,})\b/i.exec(text);
+  return match ? match[1] : 'UNKNOWN';
+}
+
+/**
  * Determine the project topology from the loaded config.
  *
  * Examines the distribution types to classify the project.
@@ -643,8 +687,22 @@ async function checkRemotePrerequisites(root, config, offline) {
           message: `npm 包 ${npmDist.package}@${version} 已存在于 registry`,
         }),
       );
-    } catch {
-      // Version not published -- good, no gap
+    } catch (error) {
+      // Only an explicit E404/ETARGET from the registry proves the version is
+      // absent -- good, no gap. All other failures (network, auth, timeout,
+      // missing npm CLI) are a failed check and must be reported instead of
+      // being silently treated as "version not published".
+      if (!isVersionAbsentError(error)) {
+        gaps.push(
+          createGap({
+            scope: GapScope.PROFILE,
+            category: GapCategory.REMOTE,
+            severity: Severity.WARNING,
+            code: 'NPM_VERSION_CHECK_FAILED',
+            message: `npm 包 ${npmDist.package}@${version} 的 registry 版本检查失败（${describeNpmError(error)}），无法确认该版本是否已发布，已跳过版本冲突检查`,
+          }),
+        );
+      }
     }
   }
 

@@ -2,7 +2,7 @@
 
 [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.4.2 -->
+<!-- release-skill:release-version: 0.5.0 -->
 ## Prerequisites
 
 - Node.js 22.0.0 or later
@@ -114,7 +114,7 @@ tag pinned to the exact version (never the bare repository URL, which installs
 the latest release or default branch), confirm the trust prompt, then reload:
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.4.2
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.5.0
    /plugins reload
    ```
 

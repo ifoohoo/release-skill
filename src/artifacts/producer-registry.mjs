@@ -14,10 +14,10 @@ import { readFile, readdir, stat, mkdir, writeFile, rm } from 'node:fs/promises'
 import { join } from 'node:path';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 import { canonicalJson, sha256Hex } from '../core/digest.mjs';
+import { digestBytes } from 'skill-family-harness-node';
 import {
   ReleaseError,
   ARTIFACT_POLICY_INVALID,
@@ -155,11 +155,14 @@ export async function createBuiltInProducerRegistry() {
  * @returns {string}
  */
 export function computeImplDigest(sourceBytes) {
-  const h = createHash('sha256');
-  for (const buf of sourceBytes) h.update(buf);
-  h.update(`node:${process.version}`);
-  h.update('locale:en-US timezone:UTC');
-  return `sha256:${h.digest('hex')}`;
+  // 多段哈希（源字节 + node 版本 + 固定 locale/timezone）等价于对拼接字节
+  // 的 sha256，委托 Foundation digestBytes 实现，字节逐位一致。
+  const bytes = Buffer.concat([
+    ...sourceBytes,
+    Buffer.from(`node:${process.version}`),
+    Buffer.from('locale:en-US timezone:UTC'),
+  ]);
+  return `sha256:${digestBytes(bytes)}`;
 }
 
 // ---------------------------------------------------------------------------

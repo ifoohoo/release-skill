@@ -9,7 +9,7 @@
     {
       "name": "release-skill",
       "source": "./",
-      "version": "0.4.2",
+      "version": "0.5.0",
       "description": "Safe preparation and frozen GitHub/npm production publishing with full happy end verification",
       "author": {
         "name": "广州市风荷科技有限公司"

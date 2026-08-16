@@ -85,6 +85,17 @@ async function validateInstalledConsumerClosure({
  * Record the human fact needed by an interactive-only consumer. Identity
  * fields come exclusively from the generated requirement; the operator only
  * supplies the result, actor and optional observed install facts.
+ *
+ * Proof-boundary note: the receipt is a local, self-declared record, not a
+ * signed attestation. `--actor` is validated only as a non-empty string and
+ * there is no external signature or identity verification, so any process
+ * that can run the CLI can claim any actor name. Forging a receipt already
+ * requires write access to the `.release-skill` authority directory, which
+ * is the same trust boundary as the receipt files themselves. New plans do
+ * not use this path: Kimi/CodeBuddy installations are collected as
+ * `manualFollowUps` with `verifiedBySystem: false` and never participate in
+ * the `VERIFIED` terminal state. This legacy command only supports old
+ * frozen plans that predate the manualFollowUps strategy.
  */
 export async function recordManualAttestation(options = {}, injected = {}) {
   const {

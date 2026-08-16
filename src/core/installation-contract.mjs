@@ -24,7 +24,7 @@
  * @module core/installation-contract
  */
 
-import { canonicalJson, sha256Hex } from './digest.mjs';
+import { digestDocument } from 'skill-family-contracts';
 
 /**
  * 安装契约摘要算法版本。
@@ -271,8 +271,10 @@ export function buildInstallationContract({
  * @returns {string} SHA-256 摘要（64 位十六进制）
  */
 export function computeInstallationContractDigest(params) {
+  // 契约对象为纯 JSON（深度冻结、无 undefined/Date/NaN），直接委托 Foundation
+  // digestDocument（= sha256(contracts canonicalJson)，与迁移前字节一致）。
   const contract = buildInstallationContract(params);
-  return sha256Hex(canonicalJson(contract));
+  return digestDocument(contract);
 }
 
 /**

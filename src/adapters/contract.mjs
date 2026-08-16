@@ -13,7 +13,9 @@
  * @module adapters/contract
  */
 
-import { writeFile, rename, rm } from 'node:fs/promises';
+import { dirname, basename } from 'node:path';
+
+import { writeFileAtomic } from 'skill-family-harness-node';
 
 import { ReleaseError, AUTH_MISSING } from '../core/errors.mjs';
 
@@ -193,18 +195,16 @@ export function resolveTimeoutMs(action) {
  * create, rename into place). Crash-safe: a partial write never replaces an
  * existing file.
  *
- * @param {string} filePath
+ * 机制已委托 Foundation writeFileAtomic（resolveContained 路径包含三层校验 +
+ * 独占临时文件 + fsync + rename + 目录 fsync）；文件内容与 mode 保持本地语义。
+ *
+ * @param {string} filePath - Absolute path to write.
  * @param {object} value
  */
 export async function writeEvidenceAtomic(filePath, value) {
-  const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
-  try {
-    await writeFile(tempPath, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', mode: 0o600, flag: 'wx' });
-    await rename(tempPath, filePath);
-  } catch (err) {
-    await rm(tempPath, { force: true }).catch(() => {});
-    throw err;
-  }
+  const root = dirname(filePath);
+  const relPath = basename(filePath);
+  await writeFileAtomic(root, relPath, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
 }
 
 /**

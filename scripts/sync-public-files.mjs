@@ -228,6 +228,10 @@ async function collectEntries(packageRoot) {
   //    - release-notes/      (consumed by docs-refresh, not a public artifact)
   //    - native/*/build/     (native build artifacts, only prebuilds are shipped)
   //    - scripts/*           (mostly dev-only; explicit whitelist below)
+  //    - vendor/             (G4 foundation-pin: check-time drift evidence, not
+  //                           a distribution artifact; the shipped bundle
+  //                           inlines the adopted capability — matches the npm
+  //                           pack closure contract)
   const baseFiles = allFiles.filter((f) => {
     if (f.startsWith('adapters/')) return false;
     if (f.startsWith('test/')) return false;
@@ -235,6 +239,7 @@ async function collectEntries(packageRoot) {
     if (f.startsWith('release-notes/')) return false;
     if (f.startsWith('native/') && f.includes('/build/')) return false;
     if (f.startsWith('scripts/')) return false;
+    if (f.startsWith('vendor/')) return false;
     return true;
   });
 

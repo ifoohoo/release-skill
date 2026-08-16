@@ -19,6 +19,8 @@ verify 只接受 `PUBLISHED` 状态的源 run；`VERIFIED` 是终态，不会再
 
 验证远端所有自动化 action 的实际状态与冻结计划一致。执行精确 `<package>@<version>` npm 安装到隔离目录，验证包名、版本、静态入口闭包，并在配置时验证 bin 路径安全和 CLI 烟雾输出。对 Claude/Codex marketplace distribution 执行全新隔离消费者安装验证。新计划中的 Kimi/CodeBuddy 安装只返回 `manualFollowUps`，明确标记 `verifiedBySystem: false`，不阻塞 `VERIFIED`；缺少该策略字段的旧冻结计划继续走历史 attestation 兼容路径。
 
+**attestation 证明力边界**: `attest` 命令记录的旧计划兼容人工证明（`humanConfirmed: true` → `PASSED_MANUAL`）是本地自声明收据，不是签名见证：`--actor` 仅做非空字符串校验，无外部签名或身份核验，任何能运行 CLI 的进程都能自称任意 actor；伪造收据需写 `.release-skill` authority 目录，与直接改写收据文件属同一信任边界。因此旧兼容路径的人工证明只用于旧冻结计划收尾，不构成独立可审计的人工见证。新计划的 Kimi/CodeBuddy 安装一律走 `manualFollowUps`（`verifiedBySystem: false`），不参与 `VERIFIED` 终态判定。
+
 **阶段通过规则**: 只有 CLI exit code 0 和结构化状态码 `VERIFIED` 才是完整终态。
 
 **源 run 要求**: `--run` 必需；源 run 的所有 checkpoint 必须为 succeeded 或 skipped。

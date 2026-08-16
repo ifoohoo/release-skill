@@ -10,7 +10,7 @@
 import { lstat, readFile, readdir } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
-import { canonicalJson, sha256Hex } from './digest.mjs';
+import { canonicalJson, digestDocument } from 'skill-family-contracts';
 import { GATE_FAILED, ReleaseError } from './errors.mjs';
 import { computeFrozenSnapshot } from '../snapshot/frozen.mjs';
 
@@ -258,6 +258,8 @@ export function createSkillResourceClosureReceipt(result, identity = {}) {
 }
 
 export function assertSkillResourceClosureReceipt(expected, observed, label = 'release unit') {
+  // 收据对象均为纯 JSON（JSON.parse 派生或固定字段投影），直接委托 Foundation
+  // contracts 严格 canonicalJson 比较（非 JSON 输入 fail-closed，抛 TypeError）。
   if (canonicalJson(expected) !== canonicalJson(observed)) {
     throw new ReleaseError(
       GATE_FAILED,
@@ -319,9 +321,9 @@ export async function checkSkillResourceClosure({
     })).digest;
   } catch (error) {
     snapshotError = error;
-    inputDigest = sha256Hex(canonicalJson({
+    inputDigest = digestDocument({
       invalidTree: error.message,
-    }));
+    });
   }
   const skillPaths = await discoverSkills(scanRoot);
   const findings = [];
@@ -426,6 +428,6 @@ export async function checkSkillResourceClosure({
     sourceOnlyCount,
     findings,
   };
-  result.receiptDigest = sha256Hex(canonicalJson(receiptProjection(result)));
+  result.receiptDigest = digestDocument(receiptProjection(result));
   return result;
 }

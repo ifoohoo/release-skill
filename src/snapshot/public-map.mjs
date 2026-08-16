@@ -24,9 +24,10 @@
 import { lstat, readFile, mkdir, readdir, realpath, chmod as fsChmod } from 'node:fs/promises';
 import { open as fsOpen } from 'node:fs/promises';
 import { relative, resolve, dirname, sep as pathSep, isAbsolute } from 'node:path';
-import { posix } from 'node:path';
+import { posix, win32 } from 'node:path';
 import { constants as fsConstants } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { classifyPathInput } from 'skill-family-harness-node';
 import {
   ReleaseError,
   PUBLIC_FILE_MISSING,
@@ -81,7 +82,14 @@ const MAX_PATH_LENGTH = 4096;
  */
 export function _isContainedWith(relativeFn, isAbsoluteFn, root, candidate, relPathSep = pathSep) {
   const rel = relativeFn(root, candidate);
-  return rel !== '' && rel !== '..' && !rel.startsWith(`..${relPathSep}`) && !isAbsoluteFn(rel);
+  if (rel === '' || rel === '..' || rel.startsWith(`..${relPathSep}`) || isAbsoluteFn(rel)) {
+    return false;
+  }
+  // 词法分类委托 Foundation classifyPathInput（同步纯函数）：对相对路径做
+  // 跨平台歧义输入 fail-closed（反斜杠分隔符/NUL/UNC/盘符相对/绝对路径）。
+  // 平台从注入的 relativeFn 推导，保持纯同步、无文件系统访问的既有契约。
+  const platform = relativeFn === win32.relative ? 'win32' : 'posix';
+  return classifyPathInput(rel, platform).ok === true;
 }
 
 /**

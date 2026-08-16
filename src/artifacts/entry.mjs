@@ -16,6 +16,7 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { execFile } from 'node:child_process';
 import { canonicalJson, sha256Hex } from '../core/digest.mjs';
+import { digestDocument } from 'skill-family-contracts';
 import { ReleaseError, PATH_UNSAFE } from '../core/errors.mjs';
 
 const execFileAsync = promisify(execFile);
@@ -151,10 +152,12 @@ async function enumerateTreeEntries(root, dirPath, relBase) {
  * @returns {string} `sha256:<hex>` digest.
  */
 export function digestEntryManifest(entries) {
+  // 纯 JSON 投影（path/type/mode/size/sha256 定字段），直接委托 Foundation
+  // digestDocument（= sha256(contracts canonicalJson)，与迁移前字节一致）。
   const canonical = entries.map(({ path, type, mode, sha256, size }) => ({
     path, type, mode, size, sha256,
   }));
-  return `sha256:${sha256Hex(canonicalJson(canonical))}`;
+  return `sha256:${digestDocument(canonical)}`;
 }
 
 // ---------------------------------------------------------------------------

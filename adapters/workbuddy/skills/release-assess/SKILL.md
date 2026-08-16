@@ -44,6 +44,8 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" assess --root <path> --off
 
 offline assess 不访问 GitHub/npm 认证，因此不会以顶层 `AUTH_MISSING` 作为正常诊断结果；生产认证缺口由 help 的 `readiness.productionPublish` 和发布前在线门禁报告。
 
+在线模式下 npm 版本检查区分两种失败：registry 明确返回 E404/ETARGET 才算「版本不存在，无 gap」；网络、认证、超时等检查失败会以 `NPM_VERSION_CHECK_FAILED`（warning 级 gap）显式报告，不得把检查失败当作「版本未发布」。
+
 重试时只保留最新结构化错误码和失败门，不沿用早期猜测。
 
 ## 后续引导

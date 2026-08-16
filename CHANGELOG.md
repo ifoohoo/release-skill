@@ -1,5 +1,31 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.5.0 locale=en baseline=sha256:e59bef4bd7bc6e0809d1f415d7ff3d342e45a7e77075f66d6ffa48cfd9b71932 -->
+## [0.5.0] - 2026-08-16
+
+v0.5.0 adopts the released Skill Family Foundation 0.4.0 packages (skill-family-contracts / skill-family-harness-node) for digest computation, atomic writes, contained file reads, and project locking; migrates the project lock domain to a single-file token lock with fail-closed legacy detection; hardens the online assess npm check against fail-open; and documents the hooks authorization contract as config-time authorization.
+
+### Added
+
+- **Negative test coverage**: 12 additional tests covering exclusive publication, token-lock migration, and the assess npm-check behavior.
+
+### Changed
+
+- **Foundation adoption**: digest computation, atomic writes, contained-path reads and project locking now delegate to the published `skill-family-contracts@0.4.0` / `skill-family-harness-node@0.4.0` packages instead of local implementations; dependencies bumped from 0.3.0 to 0.4.0.
+- **Token lock domain**: project locks migrated from a directory-based domain to a single `.release-skill/lock` file (0600, token record). Legacy directory-form locks are detected and fail closed with `LOCK_MIGRATION_REQUIRED`; no automatic conversion or deletion is performed.
+- **Exclusive plan/run publication**: immutable plan and run records are published via `publishFileExclusive` — identical bytes are idempotent, divergent bytes fail with `GATE_FAILED`.
+- **Assess npm check semantics**: the online `assess` npm check no longer treats every registry error as version-not-found; only E404/ETARGET mean a missing version, other failures surface as an `NPM_VERSION_CHECK_FAILED` warning.
+- **Hooks authorization contract**: release-prepare/release-help now document the explicit contract that configuring a hook in project configuration IS the authorization (hooks are arbitrary local processes with no sandbox, no filesystem/network isolation, and no pre-trigger confirmation point); restoring a mandatory pre-trigger confirmation gate is a future hardening item.
+- **Audit-scope ruling**: the bundled-family marketplace configuration is recorded as not applicable to the `release_artifact` target type (G3 target-side T4 ruling); T3/T5/T6 deferred to independent tasks.
+- **Plan schema**: production plans carry the resolved codebuddy marketplace coordinates so approval and publish review the exact marketplace target.
+
+### Fixed
+
+- **Configurable CodeBuddy marketplace**: codebuddy-plugin distributions accept `marketplace` and `marketplaceSource` in project configuration, and prepare threads both values into the consumer install action instead of assuming a fixed marketplace.
+- **Assess fail-open**: an online `assess` no longer silently reports no gaps when the npm registry check fails for reasons other than a missing version.
+<!-- release-skill:changelog:end version=0.5.0 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.4.2 locale=en baseline=sha256:b8676f90eb68c93e40f84ff16de18a8c472e6a06e321bcc25895799e9e6f3896 -->
 ## [0.4.2] - 2026-08-12
 
