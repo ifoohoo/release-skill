@@ -534,8 +534,18 @@ export function validatePlanActionCompleteness(plan, options = {}) {
         if (!frozen.parentCommit || frozen.parentCommit !== unit.previousPublicBaseline?.commit) {
           failures.push(`unit "${unitId}" frozenSnapshot.parentCommit does not match previous public baseline commit`);
         }
-      } else if (frozen.parentCommit) {
-        failures.push(`unit "${unitId}" create-release-branch must not freeze a parentCommit`);
+      } else if (branchStrategy === 'create-release-branch') {
+        // Chain-integrity gate (0.5.1): create-release-branch creates an
+        // orphan root commit (no parent). It is only legitimate for the
+        // FIRST release of a repository (previousPublicBaseline.mode=none).
+        // A later release using it would start a fresh lineage disconnected
+        // from the published history — the historical orphan-root channel.
+        if (unit.previousPublicBaseline?.mode === 'bound') {
+          failures.push(`unit "${unitId}" create-release-branch is only valid for first releases (previousPublicBaseline.mode=none), but a bound previous public baseline exists`);
+        }
+        if (frozen.parentCommit) {
+          failures.push(`unit "${unitId}" create-release-branch must not freeze a parentCommit`);
+        }
       }
       if (
         branchStrategy === 'advance-existing-branch' &&

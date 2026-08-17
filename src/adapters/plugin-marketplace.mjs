@@ -2179,10 +2179,34 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             // pluginRootForEntrySkill 在非 external 结构化 CLI 路径中已确定；
             // external 路径或 human-attestation（null）时回退到 snapshotDirReal。
             const pluginRootForSkill = pluginRootForEntrySkill || snapshotDirReal;
-            const entrySkillFile = resolve(pluginRootForSkill, 'skills', action.entrySkill, 'SKILL.md');
+            // Prefixed skill-directory fallback (0.5.1 entry-skill-prefix fix,
+            // D-ACA-30 platform_physical_name): some candidate builds name
+            // skill directories `skills/<plugin>-<entrySkill>/` instead of
+            // the unprefixed `skills/<entrySkill>/`. Resolve the unprefixed
+            // layout first; when it misses, retry with the plugin prefix.
+            let entrySkillFile = resolve(pluginRootForSkill, 'skills', action.entrySkill, 'SKILL.md');
+            let entrySkillExists = false;
             try {
               await stat(entrySkillFile);
+              entrySkillExists = true;
             } catch {
+              if (action.plugin) {
+                const prefixed = resolve(
+                  pluginRootForSkill,
+                  'skills',
+                  `${action.plugin}-${action.entrySkill}`,
+                  'SKILL.md',
+                );
+                try {
+                  await stat(prefixed);
+                  entrySkillFile = prefixed;
+                  entrySkillExists = true;
+                } catch {
+                  // both layouts miss; report below
+                }
+              }
+            }
+            if (!entrySkillExists) {
               const skillRel = relative(snapshotDirReal, entrySkillFile) || `skills/${action.entrySkill}/SKILL.md`;
               return createResult({
                 actionType,
@@ -3476,8 +3500,11 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
 
-          // Verify entry skill exists as a regular file in install dir
-          const entrySkillPath = resolve(installPath, 'skills', action.entrySkill, 'SKILL.md');
+          // Verify entry skill exists as a regular file in install dir.
+          // Prefixed skill-directory fallback (0.5.1 entry-skill-prefix fix):
+          // mirror the preflight resolution — `skills/<entrySkill>` first,
+          // then `skills/<plugin>-<entrySkill>` when the plugin is known.
+          let entrySkillPath = resolve(installPath, 'skills', action.entrySkill, 'SKILL.md');
           let entrySkillFound = false;
           try {
             const skillStat = await lstat(entrySkillPath);
@@ -3485,7 +3512,24 @@ export function createPluginMarketplaceAdapter(deps = {}) {
               entrySkillFound = true;
             }
           } catch {
-            // entry skill not found
+            // entry skill not found in unprefixed layout
+          }
+          if (!entrySkillFound && action.plugin) {
+            const prefixedPath = resolve(
+              installPath,
+              'skills',
+              `${action.plugin}-${action.entrySkill}`,
+              'SKILL.md',
+            );
+            try {
+              const skillStat = await lstat(prefixedPath);
+              if (skillStat.isFile() && !skillStat.isSymbolicLink()) {
+                entrySkillPath = prefixedPath;
+                entrySkillFound = true;
+              }
+            } catch {
+              // both layouts miss; report below
+            }
           }
 
           if (!entrySkillFound) {

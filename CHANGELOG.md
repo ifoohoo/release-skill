@@ -1,5 +1,23 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.5.1 locale=en baseline=sha256:2a8dc4241570c0919e55da270233728963ba1cda347c95c775678ec89a9f0ac0 -->
+## [0.5.1] - 2026-08-17
+
+v0.5.1 fixes three frozen-0.5.0 defects — explicit hook environment delivery (envAllowlist now reaches prepare hooks), a 64 MiB baseline maxBuffer for large tracked indexes, and the prefixed skill-directory fallback for marketplace-install preflight/observe — bumps the Skill Family Foundation dependencies to the released 0.5.0 packages, and hardens the release chain so every later release must bind the previous public release commit instead of degrading to an orphan root commit.
+
+### Changed
+
+- **Foundation 0.5.0 upgrade**: `skill-family-contracts` and `skill-family-harness-node` dependencies bumped from 0.4.0 to 0.5.0 (npm latest); the package-name import bridge keeps working unchanged and the harness-node 0.5.0 export surface was re-verified (`publishFileExclusive`, token-lock five functions, `HARNESS_ERROR_KINDS`).
+- **Chain hardening (chain-integrity)**: `push-snapshot` now requires an explicit `branchStrategy` (the historical `create-release-branch` default that produced orphan root commits is gone); `create-release-branch` is only valid when `previousPublicBaseline.mode=none`; a production online prepare with `mode=none` on a repository that already carries release tags fails closed with `CHAIN_GAP`, demanding a bound baseline at the previous release commit; online `assess` registers a warning-level `VERSION_SEQUENCE_GAP` when the target version jumps the release sequence (e.g. 0.1.1 → 0.1.3 with no v0.1.2 tag), without blocking.
+
+### Fixed
+
+- **Hook environment delivery (hook-env-delivery)**: `runDeclaredHooks` now accepts an explicit `env` option and merges it into the hook context (`hookFn(hook, { root, env })`); prepare and `hooks validate` inject the invoking shell's environment, so `hooks.*.envAllowlist` keys exported by the caller finally reach the hook subprocess. Allowlist semantics are unchanged — the hook runner still reads allowlisted keys exclusively from the explicit map, never from `process.env` directly.
+- **Large-tracked-index baseline (baseline-maxbuffer)**: `computeWorkspaceDigest` now runs its three git subprocesses with a 64 MiB `maxBuffer` (official fix 39c631f); workspaces with thousands of tracked files (measured 8494 tracked files → 1,519,151 B `ls-files -s` stdout) no longer fail with `ERR_CHILD_PROCESS_STDIO_MAXBUFFER`.
+- **Prefixed skill-directory resolution (entry-skill-prefix)**: marketplace-install preflight and observe now fall back from `skills/<entrySkill>/SKILL.md` to `skills/<plugin>-<entrySkill>/SKILL.md` (plugin from the action parameters, D-ACA-30 platform physical names); candidate builds with prefixed skill directories pass preflight and observe instead of failing with `entry skill not found`.
+<!-- release-skill:changelog:end version=0.5.1 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.5.0 locale=en baseline=sha256:e59bef4bd7bc6e0809d1f415d7ff3d342e45a7e77075f66d6ffa48cfd9b71932 -->
 ## [0.5.0] - 2026-08-16
 

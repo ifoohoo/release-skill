@@ -13,6 +13,13 @@
  * 本桥从 5 级相对路径 import（包外工作树引用）切换为包名 import
  * （'skill-family-harness-node'），随 npm 依赖发布，不再依赖 Foundation 工作树在旁。
  *
+ * 0.5.1 依赖提升：skill-family-contracts / skill-family-harness-node 由 0.4.0
+ * 提升至 0.5.0（npm latest，2026-08-16 发布）。harness-node 0.5.0 导出面已逐项
+ * 核对：publishFileExclusive（atomic.mjs）、acquireFilesystemLock /
+ * inspectFilesystemLock / releaseFilesystemLock / recoverFilesystemLock
+ * （token-lock.mjs）、HARNESS_ERROR_KINDS（errors.mjs）均在 index.mjs 导出面，
+ * 包名 import 无需改动。
+ *
  * 发布形态：包名 import 可直接用于包内 src（node_modules 解析），bundle
  * （bin/release-skill.bundle.mjs，esbuild 内联）保持自包含。
  *

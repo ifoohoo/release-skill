@@ -2,38 +2,30 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.5.0 -->
+<!-- release-skill:release-version: 0.5.1 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.5.0** (2026-08-16)
+**0.5.1** (2026-08-17)
 
-v0.5.0 采用已发布的 Skill Family Foundation 0.4.0 包（skill-family-contracts / skill-family-harness-node）承载摘要计算、原子写、受控读取与项目锁；项目锁域迁移为单文件 token 锁并对旧目录形态 fail-closed；修复在线 assess npm 检查的 fail-open；并把 hooks 授权契约文档化为「配置时刻即授权」。
-
-**新增**
-
-- **新增负向测试**：新增 12 条测试覆盖排他发布、token 锁迁移与 assess npm 检查行为。
+v0.5.1 修复冻结 0.5.0 的三项缺陷——hook 显式环境送达（envAllowlist 终于作用于 prepare hooks）、大索引基线 64 MiB maxBuffer、marketplace-install preflight/observe 的带前缀技能目录回退——并把 Skill Family Foundation 依赖提升到已发布的 0.5.0 包，同时加固发布链：后续任何发布都必须绑定上一公开发布提交，不再退化为孤儿根提交。
 
 **变更**
 
-- **Foundation 采用**：摘要计算、原子写、受控路径读取与项目锁改为委托已发布的 `skill-family-contracts@0.4.0` / `skill-family-harness-node@0.4.0` 包，依赖由 0.3.0 提升至 0.4.0。
-- **Token 锁域**：项目锁由目录形态迁移为单文件 `.release-skill/lock`（0600、token 记录）；旧目录形态锁被检测后 fail-closed（`LOCK_MIGRATION_REQUIRED`），不自动转换或删除。
-- **排他发布**：不可变计划与运行记录经 `publishFileExclusive` 发布——同字节幂等，异字节以 `GATE_FAILED` 失败。
-- **assess npm 检查语义**：在线 `assess` 的 npm 检查不再把一切 registry 错误当作「版本不存在」；仅 E404/ETARGET 视为缺失，其余失败以 `NPM_VERSION_CHECK_FAILED` 告警呈现。
-- **Hooks 授权契约**：release-prepare/release-help 现把「配置时刻即授权」写为显式契约——hook 是任意本地进程、无沙箱、无文件系统/网络隔离、触发前无确认点；恢复触发前强制确认门列为后续加固项。
-- **审计范围裁决**：bundled-family 市场型配置记录为不适用 `release_artifact` 目标类型（G3 目标侧 T4 裁决）；T3/T5/T6 延后为独立任务。
-- **计划模式**：生产计划携带解析后的 CodeBuddy 市场坐标，审批与发布时可核对确切的市场目标。
+- **Foundation 0.5.0 升级**：`skill-family-contracts` 与 `skill-family-harness-node` 依赖由 0.4.0 提升至 0.5.0（npm latest）；包名 import 桥无需改动，harness-node 0.5.0 导出面已逐项复核（`publishFileExclusive`、token-lock 五函数、`HARNESS_ERROR_KINDS`）。
+- **链加固（chain-integrity）**：`push-snapshot` 现要求显式 `branchStrategy`（历史上产生孤儿根提交的 `create-release-branch` 默认值已移除）；`create-release-branch` 仅在 `previousPublicBaseline.mode=none` 时合法；生产在线 prepare 在公开仓已有发布标签时仍以 `mode=none` 冻结计划会以 `CHAIN_GAP` 失败关闭，要求把基线绑定到上一发布提交；在线 `assess` 检测到版本序列跳号（如 0.1.1→0.1.3 且无 v0.1.2 标签）时登记 `VERSION_SEQUENCE_GAP` 警告，不阻断。
 
 **修复**
 
-- **CodeBuddy 市场可配置**：codebuddy-plugin 分发在项目配置中接受 `marketplace` 与 `marketplaceSource`，prepare 将两个值透传进消费者安装动作，不再假定固定市场。
-- **assess fail-open 修复**：在线 `assess` 不再因版本缺失以外的 npm registry 检查失败而静默报告无缺口。
+- **Hook 环境送达（hook-env-delivery）**：`runDeclaredHooks` 新增显式 `env` 选项并并入 hook 上下文（`hookFn(hook, { root, env })`）；prepare 与 `hooks validate` 注入调用方 shell 的环境，`hooks.*.envAllowlist` 中由调用方导出的键终于能到达 hook 子进程。allowlist 语义不变——hook 运行器仍只从显式映射读取白名单键，绝不直接回退 process.env。
+- **大索引基线（baseline-maxbuffer）**：`computeWorkspaceDigest` 的三个 git 子进程统一设置 64 MiB `maxBuffer`（官方修复 39c631f）；tracked 文件数较多的工作区（实测 8494 个文件 → `ls-files -s` 输出 1,519,151 B）不再报 `ERR_CHILD_PROCESS_STDIO_MAXBUFFER`。
+- **带前缀技能目录解析（entry-skill-prefix）**：marketplace-install 的 preflight 与 observe 从 `skills/<entrySkill>/SKILL.md` 未命中时回退 `skills/<plugin>-<entrySkill>/SKILL.md`（plugin 取 action 参数，D-ACA-30 平台物理名）；带前缀技能目录的候选构建不再以 `entry skill not found` 失败。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.5.0 是当前源码候选，v0.4.1 仍是最新已发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.5.1 是当前源码候选，v0.4.1 仍是最新已发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -46,7 +38,7 @@ v0.5.0 采用已发布的 Skill Family Foundation 0.4.0 包（skill-family-contr
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.5.0 是当前源码候选，v0.4.1 是最新已发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.5.1 是当前源码候选，v0.4.1 是最新已发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**

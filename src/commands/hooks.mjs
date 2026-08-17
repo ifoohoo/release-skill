@@ -28,7 +28,12 @@ export async function validateDeclaredHooks(options = {}) {
     clock: () => new Date().toISOString(),
   });
   const startedAt = new Date().toISOString();
-  await runDeclaredHooks(config, root, evidence, undefined, { hookCache });
+  await runDeclaredHooks(config, root, evidence, undefined, {
+    hookCache,
+    // Explicit env delivery (0.5.1 hook-env-delivery fix): same semantics as
+    // prepare — allowlisted keys are read from this explicit map only.
+    env: process.env,
+  });
   return {
     command: 'hooks validate',
     status: 'PASSED',

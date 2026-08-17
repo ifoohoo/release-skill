@@ -146,7 +146,17 @@ function parseStatusPorcelainZ(statusOut) {
  * @returns {Promise<string>} Hex-encoded SHA-256 digest.
  */
 async function computeWorkspaceDigest(root) {
-  const opts = { cwd: root, shell: false, encoding: 'utf8' };
+  // 64 MiB upper bound (official fix 39c631f): `git ls-files -s -z` emits one
+  // line per tracked file and routinely exceeds Node's default 1 MiB
+  // execFile maxBuffer on large repositories (measured 8494 tracked files →
+  // 1,519,151 B stdout). Large enough for any realistic baseline, small
+  // enough to fail closed before exhausting memory.
+  const opts = {
+    cwd: root,
+    shell: false,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  };
 
   const [
     { stdout: stagedOut },

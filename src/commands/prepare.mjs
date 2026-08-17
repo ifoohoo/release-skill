@@ -243,6 +243,13 @@ export async function resolveAllUnitVersions(units, root, explicitVersion, evide
  * @param {object} [options]
  * @param {boolean} [options.hookCache=true] - When false (--no-hook-cache),
  *   every hook runs in full and the cache is neither read nor written.
+ * @param {Record<string, string>} [options.env] - Explicit environment map
+ *   merged into the hook context (`hookFn(hook, { root, env })`). The hook
+ *   runner's `buildFilteredEnv` reads `envAllowlist` keys exclusively from
+ *   this map (never from process.env), so the caller decides what is
+ *   injectable. Defaults to process.env at the prepare call site, which makes
+ *   allowlisted keys exported by the invoking shell reach the hook
+ *   subprocess.
  * @returns {Promise<void>}
  * @throws {ReleaseError} GATE_FAILED if any hook returns a non-zero exit code,
  *   throws, or declares a cacheInputs glob that matches no file.
@@ -294,7 +301,10 @@ export async function runDeclaredHooks(config, root, evidence, hookFn = runHook,
 
     let result;
     try {
-      result = await hookFn(hook, { root });
+      result = await hookFn(hook, {
+        root,
+        ...(options.env !== undefined ? { env: options.env } : {}),
+      });
     } catch (err) {
       await evidence.append({
         phase: 'hooks',
@@ -1850,6 +1860,11 @@ export async function prepareRelease(options) {
     await evidence.append({ phase: 'hooks', status: 'started' });
     await runDeclaredHooks(config, realRoot, evidence, options.runHookFn ?? runHook, {
       hookCache: options.hookCache,
+      // Explicit env delivery (0.5.1 hook-env-delivery fix): the hook runner
+      // reads envAllowlist keys exclusively from context.env, so the invoking
+      // shell's environment is injected here explicitly. Allowlist semantics
+      // are unchanged — only allowlisted keys from this map reach the child.
+      env: options.env ?? process.env,
     });
     await evidence.append({ phase: 'hooks', status: 'completed' });
 
@@ -2077,6 +2092,29 @@ export async function prepareRelease(options) {
       }
     };
     const observeDefaultBranch = options.observeDefaultBranchFn ?? defaultObserveDefaultBranchFn;
+    // CHAIN_GAP detection (0.5.1 chain hardening): when a unit declares
+    // previousPublicBaseline.mode=none (first-release semantics) but the
+    // public repository already carries release tags for the unit's
+    // tagTemplate, a subsequent release pretending to be the first would
+    // freeze a plan whose push-snapshot creates a new orphan root commit.
+    // Detection is online-only: `git ls-remote` on the tag pattern
+    // (tagTemplate with {version} → *). Any match proves a prior release.
+    const defaultPriorReleaseTagDetector = async (repo, tagPattern, { githubHost = 'github.com' } = {}) => {
+      try {
+        const { stdout } = await execFile(
+          'git',
+          ['ls-remote', `https://${githubHost}/${repo}.git`, `refs/tags/${tagPattern}`],
+          { shell: false, encoding: 'utf8', timeout: 30000 },
+        );
+        return { found: stdout.trim().length > 0 };
+      } catch (err) {
+        // Network/auth failure: unknown, not "no prior release". The caller
+        // records a warning and continues (consistent with the bound-baseline
+        // observer's unknown status); it never silently proves first release.
+        return { error: err.message };
+      }
+    };
+    const detectPriorReleaseTags = options.detectPriorReleaseTagsFn ?? defaultPriorReleaseTagDetector;
     const unitBaselineResults = new Map();
     for (let unitIndex = 0; unitIndex < configUnits.length; unitIndex += 1) {
       const unit = configUnits[unitIndex];
@@ -2120,6 +2158,50 @@ export async function prepareRelease(options) {
       });
 
       if (ppbConfig.mode === "none") {
+        // Chain-integrity gate (0.5.1, CHAIN_GAP): a production online
+        // prepare must not freeze a first-release plan for a repository that
+        // has already published. This is the orphan-root channel that caused
+        // the synthetic 2000-01-01 root commits in the historical public
+        // repositories: first releases used mode=none, push-snapshot degraded
+        // to create-release-branch with no parent, and every later release
+        // started a fresh lineage. Fail closed and demand a bound baseline
+        // pointing at the previous release commit instead.
+        if (production && !offline) {
+          const tagTemplate = unit.version?.tagTemplate;
+          const tagPattern = tagTemplate ? tagTemplate.replace('{version}', '*') : null;
+          if (tagPattern) {
+            const detection = await detectPriorReleaseTags(unit.publicRepo, tagPattern, {
+              githubHost: productionGithubHost,
+            });
+            if (detection.found) {
+              await evidence.append({
+                phase: "previous-public-baseline",
+                unitId: unit.id,
+                status: "blocking",
+                reason: "CHAIN_GAP",
+                repo: unit.publicRepo,
+                tagPattern,
+                guidance: "非首次发布：必须把 previousPublicBaseline 绑定到上一发布提交（mode=bound），不能以 mode=none 制造新的孤儿根提交",
+              });
+              throw new ReleaseError(
+                GATE_FAILED,
+                `unit "${unit.id}" previousPublicBaseline.mode=none but the public repository already has release tags matching "${tagPattern}" (CHAIN_GAP): bind the previous public release commit as a bound baseline`,
+                { unitId: unit.id, reason: 'CHAIN_GAP', repo: unit.publicRepo, tagPattern },
+              );
+            }
+            if (detection.error) {
+              await evidence.append({
+                phase: "previous-public-baseline",
+                unitId: unit.id,
+                status: "warning",
+                reason: "CHAIN_GAP_DETECTION_FAILED",
+                repo: unit.publicRepo,
+                tagPattern,
+                error: detection.error,
+              });
+            }
+          }
+        }
         unitBaselineResults.set(unit.id, {
           mode: "none",
           status: "consistent",

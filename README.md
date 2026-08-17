@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.5.0 -->
+<!-- release-skill:release-version: 0.5.1 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,32 +14,24 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.5.0** (2026-08-16)
+**0.5.1** (2026-08-17)
 
-v0.5.0 adopts the released Skill Family Foundation 0.4.0 packages (skill-family-contracts / skill-family-harness-node) for digest computation, atomic writes, contained file reads, and project locking; migrates the project lock domain to a single-file token lock with fail-closed legacy detection; hardens the online assess npm check against fail-open; and documents the hooks authorization contract as config-time authorization.
-
-**Added**
-
-- **Negative test coverage**: 12 additional tests covering exclusive publication, token-lock migration, and the assess npm-check behavior.
+v0.5.1 fixes three frozen-0.5.0 defects — explicit hook environment delivery (envAllowlist now reaches prepare hooks), a 64 MiB baseline maxBuffer for large tracked indexes, and the prefixed skill-directory fallback for marketplace-install preflight/observe — bumps the Skill Family Foundation dependencies to the released 0.5.0 packages, and hardens the release chain so every later release must bind the previous public release commit instead of degrading to an orphan root commit.
 
 **Changed**
 
-- **Foundation adoption**: digest computation, atomic writes, contained-path reads and project locking now delegate to the published `skill-family-contracts@0.4.0` / `skill-family-harness-node@0.4.0` packages instead of local implementations; dependencies bumped from 0.3.0 to 0.4.0.
-- **Token lock domain**: project locks migrated from a directory-based domain to a single `.release-skill/lock` file (0600, token record). Legacy directory-form locks are detected and fail closed with `LOCK_MIGRATION_REQUIRED`; no automatic conversion or deletion is performed.
-- **Exclusive plan/run publication**: immutable plan and run records are published via `publishFileExclusive` — identical bytes are idempotent, divergent bytes fail with `GATE_FAILED`.
-- **Assess npm check semantics**: the online `assess` npm check no longer treats every registry error as version-not-found; only E404/ETARGET mean a missing version, other failures surface as an `NPM_VERSION_CHECK_FAILED` warning.
-- **Hooks authorization contract**: release-prepare/release-help now document the explicit contract that configuring a hook in project configuration IS the authorization (hooks are arbitrary local processes with no sandbox, no filesystem/network isolation, and no pre-trigger confirmation point); restoring a mandatory pre-trigger confirmation gate is a future hardening item.
-- **Audit-scope ruling**: the bundled-family marketplace configuration is recorded as not applicable to the `release_artifact` target type (G3 target-side T4 ruling); T3/T5/T6 deferred to independent tasks.
-- **Plan schema**: production plans carry the resolved codebuddy marketplace coordinates so approval and publish review the exact marketplace target.
+- **Foundation 0.5.0 upgrade**: `skill-family-contracts` and `skill-family-harness-node` dependencies bumped from 0.4.0 to 0.5.0 (npm latest); the package-name import bridge keeps working unchanged and the harness-node 0.5.0 export surface was re-verified (`publishFileExclusive`, token-lock five functions, `HARNESS_ERROR_KINDS`).
+- **Chain hardening (chain-integrity)**: `push-snapshot` now requires an explicit `branchStrategy` (the historical `create-release-branch` default that produced orphan root commits is gone); `create-release-branch` is only valid when `previousPublicBaseline.mode=none`; a production online prepare with `mode=none` on a repository that already carries release tags fails closed with `CHAIN_GAP`, demanding a bound baseline at the previous release commit; online `assess` registers a warning-level `VERSION_SEQUENCE_GAP` when the target version jumps the release sequence (e.g. 0.1.1 → 0.1.3 with no v0.1.2 tag), without blocking.
 
 **Fixed**
 
-- **Configurable CodeBuddy marketplace**: codebuddy-plugin distributions accept `marketplace` and `marketplaceSource` in project configuration, and prepare threads both values into the consumer install action instead of assuming a fixed marketplace.
-- **Assess fail-open**: an online `assess` no longer silently reports no gaps when the npm registry check fails for reasons other than a missing version.
+- **Hook environment delivery (hook-env-delivery)**: `runDeclaredHooks` now accepts an explicit `env` option and merges it into the hook context (`hookFn(hook, { root, env })`); prepare and `hooks validate` inject the invoking shell's environment, so `hooks.*.envAllowlist` keys exported by the caller finally reach the hook subprocess. Allowlist semantics are unchanged — the hook runner still reads allowlisted keys exclusively from the explicit map, never from `process.env` directly.
+- **Large-tracked-index baseline (baseline-maxbuffer)**: `computeWorkspaceDigest` now runs its three git subprocesses with a 64 MiB `maxBuffer` (official fix 39c631f); workspaces with thousands of tracked files (measured 8494 tracked files → 1,519,151 B `ls-files -s` stdout) no longer fail with `ERR_CHILD_PROCESS_STDIO_MAXBUFFER`.
+- **Prefixed skill-directory resolution (entry-skill-prefix)**: marketplace-install preflight and observe now fall back from `skills/<entrySkill>/SKILL.md` to `skills/<plugin>-<entrySkill>/SKILL.md` (plugin from the action parameters, D-ACA-30 platform physical names); candidate builds with prefixed skill directories pass preflight and observe instead of failing with `entry skill not found`.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.5.0 is the current source candidate; v0.4.1 remains
+> **Current boundary:** v0.5.1 is the current source candidate; v0.4.1 remains
 > the latest published release (v0.2.2 previously held
 > published status before the platform verification convergence fix was added).
 > v0.1.1 completed a real production release to GitHub and npm — the first
@@ -58,7 +50,7 @@ v0.5.0 adopts the released Skill Family Foundation 0.4.0 packages (skill-family-
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.5.0 is the current
+> **Production path verified since the v0.1.1 milestone; v0.5.1 is the current
 > source candidate and v0.4.1 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >

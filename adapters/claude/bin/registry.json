@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "skill-family.contracts.registry",
-  "contractsVersion": "1.4.0",
+  "contractsVersion": "1.5.0",
   "note": "Protocol-name and schema-$id registry. Registration mechanically rejects duplicate protocol name/version (SFC1004) and duplicate $id (SFC1003). This file is the single registration surface; adding an entry is a contracts change.",
   "protocols": [
     {
@@ -152,6 +152,20 @@
       "dialect": "2020-12",
       "status": "stable",
       "file": "src/schemas/surface-scan-policy.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/declared-read-surface-result.json",
+      "object": "declared-read-surface-result",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/declared-read-surface-result.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/structured-scan-policy.json",
+      "object": "structured-scan-policy",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/structured-scan-policy.schema.json"
     }
   ],
   "dialects": {

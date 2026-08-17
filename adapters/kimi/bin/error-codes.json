@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "skill-family.contracts.error-codes",
-  "contractsVersion": "1.4.0",
+  "contractsVersion": "1.5.0",
   "policy": {
     "format": "^SFC[0-9]{4}$",
     "ranges": [

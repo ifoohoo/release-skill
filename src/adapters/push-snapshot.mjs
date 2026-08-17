@@ -58,10 +58,16 @@ function validateAction(action) {
   githubRepositoryUrl(action.repo, action.githubHost);
 
   const validStrategies = ['create-release-branch', 'advance-existing-branch', 'initialize-default-branch'];
-  const strategy = action.branchStrategy ?? 'create-release-branch';
-  if (typeof strategy !== 'string' || !validStrategies.includes(strategy)) {
+  // Explicit strategy is required (0.5.1 chain hardening): the historical
+  // `?? 'create-release-branch'` default silently produced orphan root
+  // commits whenever a plan omitted the strategy — the root cause of the
+  // synthetic-date root commits in the public repositories. The plan layer
+  // now guarantees the value; a missing value here fails closed instead of
+  // degrading to the orphan-root channel.
+  if (typeof action.branchStrategy !== 'string' || !validStrategies.includes(action.branchStrategy)) {
     throw new Error(`branchStrategy must be one of: ${validStrategies.join(', ')}`);
   }
+  const strategy = action.branchStrategy;
   if (strategy === 'advance-existing-branch' || strategy === 'initialize-default-branch') {
     if (!action.parentCommit || typeof action.parentCommit !== 'string') {
       throw new Error(`${strategy} requires parentCommit`);
@@ -126,7 +132,8 @@ export function createPushSnapshotAdapter(deps = {}) {
           { shell: false },
         );
         const remoteTip = stdout.trim().split(/\s+/)[0] ?? '';
-        const strategy = action.branchStrategy ?? 'create-release-branch';
+        // Guaranteed by validateAction above (branchStrategy is required).
+        const strategy = action.branchStrategy;
 
         if (strategy === 'advance-existing-branch') {
           if (!remoteTip) {
@@ -173,7 +180,8 @@ export function createPushSnapshotAdapter(deps = {}) {
         });
         const gitDir = await inspectLocalObjects(action, context, exec);
         const remoteUrl = githubRepositoryUrl(action.repo, action.githubHost);
-        const strategy = action.branchStrategy ?? 'create-release-branch';
+        // Guaranteed by validateAction above (branchStrategy is required).
+        const strategy = action.branchStrategy;
 
         if (strategy === 'advance-existing-branch') {
           await exec(

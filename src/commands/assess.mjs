@@ -710,6 +710,171 @@ async function checkRemotePrerequisites(root, config, offline) {
 }
 
 /**
+ * Parse a semver-ish version string into comparable components.
+ *
+ * Accepts `major.minor.patch` with an optional `-prerelease` suffix (which
+ * sorts strictly below the same release triple). Returns null for anything
+ * that is not a version-shaped tag (candidate names like `0.1.27-candidate.2`
+ * parse fine; non-version tags are skipped).
+ *
+ * @param {string} version
+ * @returns {{ major: number, minor: number, patch: number, prerelease: string|null } | null}
+ */
+export function parseSemverVersion(version) {
+  const match = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/.exec(version);
+  if (!match) return null;
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2]),
+    patch: Number(match[3]),
+    prerelease: match[4] ?? null,
+  };
+}
+
+/**
+ * Compare two parsed semver values. Returns a negative/zero/positive number.
+ *
+ * @param {{ major: number, minor: number, patch: number, prerelease: string|null }} a
+ * @param {{ major: number, minor: number, patch: number, prerelease: string|null }} b
+ * @returns {number}
+ */
+export function compareSemverVersions(a, b) {
+  if (a.major !== b.major) return a.major - b.major;
+  if (a.minor !== b.minor) return a.minor - b.minor;
+  if (a.patch !== b.patch) return a.patch - b.patch;
+  if (a.prerelease && !b.prerelease) return -1;
+  if (!a.prerelease && b.prerelease) return 1;
+  return 0;
+}
+
+/**
+ * Describe a version-sequence gap between an immediate predecessor and the
+ * target version, or null when the step is contiguous.
+ *
+ * A gap means some version between the two was never released (e.g. the
+ * historical 0.1.1 -> 0.1.3 jump with no v0.1.2 tag). Pre-release steps
+ * never count as gaps by themselves.
+ *
+ * @param {{ major: number, minor: number, patch: number, prerelease: string|null }} prev
+ * @param {{ major: number, minor: number, patch: number, prerelease: string|null }} target
+ * @returns {string|null}
+ */
+export function describeVersionSequenceGap(prev, target) {
+  if (prev.major !== target.major) {
+    return prev.major + 1 < target.major
+      ? `major ${prev.major}.x.x -> ${target.major}.x.x`
+      : null;
+  }
+  if (prev.minor !== target.minor) {
+    return prev.minor + 1 < target.minor
+      ? `minor ${prev.major}.${prev.minor}.x -> ${target.major}.${target.minor}.x`
+      : null;
+  }
+  if (prev.patch !== target.patch) {
+    return prev.patch + 1 < target.patch
+      ? `patch ${prev.major}.${prev.minor}.${prev.patch} -> ${target.major}.${target.minor}.${target.patch}`
+      : null;
+  }
+  return null;
+}
+
+/**
+ * Build a regex that extracts the version from a tag name following the
+ * unit's tagTemplate (`{version}` placeholder, regex-special characters
+ * escaped).
+ *
+ * @param {string} tagTemplate
+ * @returns {RegExp}
+ */
+export function buildTagVersionRegex(tagTemplate) {
+  const escaped = tagTemplate
+    .split('{version}')
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('(.+)');
+  return new RegExp(`^${escaped}$`);
+}
+
+/**
+ * Check the public repository's release tag sequence for version jumps
+ * (0.5.1 chain hardening): when the immediate predecessor release is more
+ * than one version step below the current target version, register a
+ * warning-level gap `VERSION_SEQUENCE_GAP` (e.g. 0.1.1 -> 0.1.3 with no
+ * v0.1.2 tag). This never blocks: it records the observation for the human
+ * release planner.
+ *
+ * @param {string} root - Project root.
+ * @param {Object} config - The loaded project config.
+ * @returns {Promise<Object[]>} Array of warning gap entries.
+ */
+async function checkReleaseTagSequence(root, config) {
+  const gaps = [];
+  for (const unit of config.releaseUnits ?? []) {
+    const tagTemplate = unit.version?.tagTemplate;
+    if (!tagTemplate || !unit.publicRepo) continue;
+
+    const versionRegex = buildTagVersionRegex(tagTemplate);
+    const tagPattern = tagTemplate.replace('{version}', '*');
+
+    let stdout;
+    try {
+      ({ stdout } = await execFile(
+        'git',
+        ['ls-remote', `https://github.com/${unit.publicRepo}.git`, `refs/tags/${tagPattern}`],
+        { cwd: root, shell: false, encoding: 'utf8', timeout: 15_000 },
+      ));
+    } catch {
+      // Tag enumeration failure (network/auth/repo absent) is not a version
+      // gap and must not block; the remote-prerequisites npm check already
+      // reports unreachable registries where relevant.
+      continue;
+    }
+
+    let targetVersion;
+    try {
+      const pkg = JSON.parse(await readFile(resolve(root, unit.source, 'package.json'), 'utf8'));
+      targetVersion = pkg.version;
+    } catch {
+      continue; // package metadata issues are reported elsewhere
+    }
+    const targetParsed = parseSemverVersion(targetVersion);
+    if (!targetParsed) continue;
+
+    let previousParsed = null;
+    let previousTag = null;
+    for (const line of stdout.trim().split('\n')) {
+      if (!line) continue;
+      const tagName = line.split('\t')[1]?.replace(/^refs\/tags\//, '');
+      if (!tagName) continue;
+      const versionMatch = versionRegex.exec(tagName);
+      if (!versionMatch) continue;
+      const parsed = parseSemverVersion(versionMatch[1]);
+      if (!parsed) continue;
+      // Prereleases never qualify as the "previous release" predecessor.
+      if (parsed.prerelease) continue;
+      if (compareSemverVersions(parsed, targetParsed) >= 0) continue;
+      if (previousParsed === null || compareSemverVersions(parsed, previousParsed) > 0) {
+        previousParsed = parsed;
+        previousTag = tagName;
+      }
+    }
+
+    if (!previousParsed) continue;
+    const gap = describeVersionSequenceGap(previousParsed, targetParsed);
+    if (gap) {
+      gaps.push(createGap({
+        scope: GapScope.PROJECT,
+        category: GapCategory.REMOTE,
+        severity: Severity.WARNING,
+        code: 'VERSION_SEQUENCE_GAP',
+        message: `发布单元 "${unit.id}" 的版本序列存在跳号（${gap}，上一发布标签 ${previousTag}，目标版本 ${targetVersion}）：请确认中间版本未发布是否是有意为之；发布链仍会以链式历史推进，但跳过的版本不会补造标签`,
+        file: '.release-skill/project.yaml',
+      }));
+    }
+  }
+  return gaps;
+}
+
+/**
  * Perform a basic README structural check.
  *
  * @param {string} root - Project root.
@@ -966,6 +1131,12 @@ export async function assessProject(options) {
   // --- 7. Remote prerequisites ---
   const remoteGaps = await checkRemotePrerequisites(root, config, offline);
   allGaps.push(...remoteGaps);
+
+  // --- 7b. Release tag sequence (online only; warning, never blocking) ---
+  if (!offline) {
+    const tagSequenceGaps = await checkReleaseTagSequence(root, config);
+    allGaps.push(...tagSequenceGaps);
+  }
 
   // --- 8. README structure check ---
   const readmeGaps = await checkReadmeStructure(root, config);
