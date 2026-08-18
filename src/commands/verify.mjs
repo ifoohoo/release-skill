@@ -54,6 +54,7 @@ import {
 } from '../core/baseline-advance.mjs';
 import { loadProjectConfig } from '../core/config.mjs';
 import { assertTransition, PUBLISHED, VERIFIED } from '../core/state-machine.mjs';
+import { clearFrozenMarker } from '../core/frozen-marker.mjs';
 import { resolveUnitScopedPath } from '../snapshot/public-path.mjs';
 import {
   normalizeRegistry,
@@ -1801,6 +1802,27 @@ export async function verifyRelease(options) {
       finishedAt: clockFn(),
     };
     const persistedVerifyRun = await writeRunAtomic(verifyRunPath, verifyRunState);
+
+    // =======================================================================
+    // FROZEN marker retirement (2026-08-18 investigation §4.5 option 1):
+    // the release reached VERIFIED, so the freeze signal is cleared. Only
+    // this success path clears it — failed/PARTIAL verify runs never reach
+    // here and keep the marker. Best-effort: a removal failure must never
+    // demote VERIFIED.
+    // =======================================================================
+    try {
+      const removed = await clearFrozenMarker(join(root, '.release-skill'));
+      await evidence.append({
+        phase: 'frozen-marker',
+        status: removed ? 'cleared' : 'absent',
+      });
+    } catch (err) {
+      await evidence.append({
+        phase: 'frozen-marker',
+        status: 'clear-failed',
+        error: { code: err.code, message: err.message },
+      });
+    }
 
     // =======================================================================
     // Baseline advance: move per-unit previousPublicBaseline to the commit

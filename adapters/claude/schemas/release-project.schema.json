@@ -873,6 +873,14 @@
           },
           "uniqueItems": true,
           "description": "Root-relative globs declaring the hook's full input set (source, scripts, config, lockfiles). The cache key fingerprints the content of every matched file; a glob that matches nothing fails closed. Must cover ALL inputs or the cache can return a false hit."
+        },
+        "testSelection": {
+          "type": "string",
+          "enum": [
+            "full",
+            "incremental"
+          ],
+          "description": "Only meaningful for the test hook: which test selection the hook command runs. Absence or 'full' means the hook runs the full suite, which prepare's built-in full-test freeze gate requires before the plan digest is computed. 'incremental' is reserved for a future preflight mode and is rejected at freeze time ('incremental selection is not allowed at freeze time'). Built-in gate; cannot be disabled by project overlays."
         }
       }
     },

@@ -1,5 +1,19 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.6.1 locale=en baseline=sha256:dd7c991244d72db1247dda808057fda060b1e7bb03ff866aae691841828e6239 -->
+## [0.6.1] - 2026-08-18
+
+v0.6.1 closes the four root causes of the 0.6.0 self-bootstrap release cycle, in which 22 of 25 runs failed and nearly all wall-clock time was spent in diagnose-repair loops or on external interference: hook failures are no longer silent, stale bundles fail closed at the earliest gate, the freeze path can never skip the full test suite, and a machine-readable frozen marker now tells sibling governance tasks to keep out of a repository mid-release.
+
+### Added
+
+- **Hook failure output passthrough (R1)**: when a prepare hook exits non-zero, the run evidence now carries bounded `stderrTail` / `stdoutTail` projections (last 50 lines, capped at 8 KiB) and the CLI echoes the stderr tail, so failures such as a bare `exit=13` are diagnosable immediately instead of by blind retry. Exit-code semantics are unchanged.
+- **Bundle freshness gate (R2)**: every rebuilt bundle embeds a frozen digest of its source tree, and prepare compares source against bundle right after the config phase; any mismatch fails closed as `BUNDLE_STALE` (error code 54) with the rebuild command in the message, before hooks, snapshots, or network checks run. No workflow path is exempt.
+- **Full-test freeze gate (R3)**: plan digests can no longer be computed unless the full test suite ran in this prepare; the gate sits before `computePlanDigest`, the `testSelection` value is validated against a schema enum in project and plan schemas, and no overlay switch can waive the freeze-path requirement.
+- **Frozen-release marker (R4)**: a successful prepare writes `.release-skill/FROZEN` carrying `planDigest`, `targetVersions` (unit → version), `createdAt`, and `runId`; the marker is removed only when verify reaches `VERIFIED`, giving sibling repositories and governance tasks a machine-readable signal to skip a repository mid-release.
+<!-- release-skill:changelog:end version=0.6.1 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.6.0 locale=en baseline=sha256:1942e4534cc9ab36065168471875ba8c4648c73328a20ef3ee6a7a53eb1f1b7d -->
 ## [0.6.0] - 2026-08-18
 

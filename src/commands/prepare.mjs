@@ -18,7 +18,7 @@
  * @module commands/prepare
  */
 
-import { resolve, relative, isAbsolute, normalize, dirname } from 'node:path';
+import { resolve, relative, isAbsolute, normalize, dirname, basename } from 'node:path';
 import { readFile, mkdir, readdir, realpath } from 'node:fs/promises';
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -53,7 +53,10 @@ import {
   normalizeGitTimestamp,
   sealFrozenSnapshot,
 } from '../snapshot/frozen.mjs';
-import { ReleaseError, GATE_FAILED, CONFIG_INVALID, CONFIG_MISSING, FORBIDDEN_CONTENT_DETECTED, RELEASE_DOCS_STALE, DIRTY_SOURCE_INPUT } from '../core/errors.mjs';
+import { ReleaseError, GATE_FAILED, CONFIG_INVALID, CONFIG_MISSING, FORBIDDEN_CONTENT_DETECTED, RELEASE_DOCS_STALE, DIRTY_SOURCE_INPUT, BUNDLE_STALE } from '../core/errors.mjs';
+import { assertBundleFreshness } from '../core/bundle-freshness.mjs';
+import { PKG_ROOT } from '../core/pkg-root.mjs';
+import { writeFrozenMarker, FROZEN_MARKER_FILENAME } from '../core/frozen-marker.mjs';
 import {
   SOURCE_INPUT_ALGORITHM_VERSION,
   computeSourceInputClosure,
@@ -224,6 +227,40 @@ export async function resolveAllUnitVersions(units, root, explicitVersion, evide
 // Hooks execution
 // ---------------------------------------------------------------------------
 
+/** Maximum number of output lines preserved in a hook-failure tail. */
+const HOOK_OUTPUT_TAIL_MAX_LINES = 50;
+/** Maximum bytes preserved in a hook-failure tail. */
+const HOOK_OUTPUT_TAIL_MAX_BYTES = 8 * 1024;
+
+/**
+ * Bound a captured child-output stream to the tail that matters for triage:
+ * the last 50 lines, further capped at 8 KB — whichever is smaller.
+ *
+ * @param {string} [text] - Captured stdout/stderr text.
+ * @returns {string} The bounded tail ('' for empty/absent input).
+ */
+export function boundedOutputTail(text) {
+  if (typeof text !== 'string' || text.length === 0) return '';
+  let lines = text.split('\n');
+  // A trailing newline produces an empty final element; drop it so the line
+  // budget counts real output lines.
+  if (lines.length > 1 && lines[lines.length - 1] === '') {
+    lines = lines.slice(0, -1);
+  }
+  let tail = lines.slice(-HOOK_OUTPUT_TAIL_MAX_LINES);
+  let joined = tail.join('\n');
+  while (tail.length > 1 && Buffer.byteLength(joined, 'utf8') > HOOK_OUTPUT_TAIL_MAX_BYTES) {
+    tail = tail.slice(1);
+    joined = tail.join('\n');
+  }
+  if (Buffer.byteLength(joined, 'utf8') > HOOK_OUTPUT_TAIL_MAX_BYTES) {
+    // A single line exceeds the byte cap: keep the trailing bytes.
+    const buf = Buffer.from(joined, 'utf8');
+    joined = buf.subarray(buf.length - HOOK_OUTPUT_TAIL_MAX_BYTES).toString('utf8');
+  }
+  return joined;
+}
+
 /**
  * Run all declared project hooks in order: docs, build, test, typecheck.
  *
@@ -235,6 +272,13 @@ export async function resolveAllUnitVersions(units, root, explicitVersion, evide
  * and never bypasses any GATE; hook order and failure semantics are unchanged.
  * Failures (non-zero exit or HOOK_TIMEOUT) are never cached. A `cacheInputs`
  * glob that matches nothing fails closed before the hook runs.
+ *
+ * Failure output passthrough (2026-08-18 investigation §4.1): the executor
+ * already captures child stdout/stderr on non-zero exit; on failure this
+ * layer writes bounded tails into the hooks evidence event AND echoes them to
+ * the current process' stderr, so a failing hook is diagnosable on the
+ * terminal without opening evidence.jsonl. Success events carry no tails.
+ * Exit-code semantics are unchanged.
  *
  * @param {object} config - The loaded project config.
  * @param {string} root - Absolute project root.
@@ -251,7 +295,9 @@ export async function resolveAllUnitVersions(units, root, explicitVersion, evide
  *   injectable. Defaults to process.env at the prepare call site, which makes
  *   allowlisted keys exported by the invoking shell reach the hook
  *   subprocess.
- * @returns {Promise<void>}
+ * @returns {Promise<Array<{ name: string, completed: boolean, cached: boolean, testSelection: string | undefined }>>}
+ *   One record per declared hook that completed (fresh or cached replay).
+ *   Failures throw instead of returning a record.
  * @throws {ReleaseError} GATE_FAILED if any hook returns a non-zero exit code,
  *   throws, or declares a cacheInputs glob that matches no file.
  */
@@ -259,15 +305,24 @@ export async function runDeclaredHooks(config, root, evidence, hookFn = runHook,
   const hookOrder = ['docs', 'build', 'test', 'typecheck'];
   const hooks = config.hooks ?? {};
   const cacheEnabled = options.hookCache !== false;
+  const records = [];
 
   for (const name of hookOrder) {
     const hook = hooks[name];
     if (!hook) continue;
 
+    // Test-selection evidence (2026-08-18 investigation §4.4): the test hook
+    // records whether it ran the full suite. Absence of a declaration means
+    // 'full' — every existing config stays backward compatible.
+    const selectionField = name === 'test'
+      ? { testSelection: hook.testSelection === 'incremental' ? 'incremental' : 'full' }
+      : {};
+
     await evidence.append({
       phase: 'hooks',
       status: 'started',
       hookName: name,
+      ...selectionField,
     });
 
     // --- Incremental cache lookup (opt-in only; default zero change) ---
@@ -295,7 +350,9 @@ export async function runDeclaredHooks(config, root, evidence, hookFn = runHook,
           hookName: name,
           cached: true,
           cacheKey,
+          ...selectionField,
         });
+        records.push({ name, completed: true, cached: true, testSelection: selectionField.testSelection });
         continue;
       }
     }
@@ -312,6 +369,7 @@ export async function runDeclaredHooks(config, root, evidence, hookFn = runHook,
         status: 'failed',
         hookName: name,
         error: { code: err.code, message: err.message },
+        ...selectionField,
       });
       throw new ReleaseError(
         GATE_FAILED,
@@ -321,16 +379,29 @@ export async function runDeclaredHooks(config, root, evidence, hookFn = runHook,
     }
 
     if (result.exitCode !== 0) {
+      const stdoutTail = boundedOutputTail(result.stdout);
+      const stderrTail = boundedOutputTail(result.stderr);
+      // Echo the captured tails to the current process' stderr so a failing
+      // hook is diagnosable on the terminal without opening evidence.jsonl
+      // (2026-08-18 investigation §4.1). Exit-code semantics are untouched.
+      process.stderr.write(`[release-skill] hook "${name}" failed with exit code ${result.exitCode}\n`);
+      if (stdoutTail) {
+        process.stderr.write(`[release-skill] hook "${name}" stdout tail:\n${stdoutTail}\n`);
+      }
+      if (stderrTail) {
+        process.stderr.write(`[release-skill] hook "${name}" stderr tail:\n${stderrTail}\n`);
+      }
       await evidence.append({
         phase: 'hooks',
         status: 'failed',
         hookName: name,
         exitCode: result.exitCode,
         // Test runners usually emit the actionable failure summary at the
-        // end. Preserve bounded tails of both streams instead of the noisy
-        // compiler prelude at the beginning.
-        stdoutTail: result.stdout.slice(-4000),
-        stderrTail: result.stderr.slice(-4000),
+        // end. Preserve bounded tails (last 50 lines, capped at 8 KB) of both
+        // streams instead of the noisy compiler prelude at the beginning.
+        stdoutTail,
+        stderrTail,
+        ...selectionField,
       });
       throw new ReleaseError(
         GATE_FAILED,
@@ -364,8 +435,12 @@ export async function runDeclaredHooks(config, root, evidence, hookFn = runHook,
       status: 'completed',
       hookName: name,
       exitCode: 0,
+      ...selectionField,
     });
+    records.push({ name, completed: true, cached: false, testSelection: selectionField.testSelection });
   }
+
+  return records;
 }
 
 // ---------------------------------------------------------------------------
@@ -1744,6 +1819,7 @@ export async function prepareRelease(options) {
     production = false,
     workflow = 'full',
     observePreviousPublicBaselineFn,
+    testSelection = 'full',
   } = options ?? {};
 
   // --- Workflow profile (H5) ---
@@ -1759,6 +1835,24 @@ export async function prepareRelease(options) {
       CONFIG_INVALID,
       `unknown workflow kind "${workflow}"; expected one of ${[...WORKFLOW_KINDS].sort().join(', ')}`,
       { workflow },
+    );
+  }
+
+  // --- Test selection (2026-08-18 investigation §4.4, review §3.4) ---
+  // Design decision: prepare IS the freeze, so incremental test selection is
+  // rejected outright; the flag is reserved for a future preflight mode.
+  if (testSelection === 'incremental') {
+    throw new ReleaseError(
+      GATE_FAILED,
+      'incremental selection is not allowed at freeze time',
+      { testSelection, reservedFor: 'preflight mode' },
+    );
+  }
+  if (testSelection !== 'full') {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      `unknown testSelection "${testSelection}"; expected "full" or "incremental"`,
+      { testSelection },
     );
   }
   const trimmedWorkflow = workflow !== 'full';
@@ -1842,6 +1936,44 @@ export async function prepareRelease(options) {
         phase: 'public-surface-adoption',
         status: 'warning',
         ...warning,
+      });
+    }
+
+    // --- Step 1-fresh: Bundle freshness gate (BUNDLE_STALE, fail-closed) ---
+    // 2026-08-18 investigation §4.2: a stale bin/release-skill.bundle.mjs
+    // used to surface only deep inside test hooks. Compare the deterministic
+    // source digest embedded in the bundle at build time with the current
+    // sources at the earliest stage — config loaded, before any hook.
+    // This gate is artifact-integrity class, NOT a code-class gate:
+    // docs/config/marketplace workflow trimming must never exempt it.
+    await evidence.append({ phase: 'bundle-freshness', status: 'started' });
+    const bundleFreshnessFn = options.bundleFreshnessFn ?? assertBundleFreshness;
+    let bundleFreshness;
+    try {
+      bundleFreshness = await bundleFreshnessFn(PKG_ROOT);
+    } catch (err) {
+      await evidence.append({
+        phase: 'bundle-freshness',
+        status: 'blocking',
+        reason: err.details?.reason ?? null,
+        error: { code: err.code, message: err.message },
+      });
+      throw err;
+    }
+    if (bundleFreshness?.applicable === false) {
+      // Installed distributions ship no mutable src/ next to the bundle;
+      // staleness is a source-checkout concern only.
+      await evidence.append({
+        phase: 'bundle-freshness',
+        status: 'not-applicable',
+        reason: bundleFreshness.reason,
+      });
+    } else {
+      await evidence.append({
+        phase: 'bundle-freshness',
+        status: 'completed',
+        algorithm: bundleFreshness?.algorithm ?? null,
+        sourceDigest: bundleFreshness?.sourceDigest ?? null,
       });
     }
 
@@ -1974,6 +2106,7 @@ export async function prepareRelease(options) {
     }
 
     // --- Step 3: Run declared hooks ---
+    let hookRecords = [];
     if (skipDeclaredHooks) {
       await evidence.append({
         phase: 'hooks',
@@ -1982,7 +2115,7 @@ export async function prepareRelease(options) {
       });
     } else {
       await evidence.append({ phase: 'hooks', status: 'started' });
-      await runDeclaredHooks(config, realRoot, evidence, options.runHookFn ?? runHook, {
+      hookRecords = await runDeclaredHooks(config, realRoot, evidence, options.runHookFn ?? runHook, {
         hookCache: options.hookCache,
         // Explicit env delivery (0.5.1 hook-env-delivery fix): the hook runner
         // reads envAllowlist keys exclusively from context.env, so the invoking
@@ -2608,6 +2741,59 @@ export async function prepareRelease(options) {
     // --- Step 7: Build plan object ---
     await evidence.append({ phase: 'plan-assembly', status: 'started' });
 
+    // --- Step 7-gate: Full-test freeze gate (hard gate) ---
+    // 2026-08-18 investigation §4.4 / review §3.4: "full test suite before
+    // freeze" is a HARD gate, not a convention. The plan digest may only be
+    // computed after a completed FULL-mode test hook exists in THIS run's
+    // evidence (fresh run or a cached replay of a successful full run).
+    // Built-in and read-only — like secret-scan, plan-digest binding, and
+    // approval, it cannot be disabled by project overlays. Workflows that
+    // trim declared hooks record the trim; projects declaring no test hook
+    // pass vacuously (nothing can run incrementally there).
+    if (skipDeclaredHooks) {
+      await evidence.append({
+        phase: 'full-test-gate',
+        status: 'skipped',
+        reason: `workflow "${workflow}" trims declared hooks`,
+      });
+    } else if (!config.hooks?.test) {
+      await evidence.append({
+        phase: 'full-test-gate',
+        status: 'not-declared',
+        reason: 'no test hook declared; nothing can run incrementally',
+      });
+    } else {
+      const testRecord = hookRecords.find((record) => record.name === 'test');
+      const satisfied = Boolean(
+        testRecord && testRecord.completed && testRecord.testSelection === 'full',
+      );
+      if (!satisfied) {
+        await evidence.append({
+          phase: 'full-test-gate',
+          status: 'blocking',
+          testSelection: testRecord?.testSelection ?? null,
+          cached: Boolean(testRecord?.cached),
+        });
+        throw new ReleaseError(
+          GATE_FAILED,
+          testRecord?.testSelection === 'incremental'
+            ? 'full-test freeze gate failed: incremental test selection cannot satisfy the freeze-time requirement of a completed full test run in this prepare run'
+            : 'full-test freeze gate failed: prepare requires a completed full-mode test hook in this run before the plan digest is computed',
+          {
+            gate: 'full-test-freeze',
+            testSelection: testRecord?.testSelection ?? null,
+            cached: Boolean(testRecord?.cached),
+          },
+        );
+      }
+      await evidence.append({
+        phase: 'full-test-gate',
+        status: 'completed',
+        testSelection: 'full',
+        cached: Boolean(testRecord.cached),
+      });
+    }
+
     // New prepares emit planVersion 2 (design: t1-2-digest-decoupling.md
     // §4.2/§7). Production freeze timestamps are derived deterministically
     // from the baseline headCommit's committer date, before the first frozen
@@ -3213,6 +3399,26 @@ export async function prepareRelease(options) {
       status: 'completed',
       planPath: writtenPath,
       planDigest,
+    });
+
+    // --- Write the FROZEN governance marker (§4.5 option 1) ---
+    // Mechanical maintenance only: the marker is a read-only gentlemen's-
+    // agreement signal for cross-repo writers (e.g. skill-family治理 tasks)
+    // that this workspace is mid-release. It is written ONLY after the plan
+    // is frozen, overwritten by every successful prepare, and cleared by
+    // verify only upon VERIFIED. A failed prepare never reaches this point.
+    await writeFrozenMarker(releaseDir, {
+      planDigest,
+      targetVersions: Object.fromEntries(
+        configUnits.map((unit, index) => [unit.id, resolvedVersions[index]]),
+      ),
+      createdAt: plan.createdAt,
+      runId: basename(runDir),
+    });
+    await evidence.append({
+      phase: 'frozen-marker',
+      status: 'written',
+      markerPath: `.release-skill/${FROZEN_MARKER_FILENAME}`,
     });
 
     // --- Write summary ---

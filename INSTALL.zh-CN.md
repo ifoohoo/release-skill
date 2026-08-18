@@ -2,7 +2,7 @@
 
 [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.6.0 -->
+<!-- release-skill:release-version: 0.6.1 -->
 ## 前置条件
 
 - Node.js 22.0.0 或更高版本
@@ -104,7 +104,7 @@ Kimi Code 有交互式插件市场，但**没有可脚本化的非交互安装�
 （切勿使用裸仓库地址，它会安装最新 release 或默认分支），确认信任提示后重新加载：
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.6.0
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.6.1
    /plugins reload
    ```
 

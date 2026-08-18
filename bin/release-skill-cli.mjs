@@ -258,6 +258,9 @@ Options:
                    deterministically trim code-class gates (declared hooks, snapshot-verify gates,
                    source-authority closure, skill-resource-closure) and record workflowDecision in the plan;
                    config also reports whether the public bytes are unchanged (no publish path)
+  --test-selection <full|incremental> Test selection for the test hook (prepare). Only 'full' is accepted at
+                   freeze time; 'incremental' is reserved for a future preflight mode and is rejected
+                   ('incremental selection is not allowed at freeze time')
   --answers <path> Human-reviewed setup answers JSON
   --write          Create an absent project.yaml during setup; never overwrites
   --confirm-setup <digest> Confirm exact setup facts and answers before create
@@ -699,6 +702,13 @@ if (command === 'prepare') {
   const production = args.includes('--production');
   const workflowIdx = args.indexOf('--workflow');
   const workflow = workflowIdx !== -1 && args[workflowIdx + 1] ? args[workflowIdx + 1] : 'full';
+  // Test-selection flag (2026-08-18 investigation §4.4): reserved for a
+  // future preflight mode. prepare rejects 'incremental' at freeze time;
+  // the flag is parsed here only so the CLI surface matches the contract.
+  const testSelectionIdx = args.indexOf('--test-selection');
+  const testSelection = testSelectionIdx !== -1 && args[testSelectionIdx + 1]
+    ? args[testSelectionIdx + 1]
+    : undefined;
   const outputIdx = args.indexOf('--output');
   const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve(args[outputIdx + 1]) : undefined;
   const runDirIdx = args.indexOf('--run-dir');
@@ -716,6 +726,7 @@ if (command === 'prepare') {
       hookCache,
       production,
       workflow,
+      testSelection,
       output,
       runDir,
     });

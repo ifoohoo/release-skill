@@ -21,6 +21,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
+import { computeBundleSourceDigest } from '../src/core/bundle-freshness.mjs';
 
 const CHECK_MODE = process.argv.includes('--check');
 
@@ -38,7 +39,12 @@ const OUTFILE = join(PKG_ROOT, 'bin', 'release-skill.bundle.mjs');
 // dependency: the Claude and Codex adapter closures ship the bundle at a
 // different depth with no package.json next to it, while the npm closure does.
 // Reading package.json here (build input) keeps the output deterministic.
-function buildBanner(pkgIdentity) {
+//
+// __bundleSourceDigest is the build-time digest of the bundle's source inputs
+// (src/, skills-src/, bin/release-skill-cli.mjs, package.json — algorithm in
+// src/core/bundle-freshness.mjs). prepare's BUNDLE_STALE gate recomputes the
+// digest and fails closed on any mismatch (2026-08-18 investigation §4.2).
+function buildBanner(pkgIdentity, sourceDigest) {
   return `\
 // --- release-skill bundle (deterministic build) ---
 // Compute package root from the bundle's own file location (import.meta.url).
@@ -51,6 +57,8 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
 const __bundlePkg = Object.freeze(${JSON.stringify(pkgIdentity)});
+// Build-time source digest for the BUNDLE_STALE freshness gate (see above).
+const __bundleSourceDigest = "${sourceDigest}";
 `;
 }
 
@@ -164,7 +172,8 @@ async function buildBundle() {
   }
 
   const pkgJson = JSON.parse(await readFile(join(PKG_ROOT, 'package.json'), 'utf-8'));
-  const banner = buildBanner({ name: pkgJson.name, version: pkgJson.version });
+  const sourceDigest = await computeBundleSourceDigest(PKG_ROOT);
+  const banner = buildBanner({ name: pkgJson.name, version: pkgJson.version }, sourceDigest);
 
   const identity = Object.freeze({ name: pkgJson.name, version: pkgJson.version });
 

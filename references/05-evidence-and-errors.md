@@ -32,6 +32,7 @@
 | `NOT_DEFAULT` | 配置分支不是远端实际默认分支 | 默认分支在 prepare 后改变，或配置错误 | 人工确认远端默认分支，更新配置并重新 prepare |
 | `CONTENT_MISMATCH` | 远端默认分支缺少冻结源码内容 | README、版本源、公开映射输入的内容或 mode 不一致 | 人工 merge/adopt/reject；接受的内容进入默认分支后重试 publish |
 | `DIRTY_SOURCE_INPUT` | 源码输入闭包存在未提交变化 | `publicFiles.from` 或 `version.source` 有 staged、unstaged、untracked 变化 | 提交或撤销这些具体输入的变化后重新 prepare；无关 dirty 不受影响 |
+| `BUNDLE_STALE` | bundle 与其源码输入失步（fail-closed 前置门禁） | `bin/release-skill.bundle.mjs` 内嵌的源码摘要与当前 `src/` 摘要不一致，或 bundle/内嵌摘要缺失；在 prepare 加载 config 后的早期阶段检测，任何 workflow 均不可豁免 | 按错误提示在 release-skill 包根运行 `node scripts/build-bundle.mjs`（或 `pnpm build`）重建 bundle 后重新 prepare |
 
 **动作状态码** (adapter execute/observe/verify):
 

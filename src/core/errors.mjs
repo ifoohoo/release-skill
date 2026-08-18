@@ -94,6 +94,7 @@ const EXIT_CODE_MAP = Object.freeze({
   NOT_DEFAULT: 51,
   CONTENT_MISMATCH: 52,
   DIRTY_SOURCE_INPUT: 53,
+  BUNDLE_STALE: 54,
 });
 
 // ---- Error code constants ----
@@ -142,6 +143,7 @@ export const REF_MISSING = 'REF_MISSING';
 export const NOT_DEFAULT = 'NOT_DEFAULT';
 export const CONTENT_MISMATCH = 'CONTENT_MISMATCH';
 export const DIRTY_SOURCE_INPUT = 'DIRTY_SOURCE_INPUT';
+export const BUNDLE_STALE = 'BUNDLE_STALE';
 
 /**
  * Typed error for release-skill operations.

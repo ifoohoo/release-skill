@@ -2,25 +2,26 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.6.0 -->
+<!-- release-skill:release-version: 0.6.1 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.6.0** (2026-08-18)
+**0.6.1** (2026-08-18)
 
-v0.6.0 把发布循环中最容易出错的一步记账工作自动化了：发布到达 VERIFIED 后，verify 会自动把 project.yaml 中每个 unit 的 previousPublicBaseline 推进到本次已发布的 commit、tree 与 manifest digest，数值全部取自冻结计划的记录。推进只写本地、幂等、写回后自动校验并在失败时原样回滚，并且只在写回前文件干净时才用独立提交落库——漂移门禁从此总是看到真实的前序公开基线，不再需要任何人手工抄写哈希。
+v0.6.1 收口 0.6.0 自举发布周期暴露的四个根因——该周期 25 次运行中 22 次失败，几乎全部墙钟时间消耗在失败-诊断-修复循环与外部干扰上：hook 失败不再无声、陈旧 bundle 在最早期门禁失败关闭、冻结路径不可能跳过全量测试、机器可读的冻结标记让兄弟仓库的治理任务知道发布期间不要写入本仓库。
 
 **新增**
 
-- **基线自动推进（baseline-advance）**：`verify` 到达 `VERIFIED` 后，每个 `mode: bound` unit 的 `previousPublicBaseline`（`commit`、`tree`、`manifestDigest`）自动推进到冻结计划 `push-snapshot` 绑定中的已发布值——绝不从工作区状态重新计算。写回的 `project.yaml` 保留注释，经 `loadProjectConfig` 重新校验，校验失败时逐字节还原。推进失败不会降级 `VERIFIED`：失败记录进证据并提示人工处理。
-- **干净工作区提交策略**：仅当写回前 `project.yaml` 没有任何暂存或未暂存改动时，基线推进才用一次独立提交只包含该文件；工作区有在途改动时只落盘不提交、留给人工复核；git 缺失或损坏时安全失败为永不提交。
-- **ship 状态可追溯**：`ship` 把 verify 的 `baselineAdvance` 结果（`advanced` / `already-current` / `committed` / `failed`）写入持久状态；`verify` 的人类可读输出新增推进结果行。
+- **hook 失败输出透传（R1）**：prepare hook 非零退出时，运行证据携带有界的 `stderrTail` / `stdoutTail` 投影（最后 50 行、上限 8 KiB），CLI 同时回显 stderr 尾部——裸 `exit=13` 这类失败从此可即时诊断，不再需要盲目重试。exit code 语义不变。
+- **bundle 陈旧度门禁（R2）**：每次重建的 bundle 内嵌其源码树冻结摘要，prepare 在 config 阶段之后立即比对源码与 bundle；不一致即以 `BUNDLE_STALE`（错误码 54）失败关闭并在消息中给出重建命令，先于 hooks、快照与网络检查执行。任何工作流路径都不可豁免。
+- **全量测试冻结门禁（R3）**：本次 prepare 未跑全量测试就无法产生计划摘要；门禁位于 `computePlanDigest` 之前，`testSelection` 取值在 project 与 plan schema 中按枚举校验，overlay 无豁免开关。
+- **发布冻结标记（R4）**：prepare 成功后写入 `.release-skill/FROZEN`，内容为 `planDigest`、`targetVersions`（unit → 版本映射）、`createdAt`、`runId`；仅当 verify 到达 `VERIFIED` 时才清除，为兄弟仓库与治理任务提供机器可读的发布期回避信号。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.6.0 是当前源码候选，v0.4.1 仍是最新已发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.6.1 是当前源码候选，v0.4.1 仍是最新已发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -33,7 +34,7 @@ v0.6.0 把发布循环中最容易出错的一步记账工作自动化了：发�
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.6.0 是当前源码候选，v0.4.1 是最新已发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.6.1 是当前源码候选，v0.4.1 是最新已发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**

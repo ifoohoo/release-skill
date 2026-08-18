@@ -232,6 +232,9 @@ async function collectEntries(packageRoot) {
   //                           a distribution artifact; the shipped bundle
   //                           inlines the adopted capability — matches the npm
   //                           pack closure contract)
+  //    - .release-skill/     (local release runtime state — runs, plans, locks;
+  //                           not in the package.json files whitelist, so it is
+  //                           never part of the npm pack closure)
   const baseFiles = allFiles.filter((f) => {
     if (f.startsWith('adapters/')) return false;
     if (f.startsWith('test/')) return false;
@@ -240,6 +243,7 @@ async function collectEntries(packageRoot) {
     if (f.startsWith('native/') && f.includes('/build/')) return false;
     if (f.startsWith('scripts/')) return false;
     if (f.startsWith('vendor/')) return false;
+    if (f.startsWith('.release-skill/')) return false;
     return true;
   });
 

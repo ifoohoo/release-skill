@@ -54,7 +54,7 @@ function validateHook(hook) {
     throw new ReleaseError('INVALID_HOOK', 'hook must be a non-null object');
   }
 
-  const { command, cwd, timeoutMs, envAllowlist, cacheable, cacheInputs } = hook;
+  const { command, cwd, timeoutMs, envAllowlist, cacheable, cacheInputs, testSelection } = hook;
 
   // command: required, non-empty array of strings
   if (!Array.isArray(command) || command.length === 0) {
@@ -124,6 +124,17 @@ function validateHook(hook) {
     throw new ReleaseError(
       'INVALID_HOOK',
       'hook.cacheable=true requires a non-empty hook.cacheInputs',
+    );
+  }
+
+  // testSelection: optional enum declaring which test selection the hook
+  // command runs (2026-08-18 investigation §4.4 full-test freeze gate).
+  // Only meaningful for the test hook; prepare rejects 'incremental' at
+  // freeze time. Mirrors the formal schema enum.
+  if (testSelection !== undefined && testSelection !== 'full' && testSelection !== 'incremental') {
+    throw new ReleaseError(
+      'INVALID_HOOK',
+      'hook.testSelection must be "full" or "incremental" when provided',
     );
   }
 }

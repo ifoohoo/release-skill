@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.6.0 -->
+<!-- release-skill:release-version: 0.6.1 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,19 +14,20 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.6.0** (2026-08-18)
+**0.6.1** (2026-08-18)
 
-v0.6.0 automates the most error-prone bookkeeping step of the release loop: after a release reaches VERIFIED, verify now advances each unit's previousPublicBaseline in project.yaml to the just-published commit, tree, and manifest digest recorded in the frozen plan. The advance is local-only, idempotent, validated with automatic rollback, and commits the config file on its own only when it was clean before the write, so the drift gate always sees a truthful previous public baseline without anyone hand-copying hashes.
+v0.6.1 closes the four root causes of the 0.6.0 self-bootstrap release cycle, in which 22 of 25 runs failed and nearly all wall-clock time was spent in diagnose-repair loops or on external interference: hook failures are no longer silent, stale bundles fail closed at the earliest gate, the freeze path can never skip the full test suite, and a machine-readable frozen marker now tells sibling governance tasks to keep out of a repository mid-release.
 
 **Added**
 
-- **Automatic baseline advance (baseline-advance)**: after `verify` reaches `VERIFIED`, every `mode: bound` unit's `previousPublicBaseline` (`commit`, `tree`, `manifestDigest`) is advanced to the published values derived from the frozen plan's `push-snapshot` binding — never recomputed from workspace state. The rewritten `project.yaml` preserves comments, is re-validated with `loadProjectConfig`, and is restored byte-for-byte if validation fails. The advance never demotes `VERIFIED`: failures are recorded in evidence and reported for manual handling.
-- **Clean-worktree commit policy**: the baseline advance auto-commits the config file in an isolated commit only when `project.yaml` had no staged or unstaged changes before the write; a dirty worktree leaves the file written but uncommitted for human review, and a missing or broken git fails safe to never committing.
-- **Ship-state traceability**: `ship` persists the verify `baselineAdvance` result (`advanced` / `already-current` / `committed` / `failed`) in its durable state, and the `verify` human-readable output reports the advance outcome line.
+- **Hook failure output passthrough (R1)**: when a prepare hook exits non-zero, the run evidence now carries bounded `stderrTail` / `stdoutTail` projections (last 50 lines, capped at 8 KiB) and the CLI echoes the stderr tail, so failures such as a bare `exit=13` are diagnosable immediately instead of by blind retry. Exit-code semantics are unchanged.
+- **Bundle freshness gate (R2)**: every rebuilt bundle embeds a frozen digest of its source tree, and prepare compares source against bundle right after the config phase; any mismatch fails closed as `BUNDLE_STALE` (error code 54) with the rebuild command in the message, before hooks, snapshots, or network checks run. No workflow path is exempt.
+- **Full-test freeze gate (R3)**: plan digests can no longer be computed unless the full test suite ran in this prepare; the gate sits before `computePlanDigest`, the `testSelection` value is validated against a schema enum in project and plan schemas, and no overlay switch can waive the freeze-path requirement.
+- **Frozen-release marker (R4)**: a successful prepare writes `.release-skill/FROZEN` carrying `planDigest`, `targetVersions` (unit → version), `createdAt`, and `runId`; the marker is removed only when verify reaches `VERIFIED`, giving sibling repositories and governance tasks a machine-readable signal to skip a repository mid-release.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.6.0 is the current source candidate; v0.4.1 remains
+> **Current boundary:** v0.6.1 is the current source candidate; v0.4.1 remains
 > the latest published release (v0.2.2 previously held
 > published status before the platform verification convergence fix was added).
 > v0.1.1 completed a real production release to GitHub and npm — the first
@@ -45,7 +46,7 @@ v0.6.0 automates the most error-prone bookkeeping step of the release loop: afte
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.6.0 is the current
+> **Production path verified since the v0.1.1 milestone; v0.6.1 is the current
 > source candidate and v0.4.1 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
