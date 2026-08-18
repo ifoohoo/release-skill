@@ -1,0 +1,359 @@
+{
+  "schemaVersion": "1.0.0",
+  "platformId": "release-skill",
+  "platformName": "release-skill Plugin Platform",
+  "version": "0.6.0",
+  "logicalRoot": "skills-src/",
+  "logicalRootDigest": "6d504094e1bf7d38beb6d886ff48ea442e7563b6061a7145a14c2d71a60292f5",
+  "projectionDigest": "2ca5c5d0b71e10622911426d3abf9c0dfae72237ee6001d4eaaada90acb7a0d7",
+  "projectionId": "release-skill:platform:0.6.0",
+  "manifestRequired": true,
+  "projectionSources": {
+    "skills-src-root": {
+      "type": "logical-source",
+      "path": "skills-src/",
+      "description": "Unique logical source for all skills. All SKILL.md files and associated resources originate here.",
+      "generator": null,
+      "artifacts": [
+        "skills-src/release-assess/SKILL.md",
+        "skills-src/release-config/SKILL.md",
+        "skills-src/release-docs/SKILL.md",
+        "skills-src/release-help/SKILL.md",
+        "skills-src/release-marketplace/SKILL.md",
+        "skills-src/release-prepare/SKILL.md",
+        "skills-src/release-publish/SKILL.md",
+        "skills-src/release-reconcile/SKILL.md",
+        "skills-src/release-setup/SKILL.md",
+        "skills-src/release-verify/SKILL.md"
+      ]
+    }
+  },
+  "projectedArtifacts": [
+    {
+      "name": "skills-projected",
+      "type": "skill-projection",
+      "targetPath": "skills",
+      "generator": "scripts/sync-skills.mjs",
+      "generatorDescription": "Deterministic sync from skills-src/ to skills/ (SKILL.md byte-identical projection).",
+      "relationship": "projection",
+      "projectionNotes": "skills/ 是 skills-src/ 的逐字节投影，由 sync-skills 产出；修改必须回到 skills-src/。",
+      "artifacts": [
+        "skills/release-assess/SKILL.md",
+        "skills/release-config/SKILL.md",
+        "skills/release-docs/SKILL.md",
+        "skills/release-help/SKILL.md",
+        "skills/release-marketplace/SKILL.md",
+        "skills/release-prepare/SKILL.md",
+        "skills/release-publish/SKILL.md",
+        "skills/release-reconcile/SKILL.md",
+        "skills/release-setup/SKILL.md",
+        "skills/release-verify/SKILL.md"
+      ]
+    },
+    {
+      "name": "adapters-claude-skills",
+      "type": "adapter-skill-projection",
+      "targetPath": "adapters/claude/skills",
+      "generator": "scripts/build-adapters.mjs",
+      "generatorDescription": "Claude 平台适配器投影：由 skills-src/ 经 build-adapters 产出。",
+      "relationship": "projection",
+      "projectionNotes": "adapters/*/skills/ 是各平台适配投影，由 build-adapters 产出；修改必须回到 skills-src/。",
+      "artifacts": [
+        "adapters/claude/skills/release-assess/SKILL.md",
+        "adapters/claude/skills/release-config/SKILL.md",
+        "adapters/claude/skills/release-docs/SKILL.md",
+        "adapters/claude/skills/release-help/SKILL.md",
+        "adapters/claude/skills/release-marketplace/SKILL.md",
+        "adapters/claude/skills/release-prepare/SKILL.md",
+        "adapters/claude/skills/release-publish/SKILL.md",
+        "adapters/claude/skills/release-reconcile/SKILL.md",
+        "adapters/claude/skills/release-setup/SKILL.md",
+        "adapters/claude/skills/release-verify/SKILL.md"
+      ]
+    },
+    {
+      "name": "adapters-codex-skills",
+      "type": "adapter-skill-projection",
+      "targetPath": "adapters/codex/skills",
+      "generator": "scripts/build-adapters.mjs",
+      "generatorDescription": "Codex 平台适配器投影：由 skills-src/ 经 build-adapters 产出。",
+      "relationship": "projection",
+      "projectionNotes": "adapters/*/skills/ 是各平台适配投影，由 build-adapters 产出；修改必须回到 skills-src/。",
+      "artifacts": [
+        "adapters/codex/skills/release-assess/SKILL.md",
+        "adapters/codex/skills/release-config/SKILL.md",
+        "adapters/codex/skills/release-docs/SKILL.md",
+        "adapters/codex/skills/release-help/SKILL.md",
+        "adapters/codex/skills/release-marketplace/SKILL.md",
+        "adapters/codex/skills/release-prepare/SKILL.md",
+        "adapters/codex/skills/release-publish/SKILL.md",
+        "adapters/codex/skills/release-reconcile/SKILL.md",
+        "adapters/codex/skills/release-setup/SKILL.md",
+        "adapters/codex/skills/release-verify/SKILL.md"
+      ]
+    },
+    {
+      "name": "adapters-kimi-skills",
+      "type": "adapter-skill-projection",
+      "targetPath": "adapters/kimi/skills",
+      "generator": "scripts/build-adapters.mjs",
+      "generatorDescription": "Kimi 平台适配器投影：由 skills-src/ 经 build-adapters 产出。",
+      "relationship": "projection",
+      "projectionNotes": "adapters/*/skills/ 是各平台适配投影，由 build-adapters 产出；修改必须回到 skills-src/。",
+      "artifacts": [
+        "adapters/kimi/skills/release-assess/SKILL.md",
+        "adapters/kimi/skills/release-config/SKILL.md",
+        "adapters/kimi/skills/release-docs/SKILL.md",
+        "adapters/kimi/skills/release-help/SKILL.md",
+        "adapters/kimi/skills/release-marketplace/SKILL.md",
+        "adapters/kimi/skills/release-prepare/SKILL.md",
+        "adapters/kimi/skills/release-publish/SKILL.md",
+        "adapters/kimi/skills/release-reconcile/SKILL.md",
+        "adapters/kimi/skills/release-setup/SKILL.md",
+        "adapters/kimi/skills/release-verify/SKILL.md"
+      ]
+    },
+    {
+      "name": "adapters-workbuddy-skills",
+      "type": "adapter-skill-projection",
+      "targetPath": "adapters/workbuddy/skills",
+      "generator": "scripts/build-adapters.mjs",
+      "generatorDescription": "Workbuddy 平台适配器投影（build-only）：由 skills-src/ 经 build-adapters 产出。",
+      "relationship": "projection",
+      "projectionNotes": "adapters/*/skills/ 是各平台适配投影，由 build-adapters 产出；修改必须回到 skills-src/。",
+      "artifacts": [
+        "adapters/workbuddy/skills/release-assess/SKILL.md",
+        "adapters/workbuddy/skills/release-config/SKILL.md",
+        "adapters/workbuddy/skills/release-docs/SKILL.md",
+        "adapters/workbuddy/skills/release-help/SKILL.md",
+        "adapters/workbuddy/skills/release-marketplace/SKILL.md",
+        "adapters/workbuddy/skills/release-prepare/SKILL.md",
+        "adapters/workbuddy/skills/release-publish/SKILL.md",
+        "adapters/workbuddy/skills/release-reconcile/SKILL.md",
+        "adapters/workbuddy/skills/release-setup/SKILL.md",
+        "adapters/workbuddy/skills/release-verify/SKILL.md"
+      ]
+    }
+  ],
+  "logicalMappings": [
+    {
+      "logicalName": "release-assess",
+      "path": "adapters/claude/skills/release-assess/SKILL.md"
+    },
+    {
+      "logicalName": "release-assess",
+      "path": "adapters/codex/skills/release-assess/SKILL.md"
+    },
+    {
+      "logicalName": "release-assess",
+      "path": "adapters/kimi/skills/release-assess/SKILL.md"
+    },
+    {
+      "logicalName": "release-assess",
+      "path": "adapters/workbuddy/skills/release-assess/SKILL.md"
+    },
+    {
+      "logicalName": "release-assess",
+      "path": "skills/release-assess/SKILL.md"
+    },
+    {
+      "logicalName": "release-config",
+      "path": "adapters/claude/skills/release-config/SKILL.md"
+    },
+    {
+      "logicalName": "release-config",
+      "path": "adapters/codex/skills/release-config/SKILL.md"
+    },
+    {
+      "logicalName": "release-config",
+      "path": "adapters/kimi/skills/release-config/SKILL.md"
+    },
+    {
+      "logicalName": "release-config",
+      "path": "adapters/workbuddy/skills/release-config/SKILL.md"
+    },
+    {
+      "logicalName": "release-config",
+      "path": "skills/release-config/SKILL.md"
+    },
+    {
+      "logicalName": "release-docs",
+      "path": "adapters/claude/skills/release-docs/SKILL.md"
+    },
+    {
+      "logicalName": "release-docs",
+      "path": "adapters/codex/skills/release-docs/SKILL.md"
+    },
+    {
+      "logicalName": "release-docs",
+      "path": "adapters/kimi/skills/release-docs/SKILL.md"
+    },
+    {
+      "logicalName": "release-docs",
+      "path": "adapters/workbuddy/skills/release-docs/SKILL.md"
+    },
+    {
+      "logicalName": "release-docs",
+      "path": "skills/release-docs/SKILL.md"
+    },
+    {
+      "logicalName": "release-help",
+      "path": "adapters/claude/skills/release-help/SKILL.md"
+    },
+    {
+      "logicalName": "release-help",
+      "path": "adapters/codex/skills/release-help/SKILL.md"
+    },
+    {
+      "logicalName": "release-help",
+      "path": "adapters/kimi/skills/release-help/SKILL.md"
+    },
+    {
+      "logicalName": "release-help",
+      "path": "adapters/workbuddy/skills/release-help/SKILL.md"
+    },
+    {
+      "logicalName": "release-help",
+      "path": "skills/release-help/SKILL.md"
+    },
+    {
+      "logicalName": "release-marketplace",
+      "path": "adapters/claude/skills/release-marketplace/SKILL.md"
+    },
+    {
+      "logicalName": "release-marketplace",
+      "path": "adapters/codex/skills/release-marketplace/SKILL.md"
+    },
+    {
+      "logicalName": "release-marketplace",
+      "path": "adapters/kimi/skills/release-marketplace/SKILL.md"
+    },
+    {
+      "logicalName": "release-marketplace",
+      "path": "adapters/workbuddy/skills/release-marketplace/SKILL.md"
+    },
+    {
+      "logicalName": "release-marketplace",
+      "path": "skills/release-marketplace/SKILL.md"
+    },
+    {
+      "logicalName": "release-prepare",
+      "path": "adapters/claude/skills/release-prepare/SKILL.md"
+    },
+    {
+      "logicalName": "release-prepare",
+      "path": "adapters/codex/skills/release-prepare/SKILL.md"
+    },
+    {
+      "logicalName": "release-prepare",
+      "path": "adapters/kimi/skills/release-prepare/SKILL.md"
+    },
+    {
+      "logicalName": "release-prepare",
+      "path": "adapters/workbuddy/skills/release-prepare/SKILL.md"
+    },
+    {
+      "logicalName": "release-prepare",
+      "path": "skills/release-prepare/SKILL.md"
+    },
+    {
+      "logicalName": "release-publish",
+      "path": "adapters/claude/skills/release-publish/SKILL.md"
+    },
+    {
+      "logicalName": "release-publish",
+      "path": "adapters/codex/skills/release-publish/SKILL.md"
+    },
+    {
+      "logicalName": "release-publish",
+      "path": "adapters/kimi/skills/release-publish/SKILL.md"
+    },
+    {
+      "logicalName": "release-publish",
+      "path": "adapters/workbuddy/skills/release-publish/SKILL.md"
+    },
+    {
+      "logicalName": "release-publish",
+      "path": "skills/release-publish/SKILL.md"
+    },
+    {
+      "logicalName": "release-reconcile",
+      "path": "adapters/claude/skills/release-reconcile/SKILL.md"
+    },
+    {
+      "logicalName": "release-reconcile",
+      "path": "adapters/codex/skills/release-reconcile/SKILL.md"
+    },
+    {
+      "logicalName": "release-reconcile",
+      "path": "adapters/kimi/skills/release-reconcile/SKILL.md"
+    },
+    {
+      "logicalName": "release-reconcile",
+      "path": "adapters/workbuddy/skills/release-reconcile/SKILL.md"
+    },
+    {
+      "logicalName": "release-reconcile",
+      "path": "skills/release-reconcile/SKILL.md"
+    },
+    {
+      "logicalName": "release-setup",
+      "path": "adapters/claude/skills/release-setup/SKILL.md"
+    },
+    {
+      "logicalName": "release-setup",
+      "path": "adapters/codex/skills/release-setup/SKILL.md"
+    },
+    {
+      "logicalName": "release-setup",
+      "path": "adapters/kimi/skills/release-setup/SKILL.md"
+    },
+    {
+      "logicalName": "release-setup",
+      "path": "adapters/workbuddy/skills/release-setup/SKILL.md"
+    },
+    {
+      "logicalName": "release-setup",
+      "path": "skills/release-setup/SKILL.md"
+    },
+    {
+      "logicalName": "release-verify",
+      "path": "adapters/claude/skills/release-verify/SKILL.md"
+    },
+    {
+      "logicalName": "release-verify",
+      "path": "adapters/codex/skills/release-verify/SKILL.md"
+    },
+    {
+      "logicalName": "release-verify",
+      "path": "adapters/kimi/skills/release-verify/SKILL.md"
+    },
+    {
+      "logicalName": "release-verify",
+      "path": "adapters/workbuddy/skills/release-verify/SKILL.md"
+    },
+    {
+      "logicalName": "release-verify",
+      "path": "skills/release-verify/SKILL.md"
+    }
+  ],
+  "governanceNotes": {
+    "duplicatePrevention": "This platform-manifest.json eliminates DUPLICATE_LOGICAL_SKILL_ID audit blocking by providing an authoritative claim of projection vs original. Each projected SKILL.md is listed in logicalMappings and is therefore excluded from the family_source logical-skill scan; only skills-src/ is scanned as logical source.",
+    "auditCompliance": "The manifest declares skills-src/ as the unique logical root. All other skill locations (skills/, adapters/*/skills/) are projected artifacts derived via documented generators.",
+    "versionOwnership": "本文件 version 与 package.json 版本字段确定性对齐（生成时读取）。0.6.0 特性（route/lineage/workflow profiles/三新技能）当前在 version 0.5.1 下开发；版本边界归属待用户裁决后统一，不得擅自 bump。",
+    "projectionInvariants": [
+      "Skills defined in skills-src/ cannot be manually modified; modifications must occur in skills-src/ and propagate via generators",
+      "Generator scripts are deterministic; --check mode verifies no drift between source and projection",
+      "Adapter projections include platform-specific metadata but preserve core skill semantics"
+    ]
+  },
+  "managedBy": {
+    "generator": "scripts/generate-platform-manifest.mjs",
+    "entry": "node scripts/generate-platform-manifest.mjs [--check]",
+    "note": "受管生成物：本文件由生成器从当前工作树字节（skills-src/ 逻辑源与 skills/、adapters/*/skills/ 投影位置的实际文件）确定性产出。skills-src/ 或任一投影位置新增/删除/改名技能后，必须重跑生成器（写模式）或 --check 验证，不得手工编辑。"
+  },
+  "status": "active",
+  "specLifecycle": "production",
+  "familyId": "release-skill",
+  "owner": "广州市风荷科技有限公司"
+}

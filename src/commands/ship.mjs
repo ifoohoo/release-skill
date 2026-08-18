@@ -60,6 +60,7 @@ async function defaultDependencies() {
     publishModule,
     reconcileModule,
     verifyModule,
+    distributeModule,
     transportModule,
     metadataModule,
   ] = await Promise.all([
@@ -69,6 +70,7 @@ async function defaultDependencies() {
     import('./publish.mjs'),
     import('./reconcile.mjs'),
     import('./verify.mjs'),
+    import('./distribute.mjs'),
     import('../core/git-transport.mjs'),
     import('../core/release-metadata.mjs'),
   ]);
@@ -79,6 +81,7 @@ async function defaultDependencies() {
     publishRelease: publishModule.publishRelease,
     reconcileRelease: reconcileModule.reconcileRelease,
     verifyRelease: verifyModule.verifyRelease,
+    distributeRelease: distributeModule.distributeRelease,
     preflightGitTransports: transportModule.preflightGitTransports,
     updatePreviousPublicBaselines: metadataModule.updatePreviousPublicBaselines,
   };
@@ -102,6 +105,7 @@ function publicState(state) {
     ...(state.approvalSummary ? { approvalSummary: state.approvalSummary } : {}),
     ...(state.approvalPath ? { approvalPath: state.approvalPath } : {}),
     ...(state.sourceRunPath ? { sourceRunPath: state.sourceRunPath } : {}),
+    ...(state.distributeRunPath ? { distributeRunPath: state.distributeRunPath } : {}),
     ...(state.requirements ? { requirements: state.requirements } : {}),
     ...(state.manualFollowUps ? { manualFollowUps: state.manualFollowUps } : {}),
     ...(state.metadataUpdate ? { metadataUpdate: state.metadataUpdate } : {}),
@@ -301,10 +305,49 @@ export async function advanceShip(options = {}, injected = {}) {
   }
 
   if (state.status === 'PUBLISHED' || state.status === 'NEEDS_MANUAL_ATTESTATIONS') {
+    // Step 1: Check if postPublish requires distribution
+    const plan = JSON.parse(await readFile(state.planPath, 'utf8'));
+    const needsDistribution = plan.postPublish && plan.postPublish.targets && plan.postPublish.targets.length > 0;
+    
+    if (needsDistribution && deps.distributeRelease) {
+      state.status = 'DISTRIBUTING';
+      await writeJsonAtomic(statePath, state);
+      
+      try {
+        const distributed = await deps.distributeRelease({
+          sourceRunPath: state.sourceRunPath,
+          approvalPath: state.approvalPath,
+          adapterRegistry: options.adapterRegistry,
+          root,
+          dryRun: false,
+          planPath: state.planPath,
+        });
+        
+        state = {
+          ...state,
+          status: distributed.status,
+          distributeRunPath: distributed.distributeRunPath,
+          updatedAt: new Date().toISOString(),
+        };
+        await writeJsonAtomic(statePath, state);
+        
+        if (!distributed.checkpoints || distributed.checkpoints.some((cp) => cp.status === 'failed')) {
+          state.status = 'PARTIAL';
+          await writeJsonAtomic(statePath, state);
+          return publicState(state);
+        }
+      } catch (error) {
+        state.status = 'PARTIAL';
+        await writeJsonAtomic(statePath, state);
+        throw error;
+      }
+    }
+    
+    // Step 2: Verify (this will check for distributed run if distribution was required)
     try {
       const verified = await deps.verifyRelease({
         planPath: state.planPath,
-        sourceRunPath: state.sourceRunPath,
+        sourceRunPath: needsDistribution ? state.distributeRunPath : state.sourceRunPath,
         adapterRegistry: options.adapterRegistry,
         root,
         verificationGatesAuthorized: state.verificationGatesAuthorized === true,
@@ -315,6 +358,7 @@ export async function advanceShip(options = {}, injected = {}) {
         verifyRunPath: verified.runPath,
         requirements: undefined,
         manualFollowUps: verified.manualFollowUps ?? undefined,
+        baselineAdvance: verified.baselineAdvance ?? undefined,
         updatedAt: new Date().toISOString(),
       };
       await writeJsonAtomic(statePath, state);

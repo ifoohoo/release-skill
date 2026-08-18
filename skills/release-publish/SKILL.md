@@ -1,15 +1,11 @@
 ---
 name: release-publish
-description: 从已批准的生产计划发布冻结 Git branch/tag、npm tarball 与 GitHub Release，并执行已配置的 Claude/Codex marketplace 隔离消费者安装检查以达到 PUBLISHED；随后必须路由 release-verify 才可能达到 VERIFIED；遇到冲突或不确定远端状态时失败关闭并要求人工介入
+description: "从已批准的生产计划发布冻结 Git branch/tag、npm tarball 与 GitHub Release，并执行已配置的 Claude/Codex marketplace 隔离消费者安装检查以达到 PUBLISHED；随后必须路由 release-verify 才可能达到 VERIFIED；遇到冲突或不确定远端状态时失败关闭并要求人工介入"
 ---
 
 # release-publish
 
-## 触发
-
-用户明确要求执行已经人工审阅的 GitHub+npm 生产计划。
-
-## 成熟度与边界
+## 生产边界
 
 冻结 Git branch/tag、GitHub Release、npm tarball 路径已通过本地生产等价沙箱（协议级 fake），
 测试没有提供 OS 级网络隔离。
@@ -22,6 +18,29 @@ description: 从已批准的生产计划发布冻结 Git branch/tag、npm tarbal
 重新 prepare。远端 branch/tag/Release/npm version 已存在、查询不确定、
 认证失败或摘要漂移时，在全局预检阶段停止并交给人工。禁止覆盖、删除和自动回滚；
 新建 ref 的 create-only CAS（`--force-with-lease=<ref>:`）只断言目标不存在，不授权覆盖。
+
+## 前置条件：工作流选择
+
+在运行 `release-publish` 之前，必须先完成快速入门决策路由（§4.3 Workflow Profile Support）：
+
+1. 使用 `release-skill route --root <path> --json` 确定变更类型
+2. 根据推荐的 `workflowKind` 选择对应路径：
+   - `docs-only` → 先执行 `release-docs` 完整流程
+   - `config-only` → 先执行 `release-config`，仅在 public surface 变化时进入 publish
+   - `marketplace-only` → 先执行 `release-marketplace`，然后由 workspace exclusive skill 接管
+   - `full-happy-end` → 直接进入标准完整流程：`prepare → approve → publish → verify`
+   - `reconcile` → 先执行 `release-reconcile` 恢复 PARTIAL 状态
+   - `help` → 无变更，无需 publish
+
+**注意**: `release-publish` 是标准工作流中的第⑦步，必须在以下步骤之后：
+- 步骤⑤: `release-prepare` (或轻量级 prepare)
+- 步骤⑥: `release-approve` (非过期 approval record)
+
+决策表链接：参见 [`release-help`](../release-help/SKILL.md) 的 Routing Suggestions 章节。
+
+## 触发
+
+用户明确要求执行已经人工审阅的 GitHub+npm 生产计划。
 
 ## 授权门
 

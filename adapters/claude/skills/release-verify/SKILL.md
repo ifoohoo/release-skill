@@ -15,6 +15,16 @@ verify 是发布流程的最终验证阶段，是唯一能将状态提升到 `VE
 它执行远端状态重检、精确 npm 安装烟雾测试和消费者插件安装验证。
 verify 只接受 `PUBLISHED` 状态的源 run；`VERIFIED` 是终态，不会再次派生运行。
 
+**注意**: distribute gate (W1) 已经实现并集成在标准 verify 流程中。verify 现在会检查 postPublish 分发状态（git mirror + marketplace index），只有当所有外部动作都完成并通过验证时才达到 VERIFIED。
+
+**工作流兼容性**: 
+- `docs-only`: consumer-verify preserved (步骤⑧)
+- `config-only`: scene B completes full chain including verify  
+- `marketplace-only`: delegates to workspace's exclusive skill for final verification
+- `full-happy-end`: standard complete path with all gates
+
+所有工作流 profile 最终都路由到此 verify 命令作为终态验证门。
+
 ## 职责与边界
 
 验证远端所有自动化 action 的实际状态与冻结计划一致。执行精确 `<package>@<version>` npm 安装到隔离目录，验证包名、版本、静态入口闭包，并在配置时验证 bin 路径安全和 CLI 烟雾输出。对 Claude/Codex marketplace distribution 执行全新隔离消费者安装验证。新计划中的 Kimi/CodeBuddy 安装只返回 `manualFollowUps`，明确标记 `verifiedBySystem: false`，不阻塞 `VERIFIED`；缺少该策略字段的旧冻结计划继续走历史 attestation 兼容路径。

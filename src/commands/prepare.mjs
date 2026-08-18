@@ -19,7 +19,7 @@
  */
 
 import { resolve, relative, isAbsolute, normalize, dirname } from 'node:path';
-import { readFile, mkdir, realpath } from 'node:fs/promises';
+import { readFile, mkdir, readdir, realpath } from 'node:fs/promises';
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -67,6 +67,7 @@ import { createProductionPrepareRunDir } from '../core/run.mjs';
 import { PLATFORMS } from '../platforms/registry.mjs';
 import { validateMarketplaceSourceSelection, MARKETPLACE_SOURCE_TYPES, resolvePluginManifestFromMarketplaceEntrySource, resolveMarketplaceRoot } from '../adapters/plugin-marketplace.mjs';
 import { buildInstallationContract, computeInstallationContractDigest, INSTALLATION_CONTRACT_ALGORITHM_VERSION } from '../core/installation-contract.mjs';
+import { validatePostPublishDeclaration, PAYLOAD_SOURCE_TAG_WORKTREE } from '../core/postpublish.mjs';
 
 // ---------------------------------------------------------------------------
 // 安装契约常量
@@ -1693,6 +1694,43 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
  *
  * @throws {ReleaseError} on any gate failure. No PREPARED plan is written.
  */
+
+/**
+ * Read the newest frozen plan from `.release-skill/plans/` (digest-addressed
+ * immutable plans written by writePlanImmutable). Used by the config workflow
+ * decision to compare public bytes (per-unit snapshotDigest) against the
+ * latest frozen state. Returns null when no readable plan exists.
+ *
+ * @param {string} root - project root directory
+ * @returns {Promise<{ plan: object, fileName: string } | null>}
+ */
+export async function readLatestFrozenPlan(root) {
+  const plansDir = resolve(root, '.release-skill', 'plans');
+  let files;
+  try {
+    files = await readdir(plansDir);
+  } catch {
+    return null;
+  }
+  let best = null;
+  for (const file of files.sort()) {
+    if (!file.endsWith('.json')) continue;
+    let plan;
+    try {
+      plan = JSON.parse(await readFile(resolve(plansDir, file), 'utf8'));
+    } catch {
+      continue;
+    }
+    if (!plan || typeof plan !== 'object' || !Array.isArray(plan.units)) continue;
+    const ts = plan.createdAt ? new Date(plan.createdAt).getTime() : NaN;
+    const effectiveTs = Number.isFinite(ts) ? ts : 0;
+    if (!best || effectiveTs > best.ts) {
+      best = { plan, fileName: file, ts: effectiveTs };
+    }
+  }
+  return best ? { plan: best.plan, fileName: best.fileName } : null;
+}
+
 export async function prepareRelease(options) {
   const {
     root,
@@ -1704,8 +1742,30 @@ export async function prepareRelease(options) {
     hooksAuthorized,
     verificationGatesAuthorized,
     production = false,
+    workflow = 'full',
     observePreviousPublicBaselineFn,
   } = options ?? {};
+
+  // --- Workflow profile (H5) ---
+  // 'full' runs the complete gate set. 'docs', 'config' and 'marketplace'
+  // trim only code-class gates — declared hooks, snapshot-verify gates,
+  // source-authority closure, and skill-resource-closure — and record the
+  // trim as `workflowDecision` bound into the plan digest. All other gates
+  // (docs freshness, public surface, baseline, snapshots, remote checks,
+  // plan freeze, consumer-verify gates) run identically for every workflow.
+  const WORKFLOW_KINDS = new Set(['full', 'docs', 'config', 'marketplace']);
+  if (!WORKFLOW_KINDS.has(workflow)) {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      `unknown workflow kind "${workflow}"; expected one of ${[...WORKFLOW_KINDS].sort().join(', ')}`,
+      { workflow },
+    );
+  }
+  const trimmedWorkflow = workflow !== 'full';
+  const skipDeclaredHooks = trimmedWorkflow;
+  const skipSnapshotVerifyGates = trimmedWorkflow;
+  const skipSourceAuthorityClosure = trimmedWorkflow;
+  const skipSkillResourceClosure = trimmedWorkflow;
 
   // --- Validate root ---
   if (!root || typeof root !== 'string') {
@@ -1785,6 +1845,28 @@ export async function prepareRelease(options) {
       });
     }
 
+    // --- Step 1a: Workflow configuration evidence ---
+    // Records the deterministic trim set for docs/config/marketplace
+    // workflows. The trim never weakens the retained gates; it only removes
+    // code-class gates that a non-code change surface cannot exercise.
+    await evidence.append({
+      phase: 'workflow',
+      status: 'configured',
+      workflowKind: workflow,
+      trimmedGates: trimmedWorkflow
+        ? ['declared-hooks', 'snapshot-verify-gates', 'source-authority-closure', 'skill-resource-closure']
+        : [],
+      retainedGates: [
+        'docs-freshness',
+        'public-surface',
+        'baseline',
+        'snapshots',
+        'remote-check',
+        'plan-freeze',
+        'consumer-verify',
+      ],
+    });
+
     // --- Step 1b: Resolve authoritative versions and gate release-document
     //     freshness BEFORE hook authorization ---
     // Authoritative versions resolve exactly once here and are reused by
@@ -1811,11 +1893,46 @@ export async function prepareRelease(options) {
       reasonTag: 'RELEASE_DOCS_STALE',
     });
 
+    // --- Step 1c: postPublish distribution declaration gate (R1/R2) ---
+    // The per-unit postPublish block drives the post-publish distribute
+    // command. Validate it here, before any hook, baseline, snapshot, remote
+    // check, or plan write, so an unsafe declaration fails closed with zero
+    // side effects. This is the runtime re-check on top of the config JSON
+    // schema: plans frozen by older schema versions must not be able to
+    // smuggle shell strings, option-like executables, or secret-ish env
+    // keys through. A plan binds exactly one declaration; multiple units
+    // declaring postPublish is a hard gate failure.
+    const postPublishDeclarations = configUnits
+      .map((unit, index) => ({ unit, index }))
+      .filter(({ unit }) => unit.postPublish !== undefined);
+    if (postPublishDeclarations.length > 1) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `multiple units declare postPublish (${postPublishDeclarations.map(({ unit }) => unit.id).join(', ')}); a release plan binds exactly one postPublish declaration`,
+        { unitIds: postPublishDeclarations.map(({ unit }) => unit.id) },
+      );
+    }
+    let postPublishDeclaration = null;
+    if (postPublishDeclarations.length === 1) {
+      const { unit, index } = postPublishDeclarations[0];
+      validatePostPublishDeclaration(unit.postPublish, { unitId: unit.id });
+      postPublishDeclaration = { unit, index };
+      await evidence.append({
+        phase: 'postpublish-declaration',
+        status: 'validated',
+        unitId: unit.id,
+        targetCount: unit.postPublish.targets.length,
+      });
+    }
+
     // --- Step 2: Hook authorization gate ---
     // Hooks are user-configured arbitrary local processes without filesystem
     // or network isolation. They may write outside the project, access local
     // credentials, or make network calls. The user must explicitly accept
     // these risks before any hook is executed.
+    // docs/config/marketplace workflows trim code-class hooks entirely
+    // (H5): a non-code change surface cannot exercise them, so they are
+    // recorded as skipped rather than authorized-and-run.
     const declaredHooks = Object.entries(config.hooks ?? {})
       .filter(([, hook]) => hook && hook.command)
       .map(([name, hook]) => ({
@@ -1829,7 +1946,7 @@ export async function prepareRelease(options) {
     // execution of configured commands. Old acknowledgement parameters
     // (--acknowledge-hook-side-effects, --acknowledge-gate-side-effects) are
     // accepted as no-effect compatibility inputs but are not required.
-    if (declaredHooks.length > 0) {
+    if (!skipDeclaredHooks && declaredHooks.length > 0) {
       await evidence.append({
         phase: 'hook-authorization',
         status: 'authorized',
@@ -1857,16 +1974,24 @@ export async function prepareRelease(options) {
     }
 
     // --- Step 3: Run declared hooks ---
-    await evidence.append({ phase: 'hooks', status: 'started' });
-    await runDeclaredHooks(config, realRoot, evidence, options.runHookFn ?? runHook, {
-      hookCache: options.hookCache,
-      // Explicit env delivery (0.5.1 hook-env-delivery fix): the hook runner
-      // reads envAllowlist keys exclusively from context.env, so the invoking
-      // shell's environment is injected here explicitly. Allowlist semantics
-      // are unchanged — only allowlisted keys from this map reach the child.
-      env: options.env ?? process.env,
-    });
-    await evidence.append({ phase: 'hooks', status: 'completed' });
+    if (skipDeclaredHooks) {
+      await evidence.append({
+        phase: 'hooks',
+        status: 'skipped',
+        reason: `workflow "${workflow}" trims code-class hooks; declared hooks: ${declaredHooks.length}`,
+      });
+    } else {
+      await evidence.append({ phase: 'hooks', status: 'started' });
+      await runDeclaredHooks(config, realRoot, evidence, options.runHookFn ?? runHook, {
+        hookCache: options.hookCache,
+        // Explicit env delivery (0.5.1 hook-env-delivery fix): the hook runner
+        // reads envAllowlist keys exclusively from context.env, so the invoking
+        // shell's environment is injected here explicitly. Allowlist semantics
+        // are unchanged — only allowlisted keys from this map reach the child.
+        env: options.env ?? process.env,
+      });
+      await evidence.append({ phase: 'hooks', status: 'completed' });
+    }
 
     // --- Step 3b: Re-check release-document freshness AFTER hooks ---
     // Declared hooks run as arbitrary local processes; they may rewrite a
@@ -1968,7 +2093,7 @@ export async function prepareRelease(options) {
 
     let sourceAuthority = null;
     let sourceInputClosure = null;
-    if (production) {
+    if (production && !skipSourceAuthorityClosure) {
       if (!sourceRepository || typeof sourceRepository !== 'string') {
         throw new ReleaseError(
           CONFIG_MISSING,
@@ -2037,6 +2162,12 @@ export async function prepareRelease(options) {
         defaultBranch: configDefaultBranch,
         inputDigest: sourceInputClosure.digest,
         remoteObservation: offline ? 'unobserved-offline' : 'deferred-to-publish',
+      });
+    } else if (production) {
+      await evidence.append({
+        phase: 'source-authority',
+        status: 'skipped',
+        reason: `workflow "${workflow}" trims the source-authority content closure gate`,
       });
     }
 
@@ -2358,24 +2489,38 @@ export async function prepareRelease(options) {
     // Snapshot gates always run on disposable writable copies. The public
     // snapshot authority is re-digested after every gate and is never exposed
     // as the gate working directory.
-    const snapshotGateResults = await runSnapshotVerificationGates({
-      gates: declaredVerificationGates,
-      unitResults,
-      runDir,
-      evidence,
-      env: options.gateEnv ?? process.env,
-    });
-    await evidence.append({
-      phase: 'snapshot-verify',
-      status: 'completed',
-      gateCount: snapshotGateResults.length,
-    });
+    // docs/config/marketplace workflows trim snapshot-verify gates (H5):
+    // they are declared code-class gates that a non-code change surface
+    // cannot exercise. Consumer-verify gates (phase 'consumer-verify') are
+    // NOT part of this skip — they run during verify regardless of workflow.
+    if (skipSnapshotVerifyGates) {
+      await evidence.append({
+        phase: 'snapshot-verify',
+        status: 'skipped',
+        reason: `workflow "${workflow}" trims snapshot-verify gates; declared gates: ${declaredVerificationGates.length}`,
+      });
+    } else {
+      const snapshotGateResults = await runSnapshotVerificationGates({
+        gates: declaredVerificationGates,
+        unitResults,
+        runDir,
+        evidence,
+        env: options.gateEnv ?? process.env,
+      });
+      await evidence.append({
+        phase: 'snapshot-verify',
+        status: 'completed',
+        gateCount: snapshotGateResults.length,
+      });
+    }
 
     // Bind the remote source-authority proof to the exact bytes that entered
     // the frozen snapshots, not merely to an earlier read of the workspace.
     // Then re-read the complete closure and dirty state once more so version
     // sources and non-snapshot closure entries cannot drift during prepare.
-    if (production) {
+    // Trimmed together with Step 3c when a docs/config/marketplace workflow
+    // skips the source-authority closure.
+    if (production && !skipSourceAuthorityClosure) {
       const snapshotSourceResult = verifySnapshotSourcesMatchClosure({
         closure: sourceInputClosure,
         unitResults,
@@ -2502,59 +2647,72 @@ export async function prepareRelease(options) {
     // publish will re-verify, rather than the writable pre-freeze staging tree.
     // Non-production plans scan the final staging tree at the same point.
     // This gate is built in, read-only, and cannot be disabled by overlays.
+    // docs/config/marketplace workflows trim it (H5): the plan omits
+    // `skillResourceClosure` entirely, so publish's conditional re-check
+    // (guarded by plan.skillResourceClosure) and verify's receipt comparison
+    // both skip it consistently. The trim is recorded in workflowDecision.
     const skillResourceClosureResults = [];
-    for (const { unit, manifest } of unitResults) {
+    if (skipSkillResourceClosure) {
       await evidence.append({
         phase: 'skill-resource-closure',
-        status: 'started',
-        unitId: unit.id,
+        status: 'skipped',
+        reason: `workflow "${workflow}" trims the skill resource closure gate`,
+        unitCount: unitResults.length,
       });
-
-      const closureResult = await checkSkillResourceClosure({
-        snapshotDir: manifest.outputDir,
-        host: 'root',
-      });
-
-      const receipt = createSkillResourceClosureReceipt(closureResult, { unitId: unit.id });
-      skillResourceClosureResults.push(receipt);
-
-      if (closureResult.findings.length > 0) {
+    } else {
+      for (const { unit, manifest } of unitResults) {
         await evidence.append({
           phase: 'skill-resource-closure',
-          status: 'blocking',
+          status: 'started',
           unitId: unit.id,
-          findingCount: closureResult.findings.length,
-          findings: closureResult.findings.map((f) => ({
-            skill: f.skill,
-            line: f.line,
-            reference: f.reference,
-            classification: f.classification,
-            code: f.code,
-          })),
         });
-        throw new ReleaseError(
-          GATE_FAILED,
-          `skill resource closure gate failed for unit "${unit.id}": ${closureResult.findings.length} finding(s)`,
-          {
+
+        const closureResult = await checkSkillResourceClosure({
+          snapshotDir: manifest.outputDir,
+          host: 'root',
+        });
+
+        const receipt = createSkillResourceClosureReceipt(closureResult, { unitId: unit.id });
+        skillResourceClosureResults.push(receipt);
+
+        if (closureResult.findings.length > 0) {
+          await evidence.append({
+            phase: 'skill-resource-closure',
+            status: 'blocking',
             unitId: unit.id,
             findingCount: closureResult.findings.length,
-            findings: closureResult.findings,
-          },
-        );
-      }
+            findings: closureResult.findings.map((f) => ({
+              skill: f.skill,
+              line: f.line,
+              reference: f.reference,
+              classification: f.classification,
+              code: f.code,
+            })),
+          });
+          throw new ReleaseError(
+            GATE_FAILED,
+            `skill resource closure gate failed for unit "${unit.id}": ${closureResult.findings.length} finding(s)`,
+            {
+              unitId: unit.id,
+              findingCount: closureResult.findings.length,
+              findings: closureResult.findings,
+            },
+          );
+        }
 
-      await evidence.append({
-        phase: 'skill-resource-closure',
-        status: 'completed',
-        unitId: unit.id,
-        checkerVersion: closureResult.checkerVersion,
-        surfaceCount: receipt.surfaceCount,
-        skillCount: receipt.skillCount,
-        referenceCount: closureResult.referenceCount,
-        sourceOnlyCount: closureResult.sourceOnlyCount,
-        findingCount: 0,
-        receiptDigest: closureResult.receiptDigest,
-      });
+        await evidence.append({
+          phase: 'skill-resource-closure',
+          status: 'completed',
+          unitId: unit.id,
+          checkerVersion: closureResult.checkerVersion,
+          surfaceCount: receipt.surfaceCount,
+          skillCount: receipt.skillCount,
+          referenceCount: closureResult.referenceCount,
+          sourceOnlyCount: closureResult.sourceOnlyCount,
+          findingCount: 0,
+          receiptDigest: closureResult.receiptDigest,
+        });
+      }
     }
 
     // Freeze external independent marketplace HEADs (production + online only):
@@ -2887,10 +3045,75 @@ export async function prepareRelease(options) {
     // 构建冻结分发映射：unitId -> frozen distributions
     const frozenDistributionsMap = new Map(units.map((u) => [u.id, u.distributions]));
 
-    const externalActions = buildExternalActions(unitResults, resolvedVersions, productionAssets, externalMarketplaceFreezes, frozenDistributionsMap);
+    let externalActions = buildExternalActions(unitResults, resolvedVersions, productionAssets, externalMarketplaceFreezes, frozenDistributionsMap);
 
     // Compute overall snapshot digest
     const overallSnapshotDigest = sha256Hex(snapshotDigests.join(':'));
+
+    // --- Step 6b: Workflow decision (H5) ---
+    // config workflow: compare per-unit snapshotDigests with the latest
+    // frozen plan. Identical public bytes → no publish path (all publish-class
+    // external actions are dropped from the plan, so approve/publish execute
+    // nothing). No comparable plan or any byte difference → publish-needed
+    // (fail-safe). The decision is bound into the plan digest as
+    // `workflowDecision`, making the trim immutable and auditable.
+    let workflowDecision = null;
+    if (workflow === 'config') {
+      const previousPlan = await readLatestFrozenPlan(realRoot);
+      let publishPath;
+      let decision;
+      if (!previousPlan) {
+        publishPath = 'publish-needed';
+        decision = 'indeterminable';
+      } else {
+        const prevDigests = new Map(
+          (previousPlan.plan.units ?? []).map((u) => [u.id, u.snapshotDigest]),
+        );
+        const unchanged =
+          units.length > 0 && units.every((u) => prevDigests.get(u.id) === u.snapshotDigest);
+        publishPath = unchanged ? 'no-publish-needed' : 'publish-needed';
+        decision = unchanged ? 'public-bytes-unchanged' : 'public-bytes-changed';
+      }
+      workflowDecision = {
+        workflowKind: workflow,
+        decision,
+        publishPath,
+        trimmedGates: [
+          'declared-hooks',
+          'snapshot-verify-gates',
+          'source-authority-closure',
+          'skill-resource-closure',
+        ],
+        ...(previousPlan ? { comparedPlan: previousPlan.fileName } : {}),
+      };
+      if (publishPath === 'no-publish-needed') {
+        externalActions = [];
+      }
+      await evidence.append({
+        phase: 'workflow-decision',
+        status: publishPath,
+        decision,
+        ...(previousPlan ? { comparedPlan: previousPlan.fileName } : {}),
+        actionCount: externalActions.length,
+      });
+    } else if (trimmedWorkflow) {
+      workflowDecision = {
+        workflowKind: workflow,
+        decision: 'code-gates-trimmed',
+        publishPath: 'publish-needed',
+        trimmedGates: [
+          'declared-hooks',
+          'snapshot-verify-gates',
+          'source-authority-closure',
+          'skill-resource-closure',
+        ],
+      };
+      await evidence.append({
+        phase: 'workflow-decision',
+        status: 'publish-needed',
+        decision: 'code-gates-trimmed',
+      });
+    }
 
     // Detect human consumer platforms (Kimi/CodeBuddy) in the plan.
     // When present, new plans mark them as non-blocking manual follow-up tasks.
@@ -2898,9 +3121,38 @@ export async function prepareRelease(options) {
       (a) => a.type === 'kimi-marketplace-install' || a.type === 'codebuddy-marketplace-install',
     );
 
+    // --- Fold the validated postPublish declaration into the frozen plan ---
+    // Bindings: tag (tagTemplate rendered at the resolved target version —
+    // the same computation create-tag will use), tagCommit (the frozen
+    // production asset commit the tag will point at; only production
+    // prepares can freeze it — distribute fails closed when it is absent),
+    // unitId (declaring unit), and payloadSource "tag-worktree" (R1 timing
+    // contract: payload may only come from the detached worktree at
+    // tagCommit, never from workspace state). planVersion 2 record-layer
+    // stripping does not strip this block, so every declaration detail is
+    // bound into the plan digest.
+    let frozenPostPublish = null;
+    if (postPublishDeclaration) {
+      const { unit, index } = postPublishDeclaration;
+      const { tag } = resolveProductionBranch(unit, resolvedVersions[index]);
+      frozenPostPublish = {
+        ...structuredClone(unit.postPublish),
+        tag,
+        ...(productionAssets ? { tagCommit: productionAssets[index].commit } : {}),
+        unitId: unit.id,
+        payloadSource: PAYLOAD_SOURCE_TAG_WORKTREE,
+      };
+    }
+
     const plan = {
       planVersion: 2,
       status: 'PREPARED',
+      // Workflow profile (H5): 'full' for the complete gate set;
+      // 'docs'/'config'/'marketplace' for trimmed code-class gates. Both
+      // fields are binding-layer (not stripped from the plan digest), so the
+      // trim is frozen immutably with the plan.
+      workflowKind: workflow,
+      ...(workflowDecision ? { workflowDecision } : {}),
       baseline: {
         gitTreeHash: baseline.gitTreeHash,
         headCommit: baseline.gitHead,
@@ -2910,14 +3162,18 @@ export async function prepareRelease(options) {
         capturedAt: baseline.capturedAt,
       },
       configDigest,
-      skillResourceClosure: {
-        checkerVersion: SKILL_RESOURCE_CHECKER_VERSION,
-        unitReceipts: skillResourceClosureResults,
-        totalSkillCount: skillResourceClosureResults.reduce((sum, item) => sum + item.skillCount, 0),
-        totalReferenceCount: skillResourceClosureResults.reduce((sum, item) => sum + item.referenceCount, 0),
-        totalSourceOnlyCount: skillResourceClosureResults.reduce((sum, item) => sum + item.sourceOnlyCount, 0),
-        totalFindingCount: 0,
-      },
+      ...(skillResourceClosureResults.length > 0
+        ? {
+            skillResourceClosure: {
+              checkerVersion: SKILL_RESOURCE_CHECKER_VERSION,
+              unitReceipts: skillResourceClosureResults,
+              totalSkillCount: skillResourceClosureResults.reduce((sum, item) => sum + item.skillCount, 0),
+              totalReferenceCount: skillResourceClosureResults.reduce((sum, item) => sum + item.referenceCount, 0),
+              totalSourceOnlyCount: skillResourceClosureResults.reduce((sum, item) => sum + item.sourceOnlyCount, 0),
+              totalFindingCount: 0,
+            },
+          }
+        : {}),
       verificationGates: config.verificationGates ?? [],
       snapshotDigest: overallSnapshotDigest,
       ...(hasHumanConsumerActions ? { humanConsumersStrategy: 'manualFollowUps' } : {}),
@@ -2929,6 +3185,7 @@ export async function prepareRelease(options) {
       } : {}),
       units,
       externalActions,
+      ...(frozenPostPublish ? { postPublish: frozenPostPublish } : {}),
       ...(sourceAuthority ? { sourceAuthority } : {}),
       createdAt: production ? createdAtTimestamp : (clock ? clock() : new Date().toISOString()),
     };
@@ -2968,6 +3225,8 @@ export async function prepareRelease(options) {
       unitCount: units.length,
       actionCount: externalActions.length,
       offline,
+      workflowKind: workflow,
+      ...(workflowDecision ? { workflowDecision } : {}),
       completedAt: (clock ? clock() : new Date().toISOString()),
     });
 

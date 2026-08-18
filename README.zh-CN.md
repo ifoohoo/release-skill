@@ -2,30 +2,25 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.5.1 -->
+<!-- release-skill:release-version: 0.6.0 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.5.1** (2026-08-17)
+**0.6.0** (2026-08-18)
 
-v0.5.1 修复冻结 0.5.0 的三项缺陷——hook 显式环境送达（envAllowlist 终于作用于 prepare hooks）、大索引基线 64 MiB maxBuffer、marketplace-install preflight/observe 的带前缀技能目录回退——并把 Skill Family Foundation 依赖提升到已发布的 0.5.0 包，同时加固发布链：后续任何发布都必须绑定上一公开发布提交，不再退化为孤儿根提交。
+v0.6.0 把发布循环中最容易出错的一步记账工作自动化了：发布到达 VERIFIED 后，verify 会自动把 project.yaml 中每个 unit 的 previousPublicBaseline 推进到本次已发布的 commit、tree 与 manifest digest，数值全部取自冻结计划的记录。推进只写本地、幂等、写回后自动校验并在失败时原样回滚，并且只在写回前文件干净时才用独立提交落库——漂移门禁从此总是看到真实的前序公开基线，不再需要任何人手工抄写哈希。
 
-**变更**
+**新增**
 
-- **Foundation 0.5.0 升级**：`skill-family-contracts` 与 `skill-family-harness-node` 依赖由 0.4.0 提升至 0.5.0（npm latest）；包名 import 桥无需改动，harness-node 0.5.0 导出面已逐项复核（`publishFileExclusive`、token-lock 五函数、`HARNESS_ERROR_KINDS`）。
-- **链加固（chain-integrity）**：`push-snapshot` 现要求显式 `branchStrategy`（历史上产生孤儿根提交的 `create-release-branch` 默认值已移除）；`create-release-branch` 仅在 `previousPublicBaseline.mode=none` 时合法；生产在线 prepare 在公开仓已有发布标签时仍以 `mode=none` 冻结计划会以 `CHAIN_GAP` 失败关闭，要求把基线绑定到上一发布提交；在线 `assess` 检测到版本序列跳号（如 0.1.1→0.1.3 且无 v0.1.2 标签）时登记 `VERSION_SEQUENCE_GAP` 警告，不阻断。
-
-**修复**
-
-- **Hook 环境送达（hook-env-delivery）**：`runDeclaredHooks` 新增显式 `env` 选项并并入 hook 上下文（`hookFn(hook, { root, env })`）；prepare 与 `hooks validate` 注入调用方 shell 的环境，`hooks.*.envAllowlist` 中由调用方导出的键终于能到达 hook 子进程。allowlist 语义不变——hook 运行器仍只从显式映射读取白名单键，绝不直接回退 process.env。
-- **大索引基线（baseline-maxbuffer）**：`computeWorkspaceDigest` 的三个 git 子进程统一设置 64 MiB `maxBuffer`（官方修复 39c631f）；tracked 文件数较多的工作区（实测 8494 个文件 → `ls-files -s` 输出 1,519,151 B）不再报 `ERR_CHILD_PROCESS_STDIO_MAXBUFFER`。
-- **带前缀技能目录解析（entry-skill-prefix）**：marketplace-install 的 preflight 与 observe 从 `skills/<entrySkill>/SKILL.md` 未命中时回退 `skills/<plugin>-<entrySkill>/SKILL.md`（plugin 取 action 参数，D-ACA-30 平台物理名）；带前缀技能目录的候选构建不再以 `entry skill not found` 失败。
+- **基线自动推进（baseline-advance）**：`verify` 到达 `VERIFIED` 后，每个 `mode: bound` unit 的 `previousPublicBaseline`（`commit`、`tree`、`manifestDigest`）自动推进到冻结计划 `push-snapshot` 绑定中的已发布值——绝不从工作区状态重新计算。写回的 `project.yaml` 保留注释，经 `loadProjectConfig` 重新校验，校验失败时逐字节还原。推进失败不会降级 `VERIFIED`：失败记录进证据并提示人工处理。
+- **干净工作区提交策略**：仅当写回前 `project.yaml` 没有任何暂存或未暂存改动时，基线推进才用一次独立提交只包含该文件；工作区有在途改动时只落盘不提交、留给人工复核；git 缺失或损坏时安全失败为永不提交。
+- **ship 状态可追溯**：`ship` 把 verify 的 `baselineAdvance` 结果（`advanced` / `already-current` / `committed` / `failed`）写入持久状态；`verify` 的人类可读输出新增推进结果行。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.5.1 是当前源码候选，v0.4.1 仍是最新已发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.6.0 是当前源码候选，v0.4.1 仍是最新已发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -38,12 +33,17 @@ v0.5.1 修复冻结 0.5.0 的三项缺陷——hook 显式环境送达（envAllo
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.5.1 是当前源码候选，v0.4.1 是最新已发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.6.0 是当前源码候选，v0.4.1 是最新已发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
 > - npm 安装：`npm install -g release-skill` → `release-skill help`
 > - 源码 checkout：`node "$RELEASE_SKILL_HOME/packages/release-skill/bin/release-skill.mjs" help`
+
+<!-- release-skill:maturity:distribute-v1 -->
+<!-- release-skill:capability:distribute -->
+> **分发能力 v1.0（W2 完成）：** postPublish 分发作为独立的 `distribute` 命令可用，支持镜像和 Marketplace 索引动作。`publish` 达到 PUBLISHED 状态后，可运行 `ship distribute` 或手动调用 `release-skill distribute --plan <path> --approval <path> --json`。分发动作实现 fail-closed 语义：空差异时 NO_CHANGE（不创建 commit/tag/push），tag 移动尝试时 REMOTE_CONFLICT（永不 force-push），外部写未授权时 AUTH_MISSING。支持的模式：`--dry-run`（仅本地提交+tag）、`--json`（结构化输出）、`--help`（命令参考）。标签承诺保证版本一致性——分发的 plugin.json.version 必须与输入 tag 匹配。详见 [docs/design/2026-08-17-postpublish-distribution.md](../../docs/design/2026-08-17-postpublish-distribution.md) 中的架构说明。
+<!-- release-skill:capability:distribute -->
 
 <!-- release-skill:maturity:v0.1-boundary -->
 <!-- release-skill:maturity:boundary -->
@@ -51,7 +51,7 @@ v0.5.1 修复冻结 0.5.0 的三项缺陷——hook 显式环境送达（envAllo
 > `help` 与 `assess` 只读；`prepare --offline` 中由 release-skill 自身控制的部分只写
 > `.release-skill/`，且不调用远端发布适配器。但配置的 hook 和 gate 是无操作系统沙箱的进程，
 > 可以写出项目目录、访问凭据、发起网络请求或执行远端发布。只有未配置这些进程，或已单独审计并
-> 显式确认其副作用时，才可以把 `prepare` 视为“仅本地”。生产发布使用
+> 显式确认其副作用时，才可以把 `prepare` 视为”仅本地”。生产发布使用
 > `ship --target-version <ver> → ship --approve --actor <name>`。
 > `ship` 自动执行 hooks 和门禁，唯一的人工门禁是计划批准。
 > Kimi/CodeBuddy 安装是非阻塞的人工后续任务（系统不核验）。

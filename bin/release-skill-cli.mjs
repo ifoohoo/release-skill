@@ -19,7 +19,7 @@ registerPathRedactor(redactSensitivePaths);
 
 const execFile = promisify(execFileCb);
 
-const COMMANDS = new Set(['help', 'setup', 'assess', 'prepare', 'approve', 'publish', 'reconcile', 'verify', 'ship', 'attest', 'hooks', 'artifacts', 'docs']);
+const COMMANDS = new Set(['help', 'setup', 'assess', 'prepare', 'approve', 'publish', 'reconcile', 'verify', 'ship', 'attest', 'hooks', 'artifacts', 'docs', 'distribute', 'route', 'lineage']);
 
 /**
  * Check if a command is available and get its version.
@@ -204,6 +204,21 @@ function getCapabilityMaturity() {
       mode: 'fresh consumer verification (protocol-tested; no OS/network sandbox)',
       description: 'Recheck remote state, exact npm installation, CLI help, and automated Claude/Codex installs before VERIFIED; Kimi/CodeBuddy remain unverified manual follow-ups',
     },
+    distribute: {
+      available: true,
+      mode: 'controlled production (protocol-tested; no OS/network sandbox)',
+      description: 'Distribute frozen artifacts to configured post-publish targets (git mirrors + marketplace index) after PUBLISHED; reconciles PARTIAL runs; requires plan.postPublish config; verification gate before VERIFIED',
+    },
+    route: {
+      available: true,
+      mode: 'read-only classification with workflow recommendation',
+      description: 'Deterministic quickstart routing: classify git diff changes and recommend workflow profile (docs-only/config-only/marketplace-only/full-happy-end)',
+    },
+    lineage: {
+      available: true,
+      mode: 'diagnostic and repair tool for git tag lineage',
+      description: 'Lineage Repair Tool (§2.2 option A of handoff): analyze git tag lineage, identify missing/dangling tags, verify version ordering, and repair tag consistency',
+    },
   };
 }
 
@@ -227,6 +242,9 @@ Commands:
   hooks      Run declared development hooks and populate reusable receipts
   artifacts  Artifact status, inspect, update/apply, resolution, and diagnostics
   docs       Refresh declared release documents (read-only dry-run by default)
+  distribute Distribute releases to post-publish targets (git mirror + marketplace) after PUBLISHED; plan.postPublish required; reconciles PARTIAL runs; verification gate before VERIFIED
+  route      Deterministic quickstart routing: classify git diff changes and recommend workflow profile (docs-only/config-only/marketplace-only/full-happy-end)
+  lineage    Lineage Repair Tool (§2.2 option A of handoff): analyze git tag lineage, identify missing/dangling tags, verify version ordering, repair consistency
 
 Options:
   --root <path>    Project root directory (default: cwd)
@@ -236,6 +254,10 @@ Options:
   --production     Prepare immutable Git/npm production artifacts
   --output <path>  Override prepare/approve output path (non-production only)
   --run-dir <path> Override prepare run directory; production requires one direct child of .release-skill/runs
+  --workflow <full|docs|config|marketplace> Workflow profile for prepare (default full). docs/config/marketplace
+                   deterministically trim code-class gates (declared hooks, snapshot-verify gates,
+                   source-authority closure, skill-resource-closure) and record workflowDecision in the plan;
+                   config also reports whether the public bytes are unchanged (no publish path)
   --answers <path> Human-reviewed setup answers JSON
   --write          Create an absent project.yaml during setup; never overwrites
   --confirm-setup <digest> Confirm exact setup facts and answers before create
@@ -675,6 +697,8 @@ if (command === 'prepare') {
   const verificationGatesAuthorized = args.includes('--acknowledge-gate-side-effects');
   const hookCache = !args.includes('--no-hook-cache');
   const production = args.includes('--production');
+  const workflowIdx = args.indexOf('--workflow');
+  const workflow = workflowIdx !== -1 && args[workflowIdx + 1] ? args[workflowIdx + 1] : 'full';
   const outputIdx = args.indexOf('--output');
   const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve(args[outputIdx + 1]) : undefined;
   const runDirIdx = args.indexOf('--run-dir');
@@ -691,22 +715,26 @@ if (command === 'prepare') {
       verificationGatesAuthorized,
       hookCache,
       production,
+      workflow,
       output,
       runDir,
     });
 
+    // Keep stdout compact and stable. The immutable plan remains the single
+    // authority at planPath; callers should not have to carry its full
+    // source closure, manifests and action payloads through chat/logs.
+    const planContent = await readFileFs(result.planPath, 'utf8');
+    const plan = JSON.parse(planContent);
+
     if (hasJson) {
-      // Keep stdout compact and stable. The immutable plan remains the single
-      // authority at planPath; callers should not have to carry its full
-      // source closure, manifests and action payloads through chat/logs.
-      const planContent = await readFileFs(result.planPath, 'utf8');
-      const plan = JSON.parse(planContent);
       console.log(JSON.stringify({
         command: 'prepare',
         status: plan.status,
         planPath: result.planPath,
         planDigest: result.planDigest,
         evidenceDir: result.evidenceDir,
+        workflowKind: plan.workflowKind ?? 'full',
+        ...(plan.workflowDecision ? { workflowDecision: plan.workflowDecision } : {}),
         units: (plan.units ?? []).map((unit) => ({
           id: unit.id,
           targetVersion: unit.targetVersion ?? unit.version,
@@ -726,6 +754,15 @@ if (command === 'prepare') {
       console.log(`Plan frozen at: ${result.planPath}`);
       console.log(`Plan digest: ${result.planDigest}`);
       console.log(`Evidence: ${result.evidenceDir}`);
+      if (plan.workflowKind && plan.workflowKind !== 'full') {
+        console.log(`Workflow: ${plan.workflowKind}`);
+      }
+      if (plan.workflowDecision) {
+        console.log(`Workflow decision: ${plan.workflowDecision.decision} (publish: ${plan.workflowDecision.publishPath})`);
+        if (plan.workflowDecision.decision === 'public-bytes-unchanged') {
+          console.log('Public bytes unchanged — no publish path; external actions omitted from this plan.');
+        }
+      }
     }
 
     process.exit(0);
@@ -933,6 +970,15 @@ if (command === 'verify') {
       console.log(`Verify status: ${result.status}`);
       console.log(`Adapter checks: ${result.adapterChecks.length} passed`);
       console.log(`Smoke test: ${result.smokeTest.passed ? 'PASSED' : 'FAILED'}`);
+      if (result.baselineAdvance) {
+        if (result.baselineAdvance.failed) {
+          console.log(`Baseline advance: FAILED (${result.baselineAdvance.error}); update previousPublicBaseline manually`);
+        } else if (!result.baselineAdvance.changed) {
+          console.log('Baseline advance: already current');
+        } else {
+          console.log(`Baseline advance: ${result.baselineAdvance.committed ? 'advanced and committed' : 'advanced (uncommitted — commit .release-skill/project.yaml manually)'}`);
+        }
+      }
     }
 
     process.exit(result.status === 'VERIFIED' ? 0 : 1);
@@ -1191,6 +1237,188 @@ if (command === 'docs') {
   }
 }
 
-// Placeholder: remaining commands will be wired in later tasks
+// --- Distribute command routing ---
+if (command === 'distribute') {
+  const value = (flag) => {
+    const idx = args.indexOf(flag);
+    return idx !== -1 && args[idx + 1] ? args[idx + 1] : undefined;
+  };
+  const root = resolve(value('--root') ?? process.cwd());
+  const planPath = value('--plan');
+  const approvalPath = value('--approval');
+  const runPath = value('--run');
+  const dryRun = args.includes('--dry-run');
+  
+  // Handle --help explicitly
+  if (args.includes('--help')) {
+    const helpText = `Distribute command: Distributes frozen artifacts to post-publish targets
+  
+Usage: release-skill distribute --plan <path> --run <path> [options]
+
+Options:
+  --root     Project root directory (default: cwd)
+  --plan     Path to the release plan file (required)
+  --run      Path to the release run file (required)
+  --approval Path to the approval record (optional but recommended)
+  --dry-run  Preview distribution steps without executing (default: false)
+
+Description:
+  After PUBLISHED state, distributes to configured postPublish targets:
+  - Git repository mirrors
+  - Marketplace index updates
+  Requires plan.postPublish configuration. Reconciles PARTIAL runs.`;
+    if (hasJson) {
+      console.log(JSON.stringify({
+        command: 'distribute',
+        description: 'Distributes frozen artifacts to post-publish targets (git mirror + marketplace) after PUBLISHED',
+        usage: 'release-skill distribute --plan <path> --run <path> [options]',
+        options: {
+          '--root': 'Project root directory (default: cwd)',
+          '--plan': 'Path to the release plan file (required)',
+          '--run': 'Path to the release run file (required)',
+          '--approval': 'Path to the approval record (optional but recommended)',
+          '--dry-run': 'Preview distribution steps without executing (default: false)',
+        },
+        description: 'After PUBLISHED state, distributes to configured postPublish targets: git mirrors + marketplace index updates. Requires plan.postPublish config. Reconciles PARTIAL runs.',
+      }, null, 2));
+    } else {
+      console.log(helpText);
+    }
+    process.exit(0);
+  }
+
+  if (!planPath || !runPath) {
+    const msg = 'distribute requires --plan <path> and --run <path>';
+    if (hasJson) {
+      console.log(JSON.stringify({ error: 'MISSING_PARAMETERS', message: msg, exitCode: 1 }));
+    } else {
+      console.error(`Error: ${msg}`);
+    }
+    process.exit(1);
+  }
+
+  try {
+    const { distributeRelease } = await import('../src/commands/distribute.mjs');
+    const { createGitGithubAdapter } = await import('../src/adapters/git-github.mjs');
+    const { createNpmAdapter } = await import('../src/adapters/npm.mjs');
+    const { createPluginMarketplaceAdapter } = await import('../src/adapters/plugin-marketplace.mjs');
+    const { createPushSnapshotAdapter } = await import('../src/adapters/push-snapshot.mjs');
+    const { createAdapterRegistry } = await import('../src/adapters/contract.mjs');
+
+    const registry = createAdapterRegistry([
+      createGitGithubAdapter(),
+      createNpmAdapter(),
+      createPluginMarketplaceAdapter(),
+      createPushSnapshotAdapter(),
+    ]);
+
+    const result = await distributeRelease({
+      sourceRunPath: runPath,
+      approvalPath,
+      adapterRegistry: registry,
+      root,
+      dryRun,
+      planPath,
+    });
+
+    if (hasJson) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log(`Distribute status: ${result.status}`);
+      for (const cp of result.checkpoints) {
+        console.log(`  ${cp.actionId}: ${cp.status}`);
+      }
+      if (result.distributeRunPath) {
+        console.log(`Distribute run: ${result.distributeRunPath}`);
+      }
+    }
+
+    process.exit(result.status === 'DISTRIBUTED' ? 0 : 1);
+  } catch (err) {
+    if (hasJson) {
+      const errOutput = {
+        error: err.code ?? 'UNKNOWN_ERROR',
+        message: err.message,
+        details: err.details ?? {},
+        exitCode: err.exitCode ?? 1,
+      };
+      console.log(JSON.stringify(errOutput));
+    } else {
+      console.error(`Error: ${err.message}`);
+    }
+    process.exit(err.exitCode ?? 1);
+  }
+}
+
+// --- Route command routing (workflow profile quickstart) ---
+if (command === 'route') {
+  // Pass the full arg list after the command name through to the command's own
+  // parser (route.mjs parseArgs handles --root/--target-version/--publish-authorized/
+  // --json/-h). The --vs flag never existed in the command's interface and is
+  // not forwarded; route reads the real worktree state itself.
+  try {
+    const { default: routeMain } = await import('../src/commands/route.mjs');
+    const result = await routeMain(args.slice(1));
+
+    if (!hasJson) {
+      if (result.status === 'SUCCESS') {
+        console.log('\n✅ Classification complete.');
+        console.log('Next steps: Follow the recommendation in the output above.');
+      } else if (result.status === 'ERROR') {
+        console.error(`\n❌ Route command failed with status: ${result.error}`);
+      }
+    }
+
+    process.exit(result.exitCode ?? 0);
+  } catch (err) {
+    if (hasJson) {
+      console.log(JSON.stringify({
+        error: err.code ?? 'UNKNOWN_ERROR',
+        message: err.message,
+        details: err.details ?? {},
+        exitCode: err.exitCode ?? 1,
+      }, null, 2));
+    } else {
+      console.error(`Error: ${err.message}`);
+    }
+    process.exit(err.exitCode ?? 1);
+  }
+}
+
+// --- Lineage command routing (lineage repair tool) ---
+if (command === 'lineage') {
+  // Pass the full arg list after the command name through to the command's own
+  // parser. Never filter positional args here: filtering drops the VALUES of
+  // --root/--repo (they do not start with '--') and also drops --dry-run
+  // itself, silently turning a dry run into a real one.
+  try {
+    const { runLineageCommand } = await import('../src/commands/lineage.mjs');
+    const result = await runLineageCommand(args.slice(1));
+
+    if (!hasJson) {
+      if (['ANALYZED', 'REBUILT', 'DRY_RUN', 'HELP_SHOWN'].includes(result.status)) {
+        console.log(`\n✅ Lineage operation complete (${result.status.toLowerCase()}).`);
+      } else if (result.status === 'ERROR') {
+        console.error(`\n❌ Lineage command failed: ${result.error}`);
+      }
+    }
+
+    process.exit(result.status === 'ERROR' ? 1 : 0);
+  } catch (err) {
+    if (hasJson) {
+      console.log(JSON.stringify({
+        error: err.code ?? 'UNKNOWN_ERROR',
+        message: err.message,
+        details: err.details ?? {},
+        exitCode: err.exitCode ?? 1,
+      }, null, 2));
+    } else {
+      console.error(`Error: ${err.message}`);
+    }
+    process.exit(err.exitCode ?? 1);
+  }
+}
+
+// Placeholder: remaining commands will be wired in later commands
 console.error(`Command '${command}' is not yet implemented.`);
 process.exit(1);

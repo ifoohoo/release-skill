@@ -613,6 +613,9 @@
           },
           "releaseDocuments": {
             "$ref": "#/definitions/releaseDocuments"
+          },
+          "postPublish": {
+            "$ref": "#/definitions/postPublish"
           }
         },
         "allOf": [
@@ -872,6 +875,294 @@
           "description": "Root-relative globs declaring the hook's full input set (source, scripts, config, lockfiles). The cache key fingerprints the content of every matched file; a glob that matches nothing fails closed. Must cover ALL inputs or the cache can return a false hit."
         }
       }
+    },
+    "postPublish": {
+      "type": "object",
+      "description": "发布后分发声明：materialize 钩子从冻结 tag 工作树物化载荷，targets 将载荷镜像或渲染市场索引推送到独立 git 远端。分发在 publish 之后由 distribute 命令执行，时序契约禁止读取工作区状态。",
+      "required": [
+        "materialize",
+        "targets",
+        "commitIdentity"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "materialize": {
+          "$ref": "#/definitions/postPublishMaterialize"
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/postPublishTarget"
+          }
+        },
+        "commitIdentity": {
+          "type": "object",
+          "description": "分发仓库提交者身份（bot 身份），通过 git -c user.name/-c user.email 注入，绝不读取或修改全局 git 配置",
+          "required": [
+            "name",
+            "email"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "email": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "steps": {
+          "type": "array",
+          "description": "物化之后、推送之前按序执行的只读检查步骤；任一步失败即 fail-closed",
+          "items": {
+            "$ref": "#/definitions/postPublishStep"
+          }
+        },
+        "assertMainVersionAhead": {
+          "type": "boolean",
+          "description": "分发前校验主干版本源仍领先于目标版本，防止在已推进的主干上分发旧版本"
+        }
+      }
+    },
+    "postPublishMaterialize": {
+      "type": "object",
+      "description": "载荷物化钩子：executable+参数数组（禁止 shell 字符串），stdout 中 outputMarker 行之后为载荷目录路径；可选 requireReport 对 stdout 首个 JSON 对象做字段断言",
+      "required": [
+        "command",
+        "outputMarker"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "cwd": {
+          "type": "string",
+          "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 7200000
+        },
+        "envAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!.*(?:TOKEN|SECRET|PASSWORD|PASSPHRASE|API_KEY|CREDENTIAL))[A-Z_][A-Z0-9_]*$"
+          },
+          "uniqueItems": true
+        },
+        "outputMarker": {
+          "type": "string",
+          "minLength": 1,
+          "description": "stdout 中标识载荷目录路径的前缀标记（如 \"isolated dir kept: \"）"
+        },
+        "requireReport": {
+          "type": "object",
+          "required": [
+            "parse"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "parse": {
+              "const": "stdout-first-json",
+              "description": "解析 stdout 中第一个完整 JSON 对象作为报告"
+            },
+            "equals": {
+              "type": "object",
+              "description": "报告字段等值断言；任一字段缺失或不等即 fail-closed"
+            }
+          }
+        }
+      }
+    },
+    "postPublishStep": {
+      "type": "object",
+      "description": "物化后按序执行的检查步骤；executable+参数数组（禁止 shell 字符串）",
+      "required": [
+        "name",
+        "command"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "cwd": {
+          "type": "string",
+          "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 7200000
+        },
+        "envAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!.*(?:TOKEN|SECRET|PASSWORD|PASSPHRASE|API_KEY|CREDENTIAL))[A-Z_][A-Z0-9_]*$"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "postPublishTarget": {
+      "type": "object",
+      "description": "分发目标 git 远端：payload-mirror 镜像载荷，marketplace-index 渲染市场索引清单；dependsOn 语义（引用、无环）在运行时 fail-closed 校验",
+      "required": [
+        "id",
+        "kind",
+        "remoteUrl",
+        "visibility",
+        "branch"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "payload-mirror",
+            "marketplace-index"
+          ]
+        },
+        "remoteUrl": {
+          "type": "string",
+          "pattern": "^(?:https?|file)://.+\\.git$",
+          "description": "仅允许 http(s) 或 file（测试传输）且以 .git 结尾的远端 URL"
+        },
+        "visibility": {
+          "type": "string",
+          "enum": [
+            "internal",
+            "public"
+          ]
+        },
+        "branch": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"
+        },
+        "dependsOn": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "description": "消费另一目标（须为 payload-mirror）推送后的 commit sha；运行时校验引用存在且无环"
+        },
+        "marketplace": {
+          "type": "object",
+          "description": "marketplace-index 目标必填：渲染 .claude-plugin/marketplace.json 所用的市场元数据",
+          "required": [
+            "form",
+            "name",
+            "owner"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "form": {
+              "type": "string",
+              "enum": [
+                "github",
+                "url"
+              ]
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "owner": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sourceRepo": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$",
+              "description": "可选 owner/repo；github form 缺省时以 owner/name 组装"
+            }
+          }
+        },
+        "staticFiles": {
+          "type": "array",
+          "description": "随目标一起写入的静态文件（from 为源仓库相对路径，to 为目标仓库相对路径）",
+          "items": {
+            "type": "object",
+            "required": [
+              "from",
+              "to"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$"
+              },
+              "to": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$"
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "marketplace-index"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "marketplace"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "payload-mirror"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "marketplace"
+              ]
+            }
+          }
+        }
+      ]
     },
     "releaseDocuments": {
       "type": "object",

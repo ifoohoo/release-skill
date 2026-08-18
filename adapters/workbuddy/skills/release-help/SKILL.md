@@ -78,6 +78,45 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" docs refresh --unit <id> \
 | 请求生产发布 | 已有公开版本先调用 `release-prepare --online --production` 观察 bound 基线；人工审阅后再路由 `release-publish` |
 | RELEASE_DOCS_INVALID | 配置或说明源语义非法（重复键、alias、未知字段、版本漂移等）；修正配置或说明源后重新演练 |
 | RELEASE_DOCS_TRANSLATION_MISSING | 配置语种缺失或多余；补齐说明源语种，与 `releaseDocuments.locales` 完全一致，不得回退 |
+
+## Routing Suggestions (§4.3 Quickstart Routing)
+
+对于不清楚如何开始的用户，推荐使用 `release-skill route` 命令进行自动化工作流选择：
+
+```bash
+# 快速分类变更并推荐工作流
+node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" route --root <path> --json
+
+# JSON 输出包含 classification 和 recommendation 字段
+{
+  "classification": {
+    "code": [],
+    "docs": ["README.md"],
+    "config": [],
+    "marketplace": [],
+    "mixed": false
+  },
+  "recommendation": {
+    "workflowKind": "docs-only",
+    "reason": "Pure documentation changes detected...",
+    "firstCommand": "release-docs"
+  }
+}
+```
+
+**可用工作流**:
+- `docs-only`: 纯文档变更（跳过代码类门限）
+- `config-only`: 纯配置变更（schema 验证 + 决策分支）
+- `marketplace-only`: 纯 marketplace 索引变更（条目更新 + snapshot 同步）
+- `full-happy-end`: 混合变更或无法确定（fail-closed 到最安全路径）
+- `reconcile`: 存在 PARTIAL 运行时需先恢复
+- `help`: 无变更且未指定目标版本
+
+参考文档：
+- [`release-docs`](../release-docs/SKILL.md) - 文档工作流详解
+- [`release-config`](../release-config/SKILL.md) - 配置工作流详解
+- [`release-marketplace`](../release-marketplace/SKILL.md) - Marketplace 工作流详解
+
 | RELEASE_DOCS_CONFLICT | 目标含非受管同版本条目、受管标记损坏或人工冲突；人工修复目标并保留人工修改后重新演练 |
 | RELEASE_DOCS_REFRESH_STALE | 确认绑定后候选已变化；重新演练取得新 `refreshDigest` 再确认写入 |
 | RELEASE_DOCS_STALE | prepare 检测到文档未刷新；按 `docs refresh` → 审阅 → 提交 → 重新 prepare 恢复 |

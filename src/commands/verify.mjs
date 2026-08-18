@@ -46,6 +46,13 @@ import {
   CONSUMER_VERIFICATION_DEFERRED,
 } from '../core/errors.mjs';
 import { verifySourceAuthorityReceipt } from '../core/source-authority.mjs';
+import {
+  deriveBaselineAdvances,
+  applyBaselineAdvances,
+  isWorktreeFileClean,
+  commitBaselineAdvance,
+} from '../core/baseline-advance.mjs';
+import { loadProjectConfig } from '../core/config.mjs';
 import { assertTransition, PUBLISHED, VERIFIED } from '../core/state-machine.mjs';
 import { resolveUnitScopedPath } from '../snapshot/public-path.mjs';
 import {
@@ -726,6 +733,95 @@ const defaultNpmExecutor = {
 };
 
 // ---------------------------------------------------------------------------
+// Distribute run discovery
+// ---------------------------------------------------------------------------
+
+/**
+ * Discover sibling distribute runs from the same planDigest within .release-skill/runs.
+ * Only accept verified, non-symbolic-link directories matching distribute-* prefix.
+ */
+async function discoverDistributeRuns({ planPath, plan }) {
+  const planDir = dirname(planPath);
+  const releaseDir = basename(planDir) === 'plans' ? dirname(planDir) : planDir;
+  const runsDir = resolve(releaseDir, 'runs');
+  
+  try {
+    const runsDirStat = await lstat(runsDir);
+    if (runsDirStat.isSymbolicLink()) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        'runs directory is a symbolic link; authority identity compromised',
+        { runsDir },
+      );
+    }
+    if (!runsDirStat.isDirectory()) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        'runs path is not a directory',
+        { runsDir },
+      );
+    }
+    
+    const runsDirReal = realpathSync(runsDir);
+    const authorityDirReal = realpathSync(releaseDir);
+    if (!runsDirReal.startsWith(authorityDirReal + '/') && runsDirReal !== authorityDirReal) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        'runs directory is not a real child of the plan authority directory',
+        { runsDir, runsDirReal, authorityDirReal },
+      );
+    }
+  } catch (err) {
+    if (err instanceof ReleaseError) throw err;
+    // runs directory doesn't exist — this is okay for optional distribution
+    return null;
+  }
+  
+  const candidates = [];
+  const entries = await readdir(runsDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.name.startsWith('distribute-')) continue;
+    if (!entry.isDirectory() || entry.isSymbolicLink()) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        'distribute-* candidate is a symbolic link or not a directory; authority identity compromised',
+        { entry: entry.name, runsDir },
+      );
+    }
+    const candidateDir = resolve(runsDir, entry.name);
+    const candidateStat = await lstat(candidateDir).catch(() => null);
+    if (!candidateStat || candidateStat.isSymbolicLink()) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        'distribute-* candidate is a symbolic link; authority identity compromised',
+        { candidateDir, runsDir },
+      );
+    }
+    const candidateReal = realpathSync(candidateDir);
+    if (!candidateReal.startsWith(runsDir + '/') && candidateReal !== runsDir) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        'distribute-* candidate real path is not contained in authority runs directory',
+        { candidateDir, candidateReal, runsDir },
+      );
+    }
+    const candidatePath = resolve(candidateDir, 'release-run.json');
+    try {
+      const candidate = await loadRun(candidatePath, { requireDigest: true });
+      if (candidate.command !== 'distribute') continue;
+      if (!candidate.planDigest) continue;
+      if (candidate.planDigest !== plan.digest) continue;
+      candidates.push(candidate);
+    } catch {
+      // Skip invalid candidates silently
+      continue;
+    }
+  }
+  
+  return candidates;
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -758,6 +854,8 @@ export async function verifyRelease(options) {
     verificationGatesAuthorized: _verificationGatesAuthorized,
     gateEnv,
     previousVerifyRun,
+    execFn,
+    configPath: configPathOpt,
   } = options ?? {};
 
   const clockFn = typeof clockOpt === 'function' ? clockOpt : defaultClock;
@@ -864,6 +962,32 @@ export async function verifyRelease(options) {
         `cannot verify: source run status is "${sourceRun.status}"; expected PUBLISHED (VERIFIED is terminal)`,
         { sourceRunStatus: sourceRun.status },
       );
+    }
+
+    // =======================================================================
+    // Step 2b: Check for postPublish distribution requirement
+    // =======================================================================
+    if (plan.postPublish && plan.postPublish.targets && plan.postPublish.targets.length > 0) {
+      await evidence.append({ phase: 'verify', step: 'distribute-run-discovery', status: 'started' });
+      
+      const distributeCandidates = await discoverDistributeRuns({ planPath, plan });
+      const distRunPath = (distributeCandidates ?? []).find((c) => c.status === 'DISTRIBUTED')?.runPath || null;
+      
+      await evidence.append({
+        phase: 'verify',
+        step: 'distribute-run-discovery',
+        status: 'checked',
+        foundCandidate: !!distRunPath,
+        distributeRunPath: distRunPath,
+      });
+      
+      if (!distRunPath) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `distribution required by plan.postPublish but no DISTRIBUTED run found; run release-skill distribute --plan ${planPath} --root ${root}`,
+          { requiredDistribution: true, evidenceEvent: 'distribute-run-missing' },
+        );
+      }
     }
 
     if (plan.production) {
@@ -1678,6 +1802,57 @@ export async function verifyRelease(options) {
     };
     const persistedVerifyRun = await writeRunAtomic(verifyRunPath, verifyRunState);
 
+    // =======================================================================
+    // Baseline advance: move per-unit previousPublicBaseline to the commit
+    // that was just verified. Local bookkeeping only — no remote writes.
+    // Best-effort: a failure here must never demote VERIFIED, and the config
+    // is only auto-committed when the file was clean before the write, so a
+    // dirty worktree leaves the decision to the human.
+    // =======================================================================
+    let baselineAdvance = null;
+    const baselineAdvances = deriveBaselineAdvances(plan);
+    if (baselineAdvances.length > 0) {
+      try {
+        const configAbs = configPathOpt
+          ? (isAbsolute(configPathOpt) ? configPathOpt : join(root, configPathOpt))
+          : join(root, '.release-skill/project.yaml');
+        const cleanBefore = await isWorktreeFileClean({ root, filePath: configAbs, execFn });
+        const applyResult = await applyBaselineAdvances({
+          configPath: configAbs,
+          advances: baselineAdvances,
+          validateFn: async () => { await loadProjectConfig({ root, configPath: configAbs }); },
+        });
+        baselineAdvance = { ...applyResult, committed: false };
+        if (applyResult.changed && cleanBefore) {
+          const versionLabel = (plan.units ?? [])
+            .map((u) => `${u.id} v${u.targetVersion}`)
+            .join(', ');
+          await commitBaselineAdvance({
+            root,
+            filePath: configAbs,
+            message: `chore: advance previousPublicBaseline to published ${versionLabel}`,
+            execFn,
+          });
+          baselineAdvance.committed = true;
+        }
+        await evidence.append({
+          phase: 'verify',
+          step: 'baseline-advance',
+          status: applyResult.changed ? 'advanced' : 'already-current',
+          updatedUnits: applyResult.updatedUnits,
+          committed: baselineAdvance.committed,
+        });
+      } catch (err) {
+        baselineAdvance = { failed: true, error: err.message };
+        await evidence.append({
+          phase: 'verify',
+          step: 'baseline-advance',
+          status: 'failed',
+          error: { code: err.code, message: err.message },
+        });
+      }
+    }
+
     await evidence.finish({
       status: VERIFIED,
       planPath,
@@ -1697,6 +1872,7 @@ export async function verifyRelease(options) {
       smokeTest,
       gateResults: consumerGateResults,
       ...(manualFollowUps.length > 0 ? { manualFollowUps } : {}),
+      ...(baselineAdvance ? { baselineAdvance } : {}),
     };
   } catch (err) {
     await evidence.append({

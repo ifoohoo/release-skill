@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.5.1 -->
+<!-- release-skill:release-version: 0.6.0 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,24 +14,19 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.5.1** (2026-08-17)
+**0.6.0** (2026-08-18)
 
-v0.5.1 fixes three frozen-0.5.0 defects — explicit hook environment delivery (envAllowlist now reaches prepare hooks), a 64 MiB baseline maxBuffer for large tracked indexes, and the prefixed skill-directory fallback for marketplace-install preflight/observe — bumps the Skill Family Foundation dependencies to the released 0.5.0 packages, and hardens the release chain so every later release must bind the previous public release commit instead of degrading to an orphan root commit.
+v0.6.0 automates the most error-prone bookkeeping step of the release loop: after a release reaches VERIFIED, verify now advances each unit's previousPublicBaseline in project.yaml to the just-published commit, tree, and manifest digest recorded in the frozen plan. The advance is local-only, idempotent, validated with automatic rollback, and commits the config file on its own only when it was clean before the write, so the drift gate always sees a truthful previous public baseline without anyone hand-copying hashes.
 
-**Changed**
+**Added**
 
-- **Foundation 0.5.0 upgrade**: `skill-family-contracts` and `skill-family-harness-node` dependencies bumped from 0.4.0 to 0.5.0 (npm latest); the package-name import bridge keeps working unchanged and the harness-node 0.5.0 export surface was re-verified (`publishFileExclusive`, token-lock five functions, `HARNESS_ERROR_KINDS`).
-- **Chain hardening (chain-integrity)**: `push-snapshot` now requires an explicit `branchStrategy` (the historical `create-release-branch` default that produced orphan root commits is gone); `create-release-branch` is only valid when `previousPublicBaseline.mode=none`; a production online prepare with `mode=none` on a repository that already carries release tags fails closed with `CHAIN_GAP`, demanding a bound baseline at the previous release commit; online `assess` registers a warning-level `VERSION_SEQUENCE_GAP` when the target version jumps the release sequence (e.g. 0.1.1 → 0.1.3 with no v0.1.2 tag), without blocking.
-
-**Fixed**
-
-- **Hook environment delivery (hook-env-delivery)**: `runDeclaredHooks` now accepts an explicit `env` option and merges it into the hook context (`hookFn(hook, { root, env })`); prepare and `hooks validate` inject the invoking shell's environment, so `hooks.*.envAllowlist` keys exported by the caller finally reach the hook subprocess. Allowlist semantics are unchanged — the hook runner still reads allowlisted keys exclusively from the explicit map, never from `process.env` directly.
-- **Large-tracked-index baseline (baseline-maxbuffer)**: `computeWorkspaceDigest` now runs its three git subprocesses with a 64 MiB `maxBuffer` (official fix 39c631f); workspaces with thousands of tracked files (measured 8494 tracked files → 1,519,151 B `ls-files -s` stdout) no longer fail with `ERR_CHILD_PROCESS_STDIO_MAXBUFFER`.
-- **Prefixed skill-directory resolution (entry-skill-prefix)**: marketplace-install preflight and observe now fall back from `skills/<entrySkill>/SKILL.md` to `skills/<plugin>-<entrySkill>/SKILL.md` (plugin from the action parameters, D-ACA-30 platform physical names); candidate builds with prefixed skill directories pass preflight and observe instead of failing with `entry skill not found`.
+- **Automatic baseline advance (baseline-advance)**: after `verify` reaches `VERIFIED`, every `mode: bound` unit's `previousPublicBaseline` (`commit`, `tree`, `manifestDigest`) is advanced to the published values derived from the frozen plan's `push-snapshot` binding — never recomputed from workspace state. The rewritten `project.yaml` preserves comments, is re-validated with `loadProjectConfig`, and is restored byte-for-byte if validation fails. The advance never demotes `VERIFIED`: failures are recorded in evidence and reported for manual handling.
+- **Clean-worktree commit policy**: the baseline advance auto-commits the config file in an isolated commit only when `project.yaml` had no staged or unstaged changes before the write; a dirty worktree leaves the file written but uncommitted for human review, and a missing or broken git fails safe to never committing.
+- **Ship-state traceability**: `ship` persists the verify `baselineAdvance` result (`advanced` / `already-current` / `committed` / `failed`) in its durable state, and the `verify` human-readable output reports the advance outcome line.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.5.1 is the current source candidate; v0.4.1 remains
+> **Current boundary:** v0.6.0 is the current source candidate; v0.4.1 remains
 > the latest published release (v0.2.2 previously held
 > published status before the platform verification convergence fix was added).
 > v0.1.1 completed a real production release to GitHub and npm — the first
@@ -50,13 +45,18 @@ v0.5.1 fixes three frozen-0.5.0 defects — explicit hook environment delivery (
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.5.1 is the current
+> **Production path verified since the v0.1.1 milestone; v0.6.0 is the current
 > source candidate and v0.4.1 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
 > **Start here:**
 > - npm install: `npm install -g release-skill` → `release-skill help`
 > - source checkout: `node "$RELEASE_SKILL_HOME/packages/release-skill/bin/release-skill.mjs" help`
+
+<!-- release-skill:maturity:distribute-v1 -->
+<!-- release-skill:capability:distribute -->
+> **Distribute maturity v1.0 (W2 closure):** postPublish distribution is available as a separate `distribute` command for mirror and marketplace-index actions. After `publish` reaches PUBLISHED status, run `ship distribute` or manually invoke `release-skill distribute --plan <path> --approval <path> --json`. The distribute action implements fail-closed semantics: NO_CHANGE on empty diff (no commit/tag/push), REMOTE_CONFLICT on tag move attempts (never force-push), AUTH_MISSING when external writes are not authorized. Supported modes: `--dry-run` (local commit+tag only), `--json` (structured output), `--help` (command reference). Tag commitment guarantees version consistency — distributed plugin.json.version must match input tag. See [docs/design/2026-08-17-postpublish-distribution.md](../../docs/design/2026-08-17-postpublish-distribution.md) for detailed architecture.
+<!-- release-skill:capability:distribute -->
 
 <!-- release-skill:maturity:v0.1-boundary -->
 <!-- release-skill:maturity:boundary -->

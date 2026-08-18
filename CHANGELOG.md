@@ -1,5 +1,18 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.6.0 locale=en baseline=sha256:1942e4534cc9ab36065168471875ba8c4648c73328a20ef3ee6a7a53eb1f1b7d -->
+## [0.6.0] - 2026-08-18
+
+v0.6.0 automates the most error-prone bookkeeping step of the release loop: after a release reaches VERIFIED, verify now advances each unit's previousPublicBaseline in project.yaml to the just-published commit, tree, and manifest digest recorded in the frozen plan. The advance is local-only, idempotent, validated with automatic rollback, and commits the config file on its own only when it was clean before the write, so the drift gate always sees a truthful previous public baseline without anyone hand-copying hashes.
+
+### Added
+
+- **Automatic baseline advance (baseline-advance)**: after `verify` reaches `VERIFIED`, every `mode: bound` unit's `previousPublicBaseline` (`commit`, `tree`, `manifestDigest`) is advanced to the published values derived from the frozen plan's `push-snapshot` binding — never recomputed from workspace state. The rewritten `project.yaml` preserves comments, is re-validated with `loadProjectConfig`, and is restored byte-for-byte if validation fails. The advance never demotes `VERIFIED`: failures are recorded in evidence and reported for manual handling.
+- **Clean-worktree commit policy**: the baseline advance auto-commits the config file in an isolated commit only when `project.yaml` had no staged or unstaged changes before the write; a dirty worktree leaves the file written but uncommitted for human review, and a missing or broken git fails safe to never committing.
+- **Ship-state traceability**: `ship` persists the verify `baselineAdvance` result (`advanced` / `already-current` / `committed` / `failed`) in its durable state, and the `verify` human-readable output reports the advance outcome line.
+<!-- release-skill:changelog:end version=0.6.0 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.5.1 locale=en baseline=sha256:2a8dc4241570c0919e55da270233728963ba1cda347c95c775678ec89a9f0ac0 -->
 ## [0.5.1] - 2026-08-17
 

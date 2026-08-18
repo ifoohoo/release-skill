@@ -189,3 +189,28 @@ export function isRemoteWriteAction(actionType) {
 export function isMarketplaceAction(actionType) {
   return MARKETPLACE_ACTION_TYPES.has(actionType);
 }
+
+/**
+ * Post-publish distribution (distribute saga) checkpoint action types.
+ *
+ * These checkpoints are recorded in distribute run records; they never
+ * appear in plan externalActions and intentionally stay OUT of
+ * CHECKPOINT_ORDER / TIER_TABLE: the distribute saga schedules targets
+ * strictly sequentially in dependsOn order (shared payload + sha backfill),
+ * never through the publish/reconcile tier scheduler. If a distribute type
+ * ever leaked into a publish plan, groupActionsByTier would fail closed on
+ * it as an unknown type — exactly the desired behaviour.
+ */
+export const DISTRIBUTE_ACTION_TYPES = new Set([
+  'distribute-probe',
+  'distribute-mirror',
+]);
+
+/**
+ * 判断动作类型是否为发布后分发（distribute）动作。
+ * @param {string} actionType - 运行检查点中的动作类型
+ * @returns {boolean}
+ */
+export function isDistributeAction(actionType) {
+  return DISTRIBUTE_ACTION_TYPES.has(actionType);
+}

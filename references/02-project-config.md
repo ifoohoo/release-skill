@@ -89,6 +89,32 @@ hooks:                      # 可选，命令 hooks
   typecheck: <hook>
   lint: <hook>
 
+postPublish:                # 可选；发布后分发配置（W2 closure）
+  distribute:               # 分发行动数组
+    - actionType: <string>      # "distribute-mirror" | "distribute-marketplace-index"
+      adapter: <string>         # "distribute-git" | "distribute-marketplace"
+      kind: <string>            # "payload-mirror" | "marketplace-index-form"
+      targetId: <string>        # 目标标识
+      remoteUrl: <string>       # file:// 或 https://；禁止 ssh
+      branch: <string>          # 分支名，不得以 '-' 开头
+      tag: <string>             # tag 模板，用于版本验证
+      commitIdentity:           # 冻结提交身份
+        name: <string>          # 禁止以 '-' 开头
+        email: <string>         # RFC 5322 valid
+      payloadDir: <string>      # 相对路径
+      dryRun?: boolean          # 可选；只本地执行
+      materialize?: {          # 可选；分发前钩子
+        command: <string>       # 可执行文件
+        args: [<string>]        # 参数数组，禁止 shell 字符串
+        outputMarker?: <string> # 输出标记，用于验证
+        requireReport: {}       # 前置报告要求
+        urlDependsOn: [<string>]> # 依赖动作完成
+      onConflict?: <string>     # "FAIL" (默认) | "RETRY"
+      retryPolicy?: {          # 可选；重试策略
+        maxAttempts: number
+        backoffMs: number
+      }
+
 policy:                     # 可选，安全策略
   forbiddenPaths: [<string>]
   forbiddenContentPatterns: [<string>]
@@ -113,6 +139,15 @@ policy:                     # 可选，安全策略
 - 已有公开版本时使用 `mode: bound`，并填写精确的 `repo`、不可变 `ref` 和
   `commit`。生产 prepare 必须使用 `--online --production`，逐 unit 观察
   ref→commit mapping；offline production 不得冻结未观察的 bound 基线。
+
+发布到达 `VERIFIED` 后，`verify` 会把每个 `mode: bound` unit 的
+`previousPublicBaseline` 自动推进到本次已发布并验证通过的提交（commit、tree、
+manifestDigest），数值一律取自冻结计划里该 unit 的 `push-snapshot` 绑定，绝不从
+工作区状态重新计算，从而保证推进值与公开仓库一致。该推进只写本地 `project.yaml`，
+不产生任何远端写入；写回后会重新走一遍配置校验，校验失败则原样还原。若写回前该
+文件在工作区中是干净的，`verify` 会用单独一次提交只包含该文件的改动；否则只落盘、
+留给人工提交，绝不把在途改动卷进自动提交。推进失败不会降级 `VERIFIED`，只在证据
+中记录并提示人工处理。
 
 本地 human-owned 文件是下一轮发布内容的权威源；前序公开基线是冲突检测输入；
 冻结 snapshot 是本轮审批和发布的唯一字节来源。默认 Git observer 只调用

@@ -90,6 +90,19 @@
 
 工具：`git` CLI 和 `gh` CLI，使用 `execFile` 参数数组调用。
 
+### 2.4.1 Distribute Adapter（postPublish）
+
+| 操作 | 方法 | 说明 | 幂等规则 |
+|---|---|---|---|
+| 预检远端分支 | preflight | 检查 branch 存在性、协议合法性 | 禁止 SSH URL，必须 file:// 或 https:// |
+| 克隆→wipe→write→commit | execute | 写入 payload，创建 bot identity 提交 + tag | NO_CHANGE 若 tree 相同；REMOTE_CONFLICT 若 tag move |
+| 观察远端 refs | observe | 检查 branch tip 与 tag OID 一致性 | CONSISTENT / MISSING / CONFLICTING |
+| 验证 content diff | verify | 二次 fetch 确认 payload 字节一致 | VERIFIED / FAILED |
+
+**never-force rule**: distribute adapter **永远不使用 force push**。即使是在追加模式，也仅允许普通快进；tag 移动视为冲突，要求人工决策。
+
+工具：`git` CLI via `distribute-git.mjs` adapter，参数数组调用。
+
 ### 2.2 npm Adapter
 
 | 操作 | 方法 | 说明 |

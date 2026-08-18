@@ -41,7 +41,9 @@
         "PUBLISHED",
         "VERIFIED",
         "PARTIAL",
-        "BLOCKED"
+        "BLOCKED",
+        "DISTRIBUTING",
+        "DISTRIBUTED"
       ],
       "description": "Current status of the run"
     },
@@ -52,7 +54,8 @@
         "prepare",
         "publish",
         "reconcile",
-        "verify"
+        "verify",
+        "distribute"
       ],
       "description": "The command that initiated this run"
     },
@@ -128,7 +131,9 @@
               "codex-marketplace-install",
               "kimi-marketplace-install",
               "codebuddy-marketplace-install",
-              "set-default-branch"
+              "set-default-branch",
+              "distribute-probe",
+              "distribute-mirror"
             ],
             "description": "Type of external action"
           },
@@ -143,9 +148,10 @@
               "deferred",
               "PASSED_AUTOMATIC",
               "PASSED_MANUAL",
-              "NOT_REQUIRED_UNCHANGED"
+              "NOT_REQUIRED_UNCHANGED",
+              "NO_CHANGE"
             ],
-            "description": "Result status of this checkpoint (uncertain = started, result unknown; deferred = marketplace action postponed to verify phase; PASSED_AUTOMATIC/PASSED_MANUAL/NOT_REQUIRED_UNCHANGED 为验证阶段专用状态)"
+            "description": "Result status of this checkpoint (uncertain = started, result unknown; deferred = marketplace action postponed to verify phase; PASSED_AUTOMATIC/PASSED_MANUAL/NOT_REQUIRED_UNCHANGED 为验证阶段专用状态; NO_CHANGE = distribute 目标暂存差异为空，未产生 commit/tag/push)"
           },
           "preObserve": {
             "type": "string",
@@ -206,6 +212,7 @@
                   "GATE_FAILED",
                   "AUTH_MISSING",
                   "REMOTE_CONFLICT",
+                  "REMOTE_UNAVAILABLE",
                   "HOOK_TIMEOUT",
                   "PARTIAL_RELEASE",
                   "POST_PUBLISH_VERIFY_FAILED"
@@ -223,6 +230,51 @@
           "phase": {
             "type": "string",
             "description": "Phase identifier for deferred checkpoints (e.g. post-publish-verification)"
+          },
+          "remoteUrl": {
+            "type": "string",
+            "description": "distribute 目标远端 URL"
+          },
+          "branch": {
+            "type": "string",
+            "description": "distribute 目标分支"
+          },
+          "tag": {
+            "type": "string",
+            "description": "distribute 分发 tag"
+          },
+          "tagCommit": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{40}$",
+            "description": "冻结的 create-tag 预期 commit"
+          },
+          "previousHead": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{40}$",
+            "description": "执行前目标分支 tip"
+          },
+          "pushedCommit": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{40}$",
+            "description": "实际推送的 commit（与 ls-remote 交叉核对）"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "pushed",
+              "no-change",
+              "dry-run"
+            ],
+            "description": "distribute 执行模式"
+          },
+          "executor": {
+            "type": "string",
+            "description": "执行者标识"
+          },
+          "payloadFileCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "写入目标的载荷文件数"
           }
         }
       }
@@ -568,7 +620,8 @@
           "command": {
             "enum": [
               "reconcile",
-              "verify"
+              "verify",
+              "distribute"
             ]
           }
         },

@@ -33,6 +33,14 @@
 | `CONTENT_MISMATCH` | 远端默认分支缺少冻结源码内容 | README、版本源、公开映射输入的内容或 mode 不一致 | 人工 merge/adopt/reject；接受的内容进入默认分支后重试 publish |
 | `DIRTY_SOURCE_INPUT` | 源码输入闭包存在未提交变化 | `publicFiles.from` 或 `version.source` 有 staged、unstaged、untracked 变化 | 提交或撤销这些具体输入的变化后重新 prepare；无关 dirty 不受影响 |
 
+**动作状态码** (adapter execute/observe/verify):
+
+- `NO_CHANGE`: 幂等时 payload 无差异，不创建 commit/tag/push。
+- `PENDING`: 预检查阶段等待前置动作完成。
+- `DISTRIBUTING`: 分发执行中。
+- `DISTRIBUTED`: 分发已完成检查点（commit+tag+push）。
+- `VERIFIED`: 分发的 verify 阶段通过最终验证。
+
 ---
 
 ## 2. JSON/JSONL 事件格式
@@ -168,6 +176,42 @@
 - 大型输出（如 stdout/stderr 完整内容）存储在 `commands/` 下的独立文件中。
 - 事件和摘要中通过相对路径引用命令记录文件。
 - 存储的输出内容经过第 4 节脱敏规则处理。
+
+### 5.3 分发证据
+
+postPublish 阶段的 distribute action 产生独立的证据目录：
+
+```text
+.runs/<runId>/
+└── distribute/
+    ├── <actionId>-preflight.json   # preflight 验证结果
+    ├── <actionId>-execute.json     # execute 观察结果
+    ├── <actionId>-observe.json     # observe 状态确认
+    └── <actionId>-verify.json      # verify 最终验证
+```
+
+每个 JSON 文件包含：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `actionId` | 字符串 | 动作唯一标识 |
+| `actionType` | 字符串 | "distribute-mirror" / "distribute-marketplace-index" |
+| `status` | 字符串 | NO_CHANGE / PENDING / DISTRIBUTING / DISTRIBUTED / VERIFIED / EXECUTE_FAILED |
+| `observation` | 对象 | 阶段特定观察数据（pushedCommit, tagOid, payloadFileCount 等） |
+| `details.code` | 字符串 | 失败时包含错误码（REMOTE_CONFLICT, AUTH_MISSING 等） |
+| `timestamp` | 字符串 | ISO 8601 UTC 时间戳 |
+
+checkpoint 状态语义：
+
+- `NO_CHANGE`: payload tree 与当前分支 tip 相同，不创建任何 git ref。
+- `DISTRIBUTED`: commit+tag+push 已成功，branchTip === pushedCommit && tagOid === pushedCommit。
+- `VERIFIED`: observe + content diff 验证全部通过。
+
+计划变更后的恢复流程：
+
+- PARTIAL 状态下 reconcile 读取已有的 distribute/*.json 文件重建状态。
+- 对于已成功的 checkpoint (DISTRIBUTED)，跳过该步骤；仅重试未完成或未达标的检查点。
+- remote state 冲突（如 tag move）必须人工决策，不得自动修复。
 
 ---
 

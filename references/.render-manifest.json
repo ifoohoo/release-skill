@@ -1,17 +1,17 @@
 {
-  "source": "standards",
+  "source": "references",
   "files": {
     "00-target-state.md": {
       "digest": "d66f8c33b2df2bbcb235ce123f786c18c19b3a797197495793d9af566618099d",
       "bytes": 6335
     },
     "01-state-machine.md": {
-      "digest": "f09a91b69cd7ba27bf5fe5d57deafb58aeb2edc3f69637020f573b06e190a0dd",
-      "bytes": 8840
+      "digest": "4698e3763f76774798e269ae163fcf87ba8ca358a9638c5bff693f5921455f9f",
+      "bytes": 9114
     },
     "02-project-config.md": {
-      "digest": "0cff13ebb270f3515290e0ce60b91303143777d1a4948db28cf2c69612ceff8e",
-      "bytes": 19029
+      "digest": "f866490d5897c2baf38fd3a6770964c052bea4418f034b75965ecfe49c2f4387",
+      "bytes": 21212
     },
     "03-readme-quality.md": {
       "digest": "d74e41052592443ebbd450d0ace5f9b9b19c7a94db50f952b17c1c5a4c5dc230",
@@ -22,12 +22,12 @@
       "bytes": 4682
     },
     "05-evidence-and-errors.md": {
-      "digest": "ebcb4940ff2a25ce6945c3b11cfcafe751f4a1f515276b7e021717ea5844eebf",
-      "bytes": 9688
+      "digest": "3df7644a6db614ee5f67689834f97227752834cf6c27762dee66650675c34168",
+      "bytes": 11592
     },
     "06-adapter-contract.md": {
-      "digest": "39f0271bc06eae38dade518ece8f7e16a18f53099a433e3ae07e9d20ff7a142e",
-      "bytes": 8716
+      "digest": "4b1ec9ba843345df47c1d133a8bf1aa644bf12a4ecf760cb1d566a43f1e9a9d2",
+      "bytes": 17282
     }
   }
 }

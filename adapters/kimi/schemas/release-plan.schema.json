@@ -919,7 +919,6 @@
     },
     "externalActions": {
       "type": "array",
-      "minItems": 1,
       "items": {
         "type": "object",
         "required": [
@@ -999,6 +998,73 @@
         "manualFollowUps"
       ],
       "description": "Human consumer strategy marker. 'manualFollowUps': Kimi/CodeBuddy installations are non-blocking post-release manual tasks; verify returns VERIFIED with manualFollowUps list and does not block on attestation. Absent: legacy attestation closed loop (backward compatibility)."
+    },
+    "workflowKind": {
+      "type": "string",
+      "enum": [
+        "full",
+        "docs",
+        "config",
+        "marketplace"
+      ],
+      "description": "Workflow profile (H5). 'full' runs the complete gate set; 'docs'/'config'/'marketplace' deterministically trim code-class gates (declared hooks, snapshot-verify gates, source-authority closure, skill-resource-closure) and record the trim in workflowDecision. Binding-layer field: included in the plan digest."
+    },
+    "workflowDecision": {
+      "type": "object",
+      "description": "Workflow trim decision bound into the plan digest. Present when workflowKind != 'full'. For config workflows it also reports whether the public bytes are unchanged (no publish path) or changed/indeterminable (publish needed, fail-safe).",
+      "required": [
+        "workflowKind",
+        "decision",
+        "publishPath",
+        "trimmedGates"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "workflowKind": {
+          "type": "string",
+          "enum": [
+            "docs",
+            "config",
+            "marketplace"
+          ]
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "code-gates-trimmed",
+            "public-bytes-unchanged",
+            "public-bytes-changed",
+            "indeterminable"
+          ]
+        },
+        "publishPath": {
+          "type": "string",
+          "enum": [
+            "publish-needed",
+            "no-publish-needed"
+          ]
+        },
+        "trimmedGates": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "declared-hooks",
+              "snapshot-verify-gates",
+              "source-authority-closure",
+              "skill-resource-closure"
+            ]
+          }
+        },
+        "comparedPlan": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Digest-addressed immutable plan file compared for the config publish-path decision"
+        }
+      }
+    },
+    "postPublish": {
+      "$ref": "#/definitions/planPostPublish"
     },
     "digest": {
       "type": "string",
@@ -1226,6 +1292,339 @@
           }
         }
       ]
+    },
+    "planPostPublish": {
+      "type": "object",
+      "description": "冻结的发布后分发块：声明本身 + tag/tagCommit/unitId/payloadSource 绑定。整体参与 plan digest（planVersion 2 记录层剥离不包含该块），任何配置变更都会改变 planDigest。tagCommit 仅在 prepare 能冻结 create-tag 预期 commit 时存在（production 资产）；缺省时 distribute fail-closed。",
+      "required": [
+        "materialize",
+        "targets",
+        "commitIdentity",
+        "tag",
+        "unitId",
+        "payloadSource"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "materialize": {
+          "$ref": "#/definitions/planPostPublishMaterialize"
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/planPostPublishTarget"
+          }
+        },
+        "commitIdentity": {
+          "type": "object",
+          "required": [
+            "name",
+            "email"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "email": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/planPostPublishStep"
+          }
+        },
+        "assertMainVersionAhead": {
+          "type": "boolean"
+        },
+        "tag": {
+          "type": "string",
+          "minLength": 1,
+          "description": "冻结的分发 tag（tagTemplate 以 targetVersion 渲染）"
+        },
+        "tagCommit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$",
+          "description": "create-tag 预期 commit（production prepare 冻结）；distribute 以 git rev-parse --verify <tag>^{commit} 校验相等"
+        },
+        "unitId": {
+          "type": "string",
+          "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "description": "声明该 postPublish 的发布单元 id"
+        },
+        "payloadSource": {
+          "const": "tag-worktree",
+          "description": "时序契约：载荷只能来自 tagCommit 处的 detached worktree，绝不读取工作区状态"
+        }
+      }
+    },
+    "planPostPublishMaterialize": {
+      "type": "object",
+      "required": [
+        "command",
+        "outputMarker"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "cwd": {
+          "type": "string",
+          "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 7200000
+        },
+        "envAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!.*(?:TOKEN|SECRET|PASSWORD|PASSPHRASE|API_KEY|CREDENTIAL))[A-Z_][A-Z0-9_]*$"
+          },
+          "uniqueItems": true
+        },
+        "outputMarker": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requireReport": {
+          "type": "object",
+          "required": [
+            "parse"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "parse": {
+              "const": "stdout-first-json"
+            },
+            "equals": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "planPostPublishStep": {
+      "type": "object",
+      "required": [
+        "name",
+        "command"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "cwd": {
+          "type": "string",
+          "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 7200000
+        },
+        "envAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!.*(?:TOKEN|SECRET|PASSWORD|PASSPHRASE|API_KEY|CREDENTIAL))[A-Z_][A-Z0-9_]*$"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "planPostPublishTarget": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "remoteUrl",
+        "visibility",
+        "branch"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "payload-mirror",
+            "marketplace-index"
+          ]
+        },
+        "remoteUrl": {
+          "type": "string",
+          "pattern": "^(?:https?|file)://.+\\.git$"
+        },
+        "visibility": {
+          "type": "string",
+          "enum": [
+            "internal",
+            "public"
+          ]
+        },
+        "branch": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"
+        },
+        "dependsOn": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "marketplace": {
+          "type": "object",
+          "required": [
+            "form",
+            "name",
+            "owner"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "form": {
+              "type": "string",
+              "enum": [
+                "github",
+                "url"
+              ]
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "owner": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sourceRepo": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$"
+            }
+          }
+        },
+        "staticFiles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "from",
+              "to"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$"
+              },
+              "to": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$"
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "marketplace-index"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "marketplace"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "payload-mirror"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "marketplace"
+              ]
+            }
+          }
+        }
+      ]
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "workflowDecision": {
+            "properties": {
+              "decision": {
+                "const": "public-bytes-unchanged"
+              }
+            },
+            "required": [
+              "decision"
+            ]
+          }
+        },
+        "required": [
+          "workflowDecision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "externalActions": {
+            "type": "array",
+            "minItems": 0
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "externalActions": {
+            "type": "array",
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
 }

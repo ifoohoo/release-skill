@@ -30,6 +30,7 @@ export const ActionStatus = Object.freeze({
   EXECUTING: 'EXECUTING',
   EXECUTED: 'EXECUTED',
   EXECUTE_FAILED: 'EXECUTE_FAILED',
+  NO_CHANGE: 'NO_CHANGE',
   OBSERVED: 'OBSERVED',
   OBSERVE_MISMATCH: 'OBSERVE_MISMATCH',
   VERIFIED: 'VERIFIED',
@@ -66,6 +67,10 @@ export const ActionType = Object.freeze({
 
   // default branch management
   SET_DEFAULT_BRANCH: 'set-default-branch',
+
+  // post-publish distribution (distribute-git adapter)
+  DISTRIBUTE_PROBE: 'distribute-probe',
+  DISTRIBUTE_MIRROR: 'distribute-mirror',
 });
 
 /**
