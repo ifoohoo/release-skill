@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.6.1 -->
+<!-- release-skill:release-version: 0.6.2 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,20 +14,23 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.6.1** (2026-08-18)
+**0.6.2** (2026-08-19)
 
-v0.6.1 closes the four root causes of the 0.6.0 self-bootstrap release cycle, in which 22 of 25 runs failed and nearly all wall-clock time was spent in diagnose-repair loops or on external interference: hook failures are no longer silent, stale bundles fail closed at the earliest gate, the freeze path can never skip the full test suite, and a machine-readable frozen marker now tells sibling governance tasks to keep out of a repository mid-release.
+v0.6.2 promotes the skill resource closure checker to a fail-closed release gate spanning prepare, publish, and verify, closes the five gaps (G1–G5) confirmed by the clause-by-clause gate audit, and fixes lineage commit-identity parsing that corrupted rebuilt commits: missing or drifted skill resources, home-directory search paths, and undeclared host surfaces now block a release before plan freeze, and commit identities are parsed with an anchored regex that fails closed instead of fabricating identity fields.
 
 **Added**
 
-- **Hook failure output passthrough (R1)**: when a prepare hook exits non-zero, the run evidence now carries bounded `stderrTail` / `stdoutTail` projections (last 50 lines, capped at 8 KiB) and the CLI echoes the stderr tail, so failures such as a bare `exit=13` are diagnosable immediately instead of by blind retry. Exit-code semantics are unchanged.
-- **Bundle freshness gate (R2)**: every rebuilt bundle embeds a frozen digest of its source tree, and prepare compares source against bundle right after the config phase; any mismatch fails closed as `BUNDLE_STALE` (error code 54) with the rebuild command in the message, before hooks, snapshots, or network checks run. No workflow path is exempt.
-- **Full-test freeze gate (R3)**: plan digests can no longer be computed unless the full test suite ran in this prepare; the gate sits before `computePlanDigest`, the `testSelection` value is validated against a schema enum in project and plan schemas, and no overlay switch can waive the freeze-path requirement.
-- **Frozen-release marker (R4)**: a successful prepare writes `.release-skill/FROZEN` carrying `planDigest`, `targetVersions` (unit → version), `createdAt`, and `runId`; the marker is removed only when verify reaches `VERIFIED`, giving sibling repositories and governance tasks a machine-readable signal to skip a repository mid-release.
+- **Skill-resource-closure v2 release gate**: the closure checker is now a fail-closed release gate across all three phases — prepare scans the frozen snapshot and blocks plan freeze on any finding with `GATE_FAILED` (error code 13), publish Gate 2c recomputes closure against the verified frozen snapshots for production plans, and verify validates the real npm install tree and marketplace install directories with per-host receipts. Receipts now carry `unitId`, host/surface detail, digests, `checkerVersion` (`skill-resource-closure-v2`), and counts; the platform registry declares each adapter's host surface as an explicit adapter directory name, and the receipt schema is bound in all six release-plan schema copies. A version mismatch between an old frozen plan and the new checker fails closed.
+- **Closure gate gap closure (G1–G5)**: source-only (`SOURCE_ONLY_NOT_SHIPPED`) exemptions are now listed per reference in the receipt projection and in the prepare evidence — auditable and non-blocking; `~/`, `$HOME/`, and `${HOME}/` search paths inside code spans, fences, and link targets fail closed as `HOME_DIRECTORY_SEARCH`; identical surface-relative resources whose contents diverge across surfaces fail closed as `RESOURCE_DRIFT` with cross-surface reference locations; unreferenced regular files inside adapter skill closure directories fail closed as `STALE_RESOURCE`; every declared plugin distribution must be backed by a receipt host surface with at least one skill (declared-host reconciliation), so a dropped adapter tree can no longer skip the gate silently; and frozen receipts bind a deterministic `preparedAt` freeze timestamp (never a wall-clock sample) plus `exitCode: 0`, so identical sources freeze byte-identical receipts on every re-prepare.
+
+**Fixed**
+
+- **Lineage commit-identity parsing (lineage-ident)**: `lineage rebuild` parsed author/committer ident lines with `split(/\s+>/)`, which never matched a legal ident line and corrupted the identities written to rebuilt commits (names containing spaces or `>` were mis-parsed as well). Idents are now parsed with an anchored regex whose greedy name capture lets the last `<email> ts tz` group win; unparseable lines fail closed instead of fabricating identity fields. Commit messages are fed to `commit-tree` via `-F -` stdin from untrimmed `cat-file` output, preserving arbitrary message bytes including trailing whitespace and blank lines.
+- **Assess npm-transport test stability (test-only)**: the assess npm-transport test flaked when the npm lifecycle injected a silent loglevel setting and ambient proxy variables into the child environment — emptying npm stderr and letting a released ephemeral localhost port be hijacked. The test now strips ambient npm-config-namespace environment keys and proxy variables (`isolateNpmTransportEnv`), holds the localhost port for the whole test (`startConnectionResetRegistry`), and asserts `ECONNRESET|ECONNREFUSED` deterministically. No production behavior changed.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.6.1 is the current source candidate; v0.4.1 remains
+> **Current boundary:** v0.6.2 is the current source candidate; v0.4.1 remains
 > the latest published release (v0.2.2 previously held
 > published status before the platform verification convergence fix was added).
 > v0.1.1 completed a real production release to GitHub and npm — the first
@@ -46,7 +49,7 @@ v0.6.1 closes the four root causes of the 0.6.0 self-bootstrap release cycle, in
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.6.1 is the current
+> **Production path verified since the v0.1.1 milestone; v0.6.2 is the current
 > source candidate and v0.4.1 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >

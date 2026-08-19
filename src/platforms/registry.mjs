@@ -179,6 +179,9 @@ const CLAUDE = Object.freeze({
   schemaRequiredFields: Object.freeze(['plugin', 'marketplace', 'entrySkill']),
   skillRendering: Object.freeze({ mode: 'verbatim', preamble: null, placeholder: '${CLAUDE_PLUGIN_ROOT}' }),
   buildAdapter: Object.freeze({
+    // D6: explicit adapter directory name (adapters/claude/); assertRegistry
+    // requires this on every platform.
+    name: 'claude',
     pluginDirName: '.claude-plugin',
     templateFileName: 'plugin.json',
     marketplaceFileName: 'marketplace.json',
@@ -237,6 +240,8 @@ const CODEX = Object.freeze({
   schemaRequiredFields: Object.freeze(['plugin', 'marketplace', 'entrySkill']),
   skillRendering: Object.freeze({ mode: 'substitute', preamble: 'codex', placeholder: '${CLAUDE_PLUGIN_ROOT}' }),
   buildAdapter: Object.freeze({
+    // D6: explicit adapter directory name (adapters/codex/).
+    name: 'codex',
     pluginDirName: '.codex-plugin',
     templateFileName: 'plugin.json',
     marketplaceFileName: null,
@@ -294,6 +299,8 @@ const KIMI = Object.freeze({
   schemaRequiredFields: Object.freeze(['plugin', 'entrySkill']),
   skillRendering: Object.freeze({ mode: 'substitute', preamble: 'kimi', placeholder: '${CLAUDE_PLUGIN_ROOT}' }),
   buildAdapter: Object.freeze({
+    // D6: explicit adapter directory name (adapters/kimi/).
+    name: 'kimi',
     pluginDirName: '.kimi-plugin',
     templateFileName: 'plugin.json',
     marketplaceFileName: null,
@@ -477,6 +484,11 @@ export function assertRegistry(registry = PLATFORMS) {
     }
     if (!platform.buildAdapter || typeof platform.buildAdapter !== 'object') {
       throw new Error(`platform registry: ${label} buildAdapter must be an object`);
+    }
+    // D6: the adapter directory name is always explicit — prepare's G4
+    // declared-host reconciliation and the build producer both key on it.
+    if (typeof platform.buildAdapter.name !== 'string' || platform.buildAdapter.name.length === 0) {
+      throw new Error(`platform registry: ${label} buildAdapter needs a non-empty name (its adapter directory name)`);
     }
     if (!VALID_LIST_OUTPUTS.has(platform.jsonProtocol?.listOutput)) {
       throw new Error(`platform registry: ${label} has illegal jsonProtocol.listOutput "${platform.jsonProtocol?.listOutput}"`);

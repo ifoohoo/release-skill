@@ -652,7 +652,16 @@ export async function publishRelease(options) {
             { unitId, findings: closureResult.findings },
           );
         }
-        const observed = createSkillResourceClosureReceipt(closureResult, { unitId });
+        // G5: preparedAt/exitCode are record-layer fields frozen by prepare
+        // (bound by the plan digest); they cannot be recomputed from the
+        // snapshot, so the recheck carries them forward from the expected
+        // receipt and the strict comparison below verifies every re-derivable
+        // field against the frozen snapshot.
+        const observed = createSkillResourceClosureReceipt(closureResult, {
+          unitId,
+          preparedAt: expected.preparedAt ?? null,
+          exitCode: expected.exitCode ?? 0,
+        });
         assertSkillResourceClosureReceipt(expected, observed, `unit "${unitId}"`);
       }
 

@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.6.1"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.6.2"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "c51fa1df96e9ef06d5310a990e6ce2366e4878332d646b034842d0deaec549d4";
+const __bundleSourceDigest = "12dcb7942e6587f1321c3f81625b0bc3f1dd64afe978ddf8084bf1a5824de23a";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -23549,13 +23549,13 @@ var require_cross_spawn = __commonJS({
     var cp2 = __require("child_process");
     var parse2 = require_parse();
     var enoent = require_enoent();
-    function spawn4(command2, args2, options) {
+    function spawn5(command2, args2, options) {
       const parsed = parse2(command2, args2, options);
       const spawned = cp2.spawn(parsed.command, parsed.args, parsed.options);
       enoent.hookChildProcess(spawned, parsed);
       return spawned;
     }
-    __name(spawn4, "spawn");
+    __name(spawn5, "spawn");
     function spawnSync2(command2, args2, options) {
       const parsed = parse2(command2, args2, options);
       const result = cp2.spawnSync(parsed.command, parsed.args, parsed.options);
@@ -23563,8 +23563,8 @@ var require_cross_spawn = __commonJS({
       return result;
     }
     __name(spawnSync2, "spawnSync");
-    module.exports = spawn4;
-    module.exports.spawn = spawn4;
+    module.exports = spawn5;
+    module.exports.spawn = spawn5;
     module.exports.sync = spawnSync2;
     module.exports._parse = parse2;
     module.exports._enoent = enoent;
@@ -32218,7 +32218,7 @@ var init_report = __esm({
     init_closure();
     init_errors3();
     init_validation();
-    PACKAGE_META = Object.freeze({ "name": "release-skill", "version": "0.6.1" });
+    PACKAGE_META = Object.freeze({ "name": "release-skill", "version": "0.6.2" });
     REPORT_RENDERER_VERSION = PACKAGE_META.version;
     SUPPORTED_REPORT_LOCALES = Object.freeze(["zh-CN", "en-US"]);
     EXECUTION_STATUSES = Object.freeze([
@@ -35543,6 +35543,9 @@ function assertRegistry(registry = PLATFORMS) {
     if (!platform.buildAdapter || typeof platform.buildAdapter !== "object") {
       throw new Error(`platform registry: ${label} buildAdapter must be an object`);
     }
+    if (typeof platform.buildAdapter.name !== "string" || platform.buildAdapter.name.length === 0) {
+      throw new Error(`platform registry: ${label} buildAdapter needs a non-empty name (its adapter directory name)`);
+    }
     if (!VALID_LIST_OUTPUTS.has(platform.jsonProtocol?.listOutput)) {
       throw new Error(`platform registry: ${label} has illegal jsonProtocol.listOutput "${platform.jsonProtocol?.listOutput}"`);
     }
@@ -35730,6 +35733,9 @@ var init_registry2 = __esm({
       schemaRequiredFields: Object.freeze(["plugin", "marketplace", "entrySkill"]),
       skillRendering: Object.freeze({ mode: "verbatim", preamble: null, placeholder: "${CLAUDE_PLUGIN_ROOT}" }),
       buildAdapter: Object.freeze({
+        // D6: explicit adapter directory name (adapters/claude/); assertRegistry
+        // requires this on every platform.
+        name: "claude",
         pluginDirName: ".claude-plugin",
         templateFileName: "plugin.json",
         marketplaceFileName: "marketplace.json",
@@ -35787,6 +35793,8 @@ var init_registry2 = __esm({
       schemaRequiredFields: Object.freeze(["plugin", "marketplace", "entrySkill"]),
       skillRendering: Object.freeze({ mode: "substitute", preamble: "codex", placeholder: "${CLAUDE_PLUGIN_ROOT}" }),
       buildAdapter: Object.freeze({
+        // D6: explicit adapter directory name (adapters/codex/).
+        name: "codex",
         pluginDirName: ".codex-plugin",
         templateFileName: "plugin.json",
         marketplaceFileName: null,
@@ -35843,6 +35851,8 @@ var init_registry2 = __esm({
       schemaRequiredFields: Object.freeze(["plugin", "entrySkill"]),
       skillRendering: Object.freeze({ mode: "substitute", preamble: "kimi", placeholder: "${CLAUDE_PLUGIN_ROOT}" }),
       buildAdapter: Object.freeze({
+        // D6: explicit adapter directory name (adapters/kimi/).
+        name: "kimi",
         pluginDirName: ".kimi-plugin",
         templateFileName: "plugin.json",
         marketplaceFileName: null,
@@ -41707,7 +41717,7 @@ function trimCandidate(value) {
 function isPathToken(value) {
   const token = trimCandidate(value);
   if (!token || GLOB_PATTERN.test(token)) return false;
-  return BARE_PREFIXES.some((prefix) => token.startsWith(prefix)) || EXPLICIT_PREFIXES.some((prefix) => token.startsWith(prefix)) || SOURCE_TREE_PATTERN.test(token) || MACHINE_ABSOLUTE_PATTERN.test(token);
+  return BARE_PREFIXES.some((prefix) => token.startsWith(prefix)) || EXPLICIT_PREFIXES.some((prefix) => token.startsWith(prefix)) || HOME_DIRECTORY_PATTERN.test(token) || SOURCE_TREE_PATTERN.test(token) || MACHINE_ABSOLUTE_PATTERN.test(token);
 }
 function scanSnippet(snippet, line, sourceOnly, results, seen) {
   const candidates = snippet.match(/(?:"[^"\n]+"|'[^'\n]+'|[^\s"'`()\[\],;]+)/gu) ?? [];
@@ -41732,15 +41742,14 @@ function extractPathTokens(content) {
       inFence = !inFence;
       continue;
     }
-    const sourceOnly = SOURCE_ONLY_MARKER.test(line);
-    if (inFence) scanSnippet(line, lineNumber, sourceOnly, results, seen);
+    if (inFence) scanSnippet(line, lineNumber, SOURCE_ONLY_MARKER.test(line), results, seen);
     for (const match of line.matchAll(/`([^`]+)`/gu)) {
-      scanSnippet(match[1], lineNumber, sourceOnly, results, seen);
+      scanSnippet(match[1], lineNumber, SOURCE_ONLY_MARKER.test(match[1]), results, seen);
     }
     for (const match of line.matchAll(/\]\(([^)]+)\)/gu)) {
       const target = match[1].trim().split(/[?#]/u)[0];
       if (!/^(?:https?:|#)/iu.test(target)) {
-        scanSnippet(target, lineNumber, sourceOnly, results, seen);
+        scanSnippet(target, lineNumber, SOURCE_ONLY_MARKER.test(match[1]), results, seen);
       }
     }
   }
@@ -41757,6 +41766,14 @@ function classifyReference(token, skillRoot, pluginRoot, scanRoot2) {
     return {
       classification: CLASSIFICATION.MACHINE_ABSOLUTE,
       resolutionRoot: "(machine)",
+      resolvedTarget: token,
+      absoluteTarget: token
+    };
+  }
+  if (HOME_DIRECTORY_PATTERN.test(token)) {
+    return {
+      classification: CLASSIFICATION.HOME_DIRECTORY,
+      resolutionRoot: "(home)",
       resolvedTarget: token,
       absoluteTarget: token
     };
@@ -41806,8 +41823,26 @@ async function inspectRegularFile(root, target) {
   }
   return { code: null };
 }
+async function collectRegularFiles(dir, results) {
+  let entries;
+  try {
+    entries = await readdir8(dir, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === "ENOENT") return;
+    throw error;
+  }
+  for (const entry of [...entries].sort((a, b) => a.name.localeCompare(b.name))) {
+    if (entry.isSymbolicLink()) continue;
+    const absolute = join12(dir, entry.name);
+    if (entry.isDirectory()) {
+      await collectRegularFiles(absolute, results);
+    } else if (entry.isFile()) {
+      results.push(absolute);
+    }
+  }
+}
 function inferSurfaceHost(surfaceId, defaultHost) {
-  const match = /^adapters\/([^/]+)$/u.exec(surfaceId);
+  const match = ADAPTER_SURFACE_PATTERN.exec(surfaceId);
   return match?.[1] ?? defaultHost;
 }
 function receiptProjection(result) {
@@ -41818,6 +41853,7 @@ function receiptProjection(result) {
     skillCount: result.skillCount,
     referenceCount: result.referenceCount,
     sourceOnlyCount: result.sourceOnlyCount,
+    sourceOnlyReferences: result.sourceOnlyReferences,
     findingCount: result.findings.length
   };
 }
@@ -41894,8 +41930,23 @@ async function checkSkillResourceClosure({
   const skillPaths = await discoverSkills(scanRoot2);
   const findings = [];
   const surfaceMap = /* @__PURE__ */ new Map();
+  const skillsBySurface = /* @__PURE__ */ new Map();
+  const resolvedResourcesBySurface = /* @__PURE__ */ new Map();
+  const referencedTargetsBySurface = /* @__PURE__ */ new Map();
+  const resourceReferencesBySurface = /* @__PURE__ */ new Map();
+  const sourceOnlyReferences = [];
   let referenceCount = 0;
   let sourceOnlyCount = 0;
+  const recordSourceOnlyExemption = /* @__PURE__ */ __name((surface, skill, pathToken) => {
+    sourceOnlyCount += 1;
+    surface.sourceOnlyCount += 1;
+    sourceOnlyReferences.push({
+      skill,
+      line: pathToken.line,
+      reference: pathToken.token,
+      surface: surface.id
+    });
+  }, "recordSourceOnlyExemption");
   for (const skill of skillPaths) {
     const skillRoot = resolveSkillRoot(skill, scanRoot2);
     const pluginRoot = resolvePluginRoot(skill, scanRoot2);
@@ -41910,6 +41961,8 @@ async function checkSkillResourceClosure({
     };
     surface.skillCount += 1;
     surfaceMap.set(surfaceId, surface);
+    if (!skillsBySurface.has(surfaceId)) skillsBySurface.set(surfaceId, []);
+    skillsBySurface.get(surfaceId).push(skill);
     const content = await readFile12(resolve16(scanRoot2, skill), "utf8");
     for (const pathToken of extractPathTokens(content)) {
       referenceCount += 1;
@@ -41932,8 +41985,7 @@ async function checkSkillResourceClosure({
       };
       if (classification.classification === CLASSIFICATION.SOURCE_BACKJUMP) {
         if (pathToken.sourceOnly) {
-          sourceOnlyCount += 1;
-          surface.sourceOnlyCount += 1;
+          recordSourceOnlyExemption(surface, skill, pathToken);
         } else {
           findings.push({ ...findingBase, code: FINDING_CODE.SOURCE_BACKJUMP });
         }
@@ -41941,6 +41993,10 @@ async function checkSkillResourceClosure({
       }
       if (classification.classification === CLASSIFICATION.MACHINE_ABSOLUTE) {
         findings.push({ ...findingBase, code: FINDING_CODE.MACHINE_ABSOLUTE_PATH });
+        continue;
+      }
+      if (classification.classification === CLASSIFICATION.HOME_DIRECTORY) {
+        findings.push({ ...findingBase, code: FINDING_CODE.HOME_DIRECTORY_SEARCH });
         continue;
       }
       if (classification.classification === CLASSIFICATION.OUT_OF_BOUNDS) {
@@ -41954,14 +42010,112 @@ async function checkSkillResourceClosure({
       );
       if (inspection.code) {
         if (pathToken.sourceOnly && inspection.code === FINDING_CODE.RESOURCE_MISSING) {
-          sourceOnlyCount += 1;
-          surface.sourceOnlyCount += 1;
+          recordSourceOnlyExemption(surface, skill, pathToken);
         } else {
           findings.push({ ...findingBase, code: inspection.code });
         }
+        continue;
+      }
+      const relativeResource = relativeStable(pluginRoot, classification.absoluteTarget);
+      if (!resolvedResourcesBySurface.has(surfaceId)) {
+        resolvedResourcesBySurface.set(surfaceId, /* @__PURE__ */ new Map());
+        referencedTargetsBySurface.set(surfaceId, /* @__PURE__ */ new Set());
+        resourceReferencesBySurface.set(surfaceId, /* @__PURE__ */ new Map());
+      }
+      resolvedResourcesBySurface.get(surfaceId).set(relativeResource, classification.absoluteTarget);
+      referencedTargetsBySurface.get(surfaceId).add(classification.absoluteTarget);
+      const resourceReferences = resourceReferencesBySurface.get(surfaceId);
+      if (!resourceReferences.has(relativeResource)) resourceReferences.set(relativeResource, []);
+      resourceReferences.get(relativeResource).push({
+        surface: surfaceId,
+        skill,
+        line: pathToken.line
+      });
+    }
+  }
+  const contentDigestCache = /* @__PURE__ */ new Map();
+  const digestOfTarget = /* @__PURE__ */ __name(async (absoluteTarget) => {
+    if (!contentDigestCache.has(absoluteTarget)) {
+      contentDigestCache.set(
+        absoluteTarget,
+        digestDocument({ content: await readFile12(absoluteTarget, "utf8") })
+      );
+    }
+    return contentDigestCache.get(absoluteTarget);
+  }, "digestOfTarget");
+  const surfaceIds = [...resolvedResourcesBySurface.keys()].sort((a, b) => a.localeCompare(b));
+  for (let i = 0; i < surfaceIds.length; i += 1) {
+    for (let j = i + 1; j < surfaceIds.length; j += 1) {
+      const [leftId, rightId] = [surfaceIds[i], surfaceIds[j]];
+      const left = resolvedResourcesBySurface.get(leftId);
+      const right = resolvedResourcesBySurface.get(rightId);
+      const commonPaths = [...left.keys()].filter((path15) => right.has(path15)).sort((a, b) => a.localeCompare(b));
+      for (const resourcePath of commonPaths) {
+        const [leftDigest, rightDigest] = await Promise.all([
+          digestOfTarget(left.get(resourcePath)),
+          digestOfTarget(right.get(resourcePath))
+        ]);
+        if (leftDigest === rightDigest) continue;
+        const rightSurface = surfaceMap.get(rightId);
+        const driftReferences = [];
+        const seenReference = /* @__PURE__ */ new Set();
+        for (const surfaceId of [leftId, rightId]) {
+          for (const ref of resourceReferencesBySurface.get(surfaceId)?.get(resourcePath) ?? []) {
+            const key = `${ref.surface}\0${ref.skill}\0${ref.line}`;
+            if (seenReference.has(key)) continue;
+            seenReference.add(key);
+            driftReferences.push({ surface: ref.surface, skill: ref.skill, line: ref.line });
+          }
+        }
+        driftReferences.sort((a, b) => a.surface.localeCompare(b.surface) || a.skill.localeCompare(b.skill) || a.line - b.line);
+        findings.push({
+          host: rightSurface.host,
+          surface: rightId,
+          skill: null,
+          line: null,
+          reference: resourcePath,
+          classification: CLASSIFICATION.RESOURCE_DRIFT,
+          resolutionRoot: rightId,
+          resolvedTarget: resourcePath,
+          surfaces: [leftId, rightId],
+          references: driftReferences,
+          code: FINDING_CODE.RESOURCE_DRIFT
+        });
       }
     }
   }
+  for (const surfaceId of [...skillsBySurface.keys()].sort((a, b) => a.localeCompare(b))) {
+    if (!ADAPTER_SURFACE_PATTERN.test(surfaceId)) continue;
+    const surface = surfaceMap.get(surfaceId);
+    const surfaceRootAbsolute = resolve16(scanRoot2, surfaceId);
+    const referencedTargets = referencedTargetsBySurface.get(surfaceId) ?? /* @__PURE__ */ new Set();
+    const stale = [];
+    for (const skill of skillsBySurface.get(surfaceId)) {
+      const skillDir = resolve16(scanRoot2, dirname7(skill));
+      for (const closureDir of CLOSURE_RESOURCE_DIRS) {
+        const files = [];
+        await collectRegularFiles(join12(skillDir, closureDir), files);
+        for (const absolute of files) {
+          if (referencedTargets.has(absolute)) continue;
+          const relativeResource = relativeStable(surfaceRootAbsolute, absolute);
+          stale.push({
+            host: surface.host,
+            surface: surfaceId,
+            skill,
+            line: null,
+            reference: relativeResource,
+            classification: CLASSIFICATION.STALE_RESOURCE,
+            resolutionRoot: surfaceId,
+            resolvedTarget: relativeResource,
+            code: FINDING_CODE.STALE_RESOURCE
+          });
+        }
+      }
+    }
+    stale.sort((a, b) => a.skill.localeCompare(b.skill) || a.resolvedTarget.localeCompare(b.resolvedTarget));
+    findings.push(...stale);
+  }
+  sourceOnlyReferences.sort((a, b) => a.skill.localeCompare(b.skill) || a.line - b.line || a.reference.localeCompare(b.reference));
   if (snapshotError) {
     findings.push({
       host,
@@ -41984,18 +42138,29 @@ async function checkSkillResourceClosure({
     skillCount: skillPaths.length,
     referenceCount,
     sourceOnlyCount,
+    sourceOnlyReferences,
     findings
   };
   result.receiptDigest = digestDocument(receiptProjection(result));
   return result;
 }
-var CHECKER_VERSION, BARE_PREFIXES, EXPLICIT_PREFIXES, SOURCE_TREE_PATTERN, MACHINE_ABSOLUTE_PATTERN, GLOB_PATTERN, SOURCE_ONLY_MARKER, TRANSPORT_EXCLUSIONS, CLASSIFICATION, FINDING_CODE;
+function evaluateDeclaredHostSurfaceCoverage(expectedHosts, surfaces) {
+  const missing = [];
+  for (const expectedHost of [...new Set(expectedHosts ?? [])].sort((a, b) => a.localeCompare(b))) {
+    const surface = (surfaces ?? []).find((item) => item.host === expectedHost);
+    if (!surface || !(surface.skillCount >= 1)) {
+      missing.push({ host: expectedHost, skillCount: surface?.skillCount ?? 0 });
+    }
+  }
+  return { passed: missing.length === 0, missing };
+}
+var CHECKER_VERSION, BARE_PREFIXES, EXPLICIT_PREFIXES, SOURCE_TREE_PATTERN, MACHINE_ABSOLUTE_PATTERN, HOME_DIRECTORY_PATTERN, ADAPTER_SURFACE_PATTERN, CLOSURE_RESOURCE_DIRS, GLOB_PATTERN, SOURCE_ONLY_MARKER, TRANSPORT_EXCLUSIONS, CLASSIFICATION, FINDING_CODE;
 var init_skill_resource_closure = __esm({
   "src/core/skill-resource-closure.mjs"() {
     init_src();
     init_errors();
     init_frozen();
-    CHECKER_VERSION = "skill-resource-closure-v1";
+    CHECKER_VERSION = "skill-resource-closure-v2";
     BARE_PREFIXES = ["references/", "assets/", "schemas/", "examples/", "scripts/"];
     EXPLICIT_PREFIXES = [
       "<plugin-root>/",
@@ -42007,6 +42172,9 @@ var init_skill_resource_closure = __esm({
     ];
     SOURCE_TREE_PATTERN = /(?:^|\/)packages\/[A-Za-z0-9._-]+(?:\/|$)/u;
     MACHINE_ABSOLUTE_PATTERN = /^(?:\/(?:Users|home|root|tmp|var|etc|opt)(?:\/|$)|[A-Za-z]:[\\/])/u;
+    HOME_DIRECTORY_PATTERN = /^(?:~|\$HOME|\$\{HOME\})\/.+/u;
+    ADAPTER_SURFACE_PATTERN = /^adapters\/([^/]+)$/u;
+    CLOSURE_RESOURCE_DIRS = Object.freeze(["references", "assets", "schemas", "examples", "scripts"]);
     GLOB_PATTERN = /[*?\[]/u;
     SOURCE_ONLY_MARKER = /(?:\bsource-only\b|仅源码包)/iu;
     TRANSPORT_EXCLUSIONS = Object.freeze([
@@ -42020,7 +42188,10 @@ var init_skill_resource_closure = __esm({
       PLUGIN_ROOT: "plugin_root",
       SOURCE_BACKJUMP: "source_backjump",
       MACHINE_ABSOLUTE: "machine_absolute",
-      OUT_OF_BOUNDS: "out_of_bounds"
+      HOME_DIRECTORY: "home_directory",
+      OUT_OF_BOUNDS: "out_of_bounds",
+      RESOURCE_DRIFT: "resource_drift",
+      STALE_RESOURCE: "stale_resource"
     });
     FINDING_CODE = Object.freeze({
       SNAPSHOT_UNSAFE: "SNAPSHOT_UNSAFE",
@@ -42028,8 +42199,11 @@ var init_skill_resource_closure = __esm({
       RESOURCE_NOT_REGULAR_FILE: "RESOURCE_NOT_REGULAR_FILE",
       SOURCE_BACKJUMP: "SOURCE_BACKJUMP",
       MACHINE_ABSOLUTE_PATH: "MACHINE_ABSOLUTE_PATH",
+      HOME_DIRECTORY_SEARCH: "HOME_DIRECTORY_SEARCH",
       OUT_OF_BOUNDS: "OUT_OF_BOUNDS",
-      SYMLINK_NOT_ALLOWED: "SYMLINK_NOT_ALLOWED"
+      SYMLINK_NOT_ALLOWED: "SYMLINK_NOT_ALLOWED",
+      RESOURCE_DRIFT: "RESOURCE_DRIFT",
+      STALE_RESOURCE: "STALE_RESOURCE"
     });
     __name(toPosix, "toPosix");
     __name(relativeStable, "relativeStable");
@@ -42044,12 +42218,14 @@ var init_skill_resource_closure = __esm({
     __name(stripExplicitPrefix, "stripExplicitPrefix");
     __name(classifyReference, "classifyReference");
     __name(inspectRegularFile, "inspectRegularFile");
+    __name(collectRegularFiles, "collectRegularFiles");
     __name(inferSurfaceHost, "inferSurfaceHost");
     __name(receiptProjection, "receiptProjection");
     __name(createSkillResourceClosureReceipt, "createSkillResourceClosureReceipt");
     __name(assertSkillResourceClosureReceipt, "assertSkillResourceClosureReceipt");
     __name(evaluateConsumerSkillResourceClosureReceipts, "evaluateConsumerSkillResourceClosureReceipts");
     __name(checkSkillResourceClosure, "checkSkillResourceClosure");
+    __name(evaluateDeclaredHostSurfaceCoverage, "evaluateDeclaredHostSurfaceCoverage");
   }
 });
 
@@ -72000,7 +72176,7 @@ var require_escape3 = __commonJS({
 var require_lib36 = __commonJS({
   "../../node_modules/.pnpm/@npmcli+promise-spawn@8.0.3/node_modules/@npmcli/promise-spawn/lib/index.js"(exports, module) {
     "use strict";
-    var { spawn: spawn4 } = __require("child_process");
+    var { spawn: spawn5 } = __require("child_process");
     var os4 = __require("os");
     var which = require_lib35();
     var escape2 = require_escape3();
@@ -72027,7 +72203,7 @@ var require_lib36 = __commonJS({
         const resultError = getResult(erOpts);
         reject(Object.assign(er, resultError));
       }, "rejectWithOpts");
-      const proc = spawn4(cmd, args2, opts);
+      const proc = spawn5(cmd, args2, opts);
       promise.stdin = proc.stdin;
       promise.process = proc;
       proc.on("error", rejectWithOpts);
@@ -72533,7 +72709,7 @@ var require_which3 = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+git@6.0.3/node_modules/@npmcli/git/lib/spawn.js
 var require_spawn = __commonJS({
   "../../node_modules/.pnpm/@npmcli+git@6.0.3/node_modules/@npmcli/git/lib/spawn.js"(exports, module) {
-    var spawn4 = require_lib36();
+    var spawn5 = require_lib36();
     var promiseRetry = require_promise_retry();
     var { log } = require_lib21();
     var makeError = require_make_error();
@@ -72558,7 +72734,7 @@ var require_spawn = __commonJS({
         if (number !== 1) {
           log.silly("git", `Retrying git command: ${args2.join(" ")} attempt # ${number}`);
         }
-        return spawn4(gitPath, args2, makeOpts(opts)).catch((er) => {
+        return spawn5(gitPath, args2, makeOpts(opts)).catch((er) => {
           const gitError = makeError(er);
           if (!gitError.shouldRetry(number)) {
             throw gitError;
@@ -72682,7 +72858,7 @@ var require_lines_to_revs = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+git@6.0.3/node_modules/@npmcli/git/lib/revs.js
 var require_revs = __commonJS({
   "../../node_modules/.pnpm/@npmcli+git@6.0.3/node_modules/@npmcli/git/lib/revs.js"(exports, module) {
-    var spawn4 = require_spawn();
+    var spawn5 = require_spawn();
     var { LRUCache } = require_commonjs3();
     var linesToRevs = require_lines_to_revs();
     var revsCache = new LRUCache({
@@ -72696,7 +72872,7 @@ var require_revs = __commonJS({
           return cached;
         }
       }
-      const { stdout } = await spawn4(["ls-remote", repo], opts);
+      const { stdout } = await spawn5(["ls-remote", repo], opts);
       const revs = linesToRevs(stdout.trim().split("\n"));
       revsCache.set(repo, revs);
       return revs;
@@ -73240,7 +73416,7 @@ var require_clone2 = __commonJS({
     var { parse: parse2 } = __require("url");
     var path15 = __require("path");
     var getRevs = require_revs();
-    var spawn4 = require_spawn();
+    var spawn5 = require_spawn();
     var { isWindows } = require_utils4();
     var pickManifest = require_lib39();
     var fs = __require("fs/promises");
@@ -73294,7 +73470,7 @@ var require_clone2 = __commonJS({
     var other = /* @__PURE__ */ __name((repo, revDoc, target, opts) => {
       const shallow = maybeShallow(repo, opts);
       const fetchOrigin = ["fetch", "origin", revDoc.rawRef].concat(shallow ? ["--depth=1"] : []);
-      const git3 = /* @__PURE__ */ __name((args2) => spawn4(args2, { ...opts, cwd: target }), "git");
+      const git3 = /* @__PURE__ */ __name((args2) => spawn5(args2, { ...opts, cwd: target }), "git");
       return fs.mkdir(target, { recursive: true }).then(() => git3(["init"])).then(() => isWindows(opts) ? git3(["config", "--local", "--add", "core.longpaths", "true"]) : null).then(() => git3(["remote", "add", "origin", repo])).then(() => git3(fetchOrigin)).then(() => git3(["checkout", revDoc.sha])).then(() => updateSubmodules(target, opts)).then(() => revDoc.sha);
     }, "other");
     var branch = /* @__PURE__ */ __name((repo, revDoc, target, opts) => {
@@ -73312,7 +73488,7 @@ var require_clone2 = __commonJS({
       if (isWindows(opts)) {
         args2.push("--config", "core.longpaths=true");
       }
-      return spawn4(args2, opts).then(() => revDoc.sha);
+      return spawn5(args2, opts).then(() => revDoc.sha);
     }, "branch");
     var plain = /* @__PURE__ */ __name((repo, revDoc, target, opts) => {
       const args2 = [
@@ -73327,14 +73503,14 @@ var require_clone2 = __commonJS({
       if (isWindows(opts)) {
         args2.push("--config", "core.longpaths=true");
       }
-      return spawn4(args2, opts).then(() => revDoc.sha);
+      return spawn5(args2, opts).then(() => revDoc.sha);
     }, "plain");
     var updateSubmodules = /* @__PURE__ */ __name(async (target, opts) => {
       const hasSubmodules = await fs.stat(`${target}/.gitmodules`).then(() => true).catch(() => false);
       if (!hasSubmodules) {
         return null;
       }
-      return spawn4([
+      return spawn5([
         "submodule",
         "update",
         "-q",
@@ -73345,7 +73521,7 @@ var require_clone2 = __commonJS({
     var unresolved = /* @__PURE__ */ __name((repo, ref, target, opts) => {
       const lp = isWindows(opts) ? ["--config", "core.longpaths=true"] : [];
       const cloneArgs = ["clone", "--mirror", "-q", repo, target + "/.git"];
-      const git3 = /* @__PURE__ */ __name((args2) => spawn4(args2, { ...opts, cwd: target }), "git");
+      const git3 = /* @__PURE__ */ __name((args2) => spawn5(args2, { ...opts, cwd: target }), "git");
       return fs.mkdir(target, { recursive: true }).then(() => git3(cloneArgs.concat(lp))).then(() => git3(["init"])).then(() => git3(["checkout", ref])).then(() => updateSubmodules(target, opts)).then(() => git3(["rev-parse", "--revs-only", "HEAD"])).then(({ stdout }) => stdout.trim());
     }, "unresolved");
   }
@@ -73382,8 +73558,8 @@ var require_find = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+git@6.0.3/node_modules/@npmcli/git/lib/is-clean.js
 var require_is_clean = __commonJS({
   "../../node_modules/.pnpm/@npmcli+git@6.0.3/node_modules/@npmcli/git/lib/is-clean.js"(exports, module) {
-    var spawn4 = require_spawn();
-    module.exports = (opts = {}) => spawn4(["status", "--porcelain=v1", "-uno"], opts).then((res) => !res.stdout.trim().split(/\r?\n+/).map((l) => l.trim()).filter((l) => l).length);
+    var spawn5 = require_spawn();
+    module.exports = (opts = {}) => spawn5(["status", "--porcelain=v1", "-uno"], opts).then((res) => !res.stdout.trim().split(/\r?\n+/).map((l) => l.trim()).filter((l) => l).length);
   }
 });
 
@@ -97074,7 +97250,11 @@ async function prepareRelease(options) {
           snapshotDir: manifest.outputDir,
           host: "root"
         });
-        const receipt = createSkillResourceClosureReceipt(closureResult, { unitId: unit.id });
+        const receipt = createSkillResourceClosureReceipt(closureResult, {
+          unitId: unit.id,
+          preparedAt: freezeTimestamp ?? null,
+          exitCode: 0
+        });
         skillResourceClosureResults.push(receipt);
         if (closureResult.findings.length > 0) {
           await evidence.append({
@@ -97087,7 +97267,10 @@ async function prepareRelease(options) {
               line: f.line,
               reference: f.reference,
               classification: f.classification,
-              code: f.code
+              code: f.code,
+              // D4: RESOURCE_DRIFT findings localize via references (the
+              // finding's own skill/line stay null for a cross-surface drift).
+              ...f.references ? { references: f.references } : {}
             }))
           });
           throw new ReleaseError(
@@ -97100,6 +97283,33 @@ async function prepareRelease(options) {
             }
           );
         }
+        const expectedHosts = (unit.distributions ?? []).map((distribution) => PLATFORMS.find((platform) => platform.distributionType === distribution.type)).filter(Boolean).map((platform) => platform.buildAdapter.name);
+        const hostCoverage = evaluateDeclaredHostSurfaceCoverage(
+          expectedHosts,
+          closureResult.surfaces
+        );
+        if (!hostCoverage.passed) {
+          await evidence.append({
+            phase: "skill-resource-closure",
+            status: "blocking",
+            unitId: unit.id,
+            reason: "declared-host-surface-missing",
+            missingHosts: hostCoverage.missing
+          });
+          throw new ReleaseError(
+            GATE_FAILED,
+            `skill resource closure gate failed for unit "${unit.id}": declared host surface(s) missing or empty: ${hostCoverage.missing.map((item) => item.host).join(", ")}`,
+            {
+              unitId: unit.id,
+              missingHosts: hostCoverage.missing,
+              observedSurfaces: closureResult.surfaces.map((surface) => ({
+                id: surface.id,
+                host: surface.host,
+                skillCount: surface.skillCount
+              }))
+            }
+          );
+        }
         await evidence.append({
           phase: "skill-resource-closure",
           status: "completed",
@@ -97109,6 +97319,10 @@ async function prepareRelease(options) {
           skillCount: receipt.skillCount,
           referenceCount: closureResult.referenceCount,
           sourceOnlyCount: closureResult.sourceOnlyCount,
+          // D2: per-reference exemption detail for approval/audit review —
+          // evidence-layer only; the receipt object (and its digest binding)
+          // is intentionally left unchanged.
+          sourceOnlyReferences: closureResult.sourceOnlyReferences,
           findingCount: 0,
           receiptDigest: closureResult.receiptDigest
         });
@@ -98779,7 +98993,11 @@ async function publishRelease(options) {
             { unitId, findings: closureResult.findings }
           );
         }
-        const observed = createSkillResourceClosureReceipt(closureResult, { unitId });
+        const observed = createSkillResourceClosureReceipt(closureResult, {
+          unitId,
+          preparedAt: expected.preparedAt ?? null,
+          exitCode: expected.exitCode ?? 0
+        });
         assertSkillResourceClosureReceipt(expected, observed, `unit "${unitId}"`);
       }
       await evidence.append({
@@ -107381,13 +107599,14 @@ __export(lineage_exports, {
   listReleaseTags: () => listReleaseTags,
   objectExists: () => objectExists,
   parseArgs: () => parseArgs,
+  parseCommitIdent: () => parseCommitIdent,
   parseReleaseTag: () => parseReleaseTag,
   parseSemverVersion: () => parseSemverVersion2,
   readCommitMeta: () => readCommitMeta,
   rebuildLineage: () => rebuildLineage,
   runLineageCommand: () => runLineageCommand
 });
-import { execFile as execFileCb16 } from "node:child_process";
+import { execFile as execFileCb16, spawn as spawn4 } from "node:child_process";
 import { promisify as promisify20 } from "node:util";
 function parseSemverVersion2(version) {
   if (typeof version !== "string") {
@@ -107441,6 +107660,26 @@ async function git2(root, args2, options = {}) {
   });
   return stdout.trim();
 }
+async function gitRaw(root, args2, options = {}) {
+  const { stdout } = await execFile17("git", args2, {
+    cwd: root,
+    encoding: "utf8",
+    maxBuffer: 64 * 1024 * 1024,
+    ...options
+  });
+  return stdout;
+}
+function parseCommitIdent(line) {
+  if (typeof line !== "string") {
+    throw new Error(`commit ident line must be a string, got ${typeof line}`);
+  }
+  const match = line.match(/^(.*) <([^>]*)> (\d+) ([+-]\d{4})$/);
+  if (!match) {
+    throw new Error(`unparseable commit ident line (fail-closed): "${line}"`);
+  }
+  const [, name, email, ts, tz] = match;
+  return { name, email, ts, tz };
+}
 async function getLocalTags(root) {
   const output = await git2(root, ["tag", "-l", "--format=%(refname:short) %(objectname)"]);
   if (!output) return [];
@@ -107473,40 +107712,32 @@ async function objectExists(root, sha) {
   }
 }
 async function readCommitMeta(root, commitSha) {
-  const raw = await git2(root, ["cat-file", "commit", commitSha]);
-  const lines = raw.split("\n");
-  const headers = {};
-  const messageLines = [];
-  let inBody = false;
-  for (const line of lines) {
-    if (inBody) {
-      messageLines.push(line);
-      continue;
-    }
-    if (line === "") {
-      inBody = true;
-      continue;
-    }
-    const colon = line.indexOf(" ");
-    if (colon === -1) continue;
-    const key = line.slice(0, colon);
-    const value = line.slice(colon + 1);
-    headers[key] = value;
+  const raw = await gitRaw(root, ["cat-file", "commit", commitSha]);
+  const separator = raw.indexOf("\n\n");
+  if (separator === -1) {
+    throw new Error(`malformed commit object ${commitSha}: missing header/message separator`);
   }
-  const message = messageLines.join("\n");
-  const authorParts = (headers.author ?? "").split(/\s+>/);
-  const committerParts = (headers.committer ?? "").split(/\s+>/);
+  const message = raw.slice(separator + 2);
+  const headers = {};
+  for (const line of raw.slice(0, separator).split("\n")) {
+    if (line.startsWith(" ")) continue;
+    const space = line.indexOf(" ");
+    if (space === -1) continue;
+    headers[line.slice(0, space)] = line.slice(space + 1);
+  }
+  const author = parseCommitIdent(headers.author ?? "");
+  const committer = parseCommitIdent(headers.committer ?? "");
   return {
     message,
     author: {
-      name: authorParts[0] ?? "",
-      email: (authorParts[1] ?? "").replace(/^</, "").replace(/\d+ [+-]\d{4}$/, "").trim(),
-      date: (headers.author ?? "").match(/(\d+ [+-]\d{4})$/)?.[1] ?? ""
+      name: author.name,
+      email: author.email,
+      date: `${author.ts} ${author.tz}`
     },
     committer: {
-      name: committerParts[0] ?? "",
-      email: (committerParts[1] ?? "").replace(/^</, "").replace(/\d+ [+-]\d{4}$/, "").trim(),
-      date: (headers.committer ?? "").match(/(\d+ [+-]\d{4})$/)?.[1] ?? ""
+      name: committer.name,
+      email: committer.email,
+      date: `${committer.ts} ${committer.tz}`
     }
   };
 }
@@ -107591,7 +107822,7 @@ async function analyzeLineage(root) {
 async function createRebuiltCommit(root, treeSha, parentSha, message, identity2) {
   const args2 = ["commit-tree", treeSha];
   if (parentSha) args2.push("-p", parentSha);
-  args2.push("-m", message);
+  args2.push("-F", "-");
   const env = {
     ...process.env,
     GIT_AUTHOR_NAME: identity2.author.name,
@@ -107601,8 +107832,31 @@ async function createRebuiltCommit(root, treeSha, parentSha, message, identity2)
     GIT_COMMITTER_EMAIL: identity2.committer.email,
     GIT_COMMITTER_DATE: identity2.committer.date
   };
-  const { stdout } = await execFile17("git", args2, { cwd: root, encoding: "utf8", env });
-  return stdout.trim();
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn4("git", args2, { cwd: root, env });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk;
+    });
+    child.on("error", rejectPromise);
+    child.on("close", (code) => {
+      if (code !== 0) {
+        rejectPromise(new Error(`git commit-tree failed (exit ${code}): ${stderr.trim()}`));
+        return;
+      }
+      resolvePromise(stdout.trim());
+    });
+    child.stdin.on("error", () => {
+    });
+    child.stdin.write(message);
+    child.stdin.end();
+  });
 }
 async function rebuildLineage(root, options = {}) {
   const { dryRun = false } = options;
@@ -107729,6 +107983,8 @@ var init_lineage = __esm({
     __name(compareSemverVersions2, "compareSemverVersions");
     __name(parseReleaseTag, "parseReleaseTag");
     __name(git2, "git");
+    __name(gitRaw, "gitRaw");
+    __name(parseCommitIdent, "parseCommitIdent");
     __name(getLocalTags, "getLocalTags");
     __name(listReleaseTags, "listReleaseTags");
     __name(getCommitTreeHash, "getCommitTreeHash");

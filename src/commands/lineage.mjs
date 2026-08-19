@@ -27,7 +27,7 @@
  * @module commands/lineage
  */
 
-import { execFile as execFileCb } from 'node:child_process';
+import { execFile as execFileCb, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const execFile = promisify(execFileCb);
@@ -133,6 +133,50 @@ async function git(root, args, options = {}) {
 }
 
 /**
+ * Run a git command and return RAW stdout (no trimming). Trailing bytes are
+ * significant for `cat-file commit` output: the message tail (trailing
+ * whitespace / blank lines) must survive untouched.
+ */
+async function gitRaw(root, args, options = {}) {
+  const { stdout } = await execFile('git', args, {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+    ...options,
+  });
+  return stdout;
+}
+
+/**
+ * Parse a commit ident line — the value of an `author`/`committer` header in
+ * the raw commit object — of the canonical form `Name <email> ts tz`.
+ *
+ * The anchored regex uses a greedy `.*` so the LAST ` <email> ts tz` group at
+ * the end of the line wins: names containing spaces (or even '<'/'>' — legal
+ * in stored objects) still resolve correctly. This replaces the broken
+ * `split(/\s+>/)` parsing, which never matched a legal ident line (there is
+ * no whitespace before '>') and silently produced name=<entire line>,
+ * email='' — corrupting identities written by `commit-tree` during rebuild
+ * (SFA field report 2026-08-18).
+ *
+ * @param {string} line - e.g. `乌龙 <2505468+mzdbxqh@users.noreply.github.com> 1785824474 +0000`
+ * @returns {{ name: string, email: string, ts: string, tz: string }}
+ * @throws {Error} when the line is not a valid ident line. Fail-closed:
+ *   rebuild must never fabricate or silently write an empty identity.
+ */
+export function parseCommitIdent(line) {
+  if (typeof line !== 'string') {
+    throw new Error(`commit ident line must be a string, got ${typeof line}`);
+  }
+  const match = line.match(/^(.*) <([^>]*)> (\d+) ([+-]\d{4})$/);
+  if (!match) {
+    throw new Error(`unparseable commit ident line (fail-closed): "${line}"`);
+  }
+  const [, name, email, ts, tz] = match;
+  return { name, email, ts, tz };
+}
+
+/**
  * List all tags with their commit SHAs.
  *
  * @param {string} root - repository root
@@ -201,45 +245,44 @@ export async function objectExists(root, sha) {
 /**
  * Read the raw commit object and extract identity/date fields.
  *
+ * The cat-file output is NOT trimmed: the header block and the message are
+ * split at the first blank line and the message tail bytes (trailing
+ * whitespace / blank lines) are preserved exactly, so a rebuilt commit can
+ * carry byte-identical message bytes.
+ *
  * @param {string} root - repository root
  * @param {string} commitSha - commit SHA
  * @returns {Promise<{ message: string, author: { name: string, email: string, date: string }, committer: { name: string, email: string, date: string } }>}
+ * @throws {Error} when the object is malformed or an ident line does not
+ *   parse (fail-closed — never fabricate or silently write empty identity).
  */
 export async function readCommitMeta(root, commitSha) {
-  const raw = await git(root, ['cat-file', 'commit', commitSha]);
-  const lines = raw.split('\n');
-  const headers = {};
-  const messageLines = [];
-  let inBody = false;
-  for (const line of lines) {
-    if (inBody) {
-      messageLines.push(line);
-      continue;
-    }
-    if (line === '') {
-      inBody = true;
-      continue;
-    }
-    const colon = line.indexOf(' ');
-    if (colon === -1) continue;
-    const key = line.slice(0, colon);
-    const value = line.slice(colon + 1);
-    headers[key] = value;
+  const raw = await gitRaw(root, ['cat-file', 'commit', commitSha]);
+  const separator = raw.indexOf('\n\n');
+  if (separator === -1) {
+    throw new Error(`malformed commit object ${commitSha}: missing header/message separator`);
   }
-  const message = messageLines.join('\n');
-  const authorParts = (headers.author ?? '').split(/\s+>/);
-  const committerParts = (headers.committer ?? '').split(/\s+>/);
+  const message = raw.slice(separator + 2);
+  const headers = {};
+  for (const line of raw.slice(0, separator).split('\n')) {
+    if (line.startsWith(' ')) continue; // continuation line (e.g. gpgsig)
+    const space = line.indexOf(' ');
+    if (space === -1) continue;
+    headers[line.slice(0, space)] = line.slice(space + 1);
+  }
+  const author = parseCommitIdent(headers.author ?? '');
+  const committer = parseCommitIdent(headers.committer ?? '');
   return {
     message,
     author: {
-      name: authorParts[0] ?? '',
-      email: (authorParts[1] ?? '').replace(/^</, '').replace(/\d+ [+-]\d{4}$/, '').trim(),
-      date: (headers.author ?? '').match(/(\d+ [+-]\d{4})$/)?.[1] ?? '',
+      name: author.name,
+      email: author.email,
+      date: `${author.ts} ${author.tz}`,
     },
     committer: {
-      name: committerParts[0] ?? '',
-      email: (committerParts[1] ?? '').replace(/^</, '').replace(/\d+ [+-]\d{4}$/, '').trim(),
-      date: (headers.committer ?? '').match(/(\d+ [+-]\d{4})$/)?.[1] ?? '',
+      name: committer.name,
+      email: committer.email,
+      date: `${committer.ts} ${committer.tz}`,
     },
   };
 }
@@ -384,20 +427,25 @@ export async function analyzeLineage(root) {
  * Create a rebuilt commit object with `commit-tree`, preserving the original
  * author/committer identity and dates via environment variables.
  *
+ * The message is delivered via stdin (`-F -`) rather than `-m`: `commit-tree
+ * -m` strips trailing blank lines, while stdin preserves the original message
+ * bytes exactly (including trailing whitespace), so a rebuilt node can be
+ * byte-identical to the original commit.
+ *
  * Writes ONLY a commit object into the local object database. Never writes a
  * ref and never pushes.
  *
  * @param {string} root - repository root
  * @param {string} treeSha - tree hash for the rebuilt commit
  * @param {string|null} parentSha - parent commit (null → chain root)
- * @param {string} message - commit message
+ * @param {string} message - commit message (exact bytes)
  * @param {{ author: {name: string, email: string, date: string}, committer: {name: string, email: string, date: string} }} identity
  * @returns {Promise<string>} rebuilt commit SHA
  */
 export async function createRebuiltCommit(root, treeSha, parentSha, message, identity) {
   const args = ['commit-tree', treeSha];
   if (parentSha) args.push('-p', parentSha);
-  args.push('-m', message);
+  args.push('-F', '-');
   const env = {
     ...process.env,
     GIT_AUTHOR_NAME: identity.author.name,
@@ -407,8 +455,29 @@ export async function createRebuiltCommit(root, treeSha, parentSha, message, ide
     GIT_COMMITTER_EMAIL: identity.committer.email,
     GIT_COMMITTER_DATE: identity.committer.date,
   };
-  const { stdout } = await execFile('git', args, { cwd: root, encoding: 'utf8', env });
-  return stdout.trim();
+  // Async execFile has no stdin-input support (options.input would be ignored
+  // and the child would hang waiting on an open stdin), so spawn is used to
+  // deliver the exact message bytes on stdin.
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn('git', args, { cwd: root, env });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => { stdout += chunk; });
+    child.stderr.on('data', (chunk) => { stderr += chunk; });
+    child.on('error', rejectPromise);
+    child.on('close', (code) => {
+      if (code !== 0) {
+        rejectPromise(new Error(`git commit-tree failed (exit ${code}): ${stderr.trim()}`));
+        return;
+      }
+      resolvePromise(stdout.trim());
+    });
+    child.stdin.on('error', () => {}); // EPIPE after early exit is reported via close
+    child.stdin.write(message);
+    child.stdin.end();
+  });
 }
 
 /**

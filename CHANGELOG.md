@@ -1,5 +1,22 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.6.2 locale=en baseline=sha256:103dcbd11e52542a07da9a1220eb246cf812de79ede19ff63a374785393580b7 -->
+## [0.6.2] - 2026-08-19
+
+v0.6.2 promotes the skill resource closure checker to a fail-closed release gate spanning prepare, publish, and verify, closes the five gaps (G1–G5) confirmed by the clause-by-clause gate audit, and fixes lineage commit-identity parsing that corrupted rebuilt commits: missing or drifted skill resources, home-directory search paths, and undeclared host surfaces now block a release before plan freeze, and commit identities are parsed with an anchored regex that fails closed instead of fabricating identity fields.
+
+### Added
+
+- **Skill-resource-closure v2 release gate**: the closure checker is now a fail-closed release gate across all three phases — prepare scans the frozen snapshot and blocks plan freeze on any finding with `GATE_FAILED` (error code 13), publish Gate 2c recomputes closure against the verified frozen snapshots for production plans, and verify validates the real npm install tree and marketplace install directories with per-host receipts. Receipts now carry `unitId`, host/surface detail, digests, `checkerVersion` (`skill-resource-closure-v2`), and counts; the platform registry declares each adapter's host surface as an explicit adapter directory name, and the receipt schema is bound in all six release-plan schema copies. A version mismatch between an old frozen plan and the new checker fails closed.
+- **Closure gate gap closure (G1–G5)**: source-only (`SOURCE_ONLY_NOT_SHIPPED`) exemptions are now listed per reference in the receipt projection and in the prepare evidence — auditable and non-blocking; `~/`, `$HOME/`, and `${HOME}/` search paths inside code spans, fences, and link targets fail closed as `HOME_DIRECTORY_SEARCH`; identical surface-relative resources whose contents diverge across surfaces fail closed as `RESOURCE_DRIFT` with cross-surface reference locations; unreferenced regular files inside adapter skill closure directories fail closed as `STALE_RESOURCE`; every declared plugin distribution must be backed by a receipt host surface with at least one skill (declared-host reconciliation), so a dropped adapter tree can no longer skip the gate silently; and frozen receipts bind a deterministic `preparedAt` freeze timestamp (never a wall-clock sample) plus `exitCode: 0`, so identical sources freeze byte-identical receipts on every re-prepare.
+
+### Fixed
+
+- **Lineage commit-identity parsing (lineage-ident)**: `lineage rebuild` parsed author/committer ident lines with `split(/\s+>/)`, which never matched a legal ident line and corrupted the identities written to rebuilt commits (names containing spaces or `>` were mis-parsed as well). Idents are now parsed with an anchored regex whose greedy name capture lets the last `<email> ts tz` group win; unparseable lines fail closed instead of fabricating identity fields. Commit messages are fed to `commit-tree` via `-F -` stdin from untrimmed `cat-file` output, preserving arbitrary message bytes including trailing whitespace and blank lines.
+- **Assess npm-transport test stability (test-only)**: the assess npm-transport test flaked when the npm lifecycle injected a silent loglevel setting and ambient proxy variables into the child environment — emptying npm stderr and letting a released ephemeral localhost port be hijacked. The test now strips ambient npm-config-namespace environment keys and proxy variables (`isolateNpmTransportEnv`), holds the localhost port for the whole test (`startConnectionResetRegistry`), and asserts `ECONNRESET|ECONNREFUSED` deterministically. No production behavior changed.
+<!-- release-skill:changelog:end version=0.6.2 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.6.1 locale=en baseline=sha256:dd7c991244d72db1247dda808057fda060b1e7bb03ff866aae691841828e6239 -->
 ## [0.6.1] - 2026-08-18
 

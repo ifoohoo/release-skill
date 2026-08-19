@@ -2,26 +2,29 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.6.1 -->
+<!-- release-skill:release-version: 0.6.2 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.6.1** (2026-08-18)
+**0.6.2** (2026-08-19)
 
-v0.6.1 收口 0.6.0 自举发布周期暴露的四个根因——该周期 25 次运行中 22 次失败，几乎全部墙钟时间消耗在失败-诊断-修复循环与外部干扰上：hook 失败不再无声、陈旧 bundle 在最早期门禁失败关闭、冻结路径不可能跳过全量测试、机器可读的冻结标记让兄弟仓库的治理任务知道发布期间不要写入本仓库。
+v0.6.2 把技能资源闭包检查器升级为贯穿 prepare、publish、verify 的失败关闭发布门禁，收口逐条审计确认的五项缺口（G1–G5），并修复 lineage 重建提交时的身份解析错误：缺失或漂移的技能资源、主目录搜索路径、未声明的 host 面从此在计划冻结前即阻断发布；提交身份改用锚定正则解析，解析失败即失败关闭，绝不伪造身份字段。
 
 **新增**
 
-- **hook 失败输出透传（R1）**：prepare hook 非零退出时，运行证据携带有界的 `stderrTail` / `stdoutTail` 投影（最后 50 行、上限 8 KiB），CLI 同时回显 stderr 尾部——裸 `exit=13` 这类失败从此可即时诊断，不再需要盲目重试。exit code 语义不变。
-- **bundle 陈旧度门禁（R2）**：每次重建的 bundle 内嵌其源码树冻结摘要，prepare 在 config 阶段之后立即比对源码与 bundle；不一致即以 `BUNDLE_STALE`（错误码 54）失败关闭并在消息中给出重建命令，先于 hooks、快照与网络检查执行。任何工作流路径都不可豁免。
-- **全量测试冻结门禁（R3）**：本次 prepare 未跑全量测试就无法产生计划摘要；门禁位于 `computePlanDigest` 之前，`testSelection` 取值在 project 与 plan schema 中按枚举校验，overlay 无豁免开关。
-- **发布冻结标记（R4）**：prepare 成功后写入 `.release-skill/FROZEN`，内容为 `planDigest`、`targetVersions`（unit → 版本映射）、`createdAt`、`runId`；仅当 verify 到达 `VERIFIED` 时才清除，为兄弟仓库与治理任务提供机器可读的发布期回避信号。
+- **skill-resource-closure v2 发布门禁**：闭包检查器升级为贯穿三个阶段的失败关闭门禁——prepare 扫描冻结快照，任何 finding 即以 `GATE_FAILED`（错误码 13）阻断计划冻结；publish Gate 2c 对 production 计划按已验证的冻结快照重算闭包；verify 以逐 host 收据校验真实 npm 安装树与 marketplace 安装目录。收据新增 `unitId`、host/surface 明细、摘要、`checkerVersion`（`skill-resource-closure-v2`）与计数字段；平台注册表以显式 adapter 目录名声明各 host 面；收据 schema 在全部六份 release-plan schema 副本中绑定。旧冻结计划与新 checker 版本不一致即失败关闭。
+- **闭包门禁缺口收口（G1–G5）**：source-only（`SOURCE_ONLY_NOT_SHIPPED`）豁免逐条列入收据投影与 prepare 证据——可审计、非阻断；code span/fence/link 目标中的 `~/`、`$HOME/`、`${HOME}/` 搜索路径以 `HOME_DIRECTORY_SEARCH` 失败关闭；同名相对路径资源跨 surface 内容不一致以 `RESOURCE_DRIFT` 失败关闭并给出跨 surface 引用定位；adapter 技能闭包目录内未被引用的常规文件以 `STALE_RESOURCE` 失败关闭；每个声明的插件分发必须有 skillCount ≥ 1 的收据 host 面背书（declared-host 对账）——publicFiles 漏收 adapter 时该 host 面不再静默缺席；冻结收据绑定确定性 `preparedAt` 冻结时间戳（绝不采样墙钟）与 `exitCode: 0`，同输入重复 prepare 冻结字节一致的收据。
+
+**修复**
+
+- **lineage 提交身份解析（lineage-ident）**：`lineage rebuild` 原先用 `split(/\s+>/)` 解析 author/committer ident 行——该切分对合法 ident 从不匹配，写进重建提交的身份因此损坏（名字含空格或 `>` 时同样错乱）。现改用锚定正则解析，贪婪名字捕获使行尾最后一个 `<email> ts tz` 组生效；无法解析即失败关闭，绝不伪造身份字段。提交消息改经 `commit-tree -F -` stdin 喂入，取自不裁剪的 `cat-file` 输出——任意消息字节（含尾部空白与空行）原样保留。
+- **assess npm-transport 测试稳定性（仅测试）**：npm 生命周期向子进程环境注入静默日志级别设置与环境代理变量，导致 npm stderr 被清空、释放后的本地临时端口被劫持，测试间歇性失败。现剥离环境中的 npm-config 族环境键与代理变量（`isolateNpmTransportEnv`），整个测试期间持有本地端口（`startConnectionResetRegistry`），并确定性断言 `ECONNRESET|ECONNREFUSED`。生产行为无变化。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.6.1 是当前源码候选，v0.4.1 仍是最新已发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.6.2 是当前源码候选，v0.4.1 仍是最新已发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -34,7 +37,7 @@ v0.6.1 收口 0.6.0 自举发布周期暴露的四个根因——该周期 25 �
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.6.1 是当前源码候选，v0.4.1 是最新已发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.6.2 是当前源码候选，v0.4.1 是最新已发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**

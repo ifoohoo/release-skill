@@ -41,6 +41,7 @@ import {
   CHECKER_VERSION as SKILL_RESOURCE_CHECKER_VERSION,
   checkSkillResourceClosure,
   createSkillResourceClosureReceipt,
+  evaluateDeclaredHostSurfaceCoverage,
 } from '../core/skill-resource-closure.mjs';
 import { buildPublicStaging } from '../snapshot/public-map.mjs';
 import { resolveUnitScopedPath } from '../snapshot/public-path.mjs';
@@ -2858,7 +2859,16 @@ export async function prepareRelease(options) {
           host: 'root',
         });
 
-        const receipt = createSkillResourceClosureReceipt(closureResult, { unitId: unit.id });
+        // G5: bind execution time + exit code into the frozen receipt.
+        // preparedAt reuses this prepare's deterministic freeze timestamp
+        // (production: the baseline HEAD commit committer date; otherwise
+        // null) — never a wall-clock sample — so identical sources freeze
+        // byte-identical receipts on every re-prepare.
+        const receipt = createSkillResourceClosureReceipt(closureResult, {
+          unitId: unit.id,
+          preparedAt: freezeTimestamp ?? null,
+          exitCode: 0,
+        });
         skillResourceClosureResults.push(receipt);
 
         if (closureResult.findings.length > 0) {
@@ -2873,6 +2883,9 @@ export async function prepareRelease(options) {
               reference: f.reference,
               classification: f.classification,
               code: f.code,
+              // D4: RESOURCE_DRIFT findings localize via references (the
+              // finding's own skill/line stay null for a cross-surface drift).
+              ...(f.references ? { references: f.references } : {}),
             })),
           });
           throw new ReleaseError(
@@ -2886,6 +2899,47 @@ export async function prepareRelease(options) {
           );
         }
 
+        // G4: every declared plugin distribution must be backed by a host
+        // surface in the frozen snapshot with at least one skill. If
+        // publicFiles drops an adapter tree, that host surface is silently
+        // absent from the receipt — fail closed here instead of shipping a
+        // unit whose declared host never entered the closure gate.
+        // Expected host names are the adapter directory names declared by the
+        // platform registry (buildAdapter.name, asserted non-empty by
+        // assertRegistry); codebuddy-plugin keeps the historical `workbuddy`
+        // adapter directory name there. npm-only units declare no plugin
+        // hosts and skip.
+        const expectedHosts = (unit.distributions ?? [])
+          .map((distribution) => PLATFORMS.find((platform) => platform.distributionType === distribution.type))
+          .filter(Boolean)
+          .map((platform) => platform.buildAdapter.name);
+        const hostCoverage = evaluateDeclaredHostSurfaceCoverage(
+          expectedHosts,
+          closureResult.surfaces,
+        );
+        if (!hostCoverage.passed) {
+          await evidence.append({
+            phase: 'skill-resource-closure',
+            status: 'blocking',
+            unitId: unit.id,
+            reason: 'declared-host-surface-missing',
+            missingHosts: hostCoverage.missing,
+          });
+          throw new ReleaseError(
+            GATE_FAILED,
+            `skill resource closure gate failed for unit "${unit.id}": declared host surface(s) missing or empty: ${hostCoverage.missing.map((item) => item.host).join(', ')}`,
+            {
+              unitId: unit.id,
+              missingHosts: hostCoverage.missing,
+              observedSurfaces: closureResult.surfaces.map((surface) => ({
+                id: surface.id,
+                host: surface.host,
+                skillCount: surface.skillCount,
+              })),
+            },
+          );
+        }
+
         await evidence.append({
           phase: 'skill-resource-closure',
           status: 'completed',
@@ -2895,6 +2949,10 @@ export async function prepareRelease(options) {
           skillCount: receipt.skillCount,
           referenceCount: closureResult.referenceCount,
           sourceOnlyCount: closureResult.sourceOnlyCount,
+          // D2: per-reference exemption detail for approval/audit review —
+          // evidence-layer only; the receipt object (and its digest binding)
+          // is intentionally left unchanged.
+          sourceOnlyReferences: closureResult.sourceOnlyReferences,
           findingCount: 0,
           receiptDigest: closureResult.receiptDigest,
         });

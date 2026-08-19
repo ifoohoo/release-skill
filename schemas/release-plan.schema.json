@@ -863,6 +863,13 @@
               "findingCount": {
                 "const": 0
               },
+              "preparedAt": {
+                "type": ["string", "null"],
+                "description": "Deterministic freeze timestamp of the prepare run that produced this receipt (production: the baseline HEAD commit committer date in canonical UTC form; non-production: null). Never a wall-clock sample, so identical sources freeze byte-identical receipts."
+              },
+              "exitCode": {
+                "const": 0
+              },
               "receiptDigest": {
                 "type": "string",
                 "pattern": "^[a-f0-9]{64}$"
@@ -877,6 +884,8 @@
               "referenceCount",
               "sourceOnlyCount",
               "findingCount",
+              "preparedAt",
+              "exitCode",
               "receiptDigest"
             ]
           }

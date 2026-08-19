@@ -14,7 +14,7 @@ import { canonicalJson, digestDocument } from 'skill-family-contracts';
 import { GATE_FAILED, ReleaseError } from './errors.mjs';
 import { computeFrozenSnapshot } from '../snapshot/frozen.mjs';
 
-export const CHECKER_VERSION = 'skill-resource-closure-v1';
+export const CHECKER_VERSION = 'skill-resource-closure-v2';
 
 const BARE_PREFIXES = ['references/', 'assets/', 'schemas/', 'examples/', 'scripts/'];
 const EXPLICIT_PREFIXES = [
@@ -27,7 +27,20 @@ const EXPLICIT_PREFIXES = [
 ];
 const SOURCE_TREE_PATTERN = /(?:^|\/)packages\/[A-Za-z0-9._-]+(?:\/|$)/u;
 const MACHINE_ABSOLUTE_PATTERN = /^(?:\/(?:Users|home|root|tmp|var|etc|opt)(?:\/|$)|[A-Za-z]:[\\/])/u;
+// G2: user-home search paths (`~/...`, `$HOME/...`, `${HOME}/...`) with at
+// least one trailing path character. Only code-span/fence/link tokens reach
+// isPathToken, so prose words are never matched; fail-closed over silent miss.
+const HOME_DIRECTORY_PATTERN = /^(?:~|\$HOME|\$\{HOME\})\/.+/u;
+const ADAPTER_SURFACE_PATTERN = /^adapters\/([^/]+)$/u;
+// G3: skill-local resource closure directories. Regular files inside these
+// directories (under a skill directory) must be referenced by a SKILL.md of
+// the same surface or they are reported as stale on adapter surfaces.
+const CLOSURE_RESOURCE_DIRS = Object.freeze(['references', 'assets', 'schemas', 'examples', 'scripts']);
 const GLOB_PATTERN = /[*?\[]/u;
+// D3: the source-only exemption is scoped to the code snippet that carries the
+// marker — the same fence line, inline code span, or link target from which
+// the token was extracted. A prose marker elsewhere on the line exempts
+// nothing (fail-closed over a line-wide false pass).
 const SOURCE_ONLY_MARKER = /(?:\bsource-only\b|仅源码包)/iu;
 const TRANSPORT_EXCLUSIONS = Object.freeze([
   '.git',
@@ -41,7 +54,10 @@ export const CLASSIFICATION = Object.freeze({
   PLUGIN_ROOT: 'plugin_root',
   SOURCE_BACKJUMP: 'source_backjump',
   MACHINE_ABSOLUTE: 'machine_absolute',
+  HOME_DIRECTORY: 'home_directory',
   OUT_OF_BOUNDS: 'out_of_bounds',
+  RESOURCE_DRIFT: 'resource_drift',
+  STALE_RESOURCE: 'stale_resource',
 });
 
 export const FINDING_CODE = Object.freeze({
@@ -50,8 +66,11 @@ export const FINDING_CODE = Object.freeze({
   RESOURCE_NOT_REGULAR_FILE: 'RESOURCE_NOT_REGULAR_FILE',
   SOURCE_BACKJUMP: 'SOURCE_BACKJUMP',
   MACHINE_ABSOLUTE_PATH: 'MACHINE_ABSOLUTE_PATH',
+  HOME_DIRECTORY_SEARCH: 'HOME_DIRECTORY_SEARCH',
   OUT_OF_BOUNDS: 'OUT_OF_BOUNDS',
   SYMLINK_NOT_ALLOWED: 'SYMLINK_NOT_ALLOWED',
+  RESOURCE_DRIFT: 'RESOURCE_DRIFT',
+  STALE_RESOURCE: 'STALE_RESOURCE',
 });
 
 function toPosix(value) {
@@ -115,6 +134,7 @@ function isPathToken(value) {
   if (!token || GLOB_PATTERN.test(token)) return false;
   return BARE_PREFIXES.some((prefix) => token.startsWith(prefix))
     || EXPLICIT_PREFIXES.some((prefix) => token.startsWith(prefix))
+    || HOME_DIRECTORY_PATTERN.test(token)
     || SOURCE_TREE_PATTERN.test(token)
     || MACHINE_ABSOLUTE_PATTERN.test(token);
 }
@@ -144,16 +164,21 @@ export function extractPathTokens(content) {
       inFence = !inFence;
       continue;
     }
-    const sourceOnly = SOURCE_ONLY_MARKER.test(line);
-    if (inFence) scanSnippet(line, lineNumber, sourceOnly, results, seen);
+    // D3: the source-only marker is evaluated per code snippet, never per
+    // line. Only tokens extracted from the very snippet text that contains
+    // the marker (this fence line, this inline code span, this link target)
+    // are exempt; unrelated tokens elsewhere on the line stay fail-closed.
+    if (inFence) scanSnippet(line, lineNumber, SOURCE_ONLY_MARKER.test(line), results, seen);
 
     for (const match of line.matchAll(/`([^`]+)`/gu)) {
-      scanSnippet(match[1], lineNumber, sourceOnly, results, seen);
+      scanSnippet(match[1], lineNumber, SOURCE_ONLY_MARKER.test(match[1]), results, seen);
     }
     for (const match of line.matchAll(/\]\(([^)]+)\)/gu)) {
       const target = match[1].trim().split(/[?#]/u)[0];
       if (!/^(?:https?:|#)/iu.test(target)) {
-        scanSnippet(target, lineNumber, sourceOnly, results, seen);
+        // The whole link-target syntax is the code context for the marker
+        // (query/fragment are stripped only for path resolution).
+        scanSnippet(target, lineNumber, SOURCE_ONLY_MARKER.test(match[1]), results, seen);
       }
     }
   }
@@ -172,6 +197,14 @@ export function classifyReference(token, skillRoot, pluginRoot, scanRoot) {
     return {
       classification: CLASSIFICATION.MACHINE_ABSOLUTE,
       resolutionRoot: '(machine)',
+      resolvedTarget: token,
+      absoluteTarget: token,
+    };
+  }
+  if (HOME_DIRECTORY_PATTERN.test(token)) {
+    return {
+      classification: CLASSIFICATION.HOME_DIRECTORY,
+      resolutionRoot: '(home)',
       resolvedTarget: token,
       absoluteTarget: token,
     };
@@ -226,8 +259,29 @@ async function inspectRegularFile(root, target) {
   return { code: null };
 }
 
+async function collectRegularFiles(dir, results) {
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === 'ENOENT') return;
+    throw error;
+  }
+  for (const entry of [...entries].sort((a, b) => a.name.localeCompare(b.name))) {
+    // Symlinks are owned by the snapshot safety gate (SNAPSHOT_UNSAFE); the
+    // stale scan never follows or reports them.
+    if (entry.isSymbolicLink()) continue;
+    const absolute = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      await collectRegularFiles(absolute, results);
+    } else if (entry.isFile()) {
+      results.push(absolute);
+    }
+  }
+}
+
 function inferSurfaceHost(surfaceId, defaultHost) {
-  const match = /^adapters\/([^/]+)$/u.exec(surfaceId);
+  const match = ADAPTER_SURFACE_PATTERN.exec(surfaceId);
   return match?.[1] ?? defaultHost;
 }
 
@@ -239,6 +293,7 @@ function receiptProjection(result) {
     skillCount: result.skillCount,
     referenceCount: result.referenceCount,
     sourceOnlyCount: result.sourceOnlyCount,
+    sourceOnlyReferences: result.sourceOnlyReferences,
     findingCount: result.findings.length,
   };
 }
@@ -328,8 +383,30 @@ export async function checkSkillResourceClosure({
   const skillPaths = await discoverSkills(scanRoot);
   const findings = [];
   const surfaceMap = new Map();
+  const skillsBySurface = new Map();
+  // G3: successfully resolved targets per surface. resolvedResources maps the
+  // surface-relative resource path to its absolute target (drift comparison);
+  // referencedTargets holds every absolute target some SKILL.md of the surface
+  // resolved (stale exemption). resourceReferences records, per surface and
+  // surface-relative resource path, the skill/line that referenced it (D4:
+  // localizes RESOURCE_DRIFT findings). All stay out of the receipt projection.
+  const resolvedResourcesBySurface = new Map();
+  const referencedTargetsBySurface = new Map();
+  const resourceReferencesBySurface = new Map();
+  const sourceOnlyReferences = [];
   let referenceCount = 0;
   let sourceOnlyCount = 0;
+
+  const recordSourceOnlyExemption = (surface, skill, pathToken) => {
+    sourceOnlyCount += 1;
+    surface.sourceOnlyCount += 1;
+    sourceOnlyReferences.push({
+      skill,
+      line: pathToken.line,
+      reference: pathToken.token,
+      surface: surface.id,
+    });
+  };
 
   for (const skill of skillPaths) {
     const skillRoot = resolveSkillRoot(skill, scanRoot);
@@ -345,6 +422,8 @@ export async function checkSkillResourceClosure({
     };
     surface.skillCount += 1;
     surfaceMap.set(surfaceId, surface);
+    if (!skillsBySurface.has(surfaceId)) skillsBySurface.set(surfaceId, []);
+    skillsBySurface.get(surfaceId).push(skill);
 
     const content = await readFile(resolve(scanRoot, skill), 'utf8');
     for (const pathToken of extractPathTokens(content)) {
@@ -369,8 +448,7 @@ export async function checkSkillResourceClosure({
 
       if (classification.classification === CLASSIFICATION.SOURCE_BACKJUMP) {
         if (pathToken.sourceOnly) {
-          sourceOnlyCount += 1;
-          surface.sourceOnlyCount += 1;
+          recordSourceOnlyExemption(surface, skill, pathToken);
         } else {
           findings.push({ ...findingBase, code: FINDING_CODE.SOURCE_BACKJUMP });
         }
@@ -378,6 +456,10 @@ export async function checkSkillResourceClosure({
       }
       if (classification.classification === CLASSIFICATION.MACHINE_ABSOLUTE) {
         findings.push({ ...findingBase, code: FINDING_CODE.MACHINE_ABSOLUTE_PATH });
+        continue;
+      }
+      if (classification.classification === CLASSIFICATION.HOME_DIRECTORY) {
+        findings.push({ ...findingBase, code: FINDING_CODE.HOME_DIRECTORY_SEARCH });
         continue;
       }
       if (classification.classification === CLASSIFICATION.OUT_OF_BOUNDS) {
@@ -394,14 +476,137 @@ export async function checkSkillResourceClosure({
       );
       if (inspection.code) {
         if (pathToken.sourceOnly && inspection.code === FINDING_CODE.RESOURCE_MISSING) {
-          sourceOnlyCount += 1;
-          surface.sourceOnlyCount += 1;
+          recordSourceOnlyExemption(surface, skill, pathToken);
         } else {
           findings.push({ ...findingBase, code: inspection.code });
         }
+        continue;
+      }
+
+      const relativeResource = relativeStable(pluginRoot, classification.absoluteTarget);
+      if (!resolvedResourcesBySurface.has(surfaceId)) {
+        resolvedResourcesBySurface.set(surfaceId, new Map());
+        referencedTargetsBySurface.set(surfaceId, new Set());
+        resourceReferencesBySurface.set(surfaceId, new Map());
+      }
+      resolvedResourcesBySurface.get(surfaceId).set(relativeResource, classification.absoluteTarget);
+      referencedTargetsBySurface.get(surfaceId).add(classification.absoluteTarget);
+      const resourceReferences = resourceReferencesBySurface.get(surfaceId);
+      if (!resourceReferences.has(relativeResource)) resourceReferences.set(relativeResource, []);
+      resourceReferences.get(relativeResource).push({
+        surface: surfaceId,
+        skill,
+        line: pathToken.line,
+      });
+    }
+  }
+
+  // G3 RESOURCE_DRIFT: the same surface-relative resource path resolved on two
+  // surfaces must be byte-identical (typical case: root vs adapters/<name>
+  // projections of the same skill resource). Content digests are cached per
+  // absolute target.
+  const contentDigestCache = new Map();
+  const digestOfTarget = async (absoluteTarget) => {
+    if (!contentDigestCache.has(absoluteTarget)) {
+      contentDigestCache.set(
+        absoluteTarget,
+        digestDocument({ content: await readFile(absoluteTarget, 'utf8') }),
+      );
+    }
+    return contentDigestCache.get(absoluteTarget);
+  };
+  const surfaceIds = [...resolvedResourcesBySurface.keys()].sort((a, b) => a.localeCompare(b));
+  for (let i = 0; i < surfaceIds.length; i += 1) {
+    for (let j = i + 1; j < surfaceIds.length; j += 1) {
+      const [leftId, rightId] = [surfaceIds[i], surfaceIds[j]];
+      const left = resolvedResourcesBySurface.get(leftId);
+      const right = resolvedResourcesBySurface.get(rightId);
+      const commonPaths = [...left.keys()]
+        .filter((path) => right.has(path))
+        .sort((a, b) => a.localeCompare(b));
+      for (const resourcePath of commonPaths) {
+        const [leftDigest, rightDigest] = await Promise.all([
+          digestOfTarget(left.get(resourcePath)),
+          digestOfTarget(right.get(resourcePath)),
+        ]);
+        if (leftDigest === rightDigest) continue;
+        const rightSurface = surfaceMap.get(rightId);
+        // D4: localize the drift — list every skill/line on both surfaces that
+        // resolved this resource path (deduped, deterministically sorted).
+        // Findings never enter the receipt projection, so this is digest-safe.
+        const driftReferences = [];
+        const seenReference = new Set();
+        for (const surfaceId of [leftId, rightId]) {
+          for (const ref of resourceReferencesBySurface.get(surfaceId)?.get(resourcePath) ?? []) {
+            const key = `${ref.surface}\u0000${ref.skill}\u0000${ref.line}`;
+            if (seenReference.has(key)) continue;
+            seenReference.add(key);
+            driftReferences.push({ surface: ref.surface, skill: ref.skill, line: ref.line });
+          }
+        }
+        driftReferences.sort((a, b) => (
+          a.surface.localeCompare(b.surface)
+          || a.skill.localeCompare(b.skill)
+          || (a.line - b.line)
+        ));
+        findings.push({
+          host: rightSurface.host,
+          surface: rightId,
+          skill: null,
+          line: null,
+          reference: resourcePath,
+          classification: CLASSIFICATION.RESOURCE_DRIFT,
+          resolutionRoot: rightId,
+          resolvedTarget: resourcePath,
+          surfaces: [leftId, rightId],
+          references: driftReferences,
+          code: FINDING_CODE.RESOURCE_DRIFT,
+        });
       }
     }
   }
+
+  // G3 STALE_RESOURCE: on adapter surfaces only, every regular file inside a
+  // skill's resource closure directories must be referenced by some SKILL.md
+  // of the same surface (bare or explicit plugin-root form). The root surface
+  // is exempt (repository roots carry many legitimate unreferenced files).
+  for (const surfaceId of [...skillsBySurface.keys()].sort((a, b) => a.localeCompare(b))) {
+    if (!ADAPTER_SURFACE_PATTERN.test(surfaceId)) continue;
+    const surface = surfaceMap.get(surfaceId);
+    const surfaceRootAbsolute = resolve(scanRoot, surfaceId);
+    const referencedTargets = referencedTargetsBySurface.get(surfaceId) ?? new Set();
+    const stale = [];
+    for (const skill of skillsBySurface.get(surfaceId)) {
+      const skillDir = resolve(scanRoot, dirname(skill));
+      for (const closureDir of CLOSURE_RESOURCE_DIRS) {
+        const files = [];
+        await collectRegularFiles(join(skillDir, closureDir), files);
+        for (const absolute of files) {
+          if (referencedTargets.has(absolute)) continue;
+          const relativeResource = relativeStable(surfaceRootAbsolute, absolute);
+          stale.push({
+            host: surface.host,
+            surface: surfaceId,
+            skill,
+            line: null,
+            reference: relativeResource,
+            classification: CLASSIFICATION.STALE_RESOURCE,
+            resolutionRoot: surfaceId,
+            resolvedTarget: relativeResource,
+            code: FINDING_CODE.STALE_RESOURCE,
+          });
+        }
+      }
+    }
+    stale.sort((a, b) => (a.skill.localeCompare(b.skill) || a.resolvedTarget.localeCompare(b.resolvedTarget)));
+    findings.push(...stale);
+  }
+
+  sourceOnlyReferences.sort((a, b) => (
+    a.skill.localeCompare(b.skill)
+    || (a.line - b.line)
+    || a.reference.localeCompare(b.reference)
+  ));
 
   if (snapshotError) {
     findings.push({
@@ -426,8 +631,33 @@ export async function checkSkillResourceClosure({
     skillCount: skillPaths.length,
     referenceCount,
     sourceOnlyCount,
+    sourceOnlyReferences,
     findings,
   };
   result.receiptDigest = digestDocument(receiptProjection(result));
   return result;
+}
+
+/**
+ * G4: reconcile declared plugin distributions against observed surfaces.
+ *
+ * Every declared plugin host must be present among the receipt surfaces with
+ * at least one skill; a host whose adapter tree was dropped from publicFiles
+ * (or whose projection produced no skills) must fail closed at prepare.
+ * `expectedHosts` are adapter directory names (e.g. `codebuddy-plugin`
+ * expects the historical `workbuddy` adapter directory).
+ *
+ * @param {string[]} expectedHosts - declared plugin host surface names
+ * @param {Array<{ id: string, host: string, skillCount: number }>} surfaces
+ * @returns {{ passed: boolean, missing: Array<{ host: string, skillCount: number }> }}
+ */
+export function evaluateDeclaredHostSurfaceCoverage(expectedHosts, surfaces) {
+  const missing = [];
+  for (const expectedHost of [...new Set(expectedHosts ?? [])].sort((a, b) => a.localeCompare(b))) {
+    const surface = (surfaces ?? []).find((item) => item.host === expectedHost);
+    if (!surface || !(surface.skillCount >= 1)) {
+      missing.push({ host: expectedHost, skillCount: surface?.skillCount ?? 0 });
+    }
+  }
+  return { passed: missing.length === 0, missing };
 }
