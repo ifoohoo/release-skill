@@ -237,7 +237,8 @@ Commands:
   publish    Publish frozen GitHub/npm artifacts after approval
   reconcile  Resume PARTIAL state from evidence; conflicts require a human
   verify     Fresh remote and consumer verification; only this reaches VERIFIED
-  ship       Resume one durable prepare -> approve -> publish -> verify flow
+  ship       Resume one durable prepare -> approve -> publish -> verify flow; completes a parked
+             postVerify hook once its checkpoint approval is provided (--hook-approval)
   attest     Legacy only: record a Kimi/CodeBuddy result for an old frozen plan
   hooks      Run declared development hooks and populate reusable receipts
   artifacts  Artifact status, inspect, update/apply, resolution, and diagnostics
@@ -249,7 +250,8 @@ Commands:
 Options:
   --root <path>    Project root directory (default: cwd)
   --plan <path>    Path to the release plan file
-  --run <path>     Path to the release run file (required for reconcile/verify)
+  --run <path>     Path to the release run file, or a run directory whose release-run.json
+                   is resolved automatically (required for reconcile/verify)
   --approval <path> Path to the approval record
   --production     Prepare immutable Git/npm production artifacts
   --output <path>  Override prepare/approve output path (non-production only)
@@ -264,6 +266,12 @@ Options:
   --answers <path> Human-reviewed setup answers JSON
   --write          Create an absent project.yaml during setup; never overwrites
   --confirm-setup <digest> Confirm exact setup facts and answers before create
+  --discover-downstream Read-only discovery of downstream candidates (git remotes, marketplace/docs
+                   clues, artifact-graph.config.yaml, foundation profile). Never writes
+  --propose-hooks  Produce postPublish hook declaration drafts; with --write and exact --confirm-setup,
+                   performs an append-only hooks edit of an existing config (create-once is untouched)
+  --select-hooks <ids> Comma-separated proposal ids to adopt (propose-hooks mode)
+  --foundation-profile <path> Explicit foundation postPublish profile JSON (proposal input only; never auto-applied)
   --unit <id>      Release unit whose declared release documents are refreshed (docs refresh)
   --confirm-refresh <sha256:...> Confirm the exact dry-run refreshDigest before any document write
   --ack-local-document-write Acknowledge the explicit local release-document write (docs refresh --write)
@@ -274,6 +282,7 @@ Options:
   --install-path <path> Actual managed plugin path when closure verification requires it
   --install-channel <desktop|cli> CodeBuddy installation channel when required
   --approve         Approve the ship plan (boolean; plan digest is auto-resolved)
+  --hook-approval <path> Checkpoint approval for a requiresApproval postPublish hook (ship/distribute; repeatable)
   --state <path>    Override the durable ship state file
   --no-hook-cache  Force every prepare hook to run in full; neither read nor write the hook cache
   --json           Output results as JSON
@@ -467,6 +476,59 @@ if (command === 'setup') {
     ? args[confirmationIdx + 1]
     : undefined;
   const write = args.includes('--write');
+
+  // R5 — downstream discovery + postPublish hook proposal (guided config) and
+  // the independent incremental-proposal mode for existing projects. These
+  // modes are read-only until --write + exact --confirm-setup, and the write is
+  // an append-only hooks edit; they never touch the create-once setup path.
+  const discoverDownstreamMode = args.includes('--discover-downstream');
+  const proposeHooksMode = args.includes('--propose-hooks');
+  if (discoverDownstreamMode || proposeHooksMode) {
+    const flagValue = (flag) => {
+      const idx = args.indexOf(flag);
+      return idx !== -1 && args[idx + 1] ? args[idx + 1] : undefined;
+    };
+    const foundationProfilePath = flagValue('--foundation-profile');
+    const unitId = flagValue('--unit');
+    const selectRaw = flagValue('--select-hooks');
+    const selectedHookIds = selectRaw
+      ? selectRaw.split(',').map((item) => item.trim()).filter(Boolean)
+      : undefined;
+    try {
+      const setupModule = await import('../src/commands/setup.mjs');
+      const report = discoverDownstreamMode
+        ? await setupModule.discoverDownstream({ root, foundationProfilePath })
+        : await setupModule.proposePostPublishHooks({
+          root, write, confirmSetup, selectedHookIds, foundationProfilePath, unitId,
+        });
+      if (hasJson) {
+        console.log(JSON.stringify(report, null, 2));
+      } else {
+        console.log(`Status: ${report.status ?? report.mode}`);
+        if (report.setupDigest) console.log(`Setup digest: ${report.setupDigest}`);
+        if (report.hookProposals) {
+          console.log(`Hook proposals: ${report.hookProposals.map((p) => p.id).join(', ') || '(none)'}`);
+        }
+        if (report.configPath) console.log(`Config: ${report.configPath}`);
+        if (report.next) console.log(`Next: ${report.next}`);
+      }
+      const okStatuses = ['HOOKS_PROPOSAL_READY', 'HOOKS_APPENDED', 'HOOKS_NO_CHANGE', 'postpublish-discovery'];
+      process.exit(okStatuses.includes(report.status ?? report.mode) ? 0 : 2);
+    } catch (err) {
+      if (hasJson) {
+        console.log(JSON.stringify({
+          error: err.code ?? 'UNKNOWN_ERROR',
+          message: err.message,
+          details: err.details ?? {},
+          exitCode: err.exitCode ?? 1,
+        }));
+      } else {
+        console.error(`Error: ${err.message}`);
+      }
+      process.exit(err.exitCode ?? 1);
+    }
+  }
+
   try {
     const { setupProject } = await import('../src/commands/setup.mjs');
     const report = await setupProject({ root, answersPath, write, confirmSetup });
@@ -575,6 +637,16 @@ if (command === 'ship') {
     return idx !== -1 && args[idx + 1] ? args[idx + 1] : undefined;
   };
   const root = resolve(value('--root') ?? process.cwd());
+  // Repeatable --hook-approval <path>: checkpoint approvals for
+  // requiresApproval postPublish hooks (same convention as distribute;
+  // review major-1 — without this the ship flow can never complete a
+  // parked AWAITING_APPROVAL postVerify hook).
+  const postpublishApprovalPaths = [];
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] === '--hook-approval' && args[i + 1]) {
+      postpublishApprovalPaths.push(resolve(args[i + 1]));
+    }
+  }
   try {
     const [
       { advanceShip },
@@ -582,6 +654,7 @@ if (command === 'ship') {
       { createNpmAdapter },
       { createPluginMarketplaceAdapter },
       { createPushSnapshotAdapter },
+      { createDistributeGitAdapter },
       { createAdapterRegistry },
     ] = await Promise.all([
       import('../src/commands/ship.mjs'),
@@ -589,13 +662,17 @@ if (command === 'ship') {
       import('../src/adapters/npm.mjs'),
       import('../src/adapters/plugin-marketplace.mjs'),
       import('../src/adapters/push-snapshot.mjs'),
+      import('../src/adapters/distribute-git.mjs'),
       import('../src/adapters/contract.mjs'),
     ]);
+    // v0.6.3 R1: ship auto-routes into the distribute saga; the registry must
+    // carry the distribute-git adapter or that production path fails closed.
     const adapterRegistry = createAdapterRegistry([
       createGitGithubAdapter(),
       createNpmAdapter(),
       createPluginMarketplaceAdapter(),
       createPushSnapshotAdapter(),
+      createDistributeGitAdapter(),
     ]);
     const result = await advanceShip({
       root,
@@ -605,14 +682,26 @@ if (command === 'ship') {
       planApprovalDigest: value('--approve-plan'),
       actor: value('--actor'),
       adapterRegistry,
+      ...(postpublishApprovalPaths.length > 0 ? { postpublishApprovalPaths } : {}),
     });
     if (hasJson) {
       console.log(JSON.stringify(result, null, 2));
     } else {
       console.log(`Ship status: ${result.status}`);
       console.log(`State: ${result.statePath}`);
+      for (const warning of result.warnings ?? []) {
+        console.log(`Warning [${warning.code}] ${warning.message}`);
+      }
       if (result.planDigest && result.status === 'NEEDS_PLAN_APPROVAL') {
         console.log(`Approve plan: ship --approve --actor <person>`);
+      }
+      if (result.postVerify) {
+        console.log(`PostVerify: ${result.postVerify.status}${result.postVerify.runPath ? ` (run: ${result.postVerify.runPath})` : ''}`);
+        if (['NEEDS_INPUT', 'PARTIAL', 'BLOCKED', 'FAILED'].includes(result.postVerify.status)) {
+          console.log('PostVerify incomplete: re-run release-skill ship to retry non-gated hooks (no approval needed for them).');
+          console.log('For requiresApproval hooks, mint a checkpoint approval (release-skill approve --plan <plan> --hook <hookId> --actor <person>)');
+          console.log('then re-run: release-skill ship --root <root> --hook-approval <approval-record>');
+        }
       }
       for (const followUp of result.manualFollowUps ?? []) {
         console.log(`Manual follow-up [${followUp.platform}] ${followUp.plugin}: not verified by system`);
@@ -757,6 +846,7 @@ if (command === 'prepare') {
           unitId: action.unitId,
         })),
         warnings: result.warnings,
+        nextSteps: result.nextSteps ?? [],
       }, null, 2));
     } else {
       for (const warning of result.warnings) {
@@ -765,6 +855,9 @@ if (command === 'prepare') {
       console.log(`Plan frozen at: ${result.planPath}`);
       console.log(`Plan digest: ${result.planDigest}`);
       console.log(`Evidence: ${result.evidenceDir}`);
+      for (const step of result.nextSteps ?? []) {
+        console.log(`Next [${step.code}] ${step.message}`);
+      }
       if (plan.workflowKind && plan.workflowKind !== 'full') {
         console.log(`Workflow: ${plan.workflowKind}`);
       }
@@ -804,6 +897,10 @@ if (command === 'approve') {
   const actor = actorIdx !== -1 && args[actorIdx + 1] ? args[actorIdx + 1] : undefined;
   const outputIdx = args.indexOf('--output');
   const outputPath = outputIdx !== -1 && args[outputIdx + 1] ? resolve(args[outputIdx + 1]) : undefined;
+  const hookIdx = args.indexOf('--hook');
+  const hookId = hookIdx !== -1 && args[hookIdx + 1] ? args[hookIdx + 1] : undefined;
+  const runIdIdx = args.indexOf('--run-id');
+  const runId = runIdIdx !== -1 && args[runIdIdx + 1] ? args[runIdIdx + 1] : undefined;
 
   if (!planPath || !actor) {
     const msg = 'approve requires --plan <path> and --actor <name>';
@@ -813,6 +910,44 @@ if (command === 'approve') {
       console.error(`Error: ${msg}`);
     }
     process.exit(1);
+  }
+
+  // --- Checkpoint-level postPublish hook approval (v0.6.3 R1, review N-6) ---
+  if (hookId) {
+    try {
+      const { approvePostPublishHook } = await import('../src/commands/approve.mjs');
+      const record = await approvePostPublishHook({
+        planPath: resolve(planPath),
+        hookId,
+        actor,
+        ...(runId ? { runId } : {}),
+      });
+      if (hasJson) {
+        console.log(JSON.stringify(record, null, 2));
+      } else {
+        console.log(`Checkpoint approval for postPublish hook "${record.hookId}" by ${record.actor}`);
+        console.log(`Approval record: ${record.approvalPath}`);
+        console.log(`Approved at: ${record.approvedAt}`);
+        console.log(`Expires at: ${record.expiresAt}`);
+        console.log('Approved hook (normalized entry summary):');
+        const summary = record.hookSummary ?? {};
+        for (const [key, value] of Object.entries(summary)) {
+          console.log(`  ${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}`);
+        }
+      }
+      process.exit(0);
+    } catch (err) {
+      if (hasJson) {
+        console.log(JSON.stringify({
+          error: err.code ?? 'UNKNOWN_ERROR',
+          message: err.message,
+          exitCode: err.exitCode ?? 1,
+        }));
+      } else {
+        console.error(`Error: ${err.message}`);
+      }
+      process.exit(err.exitCode ?? 1);
+    }
   }
 
   try {
@@ -1259,7 +1394,41 @@ if (command === 'distribute') {
   const approvalPath = value('--approval');
   const runPath = value('--run');
   const dryRun = args.includes('--dry-run');
+  // Repeatable --hook-approval <path>: checkpoint approvals for
+  // requiresApproval postPublish hooks (v0.6.3 R1).
+  const postpublishApprovalPaths = [];
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] === '--hook-approval' && args[i + 1]) {
+      postpublishApprovalPaths.push(resolve(args[i + 1]));
+    }
+  }
   
+  // R2: enumerate the postPublish preset registry (ships with the bundle).
+  // Read-only; needs no --plan/--run, so it short-circuits parameter checks.
+  if (args.includes('--list-presets')) {
+    const { listPostPublishPresets } = await import('../src/core/presets.mjs');
+    const presets = listPostPublishPresets();
+    if (hasJson) {
+      console.log(JSON.stringify({ command: 'distribute', presets }, null, 2));
+    } else {
+      console.log('postPublish presets:');
+      for (const preset of presets) {
+        const status = preset.implemented ? 'implemented' : 'reserved (behavior lands in a later release)';
+        console.log(`  ${preset.name}`);
+        console.log(`    description: ${preset.description}`);
+        console.log(`    requiresApproval default: ${preset.defaultRequiresApproval}`);
+        if (preset.requiresApprovalNote) {
+          console.log(`    requiresApproval note: ${preset.requiresApprovalNote}`);
+        }
+        if (preset.targetsFormOnly) {
+          console.log('    declaration form: targets-form only (declare under postPublish.targets, not postPublish.hooks)');
+        }
+        console.log(`    write-downstream: ${preset.writeDownstream}; target optional: ${preset.targetOptional}; status: ${status}`);
+      }
+    }
+    process.exit(0);
+  }
+
   // Handle --help explicitly
   if (args.includes('--help')) {
     const helpText = `Distribute command: Distributes frozen artifacts to post-publish targets
@@ -1271,7 +1440,9 @@ Options:
   --plan     Path to the release plan file (required)
   --run      Path to the release run file (required)
   --approval Path to the approval record (optional but recommended)
+  --hook-approval <path>  Checkpoint approval for a requiresApproval postPublish hook (repeatable)
   --dry-run  Preview distribution steps without executing (default: false)
+  --list-presets  Enumerate the postPublish preset registry (no plan/run needed)
 
 Description:
   After PUBLISHED state, distributes to configured postPublish targets:
@@ -1288,9 +1459,11 @@ Description:
           '--plan': 'Path to the release plan file (required)',
           '--run': 'Path to the release run file (required)',
           '--approval': 'Path to the approval record (optional but recommended)',
+          '--hook-approval': 'Checkpoint approval for a requiresApproval postPublish hook (repeatable)',
           '--dry-run': 'Preview distribution steps without executing (default: false)',
+          '--list-presets': 'Enumerate the postPublish preset registry (no plan/run needed)',
         },
-        description: 'After PUBLISHED state, distributes to configured postPublish targets: git mirrors + marketplace index updates. Requires plan.postPublish config. Reconciles PARTIAL runs.',
+        details: 'After PUBLISHED state, distributes to configured postPublish targets: git mirrors + marketplace index updates. Requires plan.postPublish config. Reconciles PARTIAL runs.',
       }, null, 2));
     } else {
       console.log(helpText);
@@ -1314,13 +1487,17 @@ Description:
     const { createNpmAdapter } = await import('../src/adapters/npm.mjs');
     const { createPluginMarketplaceAdapter } = await import('../src/adapters/plugin-marketplace.mjs');
     const { createPushSnapshotAdapter } = await import('../src/adapters/push-snapshot.mjs');
+    const { createDistributeGitAdapter } = await import('../src/adapters/distribute-git.mjs');
     const { createAdapterRegistry } = await import('../src/adapters/contract.mjs');
 
+    // v0.6.3 R1: the distribute saga executes through the distribute-git
+    // adapter; without this registration the production path fails closed.
     const registry = createAdapterRegistry([
       createGitGithubAdapter(),
       createNpmAdapter(),
       createPluginMarketplaceAdapter(),
       createPushSnapshotAdapter(),
+      createDistributeGitAdapter(),
     ]);
 
     const result = await distributeRelease({
@@ -1330,6 +1507,7 @@ Description:
       root,
       dryRun,
       planPath,
+      ...(postpublishApprovalPaths.length > 0 ? { postpublishApprovalPaths } : {}),
     });
 
     if (hasJson) {

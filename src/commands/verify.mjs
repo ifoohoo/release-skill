@@ -25,6 +25,7 @@ import { validatePlan, computePlanDigest, validatePlanActionCompleteness } from 
 import { createEvidenceWriter } from '../core/evidence.mjs';
 import {
   loadRun,
+  resolveRunPath,
   validateRunPlanDigest,
   validateRunCheckpointMapping,
   validateRunLineage,
@@ -822,6 +823,47 @@ async function discoverDistributeRuns({ planPath, plan }) {
   return candidates;
 }
 
+/**
+ * Evaluate one distribute run against the verify distribute gate
+ * (v0.6.3 R1, design §2.4/§2.7).
+ *
+ * Semantics:
+ * - A DISTRIBUTED run passes outright (no warning).
+ * - A PARTIAL run passes only when EVERY checkpoint that is not
+ *   succeeded/skipped is a FAILED `postpublish-hook` checkpoint whose hook
+ *   declaration in the frozen plan explicitly downgrades with
+ *   `blocksVerified: false` (default true). Each such downgrade is reported
+ *   as a warning exemption — prominently evidenced, never silent.
+ * - AWAITING_APPROVAL checkpoints never pass (the checkpoint approval is
+ *   still missing), and target/mirror checkpoints are never exemptable.
+ * - Any other run status (BLOCKED / NEEDS_INPUT / ...) never passes, per the
+ *   governance rule that NEEDS_INPUT/BLOCKED cannot silently become VERIFIED.
+ *
+ * @param {Object} run - A distribute run record (checkpoints + status).
+ * @param {Object} plan - The frozen release plan (postPublish.hooks source).
+ * @returns {{ pass: boolean, warned: boolean, exemptions: Object[] }}
+ */
+export function evaluateDistributeGateRun(run, plan) {
+  if (!run || typeof run !== 'object') return { pass: false, warned: false, exemptions: [] };
+  if (run.status === 'DISTRIBUTED') return { pass: true, warned: false, exemptions: [] };
+  if (run.status !== 'PARTIAL') return { pass: false, warned: false, exemptions: [] };
+
+  const hooksById = new Map(((plan?.postPublish?.hooks ?? [])).map((hook) => [hook.id, hook]));
+  const exemptions = [];
+  for (const checkpoint of run.checkpoints ?? []) {
+    if (checkpoint.status === 'succeeded' || checkpoint.status === 'skipped') continue;
+    const hook = checkpoint.actionType === 'postpublish-hook'
+      ? hooksById.get(checkpoint.actionId)
+      : undefined;
+    if (hook && checkpoint.status === 'failed' && hook.blocksVerified === false) {
+      exemptions.push({ actionId: checkpoint.actionId, status: checkpoint.status });
+      continue;
+    }
+    return { pass: false, warned: false, exemptions: [] };
+  }
+  return { pass: true, warned: exemptions.length > 0, exemptions };
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -831,7 +873,8 @@ async function discoverDistributeRuns({ planPath, plan }) {
  *
  * @param {Object} options
  * @param {string} options.planPath - Absolute path to the frozen release plan.
- * @param {string} options.sourceRunPath - Absolute path to the source run.
+ * @param {string} options.sourceRunPath - Absolute path to the source run
+ *   file, or to its containing run directory (resolved to release-run.json; O6).
  * @param {Object} options.adapterRegistry - Adapter registry for verification.
  * @param {string} [options.root] - Project root for source access.
  * @param {string} [options.runDir] - Evidence directory.
@@ -869,6 +912,11 @@ export async function verifyRelease(options) {
       { parameter: 'sourceRunPath' },
     );
   }
+
+  // O6: --run accepts a run directory as well as the run file. Resolve a
+  // directory to its release-run.json before any load/lineage/authority step;
+  // a file input passes through unchanged (compat).
+  const resolvedSourceRunPath = await resolveRunPath(sourceRunPath);
 
   // Load and validate the plan before creating any evidence directory. A
   // production plan grants authority only to a fresh direct child of its
@@ -936,14 +984,14 @@ export async function verifyRelease(options) {
     // =======================================================================
     await evidence.append({ phase: 'verify', step: 'source-run-load', status: 'started' });
 
-    const sourceRun = await loadRun(sourceRunPath, {
+    const sourceRun = await loadRun(resolvedSourceRunPath, {
       requireDigest: Boolean(plan.production),
       ...(plan.production ? { authorityPlanPath: planPath } : {}),
     });
     await validateRunLineage(sourceRun, {
       plan,
       planPath,
-      runPath: sourceRunPath,
+      runPath: resolvedSourceRunPath,
       production: Boolean(plan.production),
     });
 
@@ -966,28 +1014,57 @@ export async function verifyRelease(options) {
     }
 
     // =======================================================================
-    // Step 2b: Check for postPublish distribution requirement
+    // Step 2b: Check for postPublish distribution requirement.
+    // v0.6.3 R1: the gate triggers on targets OR hooks declarations, and a
+    // PARTIAL distribute run passes only through the blocksVerified:false
+    // exemption path (evaluateDistributeGateRun) — warned, never silent.
     // =======================================================================
-    if (plan.postPublish && plan.postPublish.targets && plan.postPublish.targets.length > 0) {
+    const declaredPostPublishTargets = plan.postPublish?.targets ?? [];
+    const declaredPostPublishHooks = plan.postPublish?.hooks ?? [];
+    if (plan.postPublish
+      && (declaredPostPublishTargets.length > 0 || declaredPostPublishHooks.length > 0)) {
       await evidence.append({ phase: 'verify', step: 'distribute-run-discovery', status: 'started' });
-      
-      const distributeCandidates = await discoverDistributeRuns({ planPath, plan });
-      const distRunPath = (distributeCandidates ?? []).find((c) => c.status === 'DISTRIBUTED')?.runPath || null;
-      
+
+      const distributeCandidates = await discoverDistributeRuns({ planPath, plan }) ?? [];
+
+      let gateRun = distributeCandidates.find((c) => c.status === 'DISTRIBUTED') ?? null;
+      let gateVerdict = gateRun ? { pass: true, warned: false, exemptions: [] } : null;
+      if (!gateRun) {
+        for (const candidate of distributeCandidates) {
+          const verdict = evaluateDistributeGateRun(candidate, plan);
+          if (verdict.pass) {
+            gateRun = candidate;
+            gateVerdict = verdict;
+            break;
+          }
+        }
+      }
+
       await evidence.append({
         phase: 'verify',
         step: 'distribute-run-discovery',
         status: 'checked',
-        foundCandidate: !!distRunPath,
-        distributeRunPath: distRunPath,
+        foundCandidate: Boolean(gateRun),
+        distributeRunPath: gateRun?.runPath ?? null,
       });
-      
-      if (!distRunPath) {
+
+      if (!gateRun) {
         throw new ReleaseError(
           GATE_FAILED,
-          `distribution required by plan.postPublish but no DISTRIBUTED run found; run release-skill distribute --plan ${planPath} --root ${root}`,
+          `distribution required by plan.postPublish but no DISTRIBUTED (or blocksVerified-exempted) distribute run found; run release-skill distribute --plan ${planPath} --root ${root}`,
           { requiredDistribution: true, evidenceEvent: 'distribute-run-missing' },
         );
+      }
+
+      if (gateVerdict.warned) {
+        await evidence.append({
+          phase: 'verify',
+          step: 'distribute-gate',
+          status: 'warning',
+          warning: 'blocksVerified:false postPublish hook failure exempted; VERIFIED proceeds with a downgrade warning',
+          exemptions: gateVerdict.exemptions,
+          distributeRunPath: gateRun.runPath ?? null,
+        });
       }
     }
 
@@ -1772,7 +1849,7 @@ export async function verifyRelease(options) {
       } : {}),
       sourceRunId: sourceRun.runId,
       sourceRunDigest,
-      sourceRunPath,
+      sourceRunPath: resolvedSourceRunPath,
       status: VERIFIED,
       checkpoints: actions.map((a) => {
         const check = adapterChecks.find((c) => c.actionId === a.id);

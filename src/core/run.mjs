@@ -12,7 +12,7 @@
  * @module core/run
  */
 
-import { lstat, mkdir, readFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, stat } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import { dirname, join, resolve, basename, relative, isAbsolute } from 'node:path';
 import Ajv from 'ajv';
@@ -121,21 +121,106 @@ export function validateRun(run, options = {}) {
 }
 
 /**
+ * Resolve a run path that may point at a run DIRECTORY (O6, 2026-08-18
+ * release-cycle investigation §3.2): verify `--run` ergonomically accepts a
+ * run directory and binds its `release-run.json`; a regular file input is
+ * returned unchanged so every existing file-path caller keeps its exact
+ * behaviour (compat).
+ *
+ * Fail-closed rules for the directory form:
+ * - a symlinked directory input is rejected (never silently dereferenced);
+ * - a directory without `release-run.json` names the expected file.
+ * A missing path is returned unchanged so the legacy readFile error surfaces.
+ *
+ * @param {string} runPath - Run file or run directory path.
+ * @returns {Promise<string>} The resolved run FILE path.
+ * @throws {ReleaseError} GATE_FAILED for symlinked or release-run.json-less
+ *   directory inputs.
+ */
+export async function resolveRunPath(runPath) {
+  let stats;
+  try {
+    stats = await lstat(runPath);
+  } catch (err) {
+    if (err?.code === 'ENOENT') return runPath; // legacy readFile error path
+    throw new ReleaseError(
+      GATE_FAILED,
+      `cannot inspect release run path: ${err.message}`,
+      { runPath, cause: err.code },
+    );
+  }
+
+  if (stats.isFile()) return runPath; // unchanged file behaviour (compat)
+
+  if (stats.isSymbolicLink()) {
+    // A symlink that ultimately points at a directory would otherwise surface
+    // a raw EISDIR; resolve the target type and fail closed for directories.
+    let targetStats;
+    try {
+      targetStats = await stat(runPath);
+    } catch (err) {
+      if (err?.code === 'ENOENT') return runPath; // dangling: legacy error
+      throw new ReleaseError(
+        GATE_FAILED,
+        `cannot inspect release run path: ${err.message}`,
+        { runPath, cause: err.code },
+      );
+    }
+    if (targetStats.isDirectory()) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        'release run path is a symlinked directory; pass the run file (release-run.json) or the real run directory',
+        { runPath },
+      );
+    }
+    return runPath; // symlinked FILE keeps the legacy readFile behaviour
+  }
+
+  if (stats.isDirectory()) {
+    const candidate = join(runPath, 'release-run.json');
+    try {
+      const candidateStats = await lstat(candidate);
+      if (!candidateStats.isFile()) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `release run directory does not contain a regular release-run.json: ${runPath}`,
+          { runPath, expected: 'release-run.json' },
+        );
+      }
+    } catch (err) {
+      if (err instanceof ReleaseError) throw err;
+      throw new ReleaseError(
+        GATE_FAILED,
+        `release run directory must contain release-run.json: ${err.message}`,
+        { runPath, expected: 'release-run.json', cause: err.code },
+      );
+    }
+    return candidate;
+  }
+
+  return runPath; // anything else keeps the legacy readFile error path
+}
+
+/**
  * Load, parse, and validate a run file from disk.
  *
- * @param {string} runPath - Absolute path to the run file.
+ * Accepts either the run file itself or its containing run directory (O6);
+ * a directory input resolves to `<dir>/release-run.json` via resolveRunPath.
+ *
+ * @param {string} runPath - Absolute path to the run file or run directory.
  * @returns {Promise<Object>} The validated run object.
  * @throws {ReleaseError} GATE_FAILED if the file cannot be read, parsed, or validated.
  */
 export async function loadRun(runPath, options = {}) {
+  const resolvedRunPath = await resolveRunPath(runPath);
   let raw;
   try {
-    raw = await readFile(runPath, 'utf8');
+    raw = await readFile(resolvedRunPath, 'utf8');
   } catch (err) {
     throw new ReleaseError(
       GATE_FAILED,
       `cannot read release run: ${err.message}`,
-      { runPath, cause: err.code },
+      { runPath: resolvedRunPath, cause: err.code },
     );
   }
 
@@ -146,13 +231,13 @@ export async function loadRun(runPath, options = {}) {
     throw new ReleaseError(
       GATE_FAILED,
       `release run is not valid JSON: ${err.message}`,
-      { runPath },
+      { runPath: resolvedRunPath },
     );
   }
 
   validateRun(run, options);
   if (options.authorityPlanPath) {
-    assertImmutableRunAuthority(runPath, options.authorityPlanPath, run);
+    assertImmutableRunAuthority(resolvedRunPath, options.authorityPlanPath, run);
   }
   return run;
 }

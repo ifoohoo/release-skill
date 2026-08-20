@@ -56,6 +56,7 @@ import {
 } from '../snapshot/frozen.mjs';
 import { ReleaseError, GATE_FAILED, CONFIG_INVALID, CONFIG_MISSING, FORBIDDEN_CONTENT_DETECTED, RELEASE_DOCS_STALE, DIRTY_SOURCE_INPUT, BUNDLE_STALE } from '../core/errors.mjs';
 import { assertBundleFreshness } from '../core/bundle-freshness.mjs';
+import { assertAdapterFreshness, assertSelfBootstrapFacts } from '../core/derived-artifact-gates.mjs';
 import { PKG_ROOT } from '../core/pkg-root.mjs';
 import { writeFrozenMarker, FROZEN_MARKER_FILENAME } from '../core/frozen-marker.mjs';
 import {
@@ -71,7 +72,12 @@ import { createProductionPrepareRunDir } from '../core/run.mjs';
 import { PLATFORMS } from '../platforms/registry.mjs';
 import { validateMarketplaceSourceSelection, MARKETPLACE_SOURCE_TYPES, resolvePluginManifestFromMarketplaceEntrySource, resolveMarketplaceRoot } from '../adapters/plugin-marketplace.mjs';
 import { buildInstallationContract, computeInstallationContractDigest, INSTALLATION_CONTRACT_ALGORITHM_VERSION } from '../core/installation-contract.mjs';
-import { validatePostPublishDeclaration, PAYLOAD_SOURCE_TAG_WORKTREE } from '../core/postpublish.mjs';
+import {
+  validatePostPublishDeclaration,
+  normalizePostPublishDeclaration,
+  orderNormalizedHooks,
+  PAYLOAD_SOURCE_TAG_WORKTREE,
+} from '../core/postpublish.mjs';
 
 // ---------------------------------------------------------------------------
 // 安装契约常量
@@ -228,39 +234,15 @@ export async function resolveAllUnitVersions(units, root, explicitVersion, evide
 // Hooks execution
 // ---------------------------------------------------------------------------
 
-/** Maximum number of output lines preserved in a hook-failure tail. */
-const HOOK_OUTPUT_TAIL_MAX_LINES = 50;
-/** Maximum bytes preserved in a hook-failure tail. */
-const HOOK_OUTPUT_TAIL_MAX_BYTES = 8 * 1024;
-
-/**
- * Bound a captured child-output stream to the tail that matters for triage:
- * the last 50 lines, further capped at 8 KB — whichever is smaller.
- *
- * @param {string} [text] - Captured stdout/stderr text.
- * @returns {string} The bounded tail ('' for empty/absent input).
- */
-export function boundedOutputTail(text) {
-  if (typeof text !== 'string' || text.length === 0) return '';
-  let lines = text.split('\n');
-  // A trailing newline produces an empty final element; drop it so the line
-  // budget counts real output lines.
-  if (lines.length > 1 && lines[lines.length - 1] === '') {
-    lines = lines.slice(0, -1);
-  }
-  let tail = lines.slice(-HOOK_OUTPUT_TAIL_MAX_LINES);
-  let joined = tail.join('\n');
-  while (tail.length > 1 && Buffer.byteLength(joined, 'utf8') > HOOK_OUTPUT_TAIL_MAX_BYTES) {
-    tail = tail.slice(1);
-    joined = tail.join('\n');
-  }
-  if (Buffer.byteLength(joined, 'utf8') > HOOK_OUTPUT_TAIL_MAX_BYTES) {
-    // A single line exceeds the byte cap: keep the trailing bytes.
-    const buf = Buffer.from(joined, 'utf8');
-    joined = buf.subarray(buf.length - HOOK_OUTPUT_TAIL_MAX_BYTES).toString('utf8');
-  }
-  return joined;
-}
+// v0.6.3 R1 tail unification: the "last 50 lines / 8 KiB" tail authority now
+// lives in core/bounded-output.mjs, shared by prepare and distribute. The
+// re-export preserves prepare's historical public surface.
+export {
+  boundedOutputTail,
+  HOOK_OUTPUT_TAIL_MAX_LINES,
+  HOOK_OUTPUT_TAIL_MAX_BYTES,
+} from '../core/bounded-output.mjs';
+import { boundedOutputTail } from '../core/bounded-output.mjs';
 
 /**
  * Run all declared project hooks in order: docs, build, test, typecheck.
@@ -909,6 +891,94 @@ function normalizedProductionConfig(unit) {
 }
 
 /**
+ * O5 (2026-08-18 release-cycle investigation §3.2): observe how the local
+ * workspace HEAD relates to `origin/<defaultBranch>` for an ONLINE production
+ * prepare. This is a WARNING-LEVEL, non-blocking pre-publish signal: in the
+ * 0.6.1 cycle a workspace 15 commits ahead of origin only surfaced when the
+ * publish source-authority gate rejected it. Pushing is a legitimate
+ * pre-publish action, so the observation must inform, never block the freeze.
+ *
+ * Read-only git plumbing only (argv arrays, no shell): rev-parse, ls-remote,
+ * cat-file, rev-list. Every failure degrades to a descriptive status object —
+ * this function NEVER throws, so it can never break a freeze.
+ *
+ * @param {object} options
+ * @param {string} options.root - Workspace (git repository) root.
+ * @param {string} options.defaultBranch - Default branch name on origin.
+ * @returns {Promise<{
+ *   status: 'in-sync' | 'ahead' | 'behind' | 'diverged' | 'no-origin' | 'remote-ref-missing' | 'unknown',
+ *   localHead?: string,
+ *   remoteHead?: string,
+ *   aheadCount?: number,
+ *   behindCount?: number,
+ *   error?: string,
+ * }>}
+ */
+export async function observeOriginAhead({ root, defaultBranch }) {
+  const runGit = (gitArgs) => execFile('git', ['-C', root, ...gitArgs], {
+    shell: false,
+    encoding: 'utf8',
+    timeout: 30000,
+  });
+
+  let localHead;
+  try {
+    ({ stdout: localHead } = await runGit(['rev-parse', 'HEAD']));
+    localHead = localHead.trim();
+  } catch (err) {
+    return { status: 'unknown', error: `rev-parse HEAD failed: ${err.message}` };
+  }
+
+  // Distinguish "no origin remote" from a transient ls-remote failure.
+  try {
+    await runGit(['remote', 'get-url', 'origin']);
+  } catch {
+    return { status: 'no-origin', localHead };
+  }
+
+  let remoteHead;
+  try {
+    const { stdout } = await runGit(['ls-remote', 'origin', `refs/heads/${defaultBranch}`]);
+    const firstLine = stdout.trim().split('\n').filter((line) => line.length > 0)[0];
+    if (!firstLine) {
+      return { status: 'remote-ref-missing', localHead, defaultBranch };
+    }
+    remoteHead = firstLine.split('\t')[0];
+  } catch (err) {
+    return { status: 'unknown', localHead, error: `ls-remote origin failed: ${err.message}` };
+  }
+
+  if (remoteHead === localHead) {
+    return { status: 'in-sync', localHead, remoteHead };
+  }
+
+  // Ancestry is only computable when the remote head object exists locally
+  // (no implicit fetch — this observer is read-only on the network beyond the
+  // single ls-remote above). When it does not, report diverged with no counts.
+  try {
+    await runGit(['cat-file', '-e', `${remoteHead}^{commit}`]);
+  } catch {
+    return { status: 'diverged', localHead, remoteHead };
+  }
+
+  try {
+    const aheadRaw = await runGit(['rev-list', '--count', `${remoteHead}..HEAD`]);
+    const behindRaw = await runGit(['rev-list', '--count', `HEAD..${remoteHead}`]);
+    const aheadCount = Number.parseInt(aheadRaw.stdout.trim(), 10) || 0;
+    const behindCount = Number.parseInt(behindRaw.stdout.trim(), 10) || 0;
+    if (aheadCount > 0 && behindCount === 0) {
+      return { status: 'ahead', localHead, remoteHead, aheadCount };
+    }
+    if (behindCount > 0 && aheadCount === 0) {
+      return { status: 'behind', localHead, remoteHead, behindCount };
+    }
+    return { status: 'diverged', localHead, remoteHead, aheadCount, behindCount };
+  } catch (err) {
+    return { status: 'diverged', localHead, remoteHead, error: err.message };
+  }
+}
+
+/**
  * Derive the deterministic freeze timestamp for planVersion 2 plans (design:
  * t1-2-digest-decoupling.md §4.2): the baseline headCommit's committer date,
  * read via `git show -s --format=%cI` and normalized to canonical UTC second
@@ -1211,7 +1281,8 @@ export async function resolveExternalMarketplaceFreezes({
       if (offline) {
         throw new ReleaseError(
           GATE_FAILED,
-          `unit "${unit.id}" ${dist.type} external marketplace form requires online production prepare to freeze the marketplace commit sha`,
+          `unit "${unit.id}" ${dist.type} external marketplace form requires online production prepare to freeze the marketplace commit sha. ` +
+          `Remediation: release-skill prepare --production --online`,
           { unitId: unit.id, marketplaceSourceType: dist.marketplaceSourceType },
         );
       }
@@ -1766,7 +1837,7 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
  *   every declared hook runs in full and the incremental hook cache is neither
  *   read nor written.
  *
- * @returns {Promise<{ planPath: string, planDigest: string, evidenceDir: string, warnings: ReadonlyArray<object> }>}
+ * @returns {Promise<{ planPath: string, planDigest: string, evidenceDir: string, warnings: ReadonlyArray<object>, nextSteps: ReadonlyArray<{ code: string, message: string }> }>}
  *
  * @throws {ReleaseError} on any gate failure. No PREPARED plan is written.
  */
@@ -1925,6 +1996,9 @@ export async function prepareRelease(options) {
 
     const { config, configPath, configDigest } = await loadProjectConfig({ root: realRoot });
     const adoptionWarnings = collectExpectedPublicSurfaceAdoptionWarnings(config);
+    // Mutable operator-facing warning list: seeded from the adoption warnings,
+    // appended by later gates (O5 origin-ahead). Returned as `warnings`.
+    const runWarnings = [...adoptionWarnings];
 
     await evidence.append({
       phase: 'config',
@@ -2026,6 +2100,70 @@ export async function prepareRelease(options) {
       reasonTag: 'RELEASE_DOCS_STALE',
     });
 
+    // --- Step 1b-fast: version-sensitive derived-artifact fast pre-gates (O1) ---
+    // 2026-08-18 investigation §3.2: adapter drift and stale self-bootstrap
+    // fact pins used to surface only deep inside the ~80s full test hook.
+    // Promote the two exact canonical checks (build-adapters --check and the
+    // release-docs-self-bootstrap single-file test) to prepare's earliest
+    // stage so the same drift fails closed in seconds, before any hook. Like
+    // the bundle freshness gate this is artifact-integrity class: workflow
+    // trimming never exempts it. Installed layouts record not-applicable.
+    await evidence.append({ phase: 'adapter-freshness', status: 'started' });
+    const adapterFreshnessFn = options.adapterFreshnessFn ?? assertAdapterFreshness;
+    let adapterFreshness;
+    try {
+      adapterFreshness = await adapterFreshnessFn(PKG_ROOT);
+    } catch (err) {
+      await evidence.append({
+        phase: 'adapter-freshness',
+        status: 'blocking',
+        reason: err.details?.reason ?? null,
+        error: { code: err.code, message: err.message },
+      });
+      throw err;
+    }
+    if (adapterFreshness?.applicable === false) {
+      await evidence.append({
+        phase: 'adapter-freshness',
+        status: 'not-applicable',
+        reason: adapterFreshness.reason,
+      });
+    } else {
+      await evidence.append({
+        phase: 'adapter-freshness',
+        status: 'completed',
+        durationMs: adapterFreshness?.durationMs ?? null,
+      });
+    }
+
+    await evidence.append({ phase: 'self-bootstrap-facts', status: 'started' });
+    const selfBootstrapFactsFn = options.selfBootstrapFactsFn ?? assertSelfBootstrapFacts;
+    let selfBootstrapFacts;
+    try {
+      selfBootstrapFacts = await selfBootstrapFactsFn(PKG_ROOT);
+    } catch (err) {
+      await evidence.append({
+        phase: 'self-bootstrap-facts',
+        status: 'blocking',
+        reason: err.details?.reason ?? null,
+        error: { code: err.code, message: err.message },
+      });
+      throw err;
+    }
+    if (selfBootstrapFacts?.applicable === false) {
+      await evidence.append({
+        phase: 'self-bootstrap-facts',
+        status: 'not-applicable',
+        reason: selfBootstrapFacts.reason,
+      });
+    } else {
+      await evidence.append({
+        phase: 'self-bootstrap-facts',
+        status: 'completed',
+        durationMs: selfBootstrapFacts?.durationMs ?? null,
+      });
+    }
+
     // --- Step 1c: postPublish distribution declaration gate (R1/R2) ---
     // The per-unit postPublish block drives the post-publish distribute
     // command. Validate it here, before any hook, baseline, snapshot, remote
@@ -2033,8 +2171,13 @@ export async function prepareRelease(options) {
     // side effects. This is the runtime re-check on top of the config JSON
     // schema: plans frozen by older schema versions must not be able to
     // smuggle shell strings, option-like executables, or secret-ish env
-    // keys through. A plan binds exactly one declaration; multiple units
-    // declaring postPublish is a hard gate failure.
+    // keys through. R2: preset references resolve against the built-in
+    // preset registry (per-preset config validation + requiresApproval
+    // grading), and targets normalize onto preset hooks — the normalized
+    // table is a deterministic projection of the digest-bound declaration,
+    // so any list change changes the plan digest and voids approvals. A
+    // plan binds exactly one declaration; multiple units declaring
+    // postPublish is a hard gate failure.
     const postPublishDeclarations = configUnits
       .map((unit, index) => ({ unit, index }))
       .filter(({ unit }) => unit.postPublish !== undefined);
@@ -2049,12 +2192,20 @@ export async function prepareRelease(options) {
     if (postPublishDeclarations.length === 1) {
       const { unit, index } = postPublishDeclarations[0];
       validatePostPublishDeclaration(unit.postPublish, { unitId: unit.id });
+      // Normalized hook table (design §2.2): validate the dependency
+      // topology at freeze time too, so a cyclic/dangling declaration can
+      // never be frozen for distribute to trip over.
+      const normalizedDeclaration = normalizePostPublishDeclaration(unit.postPublish);
+      const orderedNormalizedHooks = orderNormalizedHooks(normalizedDeclaration.hooks);
       postPublishDeclaration = { unit, index };
       await evidence.append({
         phase: 'postpublish-declaration',
         status: 'validated',
         unitId: unit.id,
-        targetCount: unit.postPublish.targets.length,
+        targetCount: (unit.postPublish.targets ?? []).length,
+        hookCount: (unit.postPublish.hooks ?? []).length,
+        normalizedHookCount: orderedNormalizedHooks.length,
+        preGates: normalizedDeclaration.preGates.map((gate) => gate.gate),
       });
     }
 
@@ -2297,6 +2448,73 @@ export async function prepareRelease(options) {
         inputDigest: sourceInputClosure.digest,
         remoteObservation: offline ? 'unobserved-offline' : 'deferred-to-publish',
       });
+
+      // --- Step 3c-ahead: local vs origin ahead observation (O5) ---
+      // Online production prepare only. WARNING level, never blocking: pushing
+      // is a legitimate pre-publish action, but the operator must know before
+      // approval — the publish source-authority gate compares the frozen
+      // source-input closure against the remote default branch and rejects
+      // unpushed local commits (0.6.1 cycle: 15 commits ahead, discovered only
+      // at publish). Offline prepare keeps the legacy zero-observation form.
+      if (!offline) {
+        if (!configDefaultBranch) {
+          await evidence.append({
+            phase: 'origin-ahead',
+            status: 'skipped',
+            reason: 'no project.defaultBranch configured',
+          });
+        } else {
+          await evidence.append({ phase: 'origin-ahead', status: 'started' });
+          const observeOriginAheadFn = options.observeOriginAheadFn ?? observeOriginAhead;
+          let originObservation;
+          try {
+            originObservation = await observeOriginAheadFn({
+              root: realRoot,
+              defaultBranch: configDefaultBranch,
+            });
+          } catch (err) {
+            originObservation = { status: 'unknown', error: err?.message ?? String(err) };
+          }
+          if (originObservation?.status === 'ahead') {
+            await evidence.append({
+              phase: 'origin-ahead',
+              status: 'warning',
+              defaultBranch: configDefaultBranch,
+              localHead: originObservation.localHead ?? null,
+              remoteHead: originObservation.remoteHead ?? null,
+              aheadCount: originObservation.aheadCount ?? null,
+              guidance: 'push the workspace before publish (git push); the publish source-authority gate compares against the remote default branch',
+            });
+            runWarnings.push({
+              code: 'ORIGIN_AHEAD',
+              defaultBranch: configDefaultBranch,
+              aheadCount: originObservation.aheadCount ?? null,
+              message:
+                `local HEAD is ${originObservation.aheadCount ?? 'an unknown number of'} commit(s) ahead of origin/${configDefaultBranch}; ` +
+                'the publish source-authority gate compares against the remote default branch — push the workspace (git push) before publish',
+            });
+          } else if (['in-sync', 'behind', 'diverged'].includes(originObservation?.status)) {
+            await evidence.append({
+              phase: 'origin-ahead',
+              status: 'completed',
+              observation: originObservation.status,
+              defaultBranch: configDefaultBranch,
+              localHead: originObservation.localHead ?? null,
+              remoteHead: originObservation.remoteHead ?? null,
+              aheadCount: originObservation.aheadCount ?? null,
+              behindCount: originObservation.behindCount ?? null,
+            });
+          } else {
+            await evidence.append({
+              phase: 'origin-ahead',
+              status: 'unobserved',
+              reason: originObservation?.status ?? 'unknown',
+              defaultBranch: configDefaultBranch,
+              error: originObservation?.error ?? null,
+            });
+          }
+        }
+      }
     } else if (production) {
       await evidence.append({
         phase: 'source-authority',
@@ -2391,7 +2609,8 @@ export async function prepareRelease(options) {
         if (offline) {
           throw new ReleaseError(
             GATE_FAILED,
-            `unit "${unit.id}" branch strategy "${branchStrategy}" requires online production prepare`,
+            `unit "${unit.id}" branch strategy "${branchStrategy}" requires online production prepare. ` +
+            `Remediation: release-skill prepare --production --online`,
             { unitId: unit.id, branchStrategy },
           );
         }
@@ -2495,7 +2714,8 @@ export async function prepareRelease(options) {
           throw new ReleaseError(
             GATE_FAILED,
             `unit "${unit.id}" has bound previousPublicBaseline but production prepare uses --offline. ` +
-            `Must use --online to observe the previous public baseline before freezing a production plan.`,
+            `Must use --online to observe the previous public baseline before freezing a production plan. ` +
+            `Remediation: release-skill prepare --production --online`,
             { unitId: unit.id, repo: ppbConfig.repo, ref: ppbConfig.ref },
           );
         }
@@ -3494,11 +3714,29 @@ export async function prepareRelease(options) {
       completedAt: (clock ? clock() : new Date().toISOString()),
     });
 
+    // --- O4 (2026-08-18 investigation §3.2): success-time guidance ---
+    // A NON-PRODUCTION plan cannot be used by publish; historically operators
+    // discovered that only after a full prepare+approve round-trip. Surface the
+    // remediation at success time so the loop never starts. Production plans
+    // carry no such warning. The prepare command's own defaults are unchanged —
+    // this only enriches the result, never flips offline/production.
+    const nextSteps = [];
+    if (!production) {
+      nextSteps.push({
+        code: 'NON_PRODUCTION_PLAN_NOT_PUBLISHABLE',
+        message:
+          'This plan is NON-PRODUCTION and cannot be used by publish. ' +
+          'To release, re-run: release-skill prepare --production --online — ' +
+          'or use the guided happy end: release-skill ship --target-version <version>.',
+      });
+    }
+
     return {
       planPath: writtenPath,
       planDigest,
       evidenceDir,
-      warnings: adoptionWarnings,
+      warnings: runWarnings,
+      nextSteps,
     };
   } catch (err) {
     // Record failure evidence

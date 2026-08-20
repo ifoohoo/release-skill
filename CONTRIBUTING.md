@@ -29,7 +29,7 @@ on the next regeneration.
 |---|---|---|
 | `references/` | `standards/` (workspace root) | `pnpm public:render` (workspace root) |
 | `schemas/` | `standards/` (workspace root) | `pnpm public:render` (workspace root) |
-| `adapters/` | `src/` + `skills-src/` | `npm run build:adapters` (this directory) |
+| `adapters/` | `src/` + `skills-src/` | `npm run build:adapters:apply` (this directory; rebuilds existing targets, `build:adapters` creates fresh ones) |
 | `skills/` | `skills-src/` | `npm run sync:skills` (this directory) |
 
 To update a generated artifact:

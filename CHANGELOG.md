@@ -1,5 +1,28 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.6.3 locale=en baseline=sha256:a1b8f98d720cae60e0855677b22dd3fd75f6c43eb31123951a5129d149626e70 -->
+## [0.6.3] - 2026-08-20
+
+v0.6.3 adds the postPublish hooks v2 registration mechanism with six built-in presets, checkpoint-level approval records for hooks that write downstream, a postVerify stage that runs hooks only after the main run reaches VERIFIED, an append-only setup proposal flow that drafts postPublish hook declarations for already-configured projects, the O1-O7 release-cycle speed-ups, and release-skill's own dogfood hub-entry proposal declaration — which this release delivers to the public skill-family-hub repository during its postVerify phase under its own checkpoint approval.
+
+### Added
+
+- **postPublish hooks v2 and six presets**: `releaseUnit.postPublish` now accepts a declarative `hooks` array alongside the existing `targets`; each hook is a named preset or a custom command hook following the prepare-hook rules (executable/argument arrays, relative cwd, timeout, environment allowlist — shell strings rejected). Six built-in presets ship with the bundle and are enumerated by `release-skill distribute --list-presets`: `git-mirror` and `marketplace-index-render` (declared in `targets` form), plus `proposal-inbox`, `marketplace-registry-entry`, `docs-refresh`, and `notify-handoff` (declared in `hooks` form); writing presets share `remoteUrl`/`workspace` dual downstream addressing, `proposal-inbox` without a target degrades to `notify-handoff` behavior instead of failing, and `notify-handoff` is the zero-write floor rendering a deterministic manual sync checklist. Every declaration is normalized into the frozen plan, so a hook change changes the plan digest and invalidates existing approvals; existing `targets` configurations stay valid with unchanged execution semantics.
+- **Checkpoint-level hook approval**: a hook with `requiresApproval: true` (the default for public-write presets; projects may tighten, never loosen) parks at `AWAITING_APPROVAL` with zero remote writes until its own checkpoint approval is minted with `release-skill approve --plan <plan> --hook <hookId> --actor <name>` and consumed via `distribute --hook-approval` or `ship --hook-approval`. Approval records follow the new `postpublish-approval-record` schema bound to `(planDigest, hookId)` with the 24-hour expiry; a hook configuration change changes the plan digest and invalidates the approval. The run schema gains the `AWAITING_APPROVAL` checkpoint status, and the approval interface displays the normalized entry summary of each approved hook.
+- **postVerify stage**: hooks declared with `phase: postVerify` run only after the main run reaches VERIFIED; `ship` routes them into an independent postVerify run whose hook context carries the verification evidence (`verifyEvidence`, present in this phase only). A failed postVerify run stays PARTIAL and can be reconciled, but it never rolls the main run back from VERIFIED — the failure is recorded prominently in evidence, never silently.
+- **Setup incremental hook proposal**: for already-configured projects, `setup --discover-downstream` performs read-only discovery of downstream candidates (git remotes, marketplace/docs repository clues, `artifact-graph` configuration, foundation profiles) and `setup --propose-hooks` drafts postPublish hook declarations for human review; after human confirmation of the `setupDigest` the flow appends only the hooks section and never rewrites any other part of the configuration. The create-once boundary is preserved: an existing configuration is never regenerated.
+- **Dogfood hub proposal declaration**: release-skill's own project configuration declares a `proposal-inbox` (git-push) hub-entry proposal toward the public `skill-family-hub` repository, delivered during this release's postVerify phase under its own checkpoint approval; delivery plus the deterministic manual sync prompt in evidence is the closure criterion — hub-side consumption is out of scope for this release.
+
+### Changed
+
+- **Release-cycle speed optimizations (O1-O7)**: `build-adapters --check` and the self-bootstrap fact-pin suite are now fail-closed prepare pre-gates that run before hooks and the full-test gate (a fast pre-gate, not a replacement for full tests); a new one-click derived-artifact sync command validates and rebuilds the version/docs/bundle/adapters/manifest/public-files areas in dependency order and never writes src or test pins; `build-adapters --apply` is the supported rebuild path for existing drifted adapters; the `ship` happy end now orchestrates `prepare --production --online` by default with explicit remediation prompts for non-production and offline plans; online production prepare reports a warning-level observation when the local branch leads origin (non-blocking); `verify --run` accepts a run directory and resolves its `release-run.json` automatically (file form unchanged); and the `generate-platform-manifest --check` baseline drift is fixed.
+
+### Fixed
+
+- **Production CLI distribute adapter registration**: both production CLI adapter registries now register the distribute-git adapter; before this fix the production `distribute`/`ship` auto-distribution path failed with `no distribute adapter registered`. The state-machine reference completes the `DISTRIBUTING`/`DISTRIBUTED` states and their transitions.
+<!-- release-skill:changelog:end version=0.6.3 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.6.2 locale=en baseline=sha256:103dcbd11e52542a07da9a1220eb246cf812de79ede19ff63a374785393580b7 -->
 ## [0.6.2] - 2026-08-19
 

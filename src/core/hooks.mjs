@@ -197,6 +197,10 @@ function buildFilteredEnv(envAllowlist, contextEnv) {
  * @param {Object} context
  * @param {string} context.root           - Absolute project root.
  * @param {Record<string, string>} [context.env] - Extra env variables.
+ * @param {Record<string, string>} [context.injectEnv] - Always-injected
+ *   contract variables (merged AFTER allowlist filtering; used by the
+ *   postPublish hook context contract RELEASE_SKILL_POSTPUBLISH_CONTEXT).
+ *   Keys must match /^[A-Z_][A-Z0-9_]*$/, values must be strings.
  *
  * @returns {Promise<{ exitCode: number, stdout: string, stderr: string }>}
  *
@@ -232,6 +236,30 @@ export async function runHook(hook, context) {
 
   // --- Build safe environment ---
   const env = buildFilteredEnv(envAllowlist, context.env);
+
+  // --- Always-injected contract variables (postPublish context, v0.6.3 R1).
+  // Merged after allowlist filtering: declarations cannot be mutated to carry
+  // the context variable, and the runner must not depend on envAllowlist.
+  if (context.injectEnv !== undefined) {
+    if (!context.injectEnv || typeof context.injectEnv !== 'object' || Array.isArray(context.injectEnv)) {
+      throw new ReleaseError('INVALID_HOOK', 'context.injectEnv must be a plain object');
+    }
+    for (const [key, value] of Object.entries(context.injectEnv)) {
+      if (!ENV_KEY_PATTERN.test(key)) {
+        throw new ReleaseError(
+          'INVALID_HOOK',
+          `context.injectEnv key "${key}" must match /^[A-Z_][A-Z0-9_]*$/`,
+        );
+      }
+      if (typeof value !== 'string') {
+        throw new ReleaseError(
+          'INVALID_HOOK',
+          `context.injectEnv value for "${key}" must be a string`,
+        );
+      }
+      env[key] = value;
+    }
+  }
 
   // --- Set up timeout ---
   const executable = command[0];

@@ -6,7 +6,7 @@
 
 ## 1. 状态定义
 
-发布生命周期包含 7 个主状态和 3 个异常状态，共计 10 个状态。
+发布生命周期包含 9 个主状态和 3 个异常状态，共计 12 个状态。
 
 ### 1.1 主状态
 
@@ -18,6 +18,8 @@
 | **APPROVED** | 人工审阅并批准了冻结的发布计划 | 批准记录绑定到发布计划 hash，且未过期 |
 | **PUBLISHING** | 外部写操作正在按检查点依次执行 | `publish` 命令读取已批准计划并开始执行 |
 | **PUBLISHED** | 所有发布检查点均已成功完成 | 最后一个检查点的 `observe` 验证通过 |
+| **DISTRIBUTING** | 发布后分发正在执行：载荷物化、目标镜像推送与 distribute 阶段 postPublish hooks 按检查点依次进行 | 计划声明 `postPublish`（targets 或 hooks），`ship` 路由到 `distribute` 并通过全部安全门后开始执行 |
+| **DISTRIBUTED** | 分发完成：全部目标与 distribute 阶段 hooks 成功（或远端已一致而幂等跳过） | `distribute` run 无失败且无待批准检查点 |
 | **VERIFIED** | 发布后验证全部通过 | `verify` 命令在全新环境中完成安装、调用、泄漏审计和远端一致性校验 |
 
 ### 1.2 异常状态
@@ -48,7 +50,15 @@
 | PUBLISHING | PUBLISHED | 所有检查点成功 |
 | PUBLISHING | PARTIAL | 至少一个检查点成功但后续失败 |
 | PUBLISHING | BLOCKED | 外部服务阻断且无法继续 |
-| PUBLISHED | VERIFIED | `verify` 的远端、npm、Claude/Codex 等自动化检查全部通过；新计划中的 Kimi/CodeBuddy 人工安装任务不由系统核验且不阻塞该状态 |
+| PUBLISHED | DISTRIBUTING | 计划声明 `postPublish`（targets 或 hooks），`ship` 路由到 `distribute` 开始执行 |
+| PUBLISHED | VERIFIED | 无 `postPublish` 声明时，`verify` 的远端、npm、Claude/Codex 等自动化检查全部通过（Kimi/CodeBuddy 人工安装任务不由系统核验且不阻塞）；声明了 `postPublish` 时必须先经 DISTRIBUTING/DISTRIBUTED 门禁 |
+| DISTRIBUTING | DISTRIBUTED | 全部目标与 distribute 阶段 hooks 成功（或远端已一致幂等跳过），且无待批准检查点 |
+| DISTRIBUTING | PARTIAL | 至少一个外部 checkpoint 已成功后，目标/hooks 失败或存在待批准 checkpoint |
+| DISTRIBUTING | NEEDS_INPUT | `requiresApproval` hook 缺少 checkpoint 级批准，且尚无任何外部副作用 |
+| DISTRIBUTING | BLOCKED | 零外部写入落地且安全门或 hook 失败（失败关闭） |
+| DISTRIBUTED | VERIFIED | `verify` 的 distribute 门禁通过：存在 DISTRIBUTED（或经 `blocksVerified:false` 合法豁免的 PARTIAL）分发 run，且安装/远端校验全部通过 |
+| NEEDS_INPUT | DISTRIBUTING | checkpoint 批准补齐后重跑 `distribute` |
+| PARTIAL | DISTRIBUTING | `distribute` 重跑即 reconcile：跳过已一致目标，仅重跑安全未完成项 |
 | PUBLISHED | POST_PUBLISH_VERIFY_FAILED | 发布后验证失败（保留 PUBLISHED 事实但标记验证失败） |
 | NEEDS_INPUT | DISCOVERED | 用户提供输入后重新开始评估 |
 | NEEDS_INPUT | ASSESSED | 用户提供输入后恢复评估 |
@@ -65,6 +75,14 @@
 - APPROVED -> PREPARED：当批准记录的计划 hash 与当前冻结计划不匹配时，批准自动失效。
 - APPROVED -> PREPARED：当 plan digest、目标版本或已批准 action 列表变化时，批准自动失效。planVersion 2 计划的 digest 只绑定信任边界（冻结产物身份、动作列表、目标版本、配置摘要），工作区基线（Git tree hash、workspace digest）是记录层审计数据，不使批准失效；planVersion 1（旧版）计划维持旧规则，Git tree hash 与 workspace digest 变化同样使批准失效。
 - PUBLISHING -> PARTIAL：当任一检查点成功后下一检查点失败时，自动计算 PARTIAL 状态。
+
+### 2.2 分发阶段与 postVerify 阶段（v0.6.3）
+
+postPublish hooks 分两个阶段，各自对应独立的 distribute run：
+
+- **distribute 阶段**（默认 `phase: distribute`）：在 DISTRIBUTING 中执行，载荷只能来自冻结 tagCommit 的 detached worktree（时序契约）。全部目标与 distribute 阶段 hooks 成功后进入 DISTRIBUTED；`verify` 在到达 VERIFIED 前检查 distribute 门禁——存在未 SUCCEEDED 且未经 `blocksVerified: false` 合法豁免的 hook 时不得 VERIFIED。NEEDS_INPUT/BLOCKED 不得静默转 VERIFIED（承袭治理规则）。
+- **postVerify 阶段**（`phase: postVerify`）：主 run VERIFIED 后由 ship/verify 路由触发，产出独立的 distribute run（复用现有 run 记录与 checkpoint 机制）；失败即该 run PARTIAL、reconcile 可续。主 run 的 VERIFIED 不回退，但 postVerify run 的失败必须以证据显著记录，绝不静默。
+- **checkpoint 级批准**：`requiresApproval: true` 的 hook 执行前需要绑定 `(planDigest, hookId)` 的独立批准记录（24h 过期、5 分钟时钟偏移容忍）。批准未获时：尚无外部 checkpoint 成功 → checkpoint 标记 `AWAITING_APPROVAL`、run 进 NEEDS_INPUT；已有外部 checkpoint 成功 → run 保持 PARTIAL。
 
 ---
 
@@ -84,6 +102,8 @@
 | APPROVED -> VERIFIED | 不能跳过发布直接验证 |
 | APPROVED -> PUBLISHED | 不能跳过发布执行直接到已发布 |
 | PUBLISHING -> VERIFIED | 发布完成后必须先到 PUBLISHED |
+| DISTRIBUTING -> VERIFIED | 分发必须先达 DISTRIBUTED 再经 verify distribute 门禁 |
+| DISTRIBUTING -> APPROVED | 分发进行中不能回退到批准 |
 | PUBLISHING -> APPROVED | 发布进行中不能回退到批准 |
 | PUBLISHING -> PREPARED | 发布进行中不能回退到准备 |
 | PUBLISHED -> PUBLISHING | 已发布的不能重新发布同一计划 |

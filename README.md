@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.6.2 -->
+<!-- release-skill:release-version: 0.6.3 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,23 +14,29 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.6.2** (2026-08-19)
+**0.6.3** (2026-08-20)
 
-v0.6.2 promotes the skill resource closure checker to a fail-closed release gate spanning prepare, publish, and verify, closes the five gaps (G1–G5) confirmed by the clause-by-clause gate audit, and fixes lineage commit-identity parsing that corrupted rebuilt commits: missing or drifted skill resources, home-directory search paths, and undeclared host surfaces now block a release before plan freeze, and commit identities are parsed with an anchored regex that fails closed instead of fabricating identity fields.
+v0.6.3 adds the postPublish hooks v2 registration mechanism with six built-in presets, checkpoint-level approval records for hooks that write downstream, a postVerify stage that runs hooks only after the main run reaches VERIFIED, an append-only setup proposal flow that drafts postPublish hook declarations for already-configured projects, the O1-O7 release-cycle speed-ups, and release-skill's own dogfood hub-entry proposal declaration — which this release delivers to the public skill-family-hub repository during its postVerify phase under its own checkpoint approval.
 
 **Added**
 
-- **Skill-resource-closure v2 release gate**: the closure checker is now a fail-closed release gate across all three phases — prepare scans the frozen snapshot and blocks plan freeze on any finding with `GATE_FAILED` (error code 13), publish Gate 2c recomputes closure against the verified frozen snapshots for production plans, and verify validates the real npm install tree and marketplace install directories with per-host receipts. Receipts now carry `unitId`, host/surface detail, digests, `checkerVersion` (`skill-resource-closure-v2`), and counts; the platform registry declares each adapter's host surface as an explicit adapter directory name, and the receipt schema is bound in all six release-plan schema copies. A version mismatch between an old frozen plan and the new checker fails closed.
-- **Closure gate gap closure (G1–G5)**: source-only (`SOURCE_ONLY_NOT_SHIPPED`) exemptions are now listed per reference in the receipt projection and in the prepare evidence — auditable and non-blocking; `~/`, `$HOME/`, and `${HOME}/` search paths inside code spans, fences, and link targets fail closed as `HOME_DIRECTORY_SEARCH`; identical surface-relative resources whose contents diverge across surfaces fail closed as `RESOURCE_DRIFT` with cross-surface reference locations; unreferenced regular files inside adapter skill closure directories fail closed as `STALE_RESOURCE`; every declared plugin distribution must be backed by a receipt host surface with at least one skill (declared-host reconciliation), so a dropped adapter tree can no longer skip the gate silently; and frozen receipts bind a deterministic `preparedAt` freeze timestamp (never a wall-clock sample) plus `exitCode: 0`, so identical sources freeze byte-identical receipts on every re-prepare.
+- **postPublish hooks v2 and six presets**: `releaseUnit.postPublish` now accepts a declarative `hooks` array alongside the existing `targets`; each hook is a named preset or a custom command hook following the prepare-hook rules (executable/argument arrays, relative cwd, timeout, environment allowlist — shell strings rejected). Six built-in presets ship with the bundle and are enumerated by `release-skill distribute --list-presets`: `git-mirror` and `marketplace-index-render` (declared in `targets` form), plus `proposal-inbox`, `marketplace-registry-entry`, `docs-refresh`, and `notify-handoff` (declared in `hooks` form); writing presets share `remoteUrl`/`workspace` dual downstream addressing, `proposal-inbox` without a target degrades to `notify-handoff` behavior instead of failing, and `notify-handoff` is the zero-write floor rendering a deterministic manual sync checklist. Every declaration is normalized into the frozen plan, so a hook change changes the plan digest and invalidates existing approvals; existing `targets` configurations stay valid with unchanged execution semantics.
+- **Checkpoint-level hook approval**: a hook with `requiresApproval: true` (the default for public-write presets; projects may tighten, never loosen) parks at `AWAITING_APPROVAL` with zero remote writes until its own checkpoint approval is minted with `release-skill approve --plan <plan> --hook <hookId> --actor <name>` and consumed via `distribute --hook-approval` or `ship --hook-approval`. Approval records follow the new `postpublish-approval-record` schema bound to `(planDigest, hookId)` with the 24-hour expiry; a hook configuration change changes the plan digest and invalidates the approval. The run schema gains the `AWAITING_APPROVAL` checkpoint status, and the approval interface displays the normalized entry summary of each approved hook.
+- **postVerify stage**: hooks declared with `phase: postVerify` run only after the main run reaches VERIFIED; `ship` routes them into an independent postVerify run whose hook context carries the verification evidence (`verifyEvidence`, present in this phase only). A failed postVerify run stays PARTIAL and can be reconciled, but it never rolls the main run back from VERIFIED — the failure is recorded prominently in evidence, never silently.
+- **Setup incremental hook proposal**: for already-configured projects, `setup --discover-downstream` performs read-only discovery of downstream candidates (git remotes, marketplace/docs repository clues, `artifact-graph` configuration, foundation profiles) and `setup --propose-hooks` drafts postPublish hook declarations for human review; after human confirmation of the `setupDigest` the flow appends only the hooks section and never rewrites any other part of the configuration. The create-once boundary is preserved: an existing configuration is never regenerated.
+- **Dogfood hub proposal declaration**: release-skill's own project configuration declares a `proposal-inbox` (git-push) hub-entry proposal toward the public `skill-family-hub` repository, delivered during this release's postVerify phase under its own checkpoint approval; delivery plus the deterministic manual sync prompt in evidence is the closure criterion — hub-side consumption is out of scope for this release.
+
+**Changed**
+
+- **Release-cycle speed optimizations (O1-O7)**: `build-adapters --check` and the self-bootstrap fact-pin suite are now fail-closed prepare pre-gates that run before hooks and the full-test gate (a fast pre-gate, not a replacement for full tests); a new one-click derived-artifact sync command validates and rebuilds the version/docs/bundle/adapters/manifest/public-files areas in dependency order and never writes src or test pins; `build-adapters --apply` is the supported rebuild path for existing drifted adapters; the `ship` happy end now orchestrates `prepare --production --online` by default with explicit remediation prompts for non-production and offline plans; online production prepare reports a warning-level observation when the local branch leads origin (non-blocking); `verify --run` accepts a run directory and resolves its `release-run.json` automatically (file form unchanged); and the `generate-platform-manifest --check` baseline drift is fixed.
 
 **Fixed**
 
-- **Lineage commit-identity parsing (lineage-ident)**: `lineage rebuild` parsed author/committer ident lines with `split(/\s+>/)`, which never matched a legal ident line and corrupted the identities written to rebuilt commits (names containing spaces or `>` were mis-parsed as well). Idents are now parsed with an anchored regex whose greedy name capture lets the last `<email> ts tz` group win; unparseable lines fail closed instead of fabricating identity fields. Commit messages are fed to `commit-tree` via `-F -` stdin from untrimmed `cat-file` output, preserving arbitrary message bytes including trailing whitespace and blank lines.
-- **Assess npm-transport test stability (test-only)**: the assess npm-transport test flaked when the npm lifecycle injected a silent loglevel setting and ambient proxy variables into the child environment — emptying npm stderr and letting a released ephemeral localhost port be hijacked. The test now strips ambient npm-config-namespace environment keys and proxy variables (`isolateNpmTransportEnv`), holds the localhost port for the whole test (`startConnectionResetRegistry`), and asserts `ECONNRESET|ECONNREFUSED` deterministically. No production behavior changed.
+- **Production CLI distribute adapter registration**: both production CLI adapter registries now register the distribute-git adapter; before this fix the production `distribute`/`ship` auto-distribution path failed with `no distribute adapter registered`. The state-machine reference completes the `DISTRIBUTING`/`DISTRIBUTED` states and their transitions.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.6.2 is the current source candidate; v0.4.1 remains
+> **Current boundary:** v0.6.3 is the current source candidate; v0.4.1 remains
 > the latest published release (v0.2.2 previously held
 > published status before the platform verification convergence fix was added).
 > v0.1.1 completed a real production release to GitHub and npm — the first
@@ -49,7 +55,7 @@ v0.6.2 promotes the skill resource closure checker to a fail-closed release gate
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.6.2 is the current
+> **Production path verified since the v0.1.1 milestone; v0.6.3 is the current
 > source candidate and v0.4.1 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
@@ -61,6 +67,52 @@ v0.6.2 promotes the skill resource closure checker to a fail-closed release gate
 <!-- release-skill:capability:distribute -->
 > **Distribute maturity v1.0 (W2 closure):** postPublish distribution is available as a separate `distribute` command for mirror and marketplace-index actions. After `publish` reaches PUBLISHED status, run `ship distribute` or manually invoke `release-skill distribute --plan <path> --approval <path> --json`. The distribute action implements fail-closed semantics: NO_CHANGE on empty diff (no commit/tag/push), REMOTE_CONFLICT on tag move attempts (never force-push), AUTH_MISSING when external writes are not authorized. Supported modes: `--dry-run` (local commit+tag only), `--json` (structured output), `--help` (command reference). Tag commitment guarantees version consistency — distributed plugin.json.version must match input tag. See [docs/design/2026-08-17-postpublish-distribution.md](../../docs/design/2026-08-17-postpublish-distribution.md) for detailed architecture.
 <!-- release-skill:capability:distribute -->
+
+<!-- release-skill:maturity:postpublish-hooks-v2 -->
+<!-- release-skill:capability:postpublish-hooks -->
+> **postPublish hooks v2:** `releaseUnit.postPublish` accepts a declarative
+> `hooks` array alongside the existing `targets`. Each hook is either a named
+> preset or a custom command hook; custom command hooks follow the same rules
+> as prepare hooks — executable/argument arrays, relative cwd, timeout, and an
+> environment allowlist, with shell strings rejected — and, like all
+> configured hooks and gates, they run as unsandboxed processes. Every
+> declaration is normalized into the frozen plan, so a hook change changes the
+> plan digest and invalidates existing approvals. A hook with
+> `requiresApproval: true` (the default for public-write presets; projects may
+> tighten this, never loosen it) needs its own checkpoint-level approval
+> before execution: mint one with
+> `release-skill approve --plan <plan> --hook <hookId> --actor <name>`, then
+> consume it with `distribute --hook-approval <record>` or
+> `ship --hook-approval <record>` (24-hour expiry, bound to the plan digest
+> and the hook id). Git credentials come only from the host credential
+> helper / OS keychain; release-skill never reads, stores, or prints them.
+<!-- release-skill:capability:postpublish-hooks -->
+
+<!-- release-skill:capability:postpublish-presets -->
+> **postPublish presets:** six built-in presets ship with the bundle and are
+> enumerated by `release-skill distribute --list-presets`: `git-mirror` and
+> `marketplace-index-render` (declared in `targets` form), plus
+> `proposal-inbox`, `marketplace-registry-entry`, `docs-refresh`, and
+> `notify-handoff` (declared in `hooks` form). `proposal-inbox` delivers a
+> machine-readable update proposal through a git-push or local-file transport
+> for autonomous downstream consumption; without a target it degrades to
+> `notify-handoff` behavior instead of failing. `notify-handoff` is the
+> zero-write floor: it only renders a deterministic manual sync checklist.
+> release-skill dogfoods this capability: this repository's own project
+> configuration declares a `proposal-inbox` (git-push) hub-entry proposal
+> toward the public `skill-family-hub` repository, to be delivered during the
+> v0.6.3 release in the postVerify phase under its own checkpoint approval.
+<!-- release-skill:capability:postpublish-presets -->
+
+<!-- release-skill:capability:postverify-stage -->
+> **postVerify stage:** hooks declared with `phase: postVerify` run only after
+> the main run reaches VERIFIED; `ship` routes them into an independent
+> postVerify run whose hook context carries the verification evidence
+> (`verifyEvidence`, present in this phase only). A failed postVerify run
+> stays PARTIAL and can be reconciled, but it never rolls the main run back
+> from VERIFIED — the failure is recorded prominently in evidence, never
+> silently.
+<!-- release-skill:capability:postverify-stage -->
 
 <!-- release-skill:maturity:v0.1-boundary -->
 <!-- release-skill:maturity:boundary -->
@@ -200,6 +252,17 @@ ACTOR=your-name
    Add a project-specific hook or gate only after human review: edit
    `projectConfig.hooks`, or edit `verificationGates` and add the same id to
    `selectedGateIds`, then rerun the bound dry-run.
+   Downstream postPublish guidance is also read-only until confirmed:
+   `setup --discover-downstream` enumerates downstream candidates (git
+   remotes, neighboring marketplace/docs repositories,
+   `artifact-graph.config.yaml`, and a foundation profile when present), and
+   `setup --propose-hooks` turns those cues into postPublish hook declaration
+   drafts bound by a `setupDigest`. For an already-configured project,
+   `setup --propose-hooks --write --confirm-setup <digest>` appends only the
+   target release unit's `postPublish.hooks` block and never regenerates or
+   rewrites any other part of the configuration (create-once is untouched). A
+   foundation profile is one proposal input among several and never
+   auto-applies.
    See [INSTALL.md](INSTALL.md#first-use-setup) for the full multi-step flow.
 3. **assess** — read-only readiness:
    ```bash
@@ -479,6 +542,60 @@ hooks:
 Hooks run when `prepare` is invoked; the command call itself authorizes
 execution. Gates are the controlled extension point for release calibration
 (see `references/02-project-config.md`).
+
+### postPublish hooks
+
+`postPublish.hooks` declares downstream delivery actions that run after
+`publish`; each entry is a named preset or a custom command hook and follows
+the same command rules as above (executable/argument arrays, not shell
+strings). Presets receive a read-only projection of the frozen plan; custom
+command hooks run in the frozen tag worktree:
+
+```yaml
+postPublish:
+  materialize:
+    command: [node, scripts/materialize-payload.mjs]
+    cwd: .
+    timeoutMs: 600000
+    outputMarker: "payload dir: "
+  commitIdentity:
+    name: release-bot
+    email: mzdbxqh@example.com
+  hooks:
+    - id: mirror-downstream
+      preset: git-mirror
+      config:
+        target:
+          remoteUrl: https://gitlab.example.internal/team/my-project.git
+          branch: main
+    - id: hub-entry-proposal
+      preset: proposal-inbox
+      phase: postVerify
+      requiresApproval: true
+      config:
+        delivery: git-push
+        target:
+          remoteUrl: https://github.com/example/hub.git
+          branch: main
+    - id: custom-notify
+      command: [node, scripts/notify-downstream.mjs]
+      timeoutMs: 300000
+      envAllowlist: [CI]
+```
+
+A hook with `requiresApproval: true` parks at `AWAITING_APPROVAL` until a
+checkpoint approval is minted and consumed. The approval record is bound to
+the plan digest and the hook id, and expires after 24 hours:
+
+```bash
+release-skill approve --plan "$PLAN_PATH" --hook hub-entry-proposal --actor "$ACTOR" --json
+release-skill ship --root "$PROJECT" --hook-approval "$HOOK_APPROVAL_PATH" --json
+```
+
+For an already-configured project, `setup --discover-downstream` and
+`setup --propose-hooks` draft these declarations for human review; the
+append-only incremental flow is described in the setup step above and in
+[INSTALL.md](INSTALL.md#first-use-setup).
 
 ## Skills
 

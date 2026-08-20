@@ -28,10 +28,13 @@ import { checkNpmEntryClosure } from '../npm/npm-entry-closure.mjs';
 import {
   CONFIG_EXISTS,
   CONFIG_INVALID,
+  CONFIG_MISSING,
   ReleaseError,
   SETUP_DIGEST_MISMATCH,
 } from '../core/errors.mjs';
 import { readTrustedPackageResource } from '../core/trusted-resource.mjs';
+import { validatePresetHook } from '../core/presets.mjs';
+import { validatePostPublishDeclaration } from '../core/postpublish.mjs';
 
 const execFile = promisify(execFileCb);
 const SKIP_DIRS = new Set([
@@ -1853,4 +1856,716 @@ export async function setupProject({ root, answersPath, write = false, confirmSe
   };
   createdReport.compactSummary = buildCompactSummary(createdReport);
   return createdReport;
+}
+
+// ===========================================================================
+// R5 — downstream discovery + postPublish hook declaration proposal
+// (guided configuration) and the independent incremental-proposal mode.
+//
+// Design §2.9 / §2.8 R5. The pipeline reuses the existing setup shape:
+//   read-only discovery -> mechanical proposal extraction -> human confirms
+//   the exact setupDigest -> write. No new automatic writes are introduced.
+//
+// The incremental mode is deliberately SEPARATE from setupProject: it never
+// regenerates an existing configuration (the create-once hard boundary stays
+// intact) and, after exact digest confirmation, appends ONLY the target
+// release unit's postPublish.hooks block — every other byte of a human-owned
+// config is preserved (comment/formatting-preserving YAML edit + semantic guard).
+// ===========================================================================
+
+const R5_REMOTE_URL_RE = /^(?:https?|file):\/\/.+\.git$/;
+const FOUNDATION_PROFILE_FILENAME = 'foundation-profile.json';
+const MAX_NEIGHBOR_SCAN = 64;
+
+// postPublishHook schema fields that may be carried into an appended draft;
+// report-only fields (source/rationale) are stripped before writing because
+// the schema is additionalProperties:false. Preset proposals never carry the
+// command-hook fields (command/cwd/timeoutMs/envAllowlist) — listing them
+// here would be an unreachable allowlist, so they are deliberately absent
+// (R5 review note-2).
+const R5_HOOK_DRAFT_FIELDS = [
+  'id', 'preset', 'phase', 'config', 'requiresApproval', 'blocksVerified',
+];
+
+async function r5IsRegularFile(path) {
+  try {
+    const entry = await lstat(path);
+    return entry.isFile() && !entry.isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
+async function r5IsDirectory(path) {
+  try {
+    const entry = await lstat(path);
+    return entry.isDirectory() && !entry.isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
+async function r5HasGitEntry(absDir) {
+  try {
+    await lstat(join(absDir, '.git'));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Enumerate the immediate sibling directories of the project root (bounded,
+ * read-only). Symlinks and SKIP_DIRS are excluded; the result is sorted and
+ * capped so discovery stays deterministic and cheap.
+ */
+async function r5SiblingDirs(rootReal) {
+  const parent = dirname(rootReal);
+  if (!parent || parent === rootReal) return [];
+  let entries;
+  try {
+    entries = await readdir(parent, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const rootBase = basename(rootReal);
+  const siblings = [];
+  for (const entry of entries) {
+    if (entry.name === rootBase) continue;
+    if (entry.isSymbolicLink()) continue;
+    if (!entry.isDirectory()) continue;
+    if (SKIP_DIRS.has(entry.name)) continue;
+    siblings.push(join(parent, entry.name));
+  }
+  return siblings.sort().slice(0, MAX_NEIGHBOR_SCAN);
+}
+
+/**
+ * Detect downstream clue markers at the TOP LEVEL of a directory (read-only,
+ * bounded): marketplace manifests (registry-driven suffixes), and docs
+ * repositories (mkdocs.yml or docs/ together with a .git entry).
+ */
+async function r5DetectCluesInDir(absDir) {
+  const clues = [];
+  for (const suffix of DISCOVERY_MANIFEST_SUFFIXES) {
+    if (typeof suffix !== 'string' || !suffix.includes('marketplace.json')) continue;
+    if (await r5IsRegularFile(join(absDir, suffix))) {
+      clues.push({ path: suffix, kind: 'marketplace' });
+    }
+  }
+  const hasMkdocs = await r5IsRegularFile(join(absDir, 'mkdocs.yml'));
+  const hasDocsDir = await r5IsDirectory(join(absDir, 'docs'));
+  if (hasMkdocs || hasDocsDir) {
+    const gitBacked = await r5HasGitEntry(absDir);
+    clues.push({ path: hasMkdocs ? 'mkdocs.yml' : 'docs', kind: gitBacked ? 'docs-repo' : 'docs' });
+  }
+  return clues;
+}
+
+function r5ValidateProfileShape(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('foundation profile must be a JSON object');
+  }
+  if (value.profileVersion !== 1) {
+    throw new Error('foundation profile profileVersion must be 1');
+  }
+  const hooks = value.hooks ?? [];
+  const targets = value.targets ?? [];
+  if (!Array.isArray(hooks) || !Array.isArray(targets)) {
+    throw new Error('foundation profile hooks and targets must be arrays');
+  }
+  return { profileVersion: 1, hooks, targets };
+}
+
+/**
+ * Search (read-only) for a foundation profile. Deterministic order: explicit
+ * path, project-local, then immediate siblings. The first existing regular
+ * file wins. Descriptors are root-relative / sibling-relative (never absolute)
+ * so reports and digests carry no /Users/... layout.
+ */
+async function r5FindFoundationProfile(rootReal, explicitPath) {
+  const candidates = [];
+  if (explicitPath && typeof explicitPath === 'string' && explicitPath.length > 0) {
+    candidates.push({
+      abs: isAbsolute(explicitPath) ? explicitPath : resolve(rootReal, explicitPath),
+      desc: explicitPath,
+    });
+  }
+  candidates.push(
+    { abs: join(rootReal, '.release-skill', FOUNDATION_PROFILE_FILENAME), desc: `.release-skill/${FOUNDATION_PROFILE_FILENAME}` },
+    { abs: join(rootReal, FOUNDATION_PROFILE_FILENAME), desc: FOUNDATION_PROFILE_FILENAME },
+  );
+  for (const sibling of await r5SiblingDirs(rootReal)) {
+    const name = basename(sibling);
+    candidates.push(
+      { abs: join(sibling, '.release-skill', FOUNDATION_PROFILE_FILENAME), desc: `../${name}/.release-skill/${FOUNDATION_PROFILE_FILENAME}` },
+      { abs: join(sibling, FOUNDATION_PROFILE_FILENAME), desc: `../${name}/${FOUNDATION_PROFILE_FILENAME}` },
+    );
+  }
+  for (const candidate of candidates) {
+    if (await r5IsRegularFile(candidate.abs)) return candidate;
+  }
+  return null;
+}
+
+/**
+ * Strictly read-only downstream discovery (design §2.9 clue set): git remote
+ * enumeration (mirror candidates), workspace + neighbor marketplace/docs
+ * clues, artifact-graph.config.yaml presence, and the foundation profile
+ * (when present). Never writes anywhere.
+ */
+async function r5Discover(rootReal, foundationProfilePath) {
+  const configPath = join(rootReal, '.release-skill', 'project.yaml');
+  const configExists = await r5IsRegularFile(configPath);
+
+  const git = await discoverGit(rootReal);
+  const gitRemotes = git.remotes.map((remote) => ({ name: remote.name, url: remote.url, repo: remote.repo }));
+  const sourceRepositoryCandidates = [...new Set(
+    git.remotes.map((remote) => remote.repo).filter(Boolean),
+  )].sort();
+  const mirrorCandidates = git.remotes
+    .filter((remote) => R5_REMOTE_URL_RE.test(remote.url))
+    .map((remote) => ({ remoteName: remote.name, remoteUrl: remote.url, repo: remote.repo }))
+    .sort((a, b) => canonicalJson(a).localeCompare(canonicalJson(b)));
+
+  const artifactGraphPresent = await r5IsRegularFile(join(rootReal, 'artifact-graph.config.yaml'));
+
+  const workspaceClues = (await r5DetectCluesInDir(rootReal))
+    .sort((a, b) => canonicalJson(a).localeCompare(canonicalJson(b)));
+
+  const neighborClues = [];
+  for (const sibling of await r5SiblingDirs(rootReal)) {
+    const name = basename(sibling);
+    if (/hub/i.test(name)) neighborClues.push({ sibling: name, kind: 'hub' });
+    for (const clue of await r5DetectCluesInDir(sibling)) {
+      neighborClues.push({ sibling: name, kind: clue.kind, path: clue.path });
+    }
+  }
+  neighborClues.sort((a, b) => canonicalJson(a).localeCompare(canonicalJson(b)));
+
+  const profileDiagnostics = [];
+  let foundationProfile = null;
+  let foundationProfileParsed = null;
+  const found = await r5FindFoundationProfile(rootReal, foundationProfilePath);
+  if (found) {
+    try {
+      const raw = JSON.parse(await readFile(found.abs, 'utf8'));
+      const parsed = r5ValidateProfileShape(raw);
+      foundationProfile = {
+        path: found.desc,
+        profileVersion: parsed.profileVersion,
+        hookCount: parsed.hooks.length,
+        targetCount: parsed.targets.length,
+      };
+      foundationProfileParsed = parsed;
+    } catch (error) {
+      profileDiagnostics.push({ path: found.desc, error: error.message });
+    }
+  }
+
+  return {
+    mode: 'postpublish-discovery',
+    configExists,
+    gitRemotes,
+    sourceRepositoryCandidates,
+    mirrorCandidates,
+    artifactGraphConfig: {
+      present: artifactGraphPresent,
+      ...(artifactGraphPresent ? { path: 'artifact-graph.config.yaml' } : {}),
+    },
+    workspaceClues,
+    neighborClues,
+    foundationProfile,
+    foundationProfileParsed,
+    foundationProfileLoadDiagnostics: profileDiagnostics,
+  };
+}
+
+/** Read-only downstream discovery entry point (R5). */
+export async function discoverDownstream({ root, foundationProfilePath } = {}) {
+  if (!root || typeof root !== 'string' || !isAbsolute(root)) {
+    throw setupError(CONFIG_INVALID, 'discovery root must be an absolute path');
+  }
+  const rootReal = await realpath(root).catch((error) => {
+    throw setupError(CONFIG_INVALID, `cannot resolve discovery root: ${error.message}`);
+  });
+  const discovery = await r5Discover(rootReal, foundationProfilePath);
+  // The parsed profile is an internal carrier for the proposal stage; the
+  // public discovery report keeps only the profile metadata.
+  const { foundationProfileParsed, ...publicDiscovery } = discovery;
+  return publicDiscovery;
+}
+
+/**
+ * Mechanically extract postPublish declaration drafts from discovery.
+ * Only LEGAL hooks[]-form drafts are produced (validated against the preset
+ * registry); targets-form presets (git-mirror / marketplace-index-render) are
+ * surfaced as targetProposals for guided/new-project use, never as hooks.
+ * foundation profile is one input among several and never auto-applies.
+ */
+function r5BuildProposals(discovery, existingHookIds) {
+  const existing = new Set(existingHookIds);
+  const hookProposals = [];
+  const targetProposals = [];
+  const candidates = [];
+  const notes = [];
+  const diagnostics = [...discovery.foundationProfileLoadDiagnostics];
+
+  const proposeHook = (draft, source, rationale) => {
+    hookProposals.push({ ...draft, source, rationale });
+  };
+
+  // 1. Zero-write floor — always available to every project.
+  proposeHook(
+    { id: 'downstream-notify-handoff', preset: 'notify-handoff', phase: 'distribute' },
+    'discovery-baseline',
+    'zero-write floor: renders the downstream sync checklist in evidence',
+  );
+
+  // 2. proposal-inbox from a hub-looking git remote (git-push transport).
+  const hub = discovery.mirrorCandidates.find((candidate) => (
+    /hub/i.test(candidate.remoteName) || /hub/i.test(candidate.repo ?? '')
+  ));
+  if (hub) {
+    proposeHook(
+      {
+        id: 'downstream-hub-proposal',
+        preset: 'proposal-inbox',
+        phase: 'postVerify',
+        requiresApproval: true,
+        config: { delivery: 'git-push', target: { remoteUrl: hub.remoteUrl, branch: 'main' } },
+      },
+      'git-remote',
+      `hub-looking remote "${hub.remoteName}" suggests a proposal inbox`,
+    );
+  }
+
+  // 3. git-mirror target drafts (targets-form) from non-self remotes.
+  const selfRepo = discovery.sourceRepositoryCandidates.length === 1
+    ? discovery.sourceRepositoryCandidates[0]
+    : null;
+  for (const candidate of discovery.mirrorCandidates) {
+    if (selfRepo && candidate.repo === selfRepo) continue;
+    const slug = (candidate.repo ?? candidate.remoteName)
+      .toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+    targetProposals.push({
+      id: `mirror-${slug}`,
+      kind: 'payload-mirror',
+      remoteUrl: candidate.remoteUrl,
+      visibility: 'public',
+      branch: 'main',
+      source: 'git-remote',
+      rationale: `remote "${candidate.remoteName}" is a payload-mirror candidate`,
+    });
+  }
+  if (!selfRepo && discovery.mirrorCandidates.length > 0) {
+    notes.push('source repository is ambiguous; review mirror target drafts before adopting them.');
+  }
+
+  // 4. foundation profile hooks/targets (validated; invalid entries reported).
+  const profile = discovery.foundationProfileParsed;
+  if (profile) {
+    for (const [index, hook] of profile.hooks.entries()) {
+      const id = hook && typeof hook.id === 'string' ? hook.id : null;
+      try {
+        if (!id) throw new Error('hook must declare a string id');
+        // validatePresetHook enforces registry membership, targets-form-only
+        // rejection, secret scanning, and preset config semantics (fail-closed).
+        validatePresetHook(hook, `foundationProfile.hooks[${index}]`);
+        const draft = { id, preset: hook.preset };
+        if (hook.phase !== undefined) draft.phase = hook.phase;
+        if (hook.config !== undefined) draft.config = hook.config;
+        if (hook.requiresApproval !== undefined) draft.requiresApproval = hook.requiresApproval;
+        if (hook.blocksVerified !== undefined) draft.blocksVerified = hook.blocksVerified;
+        proposeHook(draft, 'foundation-profile', 'declared by the foundation profile');
+      } catch (error) {
+        diagnostics.push({ id, error: error.message });
+      }
+    }
+    for (const target of profile.targets) {
+      targetProposals.push({
+        ...target,
+        source: 'foundation-profile',
+        rationale: 'declared by the foundation profile',
+      });
+    }
+  }
+
+  // 5. Existence clues become candidate evidence + guidance notes.
+  if (discovery.artifactGraphConfig.present) {
+    candidates.push({ kind: 'artifact-graph', path: discovery.artifactGraphConfig.path, source: 'workspace' });
+    notes.push('artifact-graph.config.yaml present: consider a marketplace-registry-entry hook via the foundation profile.');
+  }
+  for (const clue of discovery.workspaceClues) candidates.push({ ...clue, source: 'workspace' });
+  for (const clue of discovery.neighborClues) candidates.push({ ...clue, source: 'neighbor-scan' });
+  if (discovery.neighborClues.some((clue) => clue.kind === 'docs-repo')) {
+    notes.push('docs repository clue found: a docs-refresh hook needs mappings from the foundation profile or human input.');
+  }
+  if (discovery.neighborClues.some((clue) => clue.kind === 'marketplace')) {
+    notes.push('marketplace clue found: a marketplace-registry-entry hook needs entryKey/fieldsFromPlan from the foundation profile or human input.');
+  }
+
+  // Conflicts: a proposal id that already exists must never be overwritten.
+  const appendableHookProposals = [];
+  const conflicts = [];
+  for (const proposal of hookProposals) {
+    if (existing.has(proposal.id)) {
+      conflicts.push({ existingHookId: proposal.id, preset: proposal.preset, source: proposal.source });
+    } else {
+      appendableHookProposals.push(proposal);
+    }
+  }
+
+  return {
+    hookProposals,
+    appendableHookProposals,
+    targetProposals,
+    candidates,
+    notes,
+    conflicts,
+    foundationProfileDiagnostics: diagnostics,
+  };
+}
+
+/** Strip report-only fields so an appended draft is schema-clean. */
+function r5CleanHookDraft(proposal) {
+  const draft = {};
+  for (const field of R5_HOOK_DRAFT_FIELDS) {
+    if (proposal[field] !== undefined) draft[field] = proposal[field];
+  }
+  return draft;
+}
+
+/**
+ * Append hook drafts into releaseUnits[unitIndex].postPublish.hooks.
+ *
+ * First-time hooks-key creation is a byte-level splice (r5HooksBlockSplice):
+ * only the rendered `hooks:` block is inserted after the postPublish map's
+ * last content line, so every pre-existing line — including inline comments —
+ * keeps its exact source bytes (R5 review minor-1). The splice falls back to
+ * a document-level setIn/toString only for non-block-map postPublish shapes.
+ * Appending to an already-present hooks sequence re-serializes the document;
+ * the semantic identity of every non-hooks section is then asserted by the
+ * caller (r5AppendHooksOnce) before any write.
+ */
+function r5AppendHooksToYaml(text, hookDrafts, unitIndex) {
+  const doc = YAML.parseDocument(text);
+  const hooksPath = ['releaseUnits', unitIndex, 'postPublish', 'hooks'];
+  const existingHooks = doc.getIn(hooksPath);
+  if (existingHooks === undefined || existingHooks === null) {
+    const postPublishMap = doc.getIn(hooksPath.slice(0, -1));
+    const splice = r5HooksBlockSplice(text, postPublishMap, hookDrafts);
+    if (splice !== null) return splice;
+    doc.setIn(hooksPath, hookDrafts);
+    return doc.toString();
+  }
+  for (const draft of hookDrafts) existingHooks.add(draft);
+  return doc.toString();
+}
+
+/**
+ * Render the new `hooks:` block and splice it into the source bytes right
+ * after the target postPublish map's last content line. Returns null when the
+ * map shape is not a plain block map (flow, alias, or absent), in which case
+ * the caller falls back to a document-level serialization.
+ */
+function r5HooksBlockSplice(text, postPublishMap, hookDrafts) {
+  if (!YAML.isMap(postPublishMap) || postPublishMap.flow || YAML.isAlias(postPublishMap)) return null;
+  const [mapStart, valueEnd] = postPublishMap.range;
+  if (!Number.isInteger(mapStart) || !Number.isInteger(valueEnd)) return null;
+  if (mapStart < 0 || valueEnd > text.length || mapStart > valueEnd) return null;
+  // The block's indentation is the whitespace before its first key.
+  const lineStart = text.lastIndexOf('\n', mapStart - 1) + 1;
+  const indent = text.slice(lineStart, mapStart);
+  if (!/^[ ]*$/.test(indent)) return null; // tabs or unexpected content
+  // Insert after the newline that terminates the map's last content line;
+  // a same-line trailing comment stays with that line.
+  const nl = text.indexOf('\n', Math.max(lineStart, valueEnd - 1));
+  const insertPos = nl === -1 ? text.length : nl + 1;
+  const fragment = YAML.stringify({ hooks: hookDrafts }, { lineWidth: 0 });
+  const block = fragment.replace(/\n$/, '').split('\n').map((line) => indent + line);
+  const terminator = insertPos === text.length && !text.endsWith('\n') ? '' : '\n';
+  return text.slice(0, insertPos) + block.join('\n') + terminator + text.slice(insertPos);
+}
+
+/** Remove every release unit's postPublish.hooks (for the unchanged-section guard). */
+function r5StripHooks(config) {
+  const copy = JSON.parse(JSON.stringify(config ?? {}));
+  for (const unit of copy.releaseUnits ?? []) {
+    if (unit?.postPublish) delete unit.postPublish.hooks;
+  }
+  return copy;
+}
+
+/**
+ * Atomically replace project.yaml with the hooks-appended bytes using the
+ * safe-fs bound-directory machinery. The existing file's read identity
+ * authorizes the replace (TOCTOU-safe); the merged config is schema-validated
+ * and every non-hooks section is asserted unchanged before the rename.
+ */
+async function r5AppendHooksOnce(rootReal, hookDrafts, unitIndex) {
+  const { loadSafeFs } = await import('../artifacts/safe-fs.mjs');
+  const safeFs = await loadSafeFs();
+  const bound = await openBoundConfigDirectory(rootReal, safeFs);
+  let tempToken;
+  try {
+    const existing = await bound.releaseHandle.readFile('project.yaml');
+    if (existing === null) {
+      throw setupError(CONFIG_MISSING, 'configuration disappeared before hooks could be appended');
+    }
+    const existingText = existing.bytes.toString('utf8');
+    const newText = r5AppendHooksToYaml(existingText, hookDrafts, unitIndex);
+    const merged = YAML.parse(newText);
+    if (!validateProjectConfig(merged)) {
+      const errors = validateProjectConfig.errors ?? [];
+      throw setupError(
+        CONFIG_INVALID,
+        `appended configuration would be invalid: ${errors.map((error) => `${error.instancePath || '/'} ${error.message}`).join('; ')}`,
+        { validationErrors: errors },
+      );
+    }
+    const before = YAML.parse(existingText);
+    if (canonicalJson(r5StripHooks(before)) !== canonicalJson(r5StripHooks(merged))) {
+      throw setupError(CONFIG_INVALID, 'hooks append would alter non-hooks configuration sections; refusing to write');
+    }
+    // Defense in depth (R5 review note-1): fail closed at declaration time
+    // when the merged unit would not survive the runtime declaration
+    // validation that prepare/distribute/postverify enforce anyway. This
+    // never writes a hooks block onto a unit that can never pass runtime.
+    const mergedUnit = Array.isArray(merged.releaseUnits) ? merged.releaseUnits[unitIndex] : null;
+    validatePostPublishDeclaration(mergedUnit?.postPublish, { unitId: mergedUnit?.id });
+    const newBytes = Buffer.from(newText, 'utf8');
+    tempToken = await bound.releaseHandle.createTemp('project.yaml', 0o600, newBytes);
+    await assertConfigDirectoryStillBound(rootReal, safeFs, bound);
+    // `existing` carries the read identity that authorizes replacing this file.
+    await bound.releaseHandle.rename(tempToken, 'project.yaml', existing);
+    tempToken = null;
+    await bound.releaseHandle.fsync();
+    await bound.rootHandle.fsync();
+    return { configSha256: sha256Hex(newBytes) };
+  } finally {
+    if (tempToken) await bound.releaseHandle.abortTemp(tempToken).catch(() => {});
+    await bound.releaseHandle.close().catch(() => {});
+    await bound.rootHandle.close().catch(() => {});
+  }
+}
+
+/** Assemble the digest authority + report for one discovery/proposal pass. */
+async function r5Compute({ rootReal, foundationProfilePath, selectedHookIds, unitId }) {
+  const configPath = join(rootReal, '.release-skill', 'project.yaml');
+  let configBytes = null;
+  let existingParsed = null;
+  const configExists = await r5IsRegularFile(configPath);
+  if (configExists) {
+    configBytes = await readFile(configPath, 'utf8');
+    try {
+      existingParsed = YAML.parse(configBytes);
+    } catch (error) {
+      throw setupError(CONFIG_INVALID, `existing configuration cannot be parsed; refusing incremental proposal: ${error.message}`);
+    }
+  }
+
+  // postPublish is a per-release-unit block. Resolve the single unit whose
+  // hooks will be appended: an explicit unitId, or the unique unit that
+  // already declares the materialize + commitIdentity distribute base.
+  const units = Array.isArray(existingParsed?.releaseUnits) ? existingParsed.releaseUnits : [];
+  const hasBase = (unit) => Boolean(unit?.postPublish?.materialize && unit?.postPublish?.commitIdentity);
+  const baseUnitIndexes = units.map((unit, index) => ({ unit, index })).filter(({ unit }) => hasBase(unit)).map(({ index }) => index);
+  let targetUnitIndex = null;
+  let targetUnitId = null;
+  let targetRefusal = null;
+  if (configExists) {
+    if (unitId !== undefined && unitId !== null) {
+      const idx = units.findIndex((unit) => unit?.id === unitId);
+      if (idx === -1) targetRefusal = `release unit "${unitId}" was not found in the existing configuration`;
+      else if (!hasBase(units[idx])) targetRefusal = `release unit "${unitId}" lacks the postPublish materialize/commitIdentity base required before hooks can be appended`;
+      else { targetUnitIndex = idx; targetUnitId = unitId; }
+    } else if (baseUnitIndexes.length === 1) {
+      targetUnitIndex = baseUnitIndexes[0];
+      targetUnitId = units[targetUnitIndex]?.id ?? null;
+    } else if (baseUnitIndexes.length === 0) {
+      targetRefusal = 'no release unit declares the postPublish materialize/commitIdentity base required before hooks can be appended; declare the distribute base first (human decision)';
+    } else {
+      targetRefusal = `multiple release units declare a postPublish base (${baseUnitIndexes.map((index) => units[index]?.id ?? `#${index}`).join(', ')}); pass an explicit unitId to choose one`;
+    }
+  }
+
+  const existingHookIds = targetUnitIndex === null
+    ? []
+    : (units[targetUnitIndex]?.postPublish?.hooks ?? [])
+      .map((hook) => hook?.id)
+      .filter((id) => typeof id === 'string');
+  const hasPostPublishBase = targetUnitIndex !== null;
+
+  const discovery = await r5Discover(rootReal, foundationProfilePath);
+  const proposals = r5BuildProposals(discovery, existingHookIds);
+
+  const appendableIds = proposals.appendableHookProposals.map((proposal) => proposal.id);
+  let selected;
+  if (selectedHookIds !== undefined && selectedHookIds !== null) {
+    if (!Array.isArray(selectedHookIds)) {
+      throw setupError(CONFIG_INVALID, 'selectedHookIds must be an array of proposal ids');
+    }
+    const requested = [...new Set(selectedHookIds)];
+    for (const id of requested) {
+      if (!appendableIds.includes(id)) {
+        throw setupError(CONFIG_INVALID, `selectedHookIds contains unknown or conflicting proposal "${id}"`);
+      }
+    }
+    selected = requested.sort();
+  } else {
+    selected = [...appendableIds].sort();
+  }
+  const selectedProposals = proposals.appendableHookProposals
+    .filter((proposal) => selected.includes(proposal.id));
+  const selectedDrafts = selectedProposals.map(r5CleanHookDraft);
+
+  const authority = {
+    setupVersion: 1,
+    mode: 'postpublish-hooks-proposal',
+    configExists,
+    existingConfigSha256: configExists ? sha256Hex(configBytes) : null,
+    targetUnitId,
+    discovery,
+    selectedHookIds: selected,
+    selectedDrafts,
+  };
+  const setupDigest = sha256Hex(canonicalJson(authority));
+
+  return {
+    configPath,
+    configExists,
+    configBytes,
+    existingParsed,
+    hasPostPublishBase,
+    targetUnitIndex,
+    targetUnitId,
+    targetRefusal,
+    discovery,
+    proposals,
+    selected,
+    selectedDrafts,
+    authority,
+    setupDigest,
+  };
+}
+
+/**
+ * R5 guided proposal + independent incremental-proposal mode.
+ *
+ * Dry-run (default): read-only discovery + hook declaration drafts + a
+ * setupDigest binding the existing config, the discovery facts, and the
+ * selected drafts. Write mode: after exact setupDigest confirmation and under
+ * the project lock, appends ONLY postPublish.hooks to an EXISTING config
+ * (create-once is never touched). foundation profile is one proposal input and
+ * never auto-applies.
+ */
+export async function proposePostPublishHooks({
+  root,
+  write = false,
+  confirmSetup,
+  selectedHookIds,
+  foundationProfilePath,
+  unitId,
+  faultInjector,
+} = {}) {
+  if (!root || typeof root !== 'string' || !isAbsolute(root)) {
+    throw setupError(CONFIG_INVALID, 'proposal root must be an absolute path');
+  }
+  const rootReal = await realpath(root).catch((error) => {
+    throw setupError(CONFIG_INVALID, `cannot resolve proposal root: ${error.message}`);
+  });
+  const computed = await r5Compute({ rootReal, foundationProfilePath, selectedHookIds, unitId });
+  const report = {
+    setupVersion: 1,
+    mode: 'postpublish-hooks-proposal',
+    status: 'HOOKS_PROPOSAL_READY',
+    configPath: computed.configPath,
+    configExists: computed.configExists,
+    targetUnitId: computed.targetUnitId,
+    targetRefusal: computed.targetRefusal ?? null,
+    existingConfigSha256: computed.configExists ? sha256Hex(computed.configBytes) : null,
+    discovery: (() => {
+      const { foundationProfileParsed, ...publicDiscovery } = computed.discovery;
+      return publicDiscovery;
+    })(),
+    hookProposals: computed.proposals.hookProposals,
+    appendableHookIds: computed.proposals.appendableHookProposals.map((proposal) => proposal.id),
+    targetProposals: computed.proposals.targetProposals,
+    candidates: computed.proposals.candidates,
+    notes: computed.proposals.notes,
+    conflicts: computed.proposals.conflicts,
+    foundationProfileDiagnostics: computed.proposals.foundationProfileDiagnostics,
+    selectedHookIds: computed.selected,
+    setupDigest: computed.setupDigest,
+    writeContract: {
+      default: 'dry-run',
+      requires: ['--write', `--confirm-setup ${computed.setupDigest}`],
+      appendOnly: 'releaseUnits[<target>].postPublish.hooks',
+      overwrite: false,
+      createOnceBoundary: 'setup create-once is never touched by this mode',
+    },
+  };
+
+  if (!write) return report;
+
+  if (!computed.configExists) {
+    throw setupError(
+      CONFIG_MISSING,
+      'incremental postPublish proposal requires an existing configuration; run setup create first',
+      { configPath: computed.configPath },
+    );
+  }
+  if (!computed.hasPostPublishBase) {
+    throw setupError(
+      CONFIG_INVALID,
+      computed.targetRefusal ?? 'existing configuration lacks the postPublish base required before hooks can be appended',
+      { configPath: computed.configPath },
+    );
+  }
+  if (confirmSetup !== computed.setupDigest) {
+    throw setupError(
+      SETUP_DIGEST_MISMATCH,
+      'proposal confirmation does not match the current configuration, discovery facts, and selection; rerun dry-run and review again',
+      { expected: computed.setupDigest, received: confirmSetup ?? null },
+    );
+  }
+  if (computed.selectedDrafts.length === 0) {
+    return { ...report, status: 'HOOKS_NO_CHANGE', next: '没有可追加的 hook 草案；无写入。' };
+  }
+
+  const lock = await acquireProjectLock({ root: rootReal, command: 'setup-postpublish', mode: 'exclusive' });
+  let appendResult;
+  try {
+    appendResult = await lock.capture(async () => {
+      if (faultInjector) await faultInjector('before-hooks-append');
+      const locked = await r5Compute({ rootReal, foundationProfilePath, selectedHookIds, unitId });
+      if (locked.setupDigest !== confirmSetup) {
+        throw setupError(
+          SETUP_DIGEST_MISMATCH,
+          'configuration or discovery facts changed immediately before hooks append; rerun dry-run and review the new digest',
+          { expected: locked.setupDigest, received: confirmSetup },
+        );
+      }
+      if (!locked.hasPostPublishBase) {
+        throw setupError(
+          CONFIG_INVALID,
+          locked.targetRefusal ?? 'postPublish base disappeared before hooks append',
+          { configPath: locked.configPath },
+        );
+      }
+      return r5AppendHooksOnce(rootReal, locked.selectedDrafts, locked.targetUnitIndex);
+    });
+  } finally {
+    await lock.release();
+  }
+
+  return {
+    ...report,
+    status: 'HOOKS_APPENDED',
+    configSha256: appendResult.configSha256,
+    appendedHookIds: computed.selected,
+    committedSetupDigest: computed.setupDigest,
+    next: '运行 release-skill assess；分发前审阅追加的 postPublish hooks 与其批准分级。',
+  };
 }

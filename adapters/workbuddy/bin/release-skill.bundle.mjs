@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.6.2"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.6.3"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "12dcb7942e6587f1321c3f81625b0bc3f1dd64afe978ddf8084bf1a5824de23a";
+const __bundleSourceDigest = "fc53c95db2ced322a79c78c418c3f758e8506405a7dec9662b15f649ebf3135c";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -82,9 +82,9 @@ function redactString(input) {
   return input.replace(PATH_TOKEN_RE, (raw) => {
     const match = TRAILING_PUNCT_RE.exec(raw);
     const core = match[1];
-    const tail2 = match[2];
+    const tail = match[2];
     if (isWindowsDrivePath(core) || isUncPath(core) || looksLikeAbsolutePath(core)) {
-      return `${REDACTED_PATH_PLACEHOLDER}${tail2}`;
+      return `${REDACTED_PATH_PLACEHOLDER}${tail}`;
     }
     return raw;
   });
@@ -183,6 +183,7 @@ __export(errors_exports, {
   CONFIG_MISSING: () => CONFIG_MISSING,
   CONSUMER_VERIFICATION_DEFERRED: () => CONSUMER_VERIFICATION_DEFERRED,
   CONTENT_MISMATCH: () => CONTENT_MISMATCH,
+  DERIVED_ARTIFACT_STALE: () => DERIVED_ARTIFACT_STALE,
   DIRTY_SCOPE_CONFLICT: () => DIRTY_SCOPE_CONFLICT,
   DIRTY_SOURCE_INPUT: () => DIRTY_SOURCE_INPUT,
   EXIT_CODE_MAP: () => EXIT_CODE_MAP,
@@ -197,6 +198,7 @@ __export(errors_exports, {
   PATH_UNSAFE: () => PATH_UNSAFE,
   PLAN_DIGEST_MISMATCH: () => PLAN_DIGEST_MISMATCH,
   PLAN_STALE: () => PLAN_STALE,
+  POSTPUBLISH_HOOK_INVALID: () => POSTPUBLISH_HOOK_INVALID,
   POST_PUBLISH_VERIFY_FAILED: () => POST_PUBLISH_VERIFY_FAILED,
   PRODUCER_NONDETERMINISTIC: () => PRODUCER_NONDETERMINISTIC,
   PRODUCER_SCOPE_VIOLATION: () => PRODUCER_SCOPE_VIOLATION,
@@ -224,7 +226,7 @@ __export(errors_exports, {
 function registerPathRedactor(fn) {
   if (typeof fn === "function") redactSensitivePaths2 = fn;
 }
-var redactSensitivePaths2, EXIT_CODE_MAP, CONFIG_INVALID, BASELINE_CHANGED, DIRTY_SCOPE_CONFLICT, GATE_FAILED, AUTH_MISSING, REMOTE_CONFLICT, HOOK_TIMEOUT, PARTIAL_RELEASE, POST_PUBLISH_VERIFY_FAILED, INVALID_STATE_TRANSITION, PLAN_DIGEST_MISMATCH, SECRET_DETECTED, PUBLIC_PATH_FORBIDDEN, STALE_BUILD_ARTIFACT, MISSING_PARAMETERS, PUBLIC_FILE_MISSING, SNAPSHOT_FIDELITY_FAILED, FORBIDDEN_CONTENT_DETECTED, PATH_UNSAFE, STRUCTURE_INVALID, LOCK_MIGRATION_REQUIRED, ARTIFACT_POLICY_INVALID, BASE_UNAVAILABLE, PRODUCER_NONDETERMINISTIC, PRODUCER_SCOPE_VIOLATION, ADOPTION_AMBIGUOUS, PLAN_STALE, SENSITIVE_CONFLICT, TRANSACTION_INCOMPLETE, SAFE_WRITE_UNAVAILABLE, SETUP_DIGEST_MISMATCH, CONFIG_EXISTS, RELEASE_DOCS_INVALID, RELEASE_DOCS_TRANSLATION_MISSING, RELEASE_DOCS_CONFLICT, RELEASE_DOCS_REFRESH_STALE, RELEASE_DOCS_STALE, CONSUMER_VERIFICATION_DEFERRED, CONFIG_MISSING, REMOTE_UNAVAILABLE, REF_MISSING, NOT_DEFAULT, CONTENT_MISMATCH, DIRTY_SOURCE_INPUT, BUNDLE_STALE, ReleaseError, ALL_ERROR_CODES;
+var redactSensitivePaths2, EXIT_CODE_MAP, CONFIG_INVALID, BASELINE_CHANGED, DIRTY_SCOPE_CONFLICT, GATE_FAILED, AUTH_MISSING, REMOTE_CONFLICT, HOOK_TIMEOUT, PARTIAL_RELEASE, POST_PUBLISH_VERIFY_FAILED, INVALID_STATE_TRANSITION, PLAN_DIGEST_MISMATCH, SECRET_DETECTED, PUBLIC_PATH_FORBIDDEN, STALE_BUILD_ARTIFACT, MISSING_PARAMETERS, PUBLIC_FILE_MISSING, SNAPSHOT_FIDELITY_FAILED, FORBIDDEN_CONTENT_DETECTED, PATH_UNSAFE, STRUCTURE_INVALID, LOCK_MIGRATION_REQUIRED, ARTIFACT_POLICY_INVALID, BASE_UNAVAILABLE, PRODUCER_NONDETERMINISTIC, PRODUCER_SCOPE_VIOLATION, ADOPTION_AMBIGUOUS, PLAN_STALE, SENSITIVE_CONFLICT, TRANSACTION_INCOMPLETE, SAFE_WRITE_UNAVAILABLE, SETUP_DIGEST_MISMATCH, CONFIG_EXISTS, RELEASE_DOCS_INVALID, RELEASE_DOCS_TRANSLATION_MISSING, RELEASE_DOCS_CONFLICT, RELEASE_DOCS_REFRESH_STALE, RELEASE_DOCS_STALE, CONSUMER_VERIFICATION_DEFERRED, CONFIG_MISSING, REMOTE_UNAVAILABLE, REF_MISSING, NOT_DEFAULT, CONTENT_MISMATCH, DIRTY_SOURCE_INPUT, BUNDLE_STALE, POSTPUBLISH_HOOK_INVALID, DERIVED_ARTIFACT_STALE, ReleaseError, ALL_ERROR_CODES;
 var init_errors = __esm({
   "src/core/errors.mjs"() {
     redactSensitivePaths2 = /* @__PURE__ */ __name((value) => value, "redactSensitivePaths");
@@ -279,7 +281,9 @@ var init_errors = __esm({
       NOT_DEFAULT: 51,
       CONTENT_MISMATCH: 52,
       DIRTY_SOURCE_INPUT: 53,
-      BUNDLE_STALE: 54
+      BUNDLE_STALE: 54,
+      POSTPUBLISH_HOOK_INVALID: 55,
+      DERIVED_ARTIFACT_STALE: 56
     });
     CONFIG_INVALID = "CONFIG_INVALID";
     BASELINE_CHANGED = "BASELINE_CHANGED";
@@ -326,6 +330,8 @@ var init_errors = __esm({
     CONTENT_MISMATCH = "CONTENT_MISMATCH";
     DIRTY_SOURCE_INPUT = "DIRTY_SOURCE_INPUT";
     BUNDLE_STALE = "BUNDLE_STALE";
+    POSTPUBLISH_HOOK_INVALID = "POSTPUBLISH_HOOK_INVALID";
+    DERIVED_ARTIFACT_STALE = "DERIVED_ARTIFACT_STALE";
     ReleaseError = class _ReleaseError extends Error {
       static {
         __name(this, "ReleaseError");
@@ -11067,7 +11073,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve35.call(this, root, ref);
+      let _sch = resolve37.call(this, root, ref);
       if (_sch === void 0) {
         const schema2 = (_a = root.localRefs) === null || _a === void 0 ? void 0 : _a[ref];
         const { schemaId } = this.opts;
@@ -11098,13 +11104,13 @@ var require_compile = __commonJS({
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
     __name(sameSchemaEnv, "sameSchemaEnv");
-    function resolve35(root, ref) {
+    function resolve37(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
       return sch || this.schemas[ref] || resolveSchema.call(this, root, ref);
     }
-    __name(resolve35, "resolve");
+    __name(resolve37, "resolve");
     function resolveSchema(root, ref) {
       const p = this.opts.uriResolver.parse(ref);
       const refPath = (0, resolve_1._getFullPath)(this.opts.uriResolver, p);
@@ -11756,56 +11762,56 @@ var require_fast_uri = __commonJS({
       return uri;
     }
     __name(normalize4, "normalize");
-    function resolve35(baseURI, relativeURI, options) {
+    function resolve37(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const resolved = resolveComponent(parse2(baseURI, schemelessOptions), parse2(relativeURI, schemelessOptions), schemelessOptions, true);
       schemelessOptions.skipEscape = true;
       return serialize(resolved, schemelessOptions);
     }
-    __name(resolve35, "resolve");
-    function resolveComponent(base, relative27, options, skipNormalization) {
+    __name(resolve37, "resolve");
+    function resolveComponent(base, relative28, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
         base = parse2(serialize(base, options), options);
-        relative27 = parse2(serialize(relative27, options), options);
+        relative28 = parse2(serialize(relative28, options), options);
       }
       options = options || {};
-      if (!options.tolerant && relative27.scheme) {
-        target.scheme = relative27.scheme;
-        target.userinfo = relative27.userinfo;
-        target.host = relative27.host;
-        target.port = relative27.port;
-        target.path = removeDotSegments(relative27.path || "");
-        target.query = relative27.query;
+      if (!options.tolerant && relative28.scheme) {
+        target.scheme = relative28.scheme;
+        target.userinfo = relative28.userinfo;
+        target.host = relative28.host;
+        target.port = relative28.port;
+        target.path = removeDotSegments(relative28.path || "");
+        target.query = relative28.query;
       } else {
-        if (relative27.userinfo !== void 0 || relative27.host !== void 0 || relative27.port !== void 0) {
-          target.userinfo = relative27.userinfo;
-          target.host = relative27.host;
-          target.port = relative27.port;
-          target.path = removeDotSegments(relative27.path || "");
-          target.query = relative27.query;
+        if (relative28.userinfo !== void 0 || relative28.host !== void 0 || relative28.port !== void 0) {
+          target.userinfo = relative28.userinfo;
+          target.host = relative28.host;
+          target.port = relative28.port;
+          target.path = removeDotSegments(relative28.path || "");
+          target.query = relative28.query;
         } else {
-          if (!relative27.path) {
+          if (!relative28.path) {
             target.path = base.path;
-            if (relative27.query !== void 0) {
-              target.query = relative27.query;
+            if (relative28.query !== void 0) {
+              target.query = relative28.query;
             } else {
               target.query = base.query;
             }
           } else {
-            if (relative27.path[0] === "/") {
-              target.path = removeDotSegments(relative27.path);
+            if (relative28.path[0] === "/") {
+              target.path = removeDotSegments(relative28.path);
             } else {
               if ((base.userinfo !== void 0 || base.host !== void 0 || base.port !== void 0) && !base.path) {
-                target.path = "/" + relative27.path;
+                target.path = "/" + relative28.path;
               } else if (!base.path) {
-                target.path = relative27.path;
+                target.path = relative28.path;
               } else {
-                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative27.path;
+                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative28.path;
               }
               target.path = removeDotSegments(target.path);
             }
-            target.query = relative27.query;
+            target.query = relative28.query;
           }
           target.userinfo = base.userinfo;
           target.host = base.host;
@@ -11813,7 +11819,7 @@ var require_fast_uri = __commonJS({
         }
         target.scheme = base.scheme;
       }
-      target.fragment = relative27.fragment;
+      target.fragment = relative28.fragment;
       return target;
     }
     __name(resolveComponent, "resolveComponent");
@@ -12024,7 +12030,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize: normalize4,
-      resolve: resolve35,
+      resolve: resolve37,
       resolveComponent,
       equal,
       serialize,
@@ -12156,7 +12162,7 @@ var require_core = __commonJS({
       };
     }
     __name(requiredOptions, "requiredOptions");
-    var Ajv9 = class {
+    var Ajv10 = class {
       static {
         __name(this, "Ajv");
       }
@@ -12535,9 +12541,9 @@ var require_core = __commonJS({
         }
       }
     };
-    Ajv9.ValidationError = validation_error_1.default;
-    Ajv9.MissingRefError = ref_error_1.default;
-    exports.default = Ajv9;
+    Ajv10.ValidationError = validation_error_1.default;
+    Ajv10.MissingRefError = ref_error_1.default;
+    exports.default = Ajv10;
     function checkOptions(checkOpts, options, msg, log = "error") {
       for (const key in checkOpts) {
         const opt = key;
@@ -14719,7 +14725,7 @@ var require_ajv = __commonJS({
     var draft7MetaSchema = require_json_schema_draft_07();
     var META_SUPPORT_DATA = ["/properties"];
     var META_SCHEMA_ID = "http://json-schema.org/draft-07/schema";
-    var Ajv9 = class extends core_1.default {
+    var Ajv10 = class extends core_1.default {
       static {
         __name(this, "Ajv");
       }
@@ -14741,11 +14747,11 @@ var require_ajv = __commonJS({
         return this.opts.defaultMeta = super.defaultMeta() || (this.getSchema(META_SCHEMA_ID) ? META_SCHEMA_ID : void 0);
       }
     };
-    exports.Ajv = Ajv9;
-    module.exports = exports = Ajv9;
-    module.exports.Ajv = Ajv9;
+    exports.Ajv = Ajv10;
+    module.exports = exports = Ajv10;
+    module.exports.Ajv = Ajv10;
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.default = Ajv9;
+    exports.default = Ajv10;
     var validate_1 = require_validate();
     Object.defineProperty(exports, "KeywordCxt", { enumerable: true, get: /* @__PURE__ */ __name(function() {
       return validate_1.KeywordCxt;
@@ -15086,12 +15092,12 @@ var require_dist2 = __commonJS({
     var fastName = new codegen_1.Name("fastFormats");
     var formatsPlugin = /* @__PURE__ */ __name((ajv6, opts = { keywords: true }) => {
       if (Array.isArray(opts)) {
-        addFormats7(ajv6, opts, formats_1.fullFormats, fullName);
+        addFormats8(ajv6, opts, formats_1.fullFormats, fullName);
         return ajv6;
       }
       const [formats, exportName] = opts.mode === "fast" ? [formats_1.fastFormats, fastName] : [formats_1.fullFormats, fullName];
       const list = opts.formats || formats_1.formatNames;
-      addFormats7(ajv6, list, formats, exportName);
+      addFormats8(ajv6, list, formats, exportName);
       if (opts.keywords)
         (0, limit_1.default)(ajv6);
       return ajv6;
@@ -15103,14 +15109,14 @@ var require_dist2 = __commonJS({
         throw new Error(`Unknown format "${name}"`);
       return f;
     };
-    function addFormats7(ajv6, list, fs, exportName) {
+    function addFormats8(ajv6, list, fs, exportName) {
       var _a;
       var _b;
       (_a = (_b = ajv6.opts.code).formats) !== null && _a !== void 0 ? _a : _b.formats = (0, codegen_1._)`require("ajv-formats/dist/formats").${exportName}`;
       for (const f of list)
         ajv6.addFormat(f, fs[f]);
     }
-    __name(addFormats7, "addFormats");
+    __name(addFormats8, "addFormats");
     module.exports = exports = formatsPlugin;
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.default = formatsPlugin;
@@ -16589,8 +16595,8 @@ async function runTestHook(name, context) {
 async function strictTarget(root, relPath, { target = "optional" } = {}) {
   const lexical = await resolveContained(root, relPath);
   const rootReal = await realpath2(root);
-  const relative27 = path2.relative(rootReal, lexical);
-  const segments = relative27.split(path2.sep);
+  const relative28 = path2.relative(rootReal, lexical);
+  const segments = relative28.split(path2.sep);
   let cursor = rootReal;
   for (let index = 0; index < segments.length - 1; index += 1) {
     cursor = path2.join(cursor, segments[index]);
@@ -16896,9 +16902,9 @@ function assertOwner(owner) {
 async function targetPath(root, relPath) {
   const target = await resolveContained(root, relPath);
   const rootReal = await realpath3(root);
-  const relative27 = path3.relative(rootReal, target);
+  const relative28 = path3.relative(rootReal, target);
   let cursor = rootReal;
-  for (const segment of relative27.split(path3.sep).slice(0, -1)) {
+  for (const segment of relative28.split(path3.sep).slice(0, -1)) {
     cursor = path3.join(cursor, segment);
     const stats = await lstat3(cursor);
     if (stats.isSymbolicLink() || !stats.isDirectory()) {
@@ -18110,18 +18116,18 @@ var require_snippet = __commonJS({
     var common = require_common();
     function getLine(buffer, lineStart, lineEnd, position, maxLineLength) {
       var head = "";
-      var tail2 = "";
+      var tail = "";
       var maxHalfLength = Math.floor(maxLineLength / 2) - 1;
       if (position - lineStart > maxHalfLength) {
         head = " ... ";
         lineStart = position - maxHalfLength + head.length;
       }
       if (lineEnd - position > maxHalfLength) {
-        tail2 = " ...";
-        lineEnd = position + maxHalfLength - tail2.length;
+        tail = " ...";
+        lineEnd = position + maxHalfLength - tail.length;
       }
       return {
-        str: head + buffer.slice(lineStart, lineEnd).replace(/\t/g, "\u2192") + tail2,
+        str: head + buffer.slice(lineStart, lineEnd).replace(/\t/g, "\u2192") + tail,
         pos: position - lineStart + head.length
         // relative position
       };
@@ -18849,7 +18855,7 @@ var require_binary2 = __commonJS({
     }
     __name(constructYamlBinary, "constructYamlBinary");
     function representYamlBinary(object) {
-      var result = "", bits = 0, idx, tail2, max = object.length, map = BASE64_MAP;
+      var result = "", bits = 0, idx, tail, max = object.length, map = BASE64_MAP;
       for (idx = 0; idx < max; idx++) {
         if (idx % 3 === 0 && idx) {
           result += map[bits >> 18 & 63];
@@ -18859,18 +18865,18 @@ var require_binary2 = __commonJS({
         }
         bits = (bits << 8) + object[idx];
       }
-      tail2 = max % 3;
-      if (tail2 === 0) {
+      tail = max % 3;
+      if (tail === 0) {
         result += map[bits >> 18 & 63];
         result += map[bits >> 12 & 63];
         result += map[bits >> 6 & 63];
         result += map[bits & 63];
-      } else if (tail2 === 2) {
+      } else if (tail === 2) {
         result += map[bits >> 10 & 63];
         result += map[bits >> 4 & 63];
         result += map[bits << 2 & 63];
         result += map[64];
-      } else if (tail2 === 1) {
+      } else if (tail === 1) {
         result += map[bits >> 2 & 63];
         result += map[bits << 4 & 63];
         result += map[64];
@@ -21723,7 +21729,7 @@ var require_cjs = __commonJS({
 var require_lib2 = __commonJS({
   "../../node_modules/.pnpm/write-file-atomic@5.0.1/node_modules/write-file-atomic/lib/index.js"(exports, module) {
     "use strict";
-    module.exports = writeFile14;
+    module.exports = writeFile17;
     module.exports.sync = writeFileSync2;
     module.exports._getTmpname = getTmpname;
     module.exports._cleanupOnExit = cleanupOnExit;
@@ -21731,7 +21737,7 @@ var require_lib2 = __commonJS({
     var MurmurHash3 = require_imurmurhash();
     var { onExit } = require_cjs();
     var path15 = __require("path");
-    var { promisify: promisify22 } = __require("util");
+    var { promisify: promisify27 } = __require("util");
     var activeFiles = {};
     var threadId = (/* @__PURE__ */ __name(function getId() {
       try {
@@ -21756,13 +21762,13 @@ var require_lib2 = __commonJS({
     }
     __name(cleanupOnExit, "cleanupOnExit");
     function serializeActiveFile(absoluteName) {
-      return new Promise((resolve35) => {
+      return new Promise((resolve37) => {
         if (!activeFiles[absoluteName]) {
           activeFiles[absoluteName] = [];
         }
-        activeFiles[absoluteName].push(resolve35);
+        activeFiles[absoluteName].push(resolve37);
         if (activeFiles[absoluteName].length === 1) {
-          resolve35();
+          resolve37();
         }
       });
     }
@@ -21790,10 +21796,10 @@ var require_lib2 = __commonJS({
       const absoluteName = path15.resolve(filename);
       try {
         await serializeActiveFile(absoluteName);
-        const truename = await promisify22(fs.realpath)(filename).catch(() => filename);
+        const truename = await promisify27(fs.realpath)(filename).catch(() => filename);
         tmpfile = getTmpname(truename);
         if (!options.mode || !options.chown) {
-          const stats = await promisify22(fs.stat)(truename).catch(() => {
+          const stats = await promisify27(fs.stat)(truename).catch(() => {
           });
           if (stats) {
             if (options.mode == null) {
@@ -21804,45 +21810,45 @@ var require_lib2 = __commonJS({
             }
           }
         }
-        fd = await promisify22(fs.open)(tmpfile, "w", options.mode);
+        fd = await promisify27(fs.open)(tmpfile, "w", options.mode);
         if (options.tmpfileCreated) {
           await options.tmpfileCreated(tmpfile);
         }
         if (ArrayBuffer.isView(data)) {
-          await promisify22(fs.write)(fd, data, 0, data.length, 0);
+          await promisify27(fs.write)(fd, data, 0, data.length, 0);
         } else if (data != null) {
-          await promisify22(fs.write)(fd, String(data), 0, String(options.encoding || "utf8"));
+          await promisify27(fs.write)(fd, String(data), 0, String(options.encoding || "utf8"));
         }
         if (options.fsync !== false) {
-          await promisify22(fs.fsync)(fd);
+          await promisify27(fs.fsync)(fd);
         }
-        await promisify22(fs.close)(fd);
+        await promisify27(fs.close)(fd);
         fd = null;
         if (options.chown) {
-          await promisify22(fs.chown)(tmpfile, options.chown.uid, options.chown.gid).catch((err) => {
+          await promisify27(fs.chown)(tmpfile, options.chown.uid, options.chown.gid).catch((err) => {
             if (!isChownErrOk(err)) {
               throw err;
             }
           });
         }
         if (options.mode) {
-          await promisify22(fs.chmod)(tmpfile, options.mode).catch((err) => {
+          await promisify27(fs.chmod)(tmpfile, options.mode).catch((err) => {
             if (!isChownErrOk(err)) {
               throw err;
             }
           });
         }
-        await promisify22(fs.rename)(tmpfile, truename);
+        await promisify27(fs.rename)(tmpfile, truename);
       } finally {
         if (fd) {
-          await promisify22(fs.close)(fd).catch(
+          await promisify27(fs.close)(fd).catch(
             /* istanbul ignore next */
             () => {
             }
           );
         }
         removeOnExitHandler();
-        await promisify22(fs.unlink)(tmpfile).catch(() => {
+        await promisify27(fs.unlink)(tmpfile).catch(() => {
         });
         activeFiles[absoluteName].shift();
         if (activeFiles[absoluteName].length > 0) {
@@ -21853,7 +21859,7 @@ var require_lib2 = __commonJS({
       }
     }
     __name(writeFileAsync, "writeFileAsync");
-    async function writeFile14(filename, data, options, callback) {
+    async function writeFile17(filename, data, options, callback) {
       if (options instanceof Function) {
         callback = options;
         options = {};
@@ -21869,7 +21875,7 @@ var require_lib2 = __commonJS({
       }
       return promise;
     }
-    __name(writeFile14, "writeFile");
+    __name(writeFile17, "writeFile");
     function writeFileSync2(filename, data, options) {
       if (typeof options === "string") {
         options = { encoding: options };
@@ -22982,16 +22988,16 @@ var require_windows = __commonJS({
       return false;
     }
     __name(checkPathExt, "checkPathExt");
-    function checkStat(stat10, path15, options) {
-      if (!stat10.isSymbolicLink() && !stat10.isFile()) {
+    function checkStat(stat13, path15, options) {
+      if (!stat13.isSymbolicLink() && !stat13.isFile()) {
         return false;
       }
       return checkPathExt(path15, options);
     }
     __name(checkStat, "checkStat");
     function isexe(path15, options, cb) {
-      fs.stat(path15, function(er, stat10) {
-        cb(er, er ? false : checkStat(stat10, path15, options));
+      fs.stat(path15, function(er, stat13) {
+        cb(er, er ? false : checkStat(stat13, path15, options));
       });
     }
     __name(isexe, "isexe");
@@ -23009,8 +23015,8 @@ var require_mode = __commonJS({
     isexe.sync = sync;
     var fs = __require("fs");
     function isexe(path15, options, cb) {
-      fs.stat(path15, function(er, stat10) {
-        cb(er, er ? false : checkStat(stat10, options));
+      fs.stat(path15, function(er, stat13) {
+        cb(er, er ? false : checkStat(stat13, options));
       });
     }
     __name(isexe, "isexe");
@@ -23018,14 +23024,14 @@ var require_mode = __commonJS({
       return checkStat(fs.statSync(path15), options);
     }
     __name(sync, "sync");
-    function checkStat(stat10, options) {
-      return stat10.isFile() && checkMode(stat10, options);
+    function checkStat(stat13, options) {
+      return stat13.isFile() && checkMode(stat13, options);
     }
     __name(checkStat, "checkStat");
-    function checkMode(stat10, options) {
-      var mod = stat10.mode;
-      var uid = stat10.uid;
-      var gid = stat10.gid;
+    function checkMode(stat13, options) {
+      var mod = stat13.mode;
+      var uid = stat13.uid;
+      var gid = stat13.gid;
       var myUid = options.uid !== void 0 ? options.uid : process.getuid && process.getuid();
       var myGid = options.gid !== void 0 ? options.gid : process.getgid && process.getgid();
       var u = parseInt("100", 8);
@@ -23060,12 +23066,12 @@ var require_isexe = __commonJS({
         if (typeof Promise !== "function") {
           throw new TypeError("callback not provided");
         }
-        return new Promise(function(resolve35, reject) {
+        return new Promise(function(resolve37, reject) {
           isexe(path15, options || {}, function(er, is) {
             if (er) {
               reject(er);
             } else {
-              resolve35(is);
+              resolve37(is);
             }
           });
         });
@@ -23129,27 +23135,27 @@ var require_which = __commonJS({
         opt = {};
       const { pathEnv, pathExt, pathExtExe } = getPathInfo(cmd, opt);
       const found = [];
-      const step = /* @__PURE__ */ __name((i) => new Promise((resolve35, reject) => {
+      const step = /* @__PURE__ */ __name((i) => new Promise((resolve37, reject) => {
         if (i === pathEnv.length)
-          return opt.all && found.length ? resolve35(found) : reject(getNotFoundError(cmd));
+          return opt.all && found.length ? resolve37(found) : reject(getNotFoundError(cmd));
         const ppRaw = pathEnv[i];
         const pathPart = /^".*"$/.test(ppRaw) ? ppRaw.slice(1, -1) : ppRaw;
         const pCmd = path15.join(pathPart, cmd);
         const p = !pathPart && /^\.[\\\/]/.test(cmd) ? cmd.slice(0, 2) + pCmd : pCmd;
-        resolve35(subStep(p, i, 0));
+        resolve37(subStep(p, i, 0));
       }), "step");
-      const subStep = /* @__PURE__ */ __name((p, i, ii) => new Promise((resolve35, reject) => {
+      const subStep = /* @__PURE__ */ __name((p, i, ii) => new Promise((resolve37, reject) => {
         if (ii === pathExt.length)
-          return resolve35(step(i + 1));
+          return resolve37(step(i + 1));
         const ext = pathExt[ii];
         isexe(p + ext, { pathExt: pathExtExe }, (er, is) => {
           if (!er && is) {
             if (opt.all)
               found.push(p + ext);
             else
-              return resolve35(p + ext);
+              return resolve37(p + ext);
           }
-          return resolve35(subStep(p, i, ii + 1));
+          return resolve37(subStep(p, i, ii + 1));
         });
       }), "subStep");
       return cb ? step(0).then((res) => cb(null, res), cb) : step(0);
@@ -23225,27 +23231,27 @@ var require_which2 = __commonJS({
         opt = {};
       const { pathEnv, pathExt, pathExtExe } = getPathInfo(cmd, opt);
       const found = [];
-      const step = /* @__PURE__ */ __name((i) => new Promise((resolve35, reject) => {
+      const step = /* @__PURE__ */ __name((i) => new Promise((resolve37, reject) => {
         if (i === pathEnv.length)
-          return opt.all && found.length ? resolve35(found) : reject(getNotFoundError(cmd));
+          return opt.all && found.length ? resolve37(found) : reject(getNotFoundError(cmd));
         const ppRaw = pathEnv[i];
         const pathPart = /^".*"$/.test(ppRaw) ? ppRaw.slice(1, -1) : ppRaw;
         const pCmd = path15.join(pathPart, cmd);
         const p = !pathPart && /^\.[\\\/]/.test(cmd) ? cmd.slice(0, 2) + pCmd : pCmd;
-        resolve35(subStep(p, i, 0));
+        resolve37(subStep(p, i, 0));
       }), "step");
-      const subStep = /* @__PURE__ */ __name((p, i, ii) => new Promise((resolve35, reject) => {
+      const subStep = /* @__PURE__ */ __name((p, i, ii) => new Promise((resolve37, reject) => {
         if (ii === pathExt.length)
-          return resolve35(step(i + 1));
+          return resolve37(step(i + 1));
         const ext = pathExt[ii];
         isexe(p + ext, { pathExt: pathExtExe }, (er, is) => {
           if (!er && is) {
             if (opt.all)
               found.push(p + ext);
             else
-              return resolve35(p + ext);
+              return resolve37(p + ext);
           }
-          return resolve35(subStep(p, i, ii + 1));
+          return resolve37(subStep(p, i, ii + 1));
         });
       }), "subStep");
       return cb ? step(0).then((res) => cb(null, res), cb) : step(0);
@@ -23503,19 +23509,19 @@ var require_enoent = __commonJS({
       });
     }
     __name(notFoundError, "notFoundError");
-    function hookChildProcess(cp2, parsed) {
+    function hookChildProcess(cp3, parsed) {
       if (!isWin) {
         return;
       }
-      const originalEmit = cp2.emit;
-      cp2.emit = function(name, arg1) {
+      const originalEmit = cp3.emit;
+      cp3.emit = function(name, arg1) {
         if (name === "exit") {
           const err = verifyENOENT(arg1, parsed);
           if (err) {
-            return originalEmit.call(cp2, "error", err);
+            return originalEmit.call(cp3, "error", err);
           }
         }
-        return originalEmit.apply(cp2, arguments);
+        return originalEmit.apply(cp3, arguments);
       };
     }
     __name(hookChildProcess, "hookChildProcess");
@@ -23546,19 +23552,19 @@ var require_enoent = __commonJS({
 var require_cross_spawn = __commonJS({
   "../../node_modules/.pnpm/cross-spawn@7.0.6/node_modules/cross-spawn/index.js"(exports, module) {
     "use strict";
-    var cp2 = __require("child_process");
+    var cp3 = __require("child_process");
     var parse2 = require_parse();
     var enoent = require_enoent();
     function spawn5(command2, args2, options) {
       const parsed = parse2(command2, args2, options);
-      const spawned = cp2.spawn(parsed.command, parsed.args, parsed.options);
+      const spawned = cp3.spawn(parsed.command, parsed.args, parsed.options);
       enoent.hookChildProcess(spawned, parsed);
       return spawned;
     }
     __name(spawn5, "spawn");
     function spawnSync2(command2, args2, options) {
       const parsed = parse2(command2, args2, options);
-      const result = cp2.spawnSync(parsed.command, parsed.args, parsed.options);
+      const result = cp3.spawnSync(parsed.command, parsed.args, parsed.options);
       result.error = result.error || enoent.verifyENOENTSync(result.status, parsed);
       return result;
     }
@@ -24450,7 +24456,7 @@ var require_kill = __commonJS({
         return spawnedPromise;
       }
       let timeoutId;
-      const timeoutPromise = new Promise((resolve35, reject) => {
+      const timeoutPromise = new Promise((resolve37, reject) => {
         timeoutId = setTimeout(() => {
           timeoutKill(spawned, killSignal, reject);
         }, timeout);
@@ -24550,9 +24556,9 @@ var require_get_stream = __commonJS({
     "use strict";
     var { constants: BufferConstants } = __require("buffer");
     var stream = __require("stream");
-    var { promisify: promisify22 } = __require("util");
+    var { promisify: promisify27 } = __require("util");
     var bufferStream = require_buffer_stream();
-    var streamPipelinePromisified = promisify22(stream.pipeline);
+    var streamPipelinePromisified = promisify27(stream.pipeline);
     var MaxBufferError = class extends Error {
       static {
         __name(this, "MaxBufferError");
@@ -24572,7 +24578,7 @@ var require_get_stream = __commonJS({
       };
       const { maxBuffer } = options;
       const stream2 = bufferStream(options);
-      await new Promise((resolve35, reject) => {
+      await new Promise((resolve37, reject) => {
         const rejectPromise = /* @__PURE__ */ __name((error) => {
           if (error && stream2.getBufferedLength() <= BufferConstants.MAX_LENGTH) {
             error.bufferedData = stream2.getBufferedValue();
@@ -24582,7 +24588,7 @@ var require_get_stream = __commonJS({
         (async () => {
           try {
             await streamPipelinePromisified(inputStream, stream2);
-            resolve35();
+            resolve37();
           } catch (error) {
             rejectPromise(error);
           }
@@ -24743,9 +24749,9 @@ var require_promise = __commonJS({
       return spawned;
     }, "mergePromise");
     var getSpawnedPromise = /* @__PURE__ */ __name((spawned) => {
-      return new Promise((resolve35, reject) => {
+      return new Promise((resolve37, reject) => {
         spawned.on("exit", (exitCode, signal) => {
-          resolve35({ exitCode, signal });
+          resolve37({ exitCode, signal });
         });
         spawned.on("error", (error) => {
           reject(error);
@@ -25730,8 +25736,8 @@ var require_graceful_fs = __commonJS({
       fs2.createReadStream = createReadStream2;
       fs2.createWriteStream = createWriteStream;
       var fs$readFile = fs2.readFile;
-      fs2.readFile = readFile42;
-      function readFile42(path15, options, cb) {
+      fs2.readFile = readFile46;
+      function readFile46(path15, options, cb) {
         if (typeof options === "function")
           cb = options, options = null;
         return go$readFile(path15, options, cb);
@@ -25747,10 +25753,10 @@ var require_graceful_fs = __commonJS({
         }
         __name(go$readFile, "go$readFile");
       }
-      __name(readFile42, "readFile");
+      __name(readFile46, "readFile");
       var fs$writeFile = fs2.writeFile;
-      fs2.writeFile = writeFile14;
-      function writeFile14(path15, data, options, cb) {
+      fs2.writeFile = writeFile17;
+      function writeFile17(path15, data, options, cb) {
         if (typeof options === "function")
           cb = options, options = null;
         return go$writeFile(path15, data, options, cb);
@@ -25766,7 +25772,7 @@ var require_graceful_fs = __commonJS({
         }
         __name(go$writeFile, "go$writeFile");
       }
-      __name(writeFile14, "writeFile");
+      __name(writeFile17, "writeFile");
       var fs$appendFile = fs2.appendFile;
       if (fs$appendFile)
         fs2.appendFile = appendFile;
@@ -25789,8 +25795,8 @@ var require_graceful_fs = __commonJS({
       __name(appendFile, "appendFile");
       var fs$copyFile = fs2.copyFile;
       if (fs$copyFile)
-        fs2.copyFile = copyFile;
-      function copyFile(src, dest, flags, cb) {
+        fs2.copyFile = copyFile2;
+      function copyFile2(src, dest, flags, cb) {
         if (typeof flags === "function") {
           cb = flags;
           flags = 0;
@@ -25808,11 +25814,11 @@ var require_graceful_fs = __commonJS({
         }
         __name(go$copyFile, "go$copyFile");
       }
-      __name(copyFile, "copyFile");
+      __name(copyFile2, "copyFile");
       var fs$readdir = fs2.readdir;
-      fs2.readdir = readdir21;
+      fs2.readdir = readdir22;
       var noReaddirOptionVersions = /^v[0-5]\./;
-      function readdir21(path15, options, cb) {
+      function readdir22(path15, options, cb) {
         if (typeof options === "function")
           cb = options, options = null;
         var go$readdir = noReaddirOptionVersions.test(process.version) ? /* @__PURE__ */ __name(function go$readdir2(path16, options2, cb2, startTime) {
@@ -25851,7 +25857,7 @@ var require_graceful_fs = __commonJS({
         }
         __name(fs$readdirCallback, "fs$readdirCallback");
       }
-      __name(readdir21, "readdir");
+      __name(readdir22, "readdir");
       if (process.version.substr(0, 4) === "v0.8") {
         var legStreams = legacy(fs2);
         ReadStream = legStreams.ReadStream;
@@ -26864,10 +26870,10 @@ var require_commonjs = __commonJS({
        * Return a void Promise that resolves once the stream ends.
        */
       async promise() {
-        return new Promise((resolve35, reject) => {
+        return new Promise((resolve37, reject) => {
           this.on(DESTROYED, () => reject(new Error("stream destroyed")));
           this.on("error", (er) => reject(er));
-          this.on("end", () => resolve35());
+          this.on("end", () => resolve37());
         });
       }
       /**
@@ -26891,7 +26897,7 @@ var require_commonjs = __commonJS({
             return Promise.resolve({ done: false, value: res });
           if (this[EOF])
             return stop();
-          let resolve35;
+          let resolve37;
           let reject;
           const onerr = /* @__PURE__ */ __name((er) => {
             this.off("data", ondata);
@@ -26905,19 +26911,19 @@ var require_commonjs = __commonJS({
             this.off("end", onend);
             this.off(DESTROYED, ondestroy);
             this.pause();
-            resolve35({ value, done: !!this[EOF] });
+            resolve37({ value, done: !!this[EOF] });
           }, "ondata");
           const onend = /* @__PURE__ */ __name(() => {
             this.off("error", onerr);
             this.off("data", ondata);
             this.off(DESTROYED, ondestroy);
             stop();
-            resolve35({ done: true, value: void 0 });
+            resolve37({ done: true, value: void 0 });
           }, "onend");
           const ondestroy = /* @__PURE__ */ __name(() => onerr(new Error("stream destroyed")), "ondestroy");
           return new Promise((res2, rej) => {
             reject = rej;
-            resolve35 = res2;
+            resolve37 = res2;
             this.once(DESTROYED, ondestroy);
             this.once("error", onerr);
             this.once("end", onend);
@@ -27383,7 +27389,7 @@ var require_lib9 = __commonJS({
     module.exports.fromStream = fromStream;
     function fromStream(stream, opts) {
       const istream = integrityStream(opts);
-      return new Promise((resolve35, reject) => {
+      return new Promise((resolve37, reject) => {
         stream.pipe(istream);
         stream.on("error", reject);
         istream.on("error", reject);
@@ -27391,7 +27397,7 @@ var require_lib9 = __commonJS({
         istream.on("integrity", (s) => {
           sri = s;
         });
-        istream.on("end", () => resolve35(sri));
+        istream.on("end", () => resolve37(sri));
         istream.resume();
       });
     }
@@ -27452,7 +27458,7 @@ var require_lib9 = __commonJS({
         ));
       }
       const checker = integrityStream(opts);
-      return new Promise((resolve35, reject) => {
+      return new Promise((resolve37, reject) => {
         stream.pipe(checker);
         stream.on("error", reject);
         checker.on("error", reject);
@@ -27460,7 +27466,7 @@ var require_lib9 = __commonJS({
         checker.on("verified", (s) => {
           verified = s;
         });
-        checker.on("end", () => resolve35(verified));
+        checker.on("end", () => resolve37(verified));
         checker.resume();
       });
     }
@@ -29627,7 +29633,7 @@ var require_lib11 = __commonJS({
       return mod && mod.__esModule ? mod : { "default": mod };
     };
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.isAbsolute = isAbsolute23;
+    exports.isAbsolute = isAbsolute26;
     exports.indexOfDepPathSuffix = indexOfDepPathSuffix;
     exports.parseDepPath = parseDepPath;
     exports.removeSuffix = removeSuffix;
@@ -29641,10 +29647,10 @@ var require_lib11 = __commonJS({
     exports.createPeerDepGraphHash = createPeerDepGraphHash;
     var crypto_hash_1 = require_lib10();
     var semver_1 = __importDefault(require_semver2());
-    function isAbsolute23(dependencyPath) {
+    function isAbsolute26(dependencyPath) {
       return dependencyPath[0] !== "/";
     }
-    __name(isAbsolute23, "isAbsolute");
+    __name(isAbsolute26, "isAbsolute");
     function indexOfDepPathSuffix(depPath) {
       if (!depPath.endsWith(")"))
         return { peersIndex: -1, patchHashIndex: -1 };
@@ -31106,9 +31112,9 @@ var require_write = __commonJS({
     var lockfileName_js_1 = require_lockfileName();
     var lockfileFormatConverters_js_1 = require_lockfileFormatConverters();
     async function writeFileAtomic2(filename, data) {
-      return new Promise((resolve35, reject) => {
+      return new Promise((resolve37, reject) => {
         (0, write_file_atomic_1.default)(filename, data, {}, (err) => {
-          err != null ? reject(err) : resolve35();
+          err != null ? reject(err) : resolve37();
         });
       });
     }
@@ -31214,14 +31220,14 @@ var require_existsWantedLockfile = __commonJS({
       mergeGitBranchLockfiles: false
     }) {
       const wantedLockfile = await (0, lockfileName_js_1.getWantedLockfileName)(opts);
-      return new Promise((resolve35, reject) => {
+      return new Promise((resolve37, reject) => {
         fs_1.default.access(path_1.default.join(pkgPath, wantedLockfile), (err) => {
           if (err == null) {
-            resolve35(true);
+            resolve37(true);
             return;
           }
           if (err.code === "ENOENT") {
-            resolve35(false);
+            resolve37(false);
             return;
           }
           reject(err);
@@ -31754,33 +31760,33 @@ var require_lib18 = __commonJS({
 import { mkdtempSync, rmSync, writeFileSync, lstatSync, readlinkSync } from "node:fs";
 import os3 from "node:os";
 import path9 from "node:path";
-function isIpv6ShapedRun(run5) {
-  if (!run5.includes(":")) return false;
-  if (run5.includes("::")) return true;
-  const segments = run5.split(":");
+function isIpv6ShapedRun(run6) {
+  if (!run6.includes(":")) return false;
+  if (run6.includes("::")) return true;
+  const segments = run6.split(":");
   const nonEmptySegments = segments.filter((segment) => segment.length > 0);
   const hasEmptySegment = nonEmptySegments.length !== segments.length;
   if (nonEmptySegments.length >= 4) return true;
   const allHexGroups = nonEmptySegments.length > 0 && nonEmptySegments.every((segment) => HEX_GROUP_SEGMENT_PATTERN.test(segment));
-  if (allHexGroups && nonEmptySegments.length >= 3 && HEX_LETTER_PATTERN.test(run5)) return true;
-  if (hasEmptySegment && allHexGroups && nonEmptySegments.length >= 2 && HEX_LETTER_PATTERN.test(run5)) return true;
-  if (nonEmptySegments.some((segment) => ALPHA_SHORT_SEGMENT_PATTERN.test(segment)) && DECIMAL_DIGIT_PATTERN.test(run5)) return true;
+  if (allHexGroups && nonEmptySegments.length >= 3 && HEX_LETTER_PATTERN.test(run6)) return true;
+  if (hasEmptySegment && allHexGroups && nonEmptySegments.length >= 2 && HEX_LETTER_PATTERN.test(run6)) return true;
+  if (nonEmptySegments.some((segment) => ALPHA_SHORT_SEGMENT_PATTERN.test(segment)) && DECIMAL_DIGIT_PATTERN.test(run6)) return true;
   return false;
 }
 function extractIpCandidates(text) {
   const candidates = [];
   for (const match of text.matchAll(IP_RUN_PATTERN)) {
-    let run5 = match[0];
+    let run6 = match[0];
     let index = match.index;
-    const leadingDots = run5.match(/^\.+/);
+    const leadingDots = run6.match(/^\.+/);
     if (leadingDots) {
       index += leadingDots[0].length;
-      run5 = run5.slice(leadingDots[0].length);
+      run6 = run6.slice(leadingDots[0].length);
     }
-    const trailingDots = run5.match(/\.+$/);
-    if (trailingDots) run5 = run5.slice(0, run5.length - trailingDots[0].length);
-    if (isIpv6ShapedRun(run5)) {
-      candidates.push({ token: run5, index, shape: "ipv6" });
+    const trailingDots = run6.match(/\.+$/);
+    if (trailingDots) run6 = run6.slice(0, run6.length - trailingDots[0].length);
+    if (isIpv6ShapedRun(run6)) {
+      candidates.push({ token: run6, index, shape: "ipv6" });
     }
   }
   for (const match of text.matchAll(IPV4_SHAPED_PATTERN)) {
@@ -32218,7 +32224,7 @@ var init_report = __esm({
     init_closure();
     init_errors3();
     init_validation();
-    PACKAGE_META = Object.freeze({ "name": "release-skill", "version": "0.6.2" });
+    PACKAGE_META = Object.freeze({ "name": "release-skill", "version": "0.6.3" });
     REPORT_RENDERER_VERSION = PACKAGE_META.version;
     SUPPORTED_REPORT_LOCALES = Object.freeze(["zh-CN", "en-US"]);
     EXECUTION_STATUSES = Object.freeze([
@@ -33158,10 +33164,10 @@ function lexicalPath(resource, code) {
   }
   return path15;
 }
-function assertStat(stat10, resource, code) {
-  if (stat10.isSymbolicLink()) fail(code, resource, "SYMLINK");
-  if (!stat10.isFile()) fail(code, resource, "NOT_REGULAR_FILE");
-  if (stat10.nlink !== 1) fail(code, resource, "UNEXPECTED_HARDLINK_COUNT");
+function assertStat(stat13, resource, code) {
+  if (stat13.isSymbolicLink()) fail(code, resource, "SYMLINK");
+  if (!stat13.isFile()) fail(code, resource, "NOT_REGULAR_FILE");
+  if (stat13.nlink !== 1) fail(code, resource, "UNEXPECTED_HARDLINK_COUNT");
 }
 function assertPhysicalContainment(physicalRoot, physicalPath, resource, code) {
   const rel = relative(physicalRoot, physicalPath);
@@ -33195,13 +33201,13 @@ function readTrustedPackageResourceSync(resource, { code = CONFIG_INVALID } = {}
   const classification = classifyPathInput(resource, process.platform);
   if (!classification.ok) fail(code, String(resource), "INVALID_RESOURCE_PATH");
   const path15 = lexicalPath(resource, code);
-  let stat10;
+  let stat13;
   try {
-    stat10 = lstatSync2(path15);
+    stat13 = lstatSync2(path15);
   } catch {
     fail(code, resource, "MISSING");
   }
-  assertStat(stat10, resource, code);
+  assertStat(stat13, resource, code);
   let physicalRoot;
   let physicalPath;
   try {
@@ -33224,13 +33230,13 @@ async function readTrustedPackageResource(resource, { code = CONFIG_INVALID } = 
   } catch (cause) {
     mapHarnessError(cause, resource, code);
   }
-  let stat10;
+  let stat13;
   try {
-    stat10 = await lstat8(target);
+    stat13 = await lstat8(target);
   } catch {
     fail(code, resource, "MISSING");
   }
-  assertStat(stat10, resource, code);
+  assertStat(stat13, resource, code);
   try {
     return await readFileContained(PKG_ROOT, resource);
   } catch (cause) {
@@ -33470,14 +33476,14 @@ async function assertNoSymlinkAncestors(directory) {
   let current = join2(parsed.root, ...segments.slice(0, firstChecked));
   for (const segment of segments.slice(firstChecked)) {
     current = join2(current, segment);
-    let stat10;
+    let stat13;
     try {
-      stat10 = await lstat9(current);
+      stat13 = await lstat9(current);
     } catch (error) {
       if (error.code === "ENOENT") continue;
       throw error;
     }
-    if (stat10.isSymbolicLink() || !stat10.isDirectory()) {
+    if (stat13.isSymbolicLink() || !stat13.isDirectory()) {
       throw new ReleaseError(
         GATE_FAILED,
         "release authority path contains a symlink or non-directory ancestor",
@@ -33497,8 +33503,8 @@ async function assertAuthorityFileTarget(filePath) {
   const absolute = resolve3(filePath);
   await prepareAuthorityDirectory(dirname3(absolute));
   try {
-    const stat10 = await lstat9(absolute);
-    if (stat10.isSymbolicLink() || !stat10.isFile()) {
+    const stat13 = await lstat9(absolute);
+    if (stat13.isSymbolicLink() || !stat13.isFile()) {
       throw new ReleaseError(
         GATE_FAILED,
         "release authority target must be a regular file, never a symlink or special file",
@@ -34670,9 +34676,9 @@ async function executeKimiManualRequirement(action, context) {
     },
     instructions
   };
-  const { mkdir: mkdir24 } = await import("node:fs/promises");
+  const { mkdir: mkdir28 } = await import("node:fs/promises");
   try {
-    await mkdir24(attestationDir, { recursive: true, mode: 448 });
+    await mkdir28(attestationDir, { recursive: true, mode: 448 });
   } catch (mkdirErr) {
     if (mkdirErr?.code !== "EEXIST") {
       return createResult({
@@ -35077,9 +35083,9 @@ async function executeCodeBuddyManualRequirement(action, context) {
     },
     instructions
   };
-  const { mkdir: mkdir24 } = await import("node:fs/promises");
+  const { mkdir: mkdir28 } = await import("node:fs/promises");
   try {
-    await mkdir24(attestationDir, { recursive: true, mode: 448 });
+    await mkdir28(attestationDir, { recursive: true, mode: 448 });
   } catch (mkdirErr) {
     if (mkdirErr?.code !== "EEXIST") {
       return createResult({
@@ -35338,9 +35344,9 @@ async function executeCodexManualRequirement(action, context) {
     },
     instructions
   };
-  const { mkdir: mkdir24 } = await import("node:fs/promises");
+  const { mkdir: mkdir28 } = await import("node:fs/promises");
   try {
-    await mkdir24(attestationDir, { recursive: true, mode: 448 });
+    await mkdir28(attestationDir, { recursive: true, mode: 448 });
   } catch (mkdirErr) {
     if (mkdirErr?.code !== "EEXIST") {
       return createResult({
@@ -36742,11 +36748,1036 @@ var init_npm_entry_closure = __esm({
   }
 });
 
+// src/core/presets.mjs
+var presets_exports = {};
+__export(presets_exports, {
+  FIELDS_FROM_PLAN_SOURCES: () => FIELDS_FROM_PLAN_SOURCES,
+  assertPresetWorkspaceExecution: () => assertPresetWorkspaceExecution,
+  getPostPublishPreset: () => getPostPublishPreset,
+  listPostPublishPresets: () => listPostPublishPresets,
+  postPublishPresetNames: () => postPublishPresetNames,
+  preflightPresetWorkspace: () => preflightPresetWorkspace,
+  resolvePresetRequiresApproval: () => resolvePresetRequiresApproval,
+  resolveProposalInboxTransport: () => resolveProposalInboxTransport,
+  validatePresetHook: () => validatePresetHook
+});
+import { realpath as realpath7, stat as stat2 } from "node:fs/promises";
+import { isAbsolute as isAbsolute6, resolve as resolve8 } from "node:path";
+function assertSafeStaticFilePath(where, field, value, failFn) {
+  if (typeof value !== "string" || value.length === 0) {
+    failFn(`${where}.${field} must be a non-empty string`);
+  }
+  if (value.startsWith("/") || value.startsWith("./") || value === "." || value.includes("..") || value.includes("\\") || value.includes(":")) {
+    failFn(`${where}.${field} is not a safe relative path`, { value });
+  }
+}
+function failHook(message, details = {}) {
+  throw new ReleaseError(POSTPUBLISH_HOOK_INVALID, `postPublish hook invalid: ${message}`, details);
+}
+function assertNoControlChars(label, value) {
+  if (/[\x00-\x1f\x7f]/.test(value)) {
+    failHook(`${label} contains control characters`, { label });
+  }
+}
+function scanConfigValueForSecrets(pathLabel, value) {
+  if (typeof value !== "string") return;
+  for (const pattern of CONFIG_SECRET_PATTERNS) {
+    if (pattern.test(value)) {
+      failHook(
+        `preset config carries a secret-looking value at "${pathLabel}"; credentials belong to the host keychain, never to postPublish config`,
+        { location: pathLabel }
+      );
+    }
+  }
+}
+function scanConfigForSecrets(config, where) {
+  const walk = /* @__PURE__ */ __name((node, pathLabel) => {
+    if (typeof node === "string") {
+      scanConfigValueForSecrets(pathLabel, node);
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach((item, index) => walk(item, `${pathLabel}[${index}]`));
+      return;
+    }
+    if (node && typeof node === "object") {
+      for (const [key, value] of Object.entries(node)) {
+        walk(value, pathLabel ? `${pathLabel}.${key}` : key);
+      }
+    }
+  }, "walk");
+  walk(config, `${where}.config`);
+}
+function validateDownstreamTarget(where, target, { targetOptional }) {
+  if (target === void 0) {
+    if (targetOptional) return;
+    failHook(`${where}: write-downstream presets require a config.target declaration`, {});
+  }
+  if (!target || typeof target !== "object" || Array.isArray(target)) {
+    failHook(`${where}.config.target must be a plain object`);
+  }
+  const hasRemoteUrl = target.remoteUrl !== void 0;
+  const hasWorkspace = target.workspace !== void 0;
+  if (hasRemoteUrl === hasWorkspace) {
+    failHook(
+      `${where}.config.target must declare exactly one of remoteUrl or workspace (dual addressing)`,
+      { hasRemoteUrl, hasWorkspace }
+    );
+  }
+  if (hasRemoteUrl) {
+    if (typeof target.remoteUrl !== "string" || !REMOTE_URL_RE.test(target.remoteUrl)) {
+      failHook(`${where}.config.target.remoteUrl must be an http(s)/file URL ending in .git`, {
+        remoteUrl: target.remoteUrl
+      });
+    }
+    assertNoControlChars(`${where}.config.target.remoteUrl`, target.remoteUrl);
+  } else {
+    if (typeof target.workspace !== "string" || target.workspace.length === 0) {
+      failHook(`${where}.config.target.workspace must be a non-empty string`);
+    }
+    assertNoControlChars(`${where}.config.target.workspace`, target.workspace);
+    const segments = target.workspace.split(/[\\/]+/);
+    if (segments.includes(".release-skill")) {
+      failHook(
+        `${where}.config.target.workspace must not point into the .release-skill/ runtime directory`,
+        {}
+      );
+    }
+  }
+  if (typeof target.branch !== "string" || !BRANCH_RE.test(target.branch)) {
+    failHook(`${where}.config.target.branch is not a safe Git branch name`, { branch: target.branch });
+  }
+  if (target.branch.includes("..") || target.branch.endsWith(".") || target.branch.endsWith(".lock")) {
+    failHook(`${where}.config.target.branch is not a safe Git branch name`, { branch: target.branch });
+  }
+}
+function validateVisibility(where, config) {
+  if (config.visibility !== void 0 && config.visibility !== "internal" && config.visibility !== "public") {
+    failHook(`${where}.config.visibility must be "internal" or "public"`, {
+      visibility: config.visibility
+    });
+  }
+}
+function validateStaticFiles(where, config) {
+  if (config.staticFiles === void 0) return;
+  if (!Array.isArray(config.staticFiles)) {
+    failHook(`${where}.config.staticFiles must be an array`);
+  }
+  for (const [index, file] of config.staticFiles.entries()) {
+    if (!file || typeof file !== "object" || Array.isArray(file)) {
+      failHook(`${where}.config.staticFiles[${index}] must be a plain object`);
+    }
+    assertSafeStaticFilePath(`${where}.config.staticFiles[${index}]`, "from", file?.from, failHook);
+    assertSafeStaticFilePath(`${where}.config.staticFiles[${index}]`, "to", file?.to, failHook);
+  }
+}
+function validateMarketplaceBlock(where, config) {
+  const marketplace = config.marketplace;
+  if (!marketplace || typeof marketplace !== "object" || Array.isArray(marketplace)) {
+    failHook(`${where}: marketplace-index-render requires a config.marketplace block`);
+  }
+  const { form, name, owner } = marketplace;
+  if (form !== "github" && form !== "url") {
+    failHook(`${where}.config.marketplace.form must be "github" or "url"`, { form });
+  }
+  if (typeof name !== "string" || name.length === 0) {
+    failHook(`${where}.config.marketplace.name must be a non-empty string`);
+  }
+  if (typeof owner !== "string" || owner.length === 0) {
+    failHook(`${where}.config.marketplace.owner must be a non-empty string`);
+  }
+  if (marketplace.sourceRepo !== void 0 && (typeof marketplace.sourceRepo !== "string" || !/^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/.test(marketplace.sourceRepo))) {
+    failHook(`${where}.config.marketplace.sourceRepo must be owner/repo when provided`);
+  }
+}
+function requirePlainConfig(where, hook) {
+  if (hook.config === void 0 || typeof hook.config !== "object" || Array.isArray(hook.config) || hook.config === null) {
+    failHook(`${where}: this preset requires a config object`, {});
+  }
+  return hook.config;
+}
+function validateFieldsFromPlan(where, config) {
+  const fieldsFromPlan = config.fieldsFromPlan;
+  if (!fieldsFromPlan || typeof fieldsFromPlan !== "object" || Array.isArray(fieldsFromPlan)) {
+    failHook(`${where}.config.fieldsFromPlan must be a plain object mapping entry fields to frozen plan fields`);
+  }
+  const entries = Object.entries(fieldsFromPlan);
+  if (entries.length === 0) {
+    failHook(`${where}.config.fieldsFromPlan must map at least one entry field`);
+  }
+  for (const [entryField, sourceField] of entries) {
+    if (!SAFE_FIELD_RE.test(entryField) || FORBIDDEN_FIELDS.has(entryField)) {
+      failHook(`${where}.config.fieldsFromPlan field "${entryField}" is not a safe entry field name`, { entryField });
+    }
+    if (typeof sourceField !== "string" || !FIELDS_FROM_PLAN_SOURCES.has(sourceField)) {
+      failHook(
+        `${where}.config.fieldsFromPlan."${entryField}" must map to a frozen plan context field (${[...FIELDS_FROM_PLAN_SOURCES].join("/")})`,
+        { entryField, sourceField }
+      );
+    }
+  }
+}
+function validateGates(where, config) {
+  if (config.gates === void 0) return;
+  if (!Array.isArray(config.gates)) {
+    failHook(`${where}.config.gates must be an array`);
+  }
+  for (const [index, gate] of config.gates.entries()) {
+    const gwhere = `${where}.config.gates[${index}]`;
+    if (!gate || typeof gate !== "object" || Array.isArray(gate)) {
+      failHook(`${gwhere} must be a plain object`);
+    }
+    if (!Array.isArray(gate.command) || gate.command.length === 0) {
+      failHook(`${gwhere}.command must be a non-empty array (shell strings are never accepted)`);
+    }
+    for (const element of gate.command) {
+      if (typeof element !== "string" || element.length === 0) {
+        failHook(`${gwhere}.command must contain only non-empty strings`);
+      }
+      assertNoControlChars(`${gwhere}.command`, element);
+      if (element.startsWith("-") && element === gate.command[0]) {
+        failHook(`${gwhere}.command executable must not start with "-"`, { executable: element });
+      }
+    }
+    if (gate.cwd !== void 0) {
+      if (typeof gate.cwd !== "string" || gate.cwd.length === 0) {
+        failHook(`${gwhere}.cwd must be a non-empty string when provided`);
+      }
+      if (gate.cwd.startsWith("/") || gate.cwd.startsWith("./") || gate.cwd.includes("..")) {
+        failHook(`${gwhere}.cwd must be a relative path inside the downstream repository`, { cwd: gate.cwd });
+      }
+    }
+    if (gate.timeoutMs !== void 0) {
+      if (!Number.isInteger(gate.timeoutMs) || gate.timeoutMs < 1e3 || gate.timeoutMs > 72e5) {
+        failHook(`${gwhere}.timeoutMs must be an integer in [1000, 7200000]`, { timeoutMs: gate.timeoutMs });
+      }
+    }
+    if (gate.envAllowlist !== void 0) {
+      if (!Array.isArray(gate.envAllowlist)) {
+        failHook(`${gwhere}.envAllowlist must be an array`);
+      }
+      const seen = /* @__PURE__ */ new Set();
+      for (const key of gate.envAllowlist) {
+        if (typeof key !== "string" || !GATE_ENV_KEY_RE.test(key)) {
+          failHook(`${gwhere}.envAllowlist key ${JSON.stringify(key)} must be an uppercase [A-Z_][A-Z0-9_]* identifier`);
+        }
+        if (GATE_ENV_DENYLIST.test(key)) {
+          failHook(
+            `${gwhere}.envAllowlist key "${key}" matches the secret-ish denylist (TOKEN/SECRET/PASSWORD/PASSPHRASE/API_KEY/CREDENTIAL); gates never receive credentials`,
+            { key }
+          );
+        }
+        if (seen.has(key)) {
+          failHook(`${gwhere}.envAllowlist contains duplicate key "${key}"`);
+        }
+        seen.add(key);
+      }
+    }
+  }
+}
+function listPostPublishPresets() {
+  return REGISTRY2.map((entry) => ({
+    name: entry.name,
+    description: entry.description,
+    writeDownstream: entry.writeDownstream,
+    targetOptional: entry.targetOptional,
+    implemented: entry.implemented,
+    defaultRequiresApproval: entry.defaultRequiresApproval,
+    ...entry.requiresApprovalNote !== void 0 ? { requiresApprovalNote: entry.requiresApprovalNote } : {},
+    ...entry.targetsFormOnly === true ? { targetsFormOnly: true } : {}
+  }));
+}
+function postPublishPresetNames() {
+  return REGISTRY2.map((entry) => entry.name);
+}
+function getPostPublishPreset(name) {
+  return REGISTRY2.find((entry) => entry.name === name);
+}
+function resolveProposalInboxTransport(config = {}) {
+  const target = config?.target;
+  const hasTarget = target && typeof target === "object" && !Array.isArray(target);
+  if (!hasTarget) return void 0;
+  if (config?.delivery !== void 0) return config.delivery;
+  return typeof target.remoteUrl === "string" ? "git-push" : "local-file";
+}
+function resolvePresetRequiresApproval(presetName, config = {}) {
+  const entry = getPostPublishPreset(presetName);
+  if (!entry) return true;
+  if (presetName === "proposal-inbox") {
+    return resolveProposalInboxTransport(config) === "git-push";
+  }
+  return entry.defaultRequiresApproval;
+}
+function validatePresetHook(hook, where) {
+  const entry = getPostPublishPreset(hook.preset);
+  if (!entry) {
+    failHook(`${where}: unknown preset "${hook.preset}"`, { preset: hook.preset });
+  }
+  if (entry.targetsFormOnly === true) {
+    failHook(
+      `${where}: preset "${hook.preset}" is targets-form only \u2014 declare it under postPublish.targets as kind "${entry.legacyTargetKind}", not under postPublish.hooks (the hooks[] form of this preset is not executable in this release)`,
+      { preset: hook.preset, legacyTargetKind: entry.legacyTargetKind }
+    );
+  }
+  if (hook.config !== void 0) {
+    scanConfigForSecrets(hook.config, where);
+  }
+  entry.validateConfig(where, hook);
+}
+function failWorkspace(message, details = {}) {
+  throw new ReleaseError(GATE_FAILED, `preset workspace invalid: ${message}`, details);
+}
+async function preflightPresetWorkspace(workspace, { root }) {
+  const resolved = isAbsolute6(workspace) ? workspace : resolve8(root, workspace);
+  let real;
+  try {
+    real = await realpath7(resolved);
+  } catch {
+    failWorkspace(`path does not resolve to an existing directory: ${workspace}`, { workspace });
+  }
+  const stats = await stat2(real).catch(() => null);
+  if (!stats || !stats.isDirectory()) {
+    failWorkspace(`path is not a directory: ${workspace}`, { workspace });
+  }
+  const gitEntry = await stat2(resolve8(real, ".git")).catch(() => null);
+  if (!gitEntry) {
+    failWorkspace(`path is not a git worktree (no .git entry): ${workspace}`, { workspace });
+  }
+  return { realpath: real };
+}
+async function assertPresetWorkspaceExecution(workspace, { root, preflightRealpath }) {
+  const resolved = isAbsolute6(workspace) ? workspace : resolve8(root, workspace);
+  let real;
+  try {
+    real = await realpath7(resolved);
+  } catch {
+    failWorkspace(`path no longer resolves at execution time: ${workspace}`, { workspace });
+  }
+  if (preflightRealpath !== void 0 && real !== preflightRealpath) {
+    failWorkspace(
+      `workspace realpath changed between preflight and execution (TOCTOU guard); refusing to write`,
+      { workspace, preflightRealpath, observedRealpath: real }
+    );
+  }
+  const rootReal = await realpath7(root).catch(() => null);
+  if (rootReal && real === rootReal) {
+    failWorkspace("workspace must not be the release workspace itself", { workspace });
+  }
+  const segments = real.split(/[\\/]+/);
+  if (segments.includes(".release-skill")) {
+    failWorkspace("workspace must not live inside the .release-skill/ runtime directory", { workspace });
+  }
+  return { realpath: real };
+}
+var REMOTE_URL_RE, BRANCH_RE, CONFIG_SECRET_PATTERNS, FIELDS_FROM_PLAN_SOURCES, SAFE_FIELD_RE, FORBIDDEN_FIELDS, GATE_ENV_DENYLIST, GATE_ENV_KEY_RE, REGISTRY2;
+var init_presets = __esm({
+  "src/core/presets.mjs"() {
+    init_errors();
+    REMOTE_URL_RE = /^(?:https?|file):\/\/.+\.git$/;
+    BRANCH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
+    __name(assertSafeStaticFilePath, "assertSafeStaticFilePath");
+    __name(failHook, "failHook");
+    __name(assertNoControlChars, "assertNoControlChars");
+    CONFIG_SECRET_PATTERNS = [
+      /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
+      /\bghp_[A-Za-z0-9]{20,}\b/,
+      /\bgho_[A-Za-z0-9]{20,}\b/,
+      /\bghs_[A-Za-z0-9]{20,}\b/,
+      /\bgithub_pat_[A-Za-z0-9_]{20,}\b/,
+      /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/,
+      /\bAKIA[A-Z0-9]{12,}\b/,
+      /\bsk-[A-Za-z0-9_-]{20,}\b/
+    ];
+    __name(scanConfigValueForSecrets, "scanConfigValueForSecrets");
+    __name(scanConfigForSecrets, "scanConfigForSecrets");
+    __name(validateDownstreamTarget, "validateDownstreamTarget");
+    __name(validateVisibility, "validateVisibility");
+    __name(validateStaticFiles, "validateStaticFiles");
+    __name(validateMarketplaceBlock, "validateMarketplaceBlock");
+    __name(requirePlainConfig, "requirePlainConfig");
+    FIELDS_FROM_PLAN_SOURCES = /* @__PURE__ */ new Set([
+      "unitId",
+      "version",
+      "tag",
+      "commit",
+      "tree",
+      "manifestDigest",
+      "planDigest",
+      "publishedAt"
+    ]);
+    SAFE_FIELD_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+    FORBIDDEN_FIELDS = /* @__PURE__ */ new Set(["__proto__", "prototype", "constructor"]);
+    __name(validateFieldsFromPlan, "validateFieldsFromPlan");
+    GATE_ENV_DENYLIST = /TOKEN|SECRET|PASSWORD|PASSPHRASE|API_KEY|CREDENTIAL/i;
+    GATE_ENV_KEY_RE = /^[A-Z_][A-Z0-9_]*$/;
+    __name(validateGates, "validateGates");
+    REGISTRY2 = [
+      {
+        name: "git-mirror",
+        description: "Mirror the frozen release payload to any git remote (clone -> wipe -> write -> commit -> push; NO_CHANGE idempotent; same-name tag move fails closed). Absorbs the legacy kind: payload-mirror target. Credentials come from the host git credential helper/keychain only. Targets-form only: declare it under postPublish.targets (kind: payload-mirror), not postPublish.hooks.",
+        writeDownstream: true,
+        targetOptional: false,
+        implemented: true,
+        defaultRequiresApproval: true,
+        // R4 review M-2: the executor routes this preset through the targets[]
+        // pipeline only; a hooks[] declaration would validate but never execute,
+        // so declaration validation rejects it fail-closed (targets-form only).
+        targetsFormOnly: true,
+        legacyTargetKind: "payload-mirror",
+        validateConfig(where, hook) {
+          const config = requirePlainConfig(where, hook);
+          validateDownstreamTarget(where, config.target, { targetOptional: false });
+          validateVisibility(where, config);
+          validateStaticFiles(where, config);
+        }
+      },
+      {
+        name: "marketplace-index-render",
+        description: "Render .claude-plugin/marketplace.json from the frozen plan and push it to a downstream git remote. Absorbs the legacy kind: marketplace-index target (marketplace.form/name/owner/sourceRepo and staticFiles carry over). Targets-form only: declare it under postPublish.targets (kind: marketplace-index), not postPublish.hooks.",
+        writeDownstream: true,
+        targetOptional: false,
+        implemented: true,
+        defaultRequiresApproval: true,
+        // R4 review M-2: targets-form only (see git-mirror above).
+        targetsFormOnly: true,
+        legacyTargetKind: "marketplace-index",
+        validateConfig(where, hook) {
+          const config = requirePlainConfig(where, hook);
+          validateDownstreamTarget(where, config.target, { targetOptional: false });
+          validateMarketplaceBlock(where, config);
+          validateVisibility(where, config);
+          validateStaticFiles(where, config);
+        }
+      },
+      {
+        name: "proposal-inbox",
+        description: "Deliver a machine-readable update proposal for autonomous downstream consumption (hub scenarios). Transports: git-push (clone -> write incoming/<unit>-<version>.json -> commit -> push; NO_CHANGE idempotent; ls-remote cross-check) and local-file (write the same proposal into the local checkout at target.workspace and commit it locally; NEVER pushed). config.target is optional: without it the preset degrades to notify-handoff behavior instead of failing.",
+        writeDownstream: true,
+        targetOptional: true,
+        // git-push transport delivered in R3, local-file transport in R4; the
+        // description names both shipped behaviors (review minor-2 honesty).
+        implemented: true,
+        // Graded by transport: git-push is public write (true); local-file and
+        // the notify-handoff degradation stay false (§2.6).
+        defaultRequiresApproval: false,
+        // Followup 7: the registry default is false, but runtime grading is
+        // STRICTER per transport — --list-presets must say so plainly. R4 review
+        // M-1: grading follows the EFFECTIVE transport (delivery ?? addressing
+        // inference), so a remoteUrl-only declaration still grades true.
+        requiresApprovalNote: "runtime transport grading is stricter than this default: the effective git-push transport (declared delivery, or a remoteUrl address that infers git-push) runs as requiresApproval true (public write); local-file and the target-less notify-handoff degradation stay false",
+        validateConfig(where, hook) {
+          if (hook.config === void 0) return;
+          if (typeof hook.config !== "object" || Array.isArray(hook.config) || hook.config === null) {
+            failHook(`${where}.config must be a plain object when provided`);
+          }
+          const config = hook.config;
+          if (config.delivery !== void 0 && config.delivery !== "local-file" && config.delivery !== "git-push") {
+            failHook(`${where}.config.delivery must be "local-file" or "git-push"`, {
+              delivery: config.delivery
+            });
+          }
+          validateDownstreamTarget(where, config.target, { targetOptional: true });
+          if (config.target !== void 0 && config.delivery !== void 0) {
+            if (config.delivery === "git-push" && typeof config.target.remoteUrl !== "string") {
+              failHook(`${where}: delivery "git-push" requires a config.target.remoteUrl address`, {});
+            }
+            if (config.delivery === "local-file" && typeof config.target.workspace !== "string") {
+              failHook(`${where}: delivery "local-file" requires a config.target.workspace address`, {});
+            }
+          }
+        }
+      },
+      {
+        name: "notify-handoff",
+        description: "Zero-write floor: renders the frozen context into a deterministic downstream sync checklist (version/tag/sha/tree/evidence path/suggested actions) in evidence and echoes it. No writes anywhere, zero configuration, usable by any project, never takes a downstream target; every downstream scenario degrades to at least this behavior.",
+        writeDownstream: false,
+        targetOptional: true,
+        implemented: true,
+        defaultRequiresApproval: false,
+        validateConfig(where, hook) {
+          if (hook.config === void 0) return;
+          if (typeof hook.config !== "object" || Array.isArray(hook.config) || hook.config === null) {
+            failHook(`${where}.config must be a plain object when provided`);
+          }
+          if (hook.config.target !== void 0) {
+            failHook(
+              `${where}: notify-handoff is the zero-write floor and never declares a downstream target`,
+              {}
+            );
+          }
+        }
+      },
+      {
+        name: "marketplace-registry-entry",
+        description: "Direct-edit marketplace registry entry update for downstreams WITHOUT their own governance/render pipeline: locate the entry by config.entryKey inside config.registryPath, update config.fieldsFromPlan from the frozen plan values, run the declared downstream gates (argument arrays), then push (never --force). NO_CHANGE idempotent; a missing registry file or entry fails closed for human decision. Usually declared phase: postVerify. Hubs with their own governance use proposal-inbox instead.",
+        writeDownstream: true,
+        targetOptional: false,
+        implemented: true,
+        defaultRequiresApproval: true,
+        validateConfig(where, hook) {
+          const config = requirePlainConfig(where, hook);
+          validateDownstreamTarget(where, config.target, { targetOptional: false });
+          if (config.registryPath !== void 0) {
+            assertSafeStaticFilePath(`${where}.config`, "registryPath", config.registryPath, failHook);
+          }
+          if (typeof config.entryKey !== "string" || config.entryKey.length === 0) {
+            failHook(`${where}.config.entryKey must be a non-empty string`);
+          }
+          assertNoControlChars(`${where}.config.entryKey`, config.entryKey);
+          validateFieldsFromPlan(where, config);
+          validateGates(where, config);
+        }
+      },
+      {
+        name: "docs-refresh",
+        description: "Refresh one or more independent docs repositories (GitHub Pages style) from the frozen release payload: config.mappings copy payload files into each repository (an optional per-mapping versionMarker placeholder is replaced with the release version), the declared docs build gates run before each push, and every repository in config.repositories is committed and pushed (never --force). NO_CHANGE idempotent; bound to the distribute phase by its payload requirement.",
+        writeDownstream: true,
+        targetOptional: false,
+        implemented: true,
+        defaultRequiresApproval: true,
+        validateConfig(where, hook) {
+          const config = requirePlainConfig(where, hook);
+          if (!Array.isArray(config.repositories) || config.repositories.length === 0) {
+            failHook(`${where}.config.repositories must be a non-empty array of downstream targets`);
+          }
+          for (const [index, repository] of config.repositories.entries()) {
+            validateDownstreamTarget(`${where}.config.repositories[${index}]`, repository, { targetOptional: false });
+          }
+          if (!Array.isArray(config.mappings) || config.mappings.length === 0) {
+            failHook(`${where}.config.mappings must be a non-empty array`);
+          }
+          for (const [index, mapping] of config.mappings.entries()) {
+            const mwhere = `${where}.config.mappings[${index}]`;
+            if (!mapping || typeof mapping !== "object" || Array.isArray(mapping)) {
+              failHook(`${mwhere} must be a plain object`);
+            }
+            assertSafeStaticFilePath(mwhere, "from", mapping?.from, failHook);
+            assertSafeStaticFilePath(mwhere, "to", mapping?.to, failHook);
+            if (mapping.versionMarker !== void 0) {
+              if (typeof mapping.versionMarker !== "string" || mapping.versionMarker.length === 0) {
+                failHook(`${mwhere}.versionMarker must be a non-empty string when provided`);
+              }
+              assertNoControlChars(`${mwhere}.versionMarker`, mapping.versionMarker);
+            }
+          }
+          validateGates(where, config);
+        }
+      }
+    ];
+    __name(listPostPublishPresets, "listPostPublishPresets");
+    __name(postPublishPresetNames, "postPublishPresetNames");
+    __name(getPostPublishPreset, "getPostPublishPreset");
+    __name(resolveProposalInboxTransport, "resolveProposalInboxTransport");
+    __name(resolvePresetRequiresApproval, "resolvePresetRequiresApproval");
+    __name(validatePresetHook, "validatePresetHook");
+    __name(failWorkspace, "failWorkspace");
+    __name(preflightPresetWorkspace, "preflightPresetWorkspace");
+    __name(assertPresetWorkspaceExecution, "assertPresetWorkspaceExecution");
+  }
+});
+
+// src/core/postpublish.mjs
+function fail2(message, details = {}) {
+  throw new ReleaseError(GATE_FAILED, `postPublish declaration invalid: ${message}`, details);
+}
+function assertNoControlChars2(label, value) {
+  if (/[\x00-\x1f\x7f]/.test(value)) {
+    fail2(`${label} contains control characters`, { label });
+  }
+}
+function validateHookCommand(where, hook) {
+  if (!hook || typeof hook !== "object" || Array.isArray(hook)) {
+    fail2(`${where} must be a non-null object`);
+  }
+  if (!Array.isArray(hook.command) || hook.command.length === 0) {
+    fail2(`${where}.command must be a non-empty array (shell strings are never accepted)`);
+  }
+  for (const element of hook.command) {
+    if (typeof element !== "string" || element.length === 0) {
+      fail2(`${where}.command must contain only non-empty strings`);
+    }
+    assertNoControlChars2(`${where}.command`, element);
+    if (element.startsWith("-") && element === hook.command[0]) {
+      fail2(`${where}.command executable must not start with "-"`, { executable: element });
+    }
+  }
+  if (hook.cwd !== void 0) {
+    if (typeof hook.cwd !== "string" || hook.cwd.length === 0) {
+      fail2(`${where}.cwd must be a non-empty string when provided`);
+    }
+    if (hook.cwd.startsWith("/") || hook.cwd.startsWith("./") || hook.cwd.includes("..")) {
+      fail2(`${where}.cwd must be a relative path inside the execution root`, { cwd: hook.cwd });
+    }
+  }
+  if (hook.timeoutMs !== void 0) {
+    if (!Number.isInteger(hook.timeoutMs) || hook.timeoutMs < 1e3 || hook.timeoutMs > 72e5) {
+      fail2(`${where}.timeoutMs must be an integer in [1000, 7200000]`, { timeoutMs: hook.timeoutMs });
+    }
+  }
+  if (hook.envAllowlist !== void 0) {
+    if (!Array.isArray(hook.envAllowlist)) {
+      fail2(`${where}.envAllowlist must be an array`);
+    }
+    const seen = /* @__PURE__ */ new Set();
+    for (const key of hook.envAllowlist) {
+      if (typeof key !== "string" || !ENV_KEY_PATTERN.test(key)) {
+        fail2(`${where}.envAllowlist key ${JSON.stringify(key)} must be an uppercase [A-Z_][A-Z0-9_]* identifier`);
+      }
+      if (ENV_ALLOWLIST_DENYLIST.test(key)) {
+        fail2(
+          `${where}.envAllowlist key "${key}" matches the secret-ish denylist (TOKEN/SECRET/PASSWORD/PASSPHRASE/API_KEY/CREDENTIAL); distribute never reads or forwards credentials`,
+          { key }
+        );
+      }
+      if (seen.has(key)) {
+        fail2(`${where}.envAllowlist contains duplicate key "${key}"`);
+      }
+      seen.add(key);
+    }
+  }
+}
+function validateTarget(target, index) {
+  const where = `targets[${index}]`;
+  if (!target || typeof target !== "object" || Array.isArray(target)) {
+    fail2(`${where} must be a non-null object`);
+  }
+  if (typeof target.id !== "string" || !SAFE_ID_RE2.test(target.id)) {
+    fail2(`${where}.id must match /^[a-z0-9][a-z0-9._-]*$/`, { id: target.id });
+  }
+  if (target.kind !== "payload-mirror" && target.kind !== "marketplace-index") {
+    fail2(`${where}.kind must be "payload-mirror" or "marketplace-index"`, { kind: target.kind });
+  }
+  if (typeof target.remoteUrl !== "string" || !REMOTE_URL_RE2.test(target.remoteUrl)) {
+    fail2(`${where}.remoteUrl must be an http(s)/file URL ending in .git`, { remoteUrl: target.remoteUrl });
+  }
+  assertNoControlChars2(`${where}.remoteUrl`, target.remoteUrl);
+  if (target.visibility !== "internal" && target.visibility !== "public") {
+    fail2(`${where}.visibility must be "internal" or "public"`, { visibility: target.visibility });
+  }
+  if (typeof target.branch !== "string" || !BRANCH_RE2.test(target.branch)) {
+    fail2(`${where}.branch is not a safe Git branch name`, { branch: target.branch });
+  }
+  if (target.branch.includes("..") || target.branch.endsWith(".") || target.branch.endsWith(".lock")) {
+    fail2(`${where}.branch is not a safe Git branch name`, { branch: target.branch });
+  }
+  if (target.dependsOn !== void 0) {
+    if (typeof target.dependsOn !== "string" || !SAFE_ID_RE2.test(target.dependsOn)) {
+      fail2(`${where}.dependsOn must match /^[a-z0-9][a-z0-9._-]*$/`, { dependsOn: target.dependsOn });
+    }
+    if (target.dependsOn === target.id) {
+      fail2(`${where}.dependsOn references itself; dependency cycles are rejected`);
+    }
+  }
+  if (target.kind === "marketplace-index") {
+    if (!target.marketplace || typeof target.marketplace !== "object") {
+      fail2(`${where} is marketplace-index and must carry a marketplace block`);
+    }
+    const { form, name, owner } = target.marketplace;
+    if (form !== "github" && form !== "url") {
+      fail2(`${where}.marketplace.form must be "github" or "url"`, { form });
+    }
+    if (typeof name !== "string" || name.length === 0) {
+      fail2(`${where}.marketplace.name must be a non-empty string`);
+    }
+    if (typeof owner !== "string" || owner.length === 0) {
+      fail2(`${where}.marketplace.owner must be a non-empty string`);
+    }
+    if (target.marketplace.sourceRepo !== void 0 && (typeof target.marketplace.sourceRepo !== "string" || !/^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/.test(target.marketplace.sourceRepo))) {
+      fail2(`${where}.marketplace.sourceRepo must be owner/repo when provided`);
+    }
+  } else if (target.marketplace !== void 0) {
+    fail2(`${where} is payload-mirror and must not carry a marketplace block`);
+  }
+  if (target.staticFiles !== void 0) {
+    if (!Array.isArray(target.staticFiles)) {
+      fail2(`${where}.staticFiles must be an array`);
+    }
+    for (const [fileIndex, file] of target.staticFiles.entries()) {
+      for (const field of ["from", "to"]) {
+        const value = file?.[field];
+        if (typeof value !== "string" || value.length === 0) {
+          fail2(`${where}.staticFiles[${fileIndex}].${field} must be a non-empty string`);
+        }
+        if (value.startsWith("/") || value.startsWith("./") || value === "." || value.includes("..") || value.includes("\\") || value.includes(":")) {
+          fail2(`${where}.staticFiles[${fileIndex}].${field} is not a safe relative path`, { value });
+        }
+      }
+    }
+  }
+}
+function failHook2(message, details = {}) {
+  throw new ReleaseError(POSTPUBLISH_HOOK_INVALID, `postPublish hook invalid: ${message}`, details);
+}
+function validateCommandFields(where, hook, failFn) {
+  if (!Array.isArray(hook.command) || hook.command.length === 0) {
+    failFn(`${where}.command must be a non-empty array (shell strings are never accepted)`);
+  }
+  for (const element of hook.command) {
+    if (typeof element !== "string" || element.length === 0) {
+      failFn(`${where}.command must contain only non-empty strings`);
+    }
+    if (/[\x00-\x1f\x7f]/.test(element)) {
+      failFn(`${where}.command contains control characters`, { element });
+    }
+    if (element.startsWith("-") && element === hook.command[0]) {
+      failFn(`${where}.command executable must not start with "-"`, { executable: element });
+    }
+  }
+  if (hook.cwd !== void 0) {
+    if (typeof hook.cwd !== "string" || hook.cwd.length === 0) {
+      failFn(`${where}.cwd must be a non-empty string when provided`);
+    }
+    if (hook.cwd.startsWith("/") || hook.cwd.startsWith("./") || hook.cwd.includes("..")) {
+      failFn(`${where}.cwd must be a relative path inside the execution root`, { cwd: hook.cwd });
+    }
+  }
+  if (hook.timeoutMs !== void 0) {
+    if (!Number.isInteger(hook.timeoutMs) || hook.timeoutMs < 1e3 || hook.timeoutMs > 72e5) {
+      failFn(`${where}.timeoutMs must be an integer in [1000, 7200000]`, { timeoutMs: hook.timeoutMs });
+    }
+  }
+  if (hook.envAllowlist !== void 0) {
+    if (!Array.isArray(hook.envAllowlist)) {
+      failFn(`${where}.envAllowlist must be an array`);
+    }
+    const seen = /* @__PURE__ */ new Set();
+    for (const key of hook.envAllowlist) {
+      if (typeof key !== "string" || !ENV_KEY_PATTERN.test(key)) {
+        failFn(`${where}.envAllowlist key ${JSON.stringify(key)} must be an uppercase [A-Z_][A-Z0-9_]* identifier`);
+      }
+      if (ENV_ALLOWLIST_DENYLIST.test(key)) {
+        failFn(
+          `${where}.envAllowlist key "${key}" matches the secret-ish denylist (TOKEN/SECRET/PASSWORD/PASSPHRASE/API_KEY/CREDENTIAL); distribute never reads or forwards credentials`,
+          { key }
+        );
+      }
+      if (seen.has(key)) {
+        failFn(`${where}.envAllowlist contains duplicate key "${key}"`);
+      }
+      seen.add(key);
+    }
+  }
+}
+function validatePostPublishHookEntry(hook, index, options) {
+  const where = `hooks[${index}]`;
+  if (!hook || typeof hook !== "object" || Array.isArray(hook)) {
+    failHook2(`${where} must be a non-null object`);
+  }
+  if (typeof hook.id !== "string" || !SAFE_ID_RE2.test(hook.id)) {
+    failHook2(`${where}.id must match /^[a-z0-9][a-z0-9._-]*$/`, { id: hook.id });
+  }
+  const hasPreset = hook.preset !== void 0;
+  const hasCommand = hook.command !== void 0;
+  if (hasPreset && hasCommand) {
+    failHook2(`${where}: preset and command are mutually exclusive \u2014 declare exactly one`, { id: hook.id });
+  }
+  if (!hasPreset && !hasCommand) {
+    failHook2(`${where}: declare exactly one of preset or command`, { id: hook.id });
+  }
+  if (hook.phase !== void 0 && hook.phase !== "distribute" && hook.phase !== "postVerify") {
+    failHook2(`${where}.phase must be "distribute" or "postVerify"`, { phase: hook.phase });
+  }
+  if (hook.requiresApproval !== void 0 && typeof hook.requiresApproval !== "boolean") {
+    failHook2(`${where}.requiresApproval must be a boolean`, { requiresApproval: hook.requiresApproval });
+  }
+  if (hook.blocksVerified !== void 0 && typeof hook.blocksVerified !== "boolean") {
+    failHook2(`${where}.blocksVerified must be a boolean`, { blocksVerified: hook.blocksVerified });
+  }
+  if (hasPreset) {
+    if (typeof hook.preset !== "string" || !SAFE_ID_RE2.test(hook.preset)) {
+      failHook2(`${where}.preset must match /^[a-z0-9][a-z0-9._-]*$/`, { preset: hook.preset });
+    }
+    const knownPresets = options.knownPresets ?? postPublishPresetNames();
+    if (!knownPresets.includes(hook.preset)) {
+      failHook2(
+        `${where}: unknown preset "${hook.preset}" \u2014 the preset registry does not contain it (fail-closed)`,
+        { preset: hook.preset, knownPresets }
+      );
+    }
+    if (hook.config !== void 0 && (typeof hook.config !== "object" || Array.isArray(hook.config) || hook.config === null)) {
+      failHook2(`${where}.config must be a plain object when provided`, { id: hook.id });
+    }
+    for (const field of ["cwd", "timeoutMs", "envAllowlist"]) {
+      if (hook[field] !== void 0) {
+        failHook2(`${where}: preset hooks must not declare command-hook execution field "${field}"`, { field });
+      }
+    }
+    validatePresetHook(hook, where);
+    const presetDefault = resolvePresetRequiresApproval(hook.preset, hook.config);
+    if (hook.requiresApproval === false && presetDefault === true) {
+      failHook2(
+        `${where}: requiresApproval cannot be relaxed below the preset default (preset "${hook.preset}" defaults to true; declare true to tighten, never false to relax)`,
+        { preset: hook.preset, presetDefault }
+      );
+    }
+  } else {
+    validateCommandFields(where, hook, failHook2);
+    if (hook.blocksVerified === false) {
+      failHook2(
+        `${where}: custom command hooks must not declare blocksVerified: false \u2014 only presets may weaken the VERIFIED gate`,
+        { id: hook.id }
+      );
+    }
+    if (hook.config !== void 0) {
+      failHook2(`${where}: config is a preset-only field`, { id: hook.id });
+    }
+  }
+}
+function validatePostPublishDeclaration(postPublish, options = {}) {
+  const unitLabel = options.unitId ? `unit "${options.unitId}" ` : "";
+  if (!postPublish || typeof postPublish !== "object" || Array.isArray(postPublish)) {
+    fail2(`${unitLabel}postPublish must be a non-null object`);
+  }
+  validateHookCommand(`${unitLabel}materialize`, postPublish.materialize);
+  if (typeof postPublish.materialize.outputMarker !== "string" || postPublish.materialize.outputMarker.length === 0) {
+    fail2(`${unitLabel}materialize.outputMarker must be a non-empty string`);
+  }
+  assertNoControlChars2(`${unitLabel}materialize.outputMarker`, postPublish.materialize.outputMarker);
+  if (postPublish.materialize.requireReport !== void 0) {
+    const { parse: parse2, equals } = postPublish.materialize.requireReport ?? {};
+    if (parse2 !== "stdout-first-json") {
+      fail2(`${unitLabel}materialize.requireReport.parse must be "stdout-first-json"`);
+    }
+    if (equals !== void 0 && (typeof equals !== "object" || Array.isArray(equals) || equals === null)) {
+      fail2(`${unitLabel}materialize.requireReport.equals must be a plain object`);
+    }
+  }
+  const targets = postPublish.targets ?? [];
+  if (postPublish.targets !== void 0 && (!Array.isArray(postPublish.targets) || postPublish.targets.length === 0)) {
+    fail2(`${unitLabel}targets must be a non-empty array when present; omit it entirely for a hooks-only declaration`);
+  }
+  const ids = /* @__PURE__ */ new Set();
+  targets.forEach((target, index) => {
+    validateTarget(target, index);
+    if (ids.has(target.id)) {
+      fail2(`${unitLabel}duplicate target id "${target.id}"`);
+    }
+    ids.add(target.id);
+  });
+  const byId = new Map(targets.map((target) => [target.id, target]));
+  for (const target of targets) {
+    if (target.dependsOn === void 0) continue;
+    const dependency = byId.get(target.dependsOn);
+    if (!dependency) {
+      fail2(`${unitLabel}target "${target.id}" dependsOn unknown target "${target.dependsOn}"`);
+    }
+    if (dependency.kind !== "payload-mirror") {
+      fail2(`${unitLabel}target "${target.id}" dependsOn "${target.dependsOn}" which is not a payload-mirror target`);
+    }
+  }
+  if (postPublish.hooks !== void 0) {
+    if (!Array.isArray(postPublish.hooks)) {
+      failHook2(`${unitLabel}hooks must be an array`);
+    }
+    postPublish.hooks.forEach((hook, index) => {
+      validatePostPublishHookEntry(hook, index, options);
+    });
+    const hookIds = /* @__PURE__ */ new Set();
+    for (const hook of postPublish.hooks) {
+      if (hookIds.has(hook.id)) {
+        failHook2(`${unitLabel}duplicate hook id "${hook.id}"`);
+      }
+      hookIds.add(hook.id);
+      if (ids.has(hook.id)) {
+        failHook2(`${unitLabel}hook id "${hook.id}" conflicts with target id "${hook.id}"; normalized table ids must be unique`);
+      }
+    }
+  }
+  const identity2 = postPublish.commitIdentity;
+  if (!identity2 || typeof identity2 !== "object" || Array.isArray(identity2)) {
+    fail2(`${unitLabel}commitIdentity is required when targets are declared`);
+  }
+  for (const field of ["name", "email"]) {
+    if (typeof identity2[field] !== "string" || identity2[field].length === 0) {
+      fail2(`${unitLabel}commitIdentity.${field} must be a non-empty string`);
+    }
+    assertNoControlChars2(`${unitLabel}commitIdentity.${field}`, identity2[field]);
+    if (identity2[field].startsWith("-")) {
+      fail2(`${unitLabel}commitIdentity.${field} must not start with "-"`, { value: identity2[field] });
+    }
+  }
+  if (postPublish.steps !== void 0) {
+    if (!Array.isArray(postPublish.steps)) {
+      fail2(`${unitLabel}steps must be an array`);
+    }
+    const stepNames = /* @__PURE__ */ new Set();
+    postPublish.steps.forEach((step, index) => {
+      const where = `${unitLabel}steps[${index}]`;
+      validateHookCommand(where, step);
+      if (typeof step.name !== "string" || !SAFE_ID_RE2.test(step.name)) {
+        fail2(`${where}.name must match /^[a-z0-9][a-z0-9._-]*$/`, { name: step?.name });
+      }
+      if (stepNames.has(step.name)) {
+        fail2(`${unitLabel}duplicate step name "${step.name}"`);
+      }
+      stepNames.add(step.name);
+    });
+  }
+  if (postPublish.assertMainVersionAhead !== void 0 && typeof postPublish.assertMainVersionAhead !== "boolean") {
+    fail2(`${unitLabel}assertMainVersionAhead must be a boolean`);
+  }
+  return postPublish;
+}
+function orderTargetsByDependency(targets) {
+  const byId = new Map(targets.map((target) => [target.id, target]));
+  const ordered = [];
+  const placed = /* @__PURE__ */ new Set();
+  while (ordered.length < targets.length) {
+    let progress = false;
+    for (const target of targets) {
+      if (placed.has(target.id)) continue;
+      if (target.dependsOn !== void 0) {
+        if (!byId.has(target.dependsOn)) {
+          fail2(`target "${target.id}" dependsOn unknown target "${target.dependsOn}"`);
+        }
+        if (!placed.has(target.dependsOn)) continue;
+      }
+      ordered.push(target);
+      placed.add(target.id);
+      progress = true;
+    }
+    if (!progress) {
+      const pending = targets.filter((t) => !placed.has(t.id)).map((t) => t.id);
+      fail2(`postPublish target dependency cycle detected among: ${pending.join(", ")}`);
+    }
+  }
+  return ordered;
+}
+function normalizePostPublishHook(hook) {
+  const kind = hook.preset !== void 0 ? "preset" : "command";
+  const defaultRequiresApproval = kind === "preset" ? resolvePresetRequiresApproval(hook.preset, hook.config) : false;
+  const normalized = {
+    id: hook.id,
+    kind,
+    ...kind === "preset" ? { preset: hook.preset } : { command: [...hook.command] },
+    phase: hook.phase ?? "distribute",
+    ...hook.config !== void 0 ? { config: hook.config } : {},
+    ...kind === "command" && hook.cwd !== void 0 ? { cwd: hook.cwd } : {},
+    ...hook.timeoutMs !== void 0 ? { timeoutMs: hook.timeoutMs } : {},
+    ...hook.envAllowlist !== void 0 ? { envAllowlist: [...hook.envAllowlist] } : {},
+    requiresApproval: hook.requiresApproval ?? defaultRequiresApproval,
+    blocksVerified: hook.blocksVerified ?? true
+  };
+  return normalized;
+}
+function effectiveHookRequiresApproval(hook) {
+  if (hook.requiresApproval !== void 0) return hook.requiresApproval === true;
+  if (hook.preset !== void 0) return resolvePresetRequiresApproval(hook.preset, hook.config) === true;
+  return false;
+}
+function buildPostPublishContext({ plan, runId, sourceRun, payloadDir, phase, verifyEvidence }) {
+  const postPublish = plan.postPublish ?? {};
+  const unit = (plan.units ?? []).find((entry) => entry.id === postPublish.unitId);
+  const frozenSnapshot = unit?.frozenSnapshot ?? {};
+  return {
+    planDigest: plan.digest,
+    runId,
+    unitId: postPublish.unitId,
+    version: unit?.targetVersion,
+    tag: postPublish.tag,
+    commit: postPublish.tagCommit,
+    ...frozenSnapshot.tree !== void 0 ? { tree: frozenSnapshot.tree } : {},
+    ...frozenSnapshot.manifestDigest !== void 0 ? { manifestDigest: frozenSnapshot.manifestDigest } : {},
+    publishedAt: sourceRun?.finishedAt,
+    payloadDir,
+    ...phase === "postVerify" && verifyEvidence !== void 0 ? { verifyEvidence } : {}
+  };
+}
+function normalizeTargetToPresetHook(target) {
+  const preset = TARGET_KIND_PRESET[target.kind];
+  return {
+    id: target.id,
+    kind: "preset",
+    preset,
+    origin: "target",
+    originKind: target.kind,
+    phase: "distribute",
+    config: {
+      target: { remoteUrl: target.remoteUrl, branch: target.branch },
+      visibility: target.visibility,
+      ...target.staticFiles !== void 0 ? { staticFiles: target.staticFiles.map((file) => ({ from: file.from, to: file.to })) } : {},
+      ...target.marketplace !== void 0 ? { marketplace: structuredClone(target.marketplace) } : {}
+    },
+    ...target.dependsOn !== void 0 ? { dependsOn: target.dependsOn } : {},
+    requiresApproval: resolvePresetRequiresApproval(preset, {}),
+    blocksVerified: true
+  };
+}
+function normalizePostPublishDeclaration(postPublish) {
+  const preGates = postPublish.assertMainVersionAhead === true ? [{ gate: "assert-main-version-ahead", before: "git-write-hooks" }] : [];
+  const defaults = {
+    materialize: structuredClone(postPublish.materialize),
+    steps: structuredClone(postPublish.steps ?? []),
+    commitIdentity: structuredClone(postPublish.commitIdentity)
+  };
+  const targetHooks = (postPublish.targets ?? []).map((target) => normalizeTargetToPresetHook(target));
+  const declaredHooks = (postPublish.hooks ?? []).map((hook) => normalizePostPublishHook(hook));
+  return { preGates, defaults, hooks: [...targetHooks, ...declaredHooks] };
+}
+function orderNormalizedHooks(hooks) {
+  const byId = new Map(hooks.map((hook) => [hook.id, hook]));
+  const ordered = [];
+  const placed = /* @__PURE__ */ new Set();
+  while (ordered.length < hooks.length) {
+    let progress = false;
+    for (const hook of hooks) {
+      if (placed.has(hook.id)) continue;
+      if (hook.dependsOn !== void 0) {
+        if (!byId.has(hook.dependsOn)) {
+          fail2(`hook "${hook.id}" dependsOn unknown hook "${hook.dependsOn}"`);
+        }
+        if (!placed.has(hook.dependsOn)) continue;
+      }
+      ordered.push(hook);
+      placed.add(hook.id);
+      progress = true;
+    }
+    if (!progress) {
+      const pending = hooks.filter((hook) => !placed.has(hook.id)).map((hook) => hook.id);
+      fail2(`postPublish hook dependency cycle detected among: ${pending.join(", ")}`);
+    }
+  }
+  return ordered;
+}
+var ENV_ALLOWLIST_DENYLIST, ENV_KEY_PATTERN, SAFE_ID_RE2, REMOTE_URL_RE2, BRANCH_RE2, PAYLOAD_SOURCE_TAG_WORKTREE, POSTPUBLISH_CONTEXT_ENV, TARGET_KIND_PRESET;
+var init_postpublish = __esm({
+  "src/core/postpublish.mjs"() {
+    init_errors();
+    init_presets();
+    ENV_ALLOWLIST_DENYLIST = /TOKEN|SECRET|PASSWORD|PASSPHRASE|API_KEY|CREDENTIAL/i;
+    ENV_KEY_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
+    SAFE_ID_RE2 = /^[a-z0-9][a-z0-9._-]*$/;
+    REMOTE_URL_RE2 = /^(?:https?|file):\/\/.+\.git$/;
+    BRANCH_RE2 = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
+    PAYLOAD_SOURCE_TAG_WORKTREE = "tag-worktree";
+    __name(fail2, "fail");
+    __name(assertNoControlChars2, "assertNoControlChars");
+    __name(validateHookCommand, "validateHookCommand");
+    __name(validateTarget, "validateTarget");
+    __name(failHook2, "failHook");
+    __name(validateCommandFields, "validateCommandFields");
+    __name(validatePostPublishHookEntry, "validatePostPublishHookEntry");
+    __name(validatePostPublishDeclaration, "validatePostPublishDeclaration");
+    __name(orderTargetsByDependency, "orderTargetsByDependency");
+    POSTPUBLISH_CONTEXT_ENV = "RELEASE_SKILL_POSTPUBLISH_CONTEXT";
+    __name(normalizePostPublishHook, "normalizePostPublishHook");
+    __name(effectiveHookRequiresApproval, "effectiveHookRequiresApproval");
+    __name(buildPostPublishContext, "buildPostPublishContext");
+    TARGET_KIND_PRESET = {
+      "payload-mirror": "git-mirror",
+      "marketplace-index": "marketplace-index-render"
+    };
+    __name(normalizeTargetToPresetHook, "normalizeTargetToPresetHook");
+    __name(normalizePostPublishDeclaration, "normalizePostPublishDeclaration");
+    __name(orderNormalizedHooks, "orderNormalizedHooks");
+  }
+});
+
 // src/artifacts/safe-fs-backend-internal.mjs
 import { createRequire } from "node:module";
-import { dirname as dirname4, resolve as resolve8 } from "node:path";
+import { dirname as dirname4, resolve as resolve9 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
-import { realpath as realpath7 } from "node:fs/promises";
+import { realpath as realpath8 } from "node:fs/promises";
 import { readFileSync as readFileSync12, realpathSync as realpathSync2, lstatSync as lstatSync3 } from "node:fs";
 import { createHash as createHash7 } from "node:crypto";
 function failPrebuildManifest(reason, message = "prebuilds manifest not readable") {
@@ -36801,8 +37832,8 @@ function sanitizeError(err) {
   return "native addon error";
 }
 function isWithinPackageBuildDir(addonPath) {
-  const buildDir = resolve8(NATIVE_BASE, "build/");
-  const resolved = resolve8(addonPath);
+  const buildDir = resolve9(NATIVE_BASE, "build/");
+  const resolved = resolve9(addonPath);
   if (!resolved.startsWith(buildDir + "/") && resolved !== buildDir) {
     return null;
   }
@@ -36839,7 +37870,7 @@ function validateManifestEntry(entry, key) {
   if (typeof entry.exports !== "object" || !Array.isArray(entry.exports)) {
     throw new ReleaseError(SAFE_WRITE_UNAVAILABLE, `manifest entry missing exports for ${key}`);
   }
-  const resolved = resolve8(NATIVE_BASE, entry.path);
+  const resolved = resolve9(NATIVE_BASE, entry.path);
   const baseDir = NATIVE_BASE;
   if (!resolved.startsWith(baseDir + "/") && resolved !== baseDir) {
     throw new ReleaseError(SAFE_WRITE_UNAVAILABLE, `manifest path escapes base directory for ${key}`);
@@ -36852,7 +37883,7 @@ function validateManifestEntry(entry, key) {
 }
 function requireAddon(addonPath) {
   try {
-    const require2 = createRequire(resolve8(PKG_ROOT2, "package.json"));
+    const require2 = createRequire(resolve9(PKG_ROOT2, "package.json"));
     return require2(addonPath);
   } catch (err) {
     throw new ReleaseError(SAFE_WRITE_UNAVAILABLE, sanitizeError(err));
@@ -36873,7 +37904,7 @@ function readStableAddon(options = {}) {
     );
   }
   validateManifestEntry(entry, key);
-  const addonFile = resolve8(NATIVE_BASE, entry.path);
+  const addonFile = resolve9(NATIVE_BASE, entry.path);
   const lstatFn = hooks.lstatSync || lstatSync3;
   const lstatOpts = { bigint: true };
   let preStat;
@@ -37282,11 +38313,11 @@ var PKG_ROOT2, NATIVE_BASE, PREBUILDS_PATH, PREBUILDS_RESOURCE, DEFAULT_ADDON_PA
 var init_safe_fs_backend_internal = __esm({
   "src/artifacts/safe-fs-backend-internal.mjs"() {
     init_errors();
-    PKG_ROOT2 = typeof __bundlePkgRoot !== "undefined" ? __bundlePkgRoot : resolve8(dirname4(fileURLToPath2(import.meta.url)), "..", "..");
-    NATIVE_BASE = resolve8(PKG_ROOT2, "native/safe-write");
-    PREBUILDS_PATH = resolve8(NATIVE_BASE, "prebuilds.json");
+    PKG_ROOT2 = typeof __bundlePkgRoot !== "undefined" ? __bundlePkgRoot : resolve9(dirname4(fileURLToPath2(import.meta.url)), "..", "..");
+    NATIVE_BASE = resolve9(PKG_ROOT2, "native/safe-write");
+    PREBUILDS_PATH = resolve9(NATIVE_BASE, "prebuilds.json");
     PREBUILDS_RESOURCE = "native/safe-write/prebuilds.json";
-    DEFAULT_ADDON_PATH = resolve8(NATIVE_BASE, "build/Release/safe_write.node");
+    DEFAULT_ADDON_PATH = resolve9(NATIVE_BASE, "build/Release/safe_write.node");
     EXPECTED_EXPORTS = Object.freeze([
       "openRoot",
       "openDir",
@@ -37321,7 +38352,7 @@ __export(safe_fs_exports, {
   loadSafeFs: () => loadSafeFs,
   requireSafeFs: () => requireSafeFs
 });
-import { realpath as realpath8 } from "node:fs/promises";
+import { realpath as realpath9 } from "node:fs/promises";
 import { tmpdir as tmpdir2 } from "node:os";
 async function loadSafeFs(options = {}) {
   const addon = loadNativeAddon(options.addonPath);
@@ -37333,7 +38364,7 @@ async function requireSafeFs(options = {}) {
   if (options.root) {
     root = options.root;
   } else {
-    root = await realpath8(tmpdir2());
+    root = await realpath9(tmpdir2());
   }
   const result = await backend.probe(root);
   if (!result.supported) {
@@ -37356,6 +38387,8 @@ var init_safe_fs = __esm({
 // src/commands/setup.mjs
 var setup_exports = {};
 __export(setup_exports, {
+  discoverDownstream: () => discoverDownstream,
+  proposePostPublishHooks: () => proposePostPublishHooks,
   setupProject: () => setupProject
 });
 import { execFile as execFileCb2 } from "node:child_process";
@@ -37366,9 +38399,9 @@ import {
   lstat as lstat11,
   readFile as readFile8,
   readdir as readdir4,
-  realpath as realpath9
+  realpath as realpath10
 } from "node:fs/promises";
-import { basename as basename3, dirname as dirname5, isAbsolute as isAbsolute6, join as join8, relative as relative6, resolve as resolve9 } from "node:path";
+import { basename as basename3, dirname as dirname5, isAbsolute as isAbsolute7, join as join8, relative as relative6, resolve as resolve10 } from "node:path";
 function setupError(code, message, details = {}) {
   return new ReleaseError(code, message, details);
 }
@@ -37377,8 +38410,8 @@ function safeRelative(root, path15) {
   return rel || ".";
 }
 async function readJsonBounded(path15, label) {
-  const stat10 = await lstat11(path15);
-  if (!stat10.isFile() || stat10.isSymbolicLink() || stat10.size > MAX_JSON_BYTES) {
+  const stat13 = await lstat11(path15);
+  if (!stat13.isFile() || stat13.isSymbolicLink() || stat13.size > MAX_JSON_BYTES) {
     throw setupError(CONFIG_INVALID, `${label} must be a regular JSON file no larger than 1 MiB`, { path: path15 });
   }
   try {
@@ -37545,7 +38578,7 @@ function classifyScript(name, command2, unitId, distributionTypes) {
   };
 }
 async function discoverGit(root) {
-  const run5 = /* @__PURE__ */ __name(async (args2) => {
+  const run6 = /* @__PURE__ */ __name(async (args2) => {
     try {
       const { stdout } = await execFile2("git", args2, { cwd: root, shell: false, encoding: "utf8", timeout: 5e3 });
       return stdout.trim();
@@ -37553,7 +38586,7 @@ async function discoverGit(root) {
       return "";
     }
   }, "run");
-  const remoteLines = (await run5(["remote", "-v"])).split("\n").filter(Boolean);
+  const remoteLines = (await run6(["remote", "-v"])).split("\n").filter(Boolean);
   const remotes = [];
   const seen = /* @__PURE__ */ new Set();
   for (const line of remoteLines) {
@@ -37566,16 +38599,16 @@ async function discoverGit(root) {
   }
   remotes.sort((a, b) => canonicalJson2(a).localeCompare(canonicalJson2(b)));
   return {
-    repository: Boolean(await run5(["rev-parse", "--git-dir"])),
-    branch: await run5(["branch", "--show-current"]) || null,
-    head: await run5(["rev-parse", "HEAD"]) || null,
-    tags: (await run5(["tag", "--list"])).split("\n").filter(Boolean).sort(),
+    repository: Boolean(await run6(["rev-parse", "--git-dir"])),
+    branch: await run6(["branch", "--show-current"]) || null,
+    head: await run6(["rev-parse", "HEAD"]) || null,
+    tags: (await run6(["tag", "--list"])).split("\n").filter(Boolean).sort(),
     remotes,
-    trackedFiles: (await run5(["ls-files"])).split("\n").filter(Boolean).sort()
+    trackedFiles: (await run6(["ls-files"])).split("\n").filter(Boolean).sort()
   };
 }
 async function discoverUnitGit(unitAbsDir, parentRoot) {
-  const run5 = /* @__PURE__ */ __name(async (cwd, args2) => {
+  const run6 = /* @__PURE__ */ __name(async (cwd, args2) => {
     try {
       const { stdout } = await execFile2("git", args2, { cwd, shell: false, encoding: "utf8", timeout: 5e3 });
       return stdout.trim();
@@ -37583,16 +38616,16 @@ async function discoverUnitGit(unitAbsDir, parentRoot) {
       return "";
     }
   }, "run");
-  const unitGitRoot = await run5(unitAbsDir, ["rev-parse", "--show-toplevel"]);
+  const unitGitRoot = await run6(unitAbsDir, ["rev-parse", "--show-toplevel"]);
   if (!unitGitRoot) {
     return { gitRoot: null, ownRepo: false, ownRemotes: [], branch: null, head: null, tags: [], trackedFiles: [] };
   }
-  const parentGitRoot = await run5(parentRoot, ["rev-parse", "--show-toplevel"]);
+  const parentGitRoot = await run6(parentRoot, ["rev-parse", "--show-toplevel"]);
   const isIndependent = unitGitRoot !== parentGitRoot;
-  const branch = await run5(unitAbsDir, ["branch", "--show-current"]) || null;
-  const head = await run5(unitAbsDir, ["rev-parse", "HEAD"]) || null;
-  const tags = (await run5(unitAbsDir, ["tag", "--list"])).split("\n").filter(Boolean).sort();
-  const remoteLines = (await run5(unitAbsDir, ["remote", "-v"])).split("\n").filter(Boolean);
+  const branch = await run6(unitAbsDir, ["branch", "--show-current"]) || null;
+  const head = await run6(unitAbsDir, ["rev-parse", "HEAD"]) || null;
+  const tags = (await run6(unitAbsDir, ["tag", "--list"])).split("\n").filter(Boolean).sort();
+  const remoteLines = (await run6(unitAbsDir, ["remote", "-v"])).split("\n").filter(Boolean);
   const ownRemotes = [];
   const seen = /* @__PURE__ */ new Set();
   for (const line of remoteLines) {
@@ -37604,10 +38637,10 @@ async function discoverUnitGit(unitAbsDir, parentRoot) {
     ownRemotes.push({ name: match[1], url: match[2], repo: parseGithubRepo(match[2]) });
   }
   ownRemotes.sort((a, b) => canonicalJson2(a).localeCompare(canonicalJson2(b)));
-  const lsOutput = await run5(unitAbsDir, ["ls-files", "--", "."]);
+  const lsOutput = await run6(unitAbsDir, ["ls-files", "--", "."]);
   const trackedFiles = lsOutput ? lsOutput.split("\n").filter(Boolean).sort() : [];
-  const upstream = await run5(unitAbsDir, ["rev-parse", "--abbrev-ref", "@{upstream}"]) || null;
-  const aheadBehind = upstream ? (await run5(unitAbsDir, ["rev-list", "--left-right", "--count", `HEAD...${upstream}`])).split(/\s+/).map(Number) : [];
+  const upstream = await run6(unitAbsDir, ["rev-parse", "--abbrev-ref", "@{upstream}"]) || null;
+  const aheadBehind = upstream ? (await run6(unitAbsDir, ["rev-list", "--left-right", "--count", `HEAD...${upstream}`])).split(/\s+/).map(Number) : [];
   return {
     gitRoot: safeRelative(parentRoot, unitGitRoot),
     ownRepo: isIndependent,
@@ -37640,14 +38673,14 @@ async function pathIsGitIgnored(unitAbsDir, target) {
 async function classifyNpmEntryCandidate(unitAbsDir, target, trackedFiles) {
   const tracked = trackedFiles.includes(target);
   const ignored = await pathIsGitIgnored(unitAbsDir, target);
-  let stat10 = null;
+  let stat13 = null;
   try {
-    stat10 = await lstat11(join8(unitAbsDir, target));
+    stat13 = await lstat11(join8(unitAbsDir, target));
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
   }
-  const exists = stat10 !== null;
-  const regular = stat10?.isFile() === true && stat10?.isSymbolicLink() !== true;
+  const exists = stat13 !== null;
+  const regular = stat13?.isFile() === true && stat13?.isSymbolicLink() !== true;
   const state = exists && !regular ? "NON_REGULAR" : exists && tracked ? "TRACKED_PRESENT" : exists && ignored ? "IGNORED_PRESENT" : exists ? "UNTRACKED_PRESENT" : ignored ? "IGNORED_MISSING" : "MISSING";
   return { path: target, state, exists, tracked, ignored };
 }
@@ -37697,7 +38730,7 @@ async function discoverNpmEntryCandidates(root, pkg, matchingLegacyUnits, unitGi
       }
     }
   }
-  const unitAbsDir = resolve9(root, pkg.directory);
+  const unitAbsDir = resolve10(root, pkg.directory);
   const candidates = [];
   for (const item of [...byPath.values()].sort((a, b) => a.path.localeCompare(b.path))) {
     candidates.push({
@@ -37780,7 +38813,7 @@ async function discoverFacts(root) {
   }).filter((item) => item.name).sort((a, b) => canonicalJson2(a).localeCompare(canonicalJson2(b)));
   const unitGit = {};
   for (const pkg of packages) {
-    const unitAbsDir = resolve9(root, pkg.directory);
+    const unitAbsDir = resolve10(root, pkg.directory);
     unitGit[pkg.directory] = await discoverUnitGit(unitAbsDir, root);
     const inferredId = safeUnitId(pkg, pkg.directory);
     const matchingLegacyUnits = legacyReleaseConfigs.flatMap((config) => config.releaseUnits).filter((unit) => unit.id === inferredId || unit.source === pkg.directory || unit.source === dirname5(pkg.path));
@@ -38530,18 +39563,18 @@ async function createConfigOnce(root, config, { beforeRename } = {}) {
   }
 }
 async function setupProject({ root, answersPath, write = false, confirmSetup, faultInjector } = {}) {
-  if (!root || typeof root !== "string" || !isAbsolute6(root)) {
+  if (!root || typeof root !== "string" || !isAbsolute7(root)) {
     throw setupError(CONFIG_INVALID, "setup root must be an absolute path");
   }
-  const rootReal = await realpath9(root).catch((error) => {
+  const rootReal = await realpath10(root).catch((error) => {
     throw setupError(CONFIG_INVALID, `cannot resolve setup root: ${error.message}`);
   });
   const configPath = join8(rootReal, ".release-skill", "project.yaml");
   let configExists = false;
   try {
-    const stat10 = await lstat11(configPath);
+    const stat13 = await lstat11(configPath);
     configExists = true;
-    if (!stat10.isFile() || stat10.isSymbolicLink()) {
+    if (!stat13.isFile() || stat13.isSymbolicLink()) {
       throw setupError(CONFIG_INVALID, "existing project.yaml must be a regular file");
     }
   } catch (error) {
@@ -38615,7 +39648,7 @@ async function setupProject({ root, answersPath, write = false, confirmSetup, fa
   )].sort();
   let answers = null;
   if (answersPath) {
-    const resolvedAnswers = isAbsolute6(answersPath) ? answersPath : resolve9(rootReal, answersPath);
+    const resolvedAnswers = isAbsolute7(answersPath) ? answersPath : resolve10(rootReal, answersPath);
     answers = await readJsonBounded(resolvedAnswers, "setup answers");
     validateAnswers(answers, candidates.gates);
   }
@@ -38669,7 +39702,7 @@ async function setupProject({ root, answersPath, write = false, confirmSetup, fa
       if (faultInjector) await faultInjector("before-config-commit");
       const lockedFacts = await discoverFacts(rootReal);
       const lockedCandidates = buildCandidates(lockedFacts);
-      const resolvedAnswers = isAbsolute6(answersPath) ? answersPath : resolve9(rootReal, answersPath);
+      const resolvedAnswers = isAbsolute7(answersPath) ? answersPath : resolve10(rootReal, answersPath);
       const lockedAnswers = await readJsonBounded(resolvedAnswers, "setup answers");
       validateAnswers(lockedAnswers, lockedCandidates.gates);
       const lockedAuthority = {
@@ -38742,7 +39775,553 @@ async function setupProject({ root, answersPath, write = false, confirmSetup, fa
   createdReport.compactSummary = buildCompactSummary(createdReport);
   return createdReport;
 }
-var import_yaml2, import_ajv4, import_ajv_formats2, execFile2, SKIP_DIRS, DISCOVERY_MANIFEST_SUFFIXES, MANIFEST_SUFFIX_HOST_MAP, MAX_JSON_BYTES, schema, ajv2, validateProjectConfig;
+async function r5IsRegularFile(path15) {
+  try {
+    const entry = await lstat11(path15);
+    return entry.isFile() && !entry.isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+async function r5IsDirectory(path15) {
+  try {
+    const entry = await lstat11(path15);
+    return entry.isDirectory() && !entry.isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+async function r5HasGitEntry(absDir) {
+  try {
+    await lstat11(join8(absDir, ".git"));
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function r5SiblingDirs(rootReal) {
+  const parent = dirname5(rootReal);
+  if (!parent || parent === rootReal) return [];
+  let entries;
+  try {
+    entries = await readdir4(parent, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const rootBase = basename3(rootReal);
+  const siblings = [];
+  for (const entry of entries) {
+    if (entry.name === rootBase) continue;
+    if (entry.isSymbolicLink()) continue;
+    if (!entry.isDirectory()) continue;
+    if (SKIP_DIRS.has(entry.name)) continue;
+    siblings.push(join8(parent, entry.name));
+  }
+  return siblings.sort().slice(0, MAX_NEIGHBOR_SCAN);
+}
+async function r5DetectCluesInDir(absDir) {
+  const clues = [];
+  for (const suffix of DISCOVERY_MANIFEST_SUFFIXES) {
+    if (typeof suffix !== "string" || !suffix.includes("marketplace.json")) continue;
+    if (await r5IsRegularFile(join8(absDir, suffix))) {
+      clues.push({ path: suffix, kind: "marketplace" });
+    }
+  }
+  const hasMkdocs = await r5IsRegularFile(join8(absDir, "mkdocs.yml"));
+  const hasDocsDir = await r5IsDirectory(join8(absDir, "docs"));
+  if (hasMkdocs || hasDocsDir) {
+    const gitBacked = await r5HasGitEntry(absDir);
+    clues.push({ path: hasMkdocs ? "mkdocs.yml" : "docs", kind: gitBacked ? "docs-repo" : "docs" });
+  }
+  return clues;
+}
+function r5ValidateProfileShape(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("foundation profile must be a JSON object");
+  }
+  if (value.profileVersion !== 1) {
+    throw new Error("foundation profile profileVersion must be 1");
+  }
+  const hooks = value.hooks ?? [];
+  const targets = value.targets ?? [];
+  if (!Array.isArray(hooks) || !Array.isArray(targets)) {
+    throw new Error("foundation profile hooks and targets must be arrays");
+  }
+  return { profileVersion: 1, hooks, targets };
+}
+async function r5FindFoundationProfile(rootReal, explicitPath) {
+  const candidates = [];
+  if (explicitPath && typeof explicitPath === "string" && explicitPath.length > 0) {
+    candidates.push({
+      abs: isAbsolute7(explicitPath) ? explicitPath : resolve10(rootReal, explicitPath),
+      desc: explicitPath
+    });
+  }
+  candidates.push(
+    { abs: join8(rootReal, ".release-skill", FOUNDATION_PROFILE_FILENAME), desc: `.release-skill/${FOUNDATION_PROFILE_FILENAME}` },
+    { abs: join8(rootReal, FOUNDATION_PROFILE_FILENAME), desc: FOUNDATION_PROFILE_FILENAME }
+  );
+  for (const sibling of await r5SiblingDirs(rootReal)) {
+    const name = basename3(sibling);
+    candidates.push(
+      { abs: join8(sibling, ".release-skill", FOUNDATION_PROFILE_FILENAME), desc: `../${name}/.release-skill/${FOUNDATION_PROFILE_FILENAME}` },
+      { abs: join8(sibling, FOUNDATION_PROFILE_FILENAME), desc: `../${name}/${FOUNDATION_PROFILE_FILENAME}` }
+    );
+  }
+  for (const candidate of candidates) {
+    if (await r5IsRegularFile(candidate.abs)) return candidate;
+  }
+  return null;
+}
+async function r5Discover(rootReal, foundationProfilePath) {
+  const configPath = join8(rootReal, ".release-skill", "project.yaml");
+  const configExists = await r5IsRegularFile(configPath);
+  const git3 = await discoverGit(rootReal);
+  const gitRemotes = git3.remotes.map((remote) => ({ name: remote.name, url: remote.url, repo: remote.repo }));
+  const sourceRepositoryCandidates = [...new Set(
+    git3.remotes.map((remote) => remote.repo).filter(Boolean)
+  )].sort();
+  const mirrorCandidates = git3.remotes.filter((remote) => R5_REMOTE_URL_RE.test(remote.url)).map((remote) => ({ remoteName: remote.name, remoteUrl: remote.url, repo: remote.repo })).sort((a, b) => canonicalJson2(a).localeCompare(canonicalJson2(b)));
+  const artifactGraphPresent = await r5IsRegularFile(join8(rootReal, "artifact-graph.config.yaml"));
+  const workspaceClues = (await r5DetectCluesInDir(rootReal)).sort((a, b) => canonicalJson2(a).localeCompare(canonicalJson2(b)));
+  const neighborClues = [];
+  for (const sibling of await r5SiblingDirs(rootReal)) {
+    const name = basename3(sibling);
+    if (/hub/i.test(name)) neighborClues.push({ sibling: name, kind: "hub" });
+    for (const clue of await r5DetectCluesInDir(sibling)) {
+      neighborClues.push({ sibling: name, kind: clue.kind, path: clue.path });
+    }
+  }
+  neighborClues.sort((a, b) => canonicalJson2(a).localeCompare(canonicalJson2(b)));
+  const profileDiagnostics = [];
+  let foundationProfile = null;
+  let foundationProfileParsed = null;
+  const found = await r5FindFoundationProfile(rootReal, foundationProfilePath);
+  if (found) {
+    try {
+      const raw = JSON.parse(await readFile8(found.abs, "utf8"));
+      const parsed = r5ValidateProfileShape(raw);
+      foundationProfile = {
+        path: found.desc,
+        profileVersion: parsed.profileVersion,
+        hookCount: parsed.hooks.length,
+        targetCount: parsed.targets.length
+      };
+      foundationProfileParsed = parsed;
+    } catch (error) {
+      profileDiagnostics.push({ path: found.desc, error: error.message });
+    }
+  }
+  return {
+    mode: "postpublish-discovery",
+    configExists,
+    gitRemotes,
+    sourceRepositoryCandidates,
+    mirrorCandidates,
+    artifactGraphConfig: {
+      present: artifactGraphPresent,
+      ...artifactGraphPresent ? { path: "artifact-graph.config.yaml" } : {}
+    },
+    workspaceClues,
+    neighborClues,
+    foundationProfile,
+    foundationProfileParsed,
+    foundationProfileLoadDiagnostics: profileDiagnostics
+  };
+}
+async function discoverDownstream({ root, foundationProfilePath } = {}) {
+  if (!root || typeof root !== "string" || !isAbsolute7(root)) {
+    throw setupError(CONFIG_INVALID, "discovery root must be an absolute path");
+  }
+  const rootReal = await realpath10(root).catch((error) => {
+    throw setupError(CONFIG_INVALID, `cannot resolve discovery root: ${error.message}`);
+  });
+  const discovery = await r5Discover(rootReal, foundationProfilePath);
+  const { foundationProfileParsed, ...publicDiscovery } = discovery;
+  return publicDiscovery;
+}
+function r5BuildProposals(discovery, existingHookIds) {
+  const existing = new Set(existingHookIds);
+  const hookProposals = [];
+  const targetProposals = [];
+  const candidates = [];
+  const notes = [];
+  const diagnostics = [...discovery.foundationProfileLoadDiagnostics];
+  const proposeHook = /* @__PURE__ */ __name((draft, source, rationale) => {
+    hookProposals.push({ ...draft, source, rationale });
+  }, "proposeHook");
+  proposeHook(
+    { id: "downstream-notify-handoff", preset: "notify-handoff", phase: "distribute" },
+    "discovery-baseline",
+    "zero-write floor: renders the downstream sync checklist in evidence"
+  );
+  const hub = discovery.mirrorCandidates.find((candidate) => /hub/i.test(candidate.remoteName) || /hub/i.test(candidate.repo ?? ""));
+  if (hub) {
+    proposeHook(
+      {
+        id: "downstream-hub-proposal",
+        preset: "proposal-inbox",
+        phase: "postVerify",
+        requiresApproval: true,
+        config: { delivery: "git-push", target: { remoteUrl: hub.remoteUrl, branch: "main" } }
+      },
+      "git-remote",
+      `hub-looking remote "${hub.remoteName}" suggests a proposal inbox`
+    );
+  }
+  const selfRepo = discovery.sourceRepositoryCandidates.length === 1 ? discovery.sourceRepositoryCandidates[0] : null;
+  for (const candidate of discovery.mirrorCandidates) {
+    if (selfRepo && candidate.repo === selfRepo) continue;
+    const slug = (candidate.repo ?? candidate.remoteName).toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
+    targetProposals.push({
+      id: `mirror-${slug}`,
+      kind: "payload-mirror",
+      remoteUrl: candidate.remoteUrl,
+      visibility: "public",
+      branch: "main",
+      source: "git-remote",
+      rationale: `remote "${candidate.remoteName}" is a payload-mirror candidate`
+    });
+  }
+  if (!selfRepo && discovery.mirrorCandidates.length > 0) {
+    notes.push("source repository is ambiguous; review mirror target drafts before adopting them.");
+  }
+  const profile = discovery.foundationProfileParsed;
+  if (profile) {
+    for (const [index, hook] of profile.hooks.entries()) {
+      const id = hook && typeof hook.id === "string" ? hook.id : null;
+      try {
+        if (!id) throw new Error("hook must declare a string id");
+        validatePresetHook(hook, `foundationProfile.hooks[${index}]`);
+        const draft = { id, preset: hook.preset };
+        if (hook.phase !== void 0) draft.phase = hook.phase;
+        if (hook.config !== void 0) draft.config = hook.config;
+        if (hook.requiresApproval !== void 0) draft.requiresApproval = hook.requiresApproval;
+        if (hook.blocksVerified !== void 0) draft.blocksVerified = hook.blocksVerified;
+        proposeHook(draft, "foundation-profile", "declared by the foundation profile");
+      } catch (error) {
+        diagnostics.push({ id, error: error.message });
+      }
+    }
+    for (const target of profile.targets) {
+      targetProposals.push({
+        ...target,
+        source: "foundation-profile",
+        rationale: "declared by the foundation profile"
+      });
+    }
+  }
+  if (discovery.artifactGraphConfig.present) {
+    candidates.push({ kind: "artifact-graph", path: discovery.artifactGraphConfig.path, source: "workspace" });
+    notes.push("artifact-graph.config.yaml present: consider a marketplace-registry-entry hook via the foundation profile.");
+  }
+  for (const clue of discovery.workspaceClues) candidates.push({ ...clue, source: "workspace" });
+  for (const clue of discovery.neighborClues) candidates.push({ ...clue, source: "neighbor-scan" });
+  if (discovery.neighborClues.some((clue) => clue.kind === "docs-repo")) {
+    notes.push("docs repository clue found: a docs-refresh hook needs mappings from the foundation profile or human input.");
+  }
+  if (discovery.neighborClues.some((clue) => clue.kind === "marketplace")) {
+    notes.push("marketplace clue found: a marketplace-registry-entry hook needs entryKey/fieldsFromPlan from the foundation profile or human input.");
+  }
+  const appendableHookProposals = [];
+  const conflicts = [];
+  for (const proposal of hookProposals) {
+    if (existing.has(proposal.id)) {
+      conflicts.push({ existingHookId: proposal.id, preset: proposal.preset, source: proposal.source });
+    } else {
+      appendableHookProposals.push(proposal);
+    }
+  }
+  return {
+    hookProposals,
+    appendableHookProposals,
+    targetProposals,
+    candidates,
+    notes,
+    conflicts,
+    foundationProfileDiagnostics: diagnostics
+  };
+}
+function r5CleanHookDraft(proposal) {
+  const draft = {};
+  for (const field of R5_HOOK_DRAFT_FIELDS) {
+    if (proposal[field] !== void 0) draft[field] = proposal[field];
+  }
+  return draft;
+}
+function r5AppendHooksToYaml(text, hookDrafts, unitIndex) {
+  const doc = import_yaml2.default.parseDocument(text);
+  const hooksPath = ["releaseUnits", unitIndex, "postPublish", "hooks"];
+  const existingHooks = doc.getIn(hooksPath);
+  if (existingHooks === void 0 || existingHooks === null) {
+    const postPublishMap = doc.getIn(hooksPath.slice(0, -1));
+    const splice = r5HooksBlockSplice(text, postPublishMap, hookDrafts);
+    if (splice !== null) return splice;
+    doc.setIn(hooksPath, hookDrafts);
+    return doc.toString();
+  }
+  for (const draft of hookDrafts) existingHooks.add(draft);
+  return doc.toString();
+}
+function r5HooksBlockSplice(text, postPublishMap, hookDrafts) {
+  if (!import_yaml2.default.isMap(postPublishMap) || postPublishMap.flow || import_yaml2.default.isAlias(postPublishMap)) return null;
+  const [mapStart, valueEnd] = postPublishMap.range;
+  if (!Number.isInteger(mapStart) || !Number.isInteger(valueEnd)) return null;
+  if (mapStart < 0 || valueEnd > text.length || mapStart > valueEnd) return null;
+  const lineStart = text.lastIndexOf("\n", mapStart - 1) + 1;
+  const indent = text.slice(lineStart, mapStart);
+  if (!/^[ ]*$/.test(indent)) return null;
+  const nl = text.indexOf("\n", Math.max(lineStart, valueEnd - 1));
+  const insertPos = nl === -1 ? text.length : nl + 1;
+  const fragment = import_yaml2.default.stringify({ hooks: hookDrafts }, { lineWidth: 0 });
+  const block = fragment.replace(/\n$/, "").split("\n").map((line) => indent + line);
+  const terminator = insertPos === text.length && !text.endsWith("\n") ? "" : "\n";
+  return text.slice(0, insertPos) + block.join("\n") + terminator + text.slice(insertPos);
+}
+function r5StripHooks(config) {
+  const copy = JSON.parse(JSON.stringify(config ?? {}));
+  for (const unit of copy.releaseUnits ?? []) {
+    if (unit?.postPublish) delete unit.postPublish.hooks;
+  }
+  return copy;
+}
+async function r5AppendHooksOnce(rootReal, hookDrafts, unitIndex) {
+  const { loadSafeFs: loadSafeFs2 } = await Promise.resolve().then(() => (init_safe_fs(), safe_fs_exports));
+  const safeFs = await loadSafeFs2();
+  const bound = await openBoundConfigDirectory(rootReal, safeFs);
+  let tempToken;
+  try {
+    const existing = await bound.releaseHandle.readFile("project.yaml");
+    if (existing === null) {
+      throw setupError(CONFIG_MISSING, "configuration disappeared before hooks could be appended");
+    }
+    const existingText = existing.bytes.toString("utf8");
+    const newText = r5AppendHooksToYaml(existingText, hookDrafts, unitIndex);
+    const merged = import_yaml2.default.parse(newText);
+    if (!validateProjectConfig(merged)) {
+      const errors = validateProjectConfig.errors ?? [];
+      throw setupError(
+        CONFIG_INVALID,
+        `appended configuration would be invalid: ${errors.map((error) => `${error.instancePath || "/"} ${error.message}`).join("; ")}`,
+        { validationErrors: errors }
+      );
+    }
+    const before = import_yaml2.default.parse(existingText);
+    if (canonicalJson2(r5StripHooks(before)) !== canonicalJson2(r5StripHooks(merged))) {
+      throw setupError(CONFIG_INVALID, "hooks append would alter non-hooks configuration sections; refusing to write");
+    }
+    const mergedUnit = Array.isArray(merged.releaseUnits) ? merged.releaseUnits[unitIndex] : null;
+    validatePostPublishDeclaration(mergedUnit?.postPublish, { unitId: mergedUnit?.id });
+    const newBytes = Buffer.from(newText, "utf8");
+    tempToken = await bound.releaseHandle.createTemp("project.yaml", 384, newBytes);
+    await assertConfigDirectoryStillBound(rootReal, safeFs, bound);
+    await bound.releaseHandle.rename(tempToken, "project.yaml", existing);
+    tempToken = null;
+    await bound.releaseHandle.fsync();
+    await bound.rootHandle.fsync();
+    return { configSha256: sha256Hex(newBytes) };
+  } finally {
+    if (tempToken) await bound.releaseHandle.abortTemp(tempToken).catch(() => {
+    });
+    await bound.releaseHandle.close().catch(() => {
+    });
+    await bound.rootHandle.close().catch(() => {
+    });
+  }
+}
+async function r5Compute({ rootReal, foundationProfilePath, selectedHookIds, unitId }) {
+  const configPath = join8(rootReal, ".release-skill", "project.yaml");
+  let configBytes = null;
+  let existingParsed = null;
+  const configExists = await r5IsRegularFile(configPath);
+  if (configExists) {
+    configBytes = await readFile8(configPath, "utf8");
+    try {
+      existingParsed = import_yaml2.default.parse(configBytes);
+    } catch (error) {
+      throw setupError(CONFIG_INVALID, `existing configuration cannot be parsed; refusing incremental proposal: ${error.message}`);
+    }
+  }
+  const units = Array.isArray(existingParsed?.releaseUnits) ? existingParsed.releaseUnits : [];
+  const hasBase = /* @__PURE__ */ __name((unit) => Boolean(unit?.postPublish?.materialize && unit?.postPublish?.commitIdentity), "hasBase");
+  const baseUnitIndexes = units.map((unit, index) => ({ unit, index })).filter(({ unit }) => hasBase(unit)).map(({ index }) => index);
+  let targetUnitIndex = null;
+  let targetUnitId = null;
+  let targetRefusal = null;
+  if (configExists) {
+    if (unitId !== void 0 && unitId !== null) {
+      const idx = units.findIndex((unit) => unit?.id === unitId);
+      if (idx === -1) targetRefusal = `release unit "${unitId}" was not found in the existing configuration`;
+      else if (!hasBase(units[idx])) targetRefusal = `release unit "${unitId}" lacks the postPublish materialize/commitIdentity base required before hooks can be appended`;
+      else {
+        targetUnitIndex = idx;
+        targetUnitId = unitId;
+      }
+    } else if (baseUnitIndexes.length === 1) {
+      targetUnitIndex = baseUnitIndexes[0];
+      targetUnitId = units[targetUnitIndex]?.id ?? null;
+    } else if (baseUnitIndexes.length === 0) {
+      targetRefusal = "no release unit declares the postPublish materialize/commitIdentity base required before hooks can be appended; declare the distribute base first (human decision)";
+    } else {
+      targetRefusal = `multiple release units declare a postPublish base (${baseUnitIndexes.map((index) => units[index]?.id ?? `#${index}`).join(", ")}); pass an explicit unitId to choose one`;
+    }
+  }
+  const existingHookIds = targetUnitIndex === null ? [] : (units[targetUnitIndex]?.postPublish?.hooks ?? []).map((hook) => hook?.id).filter((id) => typeof id === "string");
+  const hasPostPublishBase = targetUnitIndex !== null;
+  const discovery = await r5Discover(rootReal, foundationProfilePath);
+  const proposals = r5BuildProposals(discovery, existingHookIds);
+  const appendableIds = proposals.appendableHookProposals.map((proposal) => proposal.id);
+  let selected;
+  if (selectedHookIds !== void 0 && selectedHookIds !== null) {
+    if (!Array.isArray(selectedHookIds)) {
+      throw setupError(CONFIG_INVALID, "selectedHookIds must be an array of proposal ids");
+    }
+    const requested = [...new Set(selectedHookIds)];
+    for (const id of requested) {
+      if (!appendableIds.includes(id)) {
+        throw setupError(CONFIG_INVALID, `selectedHookIds contains unknown or conflicting proposal "${id}"`);
+      }
+    }
+    selected = requested.sort();
+  } else {
+    selected = [...appendableIds].sort();
+  }
+  const selectedProposals = proposals.appendableHookProposals.filter((proposal) => selected.includes(proposal.id));
+  const selectedDrafts = selectedProposals.map(r5CleanHookDraft);
+  const authority = {
+    setupVersion: 1,
+    mode: "postpublish-hooks-proposal",
+    configExists,
+    existingConfigSha256: configExists ? sha256Hex(configBytes) : null,
+    targetUnitId,
+    discovery,
+    selectedHookIds: selected,
+    selectedDrafts
+  };
+  const setupDigest = sha256Hex(canonicalJson2(authority));
+  return {
+    configPath,
+    configExists,
+    configBytes,
+    existingParsed,
+    hasPostPublishBase,
+    targetUnitIndex,
+    targetUnitId,
+    targetRefusal,
+    discovery,
+    proposals,
+    selected,
+    selectedDrafts,
+    authority,
+    setupDigest
+  };
+}
+async function proposePostPublishHooks({
+  root,
+  write = false,
+  confirmSetup,
+  selectedHookIds,
+  foundationProfilePath,
+  unitId,
+  faultInjector
+} = {}) {
+  if (!root || typeof root !== "string" || !isAbsolute7(root)) {
+    throw setupError(CONFIG_INVALID, "proposal root must be an absolute path");
+  }
+  const rootReal = await realpath10(root).catch((error) => {
+    throw setupError(CONFIG_INVALID, `cannot resolve proposal root: ${error.message}`);
+  });
+  const computed = await r5Compute({ rootReal, foundationProfilePath, selectedHookIds, unitId });
+  const report = {
+    setupVersion: 1,
+    mode: "postpublish-hooks-proposal",
+    status: "HOOKS_PROPOSAL_READY",
+    configPath: computed.configPath,
+    configExists: computed.configExists,
+    targetUnitId: computed.targetUnitId,
+    targetRefusal: computed.targetRefusal ?? null,
+    existingConfigSha256: computed.configExists ? sha256Hex(computed.configBytes) : null,
+    discovery: (() => {
+      const { foundationProfileParsed, ...publicDiscovery } = computed.discovery;
+      return publicDiscovery;
+    })(),
+    hookProposals: computed.proposals.hookProposals,
+    appendableHookIds: computed.proposals.appendableHookProposals.map((proposal) => proposal.id),
+    targetProposals: computed.proposals.targetProposals,
+    candidates: computed.proposals.candidates,
+    notes: computed.proposals.notes,
+    conflicts: computed.proposals.conflicts,
+    foundationProfileDiagnostics: computed.proposals.foundationProfileDiagnostics,
+    selectedHookIds: computed.selected,
+    setupDigest: computed.setupDigest,
+    writeContract: {
+      default: "dry-run",
+      requires: ["--write", `--confirm-setup ${computed.setupDigest}`],
+      appendOnly: "releaseUnits[<target>].postPublish.hooks",
+      overwrite: false,
+      createOnceBoundary: "setup create-once is never touched by this mode"
+    }
+  };
+  if (!write) return report;
+  if (!computed.configExists) {
+    throw setupError(
+      CONFIG_MISSING,
+      "incremental postPublish proposal requires an existing configuration; run setup create first",
+      { configPath: computed.configPath }
+    );
+  }
+  if (!computed.hasPostPublishBase) {
+    throw setupError(
+      CONFIG_INVALID,
+      computed.targetRefusal ?? "existing configuration lacks the postPublish base required before hooks can be appended",
+      { configPath: computed.configPath }
+    );
+  }
+  if (confirmSetup !== computed.setupDigest) {
+    throw setupError(
+      SETUP_DIGEST_MISMATCH,
+      "proposal confirmation does not match the current configuration, discovery facts, and selection; rerun dry-run and review again",
+      { expected: computed.setupDigest, received: confirmSetup ?? null }
+    );
+  }
+  if (computed.selectedDrafts.length === 0) {
+    return { ...report, status: "HOOKS_NO_CHANGE", next: "\u6CA1\u6709\u53EF\u8FFD\u52A0\u7684 hook \u8349\u6848\uFF1B\u65E0\u5199\u5165\u3002" };
+  }
+  const lock = await acquireProjectLock({ root: rootReal, command: "setup-postpublish", mode: "exclusive" });
+  let appendResult;
+  try {
+    appendResult = await lock.capture(async () => {
+      if (faultInjector) await faultInjector("before-hooks-append");
+      const locked = await r5Compute({ rootReal, foundationProfilePath, selectedHookIds, unitId });
+      if (locked.setupDigest !== confirmSetup) {
+        throw setupError(
+          SETUP_DIGEST_MISMATCH,
+          "configuration or discovery facts changed immediately before hooks append; rerun dry-run and review the new digest",
+          { expected: locked.setupDigest, received: confirmSetup }
+        );
+      }
+      if (!locked.hasPostPublishBase) {
+        throw setupError(
+          CONFIG_INVALID,
+          locked.targetRefusal ?? "postPublish base disappeared before hooks append",
+          { configPath: locked.configPath }
+        );
+      }
+      return r5AppendHooksOnce(rootReal, locked.selectedDrafts, locked.targetUnitIndex);
+    });
+  } finally {
+    await lock.release();
+  }
+  return {
+    ...report,
+    status: "HOOKS_APPENDED",
+    configSha256: appendResult.configSha256,
+    appendedHookIds: computed.selected,
+    committedSetupDigest: computed.setupDigest,
+    next: "\u8FD0\u884C release-skill assess\uFF1B\u5206\u53D1\u524D\u5BA1\u9605\u8FFD\u52A0\u7684 postPublish hooks \u4E0E\u5176\u6279\u51C6\u5206\u7EA7\u3002"
+  };
+}
+var import_yaml2, import_ajv4, import_ajv_formats2, execFile2, SKIP_DIRS, DISCOVERY_MANIFEST_SUFFIXES, MANIFEST_SUFFIX_HOST_MAP, MAX_JSON_BYTES, schema, ajv2, validateProjectConfig, R5_REMOTE_URL_RE, FOUNDATION_PROFILE_FILENAME, MAX_NEIGHBOR_SCAN, R5_HOOK_DRAFT_FIELDS;
 var init_setup = __esm({
   async "src/commands/setup.mjs"() {
     import_yaml2 = __toESM(require_dist(), 1);
@@ -38754,6 +40333,8 @@ var init_setup = __esm({
     init_npm_entry_closure();
     init_errors();
     init_trusted_resource();
+    init_presets();
+    init_postpublish();
     execFile2 = promisify2(execFileCb2);
     SKIP_DIRS = /* @__PURE__ */ new Set([
       ".git",
@@ -38862,6 +40443,34 @@ var init_setup = __esm({
     __name(assertConfigDirectoryStillBound, "assertConfigDirectoryStillBound");
     __name(createConfigOnce, "createConfigOnce");
     __name(setupProject, "setupProject");
+    R5_REMOTE_URL_RE = /^(?:https?|file):\/\/.+\.git$/;
+    FOUNDATION_PROFILE_FILENAME = "foundation-profile.json";
+    MAX_NEIGHBOR_SCAN = 64;
+    R5_HOOK_DRAFT_FIELDS = [
+      "id",
+      "preset",
+      "phase",
+      "config",
+      "requiresApproval",
+      "blocksVerified"
+    ];
+    __name(r5IsRegularFile, "r5IsRegularFile");
+    __name(r5IsDirectory, "r5IsDirectory");
+    __name(r5HasGitEntry, "r5HasGitEntry");
+    __name(r5SiblingDirs, "r5SiblingDirs");
+    __name(r5DetectCluesInDir, "r5DetectCluesInDir");
+    __name(r5ValidateProfileShape, "r5ValidateProfileShape");
+    __name(r5FindFoundationProfile, "r5FindFoundationProfile");
+    __name(r5Discover, "r5Discover");
+    __name(discoverDownstream, "discoverDownstream");
+    __name(r5BuildProposals, "r5BuildProposals");
+    __name(r5CleanHookDraft, "r5CleanHookDraft");
+    __name(r5AppendHooksToYaml, "r5AppendHooksToYaml");
+    __name(r5HooksBlockSplice, "r5HooksBlockSplice");
+    __name(r5StripHooks, "r5StripHooks");
+    __name(r5AppendHooksOnce, "r5AppendHooksOnce");
+    __name(r5Compute, "r5Compute");
+    __name(proposePostPublishHooks, "proposePostPublishHooks");
   }
 });
 
@@ -38908,7 +40517,7 @@ var init_path_key = __esm({
 });
 
 // src/snapshot/public-path.mjs
-import { isAbsolute as isAbsolute7, relative as relative7, resolve as resolve10 } from "node:path";
+import { isAbsolute as isAbsolute8, relative as relative7, resolve as resolve11 } from "node:path";
 function canonicalPublicPath(raw, { allowDot = false } = {}) {
   if (allowDot && raw === ".") {
     return { path: "." };
@@ -38938,11 +40547,11 @@ function resolveUnitScopedPath(baseDir, unitId, { suffix = "" } = {}) {
       { unitId }
     );
   }
-  const base = resolve10(baseDir);
-  const candidate = resolve10(base, `${unitId}${suffix}`);
+  const base = resolve11(baseDir);
+  const candidate = resolve11(base, `${unitId}${suffix}`);
   const rel = relative7(base, candidate);
   const separator = process.platform === "win32" ? "\\" : "/";
-  if (rel === "" || isAbsolute7(rel) || rel === ".." || rel.startsWith(`..${separator}`)) {
+  if (rel === "" || isAbsolute8(rel) || rel === ".." || rel.startsWith(`..${separator}`)) {
     throw new ReleaseError(
       PUBLIC_PATH_FORBIDDEN,
       `release unit path escapes its trusted base: "${unitId}"`,
@@ -38964,12 +40573,12 @@ var init_public_path = __esm({
 });
 
 // src/core/public-surface.mjs
-import { lstat as lstat12, readdir as readdir5, realpath as realpath10 } from "node:fs/promises";
+import { lstat as lstat12, readdir as readdir5, realpath as realpath11 } from "node:fs/promises";
 import {
-  isAbsolute as isAbsolute8,
+  isAbsolute as isAbsolute9,
   join as join9,
   relative as relative8,
-  resolve as resolve11,
+  resolve as resolve12,
   sep as sep3
 } from "node:path";
 function compareStrings(left, right) {
@@ -38989,7 +40598,7 @@ function toPosixPath(path15) {
 }
 function isContainedOrEqual(root, candidate) {
   const rel = relative8(root, candidate);
-  return rel === "" || rel !== ".." && !rel.startsWith(`..${sep3}`) && !isAbsolute8(rel);
+  return rel === "" || rel !== ".." && !rel.startsWith(`..${sep3}`) && !isAbsolute9(rel);
 }
 function isWorkspaceControlPath(workspaceRoot, candidate) {
   return ROOT_CONTROL_DIRECTORIES.some((name) => isContainedOrEqual(join9(workspaceRoot, name), candidate));
@@ -39079,9 +40688,9 @@ async function assertSafeDirectoryPath({
   let cursor = workspaceRoot;
   for (const segment of rel.split(sep3).filter(Boolean)) {
     cursor = join9(cursor, segment);
-    let stat10;
+    let stat13;
     try {
-      stat10 = await lstat12(cursor);
+      stat13 = await lstat12(cursor);
     } catch (error) {
       failConfig(`cannot inspect public surface scan root "${configuredRoot}"`, {
         reason: "PUBLIC_SURFACE_SCAN_ROOT_UNSAFE",
@@ -39090,7 +40699,7 @@ async function assertSafeDirectoryPath({
         cause: error.code ?? "UNKNOWN"
       });
     }
-    if (stat10.isSymbolicLink() || !stat10.isDirectory()) {
+    if (stat13.isSymbolicLink() || !stat13.isDirectory()) {
       failConfig(`public surface scan root or ancestor is not a physical directory: "${configuredRoot}"`, {
         reason: "PUBLIC_SURFACE_SCAN_ROOT_UNSAFE",
         unitId,
@@ -39102,8 +40711,8 @@ async function assertSafeDirectoryPath({
   let physicalContainmentRoot;
   try {
     [physicalCandidate, physicalContainmentRoot] = await Promise.all([
-      realpath10(candidate),
-      realpath10(containmentRoot)
+      realpath11(candidate),
+      realpath11(containmentRoot)
     ]);
   } catch (error) {
     failConfig(`cannot resolve public surface scan root "${configuredRoot}"`, {
@@ -39125,7 +40734,7 @@ async function assertSafeDirectoryPath({
 async function resolveScanRoots({ root, unit }) {
   let workspaceRoot;
   try {
-    workspaceRoot = await realpath10(resolve11(root));
+    workspaceRoot = await realpath11(resolve12(root));
   } catch (error) {
     failConfig("cannot resolve public surface workspace root", {
       reason: "PUBLIC_SURFACE_SCAN_ROOT_UNSAFE",
@@ -39134,7 +40743,7 @@ async function resolveScanRoots({ root, unit }) {
     });
   }
   const unitSource = canonicalPublicPath(unit.source, { allowDot: true }).path;
-  const unitRoot = resolve11(workspaceRoot, unitSource);
+  const unitRoot = resolve12(workspaceRoot, unitSource);
   await assertSafeDirectoryPath({
     workspaceRoot,
     containmentRoot: workspaceRoot,
@@ -39148,7 +40757,7 @@ async function resolveScanRoots({ root, unit }) {
     const configuredRoot = rule.root ?? ".";
     const rootPath = canonicalPublicPath(configuredRoot, { allowDot: true }).path;
     const scopeRoot = sourceScope === "workspace" ? workspaceRoot : unitRoot;
-    const candidate = resolve11(scopeRoot, rootPath);
+    const candidate = resolve12(scopeRoot, rootPath);
     if (isWorkspaceControlPath(workspaceRoot, candidate)) {
       failConfig(`public surface scan root cannot target workspace control paths: "${configuredRoot}"`, {
         reason: "PUBLIC_SURFACE_SCAN_ROOT_CONTROL_PATH",
@@ -39401,7 +41010,7 @@ function isControlPlanePath(p) {
   if (CONTROL_PLANE_EXACT.has(normalized)) return true;
   if (IMMUTABLE_PLAN.test(normalized) || IMMUTABLE_APPROVAL.test(normalized)) return true;
   return CONTROL_PLANE_PREFIXES.some(
-    (cp2) => normalized === cp2 || normalized.startsWith(`${cp2}/`)
+    (cp3) => normalized === cp3 || normalized.startsWith(`${cp3}/`)
   );
 }
 function isReservedReleaseControlPath(p) {
@@ -39477,24 +41086,24 @@ async function computeWorkspaceDigest(root) {
           `Refusing to read path outside repository root: ${relPath} resolves to ${absPath}`
         );
       }
-      const stat10 = await lstat13(absPath);
+      const stat13 = await lstat13(absPath);
       let type;
-      if (stat10.isSymbolicLink()) {
+      if (stat13.isSymbolicLink()) {
         type = "symlink";
-      } else if (stat10.isDirectory()) {
+      } else if (stat13.isDirectory()) {
         type = "dir";
-      } else if (stat10.isFile()) {
+      } else if (stat13.isFile()) {
         type = "file";
       } else {
         type = "other";
       }
       const typeMarker = `TYPE:${type}`;
       let content;
-      if (stat10.isFile()) {
+      if (stat13.isFile()) {
         const handle = await open6(absPath, fsConstants2.O_RDONLY | fsConstants2.O_NOFOLLOW);
         try {
           const fdStat = await handle.stat();
-          if (fdStat.ino !== stat10.ino) {
+          if (fdStat.ino !== stat13.ino) {
             throw new Error(
               `Race detected: inode changed for ${relPath} between lstat and read`
             );
@@ -39509,7 +41118,7 @@ async function computeWorkspaceDigest(root) {
         } finally {
           await handle.close();
         }
-      } else if (stat10.isSymbolicLink()) {
+      } else if (stat13.isSymbolicLink()) {
         content = Buffer.from(await readlink(absPath), "utf8");
       } else {
         content = Buffer.alloc(0);
@@ -39605,7 +41214,7 @@ __export(config_exports, {
   loadProjectConfig: () => loadProjectConfig
 });
 import { readFile as readFile9 } from "node:fs/promises";
-import { resolve as resolve12, isAbsolute as isAbsolute9, relative as relative9, normalize as normalize2 } from "node:path";
+import { resolve as resolve13, isAbsolute as isAbsolute10, relative as relative9, normalize as normalize2 } from "node:path";
 function containsAlias(node) {
   if (!node || typeof node !== "object") {
     return false;
@@ -39630,9 +41239,9 @@ function containsAlias(node) {
 }
 function resolveConfigPath(root, configPath) {
   const rootNorm = normalize2(root);
-  const resolved = isAbsolute9(configPath) ? normalize2(configPath) : resolve12(rootNorm, configPath);
+  const resolved = isAbsolute10(configPath) ? normalize2(configPath) : resolve13(rootNorm, configPath);
   const rel = relative9(rootNorm, resolved);
-  if (rel.startsWith("..") || rel === ".." || isAbsolute9(rel)) {
+  if (rel.startsWith("..") || rel === ".." || isAbsolute10(rel)) {
     throw new ReleaseError(
       CONFIG_INVALID,
       `config path "${configPath}" resolves outside project root "${root}"`,
@@ -39977,13 +41586,13 @@ __export(assess_exports, {
   describeVersionSequenceGap: () => describeVersionSequenceGap,
   parseSemverVersion: () => parseSemverVersion
 });
-import { readFile as readFile10, stat as stat2, writeFile as writeFile3, mkdir as mkdir7 } from "node:fs/promises";
-import { resolve as resolve13, dirname as dirname6, relative as relative10 } from "node:path";
+import { readFile as readFile10, stat as stat3, writeFile as writeFile3, mkdir as mkdir7 } from "node:fs/promises";
+import { resolve as resolve14, dirname as dirname6, relative as relative10 } from "node:path";
 import { execFile as execFileCb4 } from "node:child_process";
 import { promisify as promisify4 } from "node:util";
 async function fileExists(filePath) {
   try {
-    await stat2(filePath);
+    await stat3(filePath);
     return true;
   } catch {
     return false;
@@ -40097,9 +41706,9 @@ async function checkCommonDocs(root, config) {
     { file: "LICENSE", code: "LICENSE_MISSING", message: "\u7F3A\u5C11 LICENSE \u6587\u4EF6" }
   ];
   for (const unit of units) {
-    const unitRoot = resolve13(root, unit.source);
+    const unitRoot = resolve14(root, unit.source);
     for (const doc of requiredDocs) {
-      const exists = await fileExists(resolve13(unitRoot, doc.file));
+      const exists = await fileExists(resolve14(unitRoot, doc.file));
       if (!exists) {
         gaps.push(
           createGap({
@@ -40120,9 +41729,9 @@ async function checkCommonDocs(root, config) {
     { file: "CONTRIBUTING.md", code: "CONTRIBUTING_MISSING", message: "\u5EFA\u8BAE\u6DFB\u52A0 CONTRIBUTING.md" }
   ];
   for (const unit of units) {
-    const unitRoot = resolve13(root, unit.source);
+    const unitRoot = resolve14(root, unit.source);
     for (const doc of recommendedDocs) {
-      const exists = await fileExists(resolve13(unitRoot, doc.file));
+      const exists = await fileExists(resolve14(unitRoot, doc.file));
       if (!exists) {
         gaps.push(
           createGap({
@@ -40144,9 +41753,9 @@ async function checkPluginManifests(root, config) {
   const units = config.releaseUnits ?? [];
   for (const unit of units) {
     const distributionTypes = new Set((unit.distributions ?? []).map((dist) => dist.type));
-    const unitRoot = resolve13(root, unit.source);
+    const unitRoot = resolve14(root, unit.source);
     if (distributionTypes.has("claude-plugin")) {
-      const manifestPath = resolve13(unitRoot, ".claude-plugin", "plugin.json");
+      const manifestPath = resolve14(unitRoot, ".claude-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".claude-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -40193,7 +41802,7 @@ async function checkPluginManifests(root, config) {
       }
     }
     if (distributionTypes.has("codex-plugin")) {
-      const manifestPath = resolve13(unitRoot, ".codex-plugin", "plugin.json");
+      const manifestPath = resolve14(unitRoot, ".codex-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".codex-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -40240,7 +41849,7 @@ async function checkPluginManifests(root, config) {
       }
     }
     if (distributionTypes.has("kimi-plugin")) {
-      const manifestPath = resolve13(unitRoot, ".kimi-plugin", "plugin.json");
+      const manifestPath = resolve14(unitRoot, ".kimi-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".kimi-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -40287,7 +41896,7 @@ async function checkPluginManifests(root, config) {
       }
     }
     if (distributionTypes.has("codebuddy-plugin")) {
-      const manifestPath = resolve13(unitRoot, ".codebuddy-plugin", "plugin.json");
+      const manifestPath = resolve14(unitRoot, ".codebuddy-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".codebuddy-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -40353,8 +41962,8 @@ async function checkPackageMetadata(root, config) {
   for (const unit of units) {
     const hasNpmDist = (unit.distributions ?? []).some((d) => d.type === "npm");
     if (!hasNpmDist) continue;
-    const unitRoot = resolve13(root, unit.source);
-    const pkgPath = resolve13(unitRoot, "package.json");
+    const unitRoot = resolve14(root, unit.source);
+    const pkgPath = resolve14(unitRoot, "package.json");
     const exists = await fileExists(pkgPath);
     if (!exists) {
       gaps.push(
@@ -40437,7 +42046,7 @@ async function checkRemotePrerequisites(root, config, offline) {
   for (const unit of units) {
     const npmDist = (unit.distributions ?? []).find((d) => d.type === "npm");
     if (!npmDist?.package) continue;
-    const pkgPath = resolve13(root, unit.source, "package.json");
+    const pkgPath = resolve14(root, unit.source, "package.json");
     let version;
     try {
       const content = await readFile10(pkgPath, "utf8");
@@ -40531,7 +42140,7 @@ async function checkReleaseTagSequence(root, config) {
     }
     let targetVersion;
     try {
-      const pkg = JSON.parse(await readFile10(resolve13(root, unit.source, "package.json"), "utf8"));
+      const pkg = JSON.parse(await readFile10(resolve14(root, unit.source, "package.json"), "utf8"));
       targetVersion = pkg.version;
     } catch {
       continue;
@@ -40574,7 +42183,7 @@ async function checkReadmeStructure(root, config) {
   const gaps = [];
   const units = config.releaseUnits ?? [];
   for (const unit of units) {
-    const readmePath = resolve13(root, unit.source, "README.md");
+    const readmePath = resolve14(root, unit.source, "README.md");
     const displayPath = unitFile(unit, "README.md");
     const exists = await fileExists(readmePath);
     if (!exists) continue;
@@ -40915,10 +42524,14 @@ var init_evidence = __esm({
 });
 
 // src/core/hooks.mjs
+var hooks_exports = {};
+__export(hooks_exports, {
+  runHook: () => runHook
+});
 import { execFile as execFileCb5 } from "node:child_process";
 import { promisify as promisify5 } from "node:util";
-import { resolve as resolve14, relative as relative11, isAbsolute as isAbsolute10 } from "node:path";
-import { realpath as realpath11 } from "node:fs/promises";
+import { resolve as resolve15, relative as relative11, isAbsolute as isAbsolute11 } from "node:path";
+import { realpath as realpath12 } from "node:fs/promises";
 function validateHook(hook) {
   if (!hook || typeof hook !== "object" || Array.isArray(hook)) {
     throw new ReleaseError("INVALID_HOOK", "hook must be a non-null object");
@@ -40945,7 +42558,7 @@ function validateHook(hook) {
       throw new ReleaseError("INVALID_HOOK", "hook.envAllowlist must be an array");
     }
     for (const key of envAllowlist) {
-      if (typeof key !== "string" || !ENV_KEY_PATTERN.test(key)) {
+      if (typeof key !== "string" || !ENV_KEY_PATTERN2.test(key)) {
         throw new ReleaseError(
           "INVALID_HOOK",
           `hook.envAllowlist key "${key}" must match /^[A-Z_][A-Z0-9_]*$/`
@@ -41007,12 +42620,12 @@ async function runHook(hook, context) {
   if (!context || typeof context !== "object" || Array.isArray(context)) {
     throw new ReleaseError("INVALID_HOOK", "context must be a non-null object");
   }
-  if (typeof context.root !== "string" || !isAbsolute10(context.root)) {
+  if (typeof context.root !== "string" || !isAbsolute11(context.root)) {
     throw new ReleaseError("INVALID_HOOK", "context.root must be an absolute path");
   }
   const { command: command2, cwd, timeoutMs, envAllowlist = [] } = hook;
-  const rootReal = await realpath11(context.root);
-  const resolvedCwd = cwd ? await realpath11(resolve14(rootReal, cwd)) : rootReal;
+  const rootReal = await realpath12(context.root);
+  const resolvedCwd = cwd ? await realpath12(resolve15(rootReal, cwd)) : rootReal;
   const rel = relative11(rootReal, resolvedCwd);
   if (rel.startsWith("..") || rel === "..") {
     throw new ReleaseError(
@@ -41021,6 +42634,26 @@ async function runHook(hook, context) {
     );
   }
   const env = buildFilteredEnv(envAllowlist, context.env);
+  if (context.injectEnv !== void 0) {
+    if (!context.injectEnv || typeof context.injectEnv !== "object" || Array.isArray(context.injectEnv)) {
+      throw new ReleaseError("INVALID_HOOK", "context.injectEnv must be a plain object");
+    }
+    for (const [key, value] of Object.entries(context.injectEnv)) {
+      if (!ENV_KEY_PATTERN2.test(key)) {
+        throw new ReleaseError(
+          "INVALID_HOOK",
+          `context.injectEnv key "${key}" must match /^[A-Z_][A-Z0-9_]*$/`
+        );
+      }
+      if (typeof value !== "string") {
+        throw new ReleaseError(
+          "INVALID_HOOK",
+          `context.injectEnv value for "${key}" must be a string`
+        );
+      }
+      env[key] = value;
+    }
+  }
   const executable = command2[0];
   const args2 = command2.slice(1);
   let timeoutController;
@@ -41061,7 +42694,7 @@ async function runHook(hook, context) {
     }
   }
 }
-var execFileAsync, PLATFORM_REQUIRED_VARS, ENV_KEY_PATTERN;
+var execFileAsync, PLATFORM_REQUIRED_VARS, ENV_KEY_PATTERN2;
 var init_hooks = __esm({
   "src/core/hooks.mjs"() {
     init_errors();
@@ -41071,7 +42704,7 @@ var init_hooks = __esm({
       const win323 = ["PATH", "HOME", "USER", "SystemRoot", "SYSTEMROOT", "COMSPEC", "PATHEXT", "TEMP", "TMP"];
       return new Set(process.platform === "win32" ? win323 : posix3);
     })();
-    ENV_KEY_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
+    ENV_KEY_PATTERN2 = /^[A-Z_][A-Z0-9_]*$/;
     __name(validateHook, "validateHook");
     __name(buildFilteredEnv, "buildFilteredEnv");
     __name(runHook, "runHook");
@@ -41221,8 +42854,8 @@ var init_hook_cache = __esm({
 // src/core/verification-gates.mjs
 import { createHash as createHash10 } from "node:crypto";
 import { spawn as spawn2 } from "node:child_process";
-import { chmod as chmod2, cp, lstat as lstat14, mkdir as mkdir10, readdir as readdir7, realpath as realpath12, rm as rm6 } from "node:fs/promises";
-import { isAbsolute as isAbsolute11, join as join11, relative as relative12, resolve as resolve15 } from "node:path";
+import { chmod as chmod2, cp, lstat as lstat14, mkdir as mkdir10, readdir as readdir7, realpath as realpath13, rm as rm6 } from "node:fs/promises";
+import { isAbsolute as isAbsolute12, join as join11, relative as relative12, resolve as resolve16 } from "node:path";
 function gateError(gate, message, details = {}) {
   return new ReleaseError(GATE_FAILED, `verification gate "${gate?.id ?? "unknown"}" ${message}`, {
     gateId: gate?.id,
@@ -41232,7 +42865,7 @@ function gateError(gate, message, details = {}) {
 function isInside2(parent, candidate) {
   const rel = relative12(parent, candidate);
   const separator = process.platform === "win32" ? "\\" : "/";
-  return rel === "" || !isAbsolute11(rel) && rel !== ".." && !rel.startsWith(`..${separator}`);
+  return rel === "" || !isAbsolute12(rel) && rel !== ".." && !rel.startsWith(`..${separator}`);
 }
 function matchesSubset(actual, expected) {
   if (expected === null || typeof expected !== "object" || Array.isArray(expected)) {
@@ -41266,7 +42899,7 @@ function validateGate(gate) {
   if (!Number.isInteger(gate.timeoutMs) || gate.timeoutMs < 1 || gate.timeoutMs > 72e5) {
     throw gateError(gate, "timeoutMs must be an integer between 1 and 7200000");
   }
-  if (!Array.isArray(gate.envAllowlist) || gate.envAllowlist.some((key) => typeof key !== "string" || !ENV_KEY_PATTERN2.test(key))) {
+  if (!Array.isArray(gate.envAllowlist) || gate.envAllowlist.some((key) => typeof key !== "string" || !ENV_KEY_PATTERN3.test(key))) {
     throw gateError(gate, "envAllowlist must contain uppercase environment names");
   }
   if (gate.expectedJson !== void 0 && (!gate.expectedJson || typeof gate.expectedJson !== "object" || Array.isArray(gate.expectedJson))) {
@@ -41293,19 +42926,19 @@ async function resolveSafeCwd(executionRoot, cwd, gate) {
   if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
     throw gateError(gate, "execution root must be a real directory");
   }
-  const rootReal = await realpath12(executionRoot);
-  const lexical = resolve15(rootReal, cwd ?? ".");
+  const rootReal = await realpath13(executionRoot);
+  const lexical = resolve16(rootReal, cwd ?? ".");
   if (!isInside2(rootReal, lexical)) throw gateError(gate, "cwd escapes the execution root");
   const rel = relative12(rootReal, lexical);
   let current = rootReal;
   for (const segment of rel.split(/[\\/]/).filter(Boolean)) {
     current = join11(current, segment);
-    const stat10 = await lstat14(current).catch((error) => {
+    const stat13 = await lstat14(current).catch((error) => {
       throw gateError(gate, "cwd does not exist", { cause: error.code });
     });
-    if (stat10.isSymbolicLink()) throw gateError(gate, "cwd contains a symlink");
+    if (stat13.isSymbolicLink()) throw gateError(gate, "cwd contains a symlink");
   }
-  const physical = await realpath12(lexical);
+  const physical = await realpath13(lexical);
   if (!isInside2(rootReal, physical)) throw gateError(gate, "cwd resolves outside the execution root");
   return physical;
 }
@@ -41544,9 +43177,9 @@ async function runVerificationGate({
   return result;
 }
 async function makeTreeWritable(root) {
-  const stat10 = await lstat14(root);
-  if (!stat10.isDirectory() || stat10.isSymbolicLink()) throw new Error("gate copy root must be a real directory");
-  await chmod2(root, stat10.mode | 448);
+  const stat13 = await lstat14(root);
+  if (!stat13.isDirectory() || stat13.isSymbolicLink()) throw new Error("gate copy root must be a real directory");
+  await chmod2(root, stat13.mode | 448);
   for (const child of await readdir7(root, { withFileTypes: true })) {
     const absolute = join11(root, child.name);
     const childStat = await lstat14(absolute);
@@ -41639,7 +43272,7 @@ async function runConsumerVerificationGates({
   }
   return results;
 }
-var OUTPUT_LIMIT_BYTES, ENV_KEY_PATTERN2, PLATFORM_ENV;
+var OUTPUT_LIMIT_BYTES, ENV_KEY_PATTERN3, PLATFORM_ENV;
 var init_verification_gates = __esm({
   "src/core/verification-gates.mjs"() {
     init_errors();
@@ -41647,7 +43280,7 @@ var init_verification_gates = __esm({
     init_frozen();
     init_public_path();
     OUTPUT_LIMIT_BYTES = 1024 * 1024;
-    ENV_KEY_PATTERN2 = /^[A-Z_][A-Z0-9_]*$/;
+    ENV_KEY_PATTERN3 = /^[A-Z_][A-Z0-9_]*$/;
     PLATFORM_ENV = process.platform === "win32" ? ["PATH", "SystemRoot", "SYSTEMROOT", "COMSPEC", "PATHEXT", "TEMP", "TMP"] : ["PATH", "LANG", "LC_ALL", "LC_CTYPE", "TERM", "TMPDIR"];
     __name(gateError, "gateError");
     __name(isInside2, "isInside");
@@ -41668,7 +43301,7 @@ var init_verification_gates = __esm({
 
 // src/core/skill-resource-closure.mjs
 import { lstat as lstat15, readFile as readFile12, readdir as readdir8 } from "node:fs/promises";
-import { dirname as dirname7, isAbsolute as isAbsolute12, join as join12, relative as relative13, resolve as resolve16, sep as sep4 } from "node:path";
+import { dirname as dirname7, isAbsolute as isAbsolute13, join as join12, relative as relative13, resolve as resolve17, sep as sep4 } from "node:path";
 function toPosix(value) {
   return value.replaceAll("\\", "/");
 }
@@ -41678,7 +43311,7 @@ function relativeStable(root, target) {
 }
 function isInside3(parent, candidate) {
   const rel = relative13(parent, candidate);
-  return rel === "" || !isAbsolute12(rel) && rel !== ".." && !rel.startsWith(`..${sep4}`);
+  return rel === "" || !isAbsolute13(rel) && rel !== ".." && !rel.startsWith(`..${sep4}`);
 }
 async function discoverSkills(root, base = root) {
   const results = [];
@@ -41705,11 +43338,11 @@ async function discoverSkills(root, base = root) {
 function resolvePluginRoot(skillRelativePath, scanRoot2) {
   const parts = toPosix(skillRelativePath).split("/");
   const skillsIndex = parts.lastIndexOf("skills");
-  if (skillsIndex < 0) return resolve16(scanRoot2);
-  return resolve16(scanRoot2, ...parts.slice(0, skillsIndex));
+  if (skillsIndex < 0) return resolve17(scanRoot2);
+  return resolve17(scanRoot2, ...parts.slice(0, skillsIndex));
 }
 function resolveSkillRoot(skillRelativePath, scanRoot2) {
-  return resolve16(scanRoot2, dirname7(skillRelativePath));
+  return resolve17(scanRoot2, dirname7(skillRelativePath));
 }
 function trimCandidate(value) {
   return value.trim().replace(/^["']/u, "").replace(/["']$/u, "").replace(/[.,;:]+$/u, "");
@@ -41783,13 +43416,13 @@ function classifyReference(token, skillRoot, pluginRoot, scanRoot2) {
       classification: CLASSIFICATION.SOURCE_BACKJUMP,
       resolutionRoot: "(source-tree)",
       resolvedTarget: token,
-      absoluteTarget: resolve16(scanRoot2, token)
+      absoluteTarget: resolve17(scanRoot2, token)
     };
   }
   const explicit = EXPLICIT_PREFIXES.some((prefix) => token.startsWith(prefix));
   const resolutionRootAbsolute = explicit ? pluginRoot : skillRoot;
   const relativeTarget = explicit ? stripExplicitPrefix(token) : token;
-  const absoluteTarget = resolve16(resolutionRootAbsolute, relativeTarget);
+  const absoluteTarget = resolve17(resolutionRootAbsolute, relativeTarget);
   const inBounds = isInside3(resolutionRootAbsolute, absoluteTarget);
   return {
     classification: inBounds ? explicit ? CLASSIFICATION.PLUGIN_ROOT : CLASSIFICATION.SKILL_LOCAL : CLASSIFICATION.OUT_OF_BOUNDS,
@@ -41808,14 +43441,14 @@ async function inspectRegularFile(root, target) {
   }
   for (const part of parts) {
     current = join12(current, part);
-    let stat10;
+    let stat13;
     try {
-      stat10 = await lstat15(current);
+      stat13 = await lstat15(current);
     } catch (error) {
       if (error.code === "ENOENT") return { code: FINDING_CODE.RESOURCE_MISSING };
       throw error;
     }
-    if (stat10.isSymbolicLink()) return { code: FINDING_CODE.SYMLINK_NOT_ALLOWED };
+    if (stat13.isSymbolicLink()) return { code: FINDING_CODE.SYMLINK_NOT_ALLOWED };
   }
   const targetStat = await lstat15(target);
   if (!targetStat.isFile() || targetStat.nlink !== 1) {
@@ -41910,7 +43543,7 @@ async function checkSkillResourceClosure({
   if (typeof snapshotDir !== "string" || snapshotDir.length === 0) {
     throw new TypeError("snapshotDir must be a non-empty string");
   }
-  const scanRoot2 = resolve16(snapshotDir);
+  const scanRoot2 = resolve17(snapshotDir);
   const scanStat = await lstat15(scanRoot2);
   if (!scanStat.isDirectory() || scanStat.isSymbolicLink()) {
     throw new Error("snapshotDir must be a real directory");
@@ -41963,7 +43596,7 @@ async function checkSkillResourceClosure({
     surfaceMap.set(surfaceId, surface);
     if (!skillsBySurface.has(surfaceId)) skillsBySurface.set(surfaceId, []);
     skillsBySurface.get(surfaceId).push(skill);
-    const content = await readFile12(resolve16(scanRoot2, skill), "utf8");
+    const content = await readFile12(resolve17(scanRoot2, skill), "utf8");
     for (const pathToken of extractPathTokens(content)) {
       referenceCount += 1;
       surface.referenceCount += 1;
@@ -42087,11 +43720,11 @@ async function checkSkillResourceClosure({
   for (const surfaceId of [...skillsBySurface.keys()].sort((a, b) => a.localeCompare(b))) {
     if (!ADAPTER_SURFACE_PATTERN.test(surfaceId)) continue;
     const surface = surfaceMap.get(surfaceId);
-    const surfaceRootAbsolute = resolve16(scanRoot2, surfaceId);
+    const surfaceRootAbsolute = resolve17(scanRoot2, surfaceId);
     const referencedTargets = referencedTargetsBySurface.get(surfaceId) ?? /* @__PURE__ */ new Set();
     const stale = [];
     for (const skill of skillsBySurface.get(surfaceId)) {
-      const skillDir = resolve16(scanRoot2, dirname7(skill));
+      const skillDir = resolve17(scanRoot2, dirname7(skill));
       for (const closureDir of CLOSURE_RESOURCE_DIRS) {
         const files = [];
         await collectRegularFiles(join12(skillDir, closureDir), files);
@@ -42230,9 +43863,9 @@ var init_skill_resource_closure = __esm({
 });
 
 // src/snapshot/public-map.mjs
-import { lstat as lstat16, readFile as readFile13, mkdir as mkdir11, readdir as readdir9, realpath as realpath13, chmod as fsChmod } from "node:fs/promises";
+import { lstat as lstat16, readFile as readFile13, mkdir as mkdir11, readdir as readdir9, realpath as realpath14, chmod as fsChmod } from "node:fs/promises";
 import { open as fsOpen } from "node:fs/promises";
-import { relative as relative14, resolve as resolve17, dirname as dirname8, sep as pathSep, isAbsolute as isAbsolute13 } from "node:path";
+import { relative as relative14, resolve as resolve18, dirname as dirname8, sep as pathSep, isAbsolute as isAbsolute14 } from "node:path";
 import { posix, win32 } from "node:path";
 import { constants as fsConstants3 } from "node:fs";
 import { createHash as createHash11 } from "node:crypto";
@@ -42245,14 +43878,14 @@ function _isContainedWith(relativeFn, isAbsoluteFn, root, candidate, relPathSep 
   return classifyPathInput(rel, platform).ok === true;
 }
 function isContained(root, candidate) {
-  return _isContainedWith(relative14, isAbsolute13, root, candidate);
+  return _isContainedWith(relative14, isAbsolute14, root, candidate);
 }
 async function assertNoAncestorSymlinks(root, filePath, fs = { lstat: lstat16 }) {
   const rel = relative14(root, filePath);
   const segments = rel.split(/[/\\]/);
   let current = root;
   for (const segment of segments) {
-    current = resolve17(current, segment);
+    current = resolve18(current, segment);
     try {
       const st = await fs.lstat(current, { stage: "source-ancestor" });
       if (st.isSymbolicLink()) {
@@ -42313,7 +43946,7 @@ async function assertDestAncestorsNoFollow(realOutputRoot, destPath, fs = { lsta
   const segments = relDest.split(pathSep).filter(Boolean);
   let current = realOutputRoot;
   for (const segment of segments) {
-    current = resolve17(current, segment);
+    current = resolve18(current, segment);
     try {
       const st = await fs.lstat(current, { stage: "dest-ancestor" });
       if (st.isSymbolicLink()) {
@@ -42468,7 +44101,7 @@ async function buildPublicStaging({
   }
   const fs = {
     lstat: _fsOps.lstat ? (p, ctx) => _fsOps.lstat({ operation: "lstat", path: p, ...ctx }) : lstat16,
-    realpath: _fsOps.realpath ? (p, ctx) => _fsOps.realpath({ operation: "realpath", path: p, ...ctx }) : realpath13,
+    realpath: _fsOps.realpath ? (p, ctx) => _fsOps.realpath({ operation: "realpath", path: p, ...ctx }) : realpath14,
     readFile: _fsOps.readFile ? (p, ctx) => _fsOps.readFile({ operation: "readFile", path: p, ...ctx }) : readFile13,
     open: _fsOps.open ? (p, flags, mode, ctx) => _fsOps.open({ operation: "open", path: p, flags, mode, ...ctx }) : fsOpen,
     mkdir: _fsOps.mkdir ? (p, opts, ctx) => _fsOps.mkdir({ operation: "mkdir", path: p, opts, ...ctx }) : mkdir11,
@@ -42504,7 +44137,7 @@ async function buildPublicStaging({
       { count: mappings.length, limit: MAX_MAPPINGS }
     );
   }
-  const unitRootLexical = resolve17(sourceRoot, unit.source);
+  const unitRootLexical = resolve18(sourceRoot, unit.source);
   let realUnitRoot;
   try {
     realUnitRoot = await fs.realpath(unitRootLexical, { stage: "unit-root-realpath" });
@@ -42517,14 +44150,14 @@ async function buildPublicStaging({
       { sourceRoot, unitSource: unit.source, cause: code }
     );
   }
-  const effectiveOutputDir = resolve17(
-    outputDir ?? resolve17(sourceRoot, ".release-skill", "staging")
+  const effectiveOutputDir = resolve18(
+    outputDir ?? resolve18(sourceRoot, ".release-skill", "staging")
   );
   const preflightRecords = [];
   const requiredTargetSet = new Set(unit.requiredPublicFiles ?? []);
   for (const mapping of mappings) {
-    const srcPath = resolve17(sourceRoot, mapping.from);
-    const destPath = resolve17(effectiveOutputDir, mapping.to);
+    const srcPath = resolve18(sourceRoot, mapping.from);
+    const destPath = resolve18(effectiveOutputDir, mapping.to);
     if (srcPath.length > MAX_PATH_LENGTH || destPath.length > MAX_PATH_LENGTH) {
       preflightRecords.push({
         ok: false,
@@ -43015,7 +44648,7 @@ async function buildPublicStaging({
     const destSegments = relDest.split(pathSep).filter(Boolean);
     let accumulatedPath = realOutputRoot;
     for (const seg of destSegments) {
-      accumulatedPath = resolve17(accumulatedPath, seg);
+      accumulatedPath = resolve18(accumulatedPath, seg);
       try {
         const segStat = await fs.lstat(accumulatedPath, { stage: "dest-ancestor-pre-mkdir" });
         if (segStat.isSymbolicLink()) {
@@ -43315,7 +44948,7 @@ var init_public_map = __esm({
 });
 
 // src/snapshot/scan.mjs
-import { readFile as readFile14, readdir as readdir10, stat as stat3 } from "node:fs/promises";
+import { readFile as readFile14, readdir as readdir10, stat as stat4 } from "node:fs/promises";
 import { join as join13, relative as relative15, extname, posix as posix2, win32 as win322 } from "node:path";
 import { createHash as createHash12 } from "node:crypto";
 async function collectFiles(dir, base = dir) {
@@ -43763,7 +45396,7 @@ var init_contract2 = __esm({
 });
 
 // src/core/bundle-freshness.mjs
-import { readFile as readFile16, readdir as readdir11, stat as stat4 } from "node:fs/promises";
+import { readFile as readFile16, readdir as readdir11, stat as stat5 } from "node:fs/promises";
 import { join as join14 } from "node:path";
 import { createHash as createHash13 } from "node:crypto";
 function bundlePathFor(pkgRoot) {
@@ -43786,7 +45419,7 @@ async function listBundleSourceInputs(pkgRoot) {
   const inputs = [];
   for (const dir of SOURCE_DIRS) {
     const abs = join14(pkgRoot, dir);
-    const st = await stat4(abs).catch(() => null);
+    const st = await stat5(abs).catch(() => null);
     if (st?.isDirectory()) {
       for (const rel of await listFilesSorted(abs)) {
         inputs.push(`${dir}/${rel}`);
@@ -43794,7 +45427,7 @@ async function listBundleSourceInputs(pkgRoot) {
     }
   }
   for (const rel of SOURCE_FILES) {
-    const st = await stat4(join14(pkgRoot, rel)).catch(() => null);
+    const st = await stat5(join14(pkgRoot, rel)).catch(() => null);
     if (st?.isFile()) {
       inputs.push(rel.split(/[\\/]/).join("/"));
     }
@@ -43833,11 +45466,11 @@ async function checkBundleFreshness(pkgRoot) {
     sourceDigest: null,
     algorithm: BUNDLE_SOURCE_DIGEST_ALGORITHM
   };
-  const srcStat = await stat4(join14(pkgRoot, "src")).catch(() => null);
+  const srcStat = await stat5(join14(pkgRoot, "src")).catch(() => null);
   if (!srcStat?.isDirectory()) {
     return { ...base, applicable: false, reason: "installed-layout" };
   }
-  const bundleStat = await stat4(bundlePathFor(pkgRoot)).catch(() => null);
+  const bundleStat = await stat5(bundlePathFor(pkgRoot)).catch(() => null);
   if (!bundleStat?.isFile()) {
     return { ...base, reason: "bundle-missing" };
   }
@@ -43898,11 +45531,165 @@ var init_bundle_freshness = __esm({
   }
 });
 
+// src/core/bounded-output.mjs
+function boundedOutputTail(text) {
+  if (typeof text !== "string" || text.length === 0) return "";
+  let lines = text.split("\n");
+  if (lines.length > 1 && lines[lines.length - 1] === "") {
+    lines = lines.slice(0, -1);
+  }
+  let tail = lines.slice(-HOOK_OUTPUT_TAIL_MAX_LINES);
+  let joined = tail.join("\n");
+  while (tail.length > 1 && Buffer.byteLength(joined, "utf8") > HOOK_OUTPUT_TAIL_MAX_BYTES) {
+    tail = tail.slice(1);
+    joined = tail.join("\n");
+  }
+  if (Buffer.byteLength(joined, "utf8") > HOOK_OUTPUT_TAIL_MAX_BYTES) {
+    const buf = Buffer.from(joined, "utf8");
+    joined = buf.subarray(buf.length - HOOK_OUTPUT_TAIL_MAX_BYTES).toString("utf8");
+  }
+  return joined;
+}
+var HOOK_OUTPUT_TAIL_MAX_LINES, HOOK_OUTPUT_TAIL_MAX_BYTES;
+var init_bounded_output = __esm({
+  "src/core/bounded-output.mjs"() {
+    HOOK_OUTPUT_TAIL_MAX_LINES = 50;
+    HOOK_OUTPUT_TAIL_MAX_BYTES = 8 * 1024;
+    __name(boundedOutputTail, "boundedOutputTail");
+  }
+});
+
+// src/core/derived-artifact-gates.mjs
+import { lstat as lstat17 } from "node:fs/promises";
+import { join as join15 } from "node:path";
+import { execFile as execFileCb6 } from "node:child_process";
+import { promisify as promisify6 } from "node:util";
+async function isFile(path15) {
+  try {
+    return (await lstat17(path15)).isFile();
+  } catch {
+    return false;
+  }
+}
+async function checkDerivedArtifactGate(kind, pkgRoot, options = {}) {
+  const gate = GATES[kind];
+  if (!gate) {
+    throw new ReleaseError(DERIVED_ARTIFACT_STALE, `unknown derived-artifact gate: ${kind}`, { kind });
+  }
+  const execFileFn = options.execFileFn ?? defaultExecFile;
+  if (kind === "self-bootstrap-facts" && process.env[FACTS_GATE_NESTED_ENV]) {
+    return { applicable: false, reason: "nested-gate-run", artifact: gate.artifact };
+  }
+  if (!await isFile(join15(pkgRoot, gate.marker))) {
+    return { applicable: false, reason: "installed-layout", artifact: gate.artifact };
+  }
+  const startedAt = Date.now();
+  const childEnv = { ...process.env };
+  delete childEnv.NODE_TEST_CONTEXT;
+  childEnv[FACTS_GATE_NESTED_ENV] = "1";
+  try {
+    const { stdout, stderr } = await execFileFn(process.execPath, gate.argv(pkgRoot), {
+      cwd: pkgRoot,
+      shell: false,
+      encoding: "utf8",
+      timeout: options.timeoutMs ?? gate.timeoutMs,
+      env: childEnv,
+      maxBuffer: 16 * 1024 * 1024
+    });
+    return {
+      applicable: true,
+      fresh: true,
+      artifact: gate.artifact,
+      stdoutTail: boundedOutputTail(stdout ?? ""),
+      stderrTail: boundedOutputTail(stderr ?? ""),
+      durationMs: Date.now() - startedAt
+    };
+  } catch (err) {
+    const stdoutTail = boundedOutputTail(err?.stdout ?? "");
+    const stderrTail4 = boundedOutputTail(err?.stderr ?? err?.message ?? "");
+    return {
+      applicable: true,
+      fresh: false,
+      reason: err?.killed || err?.code === "ETIMEDOUT" ? "timeout" : "drift",
+      artifact: gate.artifact,
+      exitCode: typeof err?.code === "number" ? err.code : null,
+      stdoutTail,
+      stderrTail: stderrTail4,
+      durationMs: Date.now() - startedAt
+    };
+  }
+}
+async function assertGate(kind, pkgRoot, options = {}) {
+  const result = await checkDerivedArtifactGate(kind, pkgRoot, options);
+  if (!result.applicable || result.fresh) {
+    return result;
+  }
+  const gate = GATES[kind];
+  const subject = kind === "adapters" ? "adapters/ is out of sync with its sources (build-adapters --check reported drift)" : "the release-docs-self-bootstrap fact pins are stale (the hermetic fact-pin check failed)";
+  throw new ReleaseError(
+    DERIVED_ARTIFACT_STALE,
+    `${subject}. ${DERIVED_ARTIFACT_PREGATE_NOTE} ${gate.remediation}`,
+    {
+      artifact: result.artifact,
+      reason: result.reason,
+      exitCode: result.exitCode,
+      stdoutTail: result.stdoutTail,
+      stderrTail: result.stderrTail,
+      durationMs: result.durationMs
+    }
+  );
+}
+function assertAdapterFreshness(pkgRoot, options = {}) {
+  return assertGate("adapters", pkgRoot, options);
+}
+function assertSelfBootstrapFacts(pkgRoot, options = {}) {
+  return assertGate("self-bootstrap-facts", pkgRoot, options);
+}
+var defaultExecFile, DERIVED_ARTIFACT_PREGATE_NOTE, DERIVED_SYNC_COMMAND, FACTS_GATE_NESTED_ENV, GATES;
+var init_derived_artifact_gates = __esm({
+  "src/core/derived-artifact-gates.mjs"() {
+    init_errors();
+    init_bounded_output();
+    defaultExecFile = promisify6(execFileCb6);
+    DERIVED_ARTIFACT_PREGATE_NOTE = "This is a fast pre-gate and does not replace the full test hooks\uFF08\u5FEB\u901F\u524D\u7F6E\uFF0C\u4E0D\u66FF\u4EE3\u5168\u91CF\u6D4B\u8BD5\uFF09.";
+    DERIVED_SYNC_COMMAND = "node scripts/sync-derived-artifacts.mjs";
+    FACTS_GATE_NESTED_ENV = "RELEASE_SKILL_FACTS_GATE_ACTIVE";
+    GATES = Object.freeze({
+      adapters: Object.freeze({
+        artifact: "adapters",
+        marker: join15("scripts", "build-adapters.mjs"),
+        argv: /* @__PURE__ */ __name((pkgRoot) => [join15(pkgRoot, "scripts", "build-adapters.mjs"), "--check"], "argv"),
+        timeoutMs: 12e4,
+        remediation: `Rebuild the existing adapters with: node scripts/build-adapters.mjs --apply (or run the one-click derived-artifact sync from the workspace root: ${DERIVED_SYNC_COMMAND}).`
+      }),
+      "self-bootstrap-facts": Object.freeze({
+        artifact: "self-bootstrap-facts",
+        marker: join15("test", "release-docs-self-bootstrap.test.mjs"),
+        // Hermetic fact-pin section only (see module docs): byte-level version
+        // facts + in-process planner — no npm/git, no fixture prepares.
+        argv: /* @__PURE__ */ __name((pkgRoot) => [
+          "--test",
+          "--test-name-pattern",
+          "\\[self-bootstrap 1",
+          join15(pkgRoot, "test", "release-docs-self-bootstrap.test.mjs")
+        ], "argv"),
+        timeoutMs: 12e4,
+        remediation: `Refresh the derived documents and version points first (workspace root: ${DERIVED_SYNC_COMMAND}); if the pins still fail, update the fact pins deliberately \u2014 the gate never edits sources or test pins itself.`
+      })
+    });
+    __name(isFile, "isFile");
+    __name(checkDerivedArtifactGate, "checkDerivedArtifactGate");
+    __name(assertGate, "assertGate");
+    __name(assertAdapterFreshness, "assertAdapterFreshness");
+    __name(assertSelfBootstrapFacts, "assertSelfBootstrapFacts");
+  }
+});
+
 // src/core/frozen-marker.mjs
 import { readFile as readFile17, writeFile as writeFile6, unlink as unlink5 } from "node:fs/promises";
-import { join as join15 } from "node:path";
+import { join as join16 } from "node:path";
 function frozenMarkerPath(releaseDir) {
-  return join15(releaseDir, FROZEN_MARKER_FILENAME);
+  return join16(releaseDir, FROZEN_MARKER_FILENAME);
 }
 async function writeFrozenMarker(releaseDir, marker) {
   const payload = {
@@ -43934,13 +45721,13 @@ var init_frozen_marker = __esm({
 });
 
 // src/core/source-authority.mjs
-import { execFile as execFileCb6 } from "node:child_process";
-import { promisify as promisify6 } from "node:util";
-import { lstat as lstat17, mkdtemp as mkdtemp5, readFile as readFile18, readdir as readdir12, realpath as realpath14, rm as rm7 } from "node:fs/promises";
-import { join as join16, relative as relative16, resolve as resolve18, sep as sep5 } from "node:path";
+import { execFile as execFileCb7 } from "node:child_process";
+import { promisify as promisify7 } from "node:util";
+import { lstat as lstat18, mkdtemp as mkdtemp5, readFile as readFile18, readdir as readdir12, realpath as realpath15, rm as rm7 } from "node:fs/promises";
+import { join as join17, relative as relative16, resolve as resolve19, sep as sep5 } from "node:path";
 import { tmpdir as tmpdir3 } from "node:os";
 async function computeSourceInputClosure({ units, root }) {
-  const realRoot = await realpath14(resolve18(root));
+  const realRoot = await realpath15(resolve19(root));
   const entriesByPath = /* @__PURE__ */ new Map();
   for (const unit of units ?? []) {
     for (const mapping of unit.publicFiles ?? []) {
@@ -43977,9 +45764,9 @@ function computeEntriesDigest(entries) {
   }))));
 }
 async function collectPath({ absolutePath, root, entriesByPath }) {
-  let stat10;
+  let stat13;
   try {
-    stat10 = await lstat17(absolutePath);
+    stat13 = await lstat18(absolutePath);
   } catch (error) {
     throw new ReleaseError(
       CONFIG_INVALID,
@@ -43988,14 +45775,14 @@ async function collectPath({ absolutePath, root, entriesByPath }) {
     );
   }
   const rel = toRelative(root, absolutePath);
-  if (stat10.isSymbolicLink()) {
+  if (stat13.isSymbolicLink()) {
     throw new ReleaseError(
       CONFIG_INVALID,
       `source-input closure rejects symlink "${rel}"`,
       { path: rel }
     );
   }
-  const physicalPath = await realpath14(absolutePath);
+  const physicalPath = await realpath15(absolutePath);
   if (physicalPath !== absolutePath) {
     throw new ReleaseError(
       CONFIG_INVALID,
@@ -44003,19 +45790,19 @@ async function collectPath({ absolutePath, root, entriesByPath }) {
       { path: rel }
     );
   }
-  if (stat10.isDirectory()) {
+  if (stat13.isDirectory()) {
     const children = await readdir12(absolutePath, { withFileTypes: true });
     children.sort((left, right) => left.name.localeCompare(right.name));
     for (const child of children) {
       await collectPath({
-        absolutePath: join16(absolutePath, child.name),
+        absolutePath: join17(absolutePath, child.name),
         root,
         entriesByPath
       });
     }
     return;
   }
-  if (!stat10.isFile()) {
+  if (!stat13.isFile()) {
     throw new ReleaseError(
       CONFIG_INVALID,
       `source-input closure rejects non-regular file "${rel}"`,
@@ -44026,12 +45813,12 @@ async function collectPath({ absolutePath, root, entriesByPath }) {
   entriesByPath.set(rel, {
     path: rel,
     digest: sha256Hex(content),
-    mode: normalizeLocalGitMode(stat10.mode)
+    mode: normalizeLocalGitMode(stat13.mode)
   });
 }
 function resolveInside(base, candidate, containmentRoot = base) {
-  const resolved = resolve18(base, candidate);
-  const root = resolve18(containmentRoot);
+  const resolved = resolve19(base, candidate);
+  const root = resolve19(containmentRoot);
   if (resolved !== root && !resolved.startsWith(`${root}${sep5}`)) {
     throw new ReleaseError(
       CONFIG_INVALID,
@@ -44252,7 +46039,7 @@ async function verifyWithTemporaryGit({
   if (!branchLine) {
     return failure(REF_MISSING, `remote ref "refs/heads/${defaultBranch}" does not exist`);
   }
-  const tempRoot = await mkdtemp5(join16(tmpdir3(), "release-skill-source-authority-"));
+  const tempRoot = await mkdtemp5(join17(tmpdir3(), "release-skill-source-authority-"));
   try {
     await execFn("git", ["init", "--bare", tempRoot], {
       encoding: "utf8",
@@ -44340,10 +46127,10 @@ function mismatch(defaultBranch, paths) {
 function failure(code, message) {
   return { passed: false, error: { code, message } };
 }
-function verifySourceAuthorityReceipt({ plan, run: run5 }) {
+function verifySourceAuthorityReceipt({ plan, run: run6 }) {
   const authority = plan.sourceAuthority;
   if (!authority) return { passed: true };
-  const matching = (run5.sourceAuthorityReceipts ?? []).find((receipt) => receipt.sourceRepository === authority.sourceRepository && receipt.defaultBranch === authority.defaultBranch && receipt.inputDigest === authority.inputDigest && receipt.algorithmVersion === authority.algorithmVersion && receipt.entryCount === authority.entries.length && receipt.planDigest === plan.digest && receipt.result === "CONSISTENT");
+  const matching = (run6.sourceAuthorityReceipts ?? []).find((receipt) => receipt.sourceRepository === authority.sourceRepository && receipt.defaultBranch === authority.defaultBranch && receipt.inputDigest === authority.inputDigest && receipt.algorithmVersion === authority.algorithmVersion && receipt.entryCount === authority.entries.length && receipt.planDigest === plan.digest && receipt.result === "CONSISTENT");
   return matching ? { passed: true, receipt: matching } : {
     passed: false,
     reason: "publish run has no CONSISTENT source-authority receipt bound to this plan digest"
@@ -44375,7 +46162,7 @@ var init_source_authority = __esm({
   "src/core/source-authority.mjs"() {
     init_digest();
     init_errors();
-    execFile5 = promisify6(execFileCb6);
+    execFile5 = promisify7(execFileCb7);
     REPOSITORY_RE = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/u;
     GIT_MODE_RE = /^(?:100644|100755)$/u;
     SOURCE_INPUT_ALGORITHM_VERSION = 1;
@@ -45598,10 +47385,10 @@ var require_minipass = __commonJS({
       }
       // stream.promise().then(() => done, er => emitted error)
       promise() {
-        return new Promise((resolve35, reject) => {
+        return new Promise((resolve37, reject) => {
           this.on(DESTROYED, () => reject(new Error("stream destroyed")));
           this.on("error", (er) => reject(er));
-          this.on("end", () => resolve35());
+          this.on("end", () => resolve37());
         });
       }
       // for await (let chunk of stream)
@@ -45612,7 +47399,7 @@ var require_minipass = __commonJS({
             return Promise.resolve({ done: false, value: res });
           if (this[EOF])
             return Promise.resolve({ done: true });
-          let resolve35 = null;
+          let resolve37 = null;
           let reject = null;
           const onerr = /* @__PURE__ */ __name((er) => {
             this.removeListener("data", ondata);
@@ -45623,17 +47410,17 @@ var require_minipass = __commonJS({
             this.removeListener("error", onerr);
             this.removeListener("end", onend);
             this.pause();
-            resolve35({ value, done: !!this[EOF] });
+            resolve37({ value, done: !!this[EOF] });
           }, "ondata");
           const onend = /* @__PURE__ */ __name(() => {
             this.removeListener("error", onerr);
             this.removeListener("data", ondata);
-            resolve35({ done: true });
+            resolve37({ done: true });
           }, "onend");
           const ondestroy = /* @__PURE__ */ __name(() => onerr(new Error("stream destroyed")), "ondestroy");
           return new Promise((res2, rej) => {
             reject = rej;
-            resolve35 = res2;
+            resolve37 = res2;
             this.once(DESTROYED, ondestroy);
             this.once("error", onerr);
             this.once("end", onend);
@@ -49672,12 +51459,12 @@ var require_body = __commonJS({
         if (resTimeout && resTimeout.unref) {
           resTimeout.unref();
         }
-        return new Promise((resolve35) => {
+        return new Promise((resolve37) => {
           if (stream !== upstream) {
             upstream.on("error", (er) => stream.emit("error", er));
             upstream.pipe(stream);
           }
-          resolve35();
+          resolve37();
         }).then(() => stream.concat()).then((buf) => {
           clearTimeout(resTimeout);
           return buf;
@@ -50442,7 +52229,7 @@ var require_lib20 = __commonJS({
     var fetch = /* @__PURE__ */ __name(async (url, opts) => {
       if (/^data:/.test(url)) {
         const request = new Request(url, opts);
-        return Promise.resolve().then(() => new Promise((resolve35, reject) => {
+        return Promise.resolve().then(() => new Promise((resolve37, reject) => {
           let type, data;
           try {
             const { pathname, search } = new URL2(url);
@@ -50466,10 +52253,10 @@ var require_lib20 = __commonJS({
           if (type) {
             headers["Content-Type"] = type;
           }
-          return resolve35(new Response(data, { headers }));
+          return resolve37(new Response(data, { headers }));
         }));
       }
-      return new Promise((resolve35, reject) => {
+      return new Promise((resolve37, reject) => {
         const request = new Request(url, opts);
         let options;
         try {
@@ -50588,7 +52375,7 @@ var require_lib20 = __commonJS({
                 requestOpts.body = void 0;
                 requestOpts.headers.delete("content-length");
               }
-              resolve35(fetch(new Request(locationURL, requestOpts)));
+              resolve37(fetch(new Request(locationURL, requestOpts)));
               finalize();
               return;
             }
@@ -50616,7 +52403,7 @@ var require_lib20 = __commonJS({
           const codings = headers.get("Content-Encoding");
           if (!request.compress || request.method === "HEAD" || codings === null || res.statusCode === 204 || res.statusCode === 304) {
             response = new Response(body, responseOptions);
-            resolve35(response);
+            resolve37(response);
             return;
           }
           const zlibOptions = {
@@ -50635,7 +52422,7 @@ var require_lib20 = __commonJS({
               ).pipe(unzip),
               responseOptions
             );
-            resolve35(response);
+            resolve37(response);
             return;
           }
           if (codings === "deflate" || codings === "x-deflate") {
@@ -50647,7 +52434,7 @@ var require_lib20 = __commonJS({
                 (er) => decoder2.emit("error", er)
               ).pipe(decoder2);
               response = new Response(decoder2, responseOptions);
-              resolve35(response);
+              resolve37(response);
             });
             return;
           }
@@ -50665,11 +52452,11 @@ var require_lib20 = __commonJS({
               (er) => decoder.emit("error", er)
             ).pipe(decoder);
             response = new Response(decoder, responseOptions);
-            resolve35(response);
+            resolve37(response);
             return;
           }
           response = new Response(body, responseOptions);
-          resolve35(response);
+          resolve37(response);
         });
         writeToStream(req, request);
       });
@@ -50923,12 +52710,12 @@ var require_lib21 = __commonJS({
           return process.emit("input", "end");
         }, "end"),
         read: /* @__PURE__ */ __name(function(...args2) {
-          let resolve35, reject;
+          let resolve37, reject;
           const promise = new Promise((_resolve, _reject) => {
-            resolve35 = _resolve;
+            resolve37 = _resolve;
             reject = _reject;
           });
-          process.emit("input", "read", resolve35, reject, ...args2);
+          process.emit("input", "read", resolve37, reject, ...args2);
           return promise;
         }, "read")
       }
@@ -53337,7 +55124,7 @@ var require_npa = __commonJS({
           spec = arg;
         }
       }
-      return resolve35(name, spec, where, arg);
+      return resolve37(name, spec, where, arg);
     }
     __name(npa, "npa");
     function isFileSpec(spec) {
@@ -53360,7 +55147,7 @@ var require_npa = __commonJS({
       return spec.toLowerCase().startsWith("npm:");
     }
     __name(isAliasSpec, "isAliasSpec");
-    function resolve35(name, spec, where, arg) {
+    function resolve37(name, spec, where, arg) {
       const res = new Result({
         raw: arg,
         name,
@@ -53392,7 +55179,7 @@ var require_npa = __commonJS({
         return fromRegistry(res);
       }
     }
-    __name(resolve35, "resolve");
+    __name(resolve37, "resolve");
     function toPurl(arg, reg = defaultRegistry) {
       const res = npa(arg);
       if (res.type !== "version") {
@@ -53693,7 +55480,7 @@ var require_npa = __commonJS({
     }
     __name(fromRegistry, "fromRegistry");
     module.exports = npa;
-    module.exports.resolve = resolve35;
+    module.exports.resolve = resolve37;
     module.exports.toPurl = toPurl;
     module.exports.Result = Result;
   }
@@ -55466,7 +57253,7 @@ var require_lib25 = __commonJS({
     module.exports.fromStream = fromStream;
     function fromStream(stream, opts) {
       const istream = integrityStream(opts);
-      return new Promise((resolve35, reject) => {
+      return new Promise((resolve37, reject) => {
         stream.pipe(istream);
         stream.on("error", reject);
         istream.on("error", reject);
@@ -55474,7 +57261,7 @@ var require_lib25 = __commonJS({
         istream.on("integrity", (s) => {
           sri = s;
         });
-        istream.on("end", () => resolve35(sri));
+        istream.on("end", () => resolve37(sri));
         istream.resume();
       });
     }
@@ -55535,7 +57322,7 @@ var require_lib25 = __commonJS({
         ));
       }
       const checker = integrityStream(opts);
-      return new Promise((resolve35, reject) => {
+      return new Promise((resolve37, reject) => {
         stream.pipe(checker);
         stream.on("error", reject);
         checker.on("error", reject);
@@ -55543,7 +57330,7 @@ var require_lib25 = __commonJS({
         checker.on("verified", (s) => {
           verified = s;
         });
-        checker.on("end", () => resolve35(verified));
+        checker.on("end", () => resolve37(verified));
         checker.resume();
       });
     }
@@ -56324,22 +58111,22 @@ var require_polyfill = __commonJS({
     } = __require("os");
     var {
       chmod: chmod5,
-      copyFile,
-      lstat: lstat27,
-      mkdir: mkdir24,
-      readdir: readdir21,
+      copyFile: copyFile2,
+      lstat: lstat28,
+      mkdir: mkdir28,
+      readdir: readdir22,
       readlink: readlink2,
-      stat: stat10,
+      stat: stat13,
       symlink,
       unlink: unlink6,
       utimes
     } = __require("fs/promises");
     var {
-      dirname: dirname18,
-      isAbsolute: isAbsolute23,
-      join: join34,
+      dirname: dirname21,
+      isAbsolute: isAbsolute26,
+      join: join41,
       parse: parse2,
-      resolve: resolve35,
+      resolve: resolve37,
       sep: sep7,
       toNamespacedPath
     } = __require("path");
@@ -56352,7 +58139,7 @@ var require_polyfill = __commonJS({
       preserveTimestamps: false,
       recursive: false
     };
-    async function cp2(src, dest, opts) {
+    async function cp3(src, dest, opts) {
       if (opts != null && typeof opts !== "object") {
         throw new ERR_INVALID_ARG_TYPE("options", ["Object"], opts);
       }
@@ -56362,7 +58149,7 @@ var require_polyfill = __commonJS({
         { ...defaultOptions, ...opts }
       );
     }
-    __name(cp2, "cp");
+    __name(cp3, "cp");
     function getValidatedPath(fileURLOrPath) {
       const path15 = fileURLOrPath != null && fileURLOrPath.href && fileURLOrPath.origin ? fileURLToPath3(fileURLOrPath) : fileURLOrPath;
       return path15;
@@ -56426,7 +58213,7 @@ var require_polyfill = __commonJS({
     }
     __name(areIdentical, "areIdentical");
     function getStats(src, dest, opts) {
-      const statFunc = opts.dereference ? (file) => stat10(file, { bigint: true }) : (file) => lstat27(file, { bigint: true });
+      const statFunc = opts.dereference ? (file) => stat13(file, { bigint: true }) : (file) => lstat28(file, { bigint: true });
       return Promise.all([
         statFunc(src),
         statFunc(dest).catch((err) => {
@@ -56439,17 +58226,17 @@ var require_polyfill = __commonJS({
     }
     __name(getStats, "getStats");
     async function checkParentDir(destStat, src, dest, opts) {
-      const destParent = dirname18(dest);
+      const destParent = dirname21(dest);
       const dirExists = await pathExists2(destParent);
       if (dirExists) {
         return getStatsForCopy(destStat, src, dest, opts);
       }
-      await mkdir24(destParent, { recursive: true });
+      await mkdir28(destParent, { recursive: true });
       return getStatsForCopy(destStat, src, dest, opts);
     }
     __name(checkParentDir, "checkParentDir");
     function pathExists2(dest) {
-      return stat10(dest).then(
+      return stat13(dest).then(
         () => true,
         // istanbul ignore next: not sure when this would occur
         (err) => err.code === "ENOENT" ? false : Promise.reject(err)
@@ -56457,14 +58244,14 @@ var require_polyfill = __commonJS({
     }
     __name(pathExists2, "pathExists");
     async function checkParentPaths(src, srcStat, dest) {
-      const srcParent = resolve35(dirname18(src));
-      const destParent = resolve35(dirname18(dest));
+      const srcParent = resolve37(dirname21(src));
+      const destParent = resolve37(dirname21(dest));
       if (destParent === srcParent || destParent === parse2(destParent).root) {
         return;
       }
       let destStat;
       try {
-        destStat = await stat10(destParent, { bigint: true });
+        destStat = await stat13(destParent, { bigint: true });
       } catch (err) {
         if (err.code === "ENOENT") {
           return;
@@ -56482,7 +58269,7 @@ var require_polyfill = __commonJS({
       return checkParentPaths(src, srcStat, destParent);
     }
     __name(checkParentPaths, "checkParentPaths");
-    var normalizePathToArray = /* @__PURE__ */ __name((path15) => resolve35(path15).split(sep7).filter(Boolean), "normalizePathToArray");
+    var normalizePathToArray = /* @__PURE__ */ __name((path15) => resolve37(path15).split(sep7).filter(Boolean), "normalizePathToArray");
     function isSrcSubdir(src, dest) {
       const srcArr = normalizePathToArray(src);
       const destArr = normalizePathToArray(dest);
@@ -56504,7 +58291,7 @@ var require_polyfill = __commonJS({
     }
     __name(startCopy, "startCopy");
     async function getStatsForCopy(destStat, src, dest, opts) {
-      const statFn = opts.dereference ? stat10 : lstat27;
+      const statFn = opts.dereference ? stat13 : lstat28;
       const srcStat = await statFn(src);
       if (srcStat.isDirectory() && opts.recursive) {
         return onDir(srcStat, destStat, src, dest, opts);
@@ -56564,7 +58351,7 @@ var require_polyfill = __commonJS({
     }
     __name(mayCopyFile, "mayCopyFile");
     async function _copyFile(srcStat, src, dest, opts) {
-      await copyFile(src, dest);
+      await copyFile2(src, dest);
       if (opts.preserveTimestamps) {
         return handleTimestampsAndMode(srcStat.mode, src, dest);
       }
@@ -56597,7 +58384,7 @@ var require_polyfill = __commonJS({
     }
     __name(setDestMode, "setDestMode");
     async function setDestTimestamps(src, dest) {
-      const updatedSrcStat = await stat10(src);
+      const updatedSrcStat = await stat13(src);
       return utimes(dest, updatedSrcStat.atime, updatedSrcStat.mtime);
     }
     __name(setDestTimestamps, "setDestTimestamps");
@@ -56609,17 +58396,17 @@ var require_polyfill = __commonJS({
     }
     __name(onDir, "onDir");
     async function mkDirAndCopy(srcMode, src, dest, opts) {
-      await mkdir24(dest);
+      await mkdir28(dest);
       await copyDir(src, dest, opts);
       return setDestMode(dest, srcMode);
     }
     __name(mkDirAndCopy, "mkDirAndCopy");
     async function copyDir(src, dest, opts) {
-      const dir = await readdir21(src);
+      const dir = await readdir22(src);
       for (let i = 0; i < dir.length; i++) {
         const item = dir[i];
-        const srcItem = join34(src, item);
-        const destItem = join34(dest, item);
+        const srcItem = join41(src, item);
+        const destItem = join41(dest, item);
         const { destStat } = await checkPaths(srcItem, destItem, opts);
         await startCopy(destStat, srcItem, destItem, opts);
       }
@@ -56627,8 +58414,8 @@ var require_polyfill = __commonJS({
     __name(copyDir, "copyDir");
     async function onLink(destStat, src, dest) {
       let resolvedSrc = await readlink2(src);
-      if (!isAbsolute23(resolvedSrc)) {
-        resolvedSrc = resolve35(dirname18(src), resolvedSrc);
+      if (!isAbsolute26(resolvedSrc)) {
+        resolvedSrc = resolve37(dirname21(src), resolvedSrc);
       }
       if (!destStat) {
         return symlink(resolvedSrc, dest);
@@ -56642,8 +58429,8 @@ var require_polyfill = __commonJS({
         }
         throw err;
       }
-      if (!isAbsolute23(resolvedDest)) {
-        resolvedDest = resolve35(dirname18(dest), resolvedDest);
+      if (!isAbsolute26(resolvedDest)) {
+        resolvedDest = resolve37(dirname21(dest), resolvedDest);
       }
       if (isSrcSubdir(resolvedSrc, resolvedDest)) {
         throw new ERR_FS_CP_EINVAL({
@@ -56653,7 +58440,7 @@ var require_polyfill = __commonJS({
           errno: EINVAL
         });
       }
-      const srcStat = await stat10(src);
+      const srcStat = await stat13(src);
       if (srcStat.isDirectory() && isSrcSubdir(resolvedDest, resolvedSrc)) {
         throw new ERR_FS_CP_SYMLINK_TO_SUBDIRECTORY({
           message: `cannot overwrite ${resolvedDest} with ${resolvedSrc}`,
@@ -56670,7 +58457,7 @@ var require_polyfill = __commonJS({
       return symlink(resolvedSrc, dest);
     }
     __name(copyLink, "copyLink");
-    module.exports = cp2;
+    module.exports = cp3;
   }
 });
 
@@ -56682,28 +58469,28 @@ var require_cp = __commonJS({
     var node = require_node();
     var polyfill = require_polyfill();
     var useNative = node.satisfies(">=16.7.0");
-    var cp2 = /* @__PURE__ */ __name(async (src, dest, opts) => {
+    var cp3 = /* @__PURE__ */ __name(async (src, dest, opts) => {
       const options = getOptions(opts, {
         copy: ["dereference", "errorOnExist", "filter", "force", "preserveTimestamps", "recursive"]
       });
       return useNative ? fs.cp(src, dest, options) : polyfill(src, dest, options);
     }, "cp");
-    module.exports = cp2;
+    module.exports = cp3;
   }
 });
 
 // ../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/with-temp-dir.js
 var require_with_temp_dir = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/with-temp-dir.js"(exports, module) {
-    var { join: join34, sep: sep7 } = __require("path");
+    var { join: join41, sep: sep7 } = __require("path");
     var getOptions = require_get_options();
-    var { mkdir: mkdir24, mkdtemp: mkdtemp10, rm: rm15 } = __require("fs/promises");
+    var { mkdir: mkdir28, mkdtemp: mkdtemp14, rm: rm19 } = __require("fs/promises");
     var withTempDir = /* @__PURE__ */ __name(async (root, fn, opts) => {
       const options = getOptions(opts, {
         copy: ["tmpPrefix"]
       });
-      await mkdir24(root, { recursive: true });
-      const target = await mkdtemp10(join34(`${root}${sep7}`, options.tmpPrefix || ""));
+      await mkdir28(root, { recursive: true });
+      const target = await mkdtemp14(join41(`${root}${sep7}`, options.tmpPrefix || ""));
       let err;
       let result;
       try {
@@ -56712,7 +58499,7 @@ var require_with_temp_dir = __commonJS({
         err = _err;
       }
       try {
-        await rm15(target, { force: true, recursive: true });
+        await rm19(target, { force: true, recursive: true });
       } catch {
       }
       if (err) {
@@ -56727,14 +58514,14 @@ var require_with_temp_dir = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/readdir-scoped.js
 var require_readdir_scoped = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/readdir-scoped.js"(exports, module) {
-    var { readdir: readdir21 } = __require("fs/promises");
-    var { join: join34 } = __require("path");
+    var { readdir: readdir22 } = __require("fs/promises");
+    var { join: join41 } = __require("path");
     var readdirScoped = /* @__PURE__ */ __name(async (dir) => {
       const results = [];
-      for (const item of await readdir21(dir)) {
+      for (const item of await readdir22(dir)) {
         if (item.startsWith("@")) {
-          for (const scopedItem of await readdir21(join34(dir, item))) {
-            results.push(join34(item, scopedItem));
+          for (const scopedItem of await readdir22(join41(dir, item))) {
+            results.push(join41(item, scopedItem));
           }
         } else {
           results.push(item);
@@ -56749,7 +58536,7 @@ var require_readdir_scoped = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/move-file.js
 var require_move_file = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/move-file.js"(exports, module) {
-    var { dirname: dirname18, join: join34, resolve: resolve35, relative: relative27, isAbsolute: isAbsolute23 } = __require("path");
+    var { dirname: dirname21, join: join41, resolve: resolve37, relative: relative28, isAbsolute: isAbsolute26 } = __require("path");
     var fs = __require("fs/promises");
     var pathExists2 = /* @__PURE__ */ __name(async (path15) => {
       try {
@@ -56770,7 +58557,7 @@ var require_move_file = __commonJS({
       if (!options.overwrite && await pathExists2(destination)) {
         throw new Error(`The destination file exists: ${destination}`);
       }
-      await fs.mkdir(dirname18(destination), { recursive: true });
+      await fs.mkdir(dirname21(destination), { recursive: true });
       try {
         await fs.rename(source, destination);
       } catch (error) {
@@ -56779,7 +58566,7 @@ var require_move_file = __commonJS({
           if (sourceStat.isDirectory()) {
             const files = await fs.readdir(source);
             await Promise.all(files.map(
-              (file) => moveFile(join34(source, file), join34(destination, file), options, false, symlinks)
+              (file) => moveFile(join41(source, file), join41(destination, file), options, false, symlinks)
             ));
           } else if (sourceStat.isSymbolicLink()) {
             symlinks.push({ source, destination });
@@ -56793,12 +58580,12 @@ var require_move_file = __commonJS({
       if (root) {
         await Promise.all(symlinks.map(async ({ source: symSource, destination: symDestination }) => {
           let target = await fs.readlink(symSource);
-          if (isAbsolute23(target)) {
-            target = resolve35(symDestination, relative27(symSource, target));
+          if (isAbsolute26(target)) {
+            target = resolve37(symDestination, relative28(symSource, target));
           }
           let targetStat = "file";
           try {
-            targetStat = await fs.stat(resolve35(dirname18(symSource), target));
+            targetStat = await fs.stat(resolve37(dirname21(symSource), target));
             if (targetStat.isDirectory()) {
               targetStat = "junction";
             }
@@ -56821,12 +58608,12 @@ var require_move_file = __commonJS({
 var require_lib28 = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/index.js"(exports, module) {
     "use strict";
-    var cp2 = require_cp();
+    var cp3 = require_cp();
     var withTempDir = require_with_temp_dir();
     var readdirScoped = require_readdir_scoped();
     var moveFile = require_move_file();
     module.exports = {
-      cp: cp2,
+      cp: cp3,
       withTempDir,
       readdirScoped,
       moveFile
@@ -56871,7 +58658,7 @@ async function pMap(iterable, mapper, {
     const cleanup = /* @__PURE__ */ __name(() => {
       signal?.removeEventListener("abort", signalListener);
     }, "cleanup");
-    const resolve35 = /* @__PURE__ */ __name((value) => {
+    const resolve37 = /* @__PURE__ */ __name((value) => {
       resolve_(value);
       cleanup();
     }, "resolve");
@@ -56903,7 +58690,7 @@ async function pMap(iterable, mapper, {
           }
           isResolved = true;
           if (skippedIndexesMap.size === 0) {
-            resolve35(result);
+            resolve37(result);
             return;
           }
           const pureResult = [];
@@ -56913,7 +58700,7 @@ async function pMap(iterable, mapper, {
             }
             pureResult.push(value);
           }
-          resolve35(pureResult);
+          resolve37(pureResult);
         }
         return;
       }
@@ -57052,11 +58839,11 @@ var require_entry_index = __commonJS({
     var crypto = __require("crypto");
     var {
       appendFile,
-      mkdir: mkdir24,
-      readFile: readFile42,
-      readdir: readdir21,
-      rm: rm15,
-      writeFile: writeFile14
+      mkdir: mkdir28,
+      readFile: readFile46,
+      readdir: readdir22,
+      rm: rm19,
+      writeFile: writeFile17
     } = __require("fs/promises");
     var { Minipass } = require_commonjs();
     var path15 = __require("path");
@@ -57099,7 +58886,7 @@ var require_entry_index = __commonJS({
       }).join("\n");
       const setup = /* @__PURE__ */ __name(async () => {
         const target = uniqueFilename(path15.join(cache, "tmp"), opts.tmpPrefix);
-        await mkdir24(path15.dirname(target), { recursive: true });
+        await mkdir28(path15.dirname(target), { recursive: true });
         return {
           target,
           moved: false
@@ -57107,12 +58894,12 @@ var require_entry_index = __commonJS({
       }, "setup");
       const teardown = /* @__PURE__ */ __name(async (tmp2) => {
         if (!tmp2.moved) {
-          return rm15(tmp2.target, { recursive: true, force: true });
+          return rm19(tmp2.target, { recursive: true, force: true });
         }
       }, "teardown");
       const write = /* @__PURE__ */ __name(async (tmp2) => {
-        await writeFile14(tmp2.target, newIndex, { flag: "wx" });
-        await mkdir24(path15.dirname(bucket), { recursive: true });
+        await writeFile17(tmp2.target, newIndex, { flag: "wx" });
+        await mkdir28(path15.dirname(bucket), { recursive: true });
         await moveFile(tmp2.target, bucket);
         tmp2.moved = true;
       }, "write");
@@ -57137,7 +58924,7 @@ var require_entry_index = __commonJS({
         metadata
       };
       try {
-        await mkdir24(path15.dirname(bucket), { recursive: true });
+        await mkdir28(path15.dirname(bucket), { recursive: true });
         const stringified = JSON.stringify(entry);
         await appendFile(bucket, `
 ${hashEntry(stringified)}	${stringified}`);
@@ -57177,7 +58964,7 @@ ${hashEntry(stringified)}	${stringified}`);
         return insert(cache, key, null, opts);
       }
       const bucket = bucketPath(cache, key);
-      return rm15(bucket, { recursive: true, force: true });
+      return rm19(bucket, { recursive: true, force: true });
     }
     __name(del, "del");
     module.exports.lsStream = lsStream;
@@ -57245,7 +59032,7 @@ ${hashEntry(stringified)}	${stringified}`);
     __name(ls, "ls");
     module.exports.bucketEntries = bucketEntries;
     async function bucketEntries(bucket, filter) {
-      const data = await readFile42(bucket, "utf8");
+      const data = await readFile46(bucket, "utf8");
       return _bucketEntries(data, filter);
     }
     __name(bucketEntries, "bucketEntries");
@@ -57314,7 +59101,7 @@ ${hashEntry(stringified)}	${stringified}`);
     }
     __name(formatEntry, "formatEntry");
     function readdirOrEmpty(dir) {
-      return readdir21(dir).catch((err) => {
+      return readdir22(dir).catch((err) => {
         if (err.code === "ENOENT" || err.code === "ENOTDIR") {
           return [];
         }
@@ -57810,16 +59597,16 @@ var require_read2 = __commonJS({
     var MAX_SINGLE_READ_SIZE = 64 * 1024 * 1024;
     async function read(cache, integrity, opts = {}) {
       const { size } = opts;
-      const { stat: stat10, cpath, sri } = await withContentSri(cache, integrity, async (cpath2, sri2) => {
-        const stat11 = size ? { size } : await fs.stat(cpath2);
-        return { stat: stat11, cpath: cpath2, sri: sri2 };
+      const { stat: stat13, cpath, sri } = await withContentSri(cache, integrity, async (cpath2, sri2) => {
+        const stat14 = size ? { size } : await fs.stat(cpath2);
+        return { stat: stat14, cpath: cpath2, sri: sri2 };
       });
-      if (stat10.size > MAX_SINGLE_READ_SIZE) {
-        return readPipeline(cpath, stat10.size, sri, new Pipeline()).concat();
+      if (stat13.size > MAX_SINGLE_READ_SIZE) {
+        return readPipeline(cpath, stat13.size, sri, new Pipeline()).concat();
       }
       const data = await fs.readFile(cpath, { encoding: null });
-      if (stat10.size !== data.length) {
-        throw sizeError(stat10.size, data.length);
+      if (stat13.size !== data.length) {
+        throw sizeError(stat13.size, data.length);
       }
       if (!ssri.checkData(data, sri)) {
         throw integrityError(sri, cpath);
@@ -57846,11 +59633,11 @@ var require_read2 = __commonJS({
       const { size } = opts;
       const stream = new Pipeline();
       Promise.resolve().then(async () => {
-        const { stat: stat10, cpath, sri } = await withContentSri(cache, integrity, async (cpath2, sri2) => {
-          const stat11 = size ? { size } : await fs.stat(cpath2);
-          return { stat: stat11, cpath: cpath2, sri: sri2 };
+        const { stat: stat13, cpath, sri } = await withContentSri(cache, integrity, async (cpath2, sri2) => {
+          const stat14 = size ? { size } : await fs.stat(cpath2);
+          return { stat: stat14, cpath: cpath2, sri: sri2 };
         });
-        return readPipeline(cpath, stat10.size, sri, stream);
+        return readPipeline(cpath, stat13.size, sri, stream);
       }).catch((err) => stream.emit("error", err));
       return stream;
     }
@@ -57869,8 +59656,8 @@ var require_read2 = __commonJS({
       }
       try {
         return await withContentSri(cache, integrity, async (cpath, sri) => {
-          const stat10 = await fs.stat(cpath);
-          return { size: stat10.size, sri, stat: stat10 };
+          const stat13 = await fs.stat(cpath);
+          return { size: stat13.size, sri, stat: stat13 };
         });
       } catch (err) {
         if (err.code === "ENOENT") {
@@ -59915,7 +61702,7 @@ var require_commonjs4 = __commonJS({
       #matchGlobstar(file, pattern, partial, fileIndex, patternIndex) {
         const firstgs = pattern.indexOf(exports.GLOBSTAR, patternIndex);
         const lastgs = pattern.lastIndexOf(exports.GLOBSTAR);
-        const [head, body, tail2] = partial ? [
+        const [head, body, tail] = partial ? [
           pattern.slice(patternIndex, firstgs),
           pattern.slice(firstgs + 1),
           []
@@ -59931,20 +61718,20 @@ var require_commonjs4 = __commonJS({
           fileIndex += head.length;
         }
         let fileTailMatch = 0;
-        if (tail2.length) {
-          if (tail2.length + fileIndex > file.length)
+        if (tail.length) {
+          if (tail.length + fileIndex > file.length)
             return false;
-          let tailStart = file.length - tail2.length;
-          if (this.#matchOne(file, tail2, partial, tailStart, 0)) {
-            fileTailMatch = tail2.length;
+          let tailStart = file.length - tail.length;
+          if (this.#matchOne(file, tail, partial, tailStart, 0)) {
+            fileTailMatch = tail.length;
           } else {
-            if (file[file.length - 1] !== "" || fileIndex + tail2.length === file.length) {
+            if (file[file.length - 1] !== "" || fileIndex + tail.length === file.length) {
               return false;
             }
             tailStart--;
-            if (!this.#matchOne(file, tail2, partial, tailStart, 0))
+            if (!this.#matchOne(file, tail, partial, tailStart, 0))
               return false;
-            fileTailMatch = tail2.length + 1;
+            fileTailMatch = tail.length + 1;
           }
         }
         if (!body.length) {
@@ -61119,9 +62906,9 @@ var require_commonjs5 = __commonJS({
         if (this.#asyncReaddirInFlight) {
           await this.#asyncReaddirInFlight;
         } else {
-          let resolve35 = /* @__PURE__ */ __name(() => {
+          let resolve37 = /* @__PURE__ */ __name(() => {
           }, "resolve");
-          this.#asyncReaddirInFlight = new Promise((res) => resolve35 = res);
+          this.#asyncReaddirInFlight = new Promise((res) => resolve37 = res);
           try {
             for (const e of await this.#fs.promises.readdir(fullpath, {
               withFileTypes: true
@@ -61134,7 +62921,7 @@ var require_commonjs5 = __commonJS({
             children.provisional = 0;
           }
           this.#asyncReaddirInFlight = void 0;
-          resolve35();
+          resolve37();
         }
         return children.slice(0, children.provisional);
       }
@@ -62245,10 +64032,10 @@ var require_ignore = __commonJS({
       ignored(p) {
         const fullpath = p.fullpath();
         const fullpaths = `${fullpath}/`;
-        const relative27 = p.relative() || ".";
-        const relatives = `${relative27}/`;
+        const relative28 = p.relative() || ".";
+        const relatives = `${relative28}/`;
         for (const m of this.relative) {
-          if (m.match(relative27) || m.match(relatives))
+          if (m.match(relative28) || m.match(relatives))
             return true;
         }
         for (const m of this.absolute) {
@@ -62259,9 +64046,9 @@ var require_ignore = __commonJS({
       }
       childrenIgnored(p) {
         const fullpath = p.fullpath() + "/";
-        const relative27 = (p.relative() || ".") + "/";
+        const relative28 = (p.relative() || ".") + "/";
         for (const m of this.relativeChildren) {
-          if (m.match(relative27))
+          if (m.match(relative28))
             return true;
         }
         for (const m of this.absoluteChildren) {
@@ -63212,8 +64999,8 @@ var require_rm = __commonJS({
     var fs = __require("fs/promises");
     var contentPath = require_path();
     var { hasContent } = require_read2();
-    module.exports = rm15;
-    async function rm15(cache, integrity) {
+    module.exports = rm19;
+    async function rm19(cache, integrity) {
       const content = await hasContent(cache, integrity);
       if (content && content.sri) {
         await fs.rm(contentPath(cache, content.sri), { recursive: true, force: true });
@@ -63222,7 +65009,7 @@ var require_rm = __commonJS({
         return false;
       }
     }
-    __name(rm15, "rm");
+    __name(rm19, "rm");
   }
 });
 
@@ -63230,7 +65017,7 @@ var require_rm = __commonJS({
 var require_rm2 = __commonJS({
   "../../node_modules/.pnpm/cacache@19.0.1/node_modules/cacache/lib/rm.js"(exports, module) {
     "use strict";
-    var { rm: rm15 } = __require("fs/promises");
+    var { rm: rm19 } = __require("fs/promises");
     var glob = require_glob2();
     var index = require_entry_index();
     var memo = require_memoization();
@@ -63253,7 +65040,7 @@ var require_rm2 = __commonJS({
     async function all(cache) {
       memo.clearMemoized();
       const paths = await glob(path15.join(cache, "*(content-*|index-*)"), { silent: true, nosort: true });
-      return Promise.all(paths.map((p) => rm15(p, { recursive: true, force: true })));
+      return Promise.all(paths.map((p) => rm19(p, { recursive: true, force: true })));
     }
     __name(all, "all");
   }
@@ -63264,12 +65051,12 @@ var require_verify = __commonJS({
   "../../node_modules/.pnpm/cacache@19.0.1/node_modules/cacache/lib/verify.js"(exports, module) {
     "use strict";
     var {
-      mkdir: mkdir24,
-      readFile: readFile42,
-      rm: rm15,
-      stat: stat10,
+      mkdir: mkdir28,
+      readFile: readFile46,
+      rm: rm19,
+      stat: stat13,
       truncate,
-      writeFile: writeFile14
+      writeFile: writeFile17
     } = __require("fs/promises");
     var contentPath = require_path();
     var fsm = require_lib29();
@@ -63334,7 +65121,7 @@ var require_verify = __commonJS({
     __name(markEndTime, "markEndTime");
     async function fixPerms(cache, opts) {
       opts.log.silly("verify", "fixing cache permissions");
-      await mkdir24(cache, { recursive: true });
+      await mkdir28(cache, { recursive: true });
       return null;
     }
     __name(fixPerms, "fixPerms");
@@ -63352,8 +65139,8 @@ var require_verify = __commonJS({
           liveContent.add(integrity[algo].toString());
         }
       });
-      await new Promise((resolve35, reject) => {
-        indexStream.on("end", resolve35).on("error", reject);
+      await new Promise((resolve37, reject) => {
+        indexStream.on("end", resolve37).on("error", reject);
       });
       const contentDir = contentPath.contentDir(cache);
       const files = await glob(path15.join(contentDir, "**"), {
@@ -63387,8 +65174,8 @@ var require_verify = __commonJS({
             }
           } else {
             stats.reclaimedCount++;
-            const s = await stat10(f);
-            await rm15(f, { recursive: true, force: true });
+            const s = await stat13(f);
+            await rm19(f, { recursive: true, force: true });
             stats.reclaimedSize += s.size;
           }
           return stats;
@@ -63401,7 +65188,7 @@ var require_verify = __commonJS({
     async function verifyContent(filepath, sri) {
       const contentInfo = {};
       try {
-        const { size } = await stat10(filepath);
+        const { size } = await stat13(filepath);
         contentInfo.size = size;
         contentInfo.valid = true;
         await ssri.checkStream(new fsm.ReadStream(filepath), sri);
@@ -63412,7 +65199,7 @@ var require_verify = __commonJS({
         if (err.code !== "EINTEGRITY") {
           throw err;
         }
-        await rm15(filepath, { recursive: true, force: true });
+        await rm19(filepath, { recursive: true, force: true });
         contentInfo.valid = false;
       }
       return contentInfo;
@@ -63461,7 +65248,7 @@ var require_verify = __commonJS({
       for (const entry of bucket) {
         const content = contentPath(cache, entry.integrity);
         try {
-          await stat10(content);
+          await stat13(content);
           await index.insert(cache, entry.key, entry.integrity, {
             metadata: entry.metadata,
             size: entry.size,
@@ -63481,18 +65268,18 @@ var require_verify = __commonJS({
     __name(rebuildBucket, "rebuildBucket");
     function cleanTmp(cache, opts) {
       opts.log.silly("verify", "cleaning tmp directory");
-      return rm15(path15.join(cache, "tmp"), { recursive: true, force: true });
+      return rm19(path15.join(cache, "tmp"), { recursive: true, force: true });
     }
     __name(cleanTmp, "cleanTmp");
     async function writeVerifile(cache, opts) {
       const verifile = path15.join(cache, "_lastverified");
       opts.log.silly("verify", "writing verifile to " + verifile);
-      return writeFile14(verifile, `${Date.now()}`);
+      return writeFile17(verifile, `${Date.now()}`);
     }
     __name(writeVerifile, "writeVerifile");
     module.exports.lastRun = lastRun;
     async function lastRun(cache) {
-      const data = await readFile42(path15.join(cache, "_lastverified"), { encoding: "utf8" });
+      const data = await readFile46(path15.join(cache, "_lastverified"), { encoding: "utf8" });
       return /* @__PURE__ */ new Date(+data);
     }
     __name(lastRun, "lastRun");
@@ -63533,7 +65320,7 @@ var require_lib30 = __commonJS({
     "use strict";
     var get = require_get();
     var put = require_put();
-    var rm15 = require_rm2();
+    var rm19 = require_rm2();
     var verify = require_verify();
     var { clearMemoized } = require_memoization();
     var tmp = require_tmp();
@@ -63553,10 +65340,10 @@ var require_lib30 = __commonJS({
     module.exports.get.hasContent = get.hasContent;
     module.exports.put = put;
     module.exports.put.stream = put.stream;
-    module.exports.rm = rm15.entry;
-    module.exports.rm.all = rm15.all;
+    module.exports.rm = rm19.entry;
+    module.exports.rm.all = rm19.all;
     module.exports.rm.entry = module.exports.rm;
-    module.exports.rm.content = rm15.content;
+    module.exports.rm.content = rm19.content;
     module.exports.clearMemoized = clearMemoized;
     module.exports.tmp = {};
     module.exports.tmp.mkdir = tmp.mkdir;
@@ -63909,7 +65696,7 @@ var require_promise_retry = __commonJS({
         fn = temp;
       }
       operation = retry.operation(options);
-      return new Promise(function(resolve35, reject) {
+      return new Promise(function(resolve37, reject) {
         operation.attempt(function(number) {
           Promise.resolve().then(function() {
             return fn(function(err) {
@@ -63918,7 +65705,7 @@ var require_promise_retry = __commonJS({
               }
               throw errcode(new Error("Retrying"), "EPROMISERETRY", { retried: err });
             }, number);
-          }).then(resolve35, function(err) {
+          }).then(resolve37, function(err) {
             if (isRetryError(err)) {
               err = err.retried;
               if (operation.retry(err || new Error())) {
@@ -64803,8 +66590,8 @@ var require_helpers = __commonJS({
     function req(url, opts = {}) {
       const href = typeof url === "string" ? url : url.href;
       const req2 = (href.startsWith("https:") ? https : http).request(url, opts);
-      const promise = new Promise((resolve35, reject) => {
-        req2.once("response", resolve35).once("error", reject).end();
+      const promise = new Promise((resolve37, reject) => {
+        req2.once("response", resolve37).once("error", reject).end();
       });
       req2.then = promise.then.bind(promise);
       return req2;
@@ -65119,7 +66906,7 @@ var require_parse_proxy_response = __commonJS({
     var debug_1 = __importDefault(require_src());
     var debug = (0, debug_1.default)("https-proxy-agent:parse-proxy-response");
     function parseProxyResponse(socket) {
-      return new Promise((resolve35, reject) => {
+      return new Promise((resolve37, reject) => {
         let buffersLength = 0;
         const buffers = [];
         function read() {
@@ -65189,7 +66976,7 @@ var require_parse_proxy_response = __commonJS({
           }
           debug("got proxy server response: %o %o", firstLine, headers);
           cleanup();
-          resolve35({
+          resolve37({
             connect: {
               statusCode,
               statusText,
@@ -68868,12 +70655,12 @@ var require_socksclient = __commonJS({
     "use strict";
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve35) {
-          resolve35(value);
+        return value instanceof P ? value : new P(function(resolve37) {
+          resolve37(value);
         });
       }
       __name(adopt, "adopt");
-      return new (P || (P = Promise))(function(resolve35, reject) {
+      return new (P || (P = Promise))(function(resolve37, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -68891,7 +70678,7 @@ var require_socksclient = __commonJS({
         }
         __name(rejected, "rejected");
         function step(result) {
-          result.done ? resolve35(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve37(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         __name(step, "step");
         step((generator = generator.apply(thisArg, _arguments || [])).next());
@@ -68929,13 +70716,13 @@ var require_socksclient = __commonJS({
        * @returns { Promise }
        */
       static createConnection(options, callback) {
-        return new Promise((resolve35, reject) => {
+        return new Promise((resolve37, reject) => {
           try {
             (0, helpers_1.validateSocksClientOptions)(options, ["connect"]);
           } catch (err) {
             if (typeof callback === "function") {
               callback(err);
-              return resolve35(err);
+              return resolve37(err);
             } else {
               return reject(err);
             }
@@ -68946,16 +70733,16 @@ var require_socksclient = __commonJS({
             client.removeAllListeners();
             if (typeof callback === "function") {
               callback(null, info);
-              resolve35(info);
+              resolve37(info);
             } else {
-              resolve35(info);
+              resolve37(info);
             }
           });
           client.once("error", (err) => {
             client.removeAllListeners();
             if (typeof callback === "function") {
               callback(err);
-              resolve35(err);
+              resolve37(err);
             } else {
               reject(err);
             }
@@ -68972,13 +70759,13 @@ var require_socksclient = __commonJS({
        * @returns { Promise }
        */
       static createConnectionChain(options, callback) {
-        return new Promise((resolve35, reject) => __awaiter(this, void 0, void 0, function* () {
+        return new Promise((resolve37, reject) => __awaiter(this, void 0, void 0, function* () {
           try {
             (0, helpers_1.validateSocksClientChainOptions)(options);
           } catch (err) {
             if (typeof callback === "function") {
               callback(err);
-              return resolve35(err);
+              return resolve37(err);
             } else {
               return reject(err);
             }
@@ -69004,14 +70791,14 @@ var require_socksclient = __commonJS({
             }
             if (typeof callback === "function") {
               callback(null, { socket: sock });
-              resolve35({ socket: sock });
+              resolve37({ socket: sock });
             } else {
-              resolve35({ socket: sock });
+              resolve37({ socket: sock });
             }
           } catch (err) {
             if (typeof callback === "function") {
               callback(err);
-              resolve35(err);
+              resolve37(err);
             } else {
               reject(err);
             }
@@ -69699,12 +71486,12 @@ var require_dist7 = __commonJS({
         let { host } = opts;
         const { port, lookup: lookupFn = dns.lookup } = opts;
         if (shouldLookup) {
-          host = await new Promise((resolve35, reject) => {
+          host = await new Promise((resolve37, reject) => {
             lookupFn(host, {}, (err, res) => {
               if (err) {
                 reject(err);
               } else {
-                resolve35(res);
+                resolve37(res);
               }
             });
           });
@@ -70516,8 +72303,8 @@ var require_entry = __commonJS({
         let body = null;
         if (this.response.status === 200) {
           let cacheWriteResolve, cacheWriteReject;
-          const cacheWritePromise = new Promise((resolve35, reject) => {
-            cacheWriteResolve = resolve35;
+          const cacheWritePromise = new Promise((resolve37, reject) => {
+            cacheWriteResolve = resolve37;
             cacheWriteReject = reject;
           }).catch((err) => {
             body.emit("error", err);
@@ -72032,7 +73819,7 @@ var require_index_min = __commonJS({
 var require_lib35 = __commonJS({
   "../../node_modules/.pnpm/which@5.0.0/node_modules/which/lib/index.js"(exports, module) {
     var { isexe, sync: isexeSync } = require_index_min();
-    var { join: join34, delimiter, sep: sep7, posix: posix3 } = __require("path");
+    var { join: join41, delimiter, sep: sep7, posix: posix3 } = __require("path");
     var isWindows = process.platform === "win32";
     var rSlash = new RegExp(`[${posix3.sep}${sep7 === posix3.sep ? "" : sep7}]`.replace(/(\\)/g, "\\$1"));
     var rRel = new RegExp(`^\\.${rSlash.source}`);
@@ -72061,7 +73848,7 @@ var require_lib35 = __commonJS({
     var getPathPart = /* @__PURE__ */ __name((raw, cmd) => {
       const pathPart = /^".*"$/.test(raw) ? raw.slice(1, -1) : raw;
       const prefix = !pathPart && rRel.test(cmd) ? cmd.slice(0, 2) : "";
-      return prefix + join34(pathPart, cmd);
+      return prefix + join41(pathPart, cmd);
     }, "getPathPart");
     var which = /* @__PURE__ */ __name(async (cmd, opt = {}) => {
       const { pathEnv, pathExt, pathExtExe } = getPathInfo(cmd, opt);
@@ -72184,9 +73971,9 @@ var require_lib36 = __commonJS({
       if (opts.shell) {
         return spawnWithShell(cmd, args2, opts, extra);
       }
-      let resolve35, reject;
+      let resolve37, reject;
       const promise = new Promise((_resolve, _reject) => {
-        resolve35 = _resolve;
+        resolve37 = _resolve;
         reject = _reject;
       });
       const closeError = new Error("command failed");
@@ -72219,7 +74006,7 @@ var require_lib36 = __commonJS({
         if (code || signal) {
           rejectWithOpts(closeError, { code, signal });
         } else {
-          resolve35(getResult({ code, signal }));
+          resolve37(getResult({ code, signal }));
         }
       });
       return promise;
@@ -73200,7 +74987,7 @@ var require_lib37 = __commonJS({
 // ../../node_modules/.pnpm/npm-normalize-package-bin@4.0.0/node_modules/npm-normalize-package-bin/lib/index.js
 var require_lib38 = __commonJS({
   "../../node_modules/.pnpm/npm-normalize-package-bin@4.0.0/node_modules/npm-normalize-package-bin/lib/index.js"(exports, module) {
-    var { join: join34, basename: basename13 } = __require("path");
+    var { join: join41, basename: basename13 } = __require("path");
     var normalize4 = /* @__PURE__ */ __name((pkg) => !pkg.bin ? removeBin(pkg) : typeof pkg.bin === "string" ? normalizeString(pkg) : Array.isArray(pkg.bin) ? normalizeArray(pkg) : typeof pkg.bin === "object" ? normalizeObject(pkg) : removeBin(pkg), "normalize");
     var normalizeString = /* @__PURE__ */ __name((pkg) => {
       if (!pkg.name) {
@@ -73225,11 +75012,11 @@ var require_lib38 = __commonJS({
       const clean = {};
       let hasBins = false;
       Object.keys(orig).forEach((binKey) => {
-        const base = join34("/", basename13(binKey.replace(/\\|:/g, "/"))).slice(1);
+        const base = join41("/", basename13(binKey.replace(/\\|:/g, "/"))).slice(1);
         if (typeof orig[binKey] !== "string" || !base) {
           return;
         }
-        const binTarget = join34("/", orig[binKey].replace(/\\/g, "/")).replace(/\\/g, "/").slice(1);
+        const binTarget = join41("/", orig[binKey].replace(/\\/g, "/")).replace(/\\/g, "/").slice(1);
         if (!binTarget) {
           return;
         }
@@ -73530,8 +75317,8 @@ var require_clone2 = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+git@6.0.3/node_modules/@npmcli/git/lib/is.js
 var require_is = __commonJS({
   "../../node_modules/.pnpm/@npmcli+git@6.0.3/node_modules/@npmcli/git/lib/is.js"(exports, module) {
-    var { stat: stat10 } = __require("fs/promises");
-    module.exports = ({ cwd = process.cwd() } = {}) => stat10(cwd + "/.git").then(() => true, () => false);
+    var { stat: stat13 } = __require("fs/promises");
+    module.exports = ({ cwd = process.cwd() } = {}) => stat13(cwd + "/.git").then(() => true, () => false);
   }
 });
 
@@ -73539,13 +75326,13 @@ var require_is = __commonJS({
 var require_find = __commonJS({
   "../../node_modules/.pnpm/@npmcli+git@6.0.3/node_modules/@npmcli/git/lib/find.js"(exports, module) {
     var is = require_is();
-    var { dirname: dirname18 } = __require("path");
+    var { dirname: dirname21 } = __require("path");
     module.exports = async ({ cwd = process.cwd(), root } = {}) => {
       while (true) {
         if (await is({ cwd })) {
           return cwd;
         }
-        const next = dirname18(cwd);
+        const next = dirname21(cwd);
         if (cwd === root || cwd === next) {
           return null;
         }
@@ -75770,11 +77557,11 @@ var require_normalize = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+package-json@6.2.0/node_modules/@npmcli/package-json/lib/read-package.js
 var require_read_package = __commonJS({
   "../../node_modules/.pnpm/@npmcli+package-json@6.2.0/node_modules/@npmcli/package-json/lib/read-package.js"(exports, module) {
-    var { readFile: readFile42 } = __require("fs/promises");
+    var { readFile: readFile46 } = __require("fs/promises");
     var parseJSON = require_lib34();
     async function read(filename) {
       try {
-        const data = await readFile42(filename, "utf8");
+        const data = await readFile46(filename, "utf8");
         return data;
       } catch (err) {
         err.message = `Could not read package.json: ${err}`;
@@ -75907,8 +77694,8 @@ var require_sort2 = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+package-json@6.2.0/node_modules/@npmcli/package-json/lib/index.js
 var require_lib41 = __commonJS({
   "../../node_modules/.pnpm/@npmcli+package-json@6.2.0/node_modules/@npmcli/package-json/lib/index.js"(exports, module) {
-    var { readFile: readFile42, writeFile: writeFile14 } = __require("node:fs/promises");
-    var { resolve: resolve35 } = __require("node:path");
+    var { readFile: readFile46, writeFile: writeFile17 } = __require("node:fs/promises");
+    var { resolve: resolve37 } = __require("node:path");
     var parseJSON = require_lib34();
     var updateDeps = require_update_dependencies();
     var updateScripts = require_update_scripts();
@@ -76031,10 +77818,10 @@ var require_lib41 = __commonJS({
           parseErr = err;
         }
         if (parseErr) {
-          const indexFile = resolve35(this.path, "index.js");
+          const indexFile = resolve37(this.path, "index.js");
           let indexFileContent;
           try {
-            indexFileContent = await readFile42(indexFile, "utf8");
+            indexFileContent = await readFile46(indexFile, "utf8");
           } catch (err) {
             throw parseErr;
           }
@@ -76083,7 +77870,7 @@ var require_lib41 = __commonJS({
       }
       get filename() {
         if (this.path) {
-          return resolve35(this.path, "package.json");
+          return resolve37(this.path, "package.json");
         }
         return void 0;
       }
@@ -76122,7 +77909,7 @@ var require_lib41 = __commonJS({
         const fileContent = `${JSON.stringify(content, null, format)}
 `.replace(/\n/g, eol);
         if (fileContent.trim() !== this.#readFileContent.trim()) {
-          const written = await writeFile14(this.filename, fileContent);
+          const written = await writeFile17(this.filename, fileContent);
           this.#readFileContent = fileContent;
           return written;
         }
@@ -83009,12 +84796,12 @@ var require_fetcher = __commonJS({
     };
     exports.DefaultFetcher = DefaultFetcher;
     var writeBufferToStream = /* @__PURE__ */ __name(async (stream, buffer) => {
-      return new Promise((resolve35, reject) => {
+      return new Promise((resolve37, reject) => {
         stream.write(buffer, (err) => {
           if (err) {
             reject(err);
           }
-          resolve35(true);
+          resolve37(true);
         });
       });
     }, "writeBufferToStream");
@@ -83233,12 +85020,12 @@ var require_url = __commonJS({
   "../../node_modules/.pnpm/tuf-js@3.1.0/node_modules/tuf-js/dist/utils/url.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.join = join34;
+    exports.join = join41;
     var url_1 = __require("url");
-    function join34(base, path15) {
+    function join41(base, path15) {
       return new url_1.URL(ensureTrailingSlash(base) + removeLeadingSlash(path15)).toString();
     }
-    __name(join34, "join");
+    __name(join41, "join");
     function ensureTrailingSlash(path15) {
       return path15.endsWith("/") ? path15 : path15 + "/";
     }
@@ -83617,7 +85404,7 @@ var require_target = __commonJS({
     var error_1 = require_error9();
     async function readTarget(tuf, targetPath2) {
       const path15 = await getTargetPath(tuf, targetPath2);
-      return new Promise((resolve35, reject) => {
+      return new Promise((resolve37, reject) => {
         fs_1.default.readFile(path15, "utf-8", (err, data) => {
           if (err) {
             reject(new error_1.TUFError({
@@ -83626,7 +85413,7 @@ var require_target = __commonJS({
               cause: err
             }));
           } else {
-            resolve35(data);
+            resolve37(data);
           }
         });
       });
@@ -85343,7 +87130,7 @@ var require_dist16 = __commonJS({
 var require_provenance = __commonJS({
   "../../node_modules/.pnpm/libnpmpublish@11.1.0/node_modules/libnpmpublish/lib/provenance.js"(exports, module) {
     var sigstore = require_dist16();
-    var { readFile: readFile42 } = __require("node:fs/promises");
+    var { readFile: readFile46 } = __require("node:fs/promises");
     var ci = require_ci_info();
     var { env } = process;
     var INTOTO_PAYLOAD_TYPE = "application/vnd.in-toto+json";
@@ -85535,7 +87322,7 @@ var require_provenance = __commonJS({
     var verifyProvenance = /* @__PURE__ */ __name(async (subject, provenancePath) => {
       let provenanceBundle;
       try {
-        provenanceBundle = JSON.parse(await readFile42(provenancePath));
+        provenanceBundle = JSON.parse(await readFile46(provenancePath));
       } catch (err) {
         err.message = `Invalid provenance provided: ${err.message}`;
         throw err;
@@ -85872,12 +87659,12 @@ __export(npm_exports, {
   verifyFrozenNpmTarballIdentity: () => verifyFrozenNpmTarballIdentity
 });
 import { createHash as createHash14, randomUUID } from "node:crypto";
-import { execFile as execFileCb7, spawn as spawn3 } from "node:child_process";
+import { execFile as execFileCb8, spawn as spawn3 } from "node:child_process";
 import { gunzipSync } from "node:zlib";
-import { promisify as promisify7 } from "node:util";
-import { dirname as dirname9, isAbsolute as isAbsolute14, join as join17, relative as relative17, resolve as resolve19 } from "node:path";
+import { promisify as promisify8 } from "node:util";
+import { dirname as dirname9, isAbsolute as isAbsolute15, join as join18, relative as relative17, resolve as resolve20 } from "node:path";
 import { constants as fsConstants4 } from "node:fs";
-import { chmod as chmod3, lstat as lstat18, mkdtemp as mkdtemp6, open as open8, readFile as readFile19, realpath as realpath15, rm as rm8 } from "node:fs/promises";
+import { chmod as chmod3, lstat as lstat19, mkdtemp as mkdtemp6, open as open8, readFile as readFile19, realpath as realpath16, rm as rm8 } from "node:fs/promises";
 function validatePackageName(value) {
   if (typeof value !== "string" || value.length > 214 || !SAFE_PACKAGE_NAME.test(value)) {
     throw new Error("npm package must be a safe lowercase package name or @scope/name");
@@ -85954,7 +87741,7 @@ async function defaultResolveAuthToken({ registry, cwd, exec, env = process.env 
     if (env[name]) candidates.push(env[name]);
   }
   const key = registryTokenKey(registry);
-  candidates.push(...await tokensFromNpmrc(join17(cwd, ".npmrc"), key, env));
+  candidates.push(...await tokensFromNpmrc(join18(cwd, ".npmrc"), key, env));
   const npmUserConfigKey = ["npm", "config", "userconfig"].join("_");
   const userConfig = env[npmUserConfigKey] ?? (await exec("npm", ["config", "get", "userconfig"], { cwd, shell: false })).stdout.trim();
   if (userConfig) candidates.push(...await tokensFromNpmrc(userConfig, key, env));
@@ -85983,10 +87770,10 @@ async function defaultWhoamiWithToken({ registry, token, cwd, exec }) {
 }
 function resolvePackageCwd(cwd, root) {
   if (!cwd || typeof cwd !== "string") throw new Error("NPM_PUBLISH requires a non-empty action.cwd (package directory)");
-  const rootPath = resolve19(root);
-  const packagePath = resolve19(root, cwd);
+  const rootPath = resolve20(root);
+  const packagePath = resolve20(root, cwd);
   const rel = relative17(rootPath, packagePath);
-  if (isAbsolute14(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+  if (isAbsolute15(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
     throw new Error(`cwd "${cwd}" is outside project root "${root}"`);
   }
   return packagePath;
@@ -85999,15 +87786,15 @@ ${error?.message ?? ""}`;
   return /\bE404\b|\b404\b.*not found|not found.*\b404\b/i.test(text);
 }
 async function readVerifiedTarballBytes(action, root) {
-  if (!action.tarballPath || isAbsolute14(action.tarballPath)) throw new Error("tarballPath must be project-relative");
+  if (!action.tarballPath || isAbsolute15(action.tarballPath)) throw new Error("tarballPath must be project-relative");
   if (!/^[a-f0-9]{64}$/.test(action.tarballSha256 ?? "")) throw new Error("tarballSha256 must be a lowercase SHA-256 digest");
-  const rootReal = await realpath15(root);
-  const lexical = resolve19(rootReal, action.tarballPath);
+  const rootReal = await realpath16(root);
+  const lexical = resolve20(rootReal, action.tarballPath);
   const rel = relative17(rootReal, lexical);
-  if (isAbsolute14(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+  if (isAbsolute15(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
     throw new Error("tarballPath escapes project root");
   }
-  const before = await lstat18(lexical);
+  const before = await lstat19(lexical);
   if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1) {
     throw new Error("frozen tarball must be a single-link regular file");
   }
@@ -86319,7 +88106,7 @@ function createNpmAdapter(deps = {}) {
             throw new Error("npm bearer authentication does not match the frozen registry and publisher");
           }
           if (typeof beforeBufferPublishHook === "function") {
-            await beforeBufferPublishHook(resolve19(context.root, action.tarballPath));
+            await beforeBufferPublishHook(resolve20(context.root, action.tarballPath));
           }
           try {
             await publishTarballBuffer({
@@ -86458,7 +88245,7 @@ var init_npm = __esm({
     init_contract();
     init_npm_entry_closure();
     init_errors();
-    execFile6 = promisify7(execFileCb7);
+    execFile6 = promisify8(execFileCb8);
     NAME = "npm";
     SAFE_PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/;
     __name(validatePackageName, "validatePackageName");
@@ -86485,11 +88272,11 @@ var init_npm = __esm({
 });
 
 // src/core/run.mjs
-import { lstat as lstat19, mkdir as mkdir12, readFile as readFile20 } from "node:fs/promises";
+import { lstat as lstat20, mkdir as mkdir12, readFile as readFile20, stat as stat6 } from "node:fs/promises";
 import { realpathSync as realpathSync3 } from "node:fs";
-import { dirname as dirname10, join as join18, resolve as resolve20, basename as basename5, relative as relative18, isAbsolute as isAbsolute15 } from "node:path";
+import { dirname as dirname10, join as join19, resolve as resolve21, basename as basename5, relative as relative18, isAbsolute as isAbsolute16 } from "node:path";
 function resolveDefaultRunDir(planPath, command2, runId = `${command2}-${Date.now()}`) {
-  const absolute = resolve20(planPath);
+  const absolute = resolve21(planPath);
   const fileName = basename5(absolute);
   const parentDir = dirname10(absolute);
   if (fileName === "release-plan.json") {
@@ -86497,12 +88284,12 @@ function resolveDefaultRunDir(planPath, command2, runId = `${command2}-${Date.no
   }
   if (basename5(parentDir) === "plans") {
     const releaseDir = dirname10(parentDir);
-    return join18(releaseDir, "runs", runId);
+    return join19(releaseDir, "runs", runId);
   }
   return `${parentDir}/runs/${runId}`;
 }
-function validateRun(run5, options = {}) {
-  const valid = validateRunSchema(run5);
+function validateRun(run6, options = {}) {
+  const valid = validateRunSchema(run6);
   if (!valid) {
     const errors = validateRunSchema.errors ?? [];
     const summary = errors.map((e) => `${e.instancePath || "/"}: ${e.message}`).join("; ");
@@ -86513,7 +88300,7 @@ function validateRun(run5, options = {}) {
     );
   }
   const actionIds = /* @__PURE__ */ new Set();
-  for (const checkpoint of run5.checkpoints ?? []) {
+  for (const checkpoint of run6.checkpoints ?? []) {
     if (actionIds.has(checkpoint.actionId)) {
       throw new ReleaseError(
         GATE_FAILED,
@@ -86523,46 +88310,104 @@ function validateRun(run5, options = {}) {
     }
     actionIds.add(checkpoint.actionId);
   }
-  if (options.requireDigest === true && !run5.runDigest) {
+  if (options.requireDigest === true && !run6.runDigest) {
     throw new ReleaseError(GATE_FAILED, "release run is missing required runDigest");
   }
-  if (run5.runDigest && run5.runDigest !== computeRunDigest(run5)) {
+  if (run6.runDigest && run6.runDigest !== computeRunDigest(run6)) {
     throw new ReleaseError(
       GATE_FAILED,
       "release run digest does not match its content",
-      { expected: computeRunDigest(run5), actual: run5.runDigest }
+      { expected: computeRunDigest(run6), actual: run6.runDigest }
     );
   }
 }
+async function resolveRunPath(runPath) {
+  let stats;
+  try {
+    stats = await lstat20(runPath);
+  } catch (err) {
+    if (err?.code === "ENOENT") return runPath;
+    throw new ReleaseError(
+      GATE_FAILED,
+      `cannot inspect release run path: ${err.message}`,
+      { runPath, cause: err.code }
+    );
+  }
+  if (stats.isFile()) return runPath;
+  if (stats.isSymbolicLink()) {
+    let targetStats;
+    try {
+      targetStats = await stat6(runPath);
+    } catch (err) {
+      if (err?.code === "ENOENT") return runPath;
+      throw new ReleaseError(
+        GATE_FAILED,
+        `cannot inspect release run path: ${err.message}`,
+        { runPath, cause: err.code }
+      );
+    }
+    if (targetStats.isDirectory()) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        "release run path is a symlinked directory; pass the run file (release-run.json) or the real run directory",
+        { runPath }
+      );
+    }
+    return runPath;
+  }
+  if (stats.isDirectory()) {
+    const candidate = join19(runPath, "release-run.json");
+    try {
+      const candidateStats = await lstat20(candidate);
+      if (!candidateStats.isFile()) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `release run directory does not contain a regular release-run.json: ${runPath}`,
+          { runPath, expected: "release-run.json" }
+        );
+      }
+    } catch (err) {
+      if (err instanceof ReleaseError) throw err;
+      throw new ReleaseError(
+        GATE_FAILED,
+        `release run directory must contain release-run.json: ${err.message}`,
+        { runPath, expected: "release-run.json", cause: err.code }
+      );
+    }
+    return candidate;
+  }
+  return runPath;
+}
 async function loadRun(runPath, options = {}) {
+  const resolvedRunPath = await resolveRunPath(runPath);
   let raw;
   try {
-    raw = await readFile20(runPath, "utf8");
+    raw = await readFile20(resolvedRunPath, "utf8");
   } catch (err) {
     throw new ReleaseError(
       GATE_FAILED,
       `cannot read release run: ${err.message}`,
-      { runPath, cause: err.code }
+      { runPath: resolvedRunPath, cause: err.code }
     );
   }
-  let run5;
+  let run6;
   try {
-    run5 = JSON.parse(raw);
+    run6 = JSON.parse(raw);
   } catch (err) {
     throw new ReleaseError(
       GATE_FAILED,
       `release run is not valid JSON: ${err.message}`,
-      { runPath }
+      { runPath: resolvedRunPath }
     );
   }
-  validateRun(run5, options);
+  validateRun(run6, options);
   if (options.authorityPlanPath) {
-    assertImmutableRunAuthority(runPath, options.authorityPlanPath, run5);
+    assertImmutableRunAuthority(resolvedRunPath, options.authorityPlanPath, run6);
   }
-  return run5;
+  return run6;
 }
-function assertImmutableRunAuthority(runPath, planPath, run5) {
-  const absolutePlan = realpathSync3(resolve20(planPath));
+function assertImmutableRunAuthority(runPath, planPath, run6) {
+  const absolutePlan = realpathSync3(resolve21(planPath));
   const planDir = dirname10(absolutePlan);
   if (basename5(planDir) !== "plans") {
     throw new ReleaseError(GATE_FAILED, "run authority requires an immutable plans/<digest>.json plan path");
@@ -86576,15 +88421,15 @@ function assertImmutableRunAuthority(runPath, planPath, run5) {
     }
     cursor = dirname10(cursor);
   }
-  const runsDir = join18(authorityRoot, "runs");
-  const absoluteRun = realpathSync3(resolve20(runPath));
+  const runsDir = join19(authorityRoot, "runs");
+  const absoluteRun = realpathSync3(resolve21(runPath));
   const rel = relative18(runsDir, absoluteRun);
-  if (isAbsolute15(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+  if (isAbsolute16(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
     throw new ReleaseError(GATE_FAILED, "production run authority must be inside the plan sibling runs/ directory");
   }
   const fileName = basename5(absoluteRun);
   const isFinal = fileName === "release-run.json";
-  const isState = /^\d{6}\.json$/.test(fileName) && basename5(dirname10(absoluteRun)) === "states" && run5.stateSequence === Number(fileName.slice(0, 6));
+  const isState = /^\d{6}\.json$/.test(fileName) && basename5(dirname10(absoluteRun)) === "states" && run6.stateSequence === Number(fileName.slice(0, 6));
   if (!isFinal && !isState) {
     throw new ReleaseError(
       GATE_FAILED,
@@ -86594,7 +88439,7 @@ function assertImmutableRunAuthority(runPath, planPath, run5) {
   }
 }
 async function createProductionRunDir(runDir, planPath) {
-  const absolutePlan = realpathSync3(resolve20(planPath));
+  const absolutePlan = realpathSync3(resolve21(planPath));
   const planDir = dirname10(absolutePlan);
   if (basename5(planDir) !== "plans") {
     throw new ReleaseError(GATE_FAILED, "production run directory requires an immutable plans/<digest>.json authority");
@@ -86603,10 +88448,10 @@ async function createProductionRunDir(runDir, planPath) {
   return createProductionRunDirWithinAuthority(runDir, authorityRoot);
 }
 async function createProductionPrepareRunDir(runDir, releaseDir) {
-  const authorityRoot = resolve20(releaseDir);
+  const authorityRoot = resolve21(releaseDir);
   let authorityStat;
   try {
-    authorityStat = await lstat19(authorityRoot);
+    authorityStat = await lstat20(authorityRoot);
   } catch (error) {
     throw new ReleaseError(GATE_FAILED, "cannot inspect production .release-skill authority root", {
       releaseDir: authorityRoot,
@@ -86631,10 +88476,10 @@ async function createProductionPrepareRunDir(runDir, releaseDir) {
   return createProductionRunDirWithinAuthority(runDir, physicalAuthorityRoot);
 }
 async function createProductionRunDirWithinAuthority(runDir, authorityRoot) {
-  const runsDir = join18(authorityRoot, "runs");
+  const runsDir = join19(authorityRoot, "runs");
   let runsStat;
   try {
-    runsStat = await lstat19(runsDir);
+    runsStat = await lstat20(runsDir);
   } catch (error) {
     if (error.code !== "ENOENT") {
       throw new ReleaseError(GATE_FAILED, "cannot inspect production runs authority root", {
@@ -86652,7 +88497,7 @@ async function createProductionRunDirWithinAuthority(runDir, authorityRoot) {
         });
       }
     }
-    runsStat = await lstat19(runsDir);
+    runsStat = await lstat20(runsDir);
   }
   if (runsStat.isSymbolicLink() || !runsStat.isDirectory()) {
     throw new ReleaseError(
@@ -86669,7 +88514,7 @@ async function createProductionRunDirWithinAuthority(runDir, authorityRoot) {
       { runsDir, physicalRunsDir }
     );
   }
-  const requested = resolve20(runDir);
+  const requested = resolve21(runDir);
   let physicalParent;
   try {
     physicalParent = realpathSync3(dirname10(requested));
@@ -86687,7 +88532,7 @@ async function createProductionRunDirWithinAuthority(runDir, authorityRoot) {
     );
   }
   try {
-    await lstat19(requested);
+    await lstat20(requested);
     throw new ReleaseError(GATE_FAILED, "production run directory already exists; authority directories cannot be reused", { runDir });
   } catch (error) {
     if (error instanceof ReleaseError) throw error;
@@ -86712,15 +88557,15 @@ async function createProductionRunDirWithinAuthority(runDir, authorityRoot) {
   }
   return physicalRunDir;
 }
-async function validateStatePredecessorChain(run5, runPath, options = {}) {
-  if (run5.stateSequence === void 0) {
-    if (run5.previousStateDigest !== void 0) {
+async function validateStatePredecessorChain(run6, runPath, options = {}) {
+  if (run6.stateSequence === void 0) {
+    if (run6.previousStateDigest !== void 0) {
       throw new ReleaseError(GATE_FAILED, "non-state run cannot claim previousStateDigest");
     }
     return;
   }
-  let current = run5;
-  let currentPath = realpathSync3(resolve20(runPath));
+  let current = run6;
+  let currentPath = realpathSync3(resolve21(runPath));
   let traversed = 0;
   while (true) {
     const sequence = current.stateSequence;
@@ -86741,7 +88586,7 @@ async function validateStatePredecessorChain(run5, runPath, options = {}) {
     if (traversed > 1e5) {
       throw new ReleaseError(GATE_FAILED, "run state predecessor chain exceeds maximum depth");
     }
-    const previousPath = join18(dirname10(currentPath), `${String(sequence - 1).padStart(6, "0")}.json`);
+    const previousPath = join19(dirname10(currentPath), `${String(sequence - 1).padStart(6, "0")}.json`);
     const previous = await loadRun(previousPath, {
       requireDigest: true,
       ...options.production ? { authorityPlanPath: options.planPath } : {}
@@ -86777,72 +88622,72 @@ function validateSourceRunEdge(child, parent) {
     }
   }
 }
-async function validateRunLineage(run5, options = {}) {
+async function validateRunLineage(run6, options = {}) {
   const { plan, planPath, runPath, production = false, maxDepth = 16 } = options;
   if (maxDepth < 0) {
     throw new ReleaseError(GATE_FAILED, "release run lineage exceeds maximum depth");
   }
-  validateRun(run5, { requireDigest: production });
-  if (production) assertImmutableRunAuthority(runPath, planPath, run5);
-  await validateStatePredecessorChain(run5, runPath, { production, planPath });
-  validateRunPlanDigest(run5, plan, { planPath });
-  if (run5.command === "publish") return;
-  if (!["reconcile", "verify"].includes(run5.command)) {
-    throw new ReleaseError(GATE_FAILED, `unsupported run command in lineage: ${run5.command}`);
+  validateRun(run6, { requireDigest: production });
+  if (production) assertImmutableRunAuthority(runPath, planPath, run6);
+  await validateStatePredecessorChain(run6, runPath, { production, planPath });
+  validateRunPlanDigest(run6, plan, { planPath });
+  if (run6.command === "publish") return;
+  if (!["reconcile", "verify"].includes(run6.command)) {
+    throw new ReleaseError(GATE_FAILED, `unsupported run command in lineage: ${run6.command}`);
   }
-  if (!run5.sourceRunPath || !run5.sourceRunId || !run5.sourceRunDigest) {
-    throw new ReleaseError(GATE_FAILED, `${run5.command} run is missing complete source run lineage`);
+  if (!run6.sourceRunPath || !run6.sourceRunId || !run6.sourceRunDigest) {
+    throw new ReleaseError(GATE_FAILED, `${run6.command} run is missing complete source run lineage`);
   }
-  const parent = await loadRun(run5.sourceRunPath, {
+  const parent = await loadRun(run6.sourceRunPath, {
     requireDigest: true,
     ...production ? { authorityPlanPath: planPath } : {}
   });
-  if (parent.runId !== run5.sourceRunId || parent.runDigest !== run5.sourceRunDigest) {
+  if (parent.runId !== run6.sourceRunId || parent.runDigest !== run6.sourceRunDigest) {
     throw new ReleaseError(
       GATE_FAILED,
       "source run lineage id/digest does not match referenced immutable run bytes",
-      { sourceRunPath: run5.sourceRunPath }
+      { sourceRunPath: run6.sourceRunPath }
     );
   }
-  validateSourceRunEdge(run5, parent);
+  validateSourceRunEdge(run6, parent);
   await validateRunLineage(parent, {
     plan,
     planPath,
-    runPath: run5.sourceRunPath,
+    runPath: run6.sourceRunPath,
     production,
     maxDepth: maxDepth - 1
   });
 }
-function validateRunPlanDigest(run5, plan, options = {}) {
+function validateRunPlanDigest(run6, plan, options = {}) {
   const requirePresence = options.requirePresence !== false;
   const expectedDigest = computePlanDigest(plan);
   if (options.planPath) assertImmutablePlanAuthority(options.planPath, plan);
-  if (!run5.planDigest) {
+  if (!run6.planDigest) {
     if (requirePresence) {
       throw new ReleaseError(
         GATE_FAILED,
         "source run is missing required planDigest field",
-        { runId: run5.runId }
+        { runId: run6.runId }
       );
     }
     return;
   }
-  if (run5.planDigest !== expectedDigest) {
+  if (run6.planDigest !== expectedDigest) {
     throw new ReleaseError(
       GATE_FAILED,
-      `run planDigest mismatch: run says ${String(run5.planDigest).slice(0, 16)}..., plan is ${expectedDigest.slice(0, 16)}...`,
-      { runDigest: run5.planDigest, planDigest: expectedDigest }
+      `run planDigest mismatch: run says ${String(run6.planDigest).slice(0, 16)}..., plan is ${expectedDigest.slice(0, 16)}...`,
+      { runDigest: run6.planDigest, planDigest: expectedDigest }
     );
   }
-  if (plan.production && run5.planPath && options.planPath && resolve20(run5.planPath) !== resolve20(options.planPath)) {
+  if (plan.production && run6.planPath && options.planPath && resolve21(run6.planPath) !== resolve21(options.planPath)) {
     throw new ReleaseError(
       GATE_FAILED,
       "source run immutable plan path does not match the supplied plan authority",
-      { runPlanPath: run5.planPath, suppliedPlanPath: options.planPath }
+      { runPlanPath: run6.planPath, suppliedPlanPath: options.planPath }
     );
   }
 }
-function validateRunCheckpointMapping(run5, planActions) {
+function validateRunCheckpointMapping(run6, planActions) {
   const seenPlanActionIds = /* @__PURE__ */ new Set();
   for (const action of planActions) {
     if (seenPlanActionIds.has(action.id)) {
@@ -86857,17 +88702,17 @@ function validateRunCheckpointMapping(run5, planActions) {
   const planActionIds = new Set(planActions.map((a) => a.id));
   const planActionsById = new Map(planActions.map((action) => [action.id, action]));
   const seenCheckpointIds = /* @__PURE__ */ new Set();
-  for (const cp2 of run5.checkpoints) {
-    if (seenCheckpointIds.has(cp2.actionId)) {
+  for (const cp3 of run6.checkpoints) {
+    if (seenCheckpointIds.has(cp3.actionId)) {
       throw new ReleaseError(
         GATE_FAILED,
-        `source run has duplicate checkpoint for action "${cp2.actionId}"`,
-        { actionId: cp2.actionId }
+        `source run has duplicate checkpoint for action "${cp3.actionId}"`,
+        { actionId: cp3.actionId }
       );
     }
-    seenCheckpointIds.add(cp2.actionId);
+    seenCheckpointIds.add(cp3.actionId);
   }
-  const runCheckpointIds = new Set(run5.checkpoints.map((cp2) => cp2.actionId));
+  const runCheckpointIds = new Set(run6.checkpoints.map((cp3) => cp3.actionId));
   for (const action of planActions) {
     if (!runCheckpointIds.has(action.id)) {
       throw new ReleaseError(
@@ -86877,36 +88722,36 @@ function validateRunCheckpointMapping(run5, planActions) {
       );
     }
   }
-  for (const cp2 of run5.checkpoints) {
-    if (!planActionIds.has(cp2.actionId)) {
+  for (const cp3 of run6.checkpoints) {
+    if (!planActionIds.has(cp3.actionId)) {
       throw new ReleaseError(
         GATE_FAILED,
-        `source run has checkpoint for unknown action "${cp2.actionId}"`,
-        { actionId: cp2.actionId }
+        `source run has checkpoint for unknown action "${cp3.actionId}"`,
+        { actionId: cp3.actionId }
       );
     }
-    const action = planActionsById.get(cp2.actionId);
-    if (cp2.actionType !== action.type) {
+    const action = planActionsById.get(cp3.actionId);
+    if (cp3.actionType !== action.type) {
       throw new ReleaseError(
         GATE_FAILED,
-        `source run checkpoint actionType mismatch for action "${cp2.actionId}": run says "${cp2.actionType}", plan says "${action.type}"`,
-        { actionId: cp2.actionId, runActionType: cp2.actionType, planActionType: action.type }
+        `source run checkpoint actionType mismatch for action "${cp3.actionId}": run says "${cp3.actionType}", plan says "${action.type}"`,
+        { actionId: cp3.actionId, runActionType: cp3.actionType, planActionType: action.type }
       );
     }
   }
 }
-function computeRunDigest(run5) {
-  const { runDigest: _, ...rest } = run5;
+function computeRunDigest(run6) {
+  const { runDigest: _, ...rest } = run6;
   return sha256Hex(JSON.stringify(rest, null, 2));
 }
-function sealRun(run5) {
-  const sealed = { ...run5 };
+function sealRun(run6) {
+  const sealed = { ...run6 };
   sealed.runDigest = computeRunDigest(sealed);
   validateRun(sealed, { requireDigest: true });
   return sealed;
 }
-async function writeRunAtomic(runPath, run5) {
-  const sealed = sealRun(run5);
+async function writeRunAtomic(runPath, run6) {
+  const sealed = sealRun(run6);
   const json = JSON.stringify(sealed, null, 2);
   const dir = dirname10(runPath);
   await mkdir12(dir, { recursive: true });
@@ -86930,16 +88775,16 @@ async function writeRunAtomic(runPath, run5) {
   }
   return Object.freeze(sealed);
 }
-async function appendRunState(runDir, sequence, run5) {
+async function appendRunState(runDir, sequence, run6) {
   if (!Number.isSafeInteger(sequence) || sequence < 0) {
     throw new ReleaseError(GATE_FAILED, "run state sequence must be a non-negative integer");
   }
-  const statesDir = join18(runDir, "states");
+  const statesDir = join19(runDir, "states");
   let previousStateDigest;
   if (sequence > 0) {
-    const previousPath = join18(statesDir, `${String(sequence - 1).padStart(6, "0")}.json`);
+    const previousPath = join19(statesDir, `${String(sequence - 1).padStart(6, "0")}.json`);
     const previous = await loadRun(previousPath, { requireDigest: true });
-    if (previous.stateSequence !== sequence - 1 || previous.runId !== run5.runId || previous.command !== run5.command || previous.planDigest !== run5.planDigest) {
+    if (previous.stateSequence !== sequence - 1 || previous.runId !== run6.runId || previous.command !== run6.command || previous.planDigest !== run6.planDigest) {
       throw new ReleaseError(
         GATE_FAILED,
         "run state predecessor does not belong to the same monotonic authority chain",
@@ -86948,13 +88793,13 @@ async function appendRunState(runDir, sequence, run5) {
     }
     previousStateDigest = previous.runDigest;
   }
-  const { previousStateDigest: _discarded, ...nextRun } = run5;
+  const { previousStateDigest: _discarded, ...nextRun } = run6;
   const state = sealRun({
     ...nextRun,
     stateSequence: sequence,
     ...previousStateDigest ? { previousStateDigest } : {}
   });
-  const statePath = join18(statesDir, `${String(sequence).padStart(6, "0")}.json`);
+  const statePath = join19(statesDir, `${String(sequence).padStart(6, "0")}.json`);
   await writeRunAtomic(statePath, state);
   return Object.freeze({ state, statePath });
 }
@@ -86976,6 +88821,7 @@ var init_run = __esm({
     (0, import_ajv_formats4.default)(ajv4);
     validateRunSchema = ajv4.compile(RELEASE_RUN_SCHEMA);
     __name(validateRun, "validateRun");
+    __name(resolveRunPath, "resolveRunPath");
     __name(loadRun, "loadRun");
     __name(assertImmutableRunAuthority, "assertImmutableRunAuthority");
     __name(createProductionRunDir, "createProductionRunDir");
@@ -87005,10 +88851,10 @@ __export(plugin_marketplace_exports, {
   validateMarketplaceSourceSelection: () => validateMarketplaceSourceSelection,
   verifyInstalledMarketplacePayload: () => verifyInstalledMarketplacePayload
 });
-import { execFile as execFileCb8 } from "node:child_process";
-import { promisify as promisify8 } from "node:util";
-import { readFile as readFile21, stat as stat5, mkdir as mkdir13, readdir as readdir13, realpath as realpath16, lstat as lstat20 } from "node:fs/promises";
-import { join as join19, resolve as resolve21, relative as relative19, isAbsolute as isAbsolute16, basename as basename6 } from "node:path";
+import { execFile as execFileCb9 } from "node:child_process";
+import { promisify as promisify9 } from "node:util";
+import { readFile as readFile21, stat as stat7, mkdir as mkdir13, readdir as readdir13, realpath as realpath17, lstat as lstat21 } from "node:fs/promises";
+import { join as join20, resolve as resolve22, relative as relative19, isAbsolute as isAbsolute17, basename as basename6 } from "node:path";
 import { createHash as createHash15 } from "node:crypto";
 function transportPayload(entries) {
   return entries.map(({ path: path15, type, mode, size, contentDigest }) => ({
@@ -87076,20 +88922,20 @@ async function resolvePluginManifestFromMarketplaceEntrySource(marketIndex, plug
   }
   const entry = matches[0];
   const sourcePath = extractDeclaredPluginSource(platform.id, entry);
-  const snapshotDirReal = await realpath16(snapshotDir).catch(() => snapshotDir);
-  const marketplaceRootAbs = marketplaceRootRel === "." ? snapshotDirReal : resolve21(snapshotDirReal, marketplaceRootRel);
-  const pluginRootAbs = resolve21(marketplaceRootAbs, sourcePath);
-  const pluginRootReal = await realpath16(pluginRootAbs).catch(() => null);
+  const snapshotDirReal = await realpath17(snapshotDir).catch(() => snapshotDir);
+  const marketplaceRootAbs = marketplaceRootRel === "." ? snapshotDirReal : resolve22(snapshotDirReal, marketplaceRootRel);
+  const pluginRootAbs = resolve22(marketplaceRootAbs, sourcePath);
+  const pluginRootReal = await realpath17(pluginRootAbs).catch(() => null);
   if (!pluginRootReal) {
     throw new Error(`marketplace plugin entry source "${sourcePath}" does not exist in snapshot`);
   }
   const containment = relative19(snapshotDirReal, pluginRootReal);
   const sep7 = process.platform === "win32" ? "\\" : "/";
-  if (containment !== "" && (isAbsolute16(containment) || containment === ".." || containment.startsWith(`..${sep7}`))) {
+  if (containment !== "" && (isAbsolute17(containment) || containment === ".." || containment.startsWith(`..${sep7}`))) {
     throw new Error(`marketplace plugin entry source "${sourcePath}" escapes the snapshot after symlink resolution`);
   }
   const manifestRelative = platform.manifestPaths.plugin;
-  const manifestAbs = resolve21(pluginRootReal, manifestRelative);
+  const manifestAbs = resolve22(pluginRootReal, manifestRelative);
   const pluginRootRelToSnapshot = relative19(snapshotDirReal, pluginRootReal);
   const fullManifestRelative = pluginRootRelToSnapshot === "" ? manifestRelative : `${pluginRootRelToSnapshot}/${manifestRelative}`;
   let raw;
@@ -87125,7 +88971,7 @@ async function validateInstallationContractDigest(action, snapshotDirReal, platf
     includeMarketplaceEntry = hasMarketplacePath;
     if (includeMarketplaceEntry) {
       marketplaceIndexRelative = action.marketplaceIndexPath ?? platform.manifestPaths.marketplace;
-      const marketplacePath = resolve21(snapshotDirReal, marketplaceIndexRelative);
+      const marketplacePath = resolve22(snapshotDirReal, marketplaceIndexRelative);
       const mkResult = await validateManifestFile(marketplacePath, ["name", "plugins"]);
       if (!mkResult.valid) {
         return { valid: false, error: `installationContractDigest \u9A8C\u8BC1\u5931\u8D25\uFF1A\u5E02\u573A\u7D22\u5F15\u8BFB\u53D6\u5931\u8D25\uFF1A${mkResult.error}` };
@@ -87171,7 +89017,7 @@ async function validateInstallationContractDigest(action, snapshotDirReal, platf
     pluginManifestRelative = readResult.manifestRelative ?? platform.manifestPaths.plugin;
   } else {
     pluginManifestRelative = platform.manifestPaths.plugin;
-    const pluginManifestPath = resolve21(snapshotDirReal, pluginManifestRelative);
+    const pluginManifestPath = resolve22(snapshotDirReal, pluginManifestRelative);
     const manifestResult = await validateManifestFile(pluginManifestPath, ["name", "version"]);
     if (!manifestResult.valid) {
       return { valid: false, error: `installationContractDigest \u9A8C\u8BC1\u5931\u8D25\uFF1A\u63D2\u4EF6 manifest \u8BFB\u53D6\u5931\u8D25\uFF1A${manifestResult.error}` };
@@ -87208,7 +89054,7 @@ async function resolveInstalledPayloadSubpath(snapshotDir, sourceEntries, action
   if (!anchored) {
     throw new Error(`frozen snapshot is missing the marketplace manifest ${marketplaceRelative}`);
   }
-  const result = await validateManifestFile(resolve21(snapshotDir, marketplaceRelative), ["name", "plugins"]);
+  const result = await validateManifestFile(resolve22(snapshotDir, marketplaceRelative), ["name", "plugins"]);
   if (!result.valid) {
     throw new Error(`frozen snapshot ${marketplaceRelative} invalid: ${result.error}`);
   }
@@ -87322,24 +89168,24 @@ async function resolveKimiEntrySkillFile(pluginRootReal, manifest, entrySkill) {
   }
   let entryAbs;
   if (manifest.skills === void 0 || manifest.skills === null) {
-    entryAbs = resolve21(pluginRootReal, "SKILL.md");
+    entryAbs = resolve22(pluginRootReal, "SKILL.md");
   } else {
     const skillsRel = normalizeKimiSkillsRel(manifest.skills);
-    const skillsRootAbs = skillsRel === "" ? pluginRootReal : resolve21(pluginRootReal, skillsRel);
-    const skillsRootReal = await realpath16(skillsRootAbs).catch(() => null);
+    const skillsRootAbs = skillsRel === "" ? pluginRootReal : resolve22(pluginRootReal, skillsRel);
+    const skillsRootReal = await realpath17(skillsRootAbs).catch(() => null);
     if (!skillsRootReal) {
       throw new Error(`kimi manifest skills root does not exist: ${manifest.skills}`);
     }
     const skillsContainment = relative19(pluginRootReal, skillsRootReal);
     const sepK = process.platform === "win32" ? "\\" : "/";
-    if (skillsContainment !== "" && (isAbsolute16(skillsContainment) || skillsContainment === ".." || skillsContainment.startsWith(`..${sepK}`))) {
+    if (skillsContainment !== "" && (isAbsolute17(skillsContainment) || skillsContainment === ".." || skillsContainment.startsWith(`..${sepK}`))) {
       throw new Error(`kimi manifest skills "${manifest.skills}" escapes the plugin root after symlink resolution`);
     }
-    entryAbs = resolve21(skillsRootReal, entrySkill, "SKILL.md");
+    entryAbs = resolve22(skillsRootReal, entrySkill, "SKILL.md");
   }
   let entryLexicalStat;
   try {
-    entryLexicalStat = await lstat20(entryAbs);
+    entryLexicalStat = await lstat21(entryAbs);
   } catch {
     throw new Error(`kimi entry skill not found: ${relative19(pluginRootReal, entryAbs) || "SKILL.md"}`);
   }
@@ -87349,13 +89195,13 @@ async function resolveKimiEntrySkillFile(pluginRootReal, manifest, entrySkill) {
   if (!entryLexicalStat.isFile()) {
     throw new Error("kimi entry skill is not a regular file");
   }
-  const entryReal = await realpath16(entryAbs).catch(() => null);
+  const entryReal = await realpath17(entryAbs).catch(() => null);
   if (!entryReal) {
     throw new Error(`kimi entry skill not found: ${relative19(pluginRootReal, entryAbs) || "SKILL.md"}`);
   }
   const entryContainment = relative19(pluginRootReal, entryReal);
   const sepE = process.platform === "win32" ? "\\" : "/";
-  if (entryContainment !== "" && (isAbsolute16(entryContainment) || entryContainment === ".." || entryContainment.startsWith(`..${sepE}`))) {
+  if (entryContainment !== "" && (isAbsolute17(entryContainment) || entryContainment === ".." || entryContainment.startsWith(`..${sepE}`))) {
     throw new Error("kimi entry skill escapes the plugin root after symlink resolution");
   }
   return entryReal;
@@ -87393,24 +89239,24 @@ async function resolveCodeBuddyEntrySkillFile(pluginRootReal, manifest, entrySki
   }
   let entryAbs;
   if (manifest.skills === void 0 || manifest.skills === null) {
-    entryAbs = resolve21(pluginRootReal, "SKILL.md");
+    entryAbs = resolve22(pluginRootReal, "SKILL.md");
   } else {
     const skillsRel = normalizeCodeBuddySkillsRel(manifest.skills);
-    const skillsRootAbs = skillsRel === "" ? pluginRootReal : resolve21(pluginRootReal, skillsRel);
-    const skillsRootReal = await realpath16(skillsRootAbs).catch(() => null);
+    const skillsRootAbs = skillsRel === "" ? pluginRootReal : resolve22(pluginRootReal, skillsRel);
+    const skillsRootReal = await realpath17(skillsRootAbs).catch(() => null);
     if (!skillsRootReal) {
       throw new Error(`codebuddy manifest skills root does not exist: ${manifest.skills}`);
     }
     const skillsContainment = relative19(pluginRootReal, skillsRootReal);
     const sepK = process.platform === "win32" ? "\\" : "/";
-    if (skillsContainment !== "" && (isAbsolute16(skillsContainment) || skillsContainment === ".." || skillsContainment.startsWith(`..${sepK}`))) {
+    if (skillsContainment !== "" && (isAbsolute17(skillsContainment) || skillsContainment === ".." || skillsContainment.startsWith(`..${sepK}`))) {
       throw new Error(`codebuddy manifest skills "${manifest.skills}" escapes the plugin root after symlink resolution`);
     }
-    entryAbs = resolve21(skillsRootReal, entrySkill, "SKILL.md");
+    entryAbs = resolve22(skillsRootReal, entrySkill, "SKILL.md");
   }
   let entryLexicalStat;
   try {
-    entryLexicalStat = await lstat20(entryAbs);
+    entryLexicalStat = await lstat21(entryAbs);
   } catch {
     throw new Error(`codebuddy entry skill not found: ${relative19(pluginRootReal, entryAbs) || "SKILL.md"}`);
   }
@@ -87420,13 +89266,13 @@ async function resolveCodeBuddyEntrySkillFile(pluginRootReal, manifest, entrySki
   if (!entryLexicalStat.isFile()) {
     throw new Error("codebuddy entry skill is not a regular file");
   }
-  const entryReal = await realpath16(entryAbs).catch(() => null);
+  const entryReal = await realpath17(entryAbs).catch(() => null);
   if (!entryReal) {
     throw new Error(`codebuddy entry skill not found: ${relative19(pluginRootReal, entryAbs) || "SKILL.md"}`);
   }
   const entryContainment = relative19(pluginRootReal, entryReal);
   const sepE = process.platform === "win32" ? "\\" : "/";
-  if (entryContainment !== "" && (isAbsolute16(entryContainment) || entryContainment === ".." || entryContainment.startsWith(`..${sepE}`))) {
+  if (entryContainment !== "" && (isAbsolute17(entryContainment) || entryContainment === ".." || entryContainment.startsWith(`..${sepE}`))) {
     throw new Error("codebuddy entry skill escapes the plugin root after symlink resolution");
   }
   return entryReal;
@@ -87565,7 +89411,7 @@ async function checkRequiredFiles(dir, requiredFiles) {
   const missing = [];
   for (const file of requiredFiles) {
     try {
-      await stat5(resolve21(dir, file));
+      await stat7(resolve22(dir, file));
     } catch {
       missing.push(file);
     }
@@ -87661,7 +89507,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
           try {
-            const s = await stat5(pluginDir);
+            const s = await stat7(pluginDir);
             if (!s.isDirectory()) {
               return createResult({
                 actionType,
@@ -88292,7 +90138,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
                 });
               }
               const externalManifestRelative = platform.manifestPaths.plugin;
-              const externalManifestPath = resolve21(snapshotDirReal, externalManifestRelative);
+              const externalManifestPath = resolve22(snapshotDirReal, externalManifestRelative);
               const externalManifestResult = await validateManifestFile(externalManifestPath, ["name", "version"]);
               if (!externalManifestResult.valid) {
                 return createResult({
@@ -88327,7 +90173,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
                   error: `marketplace root resolution failed: ${mktRootErr.message}`
                 });
               }
-              const marketplacePath = resolve21(snapshotDirReal, marketplaceRelative);
+              const marketplacePath = resolve22(snapshotDirReal, marketplaceRelative);
               const marketplaceResult = await validateManifestFile(marketplacePath, ["name"]);
               if (!marketplaceResult.valid) {
                 return createResult({
@@ -88370,9 +90216,9 @@ function createPluginMarketplaceAdapter(deps = {}) {
                   error: sourceErr.message
                 });
               }
-              const mktRootAbs = mktRoot === "." ? snapshotDirReal : resolve21(snapshotDirReal, mktRoot);
-              const sourceDirAbs = resolve21(mktRootAbs, sourcePath);
-              sourceDirReal = await realpath16(sourceDirAbs).catch(() => null);
+              const mktRootAbs = mktRoot === "." ? snapshotDirReal : resolve22(snapshotDirReal, mktRoot);
+              const sourceDirAbs = resolve22(mktRootAbs, sourcePath);
+              sourceDirReal = await realpath17(sourceDirAbs).catch(() => null);
               if (!sourceDirReal) {
                 return createResult({
                   actionType,
@@ -88381,7 +90227,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
                 });
               }
               const sourceRelCheck = relative19(snapshotDirReal, sourceDirReal);
-              if (sourceRelCheck.startsWith("..") || isAbsolute16(sourceRelCheck)) {
+              if (sourceRelCheck.startsWith("..") || isAbsolute17(sourceRelCheck)) {
                 return createResult({
                   actionType,
                   status: ActionStatus.PREFLIGHT_FAILED,
@@ -88391,7 +90237,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
               pluginRootForEntrySkill = sourceDirReal;
               const pluginRootRelToSnapshot = relative19(snapshotDirReal, sourceDirReal) || ".";
               const manifestRelative = pluginRootRelToSnapshot === "." ? platform.manifestPaths.plugin : `${pluginRootRelToSnapshot}/${platform.manifestPaths.plugin}`;
-              const manifestPath = resolve21(snapshotDirReal, manifestRelative);
+              const manifestPath = resolve22(snapshotDirReal, manifestRelative);
               const manifestResult = await validateManifestFile(manifestPath, ["name", "version"]);
               if (!manifestResult.valid) {
                 return createResult({
@@ -88444,21 +90290,21 @@ function createPluginMarketplaceAdapter(deps = {}) {
             }
           } else {
             const pluginRootForSkill = pluginRootForEntrySkill || snapshotDirReal;
-            let entrySkillFile = resolve21(pluginRootForSkill, "skills", action.entrySkill, "SKILL.md");
+            let entrySkillFile = resolve22(pluginRootForSkill, "skills", action.entrySkill, "SKILL.md");
             let entrySkillExists = false;
             try {
-              await stat5(entrySkillFile);
+              await stat7(entrySkillFile);
               entrySkillExists = true;
             } catch {
               if (action.plugin) {
-                const prefixed = resolve21(
+                const prefixed = resolve22(
                   pluginRootForSkill,
                   "skills",
                   `${action.plugin}-${action.entrySkill}`,
                   "SKILL.md"
                 );
                 try {
-                  await stat5(prefixed);
+                  await stat7(prefixed);
                   entrySkillFile = prefixed;
                   entrySkillExists = true;
                 } catch {
@@ -88588,7 +90434,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
           }
           if (action.entryPoint) {
             try {
-              await exec(process.execPath, ["--check", resolve21(pluginDir, action.entryPoint)]);
+              await exec(process.execPath, ["--check", resolve22(pluginDir, action.entryPoint)]);
             } catch (checkErr) {
               return createResult({
                 actionType,
@@ -88646,12 +90492,12 @@ function createPluginMarketplaceAdapter(deps = {}) {
           }
           const consumer = action.consumer;
           const runDir = context.runDir;
-          const isolatedHome = resolve21(runDir, "consumers", `${consumer}-${action.plugin}`);
-          const runDirReal = await realpath16(runDir).catch(() => runDir);
-          const isolatedHomePreReal = await realpath16(isolatedHome).catch(() => isolatedHome);
+          const isolatedHome = resolve22(runDir, "consumers", `${consumer}-${action.plugin}`);
+          const runDirReal = await realpath17(runDir).catch(() => runDir);
+          const isolatedHomePreReal = await realpath17(isolatedHome).catch(() => isolatedHome);
           const relToRun = relative19(runDirReal, isolatedHomePreReal);
           const sepE = process.platform === "win32" ? "\\" : "/";
-          if (relToRun !== "" && (isAbsolute16(relToRun) || relToRun === ".." || relToRun.startsWith(`..${sepE}`))) {
+          if (relToRun !== "" && (isAbsolute17(relToRun) || relToRun === ".." || relToRun.startsWith(`..${sepE}`))) {
             return createResult({
               actionType,
               status: ActionStatus.EXECUTE_FAILED,
@@ -88660,7 +90506,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
           }
           await mkdir13(isolatedHome, { recursive: true, mode: 448 });
           for (const subdir of platform.isolationSubdirs) {
-            await mkdir13(resolve21(isolatedHome, subdir), { recursive: true, mode: 448 });
+            await mkdir13(resolve22(isolatedHome, subdir), { recursive: true, mode: 448 });
           }
           const cliCmd = platform.cli.binary;
           const baseEnv = { ...process.env, ...context.env };
@@ -88757,9 +90603,9 @@ function createPluginMarketplaceAdapter(deps = {}) {
                         error: `plugin install JSON missing installedPath`
                       });
                     }
-                    const installPathAbs = resolve21(installFields.installedPath);
+                    const installPathAbs = resolve22(installFields.installedPath);
                     const installPathRel = relative19(isolatedHome, installPathAbs);
-                    if (isAbsolute16(installPathRel) || installPathRel === ".." || installPathRel.startsWith(`..${sepE}`)) {
+                    if (isAbsolute17(installPathRel) || installPathRel === ".." || installPathRel.startsWith(`..${sepE}`)) {
                       return createResult({
                         actionType,
                         status: ActionStatus.EXECUTE_FAILED,
@@ -88820,9 +90666,9 @@ function createPluginMarketplaceAdapter(deps = {}) {
             executedAt: (/* @__PURE__ */ new Date()).toISOString(),
             ...extraInstalledPathsAudit(executeBinding)
           };
-          const evidenceDir = resolve21(runDir, "evidence", `${consumer}-${action.plugin}`);
+          const evidenceDir = resolve22(runDir, "evidence", `${consumer}-${action.plugin}`);
           await mkdir13(evidenceDir, { recursive: true, mode: 448 });
-          const evidencePath = resolve21(evidenceDir, "release-skill-install-evidence.json");
+          const evidencePath = resolve22(evidenceDir, "release-skill-install-evidence.json");
           await writeEvidenceAtomic(evidencePath, evidence);
           const executeObservation = {
             ...evidence,
@@ -88918,7 +90764,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
               observation: { installed: false, error: "context.runDir is required" }
             });
           }
-          const isolatedHome = resolve21(runDir, "consumers", `${consumer}-${action.plugin}`);
+          const isolatedHome = resolve22(runDir, "consumers", `${consumer}-${action.plugin}`);
           const platform = PLATFORMS.find((p) => p.id === consumer) ?? null;
           if (!platform) {
             throw new Error(
@@ -88970,7 +90816,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
             }
             let requirement = null;
             try {
-              requirement = JSON.parse(await readFile21(resolve21(attestationDir, KIMI_REQUIREMENT_FILE), "utf8"));
+              requirement = JSON.parse(await readFile21(resolve22(attestationDir, KIMI_REQUIREMENT_FILE), "utf8"));
             } catch {
               return createResult({
                 actionType,
@@ -88994,7 +90840,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
             }
             let attestation = null;
             try {
-              attestation = JSON.parse(await readFile21(resolve21(attestationDir, KIMI_ATTESTATION_FILE), "utf8"));
+              attestation = JSON.parse(await readFile21(resolve22(attestationDir, KIMI_ATTESTATION_FILE), "utf8"));
             } catch {
               return createResult({
                 actionType,
@@ -89004,7 +90850,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
                   manualInstallRequired: true,
                   installUrl: requirement.installUrl,
                   attestationDir,
-                  error: `kimi attestation is missing; write ${resolve21(attestationDir, KIMI_ATTESTATION_FILE)} after the interactive install (${requirement.installUrl})`
+                  error: `kimi attestation is missing; write ${resolve22(attestationDir, KIMI_ATTESTATION_FILE)} after the interactive install (${requirement.installUrl})`
                 }
               });
             }
@@ -89046,10 +90892,10 @@ function createPluginMarketplaceAdapter(deps = {}) {
             }
             let verifiedInstallPath = null;
             if (normalizedAttestation.installPath) {
-              const installPathAbs = resolve21(normalizedAttestation.installPath);
+              const installPathAbs = resolve22(normalizedAttestation.installPath);
               let lexicalStat;
               try {
-                lexicalStat = await lstat20(installPathAbs);
+                lexicalStat = await lstat21(installPathAbs);
               } catch {
                 return createResult({
                   actionType,
@@ -89070,7 +90916,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
                   }
                 });
               }
-              const installPathReal2 = await realpath16(installPathAbs).catch(() => null);
+              const installPathReal2 = await realpath17(installPathAbs).catch(() => null);
               if (!installPathReal2) {
                 return createResult({
                   actionType,
@@ -89161,7 +91007,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
             }
             let requirement = null;
             try {
-              requirement = JSON.parse(await readFile21(resolve21(attestationDir, CODEBUDDY_REQUIREMENT_FILE), "utf8"));
+              requirement = JSON.parse(await readFile21(resolve22(attestationDir, CODEBUDDY_REQUIREMENT_FILE), "utf8"));
             } catch {
               return createResult({
                 actionType,
@@ -89185,7 +91031,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
             }
             let attestation = null;
             try {
-              attestation = JSON.parse(await readFile21(resolve21(attestationDir, CODEBUDDY_ATTESTATION_FILE), "utf8"));
+              attestation = JSON.parse(await readFile21(resolve22(attestationDir, CODEBUDDY_ATTESTATION_FILE), "utf8"));
             } catch {
               const marketplaceSource = resolveCodeBuddyMarketplaceSource(action);
               return createResult({
@@ -89196,7 +91042,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
                   manualInstallRequired: true,
                   ...marketplaceSource ? { marketplaceSource } : {},
                   attestationDir,
-                  error: `codebuddy attestation is missing; write ${resolve21(attestationDir, CODEBUDDY_ATTESTATION_FILE)} after the manual install${marketplaceSource ? ` (marketplace ${marketplaceSource})` : ""}`
+                  error: `codebuddy attestation is missing; write ${resolve22(attestationDir, CODEBUDDY_ATTESTATION_FILE)} after the manual install${marketplaceSource ? ` (marketplace ${marketplaceSource})` : ""}`
                 }
               });
             }
@@ -89270,10 +91116,10 @@ function createPluginMarketplaceAdapter(deps = {}) {
                   }
                 });
               }
-              const installPathAbs = resolve21(normalizedAttestation.installPath);
+              const installPathAbs = resolve22(normalizedAttestation.installPath);
               let lexicalStat;
               try {
-                lexicalStat = await lstat20(installPathAbs);
+                lexicalStat = await lstat21(installPathAbs);
               } catch {
                 return createResult({
                   actionType,
@@ -89294,7 +91140,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
                   }
                 });
               }
-              verifiedInstallPath = await realpath16(installPathAbs);
+              verifiedInstallPath = await realpath17(installPathAbs);
             }
             return createResult({
               actionType,
@@ -89334,13 +91180,13 @@ function createPluginMarketplaceAdapter(deps = {}) {
               if (codexAttestationDir) {
                 let codexRequirement = null;
                 try {
-                  codexRequirement = JSON.parse(await readFile21(resolve21(codexAttestationDir, CODEX_REQUIREMENT_FILE), "utf8"));
+                  codexRequirement = JSON.parse(await readFile21(resolve22(codexAttestationDir, CODEX_REQUIREMENT_FILE), "utf8"));
                 } catch {
                 }
                 if (codexRequirement && codexRequirement.planDigest === codexBoundPlanDigest && codexRequirement.plugin === action.plugin && codexRequirement.version === action.version && codexRequirement.repo === action.repo && codexRequirement.ref === (action.ref ?? `v${action.version}`) && (!action.entrySkill || codexRequirement.entrySkill === action.entrySkill)) {
                   let codexAttestation = null;
                   try {
-                    codexAttestation = JSON.parse(await readFile21(resolve21(codexAttestationDir, CODEX_ATTESTATION_FILE), "utf8"));
+                    codexAttestation = JSON.parse(await readFile21(resolve22(codexAttestationDir, CODEX_ATTESTATION_FILE), "utf8"));
                   } catch {
                   }
                   if (codexAttestation) {
@@ -89395,7 +91241,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
           }
           let evidence = null;
           try {
-            const evidenceRaw = await readFile21(resolve21(runDir, "evidence", `${consumer}-${action.plugin}`, "release-skill-install-evidence.json"), "utf8");
+            const evidenceRaw = await readFile21(resolve22(runDir, "evidence", `${consumer}-${action.plugin}`, "release-skill-install-evidence.json"), "utf8");
             evidence = JSON.parse(evidenceRaw);
           } catch {
             return createResult({
@@ -89478,11 +91324,11 @@ function createPluginMarketplaceAdapter(deps = {}) {
               }
             }
           }
-          const isolatedHomeReal = await realpath16(isolatedHome).catch(() => isolatedHome);
-          const installPathReal = await realpath16(installPath).catch(() => installPath);
+          const isolatedHomeReal = await realpath17(isolatedHome).catch(() => isolatedHome);
+          const installPathReal = await realpath17(installPath).catch(() => installPath);
           const relToHome = relative19(isolatedHomeReal, installPathReal);
           const sep7 = process.platform === "win32" ? "\\" : "/";
-          if (relToHome !== "" && (isAbsolute16(relToHome) || relToHome === ".." || relToHome.startsWith(`..${sep7}`))) {
+          if (relToHome !== "" && (isAbsolute17(relToHome) || relToHome === ".." || relToHome.startsWith(`..${sep7}`))) {
             return createResult({
               actionType,
               status: ActionStatus.OBSERVED,
@@ -89492,24 +91338,24 @@ function createPluginMarketplaceAdapter(deps = {}) {
               }
             });
           }
-          let entrySkillPath = resolve21(installPath, "skills", action.entrySkill, "SKILL.md");
+          let entrySkillPath = resolve22(installPath, "skills", action.entrySkill, "SKILL.md");
           let entrySkillFound = false;
           try {
-            const skillStat = await lstat20(entrySkillPath);
+            const skillStat = await lstat21(entrySkillPath);
             if (skillStat.isFile() && !skillStat.isSymbolicLink()) {
               entrySkillFound = true;
             }
           } catch {
           }
           if (!entrySkillFound && action.plugin) {
-            const prefixedPath = resolve21(
+            const prefixedPath = resolve22(
               installPath,
               "skills",
               `${action.plugin}-${action.entrySkill}`,
               "SKILL.md"
             );
             try {
-              const skillStat = await lstat20(prefixedPath);
+              const skillStat = await lstat21(prefixedPath);
               if (skillStat.isFile() && !skillStat.isSymbolicLink()) {
                 entrySkillPath = prefixedPath;
                 entrySkillFound = true;
@@ -89577,7 +91423,7 @@ function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
           try {
-            const installedManifestPath = resolve21(installPath, platform.manifestPaths.plugin);
+            const installedManifestPath = resolve22(installPath, platform.manifestPaths.plugin);
             const installedManifestContent = await readFile21(installedManifestPath, "utf8");
             const installedManifest = JSON.parse(installedManifestContent);
             const expectedName = observation.plugin;
@@ -89707,7 +91553,7 @@ var init_plugin_marketplace = __esm({
     await init_kimi();
     init_codebuddy();
     init_codex();
-    execFile7 = promisify8(execFileCb8);
+    execFile7 = promisify9(execFileCb9);
     NAME2 = "plugin-marketplace";
     __name(transportPayload, "transportPayload");
     PAYLOAD_CONTRACT_DECLARED_MANIFEST = "declared-manifest-v1";
@@ -89759,258 +91605,9 @@ var init_plugin_marketplace = __esm({
   }
 });
 
-// src/core/postpublish.mjs
-function fail2(message, details = {}) {
-  throw new ReleaseError(GATE_FAILED, `postPublish declaration invalid: ${message}`, details);
-}
-function assertNoControlChars(label, value) {
-  if (/[\x00-\x1f\x7f]/.test(value)) {
-    fail2(`${label} contains control characters`, { label });
-  }
-}
-function validateHookCommand(where, hook) {
-  if (!hook || typeof hook !== "object" || Array.isArray(hook)) {
-    fail2(`${where} must be a non-null object`);
-  }
-  if (!Array.isArray(hook.command) || hook.command.length === 0) {
-    fail2(`${where}.command must be a non-empty array (shell strings are never accepted)`);
-  }
-  for (const element of hook.command) {
-    if (typeof element !== "string" || element.length === 0) {
-      fail2(`${where}.command must contain only non-empty strings`);
-    }
-    assertNoControlChars(`${where}.command`, element);
-    if (element.startsWith("-") && element === hook.command[0]) {
-      fail2(`${where}.command executable must not start with "-"`, { executable: element });
-    }
-  }
-  if (hook.cwd !== void 0) {
-    if (typeof hook.cwd !== "string" || hook.cwd.length === 0) {
-      fail2(`${where}.cwd must be a non-empty string when provided`);
-    }
-    if (hook.cwd.startsWith("/") || hook.cwd.startsWith("./") || hook.cwd.includes("..")) {
-      fail2(`${where}.cwd must be a relative path inside the execution root`, { cwd: hook.cwd });
-    }
-  }
-  if (hook.timeoutMs !== void 0) {
-    if (!Number.isInteger(hook.timeoutMs) || hook.timeoutMs < 1e3 || hook.timeoutMs > 72e5) {
-      fail2(`${where}.timeoutMs must be an integer in [1000, 7200000]`, { timeoutMs: hook.timeoutMs });
-    }
-  }
-  if (hook.envAllowlist !== void 0) {
-    if (!Array.isArray(hook.envAllowlist)) {
-      fail2(`${where}.envAllowlist must be an array`);
-    }
-    const seen = /* @__PURE__ */ new Set();
-    for (const key of hook.envAllowlist) {
-      if (typeof key !== "string" || !ENV_KEY_PATTERN3.test(key)) {
-        fail2(`${where}.envAllowlist key ${JSON.stringify(key)} must be an uppercase [A-Z_][A-Z0-9_]* identifier`);
-      }
-      if (ENV_ALLOWLIST_DENYLIST.test(key)) {
-        fail2(
-          `${where}.envAllowlist key "${key}" matches the secret-ish denylist (TOKEN/SECRET/PASSWORD/PASSPHRASE/API_KEY/CREDENTIAL); distribute never reads or forwards credentials`,
-          { key }
-        );
-      }
-      if (seen.has(key)) {
-        fail2(`${where}.envAllowlist contains duplicate key "${key}"`);
-      }
-      seen.add(key);
-    }
-  }
-}
-function validateTarget(target, index) {
-  const where = `targets[${index}]`;
-  if (!target || typeof target !== "object" || Array.isArray(target)) {
-    fail2(`${where} must be a non-null object`);
-  }
-  if (typeof target.id !== "string" || !SAFE_ID_RE2.test(target.id)) {
-    fail2(`${where}.id must match /^[a-z0-9][a-z0-9._-]*$/`, { id: target.id });
-  }
-  if (target.kind !== "payload-mirror" && target.kind !== "marketplace-index") {
-    fail2(`${where}.kind must be "payload-mirror" or "marketplace-index"`, { kind: target.kind });
-  }
-  if (typeof target.remoteUrl !== "string" || !REMOTE_URL_RE.test(target.remoteUrl)) {
-    fail2(`${where}.remoteUrl must be an http(s)/file URL ending in .git`, { remoteUrl: target.remoteUrl });
-  }
-  assertNoControlChars(`${where}.remoteUrl`, target.remoteUrl);
-  if (target.visibility !== "internal" && target.visibility !== "public") {
-    fail2(`${where}.visibility must be "internal" or "public"`, { visibility: target.visibility });
-  }
-  if (typeof target.branch !== "string" || !BRANCH_RE.test(target.branch)) {
-    fail2(`${where}.branch is not a safe Git branch name`, { branch: target.branch });
-  }
-  if (target.branch.includes("..") || target.branch.endsWith(".") || target.branch.endsWith(".lock")) {
-    fail2(`${where}.branch is not a safe Git branch name`, { branch: target.branch });
-  }
-  if (target.dependsOn !== void 0) {
-    if (typeof target.dependsOn !== "string" || !SAFE_ID_RE2.test(target.dependsOn)) {
-      fail2(`${where}.dependsOn must match /^[a-z0-9][a-z0-9._-]*$/`, { dependsOn: target.dependsOn });
-    }
-    if (target.dependsOn === target.id) {
-      fail2(`${where}.dependsOn references itself; dependency cycles are rejected`);
-    }
-  }
-  if (target.kind === "marketplace-index") {
-    if (!target.marketplace || typeof target.marketplace !== "object") {
-      fail2(`${where} is marketplace-index and must carry a marketplace block`);
-    }
-    const { form, name, owner } = target.marketplace;
-    if (form !== "github" && form !== "url") {
-      fail2(`${where}.marketplace.form must be "github" or "url"`, { form });
-    }
-    if (typeof name !== "string" || name.length === 0) {
-      fail2(`${where}.marketplace.name must be a non-empty string`);
-    }
-    if (typeof owner !== "string" || owner.length === 0) {
-      fail2(`${where}.marketplace.owner must be a non-empty string`);
-    }
-    if (target.marketplace.sourceRepo !== void 0 && (typeof target.marketplace.sourceRepo !== "string" || !/^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/.test(target.marketplace.sourceRepo))) {
-      fail2(`${where}.marketplace.sourceRepo must be owner/repo when provided`);
-    }
-  } else if (target.marketplace !== void 0) {
-    fail2(`${where} is payload-mirror and must not carry a marketplace block`);
-  }
-  if (target.staticFiles !== void 0) {
-    if (!Array.isArray(target.staticFiles)) {
-      fail2(`${where}.staticFiles must be an array`);
-    }
-    for (const [fileIndex, file] of target.staticFiles.entries()) {
-      for (const field of ["from", "to"]) {
-        const value = file?.[field];
-        if (typeof value !== "string" || value.length === 0) {
-          fail2(`${where}.staticFiles[${fileIndex}].${field} must be a non-empty string`);
-        }
-        if (value.startsWith("/") || value.startsWith("./") || value === "." || value.includes("..") || value.includes("\\") || value.includes(":")) {
-          fail2(`${where}.staticFiles[${fileIndex}].${field} is not a safe relative path`, { value });
-        }
-      }
-    }
-  }
-}
-function validatePostPublishDeclaration(postPublish, options = {}) {
-  const unitLabel = options.unitId ? `unit "${options.unitId}" ` : "";
-  if (!postPublish || typeof postPublish !== "object" || Array.isArray(postPublish)) {
-    fail2(`${unitLabel}postPublish must be a non-null object`);
-  }
-  validateHookCommand(`${unitLabel}materialize`, postPublish.materialize);
-  if (typeof postPublish.materialize.outputMarker !== "string" || postPublish.materialize.outputMarker.length === 0) {
-    fail2(`${unitLabel}materialize.outputMarker must be a non-empty string`);
-  }
-  assertNoControlChars(`${unitLabel}materialize.outputMarker`, postPublish.materialize.outputMarker);
-  if (postPublish.materialize.requireReport !== void 0) {
-    const { parse: parse2, equals } = postPublish.materialize.requireReport ?? {};
-    if (parse2 !== "stdout-first-json") {
-      fail2(`${unitLabel}materialize.requireReport.parse must be "stdout-first-json"`);
-    }
-    if (equals !== void 0 && (typeof equals !== "object" || Array.isArray(equals) || equals === null)) {
-      fail2(`${unitLabel}materialize.requireReport.equals must be a plain object`);
-    }
-  }
-  if (!Array.isArray(postPublish.targets) || postPublish.targets.length === 0) {
-    fail2(`${unitLabel}targets must be a non-empty array`);
-  }
-  const ids = /* @__PURE__ */ new Set();
-  postPublish.targets.forEach((target, index) => {
-    validateTarget(target, index);
-    if (ids.has(target.id)) {
-      fail2(`${unitLabel}duplicate target id "${target.id}"`);
-    }
-    ids.add(target.id);
-  });
-  const byId = new Map(postPublish.targets.map((target) => [target.id, target]));
-  for (const target of postPublish.targets) {
-    if (target.dependsOn === void 0) continue;
-    const dependency = byId.get(target.dependsOn);
-    if (!dependency) {
-      fail2(`${unitLabel}target "${target.id}" dependsOn unknown target "${target.dependsOn}"`);
-    }
-    if (dependency.kind !== "payload-mirror") {
-      fail2(`${unitLabel}target "${target.id}" dependsOn "${target.dependsOn}" which is not a payload-mirror target`);
-    }
-  }
-  const identity2 = postPublish.commitIdentity;
-  if (!identity2 || typeof identity2 !== "object" || Array.isArray(identity2)) {
-    fail2(`${unitLabel}commitIdentity is required when targets are declared`);
-  }
-  for (const field of ["name", "email"]) {
-    if (typeof identity2[field] !== "string" || identity2[field].length === 0) {
-      fail2(`${unitLabel}commitIdentity.${field} must be a non-empty string`);
-    }
-    assertNoControlChars(`${unitLabel}commitIdentity.${field}`, identity2[field]);
-    if (identity2[field].startsWith("-")) {
-      fail2(`${unitLabel}commitIdentity.${field} must not start with "-"`, { value: identity2[field] });
-    }
-  }
-  if (postPublish.steps !== void 0) {
-    if (!Array.isArray(postPublish.steps)) {
-      fail2(`${unitLabel}steps must be an array`);
-    }
-    const stepNames = /* @__PURE__ */ new Set();
-    postPublish.steps.forEach((step, index) => {
-      const where = `${unitLabel}steps[${index}]`;
-      validateHookCommand(where, step);
-      if (typeof step.name !== "string" || !SAFE_ID_RE2.test(step.name)) {
-        fail2(`${where}.name must match /^[a-z0-9][a-z0-9._-]*$/`, { name: step?.name });
-      }
-      if (stepNames.has(step.name)) {
-        fail2(`${unitLabel}duplicate step name "${step.name}"`);
-      }
-      stepNames.add(step.name);
-    });
-  }
-  if (postPublish.assertMainVersionAhead !== void 0 && typeof postPublish.assertMainVersionAhead !== "boolean") {
-    fail2(`${unitLabel}assertMainVersionAhead must be a boolean`);
-  }
-  return postPublish;
-}
-function orderTargetsByDependency(targets) {
-  const byId = new Map(targets.map((target) => [target.id, target]));
-  const ordered = [];
-  const placed = /* @__PURE__ */ new Set();
-  while (ordered.length < targets.length) {
-    let progress = false;
-    for (const target of targets) {
-      if (placed.has(target.id)) continue;
-      if (target.dependsOn !== void 0) {
-        if (!byId.has(target.dependsOn)) {
-          fail2(`target "${target.id}" dependsOn unknown target "${target.dependsOn}"`);
-        }
-        if (!placed.has(target.dependsOn)) continue;
-      }
-      ordered.push(target);
-      placed.add(target.id);
-      progress = true;
-    }
-    if (!progress) {
-      const pending = targets.filter((t) => !placed.has(t.id)).map((t) => t.id);
-      fail2(`postPublish target dependency cycle detected among: ${pending.join(", ")}`);
-    }
-  }
-  return ordered;
-}
-var ENV_ALLOWLIST_DENYLIST, ENV_KEY_PATTERN3, SAFE_ID_RE2, REMOTE_URL_RE, BRANCH_RE, PAYLOAD_SOURCE_TAG_WORKTREE;
-var init_postpublish = __esm({
-  "src/core/postpublish.mjs"() {
-    init_errors();
-    ENV_ALLOWLIST_DENYLIST = /TOKEN|SECRET|PASSWORD|PASSPHRASE|API_KEY|CREDENTIAL/i;
-    ENV_KEY_PATTERN3 = /^[A-Z_][A-Z0-9_]*$/;
-    SAFE_ID_RE2 = /^[a-z0-9][a-z0-9._-]*$/;
-    REMOTE_URL_RE = /^(?:https?|file):\/\/.+\.git$/;
-    BRANCH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
-    PAYLOAD_SOURCE_TAG_WORKTREE = "tag-worktree";
-    __name(fail2, "fail");
-    __name(assertNoControlChars, "assertNoControlChars");
-    __name(validateHookCommand, "validateHookCommand");
-    __name(validateTarget, "validateTarget");
-    __name(validatePostPublishDeclaration, "validatePostPublishDeclaration");
-    __name(orderTargetsByDependency, "orderTargetsByDependency");
-  }
-});
-
 // src/artifacts/transaction-journal.mjs
-import { readdir as readdir14, readFile as readFile22, rm as rm9, stat as stat6 } from "node:fs/promises";
-import { join as join20 } from "node:path";
+import { readdir as readdir14, readFile as readFile22, rm as rm9, stat as stat8 } from "node:fs/promises";
+import { join as join21 } from "node:path";
 function failSchema(message, details) {
   throw new ReleaseError(TRANSACTION_INCOMPLETE, message, details);
 }
@@ -91017,11 +92614,11 @@ async function pruneTerminalTransactionRecords(transactionsRoot, {
     if (txnDirs.length <= retentionMax) return summary;
     const terminal = [];
     for (const entry of txnDirs) {
-      const recordDir = join20(transactionsRoot, entry.name);
+      const recordDir = join21(transactionsRoot, entry.name);
       let state = null;
       let createdAt = null;
       try {
-        const raw = await readFile22(join20(recordDir, "journal.json"), "utf8");
+        const raw = await readFile22(join21(recordDir, "journal.json"), "utf8");
         const journal = JSON.parse(raw);
         if (journal && typeof journal === "object") {
           state = typeof journal.state === "string" ? journal.state : null;
@@ -91034,7 +92631,7 @@ async function pruneTerminalTransactionRecords(transactionsRoot, {
       let sortTime = Date.parse(createdAt);
       if (!Number.isFinite(sortTime)) {
         try {
-          const dirStat = await stat6(recordDir);
+          const dirStat = await stat8(recordDir);
           sortTime = dirStat.mtimeMs;
         } catch {
           sortTime = Number.MAX_SAFE_INTEGER;
@@ -91085,7 +92682,7 @@ async function createTransactionJournal({
     );
     if (typeof root === "string" && root.length > 0) {
       await pruneTerminalTransactionRecords(
-        join20(root, ".release-skill", "transactions"),
+        join21(root, ".release-skill", "transactions"),
         { retentionMax }
       );
     }
@@ -94777,7 +96374,7 @@ __export(refresh_service_exports, {
   planReleaseDocsRefreshForUnit: () => planReleaseDocsRefreshForUnit,
   runReleaseDocsRefresh: () => runReleaseDocsRefresh
 });
-import { isAbsolute as isAbsolute17, relative as relative21, resolve as resolve22, sep as sep6 } from "node:path";
+import { isAbsolute as isAbsolute18, relative as relative21, resolve as resolve23, sep as sep6 } from "node:path";
 function deepFreeze10(value) {
   if (Array.isArray(value)) {
     for (const item of value) deepFreeze10(item);
@@ -94860,7 +96457,7 @@ async function planReleaseDocsRefreshForUnit({
       field: "unit.source"
     });
   }
-  const unitRoot = resolve22(root, unit.source);
+  const unitRoot = resolve23(root, unit.source);
   const backend = await (backendFactory ?? loadSafeFs)();
   const sharedFactory = /* @__PURE__ */ __name(async () => backend, "sharedFactory");
   const notesSource = await loadReleaseNotesSource({
@@ -95070,9 +96667,9 @@ async function runReleaseDocsRefresh({
         });
       }
       const changedFiles = plan.files.filter((file) => file.changed);
-      const unitRoot = resolve22(root, unit.source);
+      const unitRoot = resolve23(root, unit.source);
       const unitLocation = relative21(root, unitRoot);
-      if (unitLocation === ".." || unitLocation.startsWith(`..${sep6}`) || isAbsolute17(unitLocation)) {
+      if (unitLocation === ".." || unitLocation.startsWith(`..${sep6}`) || isAbsolute18(unitLocation)) {
         throw new ReleaseError(
           PATH_UNSAFE,
           "release unit source escapes the project root",
@@ -95130,7 +96727,7 @@ async function runReleaseDocsRefresh({
         if (err instanceof ReleaseError && err.code === TRANSACTION_INCOMPLETE && typeof err.details?.recover === "string") {
           const restored = await tryRestoreOldBytes(
             backend,
-            resolve22(root, unit.source),
+            resolve23(root, unit.source),
             changedFiles,
             modes
           );
@@ -95220,9 +96817,12 @@ var init_refresh_service = __esm({
 // src/commands/prepare.mjs
 var prepare_exports = {};
 __export(prepare_exports, {
+  HOOK_OUTPUT_TAIL_MAX_BYTES: () => HOOK_OUTPUT_TAIL_MAX_BYTES,
+  HOOK_OUTPUT_TAIL_MAX_LINES: () => HOOK_OUTPUT_TAIL_MAX_LINES,
   boundedOutputTail: () => boundedOutputTail,
   buildExternalActions: () => buildExternalActions,
   decodeExternalMarketplaceIndex: () => decodeExternalMarketplaceIndex,
+  observeOriginAhead: () => observeOriginAhead,
   parseExternalMarketplaceLsRemote: () => parseExternalMarketplaceLsRemote,
   prepareRelease: () => prepareRelease,
   readHeadCommitTimestamp: () => readHeadCommitTimestamp,
@@ -95232,10 +96832,10 @@ __export(prepare_exports, {
   resolveUnitVersion: () => resolveUnitVersion,
   runDeclaredHooks: () => runDeclaredHooks
 });
-import { resolve as resolve23, relative as relative22, isAbsolute as isAbsolute18, normalize as normalize3, dirname as dirname11, basename as basename7 } from "node:path";
-import { readFile as readFile23, mkdir as mkdir14, readdir as readdir15, realpath as realpath17 } from "node:fs/promises";
-import { execFile as execFileCb9 } from "node:child_process";
-import { promisify as promisify9 } from "node:util";
+import { resolve as resolve24, relative as relative22, isAbsolute as isAbsolute19, normalize as normalize3, dirname as dirname11, basename as basename7 } from "node:path";
+import { readFile as readFile23, mkdir as mkdir14, readdir as readdir15, realpath as realpath18 } from "node:fs/promises";
+import { execFile as execFileCb10 } from "node:child_process";
+import { promisify as promisify10 } from "node:util";
 async function resolveUnitVersion(unit, root, explicitVersion) {
   const versionSource = unit.version?.source;
   if (!versionSource || typeof versionSource !== "string") {
@@ -95245,18 +96845,18 @@ async function resolveUnitVersion(unit, root, explicitVersion) {
       { unitId: unit.id }
     );
   }
-  if (isAbsolute18(versionSource)) {
+  if (isAbsolute19(versionSource)) {
     throw new ReleaseError(
       CONFIG_INVALID,
       `unit "${unit.id}" version.source must be a relative path, got absolute: "${versionSource}"`,
       { unitId: unit.id, versionSource }
     );
   }
-  const unitRoot = resolve23(root, unit.source);
-  const resolvedPath = resolve23(unitRoot, versionSource);
+  const unitRoot = resolve24(root, unit.source);
+  const resolvedPath = resolve24(unitRoot, versionSource);
   const normalizedPath = normalize3(resolvedPath);
   const rel = relative22(unitRoot, normalizedPath);
-  if (rel.startsWith("..") || rel === ".." || isAbsolute18(rel)) {
+  if (rel.startsWith("..") || rel === ".." || isAbsolute19(rel)) {
     throw new ReleaseError(
       CONFIG_INVALID,
       `unit "${unit.id}" version.source escapes unit root: "${versionSource}"`,
@@ -95327,24 +96927,6 @@ async function resolveAllUnitVersions(units, root, explicitVersion, evidence) {
   });
   return resolvedVersions;
 }
-function boundedOutputTail(text) {
-  if (typeof text !== "string" || text.length === 0) return "";
-  let lines = text.split("\n");
-  if (lines.length > 1 && lines[lines.length - 1] === "") {
-    lines = lines.slice(0, -1);
-  }
-  let tail2 = lines.slice(-HOOK_OUTPUT_TAIL_MAX_LINES);
-  let joined = tail2.join("\n");
-  while (tail2.length > 1 && Buffer.byteLength(joined, "utf8") > HOOK_OUTPUT_TAIL_MAX_BYTES) {
-    tail2 = tail2.slice(1);
-    joined = tail2.join("\n");
-  }
-  if (Buffer.byteLength(joined, "utf8") > HOOK_OUTPUT_TAIL_MAX_BYTES) {
-    const buf = Buffer.from(joined, "utf8");
-    joined = buf.subarray(buf.length - HOOK_OUTPUT_TAIL_MAX_BYTES).toString("utf8");
-  }
-  return joined;
-}
 async function runDeclaredHooks(config, root, evidence, hookFn = runHook, options = {}) {
   const hookOrder = ["docs", "build", "test", "typecheck"];
   const hooks = config.hooks ?? {};
@@ -95409,7 +96991,7 @@ async function runDeclaredHooks(config, root, evidence, hookFn = runHook, option
     }
     if (result.exitCode !== 0) {
       const stdoutTail = boundedOutputTail(result.stdout);
-      const stderrTail = boundedOutputTail(result.stderr);
+      const stderrTail4 = boundedOutputTail(result.stderr);
       process.stderr.write(`[release-skill] hook "${name}" failed with exit code ${result.exitCode}
 `);
       if (stdoutTail) {
@@ -95417,9 +96999,9 @@ async function runDeclaredHooks(config, root, evidence, hookFn = runHook, option
 ${stdoutTail}
 `);
       }
-      if (stderrTail) {
+      if (stderrTail4) {
         process.stderr.write(`[release-skill] hook "${name}" stderr tail:
-${stderrTail}
+${stderrTail4}
 `);
       }
       await evidence.append({
@@ -95431,7 +97013,7 @@ ${stderrTail}
         // end. Preserve bounded tails (last 50 lines, capped at 8 KB) of both
         // streams instead of the noisy compiler prelude at the beginning.
         stdoutTail,
-        stderrTail,
+        stderrTail: stderrTail4,
         ...selectionField
       });
       throw new ReleaseError(
@@ -95600,7 +97182,7 @@ async function processSnapshots(config, root, evidence, runDir, production = fal
   const unitResults = [];
   const snapshotDigests = [];
   for (const unit of units) {
-    const outputDir = resolveUnitScopedPath(resolve23(runDir, "snapshots"), unit.id);
+    const outputDir = resolveUnitScopedPath(resolve24(runDir, "snapshots"), unit.id);
     await evidence.append({
       phase: "snapshot",
       status: "started",
@@ -95787,6 +97369,59 @@ function normalizedProductionConfig(unit) {
     branchStrategy: unit.production?.branchStrategy ?? "create-release-branch"
   };
 }
+async function observeOriginAhead({ root, defaultBranch }) {
+  const runGit = /* @__PURE__ */ __name((gitArgs) => execFile8("git", ["-C", root, ...gitArgs], {
+    shell: false,
+    encoding: "utf8",
+    timeout: 3e4
+  }), "runGit");
+  let localHead;
+  try {
+    ({ stdout: localHead } = await runGit(["rev-parse", "HEAD"]));
+    localHead = localHead.trim();
+  } catch (err) {
+    return { status: "unknown", error: `rev-parse HEAD failed: ${err.message}` };
+  }
+  try {
+    await runGit(["remote", "get-url", "origin"]);
+  } catch {
+    return { status: "no-origin", localHead };
+  }
+  let remoteHead;
+  try {
+    const { stdout } = await runGit(["ls-remote", "origin", `refs/heads/${defaultBranch}`]);
+    const firstLine = stdout.trim().split("\n").filter((line) => line.length > 0)[0];
+    if (!firstLine) {
+      return { status: "remote-ref-missing", localHead, defaultBranch };
+    }
+    remoteHead = firstLine.split("	")[0];
+  } catch (err) {
+    return { status: "unknown", localHead, error: `ls-remote origin failed: ${err.message}` };
+  }
+  if (remoteHead === localHead) {
+    return { status: "in-sync", localHead, remoteHead };
+  }
+  try {
+    await runGit(["cat-file", "-e", `${remoteHead}^{commit}`]);
+  } catch {
+    return { status: "diverged", localHead, remoteHead };
+  }
+  try {
+    const aheadRaw = await runGit(["rev-list", "--count", `${remoteHead}..HEAD`]);
+    const behindRaw = await runGit(["rev-list", "--count", `HEAD..${remoteHead}`]);
+    const aheadCount = Number.parseInt(aheadRaw.stdout.trim(), 10) || 0;
+    const behindCount = Number.parseInt(behindRaw.stdout.trim(), 10) || 0;
+    if (aheadCount > 0 && behindCount === 0) {
+      return { status: "ahead", localHead, remoteHead, aheadCount };
+    }
+    if (behindCount > 0 && aheadCount === 0) {
+      return { status: "behind", localHead, remoteHead, behindCount };
+    }
+    return { status: "diverged", localHead, remoteHead, aheadCount, behindCount };
+  } catch (err) {
+    return { status: "diverged", localHead, remoteHead, error: err.message };
+  }
+}
 async function readHeadCommitTimestamp(root, headCommit, exec = execFile8) {
   try {
     const { stdout } = await exec(
@@ -95839,7 +97474,7 @@ async function buildProductionAssets(unitResults, resolvedVersions, root, runDir
     }
     await sealFrozenSnapshot(manifest.outputDir);
     const sealed = await computeFrozenSnapshot(manifest.outputDir);
-    const repositoryDir = resolveUnitScopedPath(resolve23(runDir, "git"), unit.id, { suffix: ".git" });
+    const repositoryDir = resolveUnitScopedPath(resolve24(runDir, "git"), unit.id, { suffix: ".git" });
     const unitBaseline = unitBaselineResults.get(unit.id);
     const parent = branchStrategy === "create-release-branch" ? void 0 : {
       githubHost: unitBaseline.githubHost,
@@ -95860,7 +97495,7 @@ async function buildProductionAssets(unitResults, resolvedVersions, root, runDir
     if (npmDistribution) {
       npm = await buildFrozenNpmTarball({
         snapshotDir: manifest.outputDir,
-        tarballDir: resolveUnitScopedPath(resolve23(runDir, "tarballs"), unit.id),
+        tarballDir: resolveUnitScopedPath(resolve24(runDir, "tarballs"), unit.id),
         expectedSnapshotDigest: sealed.digest
       });
       await verifyFrozenNpmTarballContract({
@@ -95869,7 +97504,7 @@ async function buildProductionAssets(unitResults, resolvedVersions, root, runDir
         tarballPath: relative22(root, npm.tarballPath),
         tarballSha256: npm.sha256,
         integrity: npm.integrity
-      }, root, resolveUnitScopedPath(resolve23(runDir, "tarballs"), unit.id));
+      }, root, resolveUnitScopedPath(resolve24(runDir, "tarballs"), unit.id));
     }
     assets.push({
       snapshotPath,
@@ -95987,7 +97622,7 @@ async function resolveExternalMarketplaceFreezes({
       if (offline) {
         throw new ReleaseError(
           GATE_FAILED,
-          `unit "${unit.id}" ${dist.type} external marketplace form requires online production prepare to freeze the marketplace commit sha`,
+          `unit "${unit.id}" ${dist.type} external marketplace form requires online production prepare to freeze the marketplace commit sha. Remediation: release-skill prepare --production --online`,
           { unitId: unit.id, marketplaceSourceType: dist.marketplaceSourceType }
         );
       }
@@ -96419,7 +98054,7 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
   return actions;
 }
 async function readLatestFrozenPlan(root) {
-  const plansDir = resolve23(root, ".release-skill", "plans");
+  const plansDir = resolve24(root, ".release-skill", "plans");
   let files;
   try {
     files = await readdir15(plansDir);
@@ -96431,7 +98066,7 @@ async function readLatestFrozenPlan(root) {
     if (!file.endsWith(".json")) continue;
     let plan;
     try {
-      plan = JSON.parse(await readFile23(resolve23(plansDir, file), "utf8"));
+      plan = JSON.parse(await readFile23(resolve24(plansDir, file), "utf8"));
     } catch {
       continue;
     }
@@ -96491,7 +98126,7 @@ async function prepareRelease(options) {
   }
   let realRoot;
   try {
-    realRoot = await realpath17(root);
+    realRoot = await realpath18(root);
   } catch (err) {
     throw new ReleaseError(
       CONFIG_INVALID,
@@ -96500,26 +98135,26 @@ async function prepareRelease(options) {
     );
   }
   if (production) {
-    const canonicalOutput = resolve23(realRoot, ".release-skill", "release-plan.json");
-    if (output && resolve23(output) !== canonicalOutput) {
+    const canonicalOutput = resolve24(realRoot, ".release-skill", "release-plan.json");
+    if (output && resolve24(output) !== canonicalOutput) {
       throw new ReleaseError(
         GATE_FAILED,
         "production prepare requires the canonical .release-skill/release-plan.json output; custom --output is supported only outside production",
-        { output: resolve23(output), expected: canonicalOutput }
+        { output: resolve24(output), expected: canonicalOutput }
       );
     }
   }
   const lock = await acquireProjectLock({ root: realRoot, command: "prepare", mode: "exclusive" });
-  const releaseDir = resolve23(realRoot, ".release-skill");
+  const releaseDir = resolve24(realRoot, ".release-skill");
   const runId = `prepare-${Date.now()}`;
-  const rawRunDir = runDirOpt ?? resolve23(releaseDir, "runs", runId);
+  const rawRunDir = runDirOpt ?? resolve24(releaseDir, "runs", runId);
   let runDir;
   try {
     if (production) {
       runDir = await createProductionPrepareRunDir(rawRunDir, releaseDir);
     } else {
       await mkdir14(rawRunDir, { recursive: true });
-      runDir = await realpath17(rawRunDir);
+      runDir = await realpath18(rawRunDir);
     }
   } catch (error) {
     await lock.release();
@@ -96531,6 +98166,7 @@ async function prepareRelease(options) {
     await evidence.append({ phase: "config", status: "started" });
     const { config, configPath, configDigest } = await loadProjectConfig({ root: realRoot });
     const adoptionWarnings = collectExpectedPublicSurfaceAdoptionWarnings(config);
+    const runWarnings = [...adoptionWarnings];
     await evidence.append({
       phase: "config",
       status: "completed",
@@ -96603,6 +98239,60 @@ async function prepareRelease(options) {
       planFn: options.releaseDocsPlanFn,
       reasonTag: "RELEASE_DOCS_STALE"
     });
+    await evidence.append({ phase: "adapter-freshness", status: "started" });
+    const adapterFreshnessFn = options.adapterFreshnessFn ?? assertAdapterFreshness;
+    let adapterFreshness;
+    try {
+      adapterFreshness = await adapterFreshnessFn(PKG_ROOT);
+    } catch (err) {
+      await evidence.append({
+        phase: "adapter-freshness",
+        status: "blocking",
+        reason: err.details?.reason ?? null,
+        error: { code: err.code, message: err.message }
+      });
+      throw err;
+    }
+    if (adapterFreshness?.applicable === false) {
+      await evidence.append({
+        phase: "adapter-freshness",
+        status: "not-applicable",
+        reason: adapterFreshness.reason
+      });
+    } else {
+      await evidence.append({
+        phase: "adapter-freshness",
+        status: "completed",
+        durationMs: adapterFreshness?.durationMs ?? null
+      });
+    }
+    await evidence.append({ phase: "self-bootstrap-facts", status: "started" });
+    const selfBootstrapFactsFn = options.selfBootstrapFactsFn ?? assertSelfBootstrapFacts;
+    let selfBootstrapFacts;
+    try {
+      selfBootstrapFacts = await selfBootstrapFactsFn(PKG_ROOT);
+    } catch (err) {
+      await evidence.append({
+        phase: "self-bootstrap-facts",
+        status: "blocking",
+        reason: err.details?.reason ?? null,
+        error: { code: err.code, message: err.message }
+      });
+      throw err;
+    }
+    if (selfBootstrapFacts?.applicable === false) {
+      await evidence.append({
+        phase: "self-bootstrap-facts",
+        status: "not-applicable",
+        reason: selfBootstrapFacts.reason
+      });
+    } else {
+      await evidence.append({
+        phase: "self-bootstrap-facts",
+        status: "completed",
+        durationMs: selfBootstrapFacts?.durationMs ?? null
+      });
+    }
     const postPublishDeclarations = configUnits.map((unit, index) => ({ unit, index })).filter(({ unit }) => unit.postPublish !== void 0);
     if (postPublishDeclarations.length > 1) {
       throw new ReleaseError(
@@ -96615,12 +98305,17 @@ async function prepareRelease(options) {
     if (postPublishDeclarations.length === 1) {
       const { unit, index } = postPublishDeclarations[0];
       validatePostPublishDeclaration(unit.postPublish, { unitId: unit.id });
+      const normalizedDeclaration = normalizePostPublishDeclaration(unit.postPublish);
+      const orderedNormalizedHooks = orderNormalizedHooks(normalizedDeclaration.hooks);
       postPublishDeclaration = { unit, index };
       await evidence.append({
         phase: "postpublish-declaration",
         status: "validated",
         unitId: unit.id,
-        targetCount: unit.postPublish.targets.length
+        targetCount: (unit.postPublish.targets ?? []).length,
+        hookCount: (unit.postPublish.hooks ?? []).length,
+        normalizedHookCount: orderedNormalizedHooks.length,
+        preGates: normalizedDeclaration.preGates.map((gate) => gate.gate)
       });
     }
     const declaredHooks = Object.entries(config.hooks ?? {}).filter(([, hook]) => hook && hook.command).map(([name, hook]) => ({
@@ -96812,6 +98507,63 @@ async function prepareRelease(options) {
         inputDigest: sourceInputClosure.digest,
         remoteObservation: offline ? "unobserved-offline" : "deferred-to-publish"
       });
+      if (!offline) {
+        if (!configDefaultBranch) {
+          await evidence.append({
+            phase: "origin-ahead",
+            status: "skipped",
+            reason: "no project.defaultBranch configured"
+          });
+        } else {
+          await evidence.append({ phase: "origin-ahead", status: "started" });
+          const observeOriginAheadFn = options.observeOriginAheadFn ?? observeOriginAhead;
+          let originObservation;
+          try {
+            originObservation = await observeOriginAheadFn({
+              root: realRoot,
+              defaultBranch: configDefaultBranch
+            });
+          } catch (err) {
+            originObservation = { status: "unknown", error: err?.message ?? String(err) };
+          }
+          if (originObservation?.status === "ahead") {
+            await evidence.append({
+              phase: "origin-ahead",
+              status: "warning",
+              defaultBranch: configDefaultBranch,
+              localHead: originObservation.localHead ?? null,
+              remoteHead: originObservation.remoteHead ?? null,
+              aheadCount: originObservation.aheadCount ?? null,
+              guidance: "push the workspace before publish (git push); the publish source-authority gate compares against the remote default branch"
+            });
+            runWarnings.push({
+              code: "ORIGIN_AHEAD",
+              defaultBranch: configDefaultBranch,
+              aheadCount: originObservation.aheadCount ?? null,
+              message: `local HEAD is ${originObservation.aheadCount ?? "an unknown number of"} commit(s) ahead of origin/${configDefaultBranch}; the publish source-authority gate compares against the remote default branch \u2014 push the workspace (git push) before publish`
+            });
+          } else if (["in-sync", "behind", "diverged"].includes(originObservation?.status)) {
+            await evidence.append({
+              phase: "origin-ahead",
+              status: "completed",
+              observation: originObservation.status,
+              defaultBranch: configDefaultBranch,
+              localHead: originObservation.localHead ?? null,
+              remoteHead: originObservation.remoteHead ?? null,
+              aheadCount: originObservation.aheadCount ?? null,
+              behindCount: originObservation.behindCount ?? null
+            });
+          } else {
+            await evidence.append({
+              phase: "origin-ahead",
+              status: "unobserved",
+              reason: originObservation?.status ?? "unknown",
+              defaultBranch: configDefaultBranch,
+              error: originObservation?.error ?? null
+            });
+          }
+        }
+      }
     } else if (production) {
       await evidence.append({
         phase: "source-authority",
@@ -96887,7 +98639,7 @@ async function prepareRelease(options) {
         if (offline) {
           throw new ReleaseError(
             GATE_FAILED,
-            `unit "${unit.id}" branch strategy "${branchStrategy}" requires online production prepare`,
+            `unit "${unit.id}" branch strategy "${branchStrategy}" requires online production prepare. Remediation: release-skill prepare --production --online`,
             { unitId: unit.id, branchStrategy }
           );
         }
@@ -96974,7 +98726,7 @@ async function prepareRelease(options) {
           });
           throw new ReleaseError(
             GATE_FAILED,
-            `unit "${unit.id}" has bound previousPublicBaseline but production prepare uses --offline. Must use --online to observe the previous public baseline before freezing a production plan.`,
+            `unit "${unit.id}" has bound previousPublicBaseline but production prepare uses --offline. Must use --online to observe the previous public baseline before freezing a production plan. Remediation: release-skill prepare --production --online`,
             { unitId: unit.id, repo: ppbConfig.repo, ref: ppbConfig.ref }
           );
         }
@@ -97411,7 +99163,7 @@ async function prepareRelease(options) {
                 { unitId: unit.id, distributionType: dist.type }
               );
             }
-            const marketplaceIndexPath = resolve23(snapshotDir, marketplaceIndexRelative);
+            const marketplaceIndexPath = resolve24(snapshotDir, marketplaceIndexRelative);
             let marketplaceIndexRaw;
             try {
               marketplaceIndexRaw = await readFile23(marketplaceIndexPath, "utf8");
@@ -97480,7 +99232,7 @@ async function prepareRelease(options) {
           pluginManifestRelative = readResult.manifestRelative ?? platform.manifestPaths.plugin;
         } else {
           pluginManifestRelative = platform.manifestPaths.plugin;
-          const pluginManifestPath = resolve23(snapshotDir, pluginManifestRelative);
+          const pluginManifestPath = resolve24(snapshotDir, pluginManifestRelative);
           let raw;
           try {
             raw = await readFile23(pluginManifestPath, "utf8");
@@ -97709,9 +99461,9 @@ async function prepareRelease(options) {
       actionCount: externalActions.length
     });
     await evidence.append({ phase: "plan-write", status: "started" });
-    const latestPlanPath = output ?? resolve23(releaseDir, "release-plan.json");
+    const latestPlanPath = output ?? resolve24(releaseDir, "release-plan.json");
     const plannedDigest = computePlanDigest(plan);
-    const immutablePlanPath = resolve23(dirname11(latestPlanPath), "plans", `${plannedDigest}.json`);
+    const immutablePlanPath = resolve24(dirname11(latestPlanPath), "plans", `${plannedDigest}.json`);
     const { planPath: writtenPath, planDigest } = await writePlanImmutable(immutablePlanPath, plan);
     await writePlanAtomic(latestPlanPath, plan);
     await evidence.append({
@@ -97746,11 +99498,19 @@ async function prepareRelease(options) {
       ...workflowDecision ? { workflowDecision } : {},
       completedAt: clock ? clock() : (/* @__PURE__ */ new Date()).toISOString()
     });
+    const nextSteps = [];
+    if (!production) {
+      nextSteps.push({
+        code: "NON_PRODUCTION_PLAN_NOT_PUBLISHABLE",
+        message: "This plan is NON-PRODUCTION and cannot be used by publish. To release, re-run: release-skill prepare --production --online \u2014 or use the guided happy end: release-skill ship --target-version <version>."
+      });
+    }
     return {
       planPath: writtenPath,
       planDigest,
       evidenceDir,
-      warnings: adoptionWarnings
+      warnings: runWarnings,
+      nextSteps
     };
   } catch (err) {
     await evidence.append({
@@ -97768,7 +99528,7 @@ async function prepareRelease(options) {
     await lock.release();
   }
 }
-var execFile8, CONSUMER_INSTALL_RECIPE_VERSION2, HOOK_OUTPUT_TAIL_MAX_LINES, HOOK_OUTPUT_TAIL_MAX_BYTES, EXTERNAL_MARKETPLACE_SHA_RE2;
+var execFile8, CONSUMER_INSTALL_RECIPE_VERSION2, EXTERNAL_MARKETPLACE_SHA_RE2;
 var init_prepare = __esm({
   async "src/commands/prepare.mjs"() {
     await init_config();
@@ -97788,6 +99548,7 @@ var init_prepare = __esm({
     init_frozen();
     init_errors();
     init_bundle_freshness();
+    init_derived_artifact_gates();
     init_pkg_root();
     init_frozen_marker();
     init_source_authority();
@@ -97799,19 +99560,19 @@ var init_prepare = __esm({
     await init_plugin_marketplace();
     init_installation_contract();
     init_postpublish();
-    execFile8 = promisify9(execFileCb9);
+    init_bounded_output();
+    init_bounded_output();
+    execFile8 = promisify10(execFileCb10);
     CONSUMER_INSTALL_RECIPE_VERSION2 = "consumer-install-v1";
     __name(resolveUnitVersion, "resolveUnitVersion");
     __name(resolveAllUnitVersions, "resolveAllUnitVersions");
-    HOOK_OUTPUT_TAIL_MAX_LINES = 50;
-    HOOK_OUTPUT_TAIL_MAX_BYTES = 8 * 1024;
-    __name(boundedOutputTail, "boundedOutputTail");
     __name(runDeclaredHooks, "runDeclaredHooks");
     __name(resolveReleaseDocsPlanFn, "resolveReleaseDocsPlanFn");
     __name(runReleaseDocsFreshnessGate, "runReleaseDocsFreshnessGate");
     __name(processSnapshots, "processSnapshots");
     __name(resolveProductionBranch, "resolveProductionBranch");
     __name(normalizedProductionConfig, "normalizedProductionConfig");
+    __name(observeOriginAhead, "observeOriginAhead");
     __name(readHeadCommitTimestamp, "readHeadCommitTimestamp");
     __name(buildProductionAssets, "buildProductionAssets");
     EXTERNAL_MARKETPLACE_SHA_RE2 = /^[0-9a-f]{40}$/;
@@ -97827,18 +99588,18 @@ var init_prepare = __esm({
 });
 
 // src/commands/hooks.mjs
-var hooks_exports = {};
-__export(hooks_exports, {
+var hooks_exports2 = {};
+__export(hooks_exports2, {
   validateDeclaredHooks: () => validateDeclaredHooks
 });
 import { mkdir as mkdir15 } from "node:fs/promises";
-import { resolve as resolve24 } from "node:path";
+import { resolve as resolve25 } from "node:path";
 async function validateDeclaredHooks(options = {}) {
   const {
     root = process.cwd(),
     hooksAuthorized: _hooksAuthorized,
     hookCache = true,
-    runDir = resolve24(root, ".release-skill", "runs", `hooks-${Date.now()}`)
+    runDir = resolve25(root, ".release-skill", "runs", `hooks-${Date.now()}`)
   } = options;
   const { config, configDigest } = await loadProjectConfig({ root });
   await mkdir15(runDir, { recursive: true });
@@ -97876,7 +99637,7 @@ var init_hooks2 = __esm({
 
 // src/core/approval.mjs
 import { readFile as readFile24 } from "node:fs/promises";
-import { basename as basename8, dirname as dirname12, join as join21, resolve as resolve25 } from "node:path";
+import { basename as basename8, dirname as dirname12, join as join22, resolve as resolve26 } from "node:path";
 function validateApprovalRecordSchema(approval) {
   if (validateApprovalSchema(approval)) return;
   const errors = validateApprovalSchema.errors ?? [];
@@ -97889,11 +99650,68 @@ function validateApprovalRecordSchema(approval) {
 function computeApprovalDigest(rawApproval) {
   return digestBytes(typeof rawApproval === "string" || Buffer.isBuffer(rawApproval) ? rawApproval : JSON.stringify(rawApproval, null, 2));
 }
+function validateApprovalTimeWindow(approval, options = {}) {
+  const clockFn = typeof options.clock === "function" ? options.clock : () => (/* @__PURE__ */ new Date()).toISOString();
+  const approvedAtDate = new Date(approval.approvedAt);
+  if (Number.isNaN(approvedAtDate.getTime())) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `invalid approvedAt: "${approval.approvedAt}"`,
+      { approvedAt: approval.approvedAt }
+    );
+  }
+  const expiresAtDate = new Date(approval.expiresAt);
+  if (Number.isNaN(expiresAtDate.getTime())) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `invalid expiresAt: "${approval.expiresAt}"`,
+      { expiresAt: approval.expiresAt }
+    );
+  }
+  if (expiresAtDate.getTime() <= approvedAtDate.getTime()) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `expiresAt (${approval.expiresAt}) must be after approvedAt (${approval.approvedAt})`,
+      { approvedAt: approval.approvedAt, expiresAt: approval.expiresAt }
+    );
+  }
+  const approvalDurationMs = expiresAtDate.getTime() - approvedAtDate.getTime();
+  if (approvalDurationMs > MAX_APPROVAL_MS) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `approval duration ${Math.round(approvalDurationMs / 36e5)}h exceeds maximum 24h`,
+      { approvedAt: approval.approvedAt, expiresAt: approval.expiresAt, durationHours: approvalDurationMs / 36e5 }
+    );
+  }
+  const now = clockFn();
+  const nowDate = new Date(now);
+  if (Number.isNaN(nowDate.getTime())) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `invalid clock value: "${now}"`,
+      { clock: now }
+    );
+  }
+  if (approvedAtDate.getTime() > nowDate.getTime() + CLOCK_SKEW_TOLERANCE_MS) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `approvedAt (${approval.approvedAt}) is in the future (current time: ${now})`,
+      { approvedAt: approval.approvedAt, now }
+    );
+  }
+  if (options.requireUnexpired !== false && nowDate > expiresAtDate) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `approval expired at ${approval.expiresAt}, current time is ${now}`,
+      { expiresAt: approval.expiresAt, now }
+    );
+  }
+}
 function assertImmutableApprovalAuthority(approvalPath, plan, rawApproval) {
   if (!plan?.production) return;
   const planDigest = computePlanDigest(plan);
   const approvalDigest = computeApprovalDigest(rawApproval);
-  const absolute = resolve25(approvalPath);
+  const absolute = resolve26(approvalPath);
   const planDirectory = dirname12(absolute);
   if (basename8(absolute) !== `${approvalDigest}.json` || basename8(planDirectory) !== planDigest || basename8(dirname12(planDirectory)) !== "approvals") {
     throw new ReleaseError(
@@ -97905,7 +99723,6 @@ function assertImmutableApprovalAuthority(approvalPath, plan, rawApproval) {
   return approvalDigest;
 }
 function validateApproval(plan, approval, options = {}) {
-  const clockFn = typeof options.clock === "function" ? options.clock : () => (/* @__PURE__ */ new Date()).toISOString();
   if (!approval || typeof approval !== "object") {
     throw new ReleaseError(
       GATE_FAILED,
@@ -98077,64 +99894,12 @@ function validateApproval(plan, approval, options = {}) {
       );
     }
   }
-  const approvedAtDate = new Date(approval.approvedAt);
-  if (Number.isNaN(approvedAtDate.getTime())) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `invalid approvedAt: "${approval.approvedAt}"`,
-      { approvedAt: approval.approvedAt }
-    );
-  }
-  const expiresAtDate = new Date(approval.expiresAt);
-  if (Number.isNaN(expiresAtDate.getTime())) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `invalid expiresAt: "${approval.expiresAt}"`,
-      { expiresAt: approval.expiresAt }
-    );
-  }
-  if (expiresAtDate.getTime() <= approvedAtDate.getTime()) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `expiresAt (${approval.expiresAt}) must be after approvedAt (${approval.approvedAt})`,
-      { approvedAt: approval.approvedAt, expiresAt: approval.expiresAt }
-    );
-  }
-  const MAX_APPROVAL_MS = 24 * 60 * 60 * 1e3;
-  const approvalDurationMs = expiresAtDate.getTime() - approvedAtDate.getTime();
-  if (approvalDurationMs > MAX_APPROVAL_MS) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `approval duration ${Math.round(approvalDurationMs / 36e5)}h exceeds maximum 24h`,
-      { approvedAt: approval.approvedAt, expiresAt: approval.expiresAt, durationHours: approvalDurationMs / 36e5 }
-    );
-  }
-  const CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1e3;
-  const now = clockFn();
-  const nowDate = new Date(now);
-  if (Number.isNaN(nowDate.getTime())) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `invalid clock value: "${now}"`,
-      { clock: now }
-    );
-  }
-  if (approvedAtDate.getTime() > nowDate.getTime() + CLOCK_SKEW_TOLERANCE_MS) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `approvedAt (${approval.approvedAt}) is in the future (current time: ${now})`,
-      { approvedAt: approval.approvedAt, now }
-    );
-  }
-  if (options.requireUnexpired !== false && nowDate > expiresAtDate) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `approval expired at ${approval.expiresAt}, current time is ${now}`,
-      { expiresAt: approval.expiresAt, now }
-    );
-  }
+  validateApprovalTimeWindow(approval, {
+    clock: options.clock,
+    requireUnexpired: options.requireUnexpired
+  });
 }
-var import_ajv7, import_ajv_formats5, approvalSchema, approvalAjv, validateApprovalSchema;
+var import_ajv7, import_ajv_formats5, approvalSchema, approvalAjv, validateApprovalSchema, MAX_APPROVAL_MS, CLOCK_SKEW_TOLERANCE_MS;
 var init_approval = __esm({
   async "src/core/approval.mjs"() {
     init_errors();
@@ -98152,18 +99917,86 @@ var init_approval = __esm({
     validateApprovalSchema = approvalAjv.compile(approvalSchema);
     __name(validateApprovalRecordSchema, "validateApprovalRecordSchema");
     __name(computeApprovalDigest, "computeApprovalDigest");
+    MAX_APPROVAL_MS = 24 * 60 * 60 * 1e3;
+    CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1e3;
+    __name(validateApprovalTimeWindow, "validateApprovalTimeWindow");
     __name(assertImmutableApprovalAuthority, "assertImmutableApprovalAuthority");
     __name(validateApproval, "validateApproval");
+  }
+});
+
+// src/core/postpublish-approval.mjs
+function validatePostPublishApprovalRecordSchema(approval) {
+  if (validatePostPublishApprovalSchema(approval)) return;
+  const errors = validatePostPublishApprovalSchema.errors ?? [];
+  throw new ReleaseError(
+    GATE_FAILED,
+    `postpublish approval record schema validation failed: ${errors.map((error) => `${error.instancePath || "/"}: ${error.message}`).join("; ")}`,
+    { validationErrors: errors }
+  );
+}
+function validatePostPublishApproval(plan, approval, options = {}) {
+  validatePostPublishApprovalRecordSchema(approval);
+  const actualDigest = computePlanDigest(plan);
+  if (approval.planDigest !== actualDigest) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `postpublish approval planDigest mismatch: approval says ${String(approval.planDigest).slice(0, 16)}..., plan is ${actualDigest.slice(0, 16)}...`,
+      { approvalPlanDigest: approval.planDigest, planDigest: actualDigest }
+    );
+  }
+  const hooks = plan.postPublish?.hooks ?? [];
+  const hook = hooks.find((entry) => entry.id === approval.hookId);
+  if (!hook) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `postpublish approval names hook "${approval.hookId}" which is not declared in the frozen plan`,
+      { hookId: approval.hookId, declaredHookIds: hooks.map((entry) => entry.id) }
+    );
+  }
+  const effectiveRequiresApproval = hook.requiresApproval ?? (hook.preset !== void 0 ? resolvePresetRequiresApproval(hook.preset, hook.config) : false);
+  if (effectiveRequiresApproval !== true) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `postpublish approval names hook "${approval.hookId}" which does not require approval (requiresApproval is not true)`,
+      { hookId: approval.hookId, requiresApproval: effectiveRequiresApproval ?? false }
+    );
+  }
+  validateApprovalTimeWindow(approval, {
+    clock: options.clock,
+    requireUnexpired: options.requireUnexpired
+  });
+  return hook;
+}
+var import_ajv8, import_ajv_formats6, postpublishApprovalSchema, postpublishApprovalAjv, validatePostPublishApprovalSchema;
+var init_postpublish_approval = __esm({
+  async "src/core/postpublish-approval.mjs"() {
+    import_ajv8 = __toESM(require_ajv(), 1);
+    import_ajv_formats6 = __toESM(require_dist2(), 1);
+    init_errors();
+    await init_plan();
+    await init_approval();
+    init_presets();
+    init_trusted_resource();
+    postpublishApprovalSchema = JSON.parse((await readTrustedPackageResource(
+      "schemas/postpublish-approval-record.schema.json"
+    )).toString("utf8"));
+    postpublishApprovalAjv = new import_ajv8.default({ allErrors: true, strict: false });
+    (0, import_ajv_formats6.default)(postpublishApprovalAjv);
+    validatePostPublishApprovalSchema = postpublishApprovalAjv.compile(postpublishApprovalSchema);
+    __name(validatePostPublishApprovalRecordSchema, "validatePostPublishApprovalRecordSchema");
+    __name(validatePostPublishApproval, "validatePostPublishApproval");
   }
 });
 
 // src/commands/approve.mjs
 var approve_exports = {};
 __export(approve_exports, {
-  approvePlan: () => approvePlan
+  approvePlan: () => approvePlan,
+  approvePostPublishHook: () => approvePostPublishHook
 });
 import { readFile as readFile25, writeFile as writeFile7 } from "node:fs/promises";
-import { resolve as resolve26, dirname as dirname13, basename as basename9 } from "node:path";
+import { resolve as resolve27, dirname as dirname13, basename as basename9 } from "node:path";
 function defaultClock() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
@@ -98291,18 +100124,18 @@ async function approvePlan(options) {
     expiresAt
   };
   validateApprovalRecordSchema(approvalRecord);
-  const planDir = dirname13(resolve26(planPath));
+  const planDir = dirname13(resolve27(planPath));
   const releaseDir = basename9(planDir) === "plans" && basename9(planPath) === `${actualDigest}.json` ? dirname13(planDir) : planDir;
-  if (plan.production?.mode === "github-npm-v1" && outputPath && resolve26(outputPath) !== resolve26(releaseDir, "approval-record.json")) {
+  if (plan.production?.mode === "github-npm-v1" && outputPath && resolve27(outputPath) !== resolve27(releaseDir, "approval-record.json")) {
     throw new ReleaseError(
       GATE_FAILED,
       "production approve requires the canonical approval-record.json alias next to the immutable plan authority; custom --output is supported only outside production",
-      { outputPath: resolve26(outputPath), expected: resolve26(releaseDir, "approval-record.json") }
+      { outputPath: resolve27(outputPath), expected: resolve27(releaseDir, "approval-record.json") }
     );
   }
   const json = JSON.stringify(approvalRecord, null, 2);
   const approvalDigest = computeApprovalDigest(json);
-  const immutableApprovalPath = resolve26(
+  const immutableApprovalPath = resolve27(
     releaseDir,
     "approvals",
     actualDigest,
@@ -98323,7 +100156,7 @@ async function approvePlan(options) {
       );
     }
   }
-  const writePath = outputPath ?? resolve26(releaseDir, "approval-record.json");
+  const writePath = outputPath ?? resolve27(releaseDir, "approval-record.json");
   await prepareAuthorityDirectory(dirname13(writePath));
   await assertAuthorityFileTarget(writePath);
   await writeFile7(writePath, json, "utf8");
@@ -98334,14 +100167,127 @@ async function approvePlan(options) {
     latestApprovalPath: writePath
   });
 }
+async function approvePostPublishHook(options) {
+  const {
+    planPath,
+    hookId,
+    actor,
+    expiresInMs = MAX_APPROVAL_MS,
+    clock,
+    runId
+  } = options ?? {};
+  const clockFn = typeof clock === "function" ? clock : defaultClock;
+  if (!planPath || typeof planPath !== "string") {
+    throw new ReleaseError(GATE_FAILED, "planPath must be a non-empty string");
+  }
+  if (!hookId || typeof hookId !== "string") {
+    throw new ReleaseError(GATE_FAILED, "hookId must be a non-empty string");
+  }
+  if (!actor || typeof actor !== "string") {
+    throw new ReleaseError(GATE_FAILED, "actor must be a non-empty string");
+  }
+  if (typeof expiresInMs !== "number" || !Number.isFinite(expiresInMs) || expiresInMs <= 0) {
+    throw new ReleaseError(GATE_FAILED, "expiresInMs must be a positive finite number", { expiresInMs });
+  }
+  if (expiresInMs > MAX_APPROVAL_MS) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `expiresInMs must not exceed 24 hours (${MAX_APPROVAL_MS}ms), got ${expiresInMs}ms`,
+      { expiresInMs }
+    );
+  }
+  let planRaw;
+  try {
+    planRaw = await readFile25(planPath, "utf8");
+  } catch (err) {
+    throw new ReleaseError(GATE_FAILED, `cannot read release plan: ${err.message}`, { planPath, cause: err.code });
+  }
+  let plan;
+  try {
+    plan = JSON.parse(planRaw);
+  } catch (err) {
+    throw new ReleaseError(GATE_FAILED, `release plan is not valid JSON: ${err.message}`, { planPath });
+  }
+  const actualDigest = computePlanDigest(plan);
+  assertImmutablePlanAuthority(planPath, plan);
+  validatePlan(plan);
+  const hooks = plan.postPublish?.hooks ?? [];
+  const hook = hooks.find((entry) => entry.id === hookId);
+  if (!hook) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `hook "${hookId}" is not declared in the frozen plan's postPublish hooks`,
+      { hookId, declaredHookIds: hooks.map((entry) => entry.id) }
+    );
+  }
+  const effectiveRequiresApproval = effectiveHookRequiresApproval(hook);
+  if (effectiveRequiresApproval !== true) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `hook "${hookId}" does not require approval (effective requiresApproval is not true)`,
+      { hookId, requiresApproval: effectiveRequiresApproval }
+    );
+  }
+  const approvedAt = clockFn();
+  const approvedAtDate = new Date(approvedAt);
+  if (Number.isNaN(approvedAtDate.getTime())) {
+    throw new ReleaseError(GATE_FAILED, `invalid approvedAt timestamp: "${approvedAt}"`, { approvedAt });
+  }
+  const expiresAt = new Date(approvedAtDate.getTime() + expiresInMs).toISOString();
+  const approvalRecord = {
+    planDigest: actualDigest,
+    hookId,
+    actor,
+    approvedAt,
+    expiresAt,
+    ...runId ? { runId } : {}
+  };
+  validatePostPublishApproval(plan, approvalRecord, { clock: clockFn });
+  const planDir = dirname13(resolve27(planPath));
+  const releaseDir = basename9(planDir) === "plans" && basename9(planPath) === `${actualDigest}.json` ? dirname13(planDir) : planDir;
+  const json = JSON.stringify(approvalRecord, null, 2);
+  const approvalDigest = computeApprovalDigest(json);
+  const immutableApprovalPath = resolve27(
+    releaseDir,
+    "approvals",
+    "postpublish",
+    actualDigest,
+    `${approvalDigest}.json`
+  );
+  await prepareAuthorityDirectory(dirname13(immutableApprovalPath));
+  await assertAuthorityFileTarget(immutableApprovalPath);
+  try {
+    await writeFile7(immutableApprovalPath, json, { encoding: "utf8", flag: "wx", mode: 384 });
+  } catch (error) {
+    if (error.code !== "EEXIST") throw error;
+    const existing = await readFile25(immutableApprovalPath, "utf8");
+    if (existing !== json) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        "postpublish approval authority digest collision: existing bytes differ",
+        { planDigest: actualDigest, approvalDigest, immutableApprovalPath }
+      );
+    }
+  }
+  const hookSummary = normalizePostPublishHook(hook);
+  return Object.freeze({
+    ...approvalRecord,
+    approvalDigest,
+    approvalPath: immutableApprovalPath,
+    hookSummary
+  });
+}
 var init_approve = __esm({
   async "src/commands/approve.mjs"() {
     await init_plan();
     init_errors();
     await init_approval();
+    await init_postpublish_approval();
+    init_postpublish();
     init_baseline2();
     __name(defaultClock, "defaultClock");
     __name(approvePlan, "approvePlan");
+    __name(approvePostPublishHook, "approvePostPublishHook");
   }
 });
 
@@ -98525,7 +100471,7 @@ function defaultSleep(ms) {
   if (process.env.RELEASE_SKILL_OBSERVE_RETRY_NO_WAIT === "1") {
     return Promise.resolve();
   }
-  return new Promise((resolve35) => setTimeout(resolve35, ms));
+  return new Promise((resolve37) => setTimeout(resolve37, ms));
 }
 function isPropagatingMissing(result) {
   if (result == null) return true;
@@ -98617,10 +100563,10 @@ __export(publish_exports, {
   publishRelease: () => publishRelease
 });
 import { readFile as readFile26, mkdir as mkdir16 } from "node:fs/promises";
-import { isAbsolute as isAbsolute19, join as join22, relative as relative23 } from "node:path";
+import { isAbsolute as isAbsolute20, join as join23, relative as relative23 } from "node:path";
 function assertInsideAssetRoot(assetRoot, candidate, label) {
   const rel = relative23(assetRoot, candidate);
-  if (rel === "" || isAbsolute19(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+  if (rel === "" || isAbsolute20(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
     throw new ReleaseError(GATE_FAILED, `${label} must be a child of the production asset root`);
   }
 }
@@ -99325,7 +101271,7 @@ async function publishRelease(options) {
       }
     }
     await evidence.append({ phase: "safety-gate", gate: "global-preflight", status: "passed" });
-    const runPath = join22(runDir, "release-run.json");
+    const runPath = join23(runDir, "release-run.json");
     const checkpoints = orderedActions.map((action) => {
       if (isMarketplaceAction(action.type)) {
         return {
@@ -99373,7 +101319,7 @@ async function publishRelease(options) {
       checkpointCount: orderedActions.length,
       prePersistedRunPath: latestState.statePath
     });
-    const checkpointByActionId = new Map(checkpoints.map((cp2) => [cp2.actionId, cp2]));
+    const checkpointByActionId = new Map(checkpoints.map((cp3) => [cp3.actionId, cp3]));
     const { tiers, unknown } = groupActionsByTier(remoteWriteActions);
     let stopped = false;
     if (unknown.length > 0) {
@@ -99457,9 +101403,9 @@ async function publishRelease(options) {
       }
     }
     {
-      const remoteWriteCps = checkpoints.filter((cp2) => isRemoteWriteAction(cp2.actionType));
+      const remoteWriteCps = checkpoints.filter((cp3) => isRemoteWriteAction(cp3.actionType));
       const allRemoteConsistent = remoteWriteCps.every(
-        (cp2) => cp2.status === "SUCCEEDED" || cp2.status === "SKIPPED"
+        (cp3) => cp3.status === "SUCCEEDED" || cp3.status === "SKIPPED"
       );
       if (allRemoteConsistent) {
         await evidence.append({ phase: "safety-gate", gate: "final-branch-consistency", status: "started" });
@@ -99493,18 +101439,18 @@ async function publishRelease(options) {
             break;
           }
         }
-        const freshRemoteCps = checkpoints.filter((cp2) => isRemoteWriteAction(cp2.actionType));
-        if (freshRemoteCps.every((cp2) => cp2.status === "SUCCEEDED" || cp2.status === "SKIPPED")) {
+        const freshRemoteCps = checkpoints.filter((cp3) => isRemoteWriteAction(cp3.actionType));
+        if (freshRemoteCps.every((cp3) => cp3.status === "SUCCEEDED" || cp3.status === "SKIPPED")) {
           await evidence.append({ phase: "safety-gate", gate: "final-branch-consistency", status: "passed" });
         }
       }
     }
-    const remoteWriteCheckpointsFinal = checkpoints.filter((cp2) => isRemoteWriteAction(cp2.actionType));
+    const remoteWriteCheckpointsFinal = checkpoints.filter((cp3) => isRemoteWriteAction(cp3.actionType));
     const remoteWriteAllSucceeded = remoteWriteCheckpointsFinal.every(
-      (cp2) => cp2.status === "SUCCEEDED" || cp2.status === "SKIPPED"
+      (cp3) => cp3.status === "SUCCEEDED" || cp3.status === "SKIPPED"
     );
     const remoteWriteHasFailure = remoteWriteCheckpointsFinal.some(
-      (cp2) => cp2.status === "FAILED" || cp2.status === "UNCERTAIN"
+      (cp3) => cp3.status === "FAILED" || cp3.status === "UNCERTAIN"
     );
     let overallStatus;
     if (remoteWriteAllSucceeded) {
@@ -99522,7 +101468,7 @@ async function publishRelease(options) {
       phase: "publish",
       status: "completed",
       overallStatus,
-      checkpointStatuses: checkpoints.map((cp2) => cp2.status)
+      checkpointStatuses: checkpoints.map((cp3) => cp3.status)
     });
     const finishedAt = clockFn();
     stateSequence += 1;
@@ -99541,7 +101487,7 @@ async function publishRelease(options) {
       runPath,
       finalRunDigest: finalRunState.runDigest,
       latestStatePath: latestState.statePath,
-      checkpointStatuses: checkpoints.map((cp2) => cp2.status),
+      checkpointStatuses: checkpoints.map((cp3) => cp3.status),
       finishedAt: clockFn()
     });
     return { planPath, runPath, status: overallStatus, checkpoints };
@@ -99599,7 +101545,7 @@ __export(reconcile_exports, {
   reconcileRelease: () => reconcileRelease
 });
 import { readFile as readFile27, mkdir as mkdir17 } from "node:fs/promises";
-import { join as join23 } from "node:path";
+import { join as join24 } from "node:path";
 function defaultClock4() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
@@ -99851,9 +101797,9 @@ async function reconcileRelease(options) {
     });
     const defaultPpbObserveFn = /* @__PURE__ */ __name(async (repo, ref, expectedCommit, { githubHost = "github.com" } = {}) => {
       try {
-        const { execFile: execFile19 } = await import("node:child_process");
-        const { promisify: promisify22 } = await import("node:util");
-        const { stdout } = await promisify22(execFile19)(
+        const { execFile: execFile20 } = await import("node:child_process");
+        const { promisify: promisify27 } = await import("node:util");
+        const { stdout } = await promisify27(execFile20)(
           "git",
           ["ls-remote", `https://${githubHost}/${repo}.git`, ref],
           { shell: false, encoding: "utf8", timeout: 3e4 }
@@ -99954,8 +101900,8 @@ async function reconcileRelease(options) {
       return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
     });
     const sourceCpMap = /* @__PURE__ */ new Map();
-    for (const cp2 of sourceRun.checkpoints) {
-      sourceCpMap.set(cp2.actionId, cp2);
+    for (const cp3 of sourceRun.checkpoints) {
+      sourceCpMap.set(cp3.actionId, cp3);
     }
     await evidence.append({
       phase: "reconcile",
@@ -100524,7 +102470,7 @@ async function reconcileRelease(options) {
         ...normalized === "deferred" ? { reason: CONSUMER_VERIFICATION_DEFERRED, phase: "post-publish-verification" } : {}
       };
     });
-    const runPath = join23(runDir, "release-run.json");
+    const runPath = join24(runDir, "release-run.json");
     const sourceRunDigest = sourceAuthorityDigest;
     const runState = {
       runId,
@@ -100605,8 +102551,8 @@ var init_reconcile = __esm({
 
 // src/core/baseline-advance.mjs
 import { readFile as readFile28, writeFile as writeFile8 } from "node:fs/promises";
-import { execFile as execFileCb10 } from "node:child_process";
-import { promisify as promisify10 } from "node:util";
+import { execFile as execFileCb11 } from "node:child_process";
+import { promisify as promisify11 } from "node:util";
 function defaultExec(command2, args2, options = {}) {
   return execFileAsync2(command2, args2, { shell: false, encoding: "utf8", timeout: 12e4, ...options });
 }
@@ -100714,7 +102660,7 @@ var init_baseline_advance = __esm({
   "src/core/baseline-advance.mjs"() {
     import_yaml5 = __toESM(require_dist(), 1);
     init_errors();
-    execFileAsync2 = promisify10(execFileCb10);
+    execFileAsync2 = promisify11(execFileCb11);
     __name(defaultExec, "defaultExec");
     SHA_RE = /^[a-f0-9]{40}$/;
     DIGEST_RE2 = /^[a-f0-9]{64}$/;
@@ -100729,15 +102675,16 @@ var init_baseline_advance = __esm({
 var verify_exports = {};
 __export(verify_exports, {
   VERIFICATION_RESOLVED_TYPES: () => VERIFICATION_RESOLVED_TYPES,
+  evaluateDistributeGateRun: () => evaluateDistributeGateRun,
   runSmokeTest: () => runSmokeTest,
   verifyRelease: () => verifyRelease
 });
-import { readFile as readFile29, writeFile as writeFile9, mkdtemp as mkdtemp7, rm as rm10, mkdir as mkdir18, lstat as lstat21, realpath as realpath18, readdir as readdir16 } from "node:fs/promises";
+import { readFile as readFile29, writeFile as writeFile9, mkdtemp as mkdtemp7, rm as rm10, mkdir as mkdir18, lstat as lstat22, realpath as realpath19, readdir as readdir16 } from "node:fs/promises";
 import { realpathSync as realpathSync4 } from "node:fs";
-import { dirname as dirname14, join as join24, relative as relative24, isAbsolute as isAbsolute20, resolve as resolve27, basename as basename10 } from "node:path";
+import { dirname as dirname14, join as join25, relative as relative24, isAbsolute as isAbsolute21, resolve as resolve28, basename as basename10 } from "node:path";
 import { tmpdir as tmpdir4 } from "node:os";
-import { execFile as execFileCb11 } from "node:child_process";
-import { promisify as promisify11 } from "node:util";
+import { execFile as execFileCb12 } from "node:child_process";
+import { promisify as promisify12 } from "node:util";
 function defaultClock5() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
@@ -100787,11 +102734,11 @@ async function collectMissingManualAttestations({
     const isKimi = action.type === "kimi-marketplace-install";
     const planDigest = isKimi ? resolveBoundPlanDigest(context) : await resolveCodeBuddyBoundPlanDigest(context);
     const authorityDir = isKimi ? kimiAuthorityDir(context, planDigest, action.parameters.plugin) : codebuddyAuthorityDir(context, planDigest, action.parameters.plugin);
-    const requirementPath = join24(
+    const requirementPath = join25(
       authorityDir,
       isKimi ? KIMI_REQUIREMENT_FILE : CODEBUDDY_REQUIREMENT_FILE
     );
-    const attestationPath = join24(
+    const attestationPath = join25(
       authorityDir,
       isKimi ? KIMI_ATTESTATION_FILE : CODEBUDDY_ATTESTATION_FILE
     );
@@ -100840,7 +102787,7 @@ function matchesSubset2(actual, expected) {
 async function runSmokeTest(plan, root, options = {}) {
   const baseDir = options.baseDir ?? tmpdir4();
   await mkdir18(baseDir, { recursive: true });
-  const tmpDir = await mkdtemp7(join24(baseDir, "verify-smoke-"));
+  const tmpDir = await mkdtemp7(join25(baseDir, "verify-smoke-"));
   const npmExec = options.npmExecutor ?? defaultNpmExecutor;
   const installFlags = [
     "--ignore-scripts",
@@ -100888,7 +102835,7 @@ async function runSmokeTest(plan, root, options = {}) {
     for (const { package: pkgName, registry, targetVersion, unitId, smokeBin, smokeArgs, smokeExpectedJson } of npmDistributions) {
       const packageAtVersion = `${pkgName}@${targetVersion}`;
       const installDir = resolveUnitScopedPath(tmpDir, unitId);
-      await mkdir18(join24(installDir, "node_modules"), { recursive: true });
+      await mkdir18(join25(installDir, "node_modules"), { recursive: true });
       const registryFlags = [...installFlags, "--registry", registry];
       const installResult = await npmExec.install(
         packageAtVersion,
@@ -100906,7 +102853,7 @@ async function runSmokeTest(plan, root, options = {}) {
           }
         };
       }
-      const installedPkgPath = join24(installDir, "node_modules", pkgName, "package.json");
+      const installedPkgPath = join25(installDir, "node_modules", pkgName, "package.json");
       let installedPkg;
       try {
         installedPkg = JSON.parse(await readFile29(installedPkgPath, "utf8"));
@@ -100940,7 +102887,7 @@ async function runSmokeTest(plan, root, options = {}) {
           }
         };
       }
-      const pkgRoot = join24(installDir, "node_modules", pkgName);
+      const pkgRoot = join25(installDir, "node_modules", pkgName);
       {
         const dirIndex = await buildDirectoryFileIndex(pkgRoot);
         const closureResult = checkNpmEntryClosure(installedPkg, dirIndex);
@@ -101040,10 +102987,10 @@ async function runSmokeTest(plan, root, options = {}) {
           }
         };
       }
-      const binPath = resolve27(pkgRoot, binRelative);
+      const binPath = resolve28(pkgRoot, binRelative);
       const relBin = relative24(pkgRoot, binPath);
       const sep7 = process.platform === "win32" ? "\\" : "/";
-      if (isAbsolute20(relBin) || relBin === ".." || relBin.startsWith(`..${sep7}`)) {
+      if (isAbsolute21(relBin) || relBin === ".." || relBin.startsWith(`..${sep7}`)) {
         return {
           passed: false,
           details: {
@@ -101055,10 +103002,10 @@ async function runSmokeTest(plan, root, options = {}) {
       }
       let binStat;
       try {
-        binStat = await lstat21(binPath);
-        const [pkgRootReal, binPathReal] = await Promise.all([realpath18(pkgRoot), realpath18(binPath)]);
+        binStat = await lstat22(binPath);
+        const [pkgRootReal, binPathReal] = await Promise.all([realpath19(pkgRoot), realpath19(binPath)]);
         const relReal = relative24(pkgRootReal, binPathReal);
-        if (!binStat.isFile() || binStat.isSymbolicLink() || isAbsolute20(relReal) || relReal === ".." || relReal.startsWith(`..${sep7}`)) {
+        if (!binStat.isFile() || binStat.isSymbolicLink() || isAbsolute21(relReal) || relReal === ".." || relReal.startsWith(`..${sep7}`)) {
           throw new Error("bin is not a regular file inside the installed package");
         }
       } catch (err) {
@@ -101170,9 +103117,9 @@ async function runSmokeTest(plan, root, options = {}) {
 async function discoverDistributeRuns({ planPath, plan }) {
   const planDir = dirname14(planPath);
   const releaseDir = basename10(planDir) === "plans" ? dirname14(planDir) : planDir;
-  const runsDir = resolve27(releaseDir, "runs");
+  const runsDir = resolve28(releaseDir, "runs");
   try {
-    const runsDirStat = await lstat21(runsDir);
+    const runsDirStat = await lstat22(runsDir);
     if (runsDirStat.isSymbolicLink()) {
       throw new ReleaseError(
         GATE_FAILED,
@@ -101211,8 +103158,8 @@ async function discoverDistributeRuns({ planPath, plan }) {
         { entry: entry.name, runsDir }
       );
     }
-    const candidateDir = resolve27(runsDir, entry.name);
-    const candidateStat = await lstat21(candidateDir).catch(() => null);
+    const candidateDir = resolve28(runsDir, entry.name);
+    const candidateStat = await lstat22(candidateDir).catch(() => null);
     if (!candidateStat || candidateStat.isSymbolicLink()) {
       throw new ReleaseError(
         GATE_FAILED,
@@ -101228,7 +103175,7 @@ async function discoverDistributeRuns({ planPath, plan }) {
         { candidateDir, candidateReal, runsDir }
       );
     }
-    const candidatePath = resolve27(candidateDir, "release-run.json");
+    const candidatePath = resolve28(candidateDir, "release-run.json");
     try {
       const candidate = await loadRun(candidatePath, { requireDigest: true });
       if (candidate.command !== "distribute") continue;
@@ -101240,6 +103187,23 @@ async function discoverDistributeRuns({ planPath, plan }) {
     }
   }
   return candidates;
+}
+function evaluateDistributeGateRun(run6, plan) {
+  if (!run6 || typeof run6 !== "object") return { pass: false, warned: false, exemptions: [] };
+  if (run6.status === "DISTRIBUTED") return { pass: true, warned: false, exemptions: [] };
+  if (run6.status !== "PARTIAL") return { pass: false, warned: false, exemptions: [] };
+  const hooksById = new Map((plan?.postPublish?.hooks ?? []).map((hook) => [hook.id, hook]));
+  const exemptions = [];
+  for (const checkpoint of run6.checkpoints ?? []) {
+    if (checkpoint.status === "succeeded" || checkpoint.status === "skipped") continue;
+    const hook = checkpoint.actionType === "postpublish-hook" ? hooksById.get(checkpoint.actionId) : void 0;
+    if (hook && checkpoint.status === "failed" && hook.blocksVerified === false) {
+      exemptions.push({ actionId: checkpoint.actionId, status: checkpoint.status });
+      continue;
+    }
+    return { pass: false, warned: false, exemptions: [] };
+  }
+  return { pass: true, warned: exemptions.length > 0, exemptions };
 }
 async function verifyRelease(options) {
   const {
@@ -101264,6 +103228,7 @@ async function verifyRelease(options) {
       { parameter: "sourceRunPath" }
     );
   }
+  const resolvedSourceRunPath = await resolveRunPath(sourceRunPath);
   let planRaw;
   try {
     planRaw = await readFile29(planPath, "utf8");
@@ -101303,14 +103268,14 @@ async function verifyRelease(options) {
     const configuredSmokeBins = (plan.units ?? []).flatMap((unit) => (unit.distributions ?? []).filter((distribution) => distribution.type === "npm" && distribution.smokeBin).map((distribution) => ({ unitId: unit.id, smokeBin: distribution.smokeBin })));
     await evidence.append({ phase: "verify", step: "plan-load", status: "passed" });
     await evidence.append({ phase: "verify", step: "source-run-load", status: "started" });
-    const sourceRun = await loadRun(sourceRunPath, {
+    const sourceRun = await loadRun(resolvedSourceRunPath, {
       requireDigest: Boolean(plan.production),
       ...plan.production ? { authorityPlanPath: planPath } : {}
     });
     await validateRunLineage(sourceRun, {
       plan,
       planPath,
-      runPath: sourceRunPath,
+      runPath: resolvedSourceRunPath,
       production: Boolean(plan.production)
     });
     if (sourceRun.command !== "publish" && sourceRun.command !== "reconcile") {
@@ -101327,23 +103292,46 @@ async function verifyRelease(options) {
         { sourceRunStatus: sourceRun.status }
       );
     }
-    if (plan.postPublish && plan.postPublish.targets && plan.postPublish.targets.length > 0) {
+    const declaredPostPublishTargets = plan.postPublish?.targets ?? [];
+    const declaredPostPublishHooks = plan.postPublish?.hooks ?? [];
+    if (plan.postPublish && (declaredPostPublishTargets.length > 0 || declaredPostPublishHooks.length > 0)) {
       await evidence.append({ phase: "verify", step: "distribute-run-discovery", status: "started" });
-      const distributeCandidates = await discoverDistributeRuns({ planPath, plan });
-      const distRunPath = (distributeCandidates ?? []).find((c) => c.status === "DISTRIBUTED")?.runPath || null;
+      const distributeCandidates = await discoverDistributeRuns({ planPath, plan }) ?? [];
+      let gateRun = distributeCandidates.find((c) => c.status === "DISTRIBUTED") ?? null;
+      let gateVerdict = gateRun ? { pass: true, warned: false, exemptions: [] } : null;
+      if (!gateRun) {
+        for (const candidate of distributeCandidates) {
+          const verdict = evaluateDistributeGateRun(candidate, plan);
+          if (verdict.pass) {
+            gateRun = candidate;
+            gateVerdict = verdict;
+            break;
+          }
+        }
+      }
       await evidence.append({
         phase: "verify",
         step: "distribute-run-discovery",
         status: "checked",
-        foundCandidate: !!distRunPath,
-        distributeRunPath: distRunPath
+        foundCandidate: Boolean(gateRun),
+        distributeRunPath: gateRun?.runPath ?? null
       });
-      if (!distRunPath) {
+      if (!gateRun) {
         throw new ReleaseError(
           GATE_FAILED,
-          `distribution required by plan.postPublish but no DISTRIBUTED run found; run release-skill distribute --plan ${planPath} --root ${root}`,
+          `distribution required by plan.postPublish but no DISTRIBUTED (or blocksVerified-exempted) distribute run found; run release-skill distribute --plan ${planPath} --root ${root}`,
           { requiredDistribution: true, evidenceEvent: "distribute-run-missing" }
         );
+      }
+      if (gateVerdict.warned) {
+        await evidence.append({
+          phase: "verify",
+          step: "distribute-gate",
+          status: "warning",
+          warning: "blocksVerified:false postPublish hook failure exempted; VERIFIED proceeds with a downgrade warning",
+          exemptions: gateVerdict.exemptions,
+          distributeRunPath: gateRun.runPath ?? null
+        });
       }
     }
     if (plan.production) {
@@ -101409,13 +103397,13 @@ async function verifyRelease(options) {
       await evidence.append({ phase: "source-authority-receipt", status: "passed" });
     }
     const incompleteCheckpoints = sourceRun.checkpoints.filter(
-      (cp2) => cp2.status !== "succeeded" && cp2.status !== "skipped" && !((cp2.status === "failed" || cp2.status === "deferred") && isMarketplaceAction(cp2.actionType))
+      (cp3) => cp3.status !== "succeeded" && cp3.status !== "skipped" && !((cp3.status === "failed" || cp3.status === "deferred") && isMarketplaceAction(cp3.actionType))
     );
     if (incompleteCheckpoints.length > 0) {
       throw new ReleaseError(
         GATE_FAILED,
-        `cannot verify: source run has ${incompleteCheckpoints.length} incomplete checkpoint(s): ${incompleteCheckpoints.map((cp2) => `${cp2.actionId}=${cp2.status}`).join(", ")}`,
-        { incompleteCheckpoints: incompleteCheckpoints.map((cp2) => ({ actionId: cp2.actionId, status: cp2.status })) }
+        `cannot verify: source run has ${incompleteCheckpoints.length} incomplete checkpoint(s): ${incompleteCheckpoints.map((cp3) => `${cp3.actionId}=${cp3.status}`).join(", ")}`,
+        { incompleteCheckpoints: incompleteCheckpoints.map((cp3) => ({ actionId: cp3.actionId, status: cp3.status })) }
       );
     }
     await evidence.append({
@@ -101432,7 +103420,7 @@ async function verifyRelease(options) {
     const trustedVerifyRuns = [];
     const planDir = dirname14(planPath);
     const releaseDir = basename10(planDir) === "plans" ? dirname14(planDir) : planDir;
-    const runsDir = resolve27(releaseDir, "runs");
+    const runsDir = resolve28(releaseDir, "runs");
     let runsDirReal = null;
     let authorityDirReal = null;
     if (previousVerifyRun) {
@@ -101445,7 +103433,7 @@ async function verifyRelease(options) {
     }
     {
       try {
-        const runsDirStat = await lstat21(runsDir);
+        const runsDirStat = await lstat22(runsDir);
         if (runsDirStat.isSymbolicLink()) {
           throw new ReleaseError(
             GATE_FAILED,
@@ -101484,8 +103472,8 @@ async function verifyRelease(options) {
               { entry: entry.name, runsDir: runsDirReal }
             );
           }
-          const candidateDir = resolve27(runsDirReal, entry.name);
-          const candidateStat = await lstat21(candidateDir).catch(() => null);
+          const candidateDir = resolve28(runsDirReal, entry.name);
+          const candidateStat = await lstat22(candidateDir).catch(() => null);
           if (!candidateStat || candidateStat.isSymbolicLink()) {
             throw new ReleaseError(
               GATE_FAILED,
@@ -101501,7 +103489,7 @@ async function verifyRelease(options) {
               { candidateDir, candidateReal, runsDir: runsDirReal }
             );
           }
-          const candidatePath = resolve27(candidateDir, "release-run.json");
+          const candidatePath = resolve28(candidateDir, "release-run.json");
           try {
             const candidate = await loadRun(candidatePath, { requireDigest: true });
             if (candidate.status !== "VERIFIED") continue;
@@ -101743,15 +103731,15 @@ async function verifyRelease(options) {
           evidence,
           env: gateEnv ?? process.env,
           fixedEnv: action.type === "claude-marketplace-install" ? {
-            HOME: resolve27(runDir, "consumers", `claude-${action.parameters.plugin}`),
-            CLAUDE_CONFIG_DIR: resolve27(runDir, "consumers", `claude-${action.parameters.plugin}`, ".claude")
+            HOME: resolve28(runDir, "consumers", `claude-${action.parameters.plugin}`),
+            CLAUDE_CONFIG_DIR: resolve28(runDir, "consumers", `claude-${action.parameters.plugin}`, ".claude")
           } : action.type === "codex-marketplace-install" ? {
-            HOME: resolve27(runDir, "consumers", `codex-${action.parameters.plugin}`),
-            CODEX_HOME: resolve27(runDir, "consumers", `codex-${action.parameters.plugin}`)
+            HOME: resolve28(runDir, "consumers", `codex-${action.parameters.plugin}`),
+            CODEX_HOME: resolve28(runDir, "consumers", `codex-${action.parameters.plugin}`)
           } : action.type === "codebuddy-marketplace-install" ? {
-            HOME: resolve27(runDir, "consumers", `codebuddy-${action.parameters.plugin}`)
+            HOME: resolve28(runDir, "consumers", `codebuddy-${action.parameters.plugin}`)
           } : {
-            HOME: resolve27(runDir, "consumers", `kimi-${action.parameters.plugin}`)
+            HOME: resolve28(runDir, "consumers", `kimi-${action.parameters.plugin}`)
           }
         }));
       } else {
@@ -101926,7 +103914,7 @@ async function verifyRelease(options) {
     assertTransition(PUBLISHED, VERIFIED);
     await evidence.append({ phase: "verify", status: "completed", overallStatus: VERIFIED });
     const sourceRunDigest = sourceRun.runDigest ?? computeRunDigest(sourceRun);
-    const verifyRunPath = join24(runDir, "release-run.json");
+    const verifyRunPath = join25(runDir, "release-run.json");
     const verifyRunState = {
       runId,
       command: "verify",
@@ -101938,7 +103926,7 @@ async function verifyRelease(options) {
       } : {},
       sourceRunId: sourceRun.runId,
       sourceRunDigest,
-      sourceRunPath,
+      sourceRunPath: resolvedSourceRunPath,
       status: VERIFIED,
       checkpoints: actions.map((a) => {
         const check = adapterChecks.find((c) => c.actionId === a.id);
@@ -101969,7 +103957,7 @@ async function verifyRelease(options) {
     };
     const persistedVerifyRun = await writeRunAtomic(verifyRunPath, verifyRunState);
     try {
-      const removed = await clearFrozenMarker(join24(root, ".release-skill"));
+      const removed = await clearFrozenMarker(join25(root, ".release-skill"));
       await evidence.append({
         phase: "frozen-marker",
         status: removed ? "cleared" : "absent"
@@ -101985,7 +103973,7 @@ async function verifyRelease(options) {
     const baselineAdvances = deriveBaselineAdvances(plan);
     if (baselineAdvances.length > 0) {
       try {
-        const configAbs = configPathOpt ? isAbsolute20(configPathOpt) ? configPathOpt : join24(root, configPathOpt) : join24(root, ".release-skill/project.yaml");
+        const configAbs = configPathOpt ? isAbsolute21(configPathOpt) ? configPathOpt : join25(root, configPathOpt) : join25(root, ".release-skill/project.yaml");
         const cleanBefore = await isWorktreeFileClean({ root, filePath: configAbs, execFn });
         const applyResult = await applyBaselineAdvances({
           configPath: configAbs,
@@ -102078,7 +104066,7 @@ var init_verify = __esm({
     init_npm_entry_closure();
     await init_kimi();
     init_codebuddy();
-    execFile9 = promisify11(execFileCb11);
+    execFile9 = promisify12(execFileCb12);
     VERIFICATION_RESOLVED_TYPES = Object.freeze({
       PASSED_AUTOMATIC: "PASSED_AUTOMATIC",
       PASSED_MANUAL: "PASSED_MANUAL",
@@ -102110,7 +104098,7 @@ var init_verify = __esm({
           exec: execFile9,
           env: process.env
         });
-        const userConfig = join24(cwd, ".release-skill-npmrc");
+        const userConfig = join25(cwd, ".release-skill-npmrc");
         await writeFile9(
           userConfig,
           `registry=${normalizedRegistry}/
@@ -102160,7 +104148,1176 @@ ${registryTokenKey(normalizedRegistry)}=${token}
       }
     };
     __name(discoverDistributeRuns, "discoverDistributeRuns");
+    __name(evaluateDistributeGateRun, "evaluateDistributeGateRun");
     __name(verifyRelease, "verifyRelease");
+  }
+});
+
+// src/core/notify-handoff.mjs
+function renderNotifyHandoffChecklist(contextProjection, options = {}) {
+  const context = contextProjection ?? {};
+  const lines = [
+    "notify-handoff downstream sync checklist (zero-write floor; no automated write was performed)"
+  ];
+  for (const field of CHECKLIST_FACT_FIELDS) {
+    const value = context[field];
+    if (typeof value === "string" && value.length > 0) {
+      lines.push(`- ${field}: ${value}`);
+    }
+  }
+  const verifyEvidence = context.verifyEvidence;
+  if (verifyEvidence && typeof verifyEvidence === "object") {
+    lines.push(`- verifyEvidence: runId=${verifyEvidence.runId ?? ""} status=${verifyEvidence.status ?? ""} finishedAt=${verifyEvidence.finishedAt ?? ""}`);
+  }
+  if (typeof options.evidencePath === "string" && options.evidencePath.length > 0) {
+    lines.push(`- evidence: ${options.evidencePath}`);
+  }
+  lines.push("suggested actions:");
+  lines.push("- manually sync the frozen release facts above into every downstream consumer (marketplace entries, docs sites, hub registries)");
+  lines.push("- downstream updates require human action or the downstream governance workflow; this hook wrote nothing");
+  return lines;
+}
+async function executeNotifyHandoffHook(params) {
+  const { contextProjection, evidencePath } = params ?? {};
+  const checklist = renderNotifyHandoffChecklist(contextProjection, {
+    ...evidencePath !== void 0 ? { evidencePath } : {}
+  });
+  return {
+    status: "EXECUTED",
+    mode: "notify-handoff",
+    checklist,
+    manualSyncPrompt: checklist.join("\n"),
+    observation: { mode: "notify-handoff" }
+  };
+}
+var CHECKLIST_FACT_FIELDS;
+var init_notify_handoff = __esm({
+  "src/core/notify-handoff.mjs"() {
+    CHECKLIST_FACT_FIELDS = ["unitId", "version", "tag", "commit", "tree", "manifestDigest", "planDigest", "runId", "publishedAt"];
+    __name(renderNotifyHandoffChecklist, "renderNotifyHandoffChecklist");
+    __name(executeNotifyHandoffHook, "executeNotifyHandoffHook");
+  }
+});
+
+// src/core/proposal-inbox.mjs
+import { execFile as execFileCb13 } from "node:child_process";
+import { promisify as promisify13 } from "node:util";
+import { mkdir as mkdir19, mkdtemp as mkdtemp8, readFile as readFile30, rm as rm11, writeFile as writeFile10 } from "node:fs/promises";
+import { tmpdir as tmpdir5 } from "node:os";
+import { dirname as dirname15, join as join26 } from "node:path";
+function defaultExec2(command2, args2, options = {}) {
+  return execFileAsync3(command2, args2, { shell: false, encoding: "utf8", timeout: GIT_TIMEOUT_MS, ...options });
+}
+function netEnv() {
+  return { ...process.env, ...NEVER_PROMPT_ENV };
+}
+function hasControlChars(value) {
+  return /[\x00-\x1f\x7f]/.test(value);
+}
+function assertSafeRemoteUrl(remoteUrl) {
+  if (typeof remoteUrl !== "string" || !SAFE_REMOTE_URL_RE.test(remoteUrl) || hasControlChars(remoteUrl)) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "proposal-inbox remoteUrl must be an http(s)/file URL ending in .git",
+      { remoteUrl }
+    );
+  }
+}
+function assertSafeBranch(branch) {
+  if (typeof branch !== "string" || !SAFE_BRANCH_RE.test(branch) || branch.includes("..") || branch.endsWith(".") || branch.endsWith(".lock")) {
+    throw new ReleaseError(GATE_FAILED, "proposal-inbox branch is not a safe Git branch name", { branch });
+  }
+}
+function assertCommitIdentity(identity2) {
+  if (!identity2 || typeof identity2 !== "object") {
+    throw new ReleaseError(GATE_FAILED, "proposal-inbox requires a frozen commitIdentity");
+  }
+  for (const field of ["name", "email"]) {
+    const value = identity2[field];
+    if (typeof value !== "string" || value.length === 0 || value.startsWith("-") || hasControlChars(value)) {
+      throw new ReleaseError(GATE_FAILED, `proposal-inbox commitIdentity.${field} is missing or unsafe`, { field });
+    }
+  }
+}
+function assertSafeProposalPath(proposalPath) {
+  if (typeof proposalPath !== "string" || proposalPath.length === 0 || proposalPath.startsWith("/") || proposalPath.startsWith("./") || proposalPath.includes("..") || proposalPath.includes("\\") || proposalPath.includes(":") || hasControlChars(proposalPath)) {
+    throw new ReleaseError(GATE_FAILED, "proposal path is not a safe repository-relative path", { proposalPath });
+  }
+}
+function stderrText(error) {
+  return `${error?.stderr ?? ""}
+${error?.message ?? ""}`;
+}
+function stderrTail(error, limit = 400) {
+  const text = stderrText(error).trim();
+  return text.length > limit ? `\u2026${text.slice(-limit)}` : text;
+}
+function classifyNetFailure(text) {
+  const output = typeof text === "string" ? text : "";
+  if (AUTH_FAILURE_PATTERNS.some((pattern) => pattern.test(output))) return "auth";
+  if (TRANSPORT_FAILURE_PATTERNS.some((pattern) => pattern.test(output))) return "transport";
+  return "transport";
+}
+function parseLsRemote(stdout) {
+  const refs = /* @__PURE__ */ new Map();
+  for (const line of `${stdout ?? ""}`.trim().split("\n").filter(Boolean)) {
+    const tabIndex = line.indexOf("	");
+    if (tabIndex < 0) continue;
+    const sha = line.slice(0, tabIndex);
+    const ref = line.slice(tabIndex + 1);
+    if (!SHA_RE2.test(sha)) continue;
+    if (ref.endsWith("^{}")) {
+      refs.set(ref.slice(0, -3), sha);
+    } else if (!refs.has(ref)) {
+      refs.set(ref, sha);
+    }
+  }
+  return refs;
+}
+function proposalFileName(unitId, version) {
+  if (typeof unitId !== "string" || unitId.length === 0 || typeof version !== "string" || version.length === 0) {
+    throw new ReleaseError(GATE_FAILED, "proposal file name requires unitId and version", { unitId, version });
+  }
+  return `incoming/${unitId}-${version}.json`;
+}
+function buildProposalDocument(context) {
+  const required = ["unitId", "version", "tag", "commit", "planDigest", "runId"];
+  for (const field of required) {
+    if (typeof context?.[field] !== "string" || context[field].length === 0) {
+      throw new ReleaseError(GATE_FAILED, `proposal document requires context field "${field}"`, { field });
+    }
+  }
+  const { unitId, version, tag, commit, tree, manifestDigest, planDigest, runId, publishedAt, verifyEvidence } = context;
+  return {
+    schemaVersion: PROPOSAL_SCHEMA_VERSION,
+    kind: PROPOSAL_KIND,
+    unitId,
+    version,
+    tag,
+    sha: commit,
+    commit,
+    ...typeof tree === "string" && tree.length > 0 ? { tree } : {},
+    ...typeof manifestDigest === "string" && manifestDigest.length > 0 ? { manifestDigest } : {},
+    planDigest,
+    runId,
+    ...publishedAt !== void 0 ? { publishedAt } : {},
+    ...verifyEvidence !== void 0 ? { verifyEvidence } : {},
+    changeSummary: `release ${unitId} ${version} (tag ${tag}, commit ${commit})`
+  };
+}
+function buildManualSyncPrompt({ remoteUrl, proposalPath, branch }) {
+  return `manual sync required: review proposal ${proposalPath} in downstream repository ${remoteUrl} (branch ${branch}); suggested action: open a pull request or apply the proposal through the downstream governance workflow`;
+}
+async function crossCheckPushedCommit(exec, remoteUrl, branch, pushedCommit) {
+  assertSafeRemoteUrl(remoteUrl);
+  assertSafeBranch(branch);
+  if (typeof pushedCommit !== "string" || !SHA_RE2.test(pushedCommit)) {
+    throw new ReleaseError(GATE_FAILED, "cross-check requires the full 40-hex pushed commit", { pushedCommit });
+  }
+  const execFn = typeof exec === "function" ? exec : defaultExec2;
+  const { stdout } = await execFn("git", ["ls-remote", remoteUrl, `refs/heads/${branch}`], {
+    env: netEnv(),
+    timeout: PROBE_TIMEOUT_MS,
+    shell: false
+  });
+  const observed = parseLsRemote(stdout).get(`refs/heads/${branch}`) ?? null;
+  if (observed !== pushedCommit) {
+    throw new ReleaseError(
+      POST_PUBLISH_VERIFY_FAILED,
+      `post-push cross-check failed: remote branch ${branch} is at ${observed ?? "<missing>"}, which disagrees with the pushed commit ${pushedCommit}`,
+      { remoteUrl, branch, pushedCommit, observed }
+    );
+  }
+  return observed;
+}
+async function deliverProposalGitPush(params) {
+  const {
+    remoteUrl,
+    branch,
+    proposalPath,
+    proposalDocument,
+    commitIdentity,
+    exec: execOpt
+  } = params ?? {};
+  assertSafeRemoteUrl(remoteUrl);
+  assertSafeBranch(branch);
+  assertSafeProposalPath(proposalPath);
+  assertCommitIdentity(commitIdentity);
+  if (!proposalDocument || typeof proposalDocument !== "object" || Array.isArray(proposalDocument)) {
+    throw new ReleaseError(GATE_FAILED, "proposal-inbox requires a proposal document");
+  }
+  const exec = typeof execOpt === "function" ? execOpt : defaultExec2;
+  const serialized = `${JSON.stringify(proposalDocument, null, 2)}
+`;
+  const cloneDir = await mkdtemp8(join26(tmpdir5(), TMP_PREFIX));
+  try {
+    try {
+      await exec("git", ["clone", "--quiet", remoteUrl, cloneDir], {
+        env: netEnv(),
+        timeout: TRANSFER_TIMEOUT_MS,
+        shell: false
+      });
+    } catch (error) {
+      const classification = classifyNetFailure(stderrText(error));
+      throw new ReleaseError(
+        classification === "auth" ? REMOTE_CONFLICT : REMOTE_UNAVAILABLE,
+        classification === "auth" ? `proposal-inbox remote refused authentication for ${remoteUrl}; the host keychain credential is reused and never prompted, read, or retried` : `cannot reach proposal-inbox remote ${remoteUrl} \u2014 start VPN / check network; delivery fails closed and never retries with credentials`,
+        { remoteUrl, stderrTail: stderrTail(error) }
+      );
+    }
+    const git3 = /* @__PURE__ */ __name((args2, options = {}) => exec("git", args2, { cwd: cloneDir, shell: false, timeout: GIT_TIMEOUT_MS, ...options }), "git");
+    let previousHead = null;
+    try {
+      const { stdout } = await git3(["rev-parse", "--verify", "--quiet", `refs/remotes/origin/${branch}`]);
+      previousHead = stdout.trim() || null;
+    } catch {
+      previousHead = null;
+    }
+    if (previousHead) {
+      await git3(["checkout", "--quiet", "-B", branch, previousHead]);
+    } else {
+      await git3(["checkout", "--quiet", "--orphan", branch]);
+    }
+    const targetPath2 = join26(cloneDir, proposalPath);
+    let existing = null;
+    try {
+      existing = await readFile30(targetPath2, "utf8");
+    } catch {
+      existing = null;
+    }
+    if (existing !== null) {
+      if (existing === serialized) {
+        return {
+          status: "NO_CHANGE",
+          observation: { mode: "no-change", previousHead, branchTip: previousHead }
+        };
+      }
+      throw new ReleaseError(
+        REMOTE_CONFLICT,
+        `proposal ${proposalPath} already exists in ${remoteUrl} with different content; overwriting a downstream proposal requires a human decision`,
+        { remoteUrl, proposalPath }
+      );
+    }
+    await mkdir19(dirname15(targetPath2), { recursive: true });
+    await writeFile10(targetPath2, serialized);
+    await git3(["add", "-A"]);
+    await git3([
+      "-c",
+      `user.name=${commitIdentity.name}`,
+      "-c",
+      `user.email=${commitIdentity.email}`,
+      "commit",
+      "--quiet",
+      "-m",
+      `release-skill proposal ${proposalPath}`
+    ]);
+    const { stdout: headOut } = await git3(["rev-parse", "HEAD"]);
+    const localCommit = headOut.trim();
+    try {
+      await exec("git", ["push", "--quiet", "origin", branch], {
+        cwd: cloneDir,
+        env: netEnv(),
+        timeout: TRANSFER_TIMEOUT_MS,
+        shell: false
+      });
+    } catch (error) {
+      const classification = classifyNetFailure(stderrText(error));
+      throw new ReleaseError(
+        classification === "auth" ? REMOTE_CONFLICT : REMOTE_UNAVAILABLE,
+        classification === "auth" ? `proposal-inbox push refused authentication for ${remoteUrl}; the host keychain credential is reused and never prompted, read, or retried` : `proposal-inbox push to ${remoteUrl} failed \u2014 start VPN / check network; delivery fails closed and never retries with credentials`,
+        { remoteUrl, branch, stderrTail: stderrTail(error) }
+      );
+    }
+    return {
+      status: "EXECUTED",
+      observation: { mode: "pushed", pushedCommit: localCommit, previousHead, branchTip: localCommit }
+    };
+  } finally {
+    await rm11(cloneDir, { recursive: true, force: true }).catch(() => {
+    });
+  }
+}
+async function executeProposalInboxGitPushHook(params) {
+  const { hook, contextProjection, commitIdentity, exec } = params ?? {};
+  const target = hook?.config?.target;
+  if (!target || typeof target.remoteUrl !== "string" || typeof target.branch !== "string") {
+    throw new ReleaseError(GATE_FAILED, "proposal-inbox git-push requires config.target.remoteUrl and config.target.branch");
+  }
+  const document2 = buildProposalDocument(contextProjection);
+  const proposalPath = proposalFileName(contextProjection.unitId, contextProjection.version);
+  const delivery = await deliverProposalGitPush({
+    remoteUrl: target.remoteUrl,
+    branch: target.branch,
+    proposalPath,
+    proposalDocument: document2,
+    commitIdentity,
+    ...exec !== void 0 ? { exec } : {}
+  });
+  if (delivery.status === "EXECUTED" && delivery.observation.mode === "pushed") {
+    await crossCheckPushedCommit(exec, target.remoteUrl, target.branch, delivery.observation.pushedCommit);
+  }
+  return {
+    ...delivery,
+    proposalPath,
+    manualSyncPrompt: buildManualSyncPrompt({
+      remoteUrl: target.remoteUrl,
+      proposalPath,
+      branch: target.branch
+    })
+  };
+}
+function buildLocalFileSyncPrompt({ workspace, proposalPath, branch }) {
+  return `manual sync required: proposal ${proposalPath} was committed to the local downstream checkout ${workspace} (branch ${branch}) but not pushed; suggested action: review the proposal and push or apply it through the downstream governance workflow`;
+}
+async function deliverProposalLocalFile(params) {
+  const {
+    workspaceRealpath,
+    branch,
+    proposalPath,
+    proposalDocument,
+    commitIdentity,
+    exec: execOpt
+  } = params ?? {};
+  assertSafeBranch(branch);
+  assertSafeProposalPath(proposalPath);
+  assertCommitIdentity(commitIdentity);
+  if (typeof workspaceRealpath !== "string" || workspaceRealpath.length === 0) {
+    throw new ReleaseError(GATE_FAILED, "proposal-inbox local-file requires a resolved workspace realpath");
+  }
+  if (!proposalDocument || typeof proposalDocument !== "object" || Array.isArray(proposalDocument)) {
+    throw new ReleaseError(GATE_FAILED, "proposal-inbox requires a proposal document");
+  }
+  const exec = typeof execOpt === "function" ? execOpt : defaultExec2;
+  const git3 = /* @__PURE__ */ __name((args2, options = {}) => exec("git", args2, { cwd: workspaceRealpath, shell: false, timeout: GIT_TIMEOUT_MS, ...options }), "git");
+  let headRef = "";
+  try {
+    const { stdout } = await git3(["symbolic-ref", "--quiet", "HEAD"]);
+    headRef = `${stdout}`.trim();
+  } catch {
+    headRef = "";
+  }
+  if (headRef !== `refs/heads/${branch}`) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `proposal-inbox local-file requires the checkout to be on branch "${branch}", but HEAD is at "${headRef || "<detached>"}"; check out the branch and rerun`,
+      { workspace: workspaceRealpath, branch, headRef: headRef || null }
+    );
+  }
+  const serialized = `${JSON.stringify(proposalDocument, null, 2)}
+`;
+  const targetPath2 = join26(workspaceRealpath, proposalPath);
+  let existing = null;
+  try {
+    existing = await readFile30(targetPath2, "utf8");
+  } catch {
+    existing = null;
+  }
+  if (existing !== null) {
+    if (existing === serialized) {
+      return { status: "NO_CHANGE", observation: { mode: "no-change", branch } };
+    }
+    throw new ReleaseError(
+      REMOTE_CONFLICT,
+      `proposal ${proposalPath} already exists in the local checkout with different content; overwriting a downstream proposal requires a human decision`,
+      { workspace: workspaceRealpath, proposalPath }
+    );
+  }
+  await mkdir19(dirname15(targetPath2), { recursive: true });
+  await writeFile10(targetPath2, serialized);
+  await git3(["add", "--", proposalPath]);
+  await git3([
+    "-c",
+    `user.name=${commitIdentity.name}`,
+    "-c",
+    `user.email=${commitIdentity.email}`,
+    "commit",
+    "--quiet",
+    "-m",
+    `release-skill proposal ${proposalPath}`
+  ]);
+  const { stdout: headOut } = await git3(["rev-parse", "HEAD"]);
+  const localCommit = headOut.trim();
+  return {
+    status: "EXECUTED",
+    observation: { mode: "local-file", localCommit, branch }
+  };
+}
+async function executeProposalInboxLocalFileHook(params) {
+  const { hook, contextProjection, commitIdentity, root, exec } = params ?? {};
+  const target = hook?.config?.target;
+  if (!target || typeof target.workspace !== "string" || typeof target.branch !== "string") {
+    throw new ReleaseError(GATE_FAILED, "proposal-inbox local-file requires config.target.workspace and config.target.branch");
+  }
+  if (typeof root !== "string" || root.length === 0) {
+    throw new ReleaseError(GATE_FAILED, "proposal-inbox local-file requires the release workspace root");
+  }
+  const preflight = await preflightPresetWorkspace(target.workspace, { root });
+  const execution = await assertPresetWorkspaceExecution(target.workspace, {
+    root,
+    preflightRealpath: preflight.realpath
+  });
+  const document2 = buildProposalDocument(contextProjection);
+  const proposalPath = proposalFileName(contextProjection.unitId, contextProjection.version);
+  const delivery = await deliverProposalLocalFile({
+    workspaceRealpath: execution.realpath,
+    branch: target.branch,
+    proposalPath,
+    proposalDocument: document2,
+    commitIdentity,
+    ...exec !== void 0 ? { exec } : {}
+  });
+  return {
+    ...delivery,
+    proposalPath,
+    workspaceRealpath: execution.realpath,
+    manualSyncPrompt: buildLocalFileSyncPrompt({
+      workspace: execution.realpath,
+      proposalPath,
+      branch: target.branch
+    })
+  };
+}
+var execFileAsync3, PROPOSAL_SCHEMA_VERSION, PROPOSAL_KIND, PROBE_TIMEOUT_MS, GIT_TIMEOUT_MS, TRANSFER_TIMEOUT_MS, TMP_PREFIX, SAFE_REMOTE_URL_RE, SAFE_BRANCH_RE, SHA_RE2, NEVER_PROMPT_ENV, AUTH_FAILURE_PATTERNS, TRANSPORT_FAILURE_PATTERNS;
+var init_proposal_inbox = __esm({
+  "src/core/proposal-inbox.mjs"() {
+    init_errors();
+    init_presets();
+    execFileAsync3 = promisify13(execFileCb13);
+    PROPOSAL_SCHEMA_VERSION = 1;
+    PROPOSAL_KIND = "release-skill/update-proposal";
+    PROBE_TIMEOUT_MS = 3e4;
+    GIT_TIMEOUT_MS = 12e4;
+    TRANSFER_TIMEOUT_MS = 3e5;
+    TMP_PREFIX = "release-skill-proposal-";
+    SAFE_REMOTE_URL_RE = /^(?:https?|file):\/\/.+\.git$/;
+    SAFE_BRANCH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
+    SHA_RE2 = /^[a-f0-9]{40}$/;
+    NEVER_PROMPT_ENV = { GIT_TERMINAL_PROMPT: "0" };
+    AUTH_FAILURE_PATTERNS = [
+      /authentication failed/i,
+      /could not read username/i,
+      /could not read password/i,
+      /terminal prompts disabled/i,
+      /invalid username or password/i,
+      /permission denied/i,
+      /access denied/i,
+      /authorization failed/i,
+      /\b403\b/,
+      /\b401\b/
+    ];
+    TRANSPORT_FAILURE_PATTERNS = [
+      /could not resolve host/i,
+      /unable to access/i,
+      /connection refused/i,
+      /connection timed out/i,
+      /operation timed out/i,
+      /network is unreachable/i,
+      /ssl certificate problem/i,
+      /could not resolve proxy/i,
+      /failed to connect/i
+    ];
+    __name(defaultExec2, "defaultExec");
+    __name(netEnv, "netEnv");
+    __name(hasControlChars, "hasControlChars");
+    __name(assertSafeRemoteUrl, "assertSafeRemoteUrl");
+    __name(assertSafeBranch, "assertSafeBranch");
+    __name(assertCommitIdentity, "assertCommitIdentity");
+    __name(assertSafeProposalPath, "assertSafeProposalPath");
+    __name(stderrText, "stderrText");
+    __name(stderrTail, "stderrTail");
+    __name(classifyNetFailure, "classifyNetFailure");
+    __name(parseLsRemote, "parseLsRemote");
+    __name(proposalFileName, "proposalFileName");
+    __name(buildProposalDocument, "buildProposalDocument");
+    __name(buildManualSyncPrompt, "buildManualSyncPrompt");
+    __name(crossCheckPushedCommit, "crossCheckPushedCommit");
+    __name(deliverProposalGitPush, "deliverProposalGitPush");
+    __name(executeProposalInboxGitPushHook, "executeProposalInboxGitPushHook");
+    __name(buildLocalFileSyncPrompt, "buildLocalFileSyncPrompt");
+    __name(deliverProposalLocalFile, "deliverProposalLocalFile");
+    __name(executeProposalInboxLocalFileHook, "executeProposalInboxLocalFileHook");
+  }
+});
+
+// src/core/preset-gitwrite.mjs
+import { execFile as execFileCb14 } from "node:child_process";
+import { promisify as promisify14 } from "node:util";
+import { mkdtemp as mkdtemp9, rm as rm12 } from "node:fs/promises";
+import { tmpdir as tmpdir6 } from "node:os";
+import { join as join27 } from "node:path";
+function defaultExec3(command2, args2, options = {}) {
+  return execFileAsync4(command2, args2, { shell: false, encoding: "utf8", timeout: GIT_TIMEOUT_MS2, ...options });
+}
+function netEnv2() {
+  return { ...process.env, ...NEVER_PROMPT_ENV2 };
+}
+function hasControlChars2(value) {
+  return /[\x00-\x1f\x7f]/.test(value);
+}
+function assertSafeRemoteUrl2(remoteUrl) {
+  if (typeof remoteUrl !== "string" || !SAFE_REMOTE_URL_RE2.test(remoteUrl) || hasControlChars2(remoteUrl)) {
+    throw new ReleaseError(GATE_FAILED, "preset downstream remoteUrl must be an http(s)/file URL ending in .git", { remoteUrl });
+  }
+}
+function assertSafeBranch2(branch) {
+  if (typeof branch !== "string" || !SAFE_BRANCH_RE2.test(branch) || branch.includes("..") || branch.endsWith(".") || branch.endsWith(".lock")) {
+    throw new ReleaseError(GATE_FAILED, "preset downstream branch is not a safe Git branch name", { branch });
+  }
+}
+function assertCommitIdentity2(identity2) {
+  if (!identity2 || typeof identity2 !== "object") {
+    throw new ReleaseError(GATE_FAILED, "preset downstream write requires a frozen commitIdentity");
+  }
+  for (const field of ["name", "email"]) {
+    const value = identity2[field];
+    if (typeof value !== "string" || value.length === 0 || value.startsWith("-") || hasControlChars2(value)) {
+      throw new ReleaseError(GATE_FAILED, `preset downstream commitIdentity.${field} is missing or unsafe`, { field });
+    }
+  }
+}
+function stderrText2(error) {
+  return `${error?.stderr ?? ""}
+${error?.message ?? ""}`;
+}
+function stderrTail2(error, limit = 400) {
+  const text = stderrText2(error).trim();
+  return text.length > limit ? `\u2026${text.slice(-limit)}` : text;
+}
+function classifyNetFailure2(text) {
+  const output = typeof text === "string" ? text : "";
+  if (AUTH_FAILURE_PATTERNS2.some((pattern) => pattern.test(output))) return "auth";
+  return "transport";
+}
+function parseLsRemote2(stdout) {
+  const refs = /* @__PURE__ */ new Map();
+  for (const line of `${stdout ?? ""}`.trim().split("\n").filter(Boolean)) {
+    const tabIndex = line.indexOf("	");
+    if (tabIndex < 0) continue;
+    const sha = line.slice(0, tabIndex);
+    const ref = line.slice(tabIndex + 1);
+    if (!SHA_RE3.test(sha)) continue;
+    if (ref.endsWith("^{}")) {
+      refs.set(ref.slice(0, -3), sha);
+    } else if (!refs.has(ref)) {
+      refs.set(ref, sha);
+    }
+  }
+  return refs;
+}
+async function crossCheckBranchTip(exec, remoteUrl, branch, pushedCommit) {
+  assertSafeRemoteUrl2(remoteUrl);
+  assertSafeBranch2(branch);
+  if (typeof pushedCommit !== "string" || !SHA_RE3.test(pushedCommit)) {
+    throw new ReleaseError(GATE_FAILED, "cross-check requires the full 40-hex pushed commit", { pushedCommit });
+  }
+  const execFn = typeof exec === "function" ? exec : defaultExec3;
+  const { stdout } = await execFn("git", ["ls-remote", remoteUrl, `refs/heads/${branch}`], {
+    env: netEnv2(),
+    timeout: PROBE_TIMEOUT_MS2,
+    shell: false
+  });
+  const observed = parseLsRemote2(stdout).get(`refs/heads/${branch}`) ?? null;
+  if (observed !== pushedCommit) {
+    throw new ReleaseError(
+      POST_PUBLISH_VERIFY_FAILED,
+      `post-push cross-check failed: downstream branch ${branch} is at ${observed ?? "<missing>"}, which disagrees with the pushed commit ${pushedCommit}`,
+      { remoteUrl, branch, pushedCommit, observed }
+    );
+  }
+  return observed;
+}
+async function applyDownstreamGitChange(params) {
+  const {
+    target,
+    commitIdentity,
+    commitSubject,
+    mutate,
+    gates = [],
+    contextProjection,
+    root,
+    exec: execOpt,
+    hookRunner
+  } = params ?? {};
+  if (!target || typeof target !== "object") {
+    throw new ReleaseError(GATE_FAILED, "preset downstream write requires a config.target");
+  }
+  assertSafeBranch2(target.branch);
+  assertCommitIdentity2(commitIdentity);
+  if (typeof mutate !== "function") {
+    throw new ReleaseError(GATE_FAILED, "preset downstream write requires a mutate function");
+  }
+  const exec = typeof execOpt === "function" ? execOpt : defaultExec3;
+  const runGate = typeof hookRunner === "function" ? hookRunner : defaultRunGate;
+  const hasRemoteUrl = typeof target.remoteUrl === "string";
+  const hasWorkspace = typeof target.workspace === "string";
+  if (hasRemoteUrl === hasWorkspace) {
+    throw new ReleaseError(GATE_FAILED, "preset downstream target must declare exactly one of remoteUrl or workspace");
+  }
+  let worktree = null;
+  let isClone = false;
+  let previousHead = null;
+  let workspaceRealpath = null;
+  if (hasRemoteUrl) {
+    assertSafeRemoteUrl2(target.remoteUrl);
+    worktree = await mkdtemp9(join27(tmpdir6(), TMP_PREFIX2));
+    isClone = true;
+    try {
+      await exec("git", ["clone", "--quiet", target.remoteUrl, worktree], {
+        env: netEnv2(),
+        timeout: TRANSFER_TIMEOUT_MS2,
+        shell: false
+      });
+    } catch (error) {
+      await rm12(worktree, { recursive: true, force: true }).catch(() => {
+      });
+      const classification = classifyNetFailure2(stderrText2(error));
+      throw new ReleaseError(
+        classification === "auth" ? REMOTE_CONFLICT : REMOTE_UNAVAILABLE,
+        classification === "auth" ? `preset downstream remote refused authentication for ${target.remoteUrl}; the host keychain credential is reused and never prompted, read, or retried` : `cannot reach preset downstream remote ${target.remoteUrl} \u2014 start VPN / check network; delivery fails closed and never retries with credentials`,
+        { remoteUrl: target.remoteUrl, stderrTail: stderrTail2(error) }
+      );
+    }
+    try {
+      const { stdout } = await exec("git", ["rev-parse", "--verify", "--quiet", `refs/remotes/origin/${target.branch}`], { cwd: worktree, shell: false });
+      previousHead = stdout.trim() || null;
+    } catch {
+      previousHead = null;
+    }
+    if (previousHead) {
+      await exec("git", ["checkout", "--quiet", "-B", target.branch, previousHead], { cwd: worktree, shell: false });
+    } else {
+      await exec("git", ["checkout", "--quiet", "--orphan", target.branch], { cwd: worktree, shell: false });
+    }
+  } else {
+    const preflight = await preflightPresetWorkspace(target.workspace, { root });
+    const execution = await assertPresetWorkspaceExecution(target.workspace, {
+      root,
+      preflightRealpath: preflight.realpath
+    });
+    worktree = execution.realpath;
+    workspaceRealpath = execution.realpath;
+    let headRef = "";
+    try {
+      const { stdout } = await exec("git", ["symbolic-ref", "--quiet", "HEAD"], { cwd: worktree, shell: false });
+      headRef = `${stdout}`.trim();
+    } catch {
+      headRef = "";
+    }
+    if (headRef !== `refs/heads/${target.branch}`) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `preset downstream workspace must be checked out on branch "${target.branch}", but HEAD is at "${headRef || "<detached>"}"; check out the branch and rerun`,
+        { workspace: worktree, branch: target.branch, headRef: headRef || null }
+      );
+    }
+    try {
+      const { stdout } = await exec("git", ["rev-parse", "--verify", "--quiet", "HEAD"], { cwd: worktree, shell: false });
+      previousHead = stdout.trim() || null;
+    } catch {
+      previousHead = null;
+    }
+    const { stdout: dirtyOut } = await exec("git", ["status", "--porcelain"], { cwd: worktree, shell: false });
+    if (`${dirtyOut}`.trim().length > 0) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        "preset downstream workspace has uncommitted changes; the preset would have to stage them alongside its own write \u2014 commit or stash the local work and rerun",
+        { workspace: worktree }
+      );
+    }
+  }
+  try {
+    const git3 = /* @__PURE__ */ __name((args2, options = {}) => exec("git", args2, { cwd: worktree, shell: false, timeout: GIT_TIMEOUT_MS2, ...options }), "git");
+    await mutate(worktree);
+    await git3(["add", "-A"]);
+    const noChange = await git3(["status", "--porcelain"]).then(({ stdout }) => stdout.trim().length === 0).catch(() => false);
+    if (noChange) {
+      return {
+        status: "NO_CHANGE",
+        observation: {
+          mode: "no-change",
+          previousHead,
+          branchTip: previousHead,
+          ...workspaceRealpath ? { workspaceRealpath } : {}
+        }
+      };
+    }
+    for (const [index, gate] of gates.entries()) {
+      let gateResult;
+      try {
+        gateResult = await runGate(
+          {
+            command: gate.command,
+            ...gate.cwd ? { cwd: gate.cwd } : {},
+            ...gate.timeoutMs !== void 0 ? { timeoutMs: gate.timeoutMs } : {},
+            ...gate.envAllowlist ? { envAllowlist: gate.envAllowlist } : {}
+          },
+          {
+            root: worktree,
+            env: process.env,
+            injectEnv: contextProjection !== void 0 ? { [POSTPUBLISH_CONTEXT_ENV]: JSON.stringify(contextProjection) } : {}
+          }
+        );
+      } catch (err) {
+        await git3(["reset", "--quiet"]).catch(() => {
+        });
+        const code = err?.code === "HOOK_TIMEOUT" ? "HOOK_TIMEOUT" : GATE_FAILED;
+        throw new ReleaseError(
+          code === "HOOK_TIMEOUT" ? GATE_FAILED : code,
+          `downstream gate ${index + 1} timed out or could not run: ${err?.message ?? err}`,
+          { gateIndex: index }
+        );
+      }
+      if (gateResult.exitCode !== 0) {
+        await git3(["reset", "--quiet"]).catch(() => {
+        });
+        throw new ReleaseError(
+          GATE_FAILED,
+          `downstream gate ${index + 1} failed with exit code ${gateResult.exitCode}; the downstream change was not committed or pushed`,
+          { gateIndex: index, exitCode: gateResult.exitCode }
+        );
+      }
+    }
+    await git3([
+      "-c",
+      `user.name=${commitIdentity.name}`,
+      "-c",
+      `user.email=${commitIdentity.email}`,
+      "commit",
+      "--quiet",
+      "-m",
+      commitSubject
+    ]);
+    const { stdout: headOut } = await git3(["rev-parse", "HEAD"]);
+    const localCommit = headOut.trim();
+    try {
+      await exec("git", ["push", "--quiet", "origin", target.branch], {
+        cwd: worktree,
+        env: netEnv2(),
+        timeout: TRANSFER_TIMEOUT_MS2,
+        shell: false
+      });
+    } catch (error) {
+      const classification = classifyNetFailure2(stderrText2(error));
+      throw new ReleaseError(
+        classification === "auth" ? REMOTE_CONFLICT : REMOTE_UNAVAILABLE,
+        classification === "auth" ? `preset downstream push refused authentication for ${target.remoteUrl ?? target.workspace}; the host keychain credential is reused and never prompted, read, or retried` : `preset downstream push to ${target.remoteUrl ?? target.workspace} failed \u2014 start VPN / check network; delivery fails closed and never retries with credentials`,
+        { branch: target.branch, stderrTail: stderrTail2(error) }
+      );
+    }
+    let crossCheckUrl = target.remoteUrl;
+    let crossCheckSkipReason = null;
+    if (!hasRemoteUrl) {
+      try {
+        const { stdout } = await git3(["remote", "get-url", "origin"]);
+        crossCheckUrl = stdout.trim();
+      } catch {
+        crossCheckUrl = null;
+      }
+      if (!crossCheckUrl) {
+        crossCheckSkipReason = "workspace checkout declares no origin remote; the post-push ls-remote cross-check needs a remote URL";
+      } else if (!SAFE_REMOTE_URL_RE2.test(crossCheckUrl)) {
+        crossCheckSkipReason = "workspace origin URL is not an http(s)/file URL (SSH and other transports are outside the ls-remote cross-check policy); post-push cross-check skipped";
+      }
+    }
+    if (crossCheckUrl && SAFE_REMOTE_URL_RE2.test(crossCheckUrl)) {
+      await crossCheckBranchTip(exec, crossCheckUrl, target.branch, localCommit);
+    }
+    return {
+      status: "EXECUTED",
+      observation: {
+        mode: "pushed",
+        pushedCommit: localCommit,
+        previousHead,
+        branchTip: localCommit,
+        ...workspaceRealpath ? { workspaceRealpath } : {},
+        ...crossCheckSkipReason ? { crossCheck: { status: "skipped", reason: crossCheckSkipReason } } : {}
+      }
+    };
+  } finally {
+    if (isClone) {
+      await rm12(worktree, { recursive: true, force: true }).catch(() => {
+      });
+    }
+  }
+}
+async function defaultRunGate(gate, context) {
+  const { runHook: runHook2 } = await Promise.resolve().then(() => (init_hooks(), hooks_exports));
+  return runHook2(gate, context);
+}
+var execFileAsync4, GIT_TIMEOUT_MS2, TRANSFER_TIMEOUT_MS2, PROBE_TIMEOUT_MS2, TMP_PREFIX2, SAFE_REMOTE_URL_RE2, SAFE_BRANCH_RE2, SHA_RE3, NEVER_PROMPT_ENV2, AUTH_FAILURE_PATTERNS2;
+var init_preset_gitwrite = __esm({
+  "src/core/preset-gitwrite.mjs"() {
+    init_errors();
+    init_presets();
+    init_postpublish();
+    execFileAsync4 = promisify14(execFileCb14);
+    GIT_TIMEOUT_MS2 = 12e4;
+    TRANSFER_TIMEOUT_MS2 = 3e5;
+    PROBE_TIMEOUT_MS2 = 3e4;
+    TMP_PREFIX2 = "release-skill-preset-write-";
+    SAFE_REMOTE_URL_RE2 = /^(?:https?|file):\/\/.+\.git$/;
+    SAFE_BRANCH_RE2 = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
+    SHA_RE3 = /^[a-f0-9]{40}$/;
+    NEVER_PROMPT_ENV2 = { GIT_TERMINAL_PROMPT: "0" };
+    AUTH_FAILURE_PATTERNS2 = [
+      /authentication failed/i,
+      /could not read username/i,
+      /could not read password/i,
+      /terminal prompts disabled/i,
+      /invalid username or password/i,
+      /permission denied/i,
+      /access denied/i,
+      /authorization failed/i,
+      /\b403\b/,
+      /\b401\b/
+    ];
+    __name(defaultExec3, "defaultExec");
+    __name(netEnv2, "netEnv");
+    __name(hasControlChars2, "hasControlChars");
+    __name(assertSafeRemoteUrl2, "assertSafeRemoteUrl");
+    __name(assertSafeBranch2, "assertSafeBranch");
+    __name(assertCommitIdentity2, "assertCommitIdentity");
+    __name(stderrText2, "stderrText");
+    __name(stderrTail2, "stderrTail");
+    __name(classifyNetFailure2, "classifyNetFailure");
+    __name(parseLsRemote2, "parseLsRemote");
+    __name(crossCheckBranchTip, "crossCheckBranchTip");
+    __name(applyDownstreamGitChange, "applyDownstreamGitChange");
+    __name(defaultRunGate, "defaultRunGate");
+  }
+});
+
+// src/core/marketplace-registry-entry.mjs
+import { readFile as readFile31 } from "node:fs/promises";
+import { join as join28 } from "node:path";
+function updateRegistryEntry(registry, params) {
+  const { entryKey, fieldsFromPlan, contextProjection } = params ?? {};
+  if (!registry || typeof registry !== "object" || Array.isArray(registry)) {
+    throw new ReleaseError(REMOTE_CONFLICT, "marketplace registry file is not a JSON object; human decision required", {});
+  }
+  if (!Array.isArray(registry.entries)) {
+    throw new ReleaseError(
+      REMOTE_CONFLICT,
+      'marketplace registry file carries no "entries" array; the marketplace-registry-entry preset expects { "entries": [ { "key": ... } ] }',
+      {}
+    );
+  }
+  const entryIndex = registry.entries.findIndex(
+    (entry2) => entry2 && typeof entry2 === "object" && !Array.isArray(entry2) && entry2.key === entryKey
+  );
+  if (entryIndex < 0) {
+    throw new ReleaseError(
+      REMOTE_CONFLICT,
+      `marketplace registry entry "${entryKey}" not found; registering a new entry requires a human decision`,
+      { entryKey }
+    );
+  }
+  const updated = JSON.parse(JSON.stringify(registry));
+  const entry = updated.entries[entryIndex];
+  for (const [entryField, sourceField] of Object.entries(fieldsFromPlan)) {
+    const value = contextProjection?.[sourceField];
+    if (typeof value !== "string" || value.length === 0) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `fieldsFromPlan."${entryField}" maps to context field "${sourceField}" which the frozen plan does not provide`,
+        { entryField, sourceField }
+      );
+    }
+    entry[entryField] = value;
+  }
+  return updated;
+}
+function serializeRegistry(registry) {
+  return `${JSON.stringify(registry, null, 2)}
+`;
+}
+async function executeMarketplaceRegistryEntryHook(params) {
+  const { hook, contextProjection, commitIdentity, root, exec, hookRunner } = params ?? {};
+  const config = hook?.config;
+  const target = config?.target;
+  if (!target || typeof target.branch !== "string") {
+    throw new ReleaseError(GATE_FAILED, "marketplace-registry-entry requires config.target with a branch");
+  }
+  const registryPath = config?.registryPath ?? "registry.json";
+  const entryKey = config?.entryKey;
+  const fieldsFromPlan = config?.fieldsFromPlan;
+  if (typeof entryKey !== "string" || entryKey.length === 0) {
+    throw new ReleaseError(GATE_FAILED, "marketplace-registry-entry requires config.entryKey");
+  }
+  if (!fieldsFromPlan || typeof fieldsFromPlan !== "object" || Object.keys(fieldsFromPlan).length === 0) {
+    throw new ReleaseError(GATE_FAILED, "marketplace-registry-entry requires a non-empty config.fieldsFromPlan");
+  }
+  const unitId = contextProjection?.unitId ?? "unknown";
+  const version = contextProjection?.version ?? "unknown";
+  let currentText = null;
+  const mutate = /* @__PURE__ */ __name(async (worktree) => {
+    const absoluteRegistry = join28(worktree, registryPath);
+    let raw;
+    try {
+      raw = await readFile31(absoluteRegistry, "utf8");
+    } catch {
+      throw new ReleaseError(
+        REMOTE_CONFLICT,
+        `marketplace registry file "${registryPath}" is missing in the downstream repository; creating it requires a human decision`,
+        { registryPath }
+      );
+    }
+    currentText = raw;
+    let registry;
+    try {
+      registry = JSON.parse(raw);
+    } catch {
+      throw new ReleaseError(
+        REMOTE_CONFLICT,
+        `marketplace registry file "${registryPath}" is not valid JSON; human decision required`,
+        { registryPath }
+      );
+    }
+    const updated = updateRegistryEntry(registry, { entryKey, fieldsFromPlan, contextProjection });
+    const serialized = serializeRegistry(updated);
+    if (serialized === currentText) {
+      return;
+    }
+    const { writeFile: writeFile17 } = await import("node:fs/promises");
+    await writeFile17(absoluteRegistry, serialized);
+  }, "mutate");
+  const result = await applyDownstreamGitChange({
+    target,
+    commitIdentity,
+    commitSubject: `release-skill marketplace-registry-entry ${unitId} ${version} (${entryKey})`,
+    mutate,
+    gates: config?.gates ?? [],
+    contextProjection,
+    root,
+    ...exec !== void 0 ? { exec } : {},
+    ...hookRunner !== void 0 ? { hookRunner } : {}
+  });
+  return { ...result, registryPath };
+}
+var init_marketplace_registry_entry = __esm({
+  "src/core/marketplace-registry-entry.mjs"() {
+    init_errors();
+    init_presets();
+    init_preset_gitwrite();
+    __name(updateRegistryEntry, "updateRegistryEntry");
+    __name(serializeRegistry, "serializeRegistry");
+    __name(executeMarketplaceRegistryEntryHook, "executeMarketplaceRegistryEntryHook");
+  }
+});
+
+// src/core/docs-refresh-preset.mjs
+import { mkdir as mkdir20, readFile as readFile32, writeFile as writeFile11 } from "node:fs/promises";
+import { dirname as dirname16, isAbsolute as isAbsolute22, join as join29, relative as relative25, resolve as resolve29 } from "node:path";
+function resolvePayloadSource(payloadDir, from) {
+  const sourcePath = resolve29(payloadDir, from);
+  const rel = relative25(payloadDir, sourcePath);
+  if (rel === "" || isAbsolute22(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `docs-refresh mapping source "${from}" escapes the payload directory`,
+      { from }
+    );
+  }
+  return sourcePath;
+}
+async function executeDocsRefreshHook(params) {
+  const { hook, contextProjection, commitIdentity, payloadDir, root, exec, hookRunner } = params ?? {};
+  const config = hook?.config;
+  const repositories = config?.repositories;
+  if (!Array.isArray(repositories) || repositories.length === 0) {
+    throw new ReleaseError(GATE_FAILED, "docs-refresh requires a non-empty config.repositories array");
+  }
+  const mappings = config?.mappings;
+  if (!Array.isArray(mappings) || mappings.length === 0) {
+    throw new ReleaseError(GATE_FAILED, "docs-refresh requires a non-empty config.mappings array");
+  }
+  if (typeof payloadDir !== "string" || payloadDir.length === 0) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "docs-refresh copies files from the materialized payload, which only exists in the distribute phase; declare phase: distribute (the default) instead of postVerify",
+      {}
+    );
+  }
+  const unitId = contextProjection?.unitId ?? "unknown";
+  const version = contextProjection?.version ?? "unknown";
+  const gates = config?.gates ?? [];
+  const mutate = /* @__PURE__ */ __name(async (worktree) => {
+    for (const mapping of mappings) {
+      const sourcePath = resolvePayloadSource(payloadDir, mapping.from);
+      let content = await readFile32(sourcePath).catch(() => null);
+      if (content === null) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `docs-refresh mapping source "${mapping.from}" is missing from the materialized payload`,
+          { from: mapping.from }
+        );
+      }
+      if (typeof mapping.versionMarker === "string" && mapping.versionMarker.length > 0) {
+        const text = content.toString("utf8");
+        content = Buffer.from(text.split(mapping.versionMarker).join(version), "utf8");
+      }
+      const destination = join29(worktree, mapping.to);
+      await mkdir20(dirname16(destination), { recursive: true });
+      await writeFile11(destination, content);
+    }
+  }, "mutate");
+  const observations = [];
+  let anyChange = false;
+  for (const [index, target] of repositories.entries()) {
+    let result;
+    try {
+      result = await applyDownstreamGitChange({
+        target,
+        commitIdentity,
+        commitSubject: `release-skill docs-refresh ${unitId} ${version}`,
+        mutate,
+        gates,
+        contextProjection,
+        root,
+        ...exec !== void 0 ? { exec } : {},
+        ...hookRunner !== void 0 ? { hookRunner } : {}
+      });
+    } catch (err) {
+      throw new ReleaseError(
+        err?.code ?? GATE_FAILED,
+        `docs-refresh repository ${index + 1} of ${repositories.length} failed: ${err?.message ?? err}`,
+        { repositoryIndex: index, ...err?.details ?? {} }
+      );
+    }
+    observations.push({
+      repositoryIndex: index,
+      ...typeof target.remoteUrl === "string" ? { remoteUrl: target.remoteUrl } : {},
+      ...typeof target.workspace === "string" ? { workspace: target.workspace } : {},
+      branch: target.branch,
+      ...result.observation ?? {}
+    });
+    if (result.status === "EXECUTED") anyChange = true;
+  }
+  if (!anyChange) {
+    return {
+      status: "NO_CHANGE",
+      mode: "no-change",
+      observation: { mode: "no-change" },
+      observations
+    };
+  }
+  const firstPushed = observations.find((entry) => entry.mode === "pushed");
+  return {
+    status: "EXECUTED",
+    mode: "pushed",
+    observation: {
+      mode: "pushed",
+      ...firstPushed?.pushedCommit ? { pushedCommit: firstPushed.pushedCommit } : {},
+      repositoryCount: repositories.length
+    },
+    observations
+  };
+}
+var init_docs_refresh_preset = __esm({
+  "src/core/docs-refresh-preset.mjs"() {
+    init_errors();
+    init_preset_gitwrite();
+    __name(resolvePayloadSource, "resolvePayloadSource");
+    __name(executeDocsRefreshHook, "executeDocsRefreshHook");
+  }
+});
+
+// src/core/preset-executor.mjs
+async function executePresetHook(params) {
+  const {
+    hook,
+    contextProjection,
+    proposalContextProjection,
+    commitIdentity,
+    root,
+    evidencePath,
+    exec,
+    hookRunner,
+    payloadDir
+  } = params ?? {};
+  if (!hook || typeof hook.preset !== "string") {
+    throw new ReleaseError(POST_PUBLISH_VERIFY_FAILED, "preset execution requires a preset hook entry");
+  }
+  const proposalProjection = proposalContextProjection ?? contextProjection;
+  switch (hook.preset) {
+    case "notify-handoff": {
+      return executeNotifyHandoffHook({
+        contextProjection,
+        ...evidencePath !== void 0 ? { evidencePath } : {}
+      });
+    }
+    case "proposal-inbox": {
+      const target = hook.config?.target;
+      if (!target) {
+        const degraded = await executeNotifyHandoffHook({
+          contextProjection,
+          ...evidencePath !== void 0 ? { evidencePath } : {}
+        });
+        return { ...degraded, degradedToNotifyHandoff: true };
+      }
+      const transport = resolveProposalInboxTransport(hook.config);
+      if (transport === "git-push") {
+        return executeProposalInboxGitPushHook({
+          hook,
+          contextProjection: proposalProjection,
+          commitIdentity,
+          ...exec !== void 0 ? { exec } : {}
+        });
+      }
+      if (transport === "local-file") {
+        return executeProposalInboxLocalFileHook({
+          hook,
+          contextProjection: proposalProjection,
+          commitIdentity,
+          root,
+          ...exec !== void 0 ? { exec } : {}
+        });
+      }
+      throw new ReleaseError(
+        POST_PUBLISH_VERIFY_FAILED,
+        `proposal-inbox transport "${transport}" is unknown (expected git-push or local-file)`,
+        { transport }
+      );
+    }
+    case "marketplace-registry-entry": {
+      return executeMarketplaceRegistryEntryHook({
+        hook,
+        contextProjection,
+        commitIdentity,
+        root,
+        ...exec !== void 0 ? { exec } : {},
+        ...hookRunner !== void 0 ? { hookRunner } : {}
+      });
+    }
+    case "docs-refresh": {
+      return executeDocsRefreshHook({
+        hook,
+        contextProjection,
+        commitIdentity,
+        payloadDir,
+        root,
+        ...exec !== void 0 ? { exec } : {},
+        ...hookRunner !== void 0 ? { hookRunner } : {}
+      });
+    }
+    default: {
+      throw new ReleaseError(
+        POST_PUBLISH_VERIFY_FAILED,
+        `hook "${hook.id}" is preset "${hook.preset}"; this preset's behavior is not yet available in this release and ships in a later release`,
+        { preset: hook.preset }
+      );
+    }
+  }
+}
+var init_preset_executor = __esm({
+  "src/core/preset-executor.mjs"() {
+    init_errors();
+    init_presets();
+    init_notify_handoff();
+    init_proposal_inbox();
+    init_marketplace_registry_entry();
+    init_docs_refresh_preset();
+    __name(executePresetHook, "executePresetHook");
   }
 });
 
@@ -102171,21 +105328,17 @@ __export(distribute_exports, {
   parseFirstJsonObject: () => parseFirstJsonObject,
   parseOutputMarker: () => parseOutputMarker
 });
-import { execFile as execFileCb12 } from "node:child_process";
-import { promisify as promisify12 } from "node:util";
-import { realpath as realpath19, lstat as lstat22, mkdir as mkdir19, readFile as readFile30, rm as rm11 } from "node:fs/promises";
-import { mkdtemp as mkdtemp8 } from "node:fs/promises";
-import { tmpdir as tmpdir5 } from "node:os";
-import { isAbsolute as isAbsolute21, join as join25, relative as relative25, resolve as resolve28 } from "node:path";
+import { execFile as execFileCb15 } from "node:child_process";
+import { promisify as promisify15 } from "node:util";
+import { realpath as realpath20, lstat as lstat23, mkdir as mkdir21, readFile as readFile33, rm as rm13 } from "node:fs/promises";
+import { mkdtemp as mkdtemp10 } from "node:fs/promises";
+import { tmpdir as tmpdir7 } from "node:os";
+import { isAbsolute as isAbsolute23, join as join30, relative as relative26, resolve as resolve30 } from "node:path";
 function defaultClock6() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
-function defaultExec2(command2, args2, options = {}) {
-  return execFileAsync3(command2, args2, { shell: false, encoding: "utf8", timeout: 12e4, ...options });
-}
-function tail(text, limit = TAIL_CHARS) {
-  const value = `${text ?? ""}`;
-  return value.length > limit ? value.slice(-limit) : value;
+function defaultExec4(command2, args2, options = {}) {
+  return execFileAsync5(command2, args2, { shell: false, encoding: "utf8", timeout: 12e4, ...options });
 }
 function mapToSchemaCode(code) {
   return SCHEMA_ERROR_CODES.has(code) ? code : GATE_FAILED;
@@ -102215,7 +105368,7 @@ function parseOutputMarker(stdout, marker) {
 async function assertContainedDirectory(container, candidate, label) {
   let real;
   try {
-    real = await realpath19(candidate);
+    real = await realpath20(candidate);
   } catch {
     throw new ReleaseError(
       POST_PUBLISH_VERIFY_FAILED,
@@ -102223,16 +105376,16 @@ async function assertContainedDirectory(container, candidate, label) {
       { candidate }
     );
   }
-  const containerReal = await realpath19(container);
-  const rel = relative25(containerReal, real);
-  if (rel === "" || isAbsolute21(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+  const containerReal = await realpath20(container);
+  const rel = relative26(containerReal, real);
+  if (rel === "" || isAbsolute23(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
     throw new ReleaseError(
       POST_PUBLISH_VERIFY_FAILED,
       `${label} escapes the tag worktree; payload must stay inside the frozen checkout`,
       { candidate }
     );
   }
-  const stats = await lstat22(real).catch(() => null);
+  const stats = await lstat23(real).catch(() => null);
   if (!stats || !stats.isDirectory()) {
     throw new ReleaseError(
       POST_PUBLISH_VERIFY_FAILED,
@@ -102266,14 +105419,15 @@ async function distributeRelease(options) {
     dryRun = false,
     clock: clockOpt,
     execFn,
-    runHookFn
+    runHookFn,
+    postpublishApprovalPaths
   } = options ?? {};
   const clockFn = typeof clockOpt === "function" ? clockOpt : defaultClock6;
-  const exec = typeof execFn === "function" ? execFn : defaultExec2;
+  const exec = typeof execFn === "function" ? execFn : defaultExec4;
   const hookRunner = typeof runHookFn === "function" ? runHookFn : runHook;
   let planRaw;
   try {
-    planRaw = await readFile30(planPath, "utf8");
+    planRaw = await readFile33(planPath, "utf8");
   } catch (err) {
     throw new ReleaseError(GATE_FAILED, `cannot read release plan: ${err.message}`, { planPath, cause: err.code });
   }
@@ -102305,9 +105459,9 @@ async function distributeRelease(options) {
   if (plan.production?.mode === "github-npm-v1") {
     runDir = await createProductionRunDir(runDir, planPath);
   } else {
-    await mkdir19(runDir, { recursive: true });
+    await mkdir21(runDir, { recursive: true });
   }
-  const runPath = join25(runDir, "release-run.json");
+  const runPath = join30(runDir, "release-run.json");
   const evidence = createEvidenceWriter({ runDir, command: "distribute", clock: clockFn });
   let lineageKnown = false;
   let sourceRunId = null;
@@ -102329,26 +105483,26 @@ async function distributeRelease(options) {
     ...sourceRunPath ? { sourceRunPath } : {},
     startedAt,
     ...finishedAt ? { finishedAt } : {},
-    checkpoints: checkpoints.map((cp2) => ({
-      actionId: cp2.actionId,
-      actionType: cp2.actionType,
-      status: cp2.status === "SUCCEEDED" ? "succeeded" : cp2.status === "FAILED" ? "failed" : cp2.status === "SKIPPED" ? "skipped" : cp2.status === "UNCERTAIN" ? "uncertain" : cp2.status === "PENDING" ? "pending" : cp2.status,
+    checkpoints: checkpoints.map((cp3) => ({
+      actionId: cp3.actionId,
+      actionType: cp3.actionType,
+      status: cp3.status === "SUCCEEDED" ? "succeeded" : cp3.status === "FAILED" ? "failed" : cp3.status === "SKIPPED" ? "skipped" : cp3.status === "UNCERTAIN" ? "uncertain" : cp3.status === "PENDING" ? "pending" : cp3.status,
       // NO_CHANGE passes through as-is
-      ...cp2.preObserve ? { preObserve: cp2.preObserve } : {},
-      ...cp2.postObserve ? { postObserve: cp2.postObserve } : {},
-      ...cp2.remoteUrl ? { remoteUrl: cp2.remoteUrl } : {},
-      ...cp2.branch ? { branch: cp2.branch } : {},
-      ...cp2.tag ? { tag: cp2.tag } : {},
-      ...cp2.tagCommit ? { tagCommit: cp2.tagCommit } : {},
-      ...cp2.previousHead ? { previousHead: cp2.previousHead } : {},
-      ...cp2.pushedCommit ? { pushedCommit: cp2.pushedCommit } : {},
-      ...cp2.mode ? { mode: cp2.mode } : {},
-      ...cp2.executor ? { executor: cp2.executor } : {},
-      ...cp2.payloadFileCount !== void 0 ? { payloadFileCount: cp2.payloadFileCount } : {},
-      ...cp2.startedAt ? { startedAt: cp2.startedAt } : {},
-      ...cp2.finishedAt ? { finishedAt: cp2.finishedAt } : {},
-      ...cp2.reason ? { reason: cp2.reason } : {},
-      ...cp2.error ? { error: { code: cp2.error.code, ...cp2.error.message ? { message: cp2.error.message } : {} } } : {}
+      ...cp3.preObserve ? { preObserve: cp3.preObserve } : {},
+      ...cp3.postObserve ? { postObserve: cp3.postObserve } : {},
+      ...cp3.remoteUrl ? { remoteUrl: cp3.remoteUrl } : {},
+      ...cp3.branch ? { branch: cp3.branch } : {},
+      ...cp3.tag ? { tag: cp3.tag } : {},
+      ...cp3.tagCommit ? { tagCommit: cp3.tagCommit } : {},
+      ...cp3.previousHead ? { previousHead: cp3.previousHead } : {},
+      ...cp3.pushedCommit ? { pushedCommit: cp3.pushedCommit } : {},
+      ...cp3.mode ? { mode: cp3.mode } : {},
+      ...cp3.executor ? { executor: cp3.executor } : {},
+      ...cp3.payloadFileCount !== void 0 ? { payloadFileCount: cp3.payloadFileCount } : {},
+      ...cp3.startedAt ? { startedAt: cp3.startedAt } : {},
+      ...cp3.finishedAt ? { finishedAt: cp3.finishedAt } : {},
+      ...cp3.reason ? { reason: cp3.reason } : {},
+      ...cp3.error ? { error: { code: cp3.error.code, ...cp3.error.message ? { message: cp3.error.message } : {} } } : {}
     }))
   }), "buildPersistedState");
   const snapshot = /* @__PURE__ */ __name(async (status) => {
@@ -102373,7 +105527,7 @@ async function distributeRelease(options) {
       worktreePath = null;
     }
     if (tmpBase) {
-      await rm11(tmpBase, { recursive: true, force: true }).catch(() => {
+      await rm13(tmpBase, { recursive: true, force: true }).catch(() => {
       });
       tmpBase = null;
     }
@@ -102382,7 +105536,7 @@ async function distributeRelease(options) {
     await evidence.append({ phase: "safety-gate", gate: "approval-load", status: "started" });
     let approvalRaw;
     try {
-      approvalRaw = await readFile30(approvalPath, "utf8");
+      approvalRaw = await readFile33(approvalPath, "utf8");
     } catch (err) {
       throw new ReleaseError(GATE_FAILED, `cannot read approval record: ${err.message}`, { approvalPath, cause: err.code });
     }
@@ -102394,7 +105548,7 @@ async function distributeRelease(options) {
     }
     approvalDigestValue = assertImmutableApprovalAuthority(approvalPath, plan, approvalRaw) ?? computeApprovalDigest(approvalRaw);
     validateApprovalRecordSchema(approval);
-    validateApproval(plan, approval, { clock: clockFn });
+    validateApproval(plan, approval, { clock: clockFn, requireUnexpired: false });
     await evidence.append({ phase: "safety-gate", gate: "approval-validated", status: "passed" });
     await evidence.append({ phase: "safety-gate", gate: "source-run", status: "started", sourceRunPath });
     const sourceRun = await loadRun(sourceRunPath, { requireDigest: true });
@@ -102425,7 +105579,73 @@ async function distributeRelease(options) {
     });
     const postPublish = plan.postPublish;
     validatePostPublishDeclaration(postPublish, { unitId: postPublish.unitId });
-    const orderedTargets = orderTargetsByDependency(postPublish.targets);
+    const orderedTargets = orderTargetsByDependency(postPublish.targets ?? []);
+    const normalizedDeclaration = normalizePostPublishDeclaration(postPublish);
+    const orderedNormalizedHooks = orderNormalizedHooks(normalizedDeclaration.hooks);
+    await evidence.append({
+      phase: "postpublish-normalization",
+      status: "passed",
+      preGates: normalizedDeclaration.preGates.map((gate) => gate.gate),
+      hookCount: orderedNormalizedHooks.length,
+      hookIds: orderedNormalizedHooks.map((hook) => hook.id)
+    });
+    const declaredHooks = postPublish.hooks ?? [];
+    const distributeHooks = declaredHooks.filter((hook) => (hook.phase ?? "distribute") === "distribute");
+    const deferredPostVerifyHooks = declaredHooks.length - distributeHooks.length;
+    const failBlocked = /* @__PURE__ */ __name(async (error) => {
+      await recordBlocked();
+      throw error;
+    }, "failBlocked");
+    const approvedHookIds = /* @__PURE__ */ new Set();
+    const hookApprovalPaths = postpublishApprovalPaths ?? [];
+    if (hookApprovalPaths.length > 0) {
+      await evidence.append({
+        phase: "safety-gate",
+        gate: "postpublish-hook-approvals",
+        status: "started",
+        approvalCount: hookApprovalPaths.length
+      });
+      for (const hookApprovalPath of hookApprovalPaths) {
+        let hookApprovalRaw;
+        try {
+          hookApprovalRaw = await readFile33(hookApprovalPath, "utf8");
+        } catch (err) {
+          await failBlocked(new ReleaseError(
+            GATE_FAILED,
+            `cannot read postpublish hook approval: ${err.message}`,
+            { hookApprovalPath, cause: err.code }
+          ));
+        }
+        let hookApproval;
+        try {
+          hookApproval = JSON.parse(hookApprovalRaw);
+        } catch (err) {
+          await failBlocked(new ReleaseError(
+            GATE_FAILED,
+            `postpublish hook approval is not valid JSON: ${err.message}`,
+            { hookApprovalPath }
+          ));
+        }
+        validatePostPublishApproval(plan, hookApproval, { clock: clockFn });
+        if (approvedHookIds.has(hookApproval.hookId)) {
+          await failBlocked(new ReleaseError(
+            GATE_FAILED,
+            `duplicate postpublish hook approvals for hook "${hookApproval.hookId}"`,
+            { hookId: hookApproval.hookId }
+          ));
+        }
+        approvedHookIds.add(hookApproval.hookId);
+      }
+      await evidence.append({
+        phase: "safety-gate",
+        gate: "postpublish-hook-approvals",
+        status: "passed",
+        approvedHookIds: [...approvedHookIds]
+      });
+    }
+    const pendingHookApprovals = distributeHooks.filter(
+      (hook) => effectiveHookRequiresApproval(hook) && !approvedHookIds.has(hook.id)
+    );
     checkpoints = [];
     for (const target of orderedTargets) {
       checkpoints.push({
@@ -102446,16 +105666,20 @@ async function distributeRelease(options) {
         remoteUrl: target.remoteUrl,
         branch: target.branch,
         tag: postPublish.tag,
-        tagCommit: SHA_RE2.test(postPublish.tagCommit ?? "") ? postPublish.tagCommit : void 0,
+        tagCommit: SHA_RE4.test(postPublish.tagCommit ?? "") ? postPublish.tagCommit : void 0,
         executor: EXECUTOR
       });
     }
-    const checkpointById = new Map(checkpoints.map((cp2) => [cp2.actionId, cp2]));
+    for (const hook of distributeHooks) {
+      checkpoints.push({
+        actionId: hook.id,
+        actionType: "postpublish-hook",
+        status: "PENDING",
+        executor: EXECUTOR
+      });
+    }
+    const checkpointById = new Map(checkpoints.map((cp3) => [cp3.actionId, cp3]));
     await snapshot(DISTRIBUTING);
-    const failBlocked = /* @__PURE__ */ __name(async (error) => {
-      await recordBlocked();
-      throw error;
-    }, "failBlocked");
     await evidence.append({ phase: "safety-gate", gate: "tag-identity", status: "started" });
     if (postPublish.payloadSource !== PAYLOAD_SOURCE_TAG_WORKTREE) {
       await failBlocked(new ReleaseError(
@@ -102464,7 +105688,7 @@ async function distributeRelease(options) {
         { payloadSource: postPublish.payloadSource }
       ));
     }
-    if (typeof postPublish.tagCommit !== "string" || !SHA_RE2.test(postPublish.tagCommit)) {
+    if (typeof postPublish.tagCommit !== "string" || !SHA_RE4.test(postPublish.tagCommit)) {
       await failBlocked(new ReleaseError(
         GATE_FAILED,
         "postPublish is missing a frozen tagCommit binding; distribute fails closed",
@@ -102480,7 +105704,7 @@ async function distributeRelease(options) {
         phase: "safety-gate",
         gate: "tag-identity",
         status: "failed",
-        error: tail(err?.stderr ?? err?.message)
+        error: boundedOutputTail(err?.stderr ?? err?.message)
       });
       await failBlocked(new ReleaseError(
         GATE_FAILED,
@@ -102602,11 +105826,11 @@ async function distributeRelease(options) {
     }
     await evidence.append({ phase: "worktree", status: "started", tagCommit: postPublish.tagCommit });
     try {
-      tmpBase = await mkdtemp8(join25(tmpdir5(), "release-skill-distribute-"));
-      worktreePath = join25(tmpBase, "worktree");
+      tmpBase = await mkdtemp10(join30(tmpdir7(), "release-skill-distribute-"));
+      worktreePath = join30(tmpBase, "worktree");
       await exec("git", ["-C", root, "worktree", "add", "--detach", worktreePath, postPublish.tagCommit]);
     } catch (err) {
-      await evidence.append({ phase: "worktree", status: "failed", error: tail(err?.stderr ?? err?.message) });
+      await evidence.append({ phase: "worktree", status: "failed", error: boundedOutputTail(err?.stderr ?? err?.message) });
       await failBlocked(new ReleaseError(
         GATE_FAILED,
         `cannot create the detached tag worktree at ${postPublish.tagCommit}: ${err?.message ?? err}`,
@@ -102630,13 +105854,13 @@ async function distributeRelease(options) {
         phase: "materialize",
         status: "failed",
         exitCode: hookResult.exitCode,
-        stdoutTail: tail(hookResult.stdout),
-        stderrTail: tail(hookResult.stderr)
+        stdoutTail: boundedOutputTail(hookResult.stdout),
+        stderrTail: boundedOutputTail(hookResult.stderr)
       });
       await failBlocked(new ReleaseError(
         POST_PUBLISH_VERIFY_FAILED,
         `materialize hook exited with code ${hookResult.exitCode}; payload cannot be trusted`,
-        { exitCode: hookResult.exitCode, stdoutTail: tail(hookResult.stdout), stderrTail: tail(hookResult.stderr) }
+        { exitCode: hookResult.exitCode, stdoutTail: boundedOutputTail(hookResult.stdout), stderrTail: boundedOutputTail(hookResult.stderr) }
       ));
     }
     if (materialize.requireReport) {
@@ -102646,12 +105870,12 @@ async function distributeRelease(options) {
           phase: "materialize",
           status: "failed",
           reason: "report-missing",
-          stdoutTail: tail(hookResult.stdout)
+          stdoutTail: boundedOutputTail(hookResult.stdout)
         });
         await failBlocked(new ReleaseError(
           POST_PUBLISH_VERIFY_FAILED,
           "materialize report missing: no JSON object found on stdout (requireReport.parse = stdout-first-json)",
-          { stdoutTail: tail(hookResult.stdout) }
+          { stdoutTail: boundedOutputTail(hookResult.stdout) }
         ));
       }
       const equals = materialize.requireReport.equals ?? {};
@@ -102679,21 +105903,35 @@ async function distributeRelease(options) {
         phase: "materialize",
         status: "failed",
         reason: "marker-missing",
-        stdoutTail: tail(hookResult.stdout)
+        stdoutTail: boundedOutputTail(hookResult.stdout)
       });
       await failBlocked(new ReleaseError(
         POST_PUBLISH_VERIFY_FAILED,
         `materialize output marker "${materialize.outputMarker}" not found on stdout; payload directory unbound`,
-        { stdoutTail: tail(hookResult.stdout) }
+        { stdoutTail: boundedOutputTail(hookResult.stdout) }
       ));
     }
     const payloadReal = await assertContainedDirectory(
       worktreePath,
-      resolve28(worktreePath, announced),
+      resolve30(worktreePath, announced),
       "materialized payload directory"
     );
     await evidence.append({ phase: "materialize", status: "passed", payloadDirAnnounced: announced });
     for (const step of postPublish.steps ?? []) {
+      if (dryRun === true) {
+        await evidence.append({ phase: "postpublish-step", step: step.name, status: "skipped", reason: "DRY_RUN" });
+        continue;
+      }
+      if (pendingHookApprovals.length > 0) {
+        await evidence.append({
+          phase: "postpublish-step",
+          step: step.name,
+          status: "skipped",
+          reason: "AWAITING_CHECKPOINT_APPROVAL",
+          pendingHookApprovals: pendingHookApprovals.map((hook) => hook.id)
+        });
+        continue;
+      }
       await evidence.append({ phase: "postpublish-step", step: step.name, status: "started" });
       const stepResult = await hookRunner(
         {
@@ -102710,8 +105948,8 @@ async function distributeRelease(options) {
           step: step.name,
           status: "failed",
           exitCode: stepResult.exitCode,
-          stdoutTail: tail(stepResult.stdout),
-          stderrTail: tail(stepResult.stderr)
+          stdoutTail: boundedOutputTail(stepResult.stdout),
+          stderrTail: boundedOutputTail(stepResult.stderr)
         });
         await failBlocked(new ReleaseError(
           GATE_FAILED,
@@ -102739,12 +105977,12 @@ async function distributeRelease(options) {
       runDir
     };
     for (const target of orderedTargets) {
-      const cp2 = checkpointById.get(target.id);
-      cp2.startedAt = clockFn();
+      const cp3 = checkpointById.get(target.id);
+      cp3.startedAt = clockFn();
       if (stopped) {
-        cp2.status = "SKIPPED";
-        cp2.reason = "EARLIER_TARGET_FAILED";
-        cp2.finishedAt = clockFn();
+        cp3.status = "SKIPPED";
+        cp3.reason = "EARLIER_TARGET_FAILED";
+        cp3.finishedAt = clockFn();
         await evidence.append({ phase: "checkpoint", actionId: target.id, status: "skipped", reason: "EARLIER_TARGET_FAILED" });
         continue;
       }
@@ -102772,9 +106010,9 @@ async function distributeRelease(options) {
         });
       }
       if (preObserved.tagOid && preObserved.branchTip === preObserved.tagOid) {
-        cp2.status = "SKIPPED";
-        cp2.preObserve = "CONSISTENT";
-        cp2.finishedAt = clockFn();
+        cp3.status = "SKIPPED";
+        cp3.preObserve = "CONSISTENT";
+        cp3.finishedAt = clockFn();
         mirrorResults.set(target.id, { sha: preObserved.tagOid });
         await evidence.append({
           phase: "checkpoint",
@@ -102784,7 +106022,7 @@ async function distributeRelease(options) {
         });
         continue;
       }
-      cp2.status = "UNCERTAIN";
+      cp3.status = "UNCERTAIN";
       await snapshot(DISTRIBUTING);
       const action = {
         actionType: ActionType.DISTRIBUTE_MIRROR,
@@ -102808,9 +106046,9 @@ async function distributeRelease(options) {
         };
       }
       action.staticFiles = (target.staticFiles ?? []).map((file) => {
-        const sourcePath = resolve28(payloadReal, file.from);
-        const rel = relative25(payloadReal, sourcePath);
-        if (rel === "" || isAbsolute21(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+        const sourcePath = resolve30(payloadReal, file.from);
+        const rel = relative26(payloadReal, sourcePath);
+        if (rel === "" || isAbsolute23(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
           throw new ReleaseError(
             GATE_FAILED,
             `target "${target.id}" staticFiles entry escapes the payload directory`,
@@ -102833,9 +106071,9 @@ async function distributeRelease(options) {
       const observation = executeResult.observation ?? {};
       if (executeResult.status === "EXECUTE_FAILED") {
         const code = mapToSchemaCode(executeResult.details?.code);
-        cp2.status = "FAILED";
-        cp2.error = { code, message: executeResult.error ?? "mirror execute failed" };
-        cp2.finishedAt = clockFn();
+        cp3.status = "FAILED";
+        cp3.error = { code, message: executeResult.error ?? "mirror execute failed" };
+        cp3.finishedAt = clockFn();
         failures += 1;
         stopped = true;
         await evidence.append({
@@ -102849,24 +106087,24 @@ async function distributeRelease(options) {
         continue;
       }
       if (executeResult.status === "NO_CHANGE") {
-        cp2.status = "NO_CHANGE";
-        cp2.mode = "no-change";
-        cp2.previousHead = observation.previousHead ?? null;
-        cp2.payloadFileCount = observation.payloadFileCount;
-        cp2.finishedAt = clockFn();
+        cp3.status = "NO_CHANGE";
+        cp3.mode = "no-change";
+        cp3.previousHead = observation.previousHead ?? null;
+        cp3.payloadFileCount = observation.payloadFileCount;
+        cp3.finishedAt = clockFn();
         const sha = probeObservations.get(target.id)?.tagOid ?? observation.branchTip ?? observation.previousHead ?? null;
         mirrorResults.set(target.id, { sha });
         await evidence.append({ phase: "checkpoint", actionId: target.id, status: "no-change" });
         await snapshot(PARTIAL2);
         continue;
       }
-      cp2.mode = observation.mode;
-      cp2.previousHead = observation.previousHead ?? void 0;
-      cp2.payloadFileCount = observation.payloadFileCount;
+      cp3.mode = observation.mode;
+      cp3.previousHead = observation.previousHead ?? void 0;
+      cp3.payloadFileCount = observation.payloadFileCount;
       const pushed = observation.mode === "pushed";
       if (pushed) {
         pushedWrites += 1;
-        cp2.pushedCommit = observation.pushedCommit;
+        cp3.pushedCommit = observation.pushedCommit;
         mirrorResults.set(target.id, { sha: observation.pushedCommit });
       } else {
         mirrorResults.set(target.id, { sha: null });
@@ -102888,13 +106126,13 @@ async function distributeRelease(options) {
         verifyResult = { status: "VERIFY_FAILED", error: err?.message ?? String(err) };
       }
       if (verifyResult.status !== "VERIFIED") {
-        cp2.status = "FAILED";
-        cp2.postObserve = "CONFLICTING";
-        cp2.error = {
+        cp3.status = "FAILED";
+        cp3.postObserve = "CONFLICTING";
+        cp3.error = {
           code: POST_PUBLISH_VERIFY_FAILED,
           message: verifyResult.error ?? "post-execute verification failed"
         };
-        cp2.finishedAt = clockFn();
+        cp3.finishedAt = clockFn();
         failures += 1;
         stopped = true;
         await evidence.append({
@@ -102906,9 +106144,9 @@ async function distributeRelease(options) {
         await snapshot(PARTIAL2);
         continue;
       }
-      cp2.status = "SUCCEEDED";
-      cp2.postObserve = pushed ? "CONSISTENT" : cp2.postObserve;
-      cp2.finishedAt = clockFn();
+      cp3.status = "SUCCEEDED";
+      cp3.postObserve = pushed ? "CONSISTENT" : cp3.postObserve;
+      cp3.finishedAt = clockFn();
       await evidence.append({
         phase: "checkpoint",
         actionId: target.id,
@@ -102918,13 +106156,212 @@ async function distributeRelease(options) {
       });
       await snapshot(PARTIAL2);
     }
+    if (deferredPostVerifyHooks > 0) {
+      await evidence.append({ phase: "postpublish-hooks", deferredPostVerifyHooks });
+    }
+    let hooksStopped = stopped;
+    let awaitingApproval = 0;
+    let hookSuccesses = 0;
+    const hookContextProjection = buildPostPublishContext({
+      plan,
+      runId,
+      sourceRun,
+      payloadDir: payloadReal,
+      phase: "distribute"
+    });
+    const proposalContextProjection = {
+      ...hookContextProjection,
+      runId: `distribute-${sourceRunId}`
+    };
+    for (const hook of distributeHooks) {
+      const cp3 = checkpointById.get(hook.id);
+      cp3.startedAt = clockFn();
+      if (hooksStopped) {
+        cp3.status = "SKIPPED";
+        cp3.reason = "EARLIER_TARGET_FAILED";
+        cp3.finishedAt = clockFn();
+        await evidence.append({
+          phase: "postpublish-hook",
+          hookId: hook.id,
+          status: "skipped",
+          reason: "EARLIER_TARGET_FAILED"
+        });
+        continue;
+      }
+      if (dryRun === true) {
+        cp3.status = "SKIPPED";
+        cp3.reason = "DRY_RUN";
+        cp3.finishedAt = clockFn();
+        await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "skipped", reason: "DRY_RUN" });
+        continue;
+      }
+      if (effectiveHookRequiresApproval(hook) && !approvedHookIds.has(hook.id)) {
+        cp3.status = "AWAITING_APPROVAL";
+        cp3.finishedAt = clockFn();
+        awaitingApproval += 1;
+        await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "awaiting-approval" });
+        continue;
+      }
+      if (hook.preset !== void 0) {
+        await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "started" });
+        let delivery;
+        try {
+          delivery = await executePresetHook({
+            hook,
+            contextProjection: hookContextProjection,
+            proposalContextProjection,
+            commitIdentity: postPublish.commitIdentity,
+            root: worktreePath,
+            evidencePath: join30(runDir, "evidence.jsonl"),
+            payloadDir: hookContextProjection.payloadDir,
+            exec,
+            hookRunner
+          });
+        } catch (err) {
+          const code = mapToSchemaCode(err?.code);
+          cp3.status = "FAILED";
+          cp3.error = { code, message: err?.message ?? String(err) };
+          cp3.finishedAt = clockFn();
+          failures += 1;
+          hooksStopped = true;
+          await evidence.append({
+            phase: "postpublish-hook",
+            hookId: hook.id,
+            status: "failed",
+            error: err?.message ?? String(err),
+            details: { code }
+          });
+          await snapshot(PARTIAL2);
+          continue;
+        }
+        if (delivery.status === "NO_CHANGE") {
+          cp3.status = "NO_CHANGE";
+          cp3.mode = "no-change";
+          cp3.finishedAt = clockFn();
+          hookSuccesses += 1;
+          await evidence.append({
+            phase: "postpublish-hook",
+            hookId: hook.id,
+            status: "no-change",
+            ...delivery.manualSyncPrompt ? { manualSyncPrompt: delivery.manualSyncPrompt } : {},
+            // §2.6 execution realpath evidence (R4 review m-2).
+            ...delivery.observation?.workspaceRealpath ? { workspaceRealpath: delivery.observation.workspaceRealpath } : {},
+            ...delivery.workspaceRealpath ? { workspaceRealpath: delivery.workspaceRealpath } : {}
+          });
+          await snapshot(PARTIAL2);
+          continue;
+        }
+        cp3.status = "SUCCEEDED";
+        if (delivery.observation?.mode === "pushed" && delivery.observation?.pushedCommit) {
+          cp3.mode = "pushed";
+          cp3.pushedCommit = delivery.observation.pushedCommit;
+        }
+        cp3.finishedAt = clockFn();
+        hookSuccesses += 1;
+        await evidence.append({
+          phase: "postpublish-hook",
+          hookId: hook.id,
+          status: "succeeded",
+          preset: hook.preset,
+          mode: delivery.mode ?? delivery.observation?.mode,
+          ...delivery.observation?.pushedCommit ? { pushedCommit: delivery.observation.pushedCommit } : {},
+          ...delivery.manualSyncPrompt ? { manualSyncPrompt: delivery.manualSyncPrompt } : {},
+          ...delivery.checklist ? { checklist: delivery.checklist } : {},
+          ...delivery.degradedToNotifyHandoff === true ? { degradedToNotifyHandoff: true } : {},
+          ...Array.isArray(delivery.observations) ? { targets: delivery.observations } : {},
+          // §2.6 execution realpath evidence (R4 review m-2) + explicit
+          // cross-check skip note (R4 review m-4).
+          ...delivery.observation?.workspaceRealpath ? { workspaceRealpath: delivery.observation.workspaceRealpath } : {},
+          ...delivery.workspaceRealpath ? { workspaceRealpath: delivery.workspaceRealpath } : {},
+          ...delivery.observation?.crossCheck ? { crossCheck: delivery.observation.crossCheck } : {}
+        });
+        await snapshot(PARTIAL2);
+        continue;
+      }
+      if (!Array.isArray(hook.command)) {
+        cp3.status = "FAILED";
+        cp3.error = {
+          code: POST_PUBLISH_VERIFY_FAILED,
+          message: `hook "${hook.id}" has no executable command`
+        };
+        cp3.finishedAt = clockFn();
+        failures += 1;
+        hooksStopped = true;
+        await evidence.append({
+          phase: "postpublish-hook",
+          hookId: hook.id,
+          status: "failed",
+          reason: "no-command"
+        });
+        await snapshot(PARTIAL2);
+        continue;
+      }
+      await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "started" });
+      let hookExecution;
+      try {
+        hookExecution = await hookRunner(
+          {
+            command: hook.command,
+            ...hook.cwd ? { cwd: hook.cwd } : {},
+            ...hook.timeoutMs !== void 0 ? { timeoutMs: hook.timeoutMs } : {},
+            ...hook.envAllowlist ? { envAllowlist: hook.envAllowlist } : {}
+          },
+          {
+            root: worktreePath,
+            env: process.env,
+            injectEnv: { [POSTPUBLISH_CONTEXT_ENV]: JSON.stringify(hookContextProjection) }
+          }
+        );
+      } catch (err) {
+        const code = err?.code === "HOOK_TIMEOUT" ? "HOOK_TIMEOUT" : POST_PUBLISH_VERIFY_FAILED;
+        cp3.status = "FAILED";
+        cp3.error = { code, message: err?.message ?? String(err) };
+        cp3.finishedAt = clockFn();
+        failures += 1;
+        hooksStopped = true;
+        await evidence.append({
+          phase: "postpublish-hook",
+          hookId: hook.id,
+          status: "failed",
+          error: err?.message ?? String(err)
+        });
+        await snapshot(PARTIAL2);
+        continue;
+      }
+      if (hookExecution.exitCode !== 0) {
+        cp3.status = "FAILED";
+        cp3.error = {
+          code: POST_PUBLISH_VERIFY_FAILED,
+          message: `postPublish hook "${hook.id}" exited with code ${hookExecution.exitCode}`
+        };
+        cp3.finishedAt = clockFn();
+        failures += 1;
+        hooksStopped = true;
+        await evidence.append({
+          phase: "postpublish-hook",
+          hookId: hook.id,
+          status: "failed",
+          exitCode: hookExecution.exitCode,
+          stdoutTail: boundedOutputTail(hookExecution.stdout),
+          stderrTail: boundedOutputTail(hookExecution.stderr)
+        });
+        await snapshot(PARTIAL2);
+        continue;
+      }
+      cp3.status = "SUCCEEDED";
+      cp3.finishedAt = clockFn();
+      hookSuccesses += 1;
+      await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "succeeded" });
+      await snapshot(PARTIAL2);
+    }
+    const externalCheckpointSuccesses = pushedWrites + hookSuccesses;
     let overallStatus;
-    if (failures === 0) {
+    if (failures === 0 && awaitingApproval === 0) {
       overallStatus = DISTRIBUTED;
-    } else if (pushedWrites > 0) {
-      overallStatus = PARTIAL2;
+    } else if (failures === 0) {
+      overallStatus = externalCheckpointSuccesses > 0 ? PARTIAL2 : NEEDS_INPUT2;
     } else {
-      overallStatus = BLOCKED2;
+      overallStatus = externalCheckpointSuccesses > 0 ? PARTIAL2 : BLOCKED2;
     }
     const finishedAt = clockFn();
     await snapshot(overallStatus);
@@ -102934,7 +106371,7 @@ async function distributeRelease(options) {
       phase: "distribute",
       status: "completed",
       overallStatus,
-      checkpointStatuses: checkpoints.map((cp2) => cp2.status)
+      checkpointStatuses: checkpoints.map((cp3) => cp3.status)
     });
     await evidence.finish({
       status: overallStatus,
@@ -102964,7 +106401,7 @@ async function distributeRelease(options) {
     await cleanupWorktree();
   }
 }
-var execFileAsync3, EXECUTOR, TAIL_CHARS, SHA_RE2, SCHEMA_ERROR_CODES, DISTRIBUTING, DISTRIBUTED, PARTIAL2, BLOCKED2;
+var execFileAsync5, EXECUTOR, SHA_RE4, SCHEMA_ERROR_CODES, DISTRIBUTING, DISTRIBUTED, PARTIAL2, BLOCKED2, NEEDS_INPUT2;
 var init_distribute = __esm({
   async "src/commands/distribute.mjs"() {
     await init_plan();
@@ -102972,13 +106409,15 @@ var init_distribute = __esm({
     await init_run();
     init_evidence();
     init_hooks();
+    init_bounded_output();
     init_postpublish();
+    await init_postpublish_approval();
+    init_preset_executor();
     init_errors();
     init_contract();
-    execFileAsync3 = promisify12(execFileCb12);
+    execFileAsync5 = promisify15(execFileCb15);
     EXECUTOR = "release-skill distribute";
-    TAIL_CHARS = 4e3;
-    SHA_RE2 = /^[a-f0-9]{40}$/;
+    SHA_RE4 = /^[a-f0-9]{40}$/;
     SCHEMA_ERROR_CODES = /* @__PURE__ */ new Set([
       "CONFIG_INVALID",
       "BASELINE_CHANGED",
@@ -102995,9 +106434,9 @@ var init_distribute = __esm({
     DISTRIBUTED = "DISTRIBUTED";
     PARTIAL2 = "PARTIAL";
     BLOCKED2 = "BLOCKED";
+    NEEDS_INPUT2 = "NEEDS_INPUT";
     __name(defaultClock6, "defaultClock");
-    __name(defaultExec2, "defaultExec");
-    __name(tail, "tail");
+    __name(defaultExec4, "defaultExec");
     __name(mapToSchemaCode, "mapToSchemaCode");
     __name(parseFirstJsonObject, "parseFirstJsonObject");
     __name(parseOutputMarker, "parseOutputMarker");
@@ -103007,13 +106446,564 @@ var init_distribute = __esm({
   }
 });
 
+// src/commands/postverify.mjs
+var postverify_exports = {};
+__export(postverify_exports, {
+  postVerifyRelease: () => postVerifyRelease
+});
+import { execFile as execFileCb16 } from "node:child_process";
+import { promisify as promisify16 } from "node:util";
+import { mkdir as mkdir22, readFile as readFile34, rm as rm14 } from "node:fs/promises";
+import { mkdtemp as mkdtemp11 } from "node:fs/promises";
+import { tmpdir as tmpdir8 } from "node:os";
+import { join as join31 } from "node:path";
+function defaultClock7() {
+  return (/* @__PURE__ */ new Date()).toISOString();
+}
+function defaultExec5(command2, args2, options = {}) {
+  return execFileAsync6(command2, args2, { shell: false, encoding: "utf8", timeout: 12e4, ...options });
+}
+function mapToSchemaCode2(code) {
+  return SCHEMA_ERROR_CODES2.has(code) ? code : GATE_FAILED;
+}
+async function postVerifyRelease(options) {
+  const {
+    planPath,
+    approvalPath,
+    sourceRunPath,
+    root = process.cwd(),
+    runDir: runDirOpt,
+    dryRun = false,
+    clock: clockOpt,
+    execFn,
+    runHookFn,
+    postpublishApprovalPaths
+  } = options ?? {};
+  const clockFn = typeof clockOpt === "function" ? clockOpt : defaultClock7;
+  const exec = typeof execFn === "function" ? execFn : defaultExec5;
+  const hookRunner = typeof runHookFn === "function" ? runHookFn : runHook;
+  let planRaw;
+  try {
+    planRaw = await readFile34(planPath, "utf8");
+  } catch (err) {
+    throw new ReleaseError(GATE_FAILED, `cannot read release plan: ${err.message}`, { planPath, cause: err.code });
+  }
+  let plan;
+  try {
+    plan = JSON.parse(planRaw);
+  } catch (err) {
+    throw new ReleaseError(GATE_FAILED, `release plan is not valid JSON: ${err.message}`, { planPath });
+  }
+  validatePlan(plan);
+  assertImmutablePlanAuthority(planPath, plan);
+  const actualDigest = computePlanDigest(plan);
+  if (plan.digest && plan.digest !== actualDigest) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `plan digest mismatch: expected ${String(plan.digest).slice(0, 16)}..., computed ${actualDigest.slice(0, 16)}...`,
+      { expected: plan.digest, actual: actualDigest }
+    );
+  }
+  if (!plan.postPublish) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "release plan has no postPublish declaration; nothing to postVerify",
+      { planPath }
+    );
+  }
+  let approvalRaw;
+  try {
+    approvalRaw = await readFile34(approvalPath, "utf8");
+  } catch (err) {
+    throw new ReleaseError(GATE_FAILED, `cannot read approval record: ${err.message}`, { approvalPath, cause: err.code });
+  }
+  let approval;
+  try {
+    approval = JSON.parse(approvalRaw);
+  } catch (err) {
+    throw new ReleaseError(GATE_FAILED, `approval record is not valid JSON: ${err.message}`, { approvalPath });
+  }
+  const approvalDigestValue = assertImmutableApprovalAuthority(approvalPath, plan, approvalRaw) ?? computeApprovalDigest(approvalRaw);
+  validateApprovalRecordSchema(approval);
+  validateApproval(plan, approval, { clock: clockFn, requireUnexpired: false });
+  const verifyRun = await loadRun(sourceRunPath, { requireDigest: true });
+  if (verifyRun.command !== "verify") {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `postVerify source run must be a verify run, got command "${verifyRun.command}"`,
+      { sourceRunPath, command: verifyRun.command }
+    );
+  }
+  if (verifyRun.status !== "VERIFIED") {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `postVerify source run must be VERIFIED, got "${verifyRun.status}"; the verify conclusion never rolls back, so only a VERIFIED run may drive postVerify`,
+      { sourceRunPath, status: verifyRun.status }
+    );
+  }
+  validateRunPlanDigest(verifyRun, plan, { planPath });
+  if (!verifyRun.sourceRunPath || !verifyRun.sourceRunId || !verifyRun.sourceRunDigest) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "postVerify source verify run is missing complete source run lineage; publishedAt cannot be trusted",
+      { sourceRunPath }
+    );
+  }
+  const publishRun = await loadRun(verifyRun.sourceRunPath, { requireDigest: true });
+  if (publishRun.runId !== verifyRun.sourceRunId || publishRun.runDigest !== verifyRun.sourceRunDigest) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "postVerify source verify run lineage id/digest does not match the referenced publish run bytes",
+      { sourceRunPath, publishRunPath: verifyRun.sourceRunPath }
+    );
+  }
+  const postPublish = plan.postPublish;
+  validatePostPublishDeclaration(postPublish, { unitId: postPublish.unitId });
+  const declaredHooks = postPublish.hooks ?? [];
+  const postVerifyHooks = declaredHooks.filter((hook) => (hook.phase ?? "distribute") === "postVerify");
+  const approvedHookIds = /* @__PURE__ */ new Set();
+  const hookApprovalPaths = postpublishApprovalPaths ?? [];
+  for (const hookApprovalPath of hookApprovalPaths) {
+    let hookApprovalRaw;
+    try {
+      hookApprovalRaw = await readFile34(hookApprovalPath, "utf8");
+    } catch (err) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `cannot read postpublish hook approval: ${err.message}`,
+        { hookApprovalPath, cause: err.code }
+      );
+    }
+    let hookApproval;
+    try {
+      hookApproval = JSON.parse(hookApprovalRaw);
+    } catch (err) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `postpublish hook approval is not valid JSON: ${err.message}`,
+        { hookApprovalPath }
+      );
+    }
+    validatePostPublishApproval(plan, hookApproval, { clock: clockFn });
+    if (approvedHookIds.has(hookApproval.hookId)) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `duplicate postpublish hook approvals for hook "${hookApproval.hookId}"`,
+        { hookId: hookApproval.hookId }
+      );
+    }
+    approvedHookIds.add(hookApproval.hookId);
+  }
+  if (postPublish.payloadSource !== PAYLOAD_SOURCE_TAG_WORKTREE) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `postPublish.payloadSource must be "${PAYLOAD_SOURCE_TAG_WORKTREE}"`,
+      { payloadSource: postPublish.payloadSource }
+    );
+  }
+  if (typeof postPublish.tagCommit !== "string" || !SHA_RE5.test(postPublish.tagCommit)) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "postPublish is missing a frozen tagCommit binding; postVerify fails closed",
+      { tagCommit: postPublish.tagCommit ?? null }
+    );
+  }
+  let observedTagCommit;
+  try {
+    const { stdout } = await exec("git", ["-C", root, "rev-parse", "--verify", `${postPublish.tag}^{commit}`]);
+    observedTagCommit = `${stdout}`.trim();
+  } catch (err) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `tag "${postPublish.tag}" does not resolve to a commit in the source repository; postVerify fails closed`,
+      { tag: postPublish.tag, stderrTail: boundedOutputTail(err?.stderr ?? err?.message) }
+    );
+  }
+  if (observedTagCommit !== postPublish.tagCommit) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `tag "${postPublish.tag}" points at ${observedTagCommit}, but the frozen plan binds tagCommit ${postPublish.tagCommit}`,
+      { tag: postPublish.tag, frozenTagCommit: postPublish.tagCommit, observedTagCommit }
+    );
+  }
+  const runId = `postverify-${Date.now()}`;
+  let runDir = runDirOpt ?? resolveDefaultRunDir(planPath, "postverify", runId);
+  if (plan.production?.mode === "github-npm-v1") {
+    runDir = await createProductionRunDir(runDir, planPath);
+  } else {
+    await mkdir22(runDir, { recursive: true });
+  }
+  const runPath = join31(runDir, "release-run.json");
+  const evidence = createEvidenceWriter({ runDir, command: "postverify", clock: clockFn });
+  let finalRecordWritten = false;
+  const startedAt = clockFn();
+  let stateSequence = -1;
+  const checkpoints = postVerifyHooks.map((hook) => ({
+    actionId: hook.id,
+    actionType: "postpublish-hook",
+    status: "PENDING",
+    executor: EXECUTOR2
+  }));
+  const checkpointById = new Map(checkpoints.map((cp3) => [cp3.actionId, cp3]));
+  const buildPersistedState = /* @__PURE__ */ __name((status, finishedAt) => ({
+    runId,
+    command: "postverify",
+    status,
+    planDigest: plan.digest ?? actualDigest,
+    planPath,
+    ...approvalDigestValue ? { approvalDigest: approvalDigestValue } : {},
+    ...approvalPath ? { approvalPath } : {},
+    sourceRunId: verifyRun.runId,
+    sourceRunDigest: verifyRun.runDigest,
+    sourceRunPath,
+    startedAt,
+    ...finishedAt ? { finishedAt } : {},
+    checkpoints: checkpoints.map((cp3) => ({
+      actionId: cp3.actionId,
+      actionType: cp3.actionType,
+      status: cp3.status === "SUCCEEDED" ? "succeeded" : cp3.status === "FAILED" ? "failed" : cp3.status === "SKIPPED" ? "skipped" : cp3.status === "UNCERTAIN" ? "uncertain" : cp3.status === "PENDING" ? "pending" : cp3.status,
+      // NO_CHANGE / AWAITING_APPROVAL pass through as-is
+      ...cp3.mode ? { mode: cp3.mode } : {},
+      ...cp3.pushedCommit ? { pushedCommit: cp3.pushedCommit } : {},
+      ...cp3.executor ? { executor: cp3.executor } : {},
+      ...cp3.startedAt ? { startedAt: cp3.startedAt } : {},
+      ...cp3.finishedAt ? { finishedAt: cp3.finishedAt } : {},
+      ...cp3.reason ? { reason: cp3.reason } : {},
+      ...cp3.error ? { error: { code: cp3.error.code, ...cp3.error.message ? { message: cp3.error.message } : {} } } : {}
+    }))
+  }), "buildPersistedState");
+  const snapshot = /* @__PURE__ */ __name(async (status) => {
+    stateSequence += 1;
+    return appendRunState(runDir, stateSequence, buildPersistedState(status));
+  }, "snapshot");
+  const recordBlocked = /* @__PURE__ */ __name(async () => {
+    if (finalRecordWritten) return;
+    try {
+      await writeRunAtomic(runPath, buildPersistedState(BLOCKED3, clockFn()));
+      finalRecordWritten = true;
+    } catch {
+    }
+  }, "recordBlocked");
+  let worktreePath = null;
+  let tmpBase = null;
+  const cleanupWorktree = /* @__PURE__ */ __name(async () => {
+    if (worktreePath) {
+      await exec("git", ["-C", root, "worktree", "remove", "--force", worktreePath]).catch(() => {
+      });
+      worktreePath = null;
+    }
+    if (tmpBase) {
+      await rm14(tmpBase, { recursive: true, force: true }).catch(() => {
+      });
+      tmpBase = null;
+    }
+  }, "cleanupWorktree");
+  try {
+    await evidence.append({
+      phase: "postverify",
+      status: "started",
+      sourceVerifyRunId: verifyRun.runId,
+      sourcePublishRunId: publishRun.runId,
+      hookCount: postVerifyHooks.length,
+      dryRun: dryRun === true
+    });
+    await snapshot(DISTRIBUTING2);
+    if (dryRun !== true) {
+      try {
+        tmpBase = await mkdtemp11(join31(tmpdir8(), "release-skill-postverify-"));
+        worktreePath = join31(tmpBase, "worktree");
+        await exec("git", ["-C", root, "worktree", "add", "--detach", worktreePath, postPublish.tagCommit]);
+      } catch (err) {
+        await evidence.append({
+          phase: "worktree",
+          status: "failed",
+          error: boundedOutputTail(err?.stderr ?? err?.message)
+        });
+        await recordBlocked();
+        throw new ReleaseError(
+          GATE_FAILED,
+          `cannot create the detached tag worktree at ${postPublish.tagCommit}: ${err?.message ?? err}`,
+          { tagCommit: postPublish.tagCommit }
+        );
+      }
+      await evidence.append({ phase: "worktree", status: "passed" });
+    }
+    const verifyEvidence = {
+      runId: verifyRun.runId,
+      status: verifyRun.status,
+      finishedAt: verifyRun.finishedAt
+    };
+    const hookContextProjection = buildPostPublishContext({
+      plan,
+      runId,
+      sourceRun: publishRun,
+      payloadDir: void 0,
+      phase: "postVerify",
+      verifyEvidence
+    });
+    const proposalContextProjection = {
+      ...hookContextProjection,
+      runId: `postverify-${verifyRun.runId}`
+    };
+    let hooksStopped = false;
+    let failures = 0;
+    let awaitingApproval = 0;
+    let externalSuccesses = 0;
+    for (const hook of postVerifyHooks) {
+      const cp3 = checkpointById.get(hook.id);
+      cp3.startedAt = clockFn();
+      if (hooksStopped) {
+        cp3.status = "SKIPPED";
+        cp3.reason = "EARLIER_HOOK_FAILED";
+        cp3.finishedAt = clockFn();
+        await evidence.append({
+          phase: "postpublish-hook",
+          hookId: hook.id,
+          status: "skipped",
+          reason: "EARLIER_HOOK_FAILED"
+        });
+        continue;
+      }
+      if (dryRun === true) {
+        cp3.status = "SKIPPED";
+        cp3.reason = "DRY_RUN";
+        cp3.finishedAt = clockFn();
+        await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "skipped", reason: "DRY_RUN" });
+        continue;
+      }
+      if (effectiveHookRequiresApproval(hook) && !approvedHookIds.has(hook.id)) {
+        cp3.status = "AWAITING_APPROVAL";
+        cp3.finishedAt = clockFn();
+        awaitingApproval += 1;
+        await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "awaiting-approval" });
+        continue;
+      }
+      if (hook.preset !== void 0) {
+        await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "started" });
+        let delivery;
+        try {
+          delivery = await executePresetHook({
+            hook,
+            contextProjection: hookContextProjection,
+            proposalContextProjection,
+            commitIdentity: postPublish.commitIdentity,
+            root: worktreePath,
+            evidencePath: join31(runDir, "evidence.jsonl"),
+            exec,
+            hookRunner
+          });
+        } catch (err) {
+          const code = mapToSchemaCode2(err?.code);
+          cp3.status = "FAILED";
+          cp3.error = { code, message: err?.message ?? String(err) };
+          cp3.finishedAt = clockFn();
+          failures += 1;
+          hooksStopped = true;
+          await evidence.append({
+            phase: "postpublish-hook",
+            hookId: hook.id,
+            status: "failed",
+            error: err?.message ?? String(err),
+            details: { code }
+          });
+          await snapshot(PARTIAL3);
+          continue;
+        }
+        if (delivery.status === "NO_CHANGE") {
+          cp3.status = "NO_CHANGE";
+          cp3.mode = "no-change";
+          cp3.finishedAt = clockFn();
+          externalSuccesses += 1;
+          await evidence.append({
+            phase: "postpublish-hook",
+            hookId: hook.id,
+            status: "no-change",
+            ...delivery.manualSyncPrompt ? { manualSyncPrompt: delivery.manualSyncPrompt } : {},
+            // §2.6 execution realpath evidence (R4 review m-2).
+            ...delivery.observation?.workspaceRealpath ? { workspaceRealpath: delivery.observation.workspaceRealpath } : {},
+            ...delivery.workspaceRealpath ? { workspaceRealpath: delivery.workspaceRealpath } : {}
+          });
+          await snapshot(PARTIAL3);
+          continue;
+        }
+        cp3.status = "SUCCEEDED";
+        if (delivery.observation?.mode === "pushed" && delivery.observation?.pushedCommit) {
+          cp3.mode = "pushed";
+          cp3.pushedCommit = delivery.observation.pushedCommit;
+        }
+        cp3.finishedAt = clockFn();
+        externalSuccesses += 1;
+        await evidence.append({
+          phase: "postpublish-hook",
+          hookId: hook.id,
+          status: "succeeded",
+          preset: hook.preset,
+          mode: delivery.mode ?? delivery.observation?.mode,
+          ...delivery.observation?.pushedCommit ? { pushedCommit: delivery.observation.pushedCommit } : {},
+          ...delivery.manualSyncPrompt ? { manualSyncPrompt: delivery.manualSyncPrompt } : {},
+          ...delivery.checklist ? { checklist: delivery.checklist } : {},
+          ...delivery.degradedToNotifyHandoff === true ? { degradedToNotifyHandoff: true } : {},
+          ...Array.isArray(delivery.observations) ? { targets: delivery.observations } : {},
+          // §2.6 execution realpath evidence (R4 review m-2) + explicit
+          // cross-check skip note (R4 review m-4).
+          ...delivery.observation?.workspaceRealpath ? { workspaceRealpath: delivery.observation.workspaceRealpath } : {},
+          ...delivery.workspaceRealpath ? { workspaceRealpath: delivery.workspaceRealpath } : {},
+          ...delivery.observation?.crossCheck ? { crossCheck: delivery.observation.crossCheck } : {}
+        });
+        await snapshot(PARTIAL3);
+        continue;
+      }
+      await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "started" });
+      let hookExecution;
+      try {
+        hookExecution = await hookRunner(
+          {
+            command: hook.command,
+            ...hook.cwd ? { cwd: hook.cwd } : {},
+            ...hook.timeoutMs !== void 0 ? { timeoutMs: hook.timeoutMs } : {},
+            ...hook.envAllowlist ? { envAllowlist: hook.envAllowlist } : {}
+          },
+          {
+            root: worktreePath,
+            env: process.env,
+            injectEnv: { [POSTPUBLISH_CONTEXT_ENV]: JSON.stringify(hookContextProjection) }
+          }
+        );
+      } catch (err) {
+        const code = err?.code === "HOOK_TIMEOUT" ? "HOOK_TIMEOUT" : POST_PUBLISH_VERIFY_FAILED;
+        cp3.status = "FAILED";
+        cp3.error = { code, message: err?.message ?? String(err) };
+        cp3.finishedAt = clockFn();
+        failures += 1;
+        hooksStopped = true;
+        await evidence.append({
+          phase: "postpublish-hook",
+          hookId: hook.id,
+          status: "failed",
+          error: err?.message ?? String(err)
+        });
+        await snapshot(PARTIAL3);
+        continue;
+      }
+      if (hookExecution.exitCode !== 0) {
+        cp3.status = "FAILED";
+        cp3.error = {
+          code: POST_PUBLISH_VERIFY_FAILED,
+          message: `postVerify hook "${hook.id}" exited with code ${hookExecution.exitCode}`
+        };
+        cp3.finishedAt = clockFn();
+        failures += 1;
+        hooksStopped = true;
+        await evidence.append({
+          phase: "postpublish-hook",
+          hookId: hook.id,
+          status: "failed",
+          exitCode: hookExecution.exitCode,
+          stdoutTail: boundedOutputTail(hookExecution.stdout),
+          stderrTail: boundedOutputTail(hookExecution.stderr)
+        });
+        await snapshot(PARTIAL3);
+        continue;
+      }
+      cp3.status = "SUCCEEDED";
+      cp3.finishedAt = clockFn();
+      externalSuccesses += 1;
+      await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "succeeded" });
+      await snapshot(PARTIAL3);
+    }
+    let overallStatus;
+    if (failures === 0 && awaitingApproval === 0) {
+      overallStatus = DISTRIBUTED2;
+    } else if (failures === 0) {
+      overallStatus = externalSuccesses > 0 ? PARTIAL3 : NEEDS_INPUT3;
+    } else {
+      overallStatus = externalSuccesses > 0 ? PARTIAL3 : BLOCKED3;
+    }
+    const finishedAt = clockFn();
+    await snapshot(overallStatus);
+    await writeRunAtomic(runPath, buildPersistedState(overallStatus, finishedAt));
+    finalRecordWritten = true;
+    await evidence.append({
+      phase: "postverify",
+      status: "completed",
+      overallStatus,
+      checkpointStatuses: checkpoints.map((cp3) => cp3.status)
+    });
+    await evidence.finish({
+      status: overallStatus,
+      planPath,
+      runPath,
+      finishedAt: clockFn()
+    });
+    return { planPath, runPath, status: overallStatus, checkpoints };
+  } catch (err) {
+    try {
+      await evidence.append({
+        phase: "postverify",
+        status: "failed",
+        error: { code: err.code, message: err.message }
+      });
+      if (!finalRecordWritten) await recordBlocked();
+    } catch {
+    }
+    await evidence.finish({
+      status: BLOCKED3,
+      error: { code: err.code, message: err.message },
+      failedAt: clockFn()
+    }).catch(() => {
+    });
+    throw err;
+  } finally {
+    await cleanupWorktree();
+  }
+}
+var execFileAsync6, EXECUTOR2, SHA_RE5, SCHEMA_ERROR_CODES2, DISTRIBUTING2, DISTRIBUTED2, PARTIAL3, BLOCKED3, NEEDS_INPUT3;
+var init_postverify = __esm({
+  async "src/commands/postverify.mjs"() {
+    await init_plan();
+    await init_approval();
+    await init_run();
+    init_evidence();
+    init_hooks();
+    init_bounded_output();
+    init_postpublish();
+    await init_postpublish_approval();
+    init_preset_executor();
+    init_errors();
+    execFileAsync6 = promisify16(execFileCb16);
+    EXECUTOR2 = "release-skill postverify";
+    SHA_RE5 = /^[a-f0-9]{40}$/;
+    SCHEMA_ERROR_CODES2 = /* @__PURE__ */ new Set([
+      "CONFIG_INVALID",
+      "BASELINE_CHANGED",
+      "DIRTY_SCOPE_CONFLICT",
+      "GATE_FAILED",
+      "AUTH_MISSING",
+      "REMOTE_CONFLICT",
+      "REMOTE_UNAVAILABLE",
+      "HOOK_TIMEOUT",
+      "PARTIAL_RELEASE",
+      "POST_PUBLISH_VERIFY_FAILED"
+    ]);
+    DISTRIBUTING2 = "DISTRIBUTING";
+    DISTRIBUTED2 = "DISTRIBUTED";
+    PARTIAL3 = "PARTIAL";
+    BLOCKED3 = "BLOCKED";
+    NEEDS_INPUT3 = "NEEDS_INPUT";
+    __name(defaultClock7, "defaultClock");
+    __name(defaultExec5, "defaultExec");
+    __name(mapToSchemaCode2, "mapToSchemaCode");
+    __name(postVerifyRelease, "postVerifyRelease");
+  }
+});
+
 // src/core/git-transport.mjs
 var git_transport_exports = {};
 __export(git_transport_exports, {
   preflightGitTransports: () => preflightGitTransports
 });
-import { execFile as execFileCb13 } from "node:child_process";
-import { promisify as promisify13 } from "node:util";
+import { execFile as execFileCb17 } from "node:child_process";
+import { promisify as promisify17 } from "node:util";
 function urls(repo, host) {
   if (typeof repo !== "string" || !/^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/.test(repo)) {
     throw new ReleaseError(REMOTE_UNAVAILABLE, "git transport preflight requires owner/name repositories");
@@ -103094,7 +107084,7 @@ var execFile10;
 var init_git_transport = __esm({
   "src/core/git-transport.mjs"() {
     init_errors();
-    execFile10 = promisify13(execFileCb13);
+    execFile10 = promisify17(execFileCb17);
     __name(urls, "urls");
     __name(identity, "identity");
     __name(preflightGitTransports, "preflightGitTransports");
@@ -103106,25 +107096,25 @@ var release_metadata_exports = {};
 __export(release_metadata_exports, {
   updatePreviousPublicBaselines: () => updatePreviousPublicBaselines
 });
-import { lstat as lstat23, readFile as readFile31, rename as rename4, rm as rm12, writeFile as writeFile10 } from "node:fs/promises";
-import { resolve as resolve29 } from "node:path";
+import { lstat as lstat24, readFile as readFile35, rename as rename4, rm as rm15, writeFile as writeFile12 } from "node:fs/promises";
+import { resolve as resolve31 } from "node:path";
 function assertOid(value, label) {
   if (typeof value !== "string" || !/^[a-f0-9]{40,64}$/.test(value)) {
     throw new ReleaseError(GATE_FAILED, `${label} is not a full Git object id`);
   }
 }
 async function updatePreviousPublicBaselines(options = {}) {
-  const root = resolve29(options.root ?? process.cwd());
-  const planPath = resolve29(options.planPath ?? "");
-  const configPath = resolve29(root, ".release-skill", "project.yaml");
+  const root = resolve31(options.root ?? process.cwd());
+  const planPath = resolve31(options.planPath ?? "");
+  const configPath = resolve31(root, ".release-skill", "project.yaml");
   let plan;
   let configRaw;
   let configStat;
   try {
     [plan, configRaw, configStat] = await Promise.all([
-      readFile31(planPath, "utf8").then(JSON.parse),
-      readFile31(configPath, "utf8"),
-      lstat23(configPath)
+      readFile35(planPath, "utf8").then(JSON.parse),
+      readFile35(configPath, "utf8"),
+      lstat24(configPath)
     ]);
   } catch (error) {
     throw new ReleaseError(
@@ -103185,14 +107175,14 @@ async function updatePreviousPublicBaselines(options = {}) {
   }
   const tempPath = `${configPath}.${process.pid}.${Date.now()}.tmp`;
   try {
-    await writeFile10(tempPath, nextRaw, {
+    await writeFile12(tempPath, nextRaw, {
       encoding: "utf8",
       mode: configStat.mode & 511,
       flag: "wx"
     });
     await rename4(tempPath, configPath);
   } catch (error) {
-    await rm12(tempPath, { force: true }).catch(() => {
+    await rm15(tempPath, { force: true }).catch(() => {
     });
     throw new ReleaseError(CONFIG_INVALID, `cannot update project release metadata: ${error.message}`);
   }
@@ -103213,10 +107203,10 @@ var ship_exports = {};
 __export(ship_exports, {
   advanceShip: () => advanceShip
 });
-import { readFile as readFile32, lstat as lstat24, mkdir as mkdir20, rename as rename5, rm as rm13, writeFile as writeFile11 } from "node:fs/promises";
-import { dirname as dirname15, resolve as resolve30 } from "node:path";
+import { readFile as readFile36, lstat as lstat25, mkdir as mkdir23, rename as rename5, rm as rm16, writeFile as writeFile13 } from "node:fs/promises";
+import { dirname as dirname17, resolve as resolve32 } from "node:path";
 async function writeJsonAtomic(path15, value) {
-  await mkdir20(dirname15(path15), { recursive: true });
+  await mkdir23(dirname17(path15), { recursive: true });
   const temp = `${path15}.${process.pid}.${Date.now()}.tmp`;
   const { stateDigest: _oldDigest, ...body } = value;
   const sealed = {
@@ -103224,7 +107214,7 @@ async function writeJsonAtomic(path15, value) {
     stateDigest: sha256Hex(canonicalJson2(body))
   };
   try {
-    await writeFile11(temp, `${JSON.stringify(sealed, null, 2)}
+    await writeFile13(temp, `${JSON.stringify(sealed, null, 2)}
 `, {
       encoding: "utf8",
       mode: 384,
@@ -103232,18 +107222,18 @@ async function writeJsonAtomic(path15, value) {
     });
     await rename5(temp, path15);
   } catch (error) {
-    await rm13(temp, { force: true }).catch(() => {
+    await rm16(temp, { force: true }).catch(() => {
     });
     throw error;
   }
 }
 async function readState(path15) {
   try {
-    const stat10 = await lstat24(path15);
-    if (!stat10.isFile() || stat10.isSymbolicLink()) {
+    const stat13 = await lstat25(path15);
+    if (!stat13.isFile() || stat13.isSymbolicLink()) {
       throw new Error("ship state must be a regular non-symlink file");
     }
-    const state = JSON.parse(await readFile32(path15, "utf8"));
+    const state = JSON.parse(await readFile36(path15, "utf8"));
     const { stateDigest, ...body } = state;
     if (typeof stateDigest !== "string" || stateDigest !== sha256Hex(canonicalJson2(body)) || body.statePath !== path15) {
       throw new Error("ship state digest or authority path does not match");
@@ -103263,6 +107253,7 @@ async function defaultDependencies() {
     reconcileModule,
     verifyModule,
     distributeModule,
+    postverifyModule,
     transportModule,
     metadataModule
   ] = await Promise.all([
@@ -103273,6 +107264,7 @@ async function defaultDependencies() {
     init_reconcile().then(() => reconcile_exports),
     init_verify().then(() => verify_exports),
     init_distribute().then(() => distribute_exports),
+    init_postverify().then(() => postverify_exports),
     Promise.resolve().then(() => (init_git_transport(), git_transport_exports)),
     Promise.resolve().then(() => (init_release_metadata(), release_metadata_exports))
   ]);
@@ -103284,6 +107276,7 @@ async function defaultDependencies() {
     reconcileRelease: reconcileModule.reconcileRelease,
     verifyRelease: verifyModule.verifyRelease,
     distributeRelease: distributeModule.distributeRelease,
+    postVerifyRelease: postverifyModule.postVerifyRelease,
     preflightGitTransports: transportModule.preflightGitTransports,
     updatePreviousPublicBaselines: metadataModule.updatePreviousPublicBaselines
   };
@@ -103307,6 +107300,7 @@ function publicState(state) {
     ...state.approvalPath ? { approvalPath: state.approvalPath } : {},
     ...state.sourceRunPath ? { sourceRunPath: state.sourceRunPath } : {},
     ...state.distributeRunPath ? { distributeRunPath: state.distributeRunPath } : {},
+    ...state.postVerify ? { postVerify: state.postVerify } : {},
     ...state.requirements ? { requirements: state.requirements } : {},
     ...state.manualFollowUps ? { manualFollowUps: state.manualFollowUps } : {},
     ...state.metadataUpdate ? { metadataUpdate: state.metadataUpdate } : {},
@@ -103316,7 +107310,7 @@ function publicState(state) {
 }
 async function buildApprovalSummary(planPath) {
   try {
-    const plan = JSON.parse(await readFile32(planPath, "utf8"));
+    const plan = JSON.parse(await readFile36(planPath, "utf8"));
     const units = (plan.units ?? []).map((unit) => ({
       id: unit.id,
       targetVersion: unit.targetVersion ?? unit.version
@@ -103331,10 +107325,28 @@ async function buildApprovalSummary(planPath) {
     return { units: [], actions: [] };
   }
 }
+async function allUnclosedPostVerifyHooksUngated(state, postVerifyHooks) {
+  if (!Array.isArray(postVerifyHooks) || postVerifyHooks.length === 0) return false;
+  let candidates = postVerifyHooks;
+  if (state.postVerify?.runPath) {
+    try {
+      const record = JSON.parse(await readFile36(state.postVerify.runPath, "utf8"));
+      const checkpoints = Array.isArray(record.checkpoints) ? record.checkpoints : [];
+      const closedIds = new Set(
+        checkpoints.filter((cp3) => cp3?.actionType === "postpublish-hook" && (cp3.status === "succeeded" || cp3.status === "NO_CHANGE")).map((cp3) => cp3.actionId)
+      );
+      candidates = postVerifyHooks.filter((hook) => !closedIds.has(hook.id));
+    } catch {
+      candidates = postVerifyHooks;
+    }
+  }
+  if (candidates.length === 0) return false;
+  return candidates.every((hook) => effectiveHookRequiresApproval(hook) === false);
+}
 async function advanceShip(options = {}, injected = {}) {
-  const root = resolve30(options.root ?? process.cwd());
-  const statePath = resolve30(
-    options.statePath ?? resolve30(root, ".release-skill", "ships", "current.json")
+  const root = resolve32(options.root ?? process.cwd());
+  const statePath = resolve32(
+    options.statePath ?? resolve32(root, ".release-skill", "ships", "current.json")
   );
   const deps = Object.keys(injected).length > 0 ? injected : await defaultDependencies();
   let state = await readState(statePath);
@@ -103386,7 +107398,7 @@ async function advanceShip(options = {}, injected = {}) {
     });
     let transportPreflight = null;
     if (deps.preflightGitTransports) {
-      const frozenPlan = JSON.parse(await readFile32(prepared.planPath, "utf8"));
+      const frozenPlan = JSON.parse(await readFile36(prepared.planPath, "utf8"));
       transportPreflight = await deps.preflightGitTransports(frozenPlan);
       process.env.RELEASE_SKILL_GIT_TRANSPORT = transportPreflight.transport;
     }
@@ -103469,9 +107481,11 @@ async function advanceShip(options = {}, injected = {}) {
     };
     await writeJsonAtomic(statePath, state);
   }
+  let postVerifyRanThisCall = false;
   if (state.status === "PUBLISHED" || state.status === "NEEDS_MANUAL_ATTESTATIONS") {
-    const plan = JSON.parse(await readFile32(state.planPath, "utf8"));
-    const needsDistribution = plan.postPublish && plan.postPublish.targets && plan.postPublish.targets.length > 0;
+    const plan = JSON.parse(await readFile36(state.planPath, "utf8"));
+    const hasDistributeWork = (plan.postPublish?.targets?.length ?? 0) > 0 || (plan.postPublish?.hooks?.length ?? 0) > 0;
+    const needsDistribution = Boolean(plan.postPublish) && hasDistributeWork;
     if (needsDistribution && deps.distributeRelease) {
       state.status = "DISTRIBUTING";
       await writeJsonAtomic(statePath, state);
@@ -103482,16 +107496,19 @@ async function advanceShip(options = {}, injected = {}) {
           adapterRegistry: options.adapterRegistry,
           root,
           dryRun: false,
-          planPath: state.planPath
+          planPath: state.planPath,
+          // Checkpoint approvals for requiresApproval distribute-phase hooks
+          // (review major-1: same seam the distribute CLI already uses).
+          ...options.postpublishApprovalPaths ? { postpublishApprovalPaths: options.postpublishApprovalPaths } : {}
         });
         state = {
           ...state,
           status: distributed.status,
-          distributeRunPath: distributed.distributeRunPath,
+          distributeRunPath: distributed.distributeRunPath ?? distributed.runPath,
           updatedAt: (/* @__PURE__ */ new Date()).toISOString()
         };
         await writeJsonAtomic(statePath, state);
-        if (!distributed.checkpoints || distributed.checkpoints.some((cp2) => cp2.status === "failed")) {
+        if (!distributed.checkpoints || distributed.checkpoints.some((cp3) => cp3.status === "FAILED")) {
           state.status = "PARTIAL";
           await writeJsonAtomic(statePath, state);
           return publicState(state);
@@ -103530,18 +107547,88 @@ async function advanceShip(options = {}, injected = {}) {
       };
       await writeJsonAtomic(statePath, state);
     }
+    const postVerifyHooks = (plan.postPublish?.hooks ?? []).filter((hook) => hook.phase === "postVerify");
+    if (state.status === "VERIFIED" && postVerifyHooks.length > 0 && deps.postVerifyRelease) {
+      postVerifyRanThisCall = true;
+      let postVerifyOutcome;
+      try {
+        const postVerified = await deps.postVerifyRelease({
+          planPath: state.planPath,
+          approvalPath: state.approvalPath,
+          sourceRunPath: state.verifyRunPath,
+          root,
+          postpublishApprovalPaths: options.postpublishApprovalPaths
+        });
+        postVerifyOutcome = {
+          status: postVerified.status,
+          runPath: postVerified.runPath
+        };
+      } catch (error) {
+        postVerifyOutcome = {
+          status: "FAILED",
+          error: {
+            code: error?.code ?? GATE_FAILED,
+            message: error?.message ?? String(error)
+          }
+        };
+      }
+      state = {
+        ...state,
+        postVerify: postVerifyOutcome,
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      await writeJsonAtomic(statePath, state);
+    }
+  }
+  const reentryApprovalPaths = options.postpublishApprovalPaths ?? [];
+  if (state.status === "VERIFIED" && deps.postVerifyRelease && !postVerifyRanThisCall && (!state.postVerify || state.postVerify.status !== "DISTRIBUTED")) {
+    const reentryPlan = JSON.parse(await readFile36(state.planPath, "utf8"));
+    const reentryPostVerifyHooks = (reentryPlan.postPublish?.hooks ?? []).filter((hook) => hook.phase === "postVerify");
+    const approvallessRetryAllowed = reentryApprovalPaths.length === 0 && await allUnclosedPostVerifyHooksUngated(state, reentryPostVerifyHooks);
+    if (reentryPostVerifyHooks.length > 0 && (reentryApprovalPaths.length > 0 || approvallessRetryAllowed)) {
+      let postVerifyOutcome;
+      try {
+        const postVerified = await deps.postVerifyRelease({
+          planPath: state.planPath,
+          approvalPath: state.approvalPath,
+          sourceRunPath: state.verifyRunPath,
+          root,
+          postpublishApprovalPaths: reentryApprovalPaths
+        });
+        postVerifyOutcome = {
+          status: postVerified.status,
+          runPath: postVerified.runPath
+        };
+      } catch (error) {
+        postVerifyOutcome = {
+          status: "FAILED",
+          error: {
+            code: error?.code ?? GATE_FAILED,
+            message: error?.message ?? String(error)
+          }
+        };
+      }
+      state = {
+        ...state,
+        postVerify: postVerifyOutcome,
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      await writeJsonAtomic(statePath, state);
+    }
   }
   return publicState(state);
 }
 var init_ship = __esm({
   "src/commands/ship.mjs"() {
     init_digest();
+    init_postpublish();
     init_errors();
     __name(writeJsonAtomic, "writeJsonAtomic");
     __name(readState, "readState");
     __name(defaultDependencies, "defaultDependencies");
     __name(publicState, "publicState");
     __name(buildApprovalSummary, "buildApprovalSummary");
+    __name(allUnclosedPostVerifyHooksUngated, "allUnclosedPostVerifyHooksUngated");
     __name(advanceShip, "advanceShip");
   }
 });
@@ -103552,8 +107639,8 @@ __export(push_snapshot_exports, {
   createPushSnapshotAdapter: () => createPushSnapshotAdapter,
   githubRepositoryUrl: () => githubRepositoryUrl
 });
-import { execFile as execFileCb14 } from "node:child_process";
-import { promisify as promisify14 } from "node:util";
+import { execFile as execFileCb18 } from "node:child_process";
+import { promisify as promisify18 } from "node:util";
 async function run3(command2, args2, options = {}) {
   return execFile11(command2, args2, {
     shell: false,
@@ -103812,7 +107899,7 @@ var init_push_snapshot = __esm({
   "src/adapters/push-snapshot.mjs"() {
     init_contract();
     init_frozen();
-    execFile11 = promisify14(execFileCb14);
+    execFile11 = promisify18(execFileCb18);
     NAME3 = "push-snapshot";
     __name(run3, "run");
     __name(githubRepositoryUrl, "githubRepositoryUrl");
@@ -103828,8 +107915,8 @@ var git_github_exports = {};
 __export(git_github_exports, {
   createGitGithubAdapter: () => createGitGithubAdapter
 });
-import { execFile as execFileCb15 } from "node:child_process";
-import { promisify as promisify15 } from "node:util";
+import { execFile as execFileCb19 } from "node:child_process";
+import { promisify as promisify19 } from "node:util";
 async function run4(command2, args2, options = {}) {
   return execFile12(command2, args2, {
     shell: false,
@@ -104113,7 +108200,7 @@ var init_git_github = __esm({
     init_contract();
     init_frozen();
     init_push_snapshot();
-    execFile12 = promisify15(execFileCb15);
+    execFile12 = promisify19(execFileCb19);
     NAME4 = "git-github";
     __name(run4, "run");
     __name(isNotFound2, "isNotFound");
@@ -104127,20 +108214,529 @@ var init_git_github = __esm({
   }
 });
 
+// src/adapters/distribute-git.mjs
+var distribute_git_exports = {};
+__export(distribute_git_exports, {
+  classifyProbeFailure: () => classifyProbeFailure,
+  createDistributeGitAdapter: () => createDistributeGitAdapter,
+  renderMarketplaceIndex: () => renderMarketplaceIndex
+});
+import { execFile as execFileCb20 } from "node:child_process";
+import { promisify as promisify20 } from "node:util";
+import { cp as cp2, copyFile, mkdir as mkdir24, mkdtemp as mkdtemp12, readdir as readdir17, rm as rm17, stat as stat9, writeFile as writeFile14 } from "node:fs/promises";
+import { tmpdir as tmpdir9 } from "node:os";
+import { dirname as dirname18, isAbsolute as isAbsolute24, join as join32 } from "node:path";
+function classifyProbeFailure(text) {
+  const output = typeof text === "string" ? text : "";
+  if (AUTH_FAILURE_PATTERNS3.some((pattern) => pattern.test(output))) return "auth";
+  if (TRANSPORT_FAILURE_PATTERNS2.some((pattern) => pattern.test(output))) return "transport";
+  return "transport";
+}
+function renderMarketplaceIndex(marketplace, params = {}) {
+  const fail3 = /* @__PURE__ */ __name((message, details = {}) => {
+    throw new ReleaseError(GATE_FAILED, `marketplace index render failed: ${message}`, details);
+  }, "fail");
+  if (!marketplace || typeof marketplace !== "object" || Array.isArray(marketplace)) {
+    fail3("marketplace metadata is required");
+  }
+  if (marketplace.form !== "github" && marketplace.form !== "url") {
+    fail3('marketplace.form must be "github" or "url"', { form: marketplace.form });
+  }
+  const { pluginName, ref, sha = null, dependencyUrl = null } = params;
+  if (typeof marketplace.name !== "string" || marketplace.name.length === 0) fail3("marketplace.name must be a non-empty string");
+  if (typeof marketplace.owner !== "string" || marketplace.owner.length === 0) fail3("marketplace.owner must be a non-empty string");
+  if (typeof pluginName !== "string" || pluginName.length === 0) fail3("pluginName must be a non-empty string");
+  if (typeof ref !== "string" || ref.length === 0) fail3("ref must be a non-empty tag");
+  if (sha !== null && !SHA_RE6.test(sha)) {
+    fail3("sha must be the full 40-hex commit hash from the actual push result", { sha });
+  }
+  let source;
+  if (marketplace.form === "github") {
+    source = {
+      source: "github",
+      repo: marketplace.sourceRepo ?? `${marketplace.owner}/${marketplace.name}`,
+      ref,
+      ...sha ? { sha } : {}
+    };
+  } else {
+    if (typeof dependencyUrl !== "string" || !SAFE_REMOTE_URL_RE3.test(dependencyUrl)) {
+      fail3("url form requires the payload-mirror dependency remoteUrl", { dependencyUrl });
+    }
+    source = {
+      source: "url",
+      url: dependencyUrl,
+      ref,
+      ...sha ? { sha } : {}
+    };
+  }
+  return {
+    name: marketplace.name,
+    owner: { name: marketplace.owner },
+    plugins: [{ name: pluginName, source }]
+  };
+}
+function hasControlChars3(value) {
+  return /[\x00-\x1f\x7f]/.test(value);
+}
+function assertSafeRemoteUrl3(remoteUrl) {
+  if (typeof remoteUrl !== "string" || !SAFE_REMOTE_URL_RE3.test(remoteUrl) || hasControlChars3(remoteUrl)) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "distribute remoteUrl must be an http(s)/file URL ending in .git",
+      { remoteUrl }
+    );
+  }
+}
+function assertSafeBranch3(branch) {
+  if (typeof branch !== "string" || !SAFE_BRANCH_RE3.test(branch) || branch.includes("..") || branch.endsWith(".") || branch.endsWith(".lock")) {
+    throw new ReleaseError(GATE_FAILED, "distribute branch is not a safe Git branch name", { branch });
+  }
+}
+function assertSafeTag(tag) {
+  if (typeof tag !== "string" || tag.length === 0 || tag.startsWith("-") || !SAFE_TAG_RE.test(tag)) {
+    throw new ReleaseError(GATE_FAILED, "distribute tag is not a safe Git tag name", { tag });
+  }
+}
+function assertCommitIdentity3(identity2) {
+  if (!identity2 || typeof identity2 !== "object") {
+    throw new ReleaseError(GATE_FAILED, "distribute requires a frozen commitIdentity");
+  }
+  for (const field of ["name", "email"]) {
+    const value = identity2[field];
+    if (typeof value !== "string" || value.length === 0 || value.startsWith("-") || hasControlChars3(value)) {
+      throw new ReleaseError(GATE_FAILED, `distribute commitIdentity.${field} is missing or unsafe`, { field });
+    }
+  }
+}
+async function run5(command2, args2, options = {}) {
+  return execFile13(command2, args2, {
+    shell: false,
+    encoding: "utf8",
+    timeout: GIT_TIMEOUT_MS3,
+    ...options
+  });
+}
+function stderrText3(error) {
+  return `${error?.stderr ?? ""}
+${error?.message ?? ""}`;
+}
+function stderrTail3(error, limit = 400) {
+  const text = stderrText3(error).trim();
+  return text.length > limit ? `\u2026${text.slice(-limit)}` : text;
+}
+function parseLsRemote3(stdout) {
+  const refs = /* @__PURE__ */ new Map();
+  for (const line of `${stdout ?? ""}`.trim().split("\n").filter(Boolean)) {
+    const tabIndex = line.indexOf("	");
+    if (tabIndex < 0) continue;
+    const sha = line.slice(0, tabIndex);
+    const ref = line.slice(tabIndex + 1);
+    if (!SHA_RE6.test(sha)) continue;
+    if (ref.endsWith("^{}")) {
+      refs.set(ref.slice(0, -3), sha);
+    } else if (!refs.has(ref)) {
+      refs.set(ref, sha);
+    }
+  }
+  return refs;
+}
+async function countFiles(dir) {
+  let total = 0;
+  const entries = await readdir17(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.name === ".git") continue;
+    const fullPath = join32(dir, entry.name);
+    if (entry.isDirectory()) {
+      total += await countFiles(fullPath);
+    } else if (entry.isFile() || entry.isSymbolicLink()) {
+      total += 1;
+    }
+  }
+  return total;
+}
+function createDistributeGitAdapter(deps = {}) {
+  const exec = deps.exec ?? run5;
+  const mkdtempFn = deps.mkdtempFn ?? (async (prefix) => mkdtemp12(prefix));
+  const rmFn = deps.rmFn ?? (async (path15, options) => rm17(path15, options));
+  const tmpRoot = deps.tmpRoot ?? tmpdir9();
+  const netEnv3 = /* @__PURE__ */ __name(() => ({ ...process.env, ...NEVER_PROMPT_ENV3 }), "netEnv");
+  async function lsRemoteRefs(remoteUrl, refs) {
+    const { stdout } = await exec("git", ["ls-remote", remoteUrl, ...refs], {
+      env: netEnv3(),
+      timeout: PROBE_TIMEOUT_MS3,
+      shell: false
+    });
+    return parseLsRemote3(stdout);
+  }
+  __name(lsRemoteRefs, "lsRemoteRefs");
+  function probeFailureResult(action, error) {
+    const classification = classifyProbeFailure(stderrText3(error));
+    const code = classification === "auth" ? REMOTE_CONFLICT : REMOTE_UNAVAILABLE;
+    const message = classification === "auth" ? `remote refused authentication for ${action.remoteUrl}; distribute reuses the host keychain credential and never prompts, reads, or retries credentials` : `cannot reach ${action.remoteUrl} \u2014 start VPN / check network; distribute fails closed and never retries with credentials`;
+    return createResult({
+      actionType: action.actionType,
+      status: ActionStatus.PREFLIGHT_FAILED,
+      error: message,
+      details: {
+        code,
+        classification,
+        remoteUrl: action.remoteUrl,
+        stderrTail: stderrTail3(error)
+      }
+    });
+  }
+  __name(probeFailureResult, "probeFailureResult");
+  async function probeRemote(action) {
+    assertSafeRemoteUrl3(action.remoteUrl);
+    assertSafeTag(action.tag);
+    let headRefs;
+    try {
+      headRefs = await lsRemoteRefs(action.remoteUrl, ["HEAD"]);
+    } catch (error) {
+      return probeFailureResult(action, error);
+    }
+    let tagRefs;
+    try {
+      tagRefs = await lsRemoteRefs(action.remoteUrl, [`refs/tags/${action.tag}`]);
+    } catch (error) {
+      return probeFailureResult(action, error);
+    }
+    const tagOid = tagRefs.get(`refs/tags/${action.tag}`) ?? null;
+    return createResult({
+      actionType: action.actionType,
+      status: ActionStatus.PREFLIGHT_PASSED,
+      observation: {
+        reachable: true,
+        head: headRefs.get("HEAD") ?? null,
+        tagOid,
+        tagExists: tagOid !== null
+      }
+    });
+  }
+  __name(probeRemote, "probeRemote");
+  function assertMirrorActionShape(action) {
+    if (typeof action.targetId !== "string" || !SAFE_ID_RE3.test(action.targetId)) {
+      throw new ReleaseError(GATE_FAILED, "distribute-mirror requires a safe targetId", { targetId: action.targetId });
+    }
+    if (action.kind !== "payload-mirror" && action.kind !== "marketplace-index") {
+      throw new ReleaseError(GATE_FAILED, "distribute-mirror kind must be payload-mirror or marketplace-index", { kind: action.kind });
+    }
+    assertSafeRemoteUrl3(action.remoteUrl);
+    assertSafeBranch3(action.branch);
+    assertSafeTag(action.tag);
+    assertCommitIdentity3(action.commitIdentity);
+    if (action.kind === "payload-mirror") {
+      if (typeof action.payloadDir !== "string" || action.payloadDir.length === 0 || !isAbsolute24(action.payloadDir)) {
+        throw new ReleaseError(GATE_FAILED, "payload-mirror requires an absolute payloadDir", { payloadDir: action.payloadDir });
+      }
+    } else {
+      if (!action.marketplace || typeof action.marketplace !== "object") {
+        throw new ReleaseError(GATE_FAILED, "marketplace-index requires the frozen marketplace block");
+      }
+      if (typeof action.pluginName !== "string" || action.pluginName.length === 0) {
+        throw new ReleaseError(GATE_FAILED, "marketplace-index requires a resolved pluginName");
+      }
+      if (!action.dependency || typeof action.dependency !== "object") {
+        throw new ReleaseError(GATE_FAILED, "marketplace-index requires its payload-mirror dependency result");
+      }
+      assertSafeRemoteUrl3(action.dependency.remoteUrl);
+      if (action.dependency.sha !== null && action.dependency.sha !== void 0 && !SHA_RE6.test(action.dependency.sha)) {
+        throw new ReleaseError(GATE_FAILED, "dependency sha must be null (dry-run) or the full 40-hex push result", { sha: action.dependency.sha });
+      }
+    }
+    for (const [index, file] of (action.staticFiles ?? []).entries()) {
+      if (typeof file?.sourcePath !== "string" || !isAbsolute24(file.sourcePath)) {
+        throw new ReleaseError(GATE_FAILED, `staticFiles[${index}].sourcePath must be an absolute path`, { index });
+      }
+      if (typeof file?.to !== "string" || file.to.length === 0 || file.to.startsWith("/") || file.to.startsWith("./") || file.to.includes("..") || file.to.includes("\\") || file.to.includes(":")) {
+        throw new ReleaseError(GATE_FAILED, `staticFiles[${index}].to is not a safe relative path`, { index, to: file?.to });
+      }
+    }
+  }
+  __name(assertMirrorActionShape, "assertMirrorActionShape");
+  async function mirror(action) {
+    assertMirrorActionShape(action);
+    const cloneDir = await mkdtempFn(join32(tmpRoot, TMP_PREFIX3));
+    const git3 = /* @__PURE__ */ __name((args2, options = {}) => exec("git", args2, { cwd: cloneDir, shell: false, timeout: GIT_TIMEOUT_MS3, ...options }), "git");
+    try {
+      await exec("git", ["clone", "--quiet", action.remoteUrl, cloneDir], {
+        env: netEnv3(),
+        timeout: TRANSFER_TIMEOUT_MS3,
+        shell: false
+      });
+      let previousHead = null;
+      try {
+        const { stdout } = await git3(["rev-parse", "--verify", "--quiet", `refs/remotes/origin/${action.branch}`]);
+        previousHead = stdout.trim() || null;
+      } catch {
+        previousHead = null;
+      }
+      if (previousHead) {
+        await git3(["checkout", "--quiet", "-B", action.branch, previousHead]);
+      } else {
+        await git3(["checkout", "--quiet", "--orphan", action.branch]);
+      }
+      for (const entry of await readdir17(cloneDir)) {
+        if (entry === ".git") continue;
+        await rm17(join32(cloneDir, entry), { recursive: true, force: true });
+      }
+      if (action.kind === "payload-mirror") {
+        const payloadStat = await stat9(action.payloadDir).catch(() => null);
+        if (!payloadStat || !payloadStat.isDirectory()) {
+          throw new ReleaseError(GATE_FAILED, "payloadDir does not exist or is not a directory", { payloadDir: action.payloadDir });
+        }
+        await cp2(action.payloadDir, cloneDir, { recursive: true });
+      } else {
+        const index = renderMarketplaceIndex(action.marketplace, {
+          pluginName: action.pluginName,
+          ref: action.tag,
+          sha: action.dependency.sha ?? null,
+          dependencyUrl: action.dependency.remoteUrl
+        });
+        await mkdir24(join32(cloneDir, ".claude-plugin"), { recursive: true });
+        await writeFile14(join32(cloneDir, ".claude-plugin", "marketplace.json"), `${JSON.stringify(index, null, 2)}
+`);
+      }
+      for (const file of action.staticFiles ?? []) {
+        await mkdir24(dirname18(join32(cloneDir, file.to)), { recursive: true });
+        await copyFile(file.sourcePath, join32(cloneDir, file.to));
+      }
+      const payloadFileCount = await countFiles(cloneDir);
+      await git3(["add", "-A"]);
+      const noChange = await git3(["status", "--porcelain"]).then(({ stdout }) => stdout.trim().length === 0).catch(() => false);
+      if (noChange) {
+        return createResult({
+          actionType: action.actionType,
+          status: ActionStatus.NO_CHANGE,
+          observation: { mode: "no-change", previousHead, branchTip: previousHead, payloadFileCount }
+        });
+      }
+      let existingTag = "";
+      try {
+        const { stdout } = await git3(["rev-parse", "--verify", "--quiet", `refs/tags/${action.tag}`]);
+        existingTag = stdout.trim();
+      } catch {
+        existingTag = "";
+      }
+      if (existingTag) {
+        throw new ReleaseError(
+          REMOTE_CONFLICT,
+          `target ${action.remoteUrl} already carries tag ${action.tag} and the content differs; moving an existing tag would be force-equivalent \u2014 human decision required`,
+          { targetId: action.targetId, tag: action.tag }
+        );
+      }
+      const commitMessage = `release-skill distribute ${action.tag} (${action.targetId})`;
+      await git3([
+        "-c",
+        `user.name=${action.commitIdentity.name}`,
+        "-c",
+        `user.email=${action.commitIdentity.email}`,
+        "commit",
+        "--quiet",
+        "-m",
+        commitMessage
+      ]);
+      const { stdout: headOut } = await git3(["rev-parse", "HEAD"]);
+      const localCommit = headOut.trim();
+      await git3(["tag", action.tag, localCommit]);
+      if (action.dryRun) {
+        return createResult({
+          actionType: action.actionType,
+          status: ActionStatus.EXECUTED,
+          observation: { mode: "dry-run", localCommit, localTag: action.tag, previousHead, payloadFileCount }
+        });
+      }
+      await exec("git", ["push", "--quiet", "origin", action.branch], {
+        cwd: cloneDir,
+        env: netEnv3(),
+        timeout: TRANSFER_TIMEOUT_MS3,
+        shell: false
+      });
+      await exec("git", ["push", "--quiet", "origin", `refs/tags/${action.tag}`], {
+        cwd: cloneDir,
+        env: netEnv3(),
+        timeout: TRANSFER_TIMEOUT_MS3,
+        shell: false
+      });
+      return createResult({
+        actionType: action.actionType,
+        status: ActionStatus.EXECUTED,
+        observation: {
+          mode: "pushed",
+          pushedCommit: localCommit,
+          previousHead,
+          branchTip: localCommit,
+          tagOid: localCommit,
+          payloadFileCount
+        }
+      });
+    } finally {
+      await rmFn(cloneDir, { recursive: true, force: true }).catch(() => {
+      });
+    }
+  }
+  __name(mirror, "mirror");
+  return Object.freeze({
+    name: NAME5,
+    actionTypes: Object.freeze([ActionType.DISTRIBUTE_PROBE, ActionType.DISTRIBUTE_MIRROR]),
+    async preflight(action, context) {
+      try {
+        if (action.actionType === ActionType.DISTRIBUTE_PROBE) {
+          return await probeRemote(action);
+        }
+        if (action.actionType === ActionType.DISTRIBUTE_MIRROR) {
+          assertMirrorActionShape(action);
+          return createResult({ actionType: action.actionType, status: ActionStatus.PREFLIGHT_PASSED });
+        }
+        throw new Error(`unsupported action type: ${action.actionType}`);
+      } catch (error) {
+        return createResult({
+          actionType: action.actionType,
+          status: ActionStatus.PREFLIGHT_FAILED,
+          error: error.message,
+          details: error instanceof ReleaseError ? { code: error.code } : null
+        });
+      }
+    },
+    async execute(action, context) {
+      assertWritesAuthorized(context, action.actionType);
+      if (action.actionType !== ActionType.DISTRIBUTE_MIRROR) {
+        return createResult({
+          actionType: action.actionType,
+          status: ActionStatus.EXECUTE_FAILED,
+          error: `unsupported action type: ${action.actionType}`
+        });
+      }
+      try {
+        return await mirror(action);
+      } catch (error) {
+        return createResult({
+          actionType: action.actionType,
+          status: ActionStatus.EXECUTE_FAILED,
+          error: error.message,
+          details: { code: error instanceof ReleaseError ? error.code : GATE_FAILED, stderrTail: stderrTail3(error) }
+        });
+      }
+    },
+    async observe(action, context) {
+      try {
+        assertSafeRemoteUrl3(action.remoteUrl);
+        assertSafeBranch3(action.branch);
+        assertSafeTag(action.tag);
+        const refs = await lsRemoteRefs(action.remoteUrl, [`refs/heads/${action.branch}`, `refs/tags/${action.tag}`]);
+        const observation = {
+          branchTip: refs.get(`refs/heads/${action.branch}`) ?? null,
+          tagOid: refs.get(`refs/tags/${action.tag}`) ?? null
+        };
+        if (action.pushedCommit) {
+          observation.pushedCommit = action.pushedCommit;
+          observation.consistent = observation.branchTip === action.pushedCommit && observation.tagOid === action.pushedCommit;
+        }
+        return createResult({ actionType: action.actionType, status: ActionStatus.OBSERVED, observation });
+      } catch (error) {
+        return createResult({
+          actionType: action.actionType,
+          status: ActionStatus.OBSERVED,
+          observation: {},
+          error: error.message
+        });
+      }
+    },
+    async verify(action, context) {
+      const observed = await this.observe(action, context);
+      if (observed.error) {
+        return createResult({
+          actionType: action.actionType,
+          status: ActionStatus.VERIFY_FAILED,
+          observation: observed.observation,
+          error: observed.error
+        });
+      }
+      if (!action.pushedCommit) {
+        return createResult({ actionType: action.actionType, status: ActionStatus.VERIFIED, observation: observed.observation });
+      }
+      if (observed.observation.consistent === true) {
+        return createResult({ actionType: action.actionType, status: ActionStatus.VERIFIED, observation: observed.observation });
+      }
+      return createResult({
+        actionType: action.actionType,
+        status: ActionStatus.VERIFY_FAILED,
+        observation: observed.observation,
+        error: `remote refs disagree with the pushed commit ${action.pushedCommit}`
+      });
+    }
+  });
+}
+var execFile13, NAME5, PROBE_TIMEOUT_MS3, GIT_TIMEOUT_MS3, TRANSFER_TIMEOUT_MS3, TMP_PREFIX3, SAFE_REMOTE_URL_RE3, SAFE_BRANCH_RE3, SAFE_TAG_RE, SAFE_ID_RE3, SHA_RE6, NEVER_PROMPT_ENV3, AUTH_FAILURE_PATTERNS3, TRANSPORT_FAILURE_PATTERNS2;
+var init_distribute_git = __esm({
+  "src/adapters/distribute-git.mjs"() {
+    init_contract();
+    init_errors();
+    execFile13 = promisify20(execFileCb20);
+    NAME5 = "distribute-git";
+    PROBE_TIMEOUT_MS3 = 3e4;
+    GIT_TIMEOUT_MS3 = 12e4;
+    TRANSFER_TIMEOUT_MS3 = 3e5;
+    TMP_PREFIX3 = "release-skill-distribute-";
+    SAFE_REMOTE_URL_RE3 = /^(?:https?|file):\/\/.+\.git$/;
+    SAFE_BRANCH_RE3 = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
+    SAFE_TAG_RE = /^[^\s\x00-\x1f\x7f~^:?*[\]\\]+$/;
+    SAFE_ID_RE3 = /^[a-z0-9][a-z0-9._-]*$/;
+    SHA_RE6 = /^[a-f0-9]{40}$/;
+    NEVER_PROMPT_ENV3 = { GIT_TERMINAL_PROMPT: "0" };
+    AUTH_FAILURE_PATTERNS3 = [
+      /authentication failed/i,
+      /could not read username/i,
+      /could not read password/i,
+      /terminal prompts disabled/i,
+      /invalid username or password/i,
+      /permission denied/i,
+      /access denied/i,
+      /authorization failed/i,
+      /\b403\b/,
+      /\b401\b/
+    ];
+    TRANSPORT_FAILURE_PATTERNS2 = [
+      /could not resolve host/i,
+      /unable to access/i,
+      /connection refused/i,
+      /connection timed out/i,
+      /operation timed out/i,
+      /network is unreachable/i,
+      /ssl certificate problem/i,
+      /could not resolve proxy/i,
+      /failed to connect/i
+    ];
+    __name(classifyProbeFailure, "classifyProbeFailure");
+    __name(renderMarketplaceIndex, "renderMarketplaceIndex");
+    __name(hasControlChars3, "hasControlChars");
+    __name(assertSafeRemoteUrl3, "assertSafeRemoteUrl");
+    __name(assertSafeBranch3, "assertSafeBranch");
+    __name(assertSafeTag, "assertSafeTag");
+    __name(assertCommitIdentity3, "assertCommitIdentity");
+    __name(run5, "run");
+    __name(stderrText3, "stderrText");
+    __name(stderrTail3, "stderrTail");
+    __name(parseLsRemote3, "parseLsRemote");
+    __name(countFiles, "countFiles");
+    __name(createDistributeGitAdapter, "createDistributeGitAdapter");
+  }
+});
+
 // src/commands/attest.mjs
 var attest_exports = {};
 __export(attest_exports, {
   recordManualAttestation: () => recordManualAttestation
 });
-import { readFile as readFile33 } from "node:fs/promises";
-import { resolve as resolve31, join as join26 } from "node:path";
+import { readFile as readFile37 } from "node:fs/promises";
+import { resolve as resolve33, join as join33 } from "node:path";
 async function validateInstalledConsumerClosure({
   root,
   platform,
   requirement,
   installPath
 }) {
-  const planPath = resolve31(root, ".release-skill", "plans", `${requirement.planDigest}.json`);
+  const planPath = resolve33(root, ".release-skill", "plans", `${requirement.planDigest}.json`);
   const [
     { validatePlan: validatePlan2, computePlanDigest: computePlanDigest2, assertImmutablePlanAuthority: assertImmutablePlanAuthority2 },
     { createPluginMarketplaceAdapter: createPluginMarketplaceAdapter2, verifyInstalledMarketplacePayload: verifyInstalledMarketplacePayload2 }
@@ -104150,7 +108746,7 @@ async function validateInstalledConsumerClosure({
   ]);
   let plan;
   try {
-    plan = JSON.parse(await readFile33(planPath, "utf8"));
+    plan = JSON.parse(await readFile37(planPath, "utf8"));
   } catch (error) {
     throw new ReleaseError(
       GATE_FAILED,
@@ -104220,11 +108816,11 @@ async function recordManualAttestation(options = {}, injected = {}) {
   if (result !== "passed" && result !== "failed") {
     throw new ReleaseError(MISSING_PARAMETERS, "attest requires --result <passed|failed>");
   }
-  const authorityDir = resolve31(root, ".release-skill", descriptor.directory, plugin);
-  const requirementPath = join26(authorityDir, descriptor.requirementFile);
+  const authorityDir = resolve33(root, ".release-skill", descriptor.directory, plugin);
+  const requirementPath = join33(authorityDir, descriptor.requirementFile);
   let requirement;
   try {
-    requirement = JSON.parse(await readFile33(requirementPath, "utf8"));
+    requirement = JSON.parse(await readFile37(requirementPath, "utf8"));
   } catch (error) {
     throw new ReleaseError(
       GATE_FAILED,
@@ -104274,7 +108870,7 @@ async function recordManualAttestation(options = {}, injected = {}) {
       extraInstalledPaths: installBinding.extraInstalledPaths
     } : {}
   };
-  const attestationPath = join26(authorityDir, requirement.attestationFile);
+  const attestationPath = join33(authorityDir, requirement.attestationFile);
   await writeEvidenceAtomic(attestationPath, receipt);
   return {
     command: "attest",
@@ -104308,8 +108904,8 @@ var init_attest = __esm({
 });
 
 // src/artifacts/policy.mjs
-import { readFile as readFile34 } from "node:fs/promises";
-import { join as join27 } from "node:path";
+import { readFile as readFile38 } from "node:fs/promises";
+import { join as join34 } from "node:path";
 import { createHash as createHash16 } from "node:crypto";
 function validateArtifactPolicy(policy) {
   const ok = _validate(policy);
@@ -104405,10 +109001,10 @@ async function parseSafeYamlWithinRoot(root, policyPath) {
     }
     throw err;
   }
-  const fullPath = join27(root, policyPath);
+  const fullPath = join34(root, policyPath);
   let content;
   try {
-    content = await readFile34(fullPath, "utf8");
+    content = await readFile38(fullPath, "utf8");
   } catch (err) {
     throw new ReleaseError(
       ARTIFACT_POLICY_INVALID,
@@ -104494,17 +109090,17 @@ async function loadArtifactPolicy({
     protectionChange: compareProtection(previousLock, policy)
   });
 }
-var import_yaml7, import_ajv8, import_ajv_formats6, ajv5, _validate;
+var import_yaml7, import_ajv9, import_ajv_formats7, ajv5, _validate;
 var init_policy = __esm({
   "src/artifacts/policy.mjs"() {
     import_yaml7 = __toESM(require_dist(), 1);
-    import_ajv8 = __toESM(require_ajv(), 1);
-    import_ajv_formats6 = __toESM(require_dist2(), 1);
+    import_ajv9 = __toESM(require_ajv(), 1);
+    import_ajv_formats7 = __toESM(require_dist2(), 1);
     init_errors();
     init_path_key();
     init_trusted_resource();
-    ajv5 = new import_ajv8.default({ allErrors: true, strict: false });
-    (0, import_ajv_formats6.default)(ajv5);
+    ajv5 = new import_ajv9.default({ allErrors: true, strict: false });
+    (0, import_ajv_formats7.default)(ajv5);
     _validate = ajv5.compile(JSON.parse(readTrustedPackageResourceSync(
       "schemas/artifact-policy.schema.json"
     ).toString("utf8")));
@@ -104519,19 +109115,19 @@ var init_policy = __esm({
 });
 
 // src/artifacts/entry.mjs
-import { lstat as lstat25, readdir as readdir17, readFile as readFile35 } from "node:fs/promises";
-import { join as join28 } from "node:path";
-import { promisify as promisify16 } from "node:util";
-import { execFile as execFile13 } from "node:child_process";
-function statToGitMode(stat10) {
-  if (stat10.isDirectory()) return "040000";
-  if (stat10.isSymbolicLink()) return "120000";
-  const mode = stat10.mode & 511;
+import { lstat as lstat26, readdir as readdir18, readFile as readFile39 } from "node:fs/promises";
+import { join as join35 } from "node:path";
+import { promisify as promisify21 } from "node:util";
+import { execFile as execFile14 } from "node:child_process";
+function statToGitMode(stat13) {
+  if (stat13.isDirectory()) return "040000";
+  if (stat13.isSymbolicLink()) return "120000";
+  const mode = stat13.mode & 511;
   const executable = (mode & 73) !== 0;
   return executable ? "100755" : "100644";
 }
 async function gitHashObject(root, absPath) {
-  const { stdout } = await execFileAsync4(
+  const { stdout } = await execFileAsync7(
     "git",
     ["hash-object", absPath],
     { cwd: root, shell: false }
@@ -104540,12 +109136,12 @@ async function gitHashObject(root, absPath) {
 }
 async function enumerateTreeEntries(root, dirPath, relBase) {
   const entries = [];
-  const items = await readdir17(dirPath, { withFileTypes: true });
+  const items = await readdir18(dirPath, { withFileTypes: true });
   for (const item of items) {
     if (SKIP_DIRS2.has(item.name)) continue;
-    const absPath = join28(dirPath, item.name);
+    const absPath = join35(dirPath, item.name);
     const relPath = relBase ? `${relBase}/${item.name}` : item.name;
-    const st = await lstat25(absPath);
+    const st = await lstat26(absPath);
     if (st.isSymbolicLink()) {
       throw new ReleaseError(
         PATH_UNSAFE,
@@ -104564,7 +109160,7 @@ async function enumerateTreeEntries(root, dirPath, relBase) {
       const subEntries = await enumerateTreeEntries(root, absPath, relPath);
       entries.push(...subEntries);
     } else {
-      const content = await readFile35(absPath);
+      const content = await readFile39(absPath);
       entries.push(
         Object.freeze({
           path: relPath,
@@ -104594,10 +109190,10 @@ async function readEntry({ root, path: path15, source = "worktree" } = {}) {
   if (source !== "worktree") {
     throw new ReleaseError(PATH_UNSAFE, `unsupported readEntry source: ${source}`, { source });
   }
-  const absPath = join28(root, path15);
+  const absPath = join35(root, path15);
   let st;
   try {
-    st = await lstat25(absPath);
+    st = await lstat26(absPath);
   } catch (err) {
     if (err.code === "ENOENT" || err.code === "ENOTDIR") {
       return Object.freeze({ kind: "absent" });
@@ -104627,7 +109223,7 @@ async function readEntry({ root, path: path15, source = "worktree" } = {}) {
       { path: path15, nlink: st.nlink }
     );
   }
-  const content = await readFile35(absPath);
+  const content = await readFile39(absPath);
   return Object.freeze({
     kind: "regular",
     path: path15,
@@ -104638,13 +109234,13 @@ async function readEntry({ root, path: path15, source = "worktree" } = {}) {
     size: st.size
   });
 }
-var execFileAsync4, SKIP_DIRS2;
+var execFileAsync7, SKIP_DIRS2;
 var init_entry = __esm({
   "src/artifacts/entry.mjs"() {
     init_digest();
     init_src();
     init_errors();
-    execFileAsync4 = promisify16(execFile13);
+    execFileAsync7 = promisify21(execFile14);
     SKIP_DIRS2 = /* @__PURE__ */ new Set([".git"]);
     __name(statToGitMode, "statToGitMode");
     __name(gitHashObject, "gitHashObject");
@@ -104655,8 +109251,8 @@ var init_entry = __esm({
 });
 
 // src/artifacts/inventory.mjs
-import { promisify as promisify17 } from "node:util";
-import { execFile as execFile14 } from "node:child_process";
+import { promisify as promisify22 } from "node:util";
+import { execFile as execFile15 } from "node:child_process";
 import { access as access2 } from "node:fs/promises";
 function isReservedPath(relPath) {
   if (relPath === ".git" || relPath === "transactions" || relPath === "objects") {
@@ -104665,7 +109261,7 @@ function isReservedPath(relPath) {
   return RESERVED_PREFIXES.some((prefix) => relPath.startsWith(prefix));
 }
 async function gitLsFilesRaw(cwd, args2) {
-  const { stdout } = await execFileAsync5("git", ["ls-files", ...args2], {
+  const { stdout } = await execFileAsync8("git", ["ls-files", ...args2], {
     cwd,
     shell: false,
     maxBuffer: 50 * 1024 * 1024
@@ -104736,12 +109332,12 @@ async function buildInventory({ root, policy, previousLock, gitRef } = {}) {
     )
   });
 }
-var execFileAsync5, RESERVED_PREFIXES;
+var execFileAsync8, RESERVED_PREFIXES;
 var init_inventory = __esm({
   "src/artifacts/inventory.mjs"() {
     init_digest();
     init_entry();
-    execFileAsync5 = promisify17(execFile14);
+    execFileAsync8 = promisify22(execFile15);
     RESERVED_PREFIXES = Object.freeze([
       ".git/",
       ".release-skill/runs/",
@@ -104891,10 +109487,10 @@ var init_graph = __esm({
 });
 
 // src/artifacts/producer-registry.mjs
-import { readFile as readFile36, readdir as readdir18, stat as stat7, mkdir as mkdir21, writeFile as writeFile12, rm as rm14 } from "node:fs/promises";
-import { join as join29 } from "node:path";
-import { mkdtemp as mkdtemp9 } from "node:fs/promises";
-import { tmpdir as tmpdir6 } from "node:os";
+import { readFile as readFile40, readdir as readdir19, stat as stat10, mkdir as mkdir25, writeFile as writeFile15, rm as rm18 } from "node:fs/promises";
+import { join as join36 } from "node:path";
+import { mkdtemp as mkdtemp13 } from "node:fs/promises";
+import { tmpdir as tmpdir10 } from "node:os";
 import { readFileSync as readFileSync13 } from "node:fs";
 function collectStaticImports(filePath, visited = /* @__PURE__ */ new Set()) {
   const abs = new URL(`file://${filePath}`).pathname;
@@ -104912,7 +109508,7 @@ function collectStaticImports(filePath, visited = /* @__PURE__ */ new Set()) {
   const dir = abs.replace(/\/[^/]*$/, "");
   while ((match = importRe.exec(source)) !== null) {
     const spec = match[1];
-    let resolved = join29(dir, spec);
+    let resolved = join36(dir, spec);
     if (!resolved.endsWith(".mjs")) resolved += ".mjs";
     results.push(...collectStaticImports(resolved, visited));
   }
@@ -104920,10 +109516,10 @@ function collectStaticImports(filePath, visited = /* @__PURE__ */ new Set()) {
 }
 async function createBuiltInProducerRegistry() {
   const producers = /* @__PURE__ */ new Map();
-  const lockfilePath = join29(new URL("../../..", import.meta.url).pathname, "pnpm-lock.yaml");
+  const lockfilePath = join36(new URL("../../..", import.meta.url).pathname, "pnpm-lock.yaml");
   let lockfileBytes;
   try {
-    lockfileBytes = await readFile36(lockfilePath);
+    lockfileBytes = await readFile40(lockfilePath);
   } catch {
     lockfileBytes = Buffer.from("");
   }
@@ -104940,7 +109536,7 @@ async function createBuiltInProducerRegistry() {
     const allModuleBytes = await Promise.all(
       allModulePaths.map(async (p) => {
         try {
-          return await readFile36(p);
+          return await readFile40(p);
         } catch {
           return Buffer.from("");
         }
@@ -104957,16 +109553,16 @@ async function createBuiltInProducerRegistry() {
 }
 async function readDirEntries(dirPath, relBase = "") {
   const entries = [];
-  const items = await readdir18(dirPath, { withFileTypes: true });
+  const items = await readdir19(dirPath, { withFileTypes: true });
   for (const item of items) {
     if (item.name === ".git") continue;
-    const absPath = join29(dirPath, item.name);
+    const absPath = join36(dirPath, item.name);
     const relPath = relBase ? `${relBase}/${item.name}` : item.name;
-    const st = await stat7(absPath);
+    const st = await stat10(absPath);
     if (st.isDirectory()) {
       entries.push(...await readDirEntries(absPath, relPath));
     } else {
-      const content = await readFile36(absPath);
+      const content = await readFile40(absPath);
       entries.push(Object.freeze({
         path: relPath,
         type: "blob",
@@ -104983,13 +109579,13 @@ async function readDirEntries(dirPath, relBase = "") {
 async function materializeEntries(entries, dirPath) {
   for (const entry of entries) {
     if (!entry.path) continue;
-    const targetPath2 = join29(dirPath, entry.path);
+    const targetPath2 = join36(dirPath, entry.path);
     if (entry.type === "tree" || entry.kind === "tree") {
-      await mkdir21(targetPath2, { recursive: true });
+      await mkdir25(targetPath2, { recursive: true });
     } else {
-      await mkdir21(join29(targetPath2, ".."), { recursive: true });
+      await mkdir25(join36(targetPath2, ".."), { recursive: true });
       if (entry.content) {
-        await writeFile12(targetPath2, entry.content);
+        await writeFile15(targetPath2, entry.content);
       }
     }
   }
@@ -105008,7 +109604,7 @@ async function verifyDeterminism(produce, runOptions, dir1, dir2) {
       { digest1, digest2 }
     );
   }
-  await rm14(dir1, { recursive: true, force: true }).catch(() => {
+  await rm18(dir1, { recursive: true, force: true }).catch(() => {
   });
   return { entries: entries2, outputDir: dir2 };
 }
@@ -105031,7 +109627,7 @@ async function runProducerClosure({
   graph,
   inputSnapshot,
   artifactIds,
-  tempRootFactory = /* @__PURE__ */ __name(async () => mkdtemp9(join29(tmpdir6(), "producer-")), "tempRootFactory")
+  tempRootFactory = /* @__PURE__ */ __name(async () => mkdtemp13(join36(tmpdir10(), "producer-")), "tempRootFactory")
 } = {}) {
   const generatedSet = new Set(graph.topologicalOrder);
   for (const id of artifactIds) {
@@ -105068,9 +109664,9 @@ async function runProducerClosure({
         if (inputEntries) {
           const first = inputEntries[0];
           if (first && first.path) {
-            const absPath = first.path.startsWith("/") ? first.path : join29(process.cwd(), first.path);
+            const absPath = first.path.startsWith("/") ? first.path : join36(process.cwd(), first.path);
             try {
-              const st = await stat7(absPath);
+              const st = await stat10(absPath);
               if (st.isDirectory()) {
                 inputPath = absPath;
               } else {
@@ -105159,11 +109755,11 @@ var init_producer_registry = __esm({
 });
 
 // src/artifacts/git-authority.mjs
-import { promisify as promisify18 } from "node:util";
-import { execFile as execFile15 } from "node:child_process";
+import { promisify as promisify23 } from "node:util";
+import { execFile as execFile16 } from "node:child_process";
 import { createHash as createHash17 } from "node:crypto";
 async function git(cwd, ...args2) {
-  const { stdout } = await execFileAsync6("git", args2, { cwd, shell: false });
+  const { stdout } = await execFileAsync9("git", args2, { cwd, shell: false });
   return stdout.trim();
 }
 function sha256Hex3(data) {
@@ -105190,12 +109786,12 @@ async function readRepositoryIdentity(root) {
   const remoteUrlHash = remoteUrl ? `sha256:${sha256Hex3(remoteUrl)}` : `sha256:${"0".repeat(64)}`;
   return Object.freeze({ gitDir, commonDir, remoteUrlHash });
 }
-var execFileAsync6;
+var execFileAsync9;
 var init_git_authority = __esm({
   "src/artifacts/git-authority.mjs"() {
     init_errors();
     init_entry();
-    execFileAsync6 = promisify18(execFile15);
+    execFileAsync9 = promisify23(execFile16);
     __name(git, "git");
     __name(sha256Hex3, "sha256Hex");
     __name(readRepositoryIdentity, "readRepositoryIdentity");
@@ -105493,8 +110089,8 @@ var init_state = __esm({
 });
 
 // src/artifacts/artifact-plan.mjs
-import { writeFile as writeFile13, mkdir as mkdir22, readFile as readFile37, rename as rename6, open as open9 } from "node:fs/promises";
-import { dirname as dirname16 } from "node:path";
+import { writeFile as writeFile16, mkdir as mkdir26, readFile as readFile41, rename as rename6, open as open9 } from "node:fs/promises";
+import { dirname as dirname19 } from "node:path";
 function assemblePlan({
   operation,
   bindings,
@@ -105517,13 +110113,13 @@ function assemblePlan({
   return Object.freeze(plan);
 }
 async function writePlan(plan, outputPath) {
-  const dir = dirname16(outputPath);
-  await mkdir22(dir, { recursive: true });
+  const dir = dirname19(outputPath);
+  await mkdir26(dir, { recursive: true });
   const tmpPath = `${outputPath}.tmp`;
   const content = JSON.stringify(plan, null, 2);
   const fh = await open9(tmpPath, "w");
   try {
-    await writeFile13(fh, content, "utf8");
+    await writeFile16(fh, content, "utf8");
     await fh.sync();
   } finally {
     await fh.close();
@@ -106180,23 +110776,23 @@ var init_adoption = __esm({
 });
 
 // src/artifacts/inspect.mjs
-import { promisify as promisify19 } from "node:util";
-import { execFile as execFile16 } from "node:child_process";
-import { readdir as readdir19, stat as stat8, readFile as readFile38 } from "node:fs/promises";
-import { join as join30 } from "node:path";
+import { promisify as promisify24 } from "node:util";
+import { execFile as execFile17 } from "node:child_process";
+import { readdir as readdir20, stat as stat11, readFile as readFile42 } from "node:fs/promises";
+import { join as join37 } from "node:path";
 async function hasNestedGitRoots(root) {
   try {
-    const { stdout } = await execFileAsync7(
+    const { stdout } = await execFileAsync10(
       "git",
       ["ls-tree", "-r", "-d", "--name-only", "HEAD"],
       { cwd: root, shell: false, maxBuffer: 50 * 1024 * 1024 }
     );
     const dirs = stdout.split("\n").filter((s) => s.length > 0);
     for (const dir of dirs) {
-      const absDir = join30(root, dir);
+      const absDir = join37(root, dir);
       try {
-        const nestedGit = join30(absDir, ".git");
-        await stat8(nestedGit);
+        const nestedGit = join37(absDir, ".git");
+        await stat11(nestedGit);
         return true;
       } catch {
       }
@@ -106208,13 +110804,13 @@ async function hasNestedGitRoots(root) {
 }
 async function hasPartialStage(root) {
   try {
-    const { stdout: staged } = await execFileAsync7(
+    const { stdout: staged } = await execFileAsync10(
       "git",
       ["diff", "--cached", "--name-only", "-z"],
       { cwd: root, shell: false }
     );
     const hasStaged = staged.split("\0").filter((s) => s.length > 0).length > 0;
-    const { stdout: unstaged } = await execFileAsync7(
+    const { stdout: unstaged } = await execFileAsync10(
       "git",
       ["diff", "--name-only", "-z"],
       { cwd: root, shell: false }
@@ -106422,7 +111018,7 @@ async function initArtifacts({ root, output } = {}) {
   }
   return inspectArtifacts({ root, output, mode: "init" });
 }
-var execFileAsync7;
+var execFileAsync10;
 var init_inspect = __esm({
   "src/artifacts/inspect.mjs"() {
     init_errors();
@@ -106437,7 +111033,7 @@ var init_inspect = __esm({
     init_artifact_plan();
     init_entry_merge();
     init_adoption();
-    execFileAsync7 = promisify19(execFile16);
+    execFileAsync10 = promisify24(execFile17);
     __name(hasNestedGitRoots, "hasNestedGitRoots");
     __name(hasPartialStage, "hasPartialStage");
     __name(readDeclaredEntries, "readDeclaredEntries");
@@ -106454,8 +111050,8 @@ var init_inspect = __esm({
 });
 
 // src/artifacts/resolution.mjs
-import { mkdir as mkdir23, open as open10, readFile as readFile39, stat as stat9, lstat as lstat26, chmod as chmod4 } from "node:fs/promises";
-import { join as join31, resolve as resolve32, relative as relative26, isAbsolute as isAbsolute22, basename as basename11 } from "node:path";
+import { mkdir as mkdir27, open as open10, readFile as readFile43, stat as stat12, lstat as lstat27, chmod as chmod4 } from "node:fs/promises";
+import { join as join38, resolve as resolve34, relative as relative27, isAbsolute as isAbsolute25, basename as basename11 } from "node:path";
 function decodeBuffer(value, label) {
   if (value == null) return null;
   if (Buffer.isBuffer(value)) return value;
@@ -106557,13 +111153,13 @@ function assertSafeArtifactId(id) {
 }
 async function assertNoSymlinksInPath(root, artifactId) {
   const levels = [
-    join31(root, ".release-skill"),
-    join31(root, ".release-skill", "resolution"),
-    join31(root, ".release-skill", "resolution", artifactId)
+    join38(root, ".release-skill"),
+    join38(root, ".release-skill", "resolution"),
+    join38(root, ".release-skill", "resolution", artifactId)
   ];
   for (const dir of levels) {
     try {
-      const st = await lstat26(dir);
+      const st = await lstat27(dir);
       if (st.isSymbolicLink()) {
         throw new ReleaseError(PATH_UNSAFE, `directory is a symlink: ${dir}`, { path: dir });
       }
@@ -106575,11 +111171,11 @@ async function assertNoSymlinksInPath(root, artifactId) {
   }
 }
 async function assertSafeResolvedPath(root, artifactId, resolvedPath) {
-  const resolutionDir = resolve32(root, ".release-skill", "resolution", artifactId);
-  const resolved = resolve32(resolvedPath);
+  const resolutionDir = resolve34(root, ".release-skill", "resolution", artifactId);
+  const resolved = resolve34(resolvedPath);
   await assertNoSymlinksInPath(root, artifactId);
-  const rel = relative26(resolutionDir, resolved);
-  if (rel.startsWith("..") || isAbsolute22(rel)) {
+  const rel = relative27(resolutionDir, resolved);
+  if (rel.startsWith("..") || isAbsolute25(rel)) {
     throw new ReleaseError(
       PATH_UNSAFE,
       `resolvedPath must be inside resolution directory ${resolutionDir}`,
@@ -106594,7 +111190,7 @@ async function assertSafeResolvedPath(root, artifactId, resolvedPath) {
       { resolvedPath, expected: `${artifactId}.resolved`, actual: filename }
     );
   }
-  if (resolved !== resolve32(resolutionDir, `${artifactId}.resolved`)) {
+  if (resolved !== resolve34(resolutionDir, `${artifactId}.resolved`)) {
     throw new ReleaseError(
       PATH_UNSAFE,
       "resolvedPath must be the exact materialized resolution file",
@@ -106603,7 +111199,7 @@ async function assertSafeResolvedPath(root, artifactId, resolvedPath) {
   }
   let st;
   try {
-    st = await lstat26(resolvedPath);
+    st = await lstat27(resolvedPath);
   } catch (err) {
     throw new ReleaseError(
       MISSING_PARAMETERS,
@@ -106738,13 +111334,13 @@ async function materializeResolution({
   const template = buildConflictTemplate(artifact.conflict ?? {}, decodedBuffers);
   const templateDigest = sha256Hex(template);
   await assertNoSymlinksInPath(root, artifactId);
-  const resolutionDir = join31(root, ".release-skill", "resolution", artifactId);
-  await mkdir23(resolutionDir, { recursive: true, mode: 448 });
-  const dirStat = await stat9(resolutionDir);
+  const resolutionDir = join38(root, ".release-skill", "resolution", artifactId);
+  await mkdir27(resolutionDir, { recursive: true, mode: 448 });
+  const dirStat = await stat12(resolutionDir);
   if ((dirStat.mode & 511) !== 448) {
     await chmod4(resolutionDir, 448);
   }
-  const resolvedPath = join31(resolutionDir, `${artifactId}.resolved`);
+  const resolvedPath = join38(resolutionDir, `${artifactId}.resolved`);
   const fh = await open10(resolvedPath, "wx", 384);
   try {
     await fh.write(template, 0, template.length);
@@ -106786,7 +111382,7 @@ async function submitResolution({
 async function readAndValidateResolvedFile(resolvedPath) {
   let content;
   try {
-    content = await readFile39(resolvedPath);
+    content = await readFile43(resolvedPath);
   } catch (err) {
     throw new ReleaseError(MISSING_PARAMETERS, `cannot read resolved file: ${err.message}`, { resolvedPath, cause: err.code });
   }
@@ -106954,8 +111550,8 @@ var artifacts_exports = {};
 __export(artifacts_exports, {
   runArtifactsCommand: () => runArtifactsCommand
 });
-import { readFile as readFile40 } from "node:fs/promises";
-import { join as join32 } from "node:path";
+import { readFile as readFile44 } from "node:fs/promises";
+import { join as join39 } from "node:path";
 async function runArtifactsCommand({ subcommand, args: args2, root } = {}) {
   if (!VALID_SUBCOMMANDS.has(subcommand)) {
     throw new ReleaseError(
@@ -107083,7 +111679,7 @@ async function handleAdopt({ args: args2, root }) {
       { subcommand: "adopt" }
     );
   }
-  const planRaw = await readFile40(planPath, "utf8");
+  const planRaw = await readFile44(planPath, "utf8");
   const plan = JSON.parse(planRaw);
   if (expectedDigest && plan.planDigest !== expectedDigest) {
     throw new ReleaseError(
@@ -107098,7 +111694,7 @@ async function handleAdopt({ args: args2, root }) {
     if (artifact.path) {
       const entry = await readEntry({ root, path: artifact.path, source: "worktree" });
       if (entry.kind === "regular") {
-        const bytes = await readFile40(join32(root, artifact.path));
+        const bytes = await readFile44(join39(root, artifact.path));
         currentEntries.set(artifact.id, Object.freeze({ ...entry, bytes, content: bytes }));
       } else {
         currentEntries.set(artifact.id, entry);
@@ -107163,7 +111759,7 @@ async function handleBootstrap({ args: args2, root }) {
       { subcommand: "bootstrap" }
     );
   }
-  const planRaw = await readFile40(planPath, "utf8");
+  const planRaw = await readFile44(planPath, "utf8");
   const adoptionPlan = JSON.parse(planRaw);
   const currentEntries = /* @__PURE__ */ new Map();
   for (const id of new Set((adoptionPlan.protectedHunks ?? []).map((h) => h.artifactId))) {
@@ -107175,12 +111771,12 @@ async function handleBootstrap({ args: args2, root }) {
     if (entry.kind !== "regular") {
       throw new ReleaseError("PLAN_STALE", `artifact is no longer a regular file: ${id}`, { id });
     }
-    const bytes = await readFile40(join32(root, artifactPath));
+    const bytes = await readFile44(join39(root, artifactPath));
     currentEntries.set(id, Object.freeze({ ...entry, bytes, content: bytes }));
   }
   let replacementBytes;
   if (action === "replace" && replacementPath) {
-    replacementBytes = await readFile40(replacementPath);
+    replacementBytes = await readFile44(replacementPath);
   }
   const updated = await discardBootstrapHunk({
     adoptionPlan,
@@ -107218,7 +111814,7 @@ async function handleResolve({ args: args2, root }) {
       { subcommand: "resolve" }
     );
   }
-  const planRaw = await readFile40(planPath, "utf8");
+  const planRaw = await readFile44(planPath, "utf8");
   const plan = JSON.parse(planRaw);
   if (plan.planDigest !== expectedDigest) {
     throw new ReleaseError(
@@ -107606,8 +112202,8 @@ __export(lineage_exports, {
   rebuildLineage: () => rebuildLineage,
   runLineageCommand: () => runLineageCommand
 });
-import { execFile as execFileCb16, spawn as spawn4 } from "node:child_process";
-import { promisify as promisify20 } from "node:util";
+import { execFile as execFileCb21, spawn as spawn4 } from "node:child_process";
+import { promisify as promisify25 } from "node:util";
 function parseSemverVersion2(version) {
   if (typeof version !== "string") {
     throw new Error(`version must be a string, got ${typeof version}`);
@@ -107652,7 +112248,7 @@ function parseReleaseTag(tagName) {
   return { version, prefix };
 }
 async function git2(root, args2, options = {}) {
-  const { stdout } = await execFile17("git", args2, {
+  const { stdout } = await execFile18("git", args2, {
     cwd: root,
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
@@ -107661,7 +112257,7 @@ async function git2(root, args2, options = {}) {
   return stdout.trim();
 }
 async function gitRaw(root, args2, options = {}) {
-  const { stdout } = await execFile17("git", args2, {
+  const { stdout } = await execFile18("git", args2, {
     cwd: root,
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
@@ -107975,10 +112571,10 @@ async function runLineageCommand(args2 = []) {
   }
   throw new Error(`Unknown lineage subcommand: ${parsed.command}`);
 }
-var execFile17, HELP_TEXT, lineage_default;
+var execFile18, HELP_TEXT, lineage_default;
 var init_lineage = __esm({
   "src/commands/lineage.mjs"() {
-    execFile17 = promisify20(execFileCb16);
+    execFile18 = promisify25(execFileCb21);
     __name(parseSemverVersion2, "parseSemverVersion");
     __name(compareSemverVersions2, "compareSemverVersions");
     __name(parseReleaseTag, "parseReleaseTag");
@@ -108035,8 +112631,8 @@ __export(route_exports, {
   resolvePreviousReleaseCommit: () => resolvePreviousReleaseCommit
 });
 import { execFileSync } from "node:child_process";
-import { readdir as readdir20, readFile as readFile41 } from "node:fs/promises";
-import { resolve as resolve33 } from "node:path";
+import { readdir as readdir21, readFile as readFile45 } from "node:fs/promises";
+import { resolve as resolve35 } from "node:path";
 function classifyPath(path15) {
   if (typeof path15 !== "string" || path15.length === 0) return "ignore";
   const p = path15.replace(/\\+/g, "/");
@@ -108081,7 +112677,7 @@ function bucketPaths(paths) {
   return { ...buckets, mixed: categoryCount > 1 };
 }
 async function classifyWorktreeDiff(root) {
-  const cwd = resolve33(root);
+  const cwd = resolve35(root);
   let output;
   try {
     output = execFileSync(
@@ -108113,16 +112709,16 @@ async function classifyWorktreeDiff(root) {
   return bucketPaths(paths);
 }
 async function resolvePreviousReleaseCommit(root) {
-  const cwd = resolve33(root);
+  const cwd = resolve35(root);
   try {
-    const plansDir = resolve33(cwd, ".release-skill", "plans");
-    const planFiles = await readdir20(plansDir).catch(() => []);
+    const plansDir = resolve35(cwd, ".release-skill", "plans");
+    const planFiles = await readdir21(plansDir).catch(() => []);
     let best = null;
     for (const file of planFiles) {
       if (!file.endsWith(".json")) continue;
       let plan;
       try {
-        plan = JSON.parse(await readFile41(resolve33(plansDir, file), "utf8"));
+        plan = JSON.parse(await readFile45(resolve35(plansDir, file), "utf8"));
       } catch {
         continue;
       }
@@ -108157,7 +112753,7 @@ async function objectExistsLocally(root, sha) {
   }
 }
 async function classifyBaselineSurface(root, prevCommit) {
-  const cwd = resolve33(root);
+  const cwd = resolve35(root);
   let diffOutput = "";
   try {
     diffOutput = execFileSync(
@@ -108202,18 +112798,18 @@ async function classifyBaselineSurface(root, prevCommit) {
   return { status: "determinable", categories: buckets, kind, paths: allPaths };
 }
 async function hasPartialRun(root) {
-  const cwd = resolve33(root);
-  const runsDir = resolve33(cwd, ".release-skill", "runs");
+  const cwd = resolve35(root);
+  const runsDir = resolve35(cwd, ".release-skill", "runs");
   let runDirs;
   try {
-    runDirs = await readdir20(runsDir);
+    runDirs = await readdir21(runsDir);
   } catch {
     return false;
   }
   for (const runDir of runDirs) {
-    const summaryPath = resolve33(runsDir, runDir, "summary.json");
+    const summaryPath = resolve35(runsDir, runDir, "summary.json");
     try {
-      const summary = JSON.parse(await readFile41(summaryPath, "utf8"));
+      const summary = JSON.parse(await readFile45(summaryPath, "utf8"));
       if (summary?.status === "PARTIAL") return true;
     } catch {
     }
@@ -108498,9 +113094,9 @@ Workflow Profiles:
 });
 
 // bin/release-skill-cli.mjs
-import { basename as basename12, dirname as dirname17, join as join33, resolve as resolve34 } from "node:path";
-import { execFile as execFileCb17 } from "node:child_process";
-import { promisify as promisify21 } from "node:util";
+import { basename as basename12, dirname as dirname20, join as join40, resolve as resolve36 } from "node:path";
+import { execFile as execFileCb22 } from "node:child_process";
+import { promisify as promisify26 } from "node:util";
 
 // src/core/node-version.mjs
 function parseNodeMajor(versionString) {
@@ -108537,11 +113133,11 @@ __name(computeReadinessStatus, "computeReadinessStatus");
 init_errors();
 init_redact();
 registerPathRedactor(redactSensitivePaths);
-var execFile18 = promisify21(execFileCb17);
+var execFile19 = promisify26(execFileCb22);
 var COMMANDS = /* @__PURE__ */ new Set(["help", "setup", "assess", "prepare", "approve", "publish", "reconcile", "verify", "ship", "attest", "hooks", "artifacts", "docs", "distribute", "route", "lineage"]);
 async function checkDependency(command2, versionArgs = ["--version"]) {
   try {
-    const { stdout } = await execFile18(command2, versionArgs, {
+    const { stdout } = await execFile19(command2, versionArgs, {
       shell: false,
       encoding: "utf8",
       timeout: 5e3
@@ -108711,7 +113307,8 @@ Commands:
   publish    Publish frozen GitHub/npm artifacts after approval
   reconcile  Resume PARTIAL state from evidence; conflicts require a human
   verify     Fresh remote and consumer verification; only this reaches VERIFIED
-  ship       Resume one durable prepare -> approve -> publish -> verify flow
+  ship       Resume one durable prepare -> approve -> publish -> verify flow; completes a parked
+             postVerify hook once its checkpoint approval is provided (--hook-approval)
   attest     Legacy only: record a Kimi/CodeBuddy result for an old frozen plan
   hooks      Run declared development hooks and populate reusable receipts
   artifacts  Artifact status, inspect, update/apply, resolution, and diagnostics
@@ -108723,7 +113320,8 @@ Commands:
 Options:
   --root <path>    Project root directory (default: cwd)
   --plan <path>    Path to the release plan file
-  --run <path>     Path to the release run file (required for reconcile/verify)
+  --run <path>     Path to the release run file, or a run directory whose release-run.json
+                   is resolved automatically (required for reconcile/verify)
   --approval <path> Path to the approval record
   --production     Prepare immutable Git/npm production artifacts
   --output <path>  Override prepare/approve output path (non-production only)
@@ -108738,6 +113336,12 @@ Options:
   --answers <path> Human-reviewed setup answers JSON
   --write          Create an absent project.yaml during setup; never overwrites
   --confirm-setup <digest> Confirm exact setup facts and answers before create
+  --discover-downstream Read-only discovery of downstream candidates (git remotes, marketplace/docs
+                   clues, artifact-graph.config.yaml, foundation profile). Never writes
+  --propose-hooks  Produce postPublish hook declaration drafts; with --write and exact --confirm-setup,
+                   performs an append-only hooks edit of an existing config (create-once is untouched)
+  --select-hooks <ids> Comma-separated proposal ids to adopt (propose-hooks mode)
+  --foundation-profile <path> Explicit foundation postPublish profile JSON (proposal input only; never auto-applied)
   --unit <id>      Release unit whose declared release documents are refreshed (docs refresh)
   --confirm-refresh <sha256:...> Confirm the exact dry-run refreshDigest before any document write
   --ack-local-document-write Acknowledge the explicit local release-document write (docs refresh --write)
@@ -108748,6 +113352,7 @@ Options:
   --install-path <path> Actual managed plugin path when closure verification requires it
   --install-channel <desktop|cli> CodeBuddy installation channel when required
   --approve         Approve the ship plan (boolean; plan digest is auto-resolved)
+  --hook-approval <path> Checkpoint approval for a requiresApproval postPublish hook (ship/distribute; repeatable)
   --state <path>    Override the durable ship state file
   --no-hook-cache  Force every prepare hook to run in full; neither read nor write the hook cache
   --json           Output results as JSON
@@ -108787,7 +113392,7 @@ if (!command && (args.includes("--version") || args.includes("-v"))) {
   } else {
     const { readFileSync: readFileSync14 } = await import("node:fs");
     const { fileURLToPath: fileURLToPath3 } = await import("node:url");
-    const pkgPath = join33(dirname17(fileURLToPath3(import.meta.url)), "..", "package.json");
+    const pkgPath = join40(dirname20(fileURLToPath3(import.meta.url)), "..", "package.json");
     pkg = JSON.parse(readFileSync14(pkgPath, "utf8"));
   }
   if (hasJson) {
@@ -108902,12 +113507,60 @@ if (!COMMANDS.has(command)) {
 if (command === "setup") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve34(rawRoot);
+  const root = resolve36(rawRoot);
   const answersIdx = args.indexOf("--answers");
   const answersPath = answersIdx !== -1 && args[answersIdx + 1] ? args[answersIdx + 1] : void 0;
   const confirmationIdx = args.indexOf("--confirm-setup");
   const confirmSetup = confirmationIdx !== -1 && args[confirmationIdx + 1] ? args[confirmationIdx + 1] : void 0;
   const write = args.includes("--write");
+  const discoverDownstreamMode = args.includes("--discover-downstream");
+  const proposeHooksMode = args.includes("--propose-hooks");
+  if (discoverDownstreamMode || proposeHooksMode) {
+    const flagValue = /* @__PURE__ */ __name((flag) => {
+      const idx = args.indexOf(flag);
+      return idx !== -1 && args[idx + 1] ? args[idx + 1] : void 0;
+    }, "flagValue");
+    const foundationProfilePath = flagValue("--foundation-profile");
+    const unitId = flagValue("--unit");
+    const selectRaw = flagValue("--select-hooks");
+    const selectedHookIds = selectRaw ? selectRaw.split(",").map((item) => item.trim()).filter(Boolean) : void 0;
+    try {
+      const setupModule = await init_setup().then(() => setup_exports);
+      const report = discoverDownstreamMode ? await setupModule.discoverDownstream({ root, foundationProfilePath }) : await setupModule.proposePostPublishHooks({
+        root,
+        write,
+        confirmSetup,
+        selectedHookIds,
+        foundationProfilePath,
+        unitId
+      });
+      if (hasJson) {
+        console.log(JSON.stringify(report, null, 2));
+      } else {
+        console.log(`Status: ${report.status ?? report.mode}`);
+        if (report.setupDigest) console.log(`Setup digest: ${report.setupDigest}`);
+        if (report.hookProposals) {
+          console.log(`Hook proposals: ${report.hookProposals.map((p) => p.id).join(", ") || "(none)"}`);
+        }
+        if (report.configPath) console.log(`Config: ${report.configPath}`);
+        if (report.next) console.log(`Next: ${report.next}`);
+      }
+      const okStatuses = ["HOOKS_PROPOSAL_READY", "HOOKS_APPENDED", "HOOKS_NO_CHANGE", "postpublish-discovery"];
+      process.exit(okStatuses.includes(report.status ?? report.mode) ? 0 : 2);
+    } catch (err) {
+      if (hasJson) {
+        console.log(JSON.stringify({
+          error: err.code ?? "UNKNOWN_ERROR",
+          message: err.message,
+          details: err.details ?? {},
+          exitCode: err.exitCode ?? 1
+        }));
+      } else {
+        console.error(`Error: ${err.message}`);
+      }
+      process.exit(err.exitCode ?? 1);
+    }
+  }
   try {
     const { setupProject: setupProject2 } = await init_setup().then(() => setup_exports);
     const report = await setupProject2({ root, answersPath, write, confirmSetup });
@@ -108937,7 +113590,7 @@ if (command === "setup") {
 if (command === "assess") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve34(rawRoot);
+  const root = resolve36(rawRoot);
   const offline = args.includes("--offline") || !args.includes("--online");
   const outputIdx = args.indexOf("--output");
   const output = outputIdx !== -1 && args[outputIdx + 1] ? args[outputIdx + 1] : void 0;
@@ -108968,7 +113621,7 @@ if (command === "assess") {
 if (command === "hooks") {
   const subcommand = positional[1];
   const rootIdx = args.indexOf("--root");
-  const root = resolve34(rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd());
+  const root = resolve36(rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd());
   if (subcommand !== "validate") {
     const message = "hooks requires subcommand: hooks validate";
     if (hasJson) console.log(JSON.stringify({ error: "MISSING_PARAMETERS", message }));
@@ -108976,7 +113629,7 @@ if (command === "hooks") {
     process.exit(1);
   }
   try {
-    const { validateDeclaredHooks: validateDeclaredHooks2 } = await init_hooks2().then(() => hooks_exports);
+    const { validateDeclaredHooks: validateDeclaredHooks2 } = await init_hooks2().then(() => hooks_exports2);
     const result = await validateDeclaredHooks2({
       root,
       // --acknowledge-hook-side-effects is accepted as a no-effect compatibility input
@@ -109006,7 +113659,13 @@ if (command === "ship") {
     const idx = args.indexOf(flag);
     return idx !== -1 && args[idx + 1] ? args[idx + 1] : void 0;
   }, "value");
-  const root = resolve34(value("--root") ?? process.cwd());
+  const root = resolve36(value("--root") ?? process.cwd());
+  const postpublishApprovalPaths = [];
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] === "--hook-approval" && args[i + 1]) {
+      postpublishApprovalPaths.push(resolve36(args[i + 1]));
+    }
+  }
   try {
     const [
       { advanceShip: advanceShip2 },
@@ -109014,6 +113673,7 @@ if (command === "ship") {
       { createNpmAdapter: createNpmAdapter2 },
       { createPluginMarketplaceAdapter: createPluginMarketplaceAdapter2 },
       { createPushSnapshotAdapter: createPushSnapshotAdapter2 },
+      { createDistributeGitAdapter: createDistributeGitAdapter2 },
       { createAdapterRegistry: createAdapterRegistry2 }
     ] = await Promise.all([
       Promise.resolve().then(() => (init_ship(), ship_exports)),
@@ -109021,13 +113681,15 @@ if (command === "ship") {
       Promise.resolve().then(() => (init_npm(), npm_exports)),
       init_plugin_marketplace().then(() => plugin_marketplace_exports),
       Promise.resolve().then(() => (init_push_snapshot(), push_snapshot_exports)),
+      Promise.resolve().then(() => (init_distribute_git(), distribute_git_exports)),
       Promise.resolve().then(() => (init_contract(), contract_exports))
     ]);
     const adapterRegistry = createAdapterRegistry2([
       createGitGithubAdapter2(),
       createNpmAdapter2(),
       createPluginMarketplaceAdapter2(),
-      createPushSnapshotAdapter2()
+      createPushSnapshotAdapter2(),
+      createDistributeGitAdapter2()
     ]);
     const result = await advanceShip2({
       root,
@@ -109036,15 +113698,27 @@ if (command === "ship") {
       approve: args.includes("--approve"),
       planApprovalDigest: value("--approve-plan"),
       actor: value("--actor"),
-      adapterRegistry
+      adapterRegistry,
+      ...postpublishApprovalPaths.length > 0 ? { postpublishApprovalPaths } : {}
     });
     if (hasJson) {
       console.log(JSON.stringify(result, null, 2));
     } else {
       console.log(`Ship status: ${result.status}`);
       console.log(`State: ${result.statePath}`);
+      for (const warning of result.warnings ?? []) {
+        console.log(`Warning [${warning.code}] ${warning.message}`);
+      }
       if (result.planDigest && result.status === "NEEDS_PLAN_APPROVAL") {
         console.log(`Approve plan: ship --approve --actor <person>`);
+      }
+      if (result.postVerify) {
+        console.log(`PostVerify: ${result.postVerify.status}${result.postVerify.runPath ? ` (run: ${result.postVerify.runPath})` : ""}`);
+        if (["NEEDS_INPUT", "PARTIAL", "BLOCKED", "FAILED"].includes(result.postVerify.status)) {
+          console.log("PostVerify incomplete: re-run release-skill ship to retry non-gated hooks (no approval needed for them).");
+          console.log("For requiresApproval hooks, mint a checkpoint approval (release-skill approve --plan <plan> --hook <hookId> --actor <person>)");
+          console.log("then re-run: release-skill ship --root <root> --hook-approval <approval-record>");
+        }
       }
       for (const followUp of result.manualFollowUps ?? []) {
         console.log(`Manual follow-up [${followUp.platform}] ${followUp.plugin}: not verified by system`);
@@ -109073,7 +113747,7 @@ if (command === "attest") {
     const idx = args.indexOf(flag);
     return idx !== -1 && args[idx + 1] ? args[idx + 1] : void 0;
   }, "value");
-  const root = resolve34(value("--root") ?? process.cwd());
+  const root = resolve36(value("--root") ?? process.cwd());
   try {
     const { recordManualAttestation: recordManualAttestation2 } = await Promise.resolve().then(() => (init_attest(), attest_exports));
     const result = await recordManualAttestation2({
@@ -109111,7 +113785,7 @@ if (command === "attest") {
 if (command === "prepare") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve34(rawRoot);
+  const root = resolve36(rawRoot);
   const offline = args.includes("--offline") || !args.includes("--online");
   let targetVersion;
   for (const flag of ["--target-version", "--version"]) {
@@ -109130,9 +113804,9 @@ if (command === "prepare") {
   const testSelectionIdx = args.indexOf("--test-selection");
   const testSelection = testSelectionIdx !== -1 && args[testSelectionIdx + 1] ? args[testSelectionIdx + 1] : void 0;
   const outputIdx = args.indexOf("--output");
-  const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve34(args[outputIdx + 1]) : void 0;
+  const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve36(args[outputIdx + 1]) : void 0;
   const runDirIdx = args.indexOf("--run-dir");
-  const runDir = runDirIdx !== -1 && args[runDirIdx + 1] ? resolve34(args[runDirIdx + 1]) : void 0;
+  const runDir = runDirIdx !== -1 && args[runDirIdx + 1] ? resolve36(args[runDirIdx + 1]) : void 0;
   try {
     const { prepareRelease: prepareRelease2 } = await init_prepare().then(() => prepare_exports);
     const { readFile: readFileFs } = await import("node:fs/promises");
@@ -109170,7 +113844,8 @@ if (command === "prepare") {
           type: action.type,
           unitId: action.unitId
         })),
-        warnings: result.warnings
+        warnings: result.warnings,
+        nextSteps: result.nextSteps ?? []
       }, null, 2));
     } else {
       for (const warning of result.warnings) {
@@ -109179,6 +113854,9 @@ if (command === "prepare") {
       console.log(`Plan frozen at: ${result.planPath}`);
       console.log(`Plan digest: ${result.planDigest}`);
       console.log(`Evidence: ${result.evidenceDir}`);
+      for (const step of result.nextSteps ?? []) {
+        console.log(`Next [${step.code}] ${step.message}`);
+      }
       if (plan.workflowKind && plan.workflowKind !== "full") {
         console.log(`Workflow: ${plan.workflowKind}`);
       }
@@ -109213,7 +113891,11 @@ if (command === "approve") {
   const actorIdx = args.indexOf("--actor");
   const actor = actorIdx !== -1 && args[actorIdx + 1] ? args[actorIdx + 1] : void 0;
   const outputIdx = args.indexOf("--output");
-  const outputPath = outputIdx !== -1 && args[outputIdx + 1] ? resolve34(args[outputIdx + 1]) : void 0;
+  const outputPath = outputIdx !== -1 && args[outputIdx + 1] ? resolve36(args[outputIdx + 1]) : void 0;
+  const hookIdx = args.indexOf("--hook");
+  const hookId = hookIdx !== -1 && args[hookIdx + 1] ? args[hookIdx + 1] : void 0;
+  const runIdIdx = args.indexOf("--run-id");
+  const runId = runIdIdx !== -1 && args[runIdIdx + 1] ? args[runIdIdx + 1] : void 0;
   if (!planPath || !actor) {
     const msg = "approve requires --plan <path> and --actor <name>";
     if (hasJson) {
@@ -109223,20 +113905,56 @@ if (command === "approve") {
     }
     process.exit(1);
   }
+  if (hookId) {
+    try {
+      const { approvePostPublishHook: approvePostPublishHook2 } = await init_approve().then(() => approve_exports);
+      const record = await approvePostPublishHook2({
+        planPath: resolve36(planPath),
+        hookId,
+        actor,
+        ...runId ? { runId } : {}
+      });
+      if (hasJson) {
+        console.log(JSON.stringify(record, null, 2));
+      } else {
+        console.log(`Checkpoint approval for postPublish hook "${record.hookId}" by ${record.actor}`);
+        console.log(`Approval record: ${record.approvalPath}`);
+        console.log(`Approved at: ${record.approvedAt}`);
+        console.log(`Expires at: ${record.expiresAt}`);
+        console.log("Approved hook (normalized entry summary):");
+        const summary = record.hookSummary ?? {};
+        for (const [key, value] of Object.entries(summary)) {
+          console.log(`  ${key}: ${typeof value === "object" ? JSON.stringify(value) : value}`);
+        }
+      }
+      process.exit(0);
+    } catch (err) {
+      if (hasJson) {
+        console.log(JSON.stringify({
+          error: err.code ?? "UNKNOWN_ERROR",
+          message: err.message,
+          exitCode: err.exitCode ?? 1
+        }));
+      } else {
+        console.error(`Error: ${err.message}`);
+      }
+      process.exit(err.exitCode ?? 1);
+    }
+  }
   try {
     const { approvePlan: approvePlan2 } = await init_approve().then(() => approve_exports);
     const { computePlanDigest: computePlanDigest2 } = await init_plan().then(() => plan_exports);
     const { readFile: readFileFs } = await import("node:fs/promises");
     let resolvedDigest = expectedDigest;
     if (!resolvedDigest) {
-      const planRaw = await readFileFs(resolve34(planPath), "utf8");
+      const planRaw = await readFileFs(resolve36(planPath), "utf8");
       const planObj = JSON.parse(planRaw);
       resolvedDigest = computePlanDigest2(planObj);
     }
-    const resolvedPlanPath = resolve34(planPath);
-    const planDir = dirname17(resolvedPlanPath);
-    const releaseDir = basename12(planDir) === "plans" && basename12(resolvedPlanPath) === `${resolvedDigest}.json` ? dirname17(planDir) : planDir;
-    const approvalPath = outputPath ?? join33(releaseDir, "approval-record.json");
+    const resolvedPlanPath = resolve36(planPath);
+    const planDir = dirname20(resolvedPlanPath);
+    const releaseDir = basename12(planDir) === "plans" && basename12(resolvedPlanPath) === `${resolvedDigest}.json` ? dirname20(planDir) : planDir;
+    const approvalPath = outputPath ?? join40(releaseDir, "approval-record.json");
     const record = await approvePlan2({ planPath, expectedDigest: resolvedDigest, actor, outputPath: approvalPath });
     if (hasJson) {
       console.log(JSON.stringify(record, null, 2));
@@ -109263,13 +113981,13 @@ if (command === "approve") {
 if (command === "reconcile") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve34(rawRoot);
+  const root = resolve36(rawRoot);
   const planIdx = args.indexOf("--plan");
-  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve34(args[planIdx + 1]) : void 0;
+  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve36(args[planIdx + 1]) : void 0;
   const runIdx = args.indexOf("--run");
-  const runPath = runIdx !== -1 && args[runIdx + 1] ? resolve34(args[runIdx + 1]) : void 0;
+  const runPath = runIdx !== -1 && args[runIdx + 1] ? resolve36(args[runIdx + 1]) : void 0;
   const approvalIdx = args.indexOf("--approval");
-  const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve34(args[approvalIdx + 1]) : void 0;
+  const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve36(args[approvalIdx + 1]) : void 0;
   if (!planPath || !runPath) {
     const msg = "reconcile requires --plan <path> and --run <path>";
     if (hasJson) {
@@ -109303,8 +114021,8 @@ if (command === "reconcile") {
       console.log(JSON.stringify(result, null, 2));
     } else {
       console.log(`Reconcile status: ${result.status}`);
-      for (const cp2 of result.checkpoints) {
-        console.log(`  ${cp2.actionId}: ${cp2.status}`);
+      for (const cp3 of result.checkpoints) {
+        console.log(`  ${cp3.actionId}: ${cp3.status}`);
       }
     }
     process.exit(result.status === "PUBLISHED" ? 0 : 1);
@@ -109325,11 +114043,11 @@ if (command === "reconcile") {
 if (command === "verify") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve34(rawRoot);
+  const root = resolve36(rawRoot);
   const planIdx = args.indexOf("--plan");
-  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve34(args[planIdx + 1]) : void 0;
+  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve36(args[planIdx + 1]) : void 0;
   const runIdx = args.indexOf("--run");
-  const runPath = runIdx !== -1 && args[runIdx + 1] ? resolve34(args[runIdx + 1]) : void 0;
+  const runPath = runIdx !== -1 && args[runIdx + 1] ? resolve36(args[runIdx + 1]) : void 0;
   const verificationGatesAuthorized = args.includes("--acknowledge-gate-side-effects");
   if (!planPath || !runPath) {
     const msg = "verify requires --plan <path> and --run <path>";
@@ -109394,11 +114112,11 @@ if (command === "verify") {
 if (command === "publish") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve34(rawRoot);
+  const root = resolve36(rawRoot);
   const planIdx = args.indexOf("--plan");
-  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve34(args[planIdx + 1]) : void 0;
+  const planPath = planIdx !== -1 && args[planIdx + 1] ? resolve36(args[planIdx + 1]) : void 0;
   const approvalIdx = args.indexOf("--approval");
-  const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve34(args[approvalIdx + 1]) : void 0;
+  const approvalPath = approvalIdx !== -1 && args[approvalIdx + 1] ? resolve36(args[approvalIdx + 1]) : void 0;
   if (!planPath || !approvalPath) {
     const msg = "publish requires --plan <path> and --approval <path>";
     if (hasJson) {
@@ -109432,8 +114150,8 @@ if (command === "publish") {
       console.log(JSON.stringify(result, null, 2));
     } else {
       console.log(`Publish status: ${result.status}`);
-      for (const cp2 of result.checkpoints) {
-        console.log(`  ${cp2.actionId}: ${cp2.status}`);
+      for (const cp3 of result.checkpoints) {
+        console.log(`  ${cp3.actionId}: ${cp3.status}`);
       }
     }
     process.exit(result.status === "PUBLISHED" ? 0 : 1);
@@ -109454,9 +114172,9 @@ if (command === "publish") {
 if (command === "artifacts") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
-  const root = resolve34(rawRoot);
+  const root = resolve36(rawRoot);
   const outputIdx = args.indexOf("--output");
-  const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve34(args[outputIdx + 1]) : void 0;
+  const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve36(args[outputIdx + 1]) : void 0;
   const subcommand = positional[1] ?? "status";
   try {
     const { runArtifactsCommand: runArtifactsCommand2 } = await Promise.resolve().then(() => (init_artifacts(), artifacts_exports));
@@ -109523,7 +114241,7 @@ if (command === "docs") {
         );
       }
     }
-    const root = resolve34(rawRoot);
+    const root = resolve36(rawRoot);
     const valuedDocsFlags = /* @__PURE__ */ new Set(["--root", "--unit", "--confirm-refresh"]);
     const booleanDocsFlags = /* @__PURE__ */ new Set(["--json", "--write", "--ack-local-document-write"]);
     let docsSubcommand;
@@ -109606,11 +114324,40 @@ if (command === "distribute") {
     const idx = args.indexOf(flag);
     return idx !== -1 && args[idx + 1] ? args[idx + 1] : void 0;
   }, "value");
-  const root = resolve34(value("--root") ?? process.cwd());
+  const root = resolve36(value("--root") ?? process.cwd());
   const planPath = value("--plan");
   const approvalPath = value("--approval");
   const runPath = value("--run");
   const dryRun = args.includes("--dry-run");
+  const postpublishApprovalPaths = [];
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] === "--hook-approval" && args[i + 1]) {
+      postpublishApprovalPaths.push(resolve36(args[i + 1]));
+    }
+  }
+  if (args.includes("--list-presets")) {
+    const { listPostPublishPresets: listPostPublishPresets2 } = await Promise.resolve().then(() => (init_presets(), presets_exports));
+    const presets = listPostPublishPresets2();
+    if (hasJson) {
+      console.log(JSON.stringify({ command: "distribute", presets }, null, 2));
+    } else {
+      console.log("postPublish presets:");
+      for (const preset of presets) {
+        const status = preset.implemented ? "implemented" : "reserved (behavior lands in a later release)";
+        console.log(`  ${preset.name}`);
+        console.log(`    description: ${preset.description}`);
+        console.log(`    requiresApproval default: ${preset.defaultRequiresApproval}`);
+        if (preset.requiresApprovalNote) {
+          console.log(`    requiresApproval note: ${preset.requiresApprovalNote}`);
+        }
+        if (preset.targetsFormOnly) {
+          console.log("    declaration form: targets-form only (declare under postPublish.targets, not postPublish.hooks)");
+        }
+        console.log(`    write-downstream: ${preset.writeDownstream}; target optional: ${preset.targetOptional}; status: ${status}`);
+      }
+    }
+    process.exit(0);
+  }
   if (args.includes("--help")) {
     const helpText = `Distribute command: Distributes frozen artifacts to post-publish targets
 
@@ -109621,7 +114368,9 @@ Options:
   --plan     Path to the release plan file (required)
   --run      Path to the release run file (required)
   --approval Path to the approval record (optional but recommended)
+  --hook-approval <path>  Checkpoint approval for a requiresApproval postPublish hook (repeatable)
   --dry-run  Preview distribution steps without executing (default: false)
+  --list-presets  Enumerate the postPublish preset registry (no plan/run needed)
 
 Description:
   After PUBLISHED state, distributes to configured postPublish targets:
@@ -109638,9 +114387,11 @@ Description:
           "--plan": "Path to the release plan file (required)",
           "--run": "Path to the release run file (required)",
           "--approval": "Path to the approval record (optional but recommended)",
-          "--dry-run": "Preview distribution steps without executing (default: false)"
+          "--hook-approval": "Checkpoint approval for a requiresApproval postPublish hook (repeatable)",
+          "--dry-run": "Preview distribution steps without executing (default: false)",
+          "--list-presets": "Enumerate the postPublish preset registry (no plan/run needed)"
         },
-        description: "After PUBLISHED state, distributes to configured postPublish targets: git mirrors + marketplace index updates. Requires plan.postPublish config. Reconciles PARTIAL runs."
+        details: "After PUBLISHED state, distributes to configured postPublish targets: git mirrors + marketplace index updates. Requires plan.postPublish config. Reconciles PARTIAL runs."
       }, null, 2));
     } else {
       console.log(helpText);
@@ -109662,12 +114413,14 @@ Description:
     const { createNpmAdapter: createNpmAdapter2 } = await Promise.resolve().then(() => (init_npm(), npm_exports));
     const { createPluginMarketplaceAdapter: createPluginMarketplaceAdapter2 } = await init_plugin_marketplace().then(() => plugin_marketplace_exports);
     const { createPushSnapshotAdapter: createPushSnapshotAdapter2 } = await Promise.resolve().then(() => (init_push_snapshot(), push_snapshot_exports));
+    const { createDistributeGitAdapter: createDistributeGitAdapter2 } = await Promise.resolve().then(() => (init_distribute_git(), distribute_git_exports));
     const { createAdapterRegistry: createAdapterRegistry2 } = await Promise.resolve().then(() => (init_contract(), contract_exports));
     const registry = createAdapterRegistry2([
       createGitGithubAdapter2(),
       createNpmAdapter2(),
       createPluginMarketplaceAdapter2(),
-      createPushSnapshotAdapter2()
+      createPushSnapshotAdapter2(),
+      createDistributeGitAdapter2()
     ]);
     const result = await distributeRelease2({
       sourceRunPath: runPath,
@@ -109675,14 +114428,15 @@ Description:
       adapterRegistry: registry,
       root,
       dryRun,
-      planPath
+      planPath,
+      ...postpublishApprovalPaths.length > 0 ? { postpublishApprovalPaths } : {}
     });
     if (hasJson) {
       console.log(JSON.stringify(result, null, 2));
     } else {
       console.log(`Distribute status: ${result.status}`);
-      for (const cp2 of result.checkpoints) {
-        console.log(`  ${cp2.actionId}: ${cp2.status}`);
+      for (const cp3 of result.checkpoints) {
+        console.log(`  ${cp3.actionId}: ${cp3.status}`);
       }
       if (result.distributeRunPath) {
         console.log(`Distribute run: ${result.distributeRunPath}`);

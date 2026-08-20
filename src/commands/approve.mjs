@@ -25,7 +25,13 @@ import {
   validatePlanActionCompleteness,
 } from '../core/plan.mjs';
 import { ReleaseError, PLAN_DIGEST_MISMATCH, GATE_FAILED } from '../core/errors.mjs';
-import { computeApprovalDigest, validateApprovalRecordSchema } from '../core/approval.mjs';
+import {
+  computeApprovalDigest,
+  validateApprovalRecordSchema,
+  MAX_APPROVAL_MS,
+} from '../core/approval.mjs';
+import { validatePostPublishApproval } from '../core/postpublish-approval.mjs';
+import { normalizePostPublishHook, effectiveHookRequiresApproval } from '../core/postpublish.mjs';
 import { WORKSPACE_DIGEST_ALGORITHM } from '../core/baseline.mjs';
 
 // ---------------------------------------------------------------------------
@@ -278,5 +284,165 @@ export async function approvePlan(options) {
     approvalDigest,
     approvalPath: immutableApprovalPath,
     latestApprovalPath: writePath,
+  });
+}
+
+/**
+ * Approve a requiresApproval postPublish hook (checkpoint-level approval,
+ * v0.6.3 R1, design §2.7 ruling 2).
+ *
+ * The record binds (planDigest, hookId) — the plan-level approval schema is
+ * untouched. Hook config changes change the plan digest, so approvals
+ * invalidate naturally with the plan. The result carries the approved hook's
+ * normalized entry summary (review N-6) so the checkpoint approval interface
+ * can display exactly what was approved.
+ *
+ * @param {Object} options
+ * @param {string} options.planPath - Absolute path to the frozen release plan.
+ * @param {string} options.hookId - id of the declared hook to approve.
+ * @param {string} options.actor - Identity of the approver.
+ * @param {number} [options.expiresInMs] - Validity window in ms (default and max 24h).
+ * @param {() => string} [options.clock] - Clock function returning ISO-8601 strings.
+ * @param {string} [options.runId] - Audit-only distribute run id (never a binding).
+ *
+ * @returns {Promise<object>} { planDigest, hookId, actor, approvedAt,
+ *   expiresAt, approvalDigest, approvalPath, hookSummary }.
+ *
+ * @throws {ReleaseError} GATE_FAILED when the hook is undeclared, does not
+ *   require approval, or the window exceeds 24h.
+ */
+export async function approvePostPublishHook(options) {
+  const {
+    planPath,
+    hookId,
+    actor,
+    expiresInMs = MAX_APPROVAL_MS,
+    clock,
+    runId,
+  } = options ?? {};
+
+  const clockFn = typeof clock === 'function' ? clock : defaultClock;
+
+  if (!planPath || typeof planPath !== 'string') {
+    throw new ReleaseError(GATE_FAILED, 'planPath must be a non-empty string');
+  }
+  if (!hookId || typeof hookId !== 'string') {
+    throw new ReleaseError(GATE_FAILED, 'hookId must be a non-empty string');
+  }
+  if (!actor || typeof actor !== 'string') {
+    throw new ReleaseError(GATE_FAILED, 'actor must be a non-empty string');
+  }
+  if (typeof expiresInMs !== 'number' || !Number.isFinite(expiresInMs) || expiresInMs <= 0) {
+    throw new ReleaseError(GATE_FAILED, 'expiresInMs must be a positive finite number', { expiresInMs });
+  }
+  if (expiresInMs > MAX_APPROVAL_MS) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `expiresInMs must not exceed 24 hours (${MAX_APPROVAL_MS}ms), got ${expiresInMs}ms`,
+      { expiresInMs },
+    );
+  }
+
+  // --- Load and validate the frozen plan ---
+  let planRaw;
+  try {
+    planRaw = await readFile(planPath, 'utf8');
+  } catch (err) {
+    throw new ReleaseError(GATE_FAILED, `cannot read release plan: ${err.message}`, { planPath, cause: err.code });
+  }
+  let plan;
+  try {
+    plan = JSON.parse(planRaw);
+  } catch (err) {
+    throw new ReleaseError(GATE_FAILED, `release plan is not valid JSON: ${err.message}`, { planPath });
+  }
+  const actualDigest = computePlanDigest(plan);
+  assertImmutablePlanAuthority(planPath, plan);
+  validatePlan(plan);
+
+  // --- Locate the declared hook (fail-closed) ---
+  const hooks = plan.postPublish?.hooks ?? [];
+  const hook = hooks.find((entry) => entry.id === hookId);
+  if (!hook) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `hook "${hookId}" is not declared in the frozen plan's postPublish hooks`,
+      { hookId, declaredHookIds: hooks.map((entry) => entry.id) },
+    );
+  }
+  // Effective requiresApproval (§2.6 grading, R4 review M-1): preset hooks
+  // may inherit the preset-declared default (proposal-inbox git-push,
+  // declared OR inferred from a remoteUrl address -> true) without an
+  // explicit declaration. Grading by the literal value here would refuse to
+  // mint approvals for exactly the hooks the runtime gates — the mint and
+  // validatePostPublishApproval must agree on the effective value.
+  const effectiveRequiresApproval = effectiveHookRequiresApproval(hook);
+  if (effectiveRequiresApproval !== true) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `hook "${hookId}" does not require approval (effective requiresApproval is not true)`,
+      { hookId, requiresApproval: effectiveRequiresApproval },
+    );
+  }
+
+  // --- Build the checkpoint approval record ---
+  const approvedAt = clockFn();
+  const approvedAtDate = new Date(approvedAt);
+  if (Number.isNaN(approvedAtDate.getTime())) {
+    throw new ReleaseError(GATE_FAILED, `invalid approvedAt timestamp: "${approvedAt}"`, { approvedAt });
+  }
+  const expiresAt = new Date(approvedAtDate.getTime() + expiresInMs).toISOString();
+
+  const approvalRecord = {
+    planDigest: actualDigest,
+    hookId,
+    actor,
+    approvedAt,
+    expiresAt,
+    ...(runId ? { runId } : {}),
+  };
+
+  // Full fail-closed re-validation (schema + bindings + time window).
+  validatePostPublishApproval(plan, approvalRecord, { clock: clockFn });
+
+  // --- Write the digest-addressed authority ---
+  const planDir = dirname(resolve(planPath));
+  const releaseDir = basename(planDir) === 'plans' && basename(planPath) === `${actualDigest}.json`
+    ? dirname(planDir)
+    : planDir;
+  const json = JSON.stringify(approvalRecord, null, 2);
+  const approvalDigest = computeApprovalDigest(json);
+  const immutableApprovalPath = resolve(
+    releaseDir,
+    'approvals',
+    'postpublish',
+    actualDigest,
+    `${approvalDigest}.json`,
+  );
+  await prepareAuthorityDirectory(dirname(immutableApprovalPath));
+  await assertAuthorityFileTarget(immutableApprovalPath);
+  try {
+    await writeFile(immutableApprovalPath, json, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
+  } catch (error) {
+    if (error.code !== 'EEXIST') throw error;
+    const existing = await readFile(immutableApprovalPath, 'utf8');
+    if (existing !== json) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        'postpublish approval authority digest collision: existing bytes differ',
+        { planDigest: actualDigest, approvalDigest, immutableApprovalPath },
+      );
+    }
+  }
+
+  // Review N-6: the normalized entry summary is the display surface of the
+  // checkpoint approval interface (defaults applied, digest-bound).
+  const hookSummary = normalizePostPublishHook(hook);
+
+  return Object.freeze({
+    ...approvalRecord,
+    approvalDigest,
+    approvalPath: immutableApprovalPath,
+    hookSummary,
   });
 }

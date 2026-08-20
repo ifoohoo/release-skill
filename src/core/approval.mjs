@@ -58,6 +58,94 @@ export function computeApprovalDigest(rawApproval) {
     : JSON.stringify(rawApproval, null, 2));
 }
 
+/** Maximum approval window: 24 hours. */
+export const MAX_APPROVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+/** Clock-skew tolerance for approvedAt: 5 minutes. */
+export const CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Validate the time-window semantics shared by every approval record kind
+ * (plan-level approvals and v0.6.3 R1 checkpoint-level postPublish hook
+ * approvals): well-formed timestamps, expiresAt after approvedAt, a maximum
+ * 24h window, approvedAt not in the future beyond 5-minute clock skew, and
+ * (unless requireUnexpired === false) an unexpired window at `clock`.
+ *
+ * @param {{ approvedAt?: string, expiresAt?: string }} approval
+ * @param {Object} [options]
+ * @param {() => string} [options.clock]  Clock function returning ISO-8601 strings.
+ * @param {boolean} [options.requireUnexpired]  Default true.
+ *
+ * @throws {ReleaseError} GATE_FAILED on any violation.
+ */
+export function validateApprovalTimeWindow(approval, options = {}) {
+  const clockFn = typeof options.clock === 'function' ? options.clock : () => new Date().toISOString();
+
+  const approvedAtDate = new Date(approval.approvedAt);
+  if (Number.isNaN(approvedAtDate.getTime())) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `invalid approvedAt: "${approval.approvedAt}"`,
+      { approvedAt: approval.approvedAt },
+    );
+  }
+
+  const expiresAtDate = new Date(approval.expiresAt);
+  if (Number.isNaN(expiresAtDate.getTime())) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `invalid expiresAt: "${approval.expiresAt}"`,
+      { expiresAt: approval.expiresAt },
+    );
+  }
+
+  if (expiresAtDate.getTime() <= approvedAtDate.getTime()) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `expiresAt (${approval.expiresAt}) must be after approvedAt (${approval.approvedAt})`,
+      { approvedAt: approval.approvedAt, expiresAt: approval.expiresAt },
+    );
+  }
+
+  // --- Max 24h approval window ---
+  const approvalDurationMs = expiresAtDate.getTime() - approvedAtDate.getTime();
+  if (approvalDurationMs > MAX_APPROVAL_MS) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `approval duration ${Math.round(approvalDurationMs / 3600000)}h exceeds maximum 24h`,
+      { approvedAt: approval.approvedAt, expiresAt: approval.expiresAt, durationHours: approvalDurationMs / 3600000 },
+    );
+  }
+
+  // --- Reject future approvedAt (beyond 5-minute clock skew tolerance) ---
+  const now = clockFn();
+  const nowDate = new Date(now);
+  if (Number.isNaN(nowDate.getTime())) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `invalid clock value: "${now}"`,
+      { clock: now },
+    );
+  }
+  if (approvedAtDate.getTime() > nowDate.getTime() + CLOCK_SKEW_TOLERANCE_MS) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `approvedAt (${approval.approvedAt}) is in the future (current time: ${now})`,
+      { approvedAt: approval.approvedAt, now },
+    );
+  }
+
+  // --- Expiry (publish/reconcile require current approval; verify may only
+  // revalidate the immutable approval identity after publication) ---
+  if (options.requireUnexpired !== false && nowDate > expiresAtDate) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `approval expired at ${approval.expiresAt}, current time is ${now}`,
+      { expiresAt: approval.expiresAt, now },
+    );
+  }
+}
+
 export function assertImmutableApprovalAuthority(approvalPath, plan, rawApproval) {
   if (!plan?.production) return;
   const planDigest = computePlanDigest(plan);
@@ -89,8 +177,6 @@ export function assertImmutableApprovalAuthority(approvalPath, plan, rawApproval
  * @throws {ReleaseError} GATE_FAILED if any validation check fails.
  */
 export function validateApproval(plan, approval, options = {}) {
-  const clockFn = typeof options.clock === 'function' ? options.clock : () => new Date().toISOString();
-
   // --- Required fields ---
   if (!approval || typeof approval !== 'object') {
     throw new ReleaseError(
@@ -290,71 +376,10 @@ export function validateApproval(plan, approval, options = {}) {
     }
   }
 
-  // --- Time validation ---
-  const approvedAtDate = new Date(approval.approvedAt);
-  if (Number.isNaN(approvedAtDate.getTime())) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `invalid approvedAt: "${approval.approvedAt}"`,
-      { approvedAt: approval.approvedAt },
-    );
-  }
-
-  const expiresAtDate = new Date(approval.expiresAt);
-  if (Number.isNaN(expiresAtDate.getTime())) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `invalid expiresAt: "${approval.expiresAt}"`,
-      { expiresAt: approval.expiresAt },
-    );
-  }
-
-  if (expiresAtDate.getTime() <= approvedAtDate.getTime()) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `expiresAt (${approval.expiresAt}) must be after approvedAt (${approval.approvedAt})`,
-      { approvedAt: approval.approvedAt, expiresAt: approval.expiresAt },
-    );
-  }
-
-  // --- Max 24h approval window ---
-  const MAX_APPROVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
-  const approvalDurationMs = expiresAtDate.getTime() - approvedAtDate.getTime();
-  if (approvalDurationMs > MAX_APPROVAL_MS) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `approval duration ${Math.round(approvalDurationMs / 3600000)}h exceeds maximum 24h`,
-      { approvedAt: approval.approvedAt, expiresAt: approval.expiresAt, durationHours: approvalDurationMs / 3600000 },
-    );
-  }
-
-  // --- Reject future approvedAt (beyond 5-minute clock skew tolerance) ---
-  const CLOCK_SKEW_TOLERANCE_MS = 5 * 60 * 1000; // 5 minutes
-  const now = clockFn();
-  const nowDate = new Date(now);
-  if (Number.isNaN(nowDate.getTime())) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `invalid clock value: "${now}"`,
-      { clock: now },
-    );
-  }
-  if (approvedAtDate.getTime() > nowDate.getTime() + CLOCK_SKEW_TOLERANCE_MS) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `approvedAt (${approval.approvedAt}) is in the future (current time: ${now})`,
-      { approvedAt: approval.approvedAt, now },
-    );
-  }
-
-  // --- Expiry (publish/reconcile require current approval; verify may only
-  // revalidate the immutable approval identity after publication) ---
-  if (options.requireUnexpired !== false && nowDate > expiresAtDate) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `approval expired at ${approval.expiresAt}, current time is ${now}`,
-      { expiresAt: approval.expiresAt, now },
-    );
-  }
+  // --- Time validation (shared authority: 24h window, 5-minute skew, expiry) ---
+  validateApprovalTimeWindow(approval, {
+    clock: options.clock,
+    requireUnexpired: options.requireUnexpired,
+  });
 
 }

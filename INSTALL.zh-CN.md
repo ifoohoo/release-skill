@@ -2,7 +2,7 @@
 
 [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.6.2 -->
+<!-- release-skill:release-version: 0.6.3 -->
 ## 前置条件
 
 - Node.js 22.0.0 或更高版本
@@ -104,7 +104,7 @@ Kimi Code 有交互式插件市场，但**没有可脚本化的非交互安装�
 （切勿使用裸仓库地址，它会安装最新 release 或默认分支），确认信任提示后重新加载：
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.6.2
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.6.3
    /plugins reload
    ```
 
@@ -271,6 +271,33 @@ node -e 'require("node:fs").rmSync(process.argv[1],{recursive:true,force:false})
 已有配置永远不会被重新生成或覆盖。无法发现 GitHub/npm 渠道的项目返回 `LOCAL_ONLY_DETECTED`，不会冒充生产就绪。
 
 自动 create-once 写入使用 v0.1.3 随包提供、带摘要登记的 `darwin-arm64` 原生预构建。其他平台以 `SAFE_WRITE_UNAVAILABLE` 失败关闭；此时保留只读报告，由人工首次创建经审阅的文件，不得启用不安全的路径写入兜底。
+
+### 增量 postPublish hook 提案（已有配置）
+
+已完成配置的项目不会重跑 create-once setup。setup 另外提供严格只读的下游发现与仅追加的 hook 提案模式。发现阶段报告 git 远端镜像候选、工作区及其直接邻居中的 marketplace 与 docs 线索、`artifact-graph.config.yaml` 存在性以及 foundation profile 元信息，全程不写入：
+
+```bash
+PROJECT=/path/to/your/project
+"${CLI[@]}" setup --root "$PROJECT" --discover-downstream --json
+```
+
+提案 dry-run 渲染合法的 postPublish hook 声明草案与候选证据，并把现有配置字节、发现事实与选择集合绑定进 `setupDigest`：
+
+```bash
+PROJECT=/path/to/your/project
+PROPOSAL_REPORT="$(mktemp "${TMPDIR:-/tmp}/release-hooks-proposal.XXXXXX")"
+"${CLI[@]}" setup --root "$PROJECT" --propose-hooks --json > "$PROPOSAL_REPORT"
+node -e 'const fs=require("node:fs");const r=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if(!r.setupDigest){console.error("setupDigest missing");process.exit(2)}process.stdout.write(JSON.stringify({status:r.status,targetUnitId:r.targetUnitId,appendableHookIds:r.appendableHookIds,conflicts:r.conflicts,setupDigest:r.setupDigest},null,2)+"\n")' "$PROPOSAL_REPORT"
+```
+
+`--select-hooks <ids>` 将选择收窄到列出的提案 id；`--foundation-profile <path>` 追加显式 foundation profile（仅作为提案输入，绝不自动应用）；当多个发布单元声明了 postPublish 基础时，`--unit <id>` 选定目标发布单元。人工审阅草案一次之后，精确确认的摘要授权一次仅追加 `releaseUnits[<target>].postPublish.hooks` 的写入；该模式绝不触碰 create-once 边界：
+
+```bash
+"${CLI[@]}" setup --root "$PROJECT" --propose-hooks \
+  --write --confirm-setup <已确认的 setupDigest> --json
+```
+
+写入返回 `HOOKS_APPENDED`；没有可追加内容时返回 `HOOKS_NO_CHANGE` 且零写入。错误或过期的摘要以 `SETUP_DIGEST_MISMATCH` 失败关闭；重跑 dry-run 并重新审阅新的摘要。增量追加要求目标发布单元已声明 postPublish 的 materialize/commitIdentity 分发基础，且写入前会重新校验合并后的声明。
 
 配置存在后，检查发布就绪度：
 

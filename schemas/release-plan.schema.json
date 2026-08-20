@@ -1307,7 +1307,6 @@
       "description": "冻结的发布后分发块：声明本身 + tag/tagCommit/unitId/payloadSource 绑定。整体参与 plan digest（planVersion 2 记录层剥离不包含该块），任何配置变更都会改变 planDigest。tagCommit 仅在 prepare 能冻结 create-tag 预期 commit 时存在（production 资产）；缺省时 distribute fail-closed。",
       "required": [
         "materialize",
-        "targets",
         "commitIdentity",
         "tag",
         "unitId",
@@ -1323,6 +1322,13 @@
           "minItems": 1,
           "items": {
             "$ref": "#/definitions/planPostPublishTarget"
+          }
+        },
+        "hooks": {
+          "type": "array",
+          "description": "冻结的发布后钩子声明（v0.6.3 R1）；随整块参与 plan digest",
+          "items": {
+            "$ref": "#/definitions/planPostPublishHook"
           }
         },
         "commitIdentity": {
@@ -1370,6 +1376,64 @@
         "payloadSource": {
           "const": "tag-worktree",
           "description": "时序契约：载荷只能来自 tagCommit 处的 detached worktree，绝不读取工作区状态"
+        }
+      }
+    },
+    "planPostPublishHook": {
+      "type": "object",
+      "description": "冻结的发布后钩子声明项（v0.6.3 R1）：preset 与 command 运行时互斥；phase 缺省 distribute；blocksVerified 缺省 true 且仅 preset 可声明 false",
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "preset": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "distribute",
+            "postVerify"
+          ]
+        },
+        "config": {
+          "type": "object"
+        },
+        "cwd": {
+          "type": "string",
+          "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 7200000
+        },
+        "envAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!.*(?:TOKEN|SECRET|PASSWORD|PASSPHRASE|API_KEY|CREDENTIAL))[A-Z_][A-Z0-9_]*$"
+          },
+          "uniqueItems": true
+        },
+        "requiresApproval": {
+          "type": "boolean"
+        },
+        "blocksVerified": {
+          "type": "boolean"
         }
       }
     },

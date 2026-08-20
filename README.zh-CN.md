@@ -2,29 +2,35 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.6.2 -->
+<!-- release-skill:release-version: 0.6.3 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.6.2** (2026-08-19)
+**0.6.3** (2026-08-20)
 
-v0.6.2 把技能资源闭包检查器升级为贯穿 prepare、publish、verify 的失败关闭发布门禁，收口逐条审计确认的五项缺口（G1–G5），并修复 lineage 重建提交时的身份解析错误：缺失或漂移的技能资源、主目录搜索路径、未声明的 host 面从此在计划冻结前即阻断发布；提交身份改用锚定正则解析，解析失败即失败关闭，绝不伪造身份字段。
+v0.6.3 新增 postPublish hooks v2 注册机制与六个内置预设、面向下游写 hook 的 checkpoint 级批准记录、只在主 run 到达 VERIFIED 后执行 hook 的 postVerify 阶段、为已接入项目起草 postPublish hook 声明的 setup 增量提案、O1–O7 发布周期提速，以及 release-skill 自身的 dogfood hub 提案声明——本次发布即在 postVerify 阶段经自身 checkpoint 批准向公开的 skill-family-hub 仓库投递该提案。
 
 **新增**
 
-- **skill-resource-closure v2 发布门禁**：闭包检查器升级为贯穿三个阶段的失败关闭门禁——prepare 扫描冻结快照，任何 finding 即以 `GATE_FAILED`（错误码 13）阻断计划冻结；publish Gate 2c 对 production 计划按已验证的冻结快照重算闭包；verify 以逐 host 收据校验真实 npm 安装树与 marketplace 安装目录。收据新增 `unitId`、host/surface 明细、摘要、`checkerVersion`（`skill-resource-closure-v2`）与计数字段；平台注册表以显式 adapter 目录名声明各 host 面；收据 schema 在全部六份 release-plan schema 副本中绑定。旧冻结计划与新 checker 版本不一致即失败关闭。
-- **闭包门禁缺口收口（G1–G5）**：source-only（`SOURCE_ONLY_NOT_SHIPPED`）豁免逐条列入收据投影与 prepare 证据——可审计、非阻断；code span/fence/link 目标中的 `~/`、`$HOME/`、`${HOME}/` 搜索路径以 `HOME_DIRECTORY_SEARCH` 失败关闭；同名相对路径资源跨 surface 内容不一致以 `RESOURCE_DRIFT` 失败关闭并给出跨 surface 引用定位；adapter 技能闭包目录内未被引用的常规文件以 `STALE_RESOURCE` 失败关闭；每个声明的插件分发必须有 skillCount ≥ 1 的收据 host 面背书（declared-host 对账）——publicFiles 漏收 adapter 时该 host 面不再静默缺席；冻结收据绑定确定性 `preparedAt` 冻结时间戳（绝不采样墙钟）与 `exitCode: 0`，同输入重复 prepare 冻结字节一致的收据。
+- **postPublish hooks v2 与六个预设**：`releaseUnit.postPublish` 在既有 `targets` 之外接受声明式 `hooks` 数组；每个 hook 要么是命名预设，要么是遵循 prepare hooks 规则（可执行文件/参数数组、相对 cwd、timeout、环境变量白名单——拒绝 shell 字符串）的自定义 command hook。六个内置预设随 bundle 分发，由 `release-skill distribute --list-presets` 枚举：`git-mirror` 与 `marketplace-index-render`（以 `targets` 形态声明），以及 `proposal-inbox`、`marketplace-registry-entry`、`docs-refresh`、`notify-handoff`（以 `hooks` 形态声明）；写下游预设共用 `remoteUrl`/`workspace` 双寻址，`proposal-inbox` 未声明 target 时退化为 `notify-handoff` 行为而非报错，`notify-handoff` 是零写地板，只渲染确定性的人工同步清单。所有声明归一化进冻结计划，hook 变化即 plan digest 变化，既有批准随之失效；既有 `targets` 配置原样可用，执行语义不变。
+- **checkpoint 级 hook 批准**：`requiresApproval: true` 的 hook（公开写预设缺省为 true；项目可以收紧，不得放松）停留 `AWAITING_APPROVAL`、零远端写，直到用 `release-skill approve --plan <plan> --hook <hookId> --actor <name>` 铸造并经 `distribute --hook-approval` 或 `ship --hook-approval` 消费自己的 checkpoint 批准。批准记录遵循新的 `postpublish-approval-record` schema，绑定 `(planDigest, hookId)`，24 小时有效；hook 配置变化即 plan digest 变化，批准随之失效。run schema 新增 `AWAITING_APPROVAL` checkpoint 状态，批准界面展示被批准 hook 的归一化条目摘要。
+- **postVerify 阶段**：声明 `phase: postVerify` 的 hook 只在主 run 到达 VERIFIED 之后执行；`ship` 把它们路由进一个独立的 postVerify run，其 hook 上下文携带验证证据（`verifyEvidence` 仅该阶段存在）。postVerify run 失败即保持 PARTIAL、可 reconcile，但绝不把主 run 从 VERIFIED 回退——失败在 evidence 中显著记录，绝不静默。
+- **setup 增量 hook 提案**：面向已接入项目，`setup --discover-downstream` 只读发现下游候选（git remote、marketplace/docs 仓线索、`artifact-graph` 配置、foundation profile），`setup --propose-hooks` 起草 postPublish hook 声明供人工审阅；人工确认 `setupDigest` 后只追加 hooks 段，绝不重写既有配置的任何其他部分。create-once 边界保持：既有配置绝不重新生成。
+- **dogfood hub 提案声明**：release-skill 自身的项目配置声明了一个 `proposal-inbox`（git-push）hub 提案，指向公开仓 `skill-family-hub`，在本次发布的 postVerify 阶段经自身 checkpoint 批准投递；投递成功加 evidence 中的确定性人工同步提示即闭环——hub 侧消费不在本期范围。
+
+**变更**
+
+- **发布周期提速（O1–O7）**：`build-adapters --check` 与 self-bootstrap 事实钉套件成为 prepare 快速前置门禁，先于 hooks 与全量测试门禁执行（快速前置，不替代全量测试）；新增派生产物一键同步命令，按依赖顺序校验并按需重建 version/docs/bundle/adapters/manifest/public-files 各区，绝不写 src 与测试钉；`build-adapters --apply` 成为既有漂移 adapter 的受支持重建路径；`ship` happy-end 编排缺省 `prepare --production --online`，非生产与 offline 计划给出明确补救提示；online production prepare 在本地分支领先 origin 时给出 warning 级观测（不阻塞）；`verify --run` 接受 run 目录并自动解析其中的 `release-run.json`（传文件行为不变）；修复 `generate-platform-manifest --check` 的基线漂移。
 
 **修复**
 
-- **lineage 提交身份解析（lineage-ident）**：`lineage rebuild` 原先用 `split(/\s+>/)` 解析 author/committer ident 行——该切分对合法 ident 从不匹配，写进重建提交的身份因此损坏（名字含空格或 `>` 时同样错乱）。现改用锚定正则解析，贪婪名字捕获使行尾最后一个 `<email> ts tz` 组生效；无法解析即失败关闭，绝不伪造身份字段。提交消息改经 `commit-tree -F -` stdin 喂入，取自不裁剪的 `cat-file` 输出——任意消息字节（含尾部空白与空行）原样保留。
-- **assess npm-transport 测试稳定性（仅测试）**：npm 生命周期向子进程环境注入静默日志级别设置与环境代理变量，导致 npm stderr 被清空、释放后的本地临时端口被劫持，测试间歇性失败。现剥离环境中的 npm-config 族环境键与代理变量（`isolateNpmTransportEnv`），整个测试期间持有本地端口（`startConnectionResetRegistry`），并确定性断言 `ECONNRESET|ECONNREFUSED`。生产行为无变化。
+- **生产 CLI distribute adapter 注册**：两处生产 CLI adapter 注册表现在都注册 distribute-git adapter；修复前生产 `distribute`/`ship` 自动分发路径以 `no distribute adapter registered` 失败。状态机参考件补全 `DISTRIBUTING`/`DISTRIBUTED` 状态及其转移。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.6.2 是当前源码候选，v0.4.1 仍是最新已发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.6.3 是当前源码候选，v0.4.1 仍是最新已发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -37,7 +43,7 @@ v0.6.2 把技能资源闭包检查器升级为贯穿 prepare、publish、verify 
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.6.2 是当前源码候选，v0.4.1 是最新已发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.6.3 是当前源码候选，v0.4.1 是最新已发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -48,6 +54,45 @@ v0.6.2 把技能资源闭包检查器升级为贯穿 prepare、publish、verify 
 <!-- release-skill:capability:distribute -->
 > **分发能力 v1.0（W2 完成）：** postPublish 分发作为独立的 `distribute` 命令可用，支持镜像和 Marketplace 索引动作。`publish` 达到 PUBLISHED 状态后，可运行 `ship distribute` 或手动调用 `release-skill distribute --plan <path> --approval <path> --json`。分发动作实现 fail-closed 语义：空差异时 NO_CHANGE（不创建 commit/tag/push），tag 移动尝试时 REMOTE_CONFLICT（永不 force-push），外部写未授权时 AUTH_MISSING。支持的模式：`--dry-run`（仅本地提交+tag）、`--json`（结构化输出）、`--help`（命令参考）。标签承诺保证版本一致性——分发的 plugin.json.version 必须与输入 tag 匹配。详见 [docs/design/2026-08-17-postpublish-distribution.md](../../docs/design/2026-08-17-postpublish-distribution.md) 中的架构说明。
 <!-- release-skill:capability:distribute -->
+
+<!-- release-skill:maturity:postpublish-hooks-v2 -->
+<!-- release-skill:capability:postpublish-hooks -->
+> **postPublish hooks v2：** `releaseUnit.postPublish` 在既有 `targets` 之外接受
+> 声明式 `hooks` 数组。每个 hook 要么是命名预设，要么是自定义 command hook；
+> 自定义 command hook 遵循与 prepare hooks 相同的规则——可执行文件/参数数组、
+> 相对 cwd、timeout 与环境变量白名单，拒绝 shell 字符串——并与其他配置的
+> hook 和 gate 一样是无操作系统沙箱的进程。所有声明归一化进冻结计划，因此
+> hook 变化即 plan digest 变化，既有批准随之失效。`requiresApproval: true`
+> 的 hook（公开写预设缺省为 true；项目可以收紧，不得放松）执行前需要自己的
+> checkpoint 级批准：用
+> `release-skill approve --plan <plan> --hook <hookId> --actor <name>`
+> 铸造批准记录，再由 `distribute --hook-approval <record>` 或
+> `ship --hook-approval <record>` 消费（24 小时有效期，绑定 plan digest
+> 与 hook id）。Git 凭证只来自宿主 credential helper / OS keychain；
+> release-skill 绝不读取、存储或打印凭证。
+<!-- release-skill:capability:postpublish-hooks -->
+
+<!-- release-skill:capability:postpublish-presets -->
+> **postPublish 预设：** 六个内置预设随 bundle 分发，由
+> `release-skill distribute --list-presets` 枚举：`git-mirror` 与
+> `marketplace-index-render`（以 `targets` 形态声明），以及
+> `proposal-inbox`、`marketplace-registry-entry`、`docs-refresh`、
+> `notify-handoff`（以 `hooks` 形态声明）。`proposal-inbox` 通过 git-push 或
+> local-file 传输投递机器可读更新提案，供下游自治消费；未声明 target 时
+> 退化为 `notify-handoff` 行为而非报错。`notify-handoff` 是零写地板：
+> 只渲染确定性的人工同步清单。release-skill 自己也在使用该能力：本仓库的
+> 项目配置声明了一个 `proposal-inbox`（git-push）hub 提案，指向公开仓
+> `skill-family-hub`，将在 v0.6.3 发布的 postVerify 阶段经自身的
+> checkpoint 批准投递。
+<!-- release-skill:capability:postpublish-presets -->
+
+<!-- release-skill:capability:postverify-stage -->
+> **postVerify 阶段：** 声明 `phase: postVerify` 的 hook 只在主 run 到达
+> VERIFIED 之后执行；`ship` 把它们路由进一个独立的 postVerify run，其 hook
+> 上下文携带验证证据（`verifyEvidence` 仅该阶段存在）。postVerify run 失败
+> 即保持 PARTIAL、可 reconcile，但绝不把主 run 从 VERIFIED 回退——失败在
+> evidence 中显著记录，绝不静默。
+<!-- release-skill:capability:postverify-stage -->
 
 <!-- release-skill:maturity:v0.1-boundary -->
 <!-- release-skill:maturity:boundary -->
@@ -180,6 +225,15 @@ ACTOR=your-name
    `requiredPublicFiles`。只有在人工审阅之后才添加项目专属 hook 或 gate：
    编辑 `projectConfig.hooks`，或编辑 `verificationGates` 并把同一个 id 加入
    `selectedGateIds`，然后重新运行绑定 dry-run。配置已存在时跳过。
+   下游 postPublish 引导在确认前同样只读：`setup --discover-downstream`
+   枚举下游候选（git remote、邻近的 marketplace/docs 仓、
+   `artifact-graph.config.yaml`，以及存在时的 foundation profile）；
+   `setup --propose-hooks` 把这些线索转为由 `setupDigest` 绑定的 postPublish
+   hook 声明草案。对已接入的项目，
+   `setup --propose-hooks --write --confirm-setup <digest>` 只追加目标发布
+   单元的 `postPublish.hooks` 段，绝不重新生成或改写配置的任何其他部分
+   （create-once 边界不受影响）。foundation profile 只是提案输入之一，绝不
+   自动生效。
    完整多步流程见 [INSTALL.zh-CN.md](INSTALL.zh-CN.md#首次接入)。
 3. **assess** — 只读就绪评估：
    ```bash
@@ -433,6 +487,51 @@ hooks:
 ```
 
 hook 在 `prepare` 调用时运行，命令调用本身即授权执行。gate 是发布校准的受控扩展点（见 `references/02-project-config.md`）。
+
+### postPublish hook
+
+`postPublish.hooks` 声明 `publish` 之后执行的下游投递动作。每个条目要么是命名预设，要么是自定义 command hook，遵守与上文相同的命令规则（可执行文件/参数数组，不是 shell 字符串）。预设收到冻结计划的只读投影；自定义 command hook 在冻结 tag 工作树中执行：
+
+```yaml
+postPublish:
+  materialize:
+    command: [node, scripts/materialize-payload.mjs]
+    cwd: .
+    timeoutMs: 600000
+    outputMarker: "payload dir: "
+  commitIdentity:
+    name: release-bot
+    email: mzdbxqh@example.com
+  hooks:
+    - id: mirror-downstream
+      preset: git-mirror
+      config:
+        target:
+          remoteUrl: https://gitlab.example.internal/team/my-project.git
+          branch: main
+    - id: hub-entry-proposal
+      preset: proposal-inbox
+      phase: postVerify
+      requiresApproval: true
+      config:
+        delivery: git-push
+        target:
+          remoteUrl: https://github.com/example/hub.git
+          branch: main
+    - id: custom-notify
+      command: [node, scripts/notify-downstream.mjs]
+      timeoutMs: 300000
+      envAllowlist: [CI]
+```
+
+`requiresApproval: true` 的 hook 停留在 `AWAITING_APPROVAL`，直到 checkpoint 批准被铸造并消费。批准记录绑定 plan digest 与 hook id，24 小时后过期：
+
+```bash
+release-skill approve --plan "$PLAN_PATH" --hook hub-entry-proposal --actor "$ACTOR" --json
+release-skill ship --root "$PROJECT" --hook-approval "$HOOK_APPROVAL_PATH" --json
+```
+
+对已接入的项目，`setup --discover-downstream` 与 `setup --propose-hooks` 起草这些声明供人工审阅；仅追加的增量流程见上文 setup 步骤与 [INSTALL.zh-CN.md](INSTALL.zh-CN.md#首次接入)。
 
 ## Skills
 

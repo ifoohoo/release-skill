@@ -61,11 +61,19 @@ import {
 } from '../core/run.mjs';
 import { createEvidenceWriter } from '../core/evidence.mjs';
 import { runHook } from '../core/hooks.mjs';
+import { boundedOutputTail } from '../core/bounded-output.mjs';
 import {
   orderTargetsByDependency,
   validatePostPublishDeclaration,
+  buildPostPublishContext,
+  normalizePostPublishDeclaration,
+  orderNormalizedHooks,
+  effectiveHookRequiresApproval,
+  POSTPUBLISH_CONTEXT_ENV,
   PAYLOAD_SOURCE_TAG_WORKTREE,
 } from '../core/postpublish.mjs';
+import { validatePostPublishApproval } from '../core/postpublish-approval.mjs';
+import { executePresetHook } from '../core/preset-executor.mjs';
 import {
   ReleaseError,
   GATE_FAILED,
@@ -79,9 +87,6 @@ const execFileAsync = promisify(execFileCb);
 
 /** Executor identity recorded in every distribute checkpoint trace. */
 const EXECUTOR = 'release-skill distribute';
-
-/** Tail length for hook stdout/stderr recorded in evidence. */
-const TAIL_CHARS = 4000;
 
 /** Full 40-hex commit sha. */
 const SHA_RE = /^[a-f0-9]{40}$/;
@@ -105,6 +110,7 @@ const DISTRIBUTING = 'DISTRIBUTING';
 const DISTRIBUTED = 'DISTRIBUTED';
 const PARTIAL = 'PARTIAL';
 const BLOCKED = 'BLOCKED';
+const NEEDS_INPUT = 'NEEDS_INPUT';
 
 function defaultClock() {
   return new Date().toISOString();
@@ -112,11 +118,6 @@ function defaultClock() {
 
 function defaultExec(command, args, options = {}) {
   return execFileAsync(command, args, { shell: false, encoding: 'utf8', timeout: 120_000, ...options });
-}
-
-function tail(text, limit = TAIL_CHARS) {
-  const value = `${text ?? ''}`;
-  return value.length > limit ? value.slice(-limit) : value;
 }
 
 /** Map an adapter/details error code onto the run-schema checkpoint enum. */
@@ -230,6 +231,9 @@ function resolvePluginName(plan, unitId) {
  * @param {() => string} [options.clock] - Clock function returning ISO-8601 strings.
  * @param {Function} [options.execFn] - Injectable git exec (tests).
  * @param {Function} [options.runHookFn] - Injectable hook runner (tests).
+ * @param {string[]} [options.postpublishApprovalPaths] - Checkpoint approval
+ *   records for requiresApproval postPublish hooks (v0.6.3 R1); each record
+ *   binds (planDigest, hookId) and is validated fail-closed before any write.
  *
  * @returns {Promise<{ planPath: string, runPath: string, status: string, checkpoints: Object[] }>}
  *
@@ -248,6 +252,7 @@ export async function distributeRelease(options) {
     clock: clockOpt,
     execFn,
     runHookFn,
+    postpublishApprovalPaths,
   } = options ?? {};
 
   const clockFn = typeof clockOpt === 'function' ? clockOpt : defaultClock;
@@ -407,7 +412,16 @@ export async function distributeRelease(options) {
       ?? computeApprovalDigest(approvalRaw);
 
     validateApprovalRecordSchema(approval);
-    validateApproval(plan, approval, { clock: clockFn });
+    // distribute is a post-publish phase: like reconcile/verify it validates
+    // the approval binding (planDigest/approvedActions/digest) without
+    // requiring an unexpired window — distribution may legitimately happen
+    // after the 24h publish-approval window. requiresApproval hook approvals
+    // remain expiry-enforced by validatePostPublishApproval.
+    // requireUnexpired: false aligns with reconcile.mjs:321 and
+    // verify.mjs:1098; the binding checks (plan digest, approved actions,
+    // approval digest) are NOT relaxed here — only the expiry window is
+    // waived for the post-publish phase.
+    validateApproval(plan, approval, { clock: clockFn, requireUnexpired: false });
 
     await evidence.append({ phase: 'safety-gate', gate: 'approval-validated', status: 'passed' });
 
@@ -448,12 +462,110 @@ export async function distributeRelease(options) {
 
     // =======================================================================
     // Declaration re-validation + deterministic target ordering.
+    // R2: preset references resolve against the built-in preset registry
+    // (core/presets.mjs); per-preset config validation (dual addressing,
+    // marketplace/staticFiles shapes, secret scan) fails closed here.
     // =======================================================================
     const postPublish = plan.postPublish;
     validatePostPublishDeclaration(postPublish, { unitId: postPublish.unitId });
-    const orderedTargets = orderTargetsByDependency(postPublish.targets);
+    const orderedTargets = orderTargetsByDependency(postPublish.targets ?? []);
 
-    // Checkpoint registry: one probe + one mirror per target, declared order.
+    // Normalized hook table (design §2.2): every targets[] entry maps onto a
+    // preset hook (payload-mirror -> git-mirror, marketplace-index ->
+    // marketplace-index-render); the table is a deterministic projection of
+    // the digest-bound declaration, ordered by dependency topology +
+    // declaration order. Target execution below keeps the exact legacy
+    // semantics; hooks[] preset execution dispatches in the hook loop
+    // (proposal-inbox git-push is wired; other presets fail closed until
+    // their behavior ships).
+    const normalizedDeclaration = normalizePostPublishDeclaration(postPublish);
+    const orderedNormalizedHooks = orderNormalizedHooks(normalizedDeclaration.hooks);
+    await evidence.append({
+      phase: 'postpublish-normalization',
+      status: 'passed',
+      preGates: normalizedDeclaration.preGates.map((gate) => gate.gate),
+      hookCount: orderedNormalizedHooks.length,
+      hookIds: orderedNormalizedHooks.map((hook) => hook.id),
+    });
+
+    // postPublish hooks (v0.6.3 R1): distribute-phase hooks run in this saga;
+    // postVerify-phase hooks belong to the independent postVerify run (R3)
+    // and are only evidenced here — never executed, never silent.
+    const declaredHooks = postPublish.hooks ?? [];
+    const distributeHooks = declaredHooks.filter((hook) => (hook.phase ?? 'distribute') === 'distribute');
+    const deferredPostVerifyHooks = declaredHooks.length - distributeHooks.length;
+
+    /** Gate failure after lineage is known: persist BLOCKED, then rethrow. */
+    const failBlocked = async (error) => {
+      await recordBlocked();
+      throw error;
+    };
+
+    // =======================================================================
+    // Gate: checkpoint approvals for requiresApproval hooks. Every provided
+    // record is validated fail-closed BEFORE any write (planDigest binding,
+    // declared hook, requiresApproval, 24h window, expiry). A bad approval
+    // aborts the whole saga; a missing one parks the hook at AWAITING_APPROVAL.
+    // =======================================================================
+    const approvedHookIds = new Set();
+    const hookApprovalPaths = postpublishApprovalPaths ?? [];
+    if (hookApprovalPaths.length > 0) {
+      await evidence.append({
+        phase: 'safety-gate',
+        gate: 'postpublish-hook-approvals',
+        status: 'started',
+        approvalCount: hookApprovalPaths.length,
+      });
+      for (const hookApprovalPath of hookApprovalPaths) {
+        let hookApprovalRaw;
+        try {
+          hookApprovalRaw = await readFile(hookApprovalPath, 'utf8');
+        } catch (err) {
+          await failBlocked(new ReleaseError(
+            GATE_FAILED,
+            `cannot read postpublish hook approval: ${err.message}`,
+            { hookApprovalPath, cause: err.code },
+          ));
+        }
+        let hookApproval;
+        try {
+          hookApproval = JSON.parse(hookApprovalRaw);
+        } catch (err) {
+          await failBlocked(new ReleaseError(
+            GATE_FAILED,
+            `postpublish hook approval is not valid JSON: ${err.message}`,
+            { hookApprovalPath },
+          ));
+        }
+        validatePostPublishApproval(plan, hookApproval, { clock: clockFn });
+        if (approvedHookIds.has(hookApproval.hookId)) {
+          await failBlocked(new ReleaseError(
+            GATE_FAILED,
+            `duplicate postpublish hook approvals for hook "${hookApproval.hookId}"`,
+            { hookId: hookApproval.hookId },
+          ));
+        }
+        approvedHookIds.add(hookApproval.hookId);
+      }
+      await evidence.append({
+        phase: 'safety-gate',
+        gate: 'postpublish-hook-approvals',
+        status: 'passed',
+        approvedHookIds: [...approvedHookIds],
+      });
+    }
+
+    // Hooks whose checkpoint approval is still missing. While any exist, the
+    // declared postPublish steps (unaudited project code) must not execute:
+    // the run parks at NEEDS_INPUT/PARTIAL and the approved reconcile rerun
+    // re-executes them. Targets remain plan-approval-authorized idempotent
+    // remote-state convergence and are unaffected.
+    const pendingHookApprovals = distributeHooks.filter(
+      (hook) => effectiveHookRequiresApproval(hook) && !approvedHookIds.has(hook.id),
+    );
+
+    // Checkpoint registry: one probe + one mirror per target, declared order,
+    // then one postpublish-hook checkpoint per distribute-phase hook.
     checkpoints = [];
     for (const target of orderedTargets) {
       checkpoints.push({
@@ -478,16 +590,18 @@ export async function distributeRelease(options) {
         executor: EXECUTOR,
       });
     }
+    for (const hook of distributeHooks) {
+      checkpoints.push({
+        actionId: hook.id,
+        actionType: 'postpublish-hook',
+        status: 'PENDING',
+        executor: EXECUTOR,
+      });
+    }
     const checkpointById = new Map(checkpoints.map((cp) => [cp.actionId, cp]));
 
     // Durable pre-execute authority (seq 0).
     await snapshot(DISTRIBUTING);
-
-    /** Gate failure after lineage is known: persist BLOCKED, then rethrow. */
-    const failBlocked = async (error) => {
-      await recordBlocked();
-      throw error;
-    };
 
     // =======================================================================
     // Gate 4: tag identity — the live tag must still point at the frozen
@@ -518,7 +632,7 @@ export async function distributeRelease(options) {
         phase: 'safety-gate',
         gate: 'tag-identity',
         status: 'failed',
-        error: tail(err?.stderr ?? err?.message),
+        error: boundedOutputTail(err?.stderr ?? err?.message),
       });
       await failBlocked(new ReleaseError(
         GATE_FAILED,
@@ -663,7 +777,7 @@ export async function distributeRelease(options) {
       worktreePath = join(tmpBase, 'worktree');
       await exec('git', ['-C', root, 'worktree', 'add', '--detach', worktreePath, postPublish.tagCommit]);
     } catch (err) {
-      await evidence.append({ phase: 'worktree', status: 'failed', error: tail(err?.stderr ?? err?.message) });
+      await evidence.append({ phase: 'worktree', status: 'failed', error: boundedOutputTail(err?.stderr ?? err?.message) });
       await failBlocked(new ReleaseError(
         GATE_FAILED,
         `cannot create the detached tag worktree at ${postPublish.tagCommit}: ${err?.message ?? err}`,
@@ -694,13 +808,13 @@ export async function distributeRelease(options) {
         phase: 'materialize',
         status: 'failed',
         exitCode: hookResult.exitCode,
-        stdoutTail: tail(hookResult.stdout),
-        stderrTail: tail(hookResult.stderr),
+        stdoutTail: boundedOutputTail(hookResult.stdout),
+        stderrTail: boundedOutputTail(hookResult.stderr),
       });
       await failBlocked(new ReleaseError(
         POST_PUBLISH_VERIFY_FAILED,
         `materialize hook exited with code ${hookResult.exitCode}; payload cannot be trusted`,
-        { exitCode: hookResult.exitCode, stdoutTail: tail(hookResult.stdout), stderrTail: tail(hookResult.stderr) },
+        { exitCode: hookResult.exitCode, stdoutTail: boundedOutputTail(hookResult.stdout), stderrTail: boundedOutputTail(hookResult.stderr) },
       ));
     }
 
@@ -712,12 +826,12 @@ export async function distributeRelease(options) {
           phase: 'materialize',
           status: 'failed',
           reason: 'report-missing',
-          stdoutTail: tail(hookResult.stdout),
+          stdoutTail: boundedOutputTail(hookResult.stdout),
         });
         await failBlocked(new ReleaseError(
           POST_PUBLISH_VERIFY_FAILED,
           'materialize report missing: no JSON object found on stdout (requireReport.parse = stdout-first-json)',
-          { stdoutTail: tail(hookResult.stdout) },
+          { stdoutTail: boundedOutputTail(hookResult.stdout) },
         ));
       }
       const equals = materialize.requireReport.equals ?? {};
@@ -747,12 +861,12 @@ export async function distributeRelease(options) {
         phase: 'materialize',
         status: 'failed',
         reason: 'marker-missing',
-        stdoutTail: tail(hookResult.stdout),
+        stdoutTail: boundedOutputTail(hookResult.stdout),
       });
       await failBlocked(new ReleaseError(
         POST_PUBLISH_VERIFY_FAILED,
         `materialize output marker "${materialize.outputMarker}" not found on stdout; payload directory unbound`,
-        { stdoutTail: tail(hookResult.stdout) },
+        { stdoutTail: boundedOutputTail(hookResult.stdout) },
       ));
     }
     const payloadReal = await assertContainedDirectory(
@@ -766,6 +880,25 @@ export async function distributeRelease(options) {
     // Declared postPublish steps, in order (fail-closed).
     // =======================================================================
     for (const step of postPublish.steps ?? []) {
+      if (dryRun === true) {
+        // R1 dry-run contract: steps are arbitrary project code with
+        // potentially remote side effects; they never execute in a rehearsal.
+        await evidence.append({ phase: 'postpublish-step', step: step.name, status: 'skipped', reason: 'DRY_RUN' });
+        continue;
+      }
+      if (pendingHookApprovals.length > 0) {
+        // A requiresApproval hook is still unapproved: the step pipeline must
+        // not execute before the checkpoint approval exists; the approved
+        // reconcile rerun re-executes the steps (idempotence-by-default).
+        await evidence.append({
+          phase: 'postpublish-step',
+          step: step.name,
+          status: 'skipped',
+          reason: 'AWAITING_CHECKPOINT_APPROVAL',
+          pendingHookApprovals: pendingHookApprovals.map((hook) => hook.id),
+        });
+        continue;
+      }
       await evidence.append({ phase: 'postpublish-step', step: step.name, status: 'started' });
       const stepResult = await hookRunner(
         {
@@ -782,8 +915,8 @@ export async function distributeRelease(options) {
           step: step.name,
           status: 'failed',
           exitCode: stepResult.exitCode,
-          stdoutTail: tail(stepResult.stdout),
-          stderrTail: tail(stepResult.stderr),
+          stdoutTail: boundedOutputTail(stepResult.stdout),
+          stderrTail: boundedOutputTail(stepResult.stderr),
         });
         await failBlocked(new ReleaseError(
           GATE_FAILED,
@@ -1022,15 +1155,260 @@ export async function distributeRelease(options) {
     }
 
     // =======================================================================
-    // Classification: DISTRIBUTED | PARTIAL | BLOCKED (returned, not thrown).
+    // postPublish hooks (distribute phase), executed AFTER the target writes.
+    // Contract (design §2.3): the read-only frozen-plan projection travels via
+    // RELEASE_SKILL_POSTPUBLISH_CONTEXT; hooks run inside the frozen tag
+    // worktree; a failure stops the hook chain; a requiresApproval hook
+    // without a checkpoint approval parks at AWAITING_APPROVAL and never
+    // executes; dry-run executes nothing; postVerify-phase hooks belong to
+    // the independent postVerify run (R3) and are evidenced as deferred.
     // =======================================================================
+    if (deferredPostVerifyHooks > 0) {
+      await evidence.append({ phase: 'postpublish-hooks', deferredPostVerifyHooks });
+    }
+
+    let hooksStopped = stopped;
+    let awaitingApproval = 0;
+    let hookSuccesses = 0;
+    const hookContextProjection = buildPostPublishContext({
+      plan,
+      runId,
+      sourceRun,
+      payloadDir: payloadReal,
+      phase: 'distribute',
+    });
+
+    // Proposal documents must stay byte-deterministic across redeliveries of
+    // the SAME release event (NO_CHANGE idempotence on reconcile reruns):
+    // they travel with the stable lineage-derived event identity, not the
+    // per-attempt runId.
+    const proposalContextProjection = {
+      ...hookContextProjection,
+      runId: `distribute-${sourceRunId}`,
+    };
+
+    for (const hook of distributeHooks) {
+      const cp = checkpointById.get(hook.id);
+      cp.startedAt = clockFn();
+
+      if (hooksStopped) {
+        cp.status = 'SKIPPED';
+        cp.reason = 'EARLIER_TARGET_FAILED';
+        cp.finishedAt = clockFn();
+        await evidence.append({
+          phase: 'postpublish-hook',
+          hookId: hook.id,
+          status: 'skipped',
+          reason: 'EARLIER_TARGET_FAILED',
+        });
+        continue;
+      }
+
+      if (dryRun === true) {
+        cp.status = 'SKIPPED';
+        cp.reason = 'DRY_RUN';
+        cp.finishedAt = clockFn();
+        await evidence.append({ phase: 'postpublish-hook', hookId: hook.id, status: 'skipped', reason: 'DRY_RUN' });
+        continue;
+      }
+
+      if (effectiveHookRequiresApproval(hook) && !approvedHookIds.has(hook.id)) {
+        // No checkpoint approval: the hook must not execute. It parks (does
+        // not stop the chain — later reconcile reruns retry it once approved).
+        cp.status = 'AWAITING_APPROVAL';
+        cp.finishedAt = clockFn();
+        awaitingApproval += 1;
+        await evidence.append({ phase: 'postpublish-hook', hookId: hook.id, status: 'awaiting-approval' });
+        continue;
+      }
+
+      // -----------------------------------------------------------------
+      // Preset hooks dispatch through the R4 preset executor (one seam for
+      // every registered preset; fail-closed wording for presets registered
+      // but not yet shipped).
+      // -----------------------------------------------------------------
+      if (hook.preset !== undefined) {
+        await evidence.append({ phase: 'postpublish-hook', hookId: hook.id, status: 'started' });
+        let delivery;
+        try {
+          delivery = await executePresetHook({
+            hook,
+            contextProjection: hookContextProjection,
+            proposalContextProjection,
+            commitIdentity: postPublish.commitIdentity,
+            root: worktreePath,
+            evidencePath: join(runDir, 'evidence.jsonl'),
+            payloadDir: hookContextProjection.payloadDir,
+            exec,
+            hookRunner,
+          });
+        } catch (err) {
+          const code = mapToSchemaCode(err?.code);
+          cp.status = 'FAILED';
+          cp.error = { code, message: err?.message ?? String(err) };
+          cp.finishedAt = clockFn();
+          failures += 1;
+          hooksStopped = true;
+          await evidence.append({
+            phase: 'postpublish-hook',
+            hookId: hook.id,
+            status: 'failed',
+            error: err?.message ?? String(err),
+            details: { code },
+          });
+          await snapshot(PARTIAL);
+          continue;
+        }
+
+        if (delivery.status === 'NO_CHANGE') {
+          cp.status = 'NO_CHANGE';
+          cp.mode = 'no-change';
+          cp.finishedAt = clockFn();
+          hookSuccesses += 1;
+          await evidence.append({
+            phase: 'postpublish-hook',
+            hookId: hook.id,
+            status: 'no-change',
+            ...(delivery.manualSyncPrompt ? { manualSyncPrompt: delivery.manualSyncPrompt } : {}),
+            // §2.6 execution realpath evidence (R4 review m-2).
+            ...(delivery.observation?.workspaceRealpath
+              ? { workspaceRealpath: delivery.observation.workspaceRealpath }
+              : {}),
+            ...(delivery.workspaceRealpath ? { workspaceRealpath: delivery.workspaceRealpath } : {}),
+          });
+          await snapshot(PARTIAL);
+          continue;
+        }
+
+        cp.status = 'SUCCEEDED';
+        if (delivery.observation?.mode === 'pushed' && delivery.observation?.pushedCommit) {
+          cp.mode = 'pushed';
+          cp.pushedCommit = delivery.observation.pushedCommit;
+        }
+        cp.finishedAt = clockFn();
+        hookSuccesses += 1;
+        await evidence.append({
+          phase: 'postpublish-hook',
+          hookId: hook.id,
+          status: 'succeeded',
+          preset: hook.preset,
+          mode: delivery.mode ?? delivery.observation?.mode,
+          ...(delivery.observation?.pushedCommit ? { pushedCommit: delivery.observation.pushedCommit } : {}),
+          ...(delivery.manualSyncPrompt ? { manualSyncPrompt: delivery.manualSyncPrompt } : {}),
+          ...(delivery.checklist ? { checklist: delivery.checklist } : {}),
+          ...(delivery.degradedToNotifyHandoff === true ? { degradedToNotifyHandoff: true } : {}),
+          ...(Array.isArray(delivery.observations) ? { targets: delivery.observations } : {}),
+          // §2.6 execution realpath evidence (R4 review m-2) + explicit
+          // cross-check skip note (R4 review m-4).
+          ...(delivery.observation?.workspaceRealpath
+            ? { workspaceRealpath: delivery.observation.workspaceRealpath }
+            : {}),
+          ...(delivery.workspaceRealpath ? { workspaceRealpath: delivery.workspaceRealpath } : {}),
+          ...(delivery.observation?.crossCheck ? { crossCheck: delivery.observation.crossCheck } : {}),
+        });
+        await snapshot(PARTIAL);
+        continue;
+      }
+
+      if (!Array.isArray(hook.command)) {
+        // Fail-closed: a hook with no executable command stops the chain.
+        cp.status = 'FAILED';
+        cp.error = {
+          code: POST_PUBLISH_VERIFY_FAILED,
+          message: `hook "${hook.id}" has no executable command`,
+        };
+        cp.finishedAt = clockFn();
+        failures += 1;
+        hooksStopped = true;
+        await evidence.append({
+          phase: 'postpublish-hook',
+          hookId: hook.id,
+          status: 'failed',
+          reason: 'no-command',
+        });
+        await snapshot(PARTIAL);
+        continue;
+      }
+
+      await evidence.append({ phase: 'postpublish-hook', hookId: hook.id, status: 'started' });
+      let hookExecution;
+      try {
+        hookExecution = await hookRunner(
+          {
+            command: hook.command,
+            ...(hook.cwd ? { cwd: hook.cwd } : {}),
+            ...(hook.timeoutMs !== undefined ? { timeoutMs: hook.timeoutMs } : {}),
+            ...(hook.envAllowlist ? { envAllowlist: hook.envAllowlist } : {}),
+          },
+          {
+            root: worktreePath,
+            env: process.env,
+            injectEnv: { [POSTPUBLISH_CONTEXT_ENV]: JSON.stringify(hookContextProjection) },
+          },
+        );
+      } catch (err) {
+        // HOOK_TIMEOUT (or a runner defect): FAILED checkpoint, stop the chain.
+        const code = err?.code === 'HOOK_TIMEOUT' ? 'HOOK_TIMEOUT' : POST_PUBLISH_VERIFY_FAILED;
+        cp.status = 'FAILED';
+        cp.error = { code, message: err?.message ?? String(err) };
+        cp.finishedAt = clockFn();
+        failures += 1;
+        hooksStopped = true;
+        await evidence.append({
+          phase: 'postpublish-hook',
+          hookId: hook.id,
+          status: 'failed',
+          error: err?.message ?? String(err),
+        });
+        await snapshot(PARTIAL);
+        continue;
+      }
+
+      if (hookExecution.exitCode !== 0) {
+        cp.status = 'FAILED';
+        cp.error = {
+          code: POST_PUBLISH_VERIFY_FAILED,
+          message: `postPublish hook "${hook.id}" exited with code ${hookExecution.exitCode}`,
+        };
+        cp.finishedAt = clockFn();
+        failures += 1;
+        hooksStopped = true;
+        await evidence.append({
+          phase: 'postpublish-hook',
+          hookId: hook.id,
+          status: 'failed',
+          exitCode: hookExecution.exitCode,
+          stdoutTail: boundedOutputTail(hookExecution.stdout),
+          stderrTail: boundedOutputTail(hookExecution.stderr),
+        });
+        await snapshot(PARTIAL);
+        continue;
+      }
+
+      cp.status = 'SUCCEEDED';
+      cp.finishedAt = clockFn();
+      hookSuccesses += 1;
+      await evidence.append({ phase: 'postpublish-hook', hookId: hook.id, status: 'succeeded' });
+      await snapshot(PARTIAL);
+    }
+
+    // =======================================================================
+    // Classification (returned, not thrown):
+    // - DISTRIBUTED: no failures and no awaiting-approval hooks;
+    // - NEEDS_INPUT: only awaiting-approval checkpoints and zero external
+    //   side effects so far (pure input-needed state, never PARTIAL);
+    // - PARTIAL: at least one external success (pushed write or succeeded
+    //   hook) alongside failures or awaiting-approval checkpoints;
+    // - BLOCKED: failures with zero external side effects landed.
+    // =======================================================================
+    const externalCheckpointSuccesses = pushedWrites + hookSuccesses;
     let overallStatus;
-    if (failures === 0) {
+    if (failures === 0 && awaitingApproval === 0) {
       overallStatus = DISTRIBUTED;
-    } else if (pushedWrites > 0) {
-      overallStatus = PARTIAL;
+    } else if (failures === 0) {
+      overallStatus = externalCheckpointSuccesses > 0 ? PARTIAL : NEEDS_INPUT;
     } else {
-      overallStatus = BLOCKED;
+      overallStatus = externalCheckpointSuccesses > 0 ? PARTIAL : BLOCKED;
     }
 
     const finishedAt = clockFn();

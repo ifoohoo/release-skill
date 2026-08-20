@@ -2,7 +2,7 @@
 
 [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.6.2 -->
+<!-- release-skill:release-version: 0.6.3 -->
 ## Prerequisites
 
 - Node.js 22.0.0 or later
@@ -114,7 +114,7 @@ tag pinned to the exact version (never the bare repository URL, which installs
 the latest release or default branch), confirm the trust prompt, then reload:
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.6.2
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.6.3
    /plugins reload
    ```
 
@@ -316,6 +316,51 @@ The automatic create-once write uses the digest-registered `darwin-arm64`
 native prebuild shipped in v0.1.3. Other platforms fail closed with
 `SAFE_WRITE_UNAVAILABLE`; keep the dry-run report and create the reviewed file
 manually instead of enabling an unsafe pathname fallback.
+
+### Incremental postPublish hook proposals (existing configs)
+
+An already-configured project never reruns create-once setup. Instead, setup
+offers a strictly read-only downstream discovery and an append-only hook
+proposal mode. Discovery reports git remote mirror candidates, marketplace and
+docs clues in the workspace and its immediate neighbors,
+`artifact-graph.config.yaml` presence, and the foundation profile metadata.
+It never writes:
+
+```bash
+PROJECT=/path/to/your/project
+"${CLI[@]}" setup --root "$PROJECT" --discover-downstream --json
+```
+
+The proposal dry-run renders legal postPublish hook declaration drafts plus the
+candidate evidence, and binds the existing configuration bytes, the discovery
+facts, and the selection into a `setupDigest`:
+
+```bash
+PROJECT=/path/to/your/project
+PROPOSAL_REPORT="$(mktemp "${TMPDIR:-/tmp}/release-hooks-proposal.XXXXXX")"
+"${CLI[@]}" setup --root "$PROJECT" --propose-hooks --json > "$PROPOSAL_REPORT"
+node -e 'const fs=require("node:fs");const r=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));if(!r.setupDigest){console.error("setupDigest missing");process.exit(2)}process.stdout.write(JSON.stringify({status:r.status,targetUnitId:r.targetUnitId,appendableHookIds:r.appendableHookIds,conflicts:r.conflicts,setupDigest:r.setupDigest},null,2)+"\n")' "$PROPOSAL_REPORT"
+```
+
+`--select-hooks <ids>` narrows the selection to the listed proposal ids;
+`--foundation-profile <path>` adds an explicit foundation profile (proposal
+input only — never auto-applied); `--unit <id>` chooses the release unit when
+several declare the postPublish base. After one human review of the drafts,
+the exact confirmed digest authorizes an append-only write of ONLY
+`releaseUnits[<target>].postPublish.hooks`; the create-once boundary is never
+touched by this mode:
+
+```bash
+"${CLI[@]}" setup --root "$PROJECT" --propose-hooks \
+  --write --confirm-setup <confirmed-setupDigest> --json
+```
+
+The write returns `HOOKS_APPENDED`, or `HOOKS_NO_CHANGE` with zero writes when
+nothing is appendable. A wrong or stale digest fails closed with
+`SETUP_DIGEST_MISMATCH`; rerun the dry-run and review the new digest again.
+The incremental append requires the target release unit to already declare the
+postPublish materialize/commitIdentity distribute base, and it re-validates the
+merged declaration before any write.
 
 After the config exists, check release readiness:
 

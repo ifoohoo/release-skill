@@ -21,17 +21,21 @@
       "digest": "b7e14522a5aba818cab191545f23d2323be0e4c80566e9d3e4da576103a00490",
       "bytes": 2390
     },
+    "postpublish-approval-record.schema.json": {
+      "digest": "e365c9e9f5aa189ca6788e68dbedfa718aa120f2c197534417c21e019b9a29a4",
+      "bytes": 1744
+    },
     "release-plan.schema.json": {
-      "digest": "5e988a5301b89b3d3260154ffae12669af0e4d6ec7f9db8c44df21037ea0eaf6",
-      "bytes": 46948
+      "digest": "517ac9b1d92d2bf348497ee0e79c9e474a4c60e6ed8ba77830948716d143dfa2",
+      "bytes": 49369
     },
     "release-project.schema.json": {
-      "digest": "546e05845cd83a3b1db0a54036f9555081420337e9df961d783d2d2630800ef7",
-      "bytes": 41898
+      "digest": "d38649d1dc9b1dbc643f4e2c98fd18d111090e9ce221c9c61fa50245f6c4c232",
+      "bytes": 45715
     },
     "release-run.schema.json": {
-      "digest": "6dd239c59f7045df11d13d6ba2027610d3c55c27a6af5bc87676b0eaad9600fd",
-      "bytes": 17663
+      "digest": "a605db801d6994d657049431ad453233974bd10610b7b447b196136bb0692866",
+      "bytes": 17847
     }
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "release-skill",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Safe preparation and frozen GitHub/npm production publishing with full happy end verification",
   "author": {
     "name": "广州市风荷科技有限公司"
@@ -65,6 +65,7 @@
     "sync:public-files:check": "node scripts/sync-public-files.mjs --check",
     "build:adapters": "node scripts/build-adapters.mjs",
     "build:adapters:check": "node scripts/build-adapters.mjs --check",
+    "build:adapters:apply": "node scripts/build-adapters.mjs --apply",
     "build:bundle": "node scripts/build-bundle.mjs",
     "build:bundle:check": "node scripts/build-bundle.mjs --check",
     "native:build": "node-gyp rebuild --directory native/safe-write",

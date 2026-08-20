@@ -889,7 +889,6 @@
       "description": "发布后分发声明：materialize 钩子从冻结 tag 工作树物化载荷，targets 将载荷镜像或渲染市场索引推送到独立 git 远端。分发在 publish 之后由 distribute 命令执行，时序契约禁止读取工作区状态。",
       "required": [
         "materialize",
-        "targets",
         "commitIdentity"
       ],
       "additionalProperties": false,
@@ -902,6 +901,13 @@
           "minItems": 1,
           "items": {
             "$ref": "#/definitions/postPublishTarget"
+          }
+        },
+        "hooks": {
+          "type": "array",
+          "description": "发布后钩子声明（v0.6.3 R1）：每项为命名 preset（+config）或自定义 command 钩子（executable+参数数组，禁止 shell 字符串）。schema 层只校验形状；preset 与 command 互斥、preset 注册表归属等语义在运行时 fail-closed 校验（POSTPUBLISH_HOOK_INVALID）",
+          "items": {
+            "$ref": "#/definitions/postPublishHook"
           }
         },
         "commitIdentity": {
@@ -933,6 +939,72 @@
         "assertMainVersionAhead": {
           "type": "boolean",
           "description": "分发前校验主干版本源仍领先于目标版本，防止在已推进的主干上分发旧版本"
+        }
+      }
+    },
+    "postPublishHook": {
+      "type": "object",
+      "description": "发布后钩子声明项：preset（命名预设 + config）与 command（自定义命令）在运行时互斥校验；phase 缺省为 distribute（VERIFIED 之前执行），postVerify 在 verify 通过后作为独立 run 执行（R3）；blocksVerified 缺省 true，仅 preset 可声明 false",
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "preset": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "description": "预设注册表中的预设名（R2 起）；R1 无注册表，任何 preset 引用在运行时 fail-closed"
+        },
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "description": "executable+参数数组（禁止 shell 字符串）；在冻结 tag 工作树中执行"
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "distribute",
+            "postVerify"
+          ],
+          "description": "执行阶段；缺省 distribute"
+        },
+        "config": {
+          "type": "object",
+          "description": "preset 钩子的配置对象；语义由预设注册表校验（R2 起）"
+        },
+        "cwd": {
+          "type": "string",
+          "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$",
+          "description": "command 钩子执行目录（相对冻结 tag 工作树）；preset 钩子禁止声明（运行时 fail-closed）"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 7200000
+        },
+        "envAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!.*(?:TOKEN|SECRET|PASSWORD|PASSPHRASE|API_KEY|CREDENTIAL))[A-Z_][A-Z0-9_]*$"
+          },
+          "uniqueItems": true,
+          "description": "允许透传给钩子进程的环境变量白名单；TOKEN/SECRET 等敏感子串在 schema 层即被拒绝"
+        },
+        "requiresApproval": {
+          "type": "boolean",
+          "description": "执行前需要 checkpoint 级批准（绑定 planDigest + hookId）；public-write preset 缺省 true"
+        },
+        "blocksVerified": {
+          "type": "boolean",
+          "description": "失败时是否阻断 VERIFIED；缺省 true；仅 preset 可声明 false（运行时 fail-closed 校验）"
         }
       }
     },

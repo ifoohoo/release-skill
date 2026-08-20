@@ -2,6 +2,7 @@ import { readFile, lstat, mkdir, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path';
 
 import { canonicalJson, sha256Hex } from '../core/digest.mjs';
+import { effectiveHookRequiresApproval } from '../core/postpublish.mjs';
 import {
   ReleaseError,
   GATE_FAILED,
@@ -61,6 +62,7 @@ async function defaultDependencies() {
     reconcileModule,
     verifyModule,
     distributeModule,
+    postverifyModule,
     transportModule,
     metadataModule,
   ] = await Promise.all([
@@ -71,6 +73,7 @@ async function defaultDependencies() {
     import('./reconcile.mjs'),
     import('./verify.mjs'),
     import('./distribute.mjs'),
+    import('./postverify.mjs'),
     import('../core/git-transport.mjs'),
     import('../core/release-metadata.mjs'),
   ]);
@@ -82,6 +85,7 @@ async function defaultDependencies() {
     reconcileRelease: reconcileModule.reconcileRelease,
     verifyRelease: verifyModule.verifyRelease,
     distributeRelease: distributeModule.distributeRelease,
+    postVerifyRelease: postverifyModule.postVerifyRelease,
     preflightGitTransports: transportModule.preflightGitTransports,
     updatePreviousPublicBaselines: metadataModule.updatePreviousPublicBaselines,
   };
@@ -106,6 +110,7 @@ function publicState(state) {
     ...(state.approvalPath ? { approvalPath: state.approvalPath } : {}),
     ...(state.sourceRunPath ? { sourceRunPath: state.sourceRunPath } : {}),
     ...(state.distributeRunPath ? { distributeRunPath: state.distributeRunPath } : {}),
+    ...(state.postVerify ? { postVerify: state.postVerify } : {}),
     ...(state.requirements ? { requirements: state.requirements } : {}),
     ...(state.manualFollowUps ? { manualFollowUps: state.manualFollowUps } : {}),
     ...(state.metadataUpdate ? { metadataUpdate: state.metadataUpdate } : {}),
@@ -138,6 +143,41 @@ async function buildApprovalSummary(planPath) {
   } catch {
     return { units: [], actions: [] };
   }
+}
+
+/**
+ * Re-entry gate helper (R4 review followup 8): true when EVERY unclosed
+ * postVerify hook is ungated (effective requiresApproval false), so a failed
+ * non-gated hook (e.g. notify-handoff) can be retried without any
+ * --hook-approval file. The unclosed set comes from the last postVerify run
+ * record when readable (checkpoints not succeeded/NO_CHANGE); an unreadable
+ * or missing record falls back to ALL declared hooks — fail-safe, because a
+ * gated hook in doubt keeps the gate shut.
+ *
+ * @param {object} state - Ship state (postVerify.runPath inspected).
+ * @param {object[]} postVerifyHooks - Declared phase:postVerify hooks.
+ * @returns {Promise<boolean>}
+ */
+async function allUnclosedPostVerifyHooksUngated(state, postVerifyHooks) {
+  if (!Array.isArray(postVerifyHooks) || postVerifyHooks.length === 0) return false;
+  let candidates = postVerifyHooks;
+  if (state.postVerify?.runPath) {
+    try {
+      const record = JSON.parse(await readFile(state.postVerify.runPath, 'utf8'));
+      const checkpoints = Array.isArray(record.checkpoints) ? record.checkpoints : [];
+      const closedIds = new Set(
+        checkpoints
+          .filter((cp) => cp?.actionType === 'postpublish-hook'
+            && (cp.status === 'succeeded' || cp.status === 'NO_CHANGE'))
+          .map((cp) => cp.actionId),
+      );
+      candidates = postVerifyHooks.filter((hook) => !closedIds.has(hook.id));
+    } catch {
+      candidates = postVerifyHooks; // unreadable record: fail safe
+    }
+  }
+  if (candidates.length === 0) return false;
+  return candidates.every((hook) => effectiveHookRequiresApproval(hook) === false);
 }
 
 /**
@@ -304,11 +344,18 @@ export async function advanceShip(options = {}, injected = {}) {
     await writeJsonAtomic(statePath, state);
   }
 
+  // Double-run guard (R4 review followup 5): when the PUBLISHED block's
+  // step 3 executes postVerify inside this very call, the re-entry block
+  // after the lifecycle must NOT immediately re-run it.
+  let postVerifyRanThisCall = false;
+
   if (state.status === 'PUBLISHED' || state.status === 'NEEDS_MANUAL_ATTESTATIONS') {
-    // Step 1: Check if postPublish requires distribution
+    // Step 1: Check if postPublish requires distribution.
+    // Hooks-only declarations (no targets) still route through distribute.
     const plan = JSON.parse(await readFile(state.planPath, 'utf8'));
-    const needsDistribution = plan.postPublish && plan.postPublish.targets && plan.postPublish.targets.length > 0;
-    
+    const hasDistributeWork = (plan.postPublish?.targets?.length ?? 0) > 0
+      || (plan.postPublish?.hooks?.length ?? 0) > 0;
+    const needsDistribution = Boolean(plan.postPublish) && hasDistributeWork;
     if (needsDistribution && deps.distributeRelease) {
       state.status = 'DISTRIBUTING';
       await writeJsonAtomic(statePath, state);
@@ -321,17 +368,23 @@ export async function advanceShip(options = {}, injected = {}) {
           root,
           dryRun: false,
           planPath: state.planPath,
+          // Checkpoint approvals for requiresApproval distribute-phase hooks
+          // (review major-1: same seam the distribute CLI already uses).
+          ...(options.postpublishApprovalPaths ? { postpublishApprovalPaths: options.postpublishApprovalPaths } : {}),
         });
         
         state = {
           ...state,
           status: distributed.status,
-          distributeRunPath: distributed.distributeRunPath,
+          distributeRunPath: distributed.distributeRunPath ?? distributed.runPath,
           updatedAt: new Date().toISOString(),
         };
         await writeJsonAtomic(statePath, state);
         
-        if (!distributed.checkpoints || distributed.checkpoints.some((cp) => cp.status === 'failed')) {
+        // In-memory saga checkpoints carry UPPERCASE statuses ('FAILED');
+        // the persisted run record is the lowercase projection. Comparing
+        // against 'failed' here was dead code until v0.6.3 (review note-5).
+        if (!distributed.checkpoints || distributed.checkpoints.some((cp) => cp.status === 'FAILED')) {
           state.status = 'PARTIAL';
           await writeJsonAtomic(statePath, state);
           return publicState(state);
@@ -368,6 +421,100 @@ export async function advanceShip(options = {}, injected = {}) {
         ...state,
         status: 'NEEDS_MANUAL_ATTESTATIONS',
         requirements: error.details?.requirements ?? [],
+        updatedAt: new Date().toISOString(),
+      };
+      await writeJsonAtomic(statePath, state);
+    }
+
+    // Step 3: postVerify phase (design §2.4). phase:postVerify hooks run in an
+    // independent run after the main run is VERIFIED, with the verify run as
+    // lineage source. A PARTIAL postVerify run or a postVerify gate failure
+    // NEVER demotes VERIFIED — the outcome is recorded on the ship state.
+    const postVerifyHooks = (plan.postPublish?.hooks ?? [])
+      .filter((hook) => hook.phase === 'postVerify');
+    if (state.status === 'VERIFIED' && postVerifyHooks.length > 0 && deps.postVerifyRelease) {
+      postVerifyRanThisCall = true;
+      let postVerifyOutcome;
+      try {
+        const postVerified = await deps.postVerifyRelease({
+          planPath: state.planPath,
+          approvalPath: state.approvalPath,
+          sourceRunPath: state.verifyRunPath,
+          root,
+          postpublishApprovalPaths: options.postpublishApprovalPaths,
+        });
+        postVerifyOutcome = {
+          status: postVerified.status,
+          runPath: postVerified.runPath,
+        };
+      } catch (error) {
+        postVerifyOutcome = {
+          status: 'FAILED',
+          error: {
+            code: error?.code ?? GATE_FAILED,
+            message: error?.message ?? String(error),
+          },
+        };
+      }
+      state = {
+        ...state,
+        postVerify: postVerifyOutcome,
+        updatedAt: new Date().toISOString(),
+      };
+      await writeJsonAtomic(statePath, state);
+    }
+  }
+
+  // postVerify re-entry (design §2.4; review major-1). Once the main run is
+  // VERIFIED, ship no longer enters the PUBLISHED block, so a postVerify
+  // outcome parked at AWAITING_APPROVAL (run status NEEDS_INPUT) could never
+  // complete through the CLI. The gate opens when a checkpoint approval is
+  // provided OR every unclosed postVerify hook is ungated (R4 review
+  // followup 8: a failed requiresApproval:false hook retries without any
+  // approval file; a gated hook still unclosed keeps the gate shut).
+  // Re-entry re-runs the phase — rerun IS the reconcile: approved hooks
+  // execute, already-delivered hooks stay idempotent, the verify run remains
+  // the lineage source, and the main VERIFIED status never changes. When the
+  // gate stays shut this block is a no-op: zero postVerify work, no writes.
+  const reentryApprovalPaths = options.postpublishApprovalPaths ?? [];
+  if (
+    state.status === 'VERIFIED'
+    && deps.postVerifyRelease
+    && !postVerifyRanThisCall
+    && (!state.postVerify || state.postVerify.status !== 'DISTRIBUTED')
+  ) {
+    const reentryPlan = JSON.parse(await readFile(state.planPath, 'utf8'));
+    const reentryPostVerifyHooks = (reentryPlan.postPublish?.hooks ?? [])
+      .filter((hook) => hook.phase === 'postVerify');
+    const approvallessRetryAllowed = reentryApprovalPaths.length === 0
+      && await allUnclosedPostVerifyHooksUngated(state, reentryPostVerifyHooks);
+    if (reentryPostVerifyHooks.length > 0
+      && (reentryApprovalPaths.length > 0 || approvallessRetryAllowed)) {
+      let postVerifyOutcome;
+      try {
+        const postVerified = await deps.postVerifyRelease({
+          planPath: state.planPath,
+          approvalPath: state.approvalPath,
+          sourceRunPath: state.verifyRunPath,
+          root,
+          postpublishApprovalPaths: reentryApprovalPaths,
+        });
+        postVerifyOutcome = {
+          status: postVerified.status,
+          runPath: postVerified.runPath,
+        };
+      } catch (error) {
+        postVerifyOutcome = {
+          status: 'FAILED',
+          error: {
+            code: error?.code ?? GATE_FAILED,
+            message: error?.message ?? String(error),
+          },
+        };
+      }
+      state = {
+        ...state,
+        postVerify: postVerifyOutcome,
         updatedAt: new Date().toISOString(),
       };
       await writeJsonAtomic(statePath, state);

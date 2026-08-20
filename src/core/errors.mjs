@@ -95,6 +95,8 @@ const EXIT_CODE_MAP = Object.freeze({
   CONTENT_MISMATCH: 52,
   DIRTY_SOURCE_INPUT: 53,
   BUNDLE_STALE: 54,
+  POSTPUBLISH_HOOK_INVALID: 55,
+  DERIVED_ARTIFACT_STALE: 56,
 });
 
 // ---- Error code constants ----
@@ -144,6 +146,8 @@ export const NOT_DEFAULT = 'NOT_DEFAULT';
 export const CONTENT_MISMATCH = 'CONTENT_MISMATCH';
 export const DIRTY_SOURCE_INPUT = 'DIRTY_SOURCE_INPUT';
 export const BUNDLE_STALE = 'BUNDLE_STALE';
+export const POSTPUBLISH_HOOK_INVALID = 'POSTPUBLISH_HOOK_INVALID';
+export const DERIVED_ARTIFACT_STALE = 'DERIVED_ARTIFACT_STALE';
 
 /**
  * Typed error for release-skill operations.

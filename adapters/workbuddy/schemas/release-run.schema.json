@@ -43,7 +43,8 @@
         "PARTIAL",
         "BLOCKED",
         "DISTRIBUTING",
-        "DISTRIBUTED"
+        "DISTRIBUTED",
+        "NEEDS_INPUT"
       ],
       "description": "Current status of the run"
     },
@@ -55,7 +56,8 @@
         "publish",
         "reconcile",
         "verify",
-        "distribute"
+        "distribute",
+        "postverify"
       ],
       "description": "The command that initiated this run"
     },
@@ -133,7 +135,8 @@
               "codebuddy-marketplace-install",
               "set-default-branch",
               "distribute-probe",
-              "distribute-mirror"
+              "distribute-mirror",
+              "postpublish-hook"
             ],
             "description": "Type of external action"
           },
@@ -149,9 +152,10 @@
               "PASSED_AUTOMATIC",
               "PASSED_MANUAL",
               "NOT_REQUIRED_UNCHANGED",
-              "NO_CHANGE"
+              "NO_CHANGE",
+              "AWAITING_APPROVAL"
             ],
-            "description": "Result status of this checkpoint (uncertain = started, result unknown; deferred = marketplace action postponed to verify phase; PASSED_AUTOMATIC/PASSED_MANUAL/NOT_REQUIRED_UNCHANGED 为验证阶段专用状态; NO_CHANGE = distribute 目标暂存差异为空，未产生 commit/tag/push)"
+            "description": "Result status of this checkpoint (uncertain = started, result unknown; deferred = marketplace action postponed to verify phase; PASSED_AUTOMATIC/PASSED_MANUAL/NOT_REQUIRED_UNCHANGED 为验证阶段专用状态; NO_CHANGE = distribute 目标暂存差异为空，未产生 commit/tag/push; AWAITING_APPROVAL = requiresApproval postPublish hook 尚无 checkpoint 批准，v0.6.3 R1)"
           },
           "preObserve": {
             "type": "string",
@@ -621,7 +625,8 @@
             "enum": [
               "reconcile",
               "verify",
-              "distribute"
+              "distribute",
+              "postverify"
             ]
           }
         },
