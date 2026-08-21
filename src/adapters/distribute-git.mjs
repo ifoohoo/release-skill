@@ -50,6 +50,12 @@ import {
   createResult,
 } from './contract.mjs';
 import { ReleaseError, GATE_FAILED, REMOTE_CONFLICT, REMOTE_UNAVAILABLE } from '../core/errors.mjs';
+import {
+  checkGitRemoteUrl,
+  describeGitRemoteUrlFailure,
+  isAllowedGitRemoteUrl,
+  redactUrlCredentialsIfPresent,
+} from '../core/git-url-policy.mjs';
 
 const execFile = promisify(execFileCb);
 
@@ -59,8 +65,6 @@ const GIT_TIMEOUT_MS = 120_000;
 const TRANSFER_TIMEOUT_MS = 300_000;
 const TMP_PREFIX = 'release-skill-distribute-';
 
-/** Remote URL pattern: http(s) or file (test transport), .git-suffixed. */
-const SAFE_REMOTE_URL_RE = /^(?:https?|file):\/\/.+\.git$/;
 /** Branch pattern (leading alphanumeric blocks option-like names). */
 const SAFE_BRANCH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 /** Safe tag characters (belt + braces; prepare already rendered the tag). */
@@ -164,8 +168,8 @@ export function renderMarketplaceIndex(marketplace, params = {}) {
       ...(sha ? { sha } : {}),
     };
   } else {
-    if (typeof dependencyUrl !== 'string' || !SAFE_REMOTE_URL_RE.test(dependencyUrl)) {
-      fail('url form requires the payload-mirror dependency remoteUrl', { dependencyUrl });
+    if (typeof dependencyUrl !== 'string' || !isAllowedGitRemoteUrl(dependencyUrl)) {
+      fail('url form requires the payload-mirror dependency remoteUrl', {});
     }
     source = {
       source: 'url',
@@ -187,11 +191,12 @@ function hasControlChars(value) {
 }
 
 function assertSafeRemoteUrl(remoteUrl) {
-  if (typeof remoteUrl !== 'string' || !SAFE_REMOTE_URL_RE.test(remoteUrl) || hasControlChars(remoteUrl)) {
+  const verdict = checkGitRemoteUrl(remoteUrl);
+  if (!verdict.ok) {
     throw new ReleaseError(
       GATE_FAILED,
-      'distribute remoteUrl must be an http(s)/file URL ending in .git',
-      { remoteUrl },
+      `distribute remoteUrl ${describeGitRemoteUrlFailure(verdict.reason)}`,
+      { reason: verdict.reason },
     );
   }
 }
@@ -302,9 +307,10 @@ export function createDistributeGitAdapter(deps = {}) {
   function probeFailureResult(action, error) {
     const classification = classifyProbeFailure(stderrText(error));
     const code = classification === 'auth' ? REMOTE_CONFLICT : REMOTE_UNAVAILABLE;
+    const safeRemoteUrl = redactUrlCredentialsIfPresent(action.remoteUrl);
     const message = classification === 'auth'
-      ? `remote refused authentication for ${action.remoteUrl}; distribute reuses the host keychain credential and never prompts, reads, or retries credentials`
-      : `cannot reach ${action.remoteUrl} — start VPN / check network; distribute fails closed and never retries with credentials`;
+      ? `remote refused authentication for ${safeRemoteUrl}; distribute reuses the host keychain credential and never prompts, reads, or retries credentials`
+      : `cannot reach ${safeRemoteUrl} — start VPN / check network; distribute fails closed and never retries with credentials`;
     return createResult({
       actionType: action.actionType,
       status: ActionStatus.PREFLIGHT_FAILED,
@@ -312,7 +318,7 @@ export function createDistributeGitAdapter(deps = {}) {
       details: {
         code,
         classification,
-        remoteUrl: action.remoteUrl,
+        remoteUrl: safeRemoteUrl,
         stderrTail: stderrTail(error),
       },
     });
@@ -468,7 +474,7 @@ export function createDistributeGitAdapter(deps = {}) {
       if (existingTag) {
         throw new ReleaseError(
           REMOTE_CONFLICT,
-          `target ${action.remoteUrl} already carries tag ${action.tag} and the content differs; moving an existing tag would be force-equivalent — human decision required`,
+          `target ${redactUrlCredentialsIfPresent(action.remoteUrl)} already carries tag ${action.tag} and the content differs; moving an existing tag would be force-equivalent — human decision required`,
           { targetId: action.targetId, tag: action.tag },
         );
       }

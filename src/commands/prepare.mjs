@@ -18,13 +18,14 @@
  * @module commands/prepare
  */
 
-import { resolve, relative, isAbsolute, normalize, dirname, basename } from 'node:path';
-import { readFile, mkdir, readdir, realpath } from 'node:fs/promises';
+import { resolve, relative, isAbsolute, normalize, dirname, basename, posix as pathPosix } from 'node:path';
+import { readFile, mkdir, readdir, realpath, lstat } from 'node:fs/promises';
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const execFile = promisify(execFileCb);
 
+import { classifyPathInput } from 'skill-family-harness-node';
 import { loadProjectConfig } from '../core/config.mjs';
 import { captureBaseline } from '../core/baseline.mjs';
 import { runHook } from '../core/hooks.mjs';
@@ -78,6 +79,7 @@ import {
   orderNormalizedHooks,
   PAYLOAD_SOURCE_TAG_WORKTREE,
 } from '../core/postpublish.mjs';
+import { freezeExecutionBundle, bundleRootForAuthorityDir } from '../core/postpublish-bundle.mjs';
 
 // ---------------------------------------------------------------------------
 // 安装契约常量
@@ -1123,6 +1125,128 @@ async function buildProductionAssets(
 }
 
 // ---------------------------------------------------------------------------
+// F-01 / T1: private execution inputs freeze gate
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalize one relative path for closure-style set comparison (the same
+ * lexical normalization Foundation applies to closure resource paths).
+ *
+ * @param {string} value - Relative path candidate.
+ * @returns {string} POSIX-normalized form.
+ */
+function normalizeRelativeClosurePath(value) {
+  return pathPosix.normalize(String(value).replaceAll('\\', '/'));
+}
+
+/**
+ * Enumerate the paths present in the frozen tag tree: the production asset
+ * commit is the commit the distribution tag will point at, and its tree
+ * lives in the detached asset repository built by buildProductionAssets.
+ * Read-only local git; no network.
+ *
+ * @param {string} root - Release workspace root.
+ * @param {object} asset - productionAssets entry (gitObjectDir + commit).
+ * @returns {Promise<Set<string>>} Normalized paths contained in the tag.
+ */
+async function enumerateFrozenTagPaths(root, asset) {
+  const gitDir = resolve(root, asset.gitObjectDir);
+  let stdout;
+  try {
+    ({ stdout } = await execFile('git', [
+      '--git-dir', gitDir,
+      'ls-tree', '-r', '-z', '--name-only', asset.commit,
+    ]));
+  } catch (err) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `cannot enumerate the frozen tag tree for the executionFiles gate: ${err?.message ?? err}`,
+      { gitObjectDir: asset.gitObjectDir, commit: asset.commit },
+    );
+  }
+  return new Set(`${stdout}`.split('\0').filter(Boolean).map(normalizeRelativeClosurePath));
+}
+
+/**
+ * Collect the relative-path candidates from every postPublish command array
+ * (materialize, steps, custom command hooks). Flag-like elements are not
+ * path candidates; lexical safety is decided by Foundation classification.
+ *
+ * @param {object} postPublish - The unit postPublish declaration.
+ * @returns {Array<{where: string, element: string}>}
+ */
+function collectPostPublishCommandCandidates(postPublish) {
+  const candidates = [];
+  const visit = (where, command) => {
+    if (!Array.isArray(command)) return;
+    for (const element of command) {
+      if (typeof element !== 'string' || element.length === 0 || element.startsWith('-')) continue;
+      candidates.push({ where, element });
+    }
+  };
+  visit('materialize', postPublish.materialize?.command);
+  for (const step of postPublish.steps ?? []) visit(`steps[${step.name}]`, step.command);
+  for (const hook of postPublish.hooks ?? []) {
+    if (Array.isArray(hook.command)) visit(`hooks[${hook.id}]`, hook.command);
+  }
+  return candidates;
+}
+
+/**
+ * F-01 / T1 declaration gate (fail-closed, before any plan write):
+ *
+ * - a command-array element that is a safe relative path, EXISTS as a
+ *   regular file in the live workspace, is ABSENT from the frozen tag tree,
+ *   and is NOT declared in executionFiles is an undeclared private input —
+ *   report it immediately instead of letting distribute guess or copy;
+ * - an executionFiles entry that already exists in the frozen tag is
+ *   rejected: tag files stay bound to tagCommit and the execution bundle
+ *   must never shadow them.
+ *
+ * When no frozen tag exists yet (non-production prepare) the tag-dependent
+ * checks are skipped — distribute fails closed later without a tagCommit.
+ *
+ * @param {object} postPublish - Unit postPublish declaration.
+ * @param {object} params
+ * @param {string} params.workspaceRoot - Release workspace root (realpath).
+ * @param {Set<string>|null} params.frozenTagPaths - Frozen tag tree paths.
+ * @param {string[]} params.executionFiles - Declared closed-world manifest.
+ */
+async function assertPrivateExecutionDeclarations(postPublish, { workspaceRoot, frozenTagPaths, executionFiles }) {
+  const declared = new Set(executionFiles.map(normalizeRelativeClosurePath));
+  for (const { where, element } of collectPostPublishCommandCandidates(postPublish)) {
+    const classification = classifyPathInput(element);
+    if (!classification.ok) continue; // absolute/UNC/backslash inputs are not workspace-relative files
+    let stats = null;
+    try {
+      stats = await lstat(resolve(workspaceRoot, element));
+    } catch {
+      continue; // not present in the live workspace: nothing to declare
+    }
+    if (!stats.isFile()) continue;
+    const normalized = normalizeRelativeClosurePath(element);
+    if (frozenTagPaths && frozenTagPaths.has(normalized)) continue; // bound by tagCommit
+    if (declared.has(normalized)) continue;
+    throw new ReleaseError(
+      GATE_FAILED,
+      `postPublish ${where} command references the workspace-private file "${element}" that exists in the workspace but is absent from the frozen tag; declare it in postPublish.executionFiles (closed world — helper files included)`,
+      { where, path: element },
+    );
+  }
+  if (frozenTagPaths) {
+    for (const entry of executionFiles) {
+      if (frozenTagPaths.has(normalizeRelativeClosurePath(entry))) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `postPublish.executionFiles entry "${entry}" already exists in the frozen tag; tag files stay bound to tagCommit and the execution bundle must never shadow them`,
+          { path: entry },
+        );
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // External independent marketplace freeze (production + online only)
 // ---------------------------------------------------------------------------
 
@@ -1836,6 +1960,15 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
  * @param {boolean} [options.hookCache=true] - When false (CLI --no-hook-cache),
  *   every declared hook runs in full and the incremental hook cache is neither
  *   read nor written.
+ * @param {Function} [options.adapterFreshnessFn] - Adapter derived-artifact
+ *   pre-gate (default assertAdapterFreshness). No environment variable
+ *   exempts the default gate (F-03): it runs in the CLI, plain function
+ *   calls, and the node:test harness alike. Tests that need a lightweight
+ *   fixture inject a double explicitly in-process; the CLI exposes no
+ *   parameter for it.
+ * @param {Function} [options.selfBootstrapFactsFn] - Self-bootstrap fact-pin
+ *   pre-gate (default assertSelfBootstrapFacts); same injection contract as
+ *   adapterFreshnessFn.
  *
  * @returns {Promise<{ planPath: string, planDigest: string, evidenceDir: string, warnings: ReadonlyArray<object>, nextSteps: ReadonlyArray<{ code: string, message: string }> }>}
  *
@@ -2108,6 +2241,11 @@ export async function prepareRelease(options) {
     // stage so the same drift fails closed in seconds, before any hook. Like
     // the bundle freshness gate this is artifact-integrity class: workflow
     // trimming never exempts it. Installed layouts record not-applicable.
+    // F-03 (2026-08-21 architecture review): the gates run identically in
+    // the CLI, plain function calls, and the node:test harness — no
+    // environment variable may exempt them (a test seam is never a
+    // production switch). Tests that need lightweight fixtures inject the
+    // adapterFreshnessFn/selfBootstrapFactsFn seams explicitly in-process.
     await evidence.append({ phase: 'adapter-freshness', status: 'started' });
     const adapterFreshnessFn = options.adapterFreshnessFn ?? assertAdapterFreshness;
     let adapterFreshness;
@@ -3595,16 +3733,51 @@ export async function prepareRelease(options) {
     // tagCommit, never from workspace state). planVersion 2 record-layer
     // stripping does not strip this block, so every declaration detail is
     // bound into the plan digest.
+    //
+    // F-01 / T1 private execution bundle: parent-workspace files that the
+    // post-publish commands need but the frozen tag does not contain are
+    // frozen here — Foundation closure (verbatim computeResourceClosure
+    // return) + the release-unit publicFiles projection — and their bytes
+    // are published digest-addressed under this plan's .release-skill. The
+    // plan is the bundle's only source of truth (no parallel manifest, no
+    // second bundle digest): the raw executionFiles list folds into the
+    // closure and is NOT duplicated into the frozen block.
     let frozenPostPublish = null;
     if (postPublishDeclaration) {
       const { unit, index } = postPublishDeclaration;
       const { tag } = resolveProductionBranch(unit, resolvedVersions[index]);
+      const declaredExecutionFiles = unit.postPublish.executionFiles ?? [];
+      const frozenTagPaths = productionAssets
+        ? await enumerateFrozenTagPaths(realRoot, productionAssets[index])
+        : null;
+      await assertPrivateExecutionDeclarations(unit.postPublish, {
+        workspaceRoot: realRoot,
+        frozenTagPaths,
+        executionFiles: declaredExecutionFiles,
+      });
+      const executionBundle = await freezeExecutionBundle({
+        workspaceRoot: realRoot,
+        releaseSkillDir: releaseDir,
+        executionFiles: declaredExecutionFiles,
+        publicFiles: unit.publicFiles ?? [],
+      });
+      await evidence.append({
+        phase: 'postpublish-execution-bundle',
+        status: 'frozen',
+        unitId: unit.id,
+        closureDigest: executionBundle.closure.digest,
+        resourceCount: executionBundle.closure.resources.length,
+        publicFileCount: executionBundle.publicFiles.length,
+        bundleRoot: relative(realRoot, bundleRootForAuthorityDir(releaseDir)),
+      });
+      const { executionFiles: _executionFiles, ...declarationWithoutManifest } = structuredClone(unit.postPublish);
       frozenPostPublish = {
-        ...structuredClone(unit.postPublish),
+        ...declarationWithoutManifest,
         tag,
         ...(productionAssets ? { tagCommit: productionAssets[index].commit } : {}),
         unitId: unit.id,
         payloadSource: PAYLOAD_SOURCE_TAG_WORKTREE,
+        executionBundle,
       };
     }
 

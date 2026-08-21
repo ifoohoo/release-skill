@@ -886,9 +886,8 @@
     },
     "postPublish": {
       "type": "object",
-      "description": "发布后分发声明：materialize 钩子从冻结 tag 工作树物化载荷，targets 将载荷镜像或渲染市场索引推送到独立 git 远端。分发在 publish 之后由 distribute 命令执行，时序契约禁止读取工作区状态。",
+      "description": "发布后分发声明：载荷要么由 materialize 钩子从冻结 tag 工作树物化，要么（省略 materialize 时）由冻结的 publicFiles 映射经 Foundation Engineering Kit 托管投影物化（F-06/T6）；targets 将载荷镜像或渲染市场索引推送到独立 git 远端。分发在 publish 之后由 distribute 命令执行，时序契约禁止读取工作区状态。",
       "required": [
-        "materialize",
         "commitIdentity"
       ],
       "additionalProperties": false,
@@ -939,6 +938,16 @@
         "assertMainVersionAhead": {
           "type": "boolean",
           "description": "分发前校验主干版本源仍领先于目标版本，防止在已推进的主干上分发旧版本"
+        },
+        "executionFiles": {
+          "type": "array",
+          "description": "私有执行输入闭世界清单（F-01）：仅列出发布后命令需要、但冻结 tag 中不存在的父工作区领域文件；辅助文件（helper）必须显式列入，执行时不做任何临时发现。每个路径经 Foundation 路径分类与受收容读取；列表排序去重后随计划冻结为 executionBundle.closure，字节发布到计划权威 .release-skill 下的摘要寻址目录。tag 中已有的文件继续由 tagCommit 绑定，不得在此声明（执行包不得覆盖 tag 文件）。路径语法只由 schema 做第一层形状检查，最终以运行时 Foundation 分类为准。",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
+          },
+          "uniqueItems": true
         }
       }
     },
@@ -1129,8 +1138,8 @@
         },
         "remoteUrl": {
           "type": "string",
-          "pattern": "^(?:https?|file)://.+\\.git$",
-          "description": "仅允许 http(s) 或 file（测试传输）且以 .git 结尾的远端 URL"
+          "pattern": "^(?:https?|file)://[^@]+\\.git$",
+          "description": "仅允许 http(s) 或 file（测试传输）且以 .git 结尾的远端 URL；禁止任何 userinfo（user:password@）形态——凭证只属于宿主 git credential helper。schema 只是第一道门，运行时 Git URL 策略（new URL 解析）是最终权威"
         },
         "visibility": {
           "type": "string",

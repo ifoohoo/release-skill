@@ -170,12 +170,14 @@ marketplace install action 的安装侧载荷校验以 action 参数 `payloadCon
 1. 发布计划已冻结且 schema 验证通过。
 2. 发布计划摘要与批准记录中的摘要匹配。
 3. 批准记录存在且未超过 24 小时有效期。
-4. Git tree hash 与批准记录中的匹配。
+4. 工作区基线按 `planVersion` 分叉校验（与 `01-state-machine.md` §4.4 及根 `AGENTS.md` 的 Release Authorization 语义一致）：
+   - **planVersion 1（旧版）计划**：继续绑定基线——Git tree hash（及 workspace digest）必须与批准记录中的匹配；批准后基线变化即使批准失效，硬失败（`BASELINE_CHANGED`）。
+   - **planVersion 2 计划**：digest 只绑定信任边界（冻结产物身份：git commit/tree、manifestDigest、npm tarball 摘要；外部动作列表；目标版本；配置摘要）。工作区基线（tree hash、workspace digest）是记录层审计数据：不参与 digest、不使批准失效；publish/reconcile 检测到基线漂移时记录 warning 级证据事件并继续执行，产物身份与完整性由外部写之前的冻结产物复验保证。
 5. 目标版本与批准记录中的匹配。
 6. 远端无冲突状态（preflight 通过）。
 7. `context.externalWritesAuthorized === true`。
 
-任一条件不满足时，execute 返回对应错误码（`AUTH_MISSING`、`BASELINE_CHANGED`、`REMOTE_CONFLICT` 等）并拒绝执行。
+任一条件不满足时，execute 返回对应错误码（`AUTH_MISSING`、`BASELINE_CHANGED`（仅 planVersion 1）、`REMOTE_CONFLICT` 等）并拒绝执行。
 
 ### 3.2 批准记录结构
 
@@ -195,6 +197,7 @@ marketplace install action 的安装侧载荷校验以 action 参数 `payloadCon
 
 - `approvedActions` 不得包含通配符。
 - `expiresAt` 不得晚于 `approvedAt` + 24 小时。
+- `baseline` 的约束力按 `planVersion` 分叉（见 §3.1 条件 4）：planVersion 1 计划中它是批准绑定字段；planVersion 2 计划中它只是记录层审计数据，不使批准失效。
 
 ---
 
@@ -234,7 +237,7 @@ marketplace install action 的安装侧载荷校验以 action 参数 `payloadCon
 1. 重新验证发布计划 schema。
 2. 重新验证发布计划摘要。
 3. 检查批准记录是否过期。
-4. 检查 Git tree hash 是否变化。
+4. 按 planVersion 分叉复验工作区基线：planVersion 1 计划基线变化即失败（`BASELINE_CHANGED`）；planVersion 2 计划基线漂移仅记录 warning 级证据事件并继续，产物身份由外部写之前的冻结产物复验保证。
 5. 执行远程 preflight。
 6. 按批准的操作列表顺序执行每个检查点。
 7. 每个检查点：preflight -> execute -> observe -> 记录。

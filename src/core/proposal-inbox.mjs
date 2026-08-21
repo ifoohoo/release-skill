@@ -48,6 +48,11 @@ import {
   POST_PUBLISH_VERIFY_FAILED,
 } from './errors.mjs';
 import { preflightPresetWorkspace, assertPresetWorkspaceExecution } from './presets.mjs';
+import {
+  checkGitRemoteUrl,
+  describeGitRemoteUrlFailure,
+  redactUrlCredentialsIfPresent,
+} from './git-url-policy.mjs';
 
 const execFileAsync = promisify(execFileCb);
 
@@ -60,7 +65,6 @@ const GIT_TIMEOUT_MS = 120_000;
 const TRANSFER_TIMEOUT_MS = 300_000;
 const TMP_PREFIX = 'release-skill-proposal-';
 
-const SAFE_REMOTE_URL_RE = /^(?:https?|file):\/\/.+\.git$/;
 const SAFE_BRANCH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 const SHA_RE = /^[a-f0-9]{40}$/;
 
@@ -105,11 +109,12 @@ function hasControlChars(value) {
 }
 
 function assertSafeRemoteUrl(remoteUrl) {
-  if (typeof remoteUrl !== 'string' || !SAFE_REMOTE_URL_RE.test(remoteUrl) || hasControlChars(remoteUrl)) {
+  const verdict = checkGitRemoteUrl(remoteUrl);
+  if (!verdict.ok) {
     throw new ReleaseError(
       GATE_FAILED,
-      'proposal-inbox remoteUrl must be an http(s)/file URL ending in .git',
-      { remoteUrl },
+      `proposal-inbox remoteUrl ${describeGitRemoteUrlFailure(verdict.reason)}`,
+      { reason: verdict.reason },
     );
   }
 }
@@ -240,7 +245,8 @@ export function buildProposalDocument(context) {
  * @returns {string}
  */
 export function buildManualSyncPrompt({ remoteUrl, proposalPath, branch }) {
-  return `manual sync required: review proposal ${proposalPath} in downstream repository ${remoteUrl} (branch ${branch}); suggested action: open a pull request or apply the proposal through the downstream governance workflow`;
+  const safeRemoteUrl = redactUrlCredentialsIfPresent(remoteUrl);
+  return `manual sync required: review proposal ${proposalPath} in downstream repository ${safeRemoteUrl} (branch ${branch}); suggested action: open a pull request or apply the proposal through the downstream governance workflow`;
 }
 
 // ---------------------------------------------------------------------------
@@ -275,7 +281,7 @@ export async function crossCheckPushedCommit(exec, remoteUrl, branch, pushedComm
     throw new ReleaseError(
       POST_PUBLISH_VERIFY_FAILED,
       `post-push cross-check failed: remote branch ${branch} is at ${observed ?? '<missing>'}, which disagrees with the pushed commit ${pushedCommit}`,
-      { remoteUrl, branch, pushedCommit, observed },
+      { remoteUrl: redactUrlCredentialsIfPresent(remoteUrl), branch, pushedCommit, observed },
     );
   }
   return observed;
@@ -333,12 +339,13 @@ export async function deliverProposalGitPush(params) {
       });
     } catch (error) {
       const classification = classifyNetFailure(stderrText(error));
+      const safeRemoteUrl = redactUrlCredentialsIfPresent(remoteUrl);
       throw new ReleaseError(
         classification === 'auth' ? REMOTE_CONFLICT : REMOTE_UNAVAILABLE,
         classification === 'auth'
-          ? `proposal-inbox remote refused authentication for ${remoteUrl}; the host keychain credential is reused and never prompted, read, or retried`
-          : `cannot reach proposal-inbox remote ${remoteUrl} — start VPN / check network; delivery fails closed and never retries with credentials`,
-        { remoteUrl, stderrTail: stderrTail(error) },
+          ? `proposal-inbox remote refused authentication for ${safeRemoteUrl}; the host keychain credential is reused and never prompted, read, or retried`
+          : `cannot reach proposal-inbox remote ${safeRemoteUrl} — start VPN / check network; delivery fails closed and never retries with credentials`,
+        { remoteUrl: safeRemoteUrl, stderrTail: stderrTail(error) },
       );
     }
 
@@ -375,8 +382,8 @@ export async function deliverProposalGitPush(params) {
       }
       throw new ReleaseError(
         REMOTE_CONFLICT,
-        `proposal ${proposalPath} already exists in ${remoteUrl} with different content; overwriting a downstream proposal requires a human decision`,
-        { remoteUrl, proposalPath },
+        `proposal ${proposalPath} already exists in ${redactUrlCredentialsIfPresent(remoteUrl)} with different content; overwriting a downstream proposal requires a human decision`,
+        { remoteUrl: redactUrlCredentialsIfPresent(remoteUrl), proposalPath },
       );
     }
 
@@ -401,12 +408,13 @@ export async function deliverProposalGitPush(params) {
       });
     } catch (error) {
       const classification = classifyNetFailure(stderrText(error));
+      const safeRemoteUrl = redactUrlCredentialsIfPresent(remoteUrl);
       throw new ReleaseError(
         classification === 'auth' ? REMOTE_CONFLICT : REMOTE_UNAVAILABLE,
         classification === 'auth'
-          ? `proposal-inbox push refused authentication for ${remoteUrl}; the host keychain credential is reused and never prompted, read, or retried`
-          : `proposal-inbox push to ${remoteUrl} failed — start VPN / check network; delivery fails closed and never retries with credentials`,
-        { remoteUrl, branch, stderrTail: stderrTail(error) },
+          ? `proposal-inbox push refused authentication for ${safeRemoteUrl}; the host keychain credential is reused and never prompted, read, or retried`
+          : `proposal-inbox push to ${safeRemoteUrl} failed — start VPN / check network; delivery fails closed and never retries with credentials`,
+        { remoteUrl: safeRemoteUrl, branch, stderrTail: stderrTail(error) },
       );
     }
 
@@ -581,29 +589,37 @@ export async function deliverProposalLocalFile(params) {
  * deliver it into the local checkout (never pushed). Shared by the
  * distribute saga and the postVerify run.
  *
+ * F-04: `releaseWorkspaceRoot` is the real project root — the ONLY
+ * resolution basis for `config.target.workspace` and the release-workspace
+ * write exclusion. The detached execution worktree is never passed here.
+ *
  * @param {object} params
  * @param {object} params.hook - Declared hook entry (config.target bound).
  * @param {object} params.contextProjection - The §2.3 context projection.
  * @param {object} params.commitIdentity - Frozen commitIdentity.
- * @param {string} params.root - Release workspace root (workspace resolution).
+ * @param {string} params.releaseWorkspaceRoot - Release workspace root
+ *   (workspace resolution + release-workspace write exclusion).
  * @param {Function} [params.exec] - Injectable git exec (tests).
  * @returns {Promise<{ status: string, observation: object, proposalPath: string, manualSyncPrompt: string }>}
  */
 export async function executeProposalInboxLocalFileHook(params) {
-  const { hook, contextProjection, commitIdentity, root, exec } = params ?? {};
+  const { hook, contextProjection, commitIdentity, releaseWorkspaceRoot, exec } = params ?? {};
   const target = hook?.config?.target;
   if (!target || typeof target.workspace !== 'string' || typeof target.branch !== 'string') {
     throw new ReleaseError(GATE_FAILED, 'proposal-inbox local-file requires config.target.workspace and config.target.branch');
   }
-  if (typeof root !== 'string' || root.length === 0) {
-    throw new ReleaseError(GATE_FAILED, 'proposal-inbox local-file requires the release workspace root');
+  if (typeof releaseWorkspaceRoot !== 'string' || releaseWorkspaceRoot.length === 0) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      'proposal-inbox local-file requires the release workspace root (releaseWorkspaceRoot); the detached execution worktree is never the release workspace',
+    );
   }
 
   // §2.6 workspace execution checks: preflight realpath, TOCTOU re-check,
   // release-workspace/runtime-directory exclusion — all before any write.
-  const preflight = await preflightPresetWorkspace(target.workspace, { root });
+  const preflight = await preflightPresetWorkspace(target.workspace, { releaseWorkspaceRoot });
   const execution = await assertPresetWorkspaceExecution(target.workspace, {
-    root,
+    releaseWorkspaceRoot,
     preflightRealpath: preflight.realpath,
   });
 

@@ -7,9 +7,33 @@
  *
  * Timing contract (R1): the payload may ONLY ever come from a detached git
  * worktree checked out at the frozen `postPublish.tagCommit` — never from
- * the live workspace, which has already moved ahead. The consumer-declared
- * materialize hook runs inside that worktree and announces the isolated
- * payload directory through its `outputMarker` line.
+ * the live workspace, which has already moved ahead. Since F-06 / T6 the
+ * frozen plan selects exactly one of two staging routes:
+ * - a consumer materialize hook (when declared): it runs inside that
+ *   worktree and announces the isolated payload directory through its
+ *   `outputMarker` line;
+ * - the Foundation managed projection (when the plan declares no materialize
+ *   hook): the frozen `postPublish.executionBundle.publicFiles` mapping is
+ *   staged from the tag worktree into a fresh `hub-payload` root through the
+ *   Engineering Kit `compileProjectionPlan`/`runProjection` contract —
+ *   never by live project configuration and never by a parent-workspace
+ *   script.
+ *
+ * Private execution bundle (F-01 / T1): consumer-declared hook commands
+ * (materialize, steps, custom distribute-phase hooks) may reference scripts
+ * by workspace-relative paths that the frozen tag tree never contains —
+ * parent-workspace tooling never leaks into the public surface. prepare
+ * freezes those files (closed-world `executionFiles` manifest) into the
+ * plan's `postPublish.executionBundle` and publishes the bytes
+ * digest-addressed under the plan's `.release-skill`. Before ANY hook runs,
+ * distribute strictly re-reads the bundle bytes, recomputes the closure
+ * through Foundation, and installs ONLY the verified bytes into the tag
+ * worktree (never overwriting tag files). Live-workspace copying and the
+ * RELEASE_SKILL_WORKSPACE_ROOT injection are gone: after the freeze, the
+ * workspace copies are never read back. The payload timing contract is
+ * untouched: payload content must still be produced from the frozen
+ * checkout and the announced payload directory must stay inside the
+ * worktree.
  *
  * Safety gates (all verified before any adapter execute):
  *  1. plan schema validation
@@ -72,7 +96,9 @@ import {
   POSTPUBLISH_CONTEXT_ENV,
   PAYLOAD_SOURCE_TAG_WORKTREE,
 } from '../core/postpublish.mjs';
-import { validatePostPublishApproval } from '../core/postpublish-approval.mjs';
+import { verifyAndInstallExecutionBundle } from '../core/postpublish-bundle.mjs';
+import { projectPublicPayload, PROJECTION_MECHANISM, PUBLIC_PAYLOAD_DIRNAME } from '../core/postpublish-projection.mjs';
+import { assertPostPublishApprovalAuthority, validatePostPublishApproval } from '../core/postpublish-approval.mjs';
 import { executePresetHook } from '../core/preset-executor.mjs';
 import {
   ReleaseError,
@@ -233,7 +259,9 @@ function resolvePluginName(plan, unitId) {
  * @param {Function} [options.runHookFn] - Injectable hook runner (tests).
  * @param {string[]} [options.postpublishApprovalPaths] - Checkpoint approval
  *   records for requiresApproval postPublish hooks (v0.6.3 R1); each record
- *   binds (planDigest, hookId) and is validated fail-closed before any write.
+ *   binds (planDigest, hookId), must be consumed from the immutable
+ *   digest-addressed authority minted by approvePostPublishHook (F-02), and
+ *   is validated fail-closed before any write.
  *
  * @returns {Promise<{ planPath: string, runPath: string, status: string, checkpoints: Object[] }>}
  *
@@ -503,9 +531,14 @@ export async function distributeRelease(options) {
 
     // =======================================================================
     // Gate: checkpoint approvals for requiresApproval hooks. Every provided
-    // record is validated fail-closed BEFORE any write (planDigest binding,
-    // declared hook, requiresApproval, 24h window, expiry). A bad approval
-    // aborts the whole saga; a missing one parks the hook at AWAITING_APPROVAL.
+    // record is validated fail-closed BEFORE any write: first the immutable
+    // authority binding (F-02: the consumption path must BE the digest-
+    // addressed authority minted by approvePostPublishHook — recomputed
+    // planDigest directory, recomputed approvalDigest file name, strict
+    // no-follow regular-file read, no symlinked ancestor), then the content
+    // checks (schema, planDigest binding, declared hook, requiresApproval,
+    // 24h window, expiry). A bad approval aborts the whole saga; a missing
+    // one parks the hook at AWAITING_APPROVAL.
     // =======================================================================
     const approvedHookIds = new Set();
     const hookApprovalPaths = postpublishApprovalPaths ?? [];
@@ -534,6 +567,18 @@ export async function distributeRelease(options) {
           await failBlocked(new ReleaseError(
             GATE_FAILED,
             `postpublish hook approval is not valid JSON: ${err.message}`,
+            { hookApprovalPath },
+          ));
+        }
+        // F-02: identical bytes anywhere else are not an approval. The
+        // authority assertion runs before content validation and before the
+        // hook may enter approvedHookIds.
+        try {
+          await assertPostPublishApprovalAuthority(planPath, hookApprovalPath, plan, hookApprovalRaw);
+        } catch (err) {
+          await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
+            GATE_FAILED,
+            `postpublish hook approval authority check failed: ${err?.message ?? err}`,
             { hookApprovalPath },
           ));
         }
@@ -787,94 +832,219 @@ export async function distributeRelease(options) {
     await evidence.append({ phase: 'worktree', status: 'passed' });
 
     // =======================================================================
-    // Materialize: run the consumer hook inside the tag worktree, verify its
-    // report, and bind the announced payload directory (fail-closed).
+    // Private execution bundle (F-01 / T1): consumer-declared commands may
+    // reference scripts that exist only in the parent workspace (tooling
+    // never leaks into the frozen public surface). prepare froze those bytes
+    // digest-addressed under the plan's .release-skill; re-verify them
+    // through Foundation and install ONLY the verified bytes into the tag
+    // worktree before any hook runs. Any mismatch fails closed here —
+    // before any hook and before any external write.
     // =======================================================================
-    await evidence.append({ phase: 'materialize', status: 'started' });
-
-    const materialize = postPublish.materialize;
-    const hookResult = await hookRunner(
-      {
-        command: materialize.command,
-        ...(materialize.cwd ? { cwd: materialize.cwd } : {}),
-        ...(materialize.timeoutMs !== undefined ? { timeoutMs: materialize.timeoutMs } : {}),
-        ...(materialize.envAllowlist ? { envAllowlist: materialize.envAllowlist } : {}),
-      },
-      { root: worktreePath, env: process.env },
-    );
-
-    if (hookResult.exitCode !== 0) {
-      await evidence.append({
-        phase: 'materialize',
-        status: 'failed',
-        exitCode: hookResult.exitCode,
-        stdoutTail: boundedOutputTail(hookResult.stdout),
-        stderrTail: boundedOutputTail(hookResult.stderr),
-      });
+    // =======================================================================
+    // F-04 root split: the saga holds TWO distinct roots from here on —
+    // - releaseWorkspaceRoot: the real project root the user releases from;
+    //   only used to resolve preset target.workspace, compare the release-
+    //   workspace write exclusion, and audit;
+    // - executionWorktreeRoot (worktreePath): the detached worktree at the
+    //   frozen tagCommit; only used as the hook runner context.root for
+    //   materialize, steps and custom command hooks.
+    // The two roots never fall back onto each other through defaults.
+    // =======================================================================
+    let releaseWorkspaceRoot;
+    try {
+      releaseWorkspaceRoot = await realpath(root);
+    } catch (err) {
       await failBlocked(new ReleaseError(
-        POST_PUBLISH_VERIFY_FAILED,
-        `materialize hook exited with code ${hookResult.exitCode}; payload cannot be trusted`,
-        { exitCode: hookResult.exitCode, stdoutTail: boundedOutputTail(hookResult.stdout), stderrTail: boundedOutputTail(hookResult.stderr) },
+        GATE_FAILED,
+        `release workspace root does not resolve to an existing directory: ${err.message}`,
+        { root, cause: err.code },
       ));
     }
+    let installedBundlePaths = [];
+    try {
+      ({ installed: installedBundlePaths } = await verifyAndInstallExecutionBundle({
+        plan,
+        planPath,
+        worktreePath,
+      }));
+    } catch (err) {
+      await evidence.append({
+        phase: 'worktree',
+        gate: 'execution-bundle',
+        status: 'failed',
+        error: boundedOutputTail(err?.message ?? String(err)),
+      });
+      await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
+        GATE_FAILED,
+        `cannot verify the frozen execution bundle: ${err?.message ?? err}`,
+      ));
+    }
+    await evidence.append({
+      phase: 'worktree',
+      gate: 'execution-bundle',
+      status: 'passed',
+      installed: installedBundlePaths,
+    });
 
-    // requireReport: stdout-first-json deep compare (declared equals subset).
-    if (materialize.requireReport) {
-      const report = parseFirstJsonObject(hookResult.stdout);
-      if (!report) {
+    // =======================================================================
+    // Payload staging (fail-closed). The frozen plan selects exactly one
+    // route (schema anyOf + runtime re-check):
+    // - consumer materialize hook: run it inside the tag worktree, verify
+    //   its report, and bind the announced payload directory;
+    // - Foundation managed projection (F-06 / T6): when the plan declares
+    //   no materialize hook, the frozen executionBundle.publicFiles mapping
+    //   is staged from the tag worktree into a fresh hub-payload root by
+    //   the Engineering Kit compileProjectionPlan/runProjection contract.
+    //   The saga supplies ONLY the release-domain parameters (what is
+    //   projected, where the frozen bytes live, where the payload lands);
+    //   every preflight, containment check, transactional write, and
+    //   rollback belongs to Foundation and is never reimplemented here.
+    // =======================================================================
+    let payloadReal;
+    const materialize = postPublish.materialize;
+
+    if (materialize !== undefined) {
+      await evidence.append({ phase: 'materialize', status: 'started' });
+
+      const hookResult = await hookRunner(
+        {
+          command: materialize.command,
+          ...(materialize.cwd ? { cwd: materialize.cwd } : {}),
+          ...(materialize.timeoutMs !== undefined ? { timeoutMs: materialize.timeoutMs } : {}),
+          ...(materialize.envAllowlist ? { envAllowlist: materialize.envAllowlist } : {}),
+        },
+        {
+          // F-04: materialize runs in the execution worktree, never in the
+          // release workspace. Private workspace-side inputs reach the hook
+          // exclusively through the frozen execution bundle installed above —
+          // no live workspace root is announced anymore (F-01 / T1).
+          root: worktreePath,
+          env: process.env,
+        },
+      );
+
+      if (hookResult.exitCode !== 0) {
         await evidence.append({
           phase: 'materialize',
           status: 'failed',
-          reason: 'report-missing',
+          exitCode: hookResult.exitCode,
+          stdoutTail: boundedOutputTail(hookResult.stdout),
+          stderrTail: boundedOutputTail(hookResult.stderr),
+        });
+        await failBlocked(new ReleaseError(
+          POST_PUBLISH_VERIFY_FAILED,
+          `materialize hook exited with code ${hookResult.exitCode}; payload cannot be trusted`,
+          { exitCode: hookResult.exitCode, stdoutTail: boundedOutputTail(hookResult.stdout), stderrTail: boundedOutputTail(hookResult.stderr) },
+        ));
+      }
+
+      // requireReport: stdout-first-json deep compare (declared equals subset).
+      if (materialize.requireReport) {
+        const report = parseFirstJsonObject(hookResult.stdout);
+        if (!report) {
+          await evidence.append({
+            phase: 'materialize',
+            status: 'failed',
+            reason: 'report-missing',
+            stdoutTail: boundedOutputTail(hookResult.stdout),
+          });
+          await failBlocked(new ReleaseError(
+            POST_PUBLISH_VERIFY_FAILED,
+            'materialize report missing: no JSON object found on stdout (requireReport.parse = stdout-first-json)',
+            { stdoutTail: boundedOutputTail(hookResult.stdout) },
+          ));
+        }
+        const equals = materialize.requireReport.equals ?? {};
+        for (const [key, expectedValue] of Object.entries(equals)) {
+          if (JSON.stringify(report[key]) !== JSON.stringify(expectedValue)) {
+            await evidence.append({
+              phase: 'materialize',
+              status: 'failed',
+              reason: 'report-mismatch',
+              mismatchedKeys: Object.keys(equals).filter(
+                (k) => JSON.stringify(report[k]) !== JSON.stringify(equals[k]),
+              ),
+            });
+            await failBlocked(new ReleaseError(
+              POST_PUBLISH_VERIFY_FAILED,
+              `materialize report mismatch: "${key}" did not meet the frozen requireReport contract`,
+              { mismatchedKey: key },
+            ));
+          }
+        }
+      }
+
+      // outputMarker: the LAST line containing the marker announces the payload.
+      const announced = parseOutputMarker(hookResult.stdout, materialize.outputMarker);
+      if (!announced) {
+        await evidence.append({
+          phase: 'materialize',
+          status: 'failed',
+          reason: 'marker-missing',
           stdoutTail: boundedOutputTail(hookResult.stdout),
         });
         await failBlocked(new ReleaseError(
           POST_PUBLISH_VERIFY_FAILED,
-          'materialize report missing: no JSON object found on stdout (requireReport.parse = stdout-first-json)',
+          `materialize output marker "${materialize.outputMarker}" not found on stdout; payload directory unbound`,
           { stdoutTail: boundedOutputTail(hookResult.stdout) },
         ));
       }
-      const equals = materialize.requireReport.equals ?? {};
-      for (const [key, expectedValue] of Object.entries(equals)) {
-        if (JSON.stringify(report[key]) !== JSON.stringify(expectedValue)) {
-          await evidence.append({
-            phase: 'materialize',
-            status: 'failed',
-            reason: 'report-mismatch',
-            mismatchedKeys: Object.keys(equals).filter(
-              (k) => JSON.stringify(report[k]) !== JSON.stringify(equals[k]),
-            ),
-          });
-          await failBlocked(new ReleaseError(
-            POST_PUBLISH_VERIFY_FAILED,
-            `materialize report mismatch: "${key}" did not meet the frozen requireReport contract`,
-            { mismatchedKey: key },
-          ));
-        }
-      }
-    }
+      payloadReal = await assertContainedDirectory(
+        worktreePath,
+        resolve(worktreePath, announced),
+        'materialized payload directory',
+      );
+      await evidence.append({ phase: 'materialize', status: 'passed', payloadDirAnnounced: announced });
+    } else {
+      await evidence.append({ phase: 'materialize', status: 'started', mechanism: PROJECTION_MECHANISM });
 
-    // outputMarker: the LAST line containing the marker announces the payload.
-    const announced = parseOutputMarker(hookResult.stdout, materialize.outputMarker);
-    if (!announced) {
+      // Release-domain parameter selection ONLY: the frozen mapping rides the
+      // plan digest; live project configuration is never read here.
+      const publicFiles = postPublish.executionBundle?.publicFiles;
+      if (!Array.isArray(publicFiles) || publicFiles.length === 0) {
+        await evidence.append({
+          phase: 'materialize',
+          status: 'failed',
+          mechanism: PROJECTION_MECHANISM,
+          reason: 'public-files-missing',
+        });
+        await failBlocked(new ReleaseError(
+          POST_PUBLISH_VERIFY_FAILED,
+          'public payload projection: the frozen plan declares no materialize hook and carries no non-empty executionBundle.publicFiles mapping; the payload cannot be staged',
+        ));
+      }
+
+      // Disposable candidate staging root, external to the payload root and
+      // owned by the saga (cleaned up with tmpBase).
+      const candidateRoot = join(tmpBase, 'projection-candidate');
+      try {
+        await mkdir(candidateRoot, { recursive: true });
+        const projected = await projectPublicPayload({
+          executionWorktreeRoot: worktreePath,
+          candidateRoot,
+          publicFiles,
+        });
+        payloadReal = projected.payloadRoot;
+      } catch (err) {
+        await evidence.append({
+          phase: 'materialize',
+          status: 'failed',
+          mechanism: PROJECTION_MECHANISM,
+          error: boundedOutputTail(err?.message ?? String(err)),
+        });
+        await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
+          POST_PUBLISH_VERIFY_FAILED,
+          `public payload projection failed: ${err?.message ?? err}`,
+        ));
+      }
       await evidence.append({
         phase: 'materialize',
-        status: 'failed',
-        reason: 'marker-missing',
-        stdoutTail: boundedOutputTail(hookResult.stdout),
+        status: 'passed',
+        mechanism: PROJECTION_MECHANISM,
+        payloadDir: PUBLIC_PAYLOAD_DIRNAME,
+        fileCount: publicFiles.length,
       });
-      await failBlocked(new ReleaseError(
-        POST_PUBLISH_VERIFY_FAILED,
-        `materialize output marker "${materialize.outputMarker}" not found on stdout; payload directory unbound`,
-        { stdoutTail: boundedOutputTail(hookResult.stdout) },
-      ));
     }
-    const payloadReal = await assertContainedDirectory(
-      worktreePath,
-      resolve(worktreePath, announced),
-      'materialized payload directory',
-    );
-    await evidence.append({ phase: 'materialize', status: 'passed', payloadDirAnnounced: announced });
 
     // =======================================================================
     // Declared postPublish steps, in order (fail-closed).
@@ -907,7 +1077,12 @@ export async function distributeRelease(options) {
           ...(step.timeoutMs !== undefined ? { timeoutMs: step.timeoutMs } : {}),
           ...(step.envAllowlist ? { envAllowlist: step.envAllowlist } : {}),
         },
-        { root: worktreePath, env: process.env },
+        {
+          // F-04: steps run in the execution worktree (see materialize).
+          // Private inputs arrive via the frozen execution bundle only.
+          root: worktreePath,
+          env: process.env,
+        },
       );
       if (stepResult.exitCode !== 0) {
         await evidence.append({
@@ -1236,7 +1411,10 @@ export async function distributeRelease(options) {
             contextProjection: hookContextProjection,
             proposalContextProjection,
             commitIdentity: postPublish.commitIdentity,
-            root: worktreePath,
+            // F-04: presets receive the RELEASE workspace root (target.workspace
+            // resolution + release-workspace write exclusion). The detached
+            // worktree is the execution worktree and never impersonates it.
+            releaseWorkspaceRoot,
             evidencePath: join(runDir, 'evidence.jsonl'),
             payloadDir: hookContextProjection.payloadDir,
             exec,
@@ -1341,9 +1519,13 @@ export async function distributeRelease(options) {
             ...(hook.envAllowlist ? { envAllowlist: hook.envAllowlist } : {}),
           },
           {
+            // F-04: custom command hooks keep running in the execution
+            // worktree; the runner's cwd containment binds them there.
             root: worktreePath,
             env: process.env,
-            injectEnv: { [POSTPUBLISH_CONTEXT_ENV]: JSON.stringify(hookContextProjection) },
+            injectEnv: {
+              [POSTPUBLISH_CONTEXT_ENV]: JSON.stringify(hookContextProjection),
+            },
           },
         );
       } catch (err) {

@@ -30,7 +30,7 @@ import {
   validateApprovalRecordSchema,
   MAX_APPROVAL_MS,
 } from '../core/approval.mjs';
-import { validatePostPublishApproval } from '../core/postpublish-approval.mjs';
+import { validatePostPublishApproval, derivePostPublishApprovalAuthorityPath } from '../core/postpublish-approval.mjs';
 import { normalizePostPublishHook, effectiveHookRequiresApproval } from '../core/postpublish.mjs';
 import { WORKSPACE_DIGEST_ALGORITHM } from '../core/baseline.mjs';
 
@@ -406,18 +406,14 @@ export async function approvePostPublishHook(options) {
   validatePostPublishApproval(plan, approvalRecord, { clock: clockFn });
 
   // --- Write the digest-addressed authority ---
-  const planDir = dirname(resolve(planPath));
-  const releaseDir = basename(planDir) === 'plans' && basename(planPath) === `${actualDigest}.json`
-    ? dirname(planDir)
-    : planDir;
   const json = JSON.stringify(approvalRecord, null, 2);
   const approvalDigest = computeApprovalDigest(json);
-  const immutableApprovalPath = resolve(
-    releaseDir,
-    'approvals',
-    'postpublish',
+  // Single authority-layout source (core/postpublish-approval.mjs): the
+  // consumer-side assertion derives the exact same path fail-closed.
+  const { authorityPath: immutableApprovalPath } = derivePostPublishApprovalAuthorityPath(
+    planPath,
     actualDigest,
-    `${approvalDigest}.json`,
+    approvalDigest,
   );
   await prepareAuthorityDirectory(dirname(immutableApprovalPath));
   await assertAuthorityFileTarget(immutableApprovalPath);

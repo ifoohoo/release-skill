@@ -41,6 +41,12 @@ import {
 } from './errors.mjs';
 import { preflightPresetWorkspace, assertPresetWorkspaceExecution } from './presets.mjs';
 import { POSTPUBLISH_CONTEXT_ENV } from './postpublish.mjs';
+import {
+  checkGitRemoteUrl,
+  describeGitRemoteUrlFailure,
+  isAllowedGitRemoteUrl,
+  redactUrlCredentialsIfPresent,
+} from './git-url-policy.mjs';
 
 const execFileAsync = promisify(execFileCb);
 
@@ -49,7 +55,6 @@ const TRANSFER_TIMEOUT_MS = 300_000;
 const PROBE_TIMEOUT_MS = 30_000;
 const TMP_PREFIX = 'release-skill-preset-write-';
 
-const SAFE_REMOTE_URL_RE = /^(?:https?|file):\/\/.+\.git$/;
 const SAFE_BRANCH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 const SHA_RE = /^[a-f0-9]{40}$/;
 
@@ -94,8 +99,13 @@ function hasControlChars(value) {
 }
 
 function assertSafeRemoteUrl(remoteUrl) {
-  if (typeof remoteUrl !== 'string' || !SAFE_REMOTE_URL_RE.test(remoteUrl) || hasControlChars(remoteUrl)) {
-    throw new ReleaseError(GATE_FAILED, 'preset downstream remoteUrl must be an http(s)/file URL ending in .git', { remoteUrl });
+  const verdict = checkGitRemoteUrl(remoteUrl);
+  if (!verdict.ok) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `preset downstream remoteUrl ${describeGitRemoteUrlFailure(verdict.reason)}`,
+      { reason: verdict.reason },
+    );
   }
 }
 
@@ -177,7 +187,7 @@ export async function crossCheckBranchTip(exec, remoteUrl, branch, pushedCommit)
     throw new ReleaseError(
       POST_PUBLISH_VERIFY_FAILED,
       `post-push cross-check failed: downstream branch ${branch} is at ${observed ?? '<missing>'}, which disagrees with the pushed commit ${pushedCommit}`,
-      { remoteUrl, branch, pushedCommit, observed },
+      { remoteUrl: redactUrlCredentialsIfPresent(remoteUrl), branch, pushedCommit, observed },
     );
   }
   return observed;
@@ -198,7 +208,8 @@ export async function crossCheckBranchTip(exec, remoteUrl, branch, pushedCommit)
  *   preset's files into the worktree.
  * @param {object[]} [params.gates] - Downstream gates (argument arrays).
  * @param {object} [params.contextProjection] - Injected into gate env.
- * @param {string} params.root - Release workspace root (workspace addressing).
+ * @param {string} params.releaseWorkspaceRoot - Release workspace root (the
+ *   real project root; workspace addressing resolution + write exclusion).
  * @param {Function} [params.exec] - Injectable git exec (tests).
  * @param {Function} [params.hookRunner] - Injectable gate runner (tests).
  * @returns {Promise<{ status: 'EXECUTED'|'NO_CHANGE', observation: object }>}
@@ -215,7 +226,7 @@ export async function applyDownstreamGitChange(params) {
     mutate,
     gates = [],
     contextProjection,
-    root,
+    releaseWorkspaceRoot,
     exec: execOpt,
     hookRunner,
   } = params ?? {};
@@ -258,12 +269,13 @@ export async function applyDownstreamGitChange(params) {
     } catch (error) {
       await rm(worktree, { recursive: true, force: true }).catch(() => {});
       const classification = classifyNetFailure(stderrText(error));
+      const safeRemoteUrl = redactUrlCredentialsIfPresent(target.remoteUrl);
       throw new ReleaseError(
         classification === 'auth' ? REMOTE_CONFLICT : REMOTE_UNAVAILABLE,
         classification === 'auth'
-          ? `preset downstream remote refused authentication for ${target.remoteUrl}; the host keychain credential is reused and never prompted, read, or retried`
-          : `cannot reach preset downstream remote ${target.remoteUrl} — start VPN / check network; delivery fails closed and never retries with credentials`,
-        { remoteUrl: target.remoteUrl, stderrTail: stderrTail(error) },
+          ? `preset downstream remote refused authentication for ${safeRemoteUrl}; the host keychain credential is reused and never prompted, read, or retried`
+          : `cannot reach preset downstream remote ${safeRemoteUrl} — start VPN / check network; delivery fails closed and never retries with credentials`,
+        { remoteUrl: safeRemoteUrl, stderrTail: stderrTail(error) },
       );
     }
     // Continue the declared branch when it exists; start a root commit otherwise.
@@ -281,9 +293,17 @@ export async function applyDownstreamGitChange(params) {
   } else {
     // Workspace addressing: §2.6 execution checks + a branch guard. The
     // checkout is used in place (no clone); the branch is never switched.
-    const preflight = await preflightPresetWorkspace(target.workspace, { root });
+    // F-04: the resolution basis is the release workspace root — never the
+    // detached execution worktree.
+    if (typeof releaseWorkspaceRoot !== 'string' || releaseWorkspaceRoot.length === 0) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        'preset downstream workspace addressing requires the release workspace root (releaseWorkspaceRoot); the detached execution worktree is never the release workspace',
+      );
+    }
+    const preflight = await preflightPresetWorkspace(target.workspace, { releaseWorkspaceRoot });
     const execution = await assertPresetWorkspaceExecution(target.workspace, {
-      root,
+      releaseWorkspaceRoot,
       preflightRealpath: preflight.realpath,
     });
     worktree = execution.realpath;
@@ -403,11 +423,12 @@ export async function applyDownstreamGitChange(params) {
       });
     } catch (error) {
       const classification = classifyNetFailure(stderrText(error));
+      const safeTargetAddress = redactUrlCredentialsIfPresent(target.remoteUrl ?? target.workspace);
       throw new ReleaseError(
         classification === 'auth' ? REMOTE_CONFLICT : REMOTE_UNAVAILABLE,
         classification === 'auth'
-          ? `preset downstream push refused authentication for ${target.remoteUrl ?? target.workspace}; the host keychain credential is reused and never prompted, read, or retried`
-          : `preset downstream push to ${target.remoteUrl ?? target.workspace} failed — start VPN / check network; delivery fails closed and never retries with credentials`,
+          ? `preset downstream push refused authentication for ${safeTargetAddress}; the host keychain credential is reused and never prompted, read, or retried`
+          : `preset downstream push to ${safeTargetAddress} failed — start VPN / check network; delivery fails closed and never retries with credentials`,
         { branch: target.branch, stderrTail: stderrTail(error) },
       );
     }
@@ -429,12 +450,12 @@ export async function applyDownstreamGitChange(params) {
       if (!crossCheckUrl) {
         crossCheckSkipReason =
           'workspace checkout declares no origin remote; the post-push ls-remote cross-check needs a remote URL';
-      } else if (!SAFE_REMOTE_URL_RE.test(crossCheckUrl)) {
+      } else if (!isAllowedGitRemoteUrl(crossCheckUrl)) {
         crossCheckSkipReason =
-          'workspace origin URL is not an http(s)/file URL (SSH and other transports are outside the ls-remote cross-check policy); post-push cross-check skipped';
+          'workspace origin URL is not a policy-allowed http(s)/file URL (SSH and other transports, or credential-embedded forms, are outside the ls-remote cross-check policy); post-push cross-check skipped';
       }
     }
-    if (crossCheckUrl && SAFE_REMOTE_URL_RE.test(crossCheckUrl)) {
+    if (crossCheckUrl && isAllowedGitRemoteUrl(crossCheckUrl)) {
       await crossCheckBranchTip(exec, crossCheckUrl, target.branch, localCommit);
     }
 

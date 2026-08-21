@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "skill-family.contracts.registry",
-  "contractsVersion": "1.5.0",
+  "contractsVersion": "1.7.0",
   "note": "Protocol-name and schema-$id registry. Registration mechanically rejects duplicate protocol name/version (SFC1004) and duplicate $id (SFC1003). This file is the single registration surface; adding an entry is a contracts change.",
   "protocols": [
     {
@@ -26,6 +26,13 @@
       "dialect": "2020-12",
       "status": "stable",
       "file": "src/schemas/profile-descriptor.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/project-profile.json",
+      "object": "project-profile",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/project-profile.schema.json"
     },
     {
       "$id": "https://contracts.skill-family.example/v1/managed-file-lock.json",
@@ -166,6 +173,62 @@
       "dialect": "2020-12",
       "status": "stable",
       "file": "src/schemas/structured-scan-policy.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/timeout-policy.json",
+      "object": "timeout-policy",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/timeout-policy.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/watchdog-termination-envelope.json",
+      "object": "watchdog-termination-envelope",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/watchdog-termination-envelope.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/public-boundary-declaration.json",
+      "object": "public-boundary-declaration",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/public-boundary-declaration.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/platform-difference-registry.json",
+      "object": "platform-difference-registry",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/platform-difference-registry.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/observation-scope.json",
+      "object": "observation-scope",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/observation-scope.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/profile-adoption-declaration.json",
+      "object": "profile-adoption-declaration",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/profile-adoption-declaration.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/audit-baseline-pin.json",
+      "object": "audit-baseline-pin",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/audit-baseline-pin.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/token-estimate-record.json",
+      "object": "token-estimate-record",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/token-estimate-record.schema.json"
     }
   ],
   "dialects": {

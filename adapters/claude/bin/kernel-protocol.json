@@ -4,7 +4,7 @@
   "name": "skill-family.kernel.operation",
   "version": 1,
   "status": "stable",
-  "contractsVersion": "1.5.0",
+  "contractsVersion": "1.7.0",
   "description": "Frozen v1 kernel protocol: request/result envelope, operation lifecycle states, and the operation vocabulary. Extensible only by a new protocol version; v1 content is frozen.",
   "states": ["accepted", "running", "succeeded", "failed", "rejected"],
   "initialStates": ["accepted", "rejected"],

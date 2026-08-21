@@ -57,10 +57,10 @@
 import { realpath, stat } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';
 
-import { ReleaseError, GATE_FAILED, POSTPUBLISH_HOOK_INVALID } from './errors.mjs';
+import { classifyPathInput } from 'skill-family-harness-node';
 
-/** Remote URL pattern shared with core/postpublish.mjs target validation. */
-const REMOTE_URL_RE = /^(?:https?|file):\/\/.+\.git$/;
+import { ReleaseError, GATE_FAILED, POSTPUBLISH_HOOK_INVALID } from './errors.mjs';
+import { checkGitRemoteUrl, describeGitRemoteUrlFailure } from './git-url-policy.mjs';
 
 /** Branch pattern (leading alphanumeric blocks option-like names). */
 const BRANCH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
@@ -160,12 +160,13 @@ function validateDownstreamTarget(where, target, { targetOptional }) {
     );
   }
   if (hasRemoteUrl) {
-    if (typeof target.remoteUrl !== 'string' || !REMOTE_URL_RE.test(target.remoteUrl)) {
-      failHook(`${where}.config.target.remoteUrl must be an http(s)/file URL ending in .git`, {
-        remoteUrl: target.remoteUrl,
-      });
+    const remoteUrlVerdict = checkGitRemoteUrl(target.remoteUrl);
+    if (!remoteUrlVerdict.ok) {
+      failHook(
+        `${where}.config.target.remoteUrl ${describeGitRemoteUrlFailure(remoteUrlVerdict.reason)}`,
+        { reason: remoteUrlVerdict.reason },
+      );
     }
-    assertNoControlChars(`${where}.config.target.remoteUrl`, target.remoteUrl);
   } else {
     if (typeof target.workspace !== 'string' || target.workspace.length === 0) {
       failHook(`${where}.config.target.workspace must be a non-empty string`);
@@ -632,6 +633,13 @@ export function validatePresetHook(hook, where) {
 
 // ---------------------------------------------------------------------------
 // Workspace preflight + execution checks (§2.6, three execution rules)
+//
+// F-04 root split: these checks receive `releaseWorkspaceRoot` — the real
+// project root the user releases from. It is the ONLY resolution basis for
+// preset `config.target.workspace` and the ONLY basis for the release-
+// workspace write exclusion. The detached frozen-tag worktree is the
+// execution worktree (materialize/steps/custom command hooks) and must never
+// be passed here: the two roots never fall back onto each other.
 // ---------------------------------------------------------------------------
 
 function failWorkspace(message, details = {}) {
@@ -639,17 +647,47 @@ function failWorkspace(message, details = {}) {
 }
 
 /**
+ * Resolve a declared workspace path against the release workspace root
+ * (F-04). Absolute workspaces pass through (preset-level exception); relative
+ * workspaces are lexically classified through Foundation `classifyPathInput`
+ * (ambiguous cross-platform shapes fail closed; no parallel path regex here)
+ * and resolved from `releaseWorkspaceRoot`.
+ *
+ * @param {string} workspace - Declared workspace path.
+ * @param {string} releaseWorkspaceRoot - The real release workspace root.
+ * @returns {string} The resolved (not yet realpathed) workspace path.
+ */
+function resolvePresetWorkspace(workspace, releaseWorkspaceRoot) {
+  if (typeof releaseWorkspaceRoot !== 'string' || releaseWorkspaceRoot.length === 0) {
+    failWorkspace(
+      'preset workspace checks require the release workspace root (releaseWorkspaceRoot); the detached execution worktree is never the release workspace',
+      {},
+    );
+  }
+  if (isAbsolute(workspace)) return workspace;
+  const classification = classifyPathInput(workspace);
+  if (!classification.ok) {
+    failWorkspace('workspace is not an unambiguous path input', {
+      workspace,
+      kind: classification.kind,
+    });
+  }
+  return resolve(releaseWorkspaceRoot, workspace);
+}
+
+/**
  * Preflight a `config.target.workspace` before any write: the path must
  * exist and be a git worktree (a `.git` entry), otherwise fail closed.
  * Returns the resolved realpath for evidence and the TOCTOU re-check.
  *
- * @param {string} workspace - Declared workspace path (relative to `root`
- *   or absolute; may leave the repository root by preset-level exception).
- * @param {object} options - { root: string }
+ * @param {string} workspace - Declared workspace path (relative to
+ *   `releaseWorkspaceRoot` or absolute; may leave the release workspace root
+ *   by preset-level exception).
+ * @param {object} options - { releaseWorkspaceRoot: string }
  * @returns {Promise<{ realpath: string }>}
  */
-export async function preflightPresetWorkspace(workspace, { root }) {
-  const resolved = isAbsolute(workspace) ? workspace : resolve(root, workspace);
+export async function preflightPresetWorkspace(workspace, { releaseWorkspaceRoot }) {
+  const resolved = resolvePresetWorkspace(workspace, releaseWorkspaceRoot);
   let real;
   try {
     real = await realpath(resolved);
@@ -674,14 +712,16 @@ export async function preflightPresetWorkspace(workspace, { root }) {
  * 2. it MUST equal the preflight realpath (TOCTOU: the path may not have
  *    been swapped for a symlink since preflight);
  * 3. it must be neither the release workspace itself nor inside the
- *    `.release-skill/` runtime directory.
+ *    `.release-skill/` runtime directory. The release-workspace comparison
+ *    uses `releaseWorkspaceRoot` (F-04): comparing against the detached
+ *    execution worktree would let a preset write into the real project.
  *
  * @param {string} workspace - Declared workspace path.
- * @param {object} options - { root, preflightRealpath }
+ * @param {object} options - { releaseWorkspaceRoot, preflightRealpath }
  * @returns {Promise<{ realpath: string }>}
  */
-export async function assertPresetWorkspaceExecution(workspace, { root, preflightRealpath }) {
-  const resolved = isAbsolute(workspace) ? workspace : resolve(root, workspace);
+export async function assertPresetWorkspaceExecution(workspace, { releaseWorkspaceRoot, preflightRealpath }) {
+  const resolved = resolvePresetWorkspace(workspace, releaseWorkspaceRoot);
   let real;
   try {
     real = await realpath(resolved);
@@ -694,8 +734,16 @@ export async function assertPresetWorkspaceExecution(workspace, { root, prefligh
       { workspace, preflightRealpath, observedRealpath: real },
     );
   }
-  const rootReal = await realpath(root).catch(() => null);
-  if (rootReal && real === rootReal) {
+  let rootReal;
+  try {
+    rootReal = await realpath(releaseWorkspaceRoot);
+  } catch {
+    failWorkspace(
+      'release workspace root does not resolve to an existing directory; the release-workspace write exclusion fails closed',
+      {},
+    );
+  }
+  if (real === rootReal) {
     failWorkspace('workspace must not be the release workspace itself', { workspace });
   }
   const segments = real.split(/[\\/]+/);

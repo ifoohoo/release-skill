@@ -35,6 +35,16 @@ import { executeDocsRefreshHook } from './docs-refresh-preset.mjs';
 /**
  * Execute one preset hook end-to-end.
  *
+ * F-04 root split: this seam receives `releaseWorkspaceRoot` — the real
+ * project root the user releases from. It is forwarded to proposal-inbox
+ * (local-file), marketplace-registry-entry, docs-refresh and the shared
+ * workspace preflight (§2.6) as the ONLY `target.workspace` resolution basis
+ * and release-workspace write-exclusion basis. The detached frozen-tag
+ * worktree is the execution worktree (materialize/steps/custom command
+ * hooks) and is NEVER accepted here: the legacy ambiguous `root` option is
+ * rejected fail-closed, and neither root falls back onto the other through
+ * defaults.
+ *
  * @param {object} params
  * @param {object} params.hook - Declared hook entry (preset + config).
  * @param {object} params.contextProjection - The §2.3 context projection of
@@ -43,8 +53,8 @@ import { executeDocsRefreshHook } from './docs-refresh-preset.mjs';
  *   projection for proposal documents (byte-deterministic redelivery);
  *   defaults to contextProjection.
  * @param {object} params.commitIdentity - Frozen postPublish commitIdentity.
- * @param {string} params.root - Release workspace root (preset workspace
- *   resolution; hooks run inside the frozen tag worktree).
+ * @param {string} params.releaseWorkspaceRoot - Release workspace root (the
+ *   real project root; preset workspace resolution + write exclusion).
  * @param {string} [params.evidencePath] - This run's evidence path
  *   (notify-handoff checklist rendering).
  * @param {Function} [params.exec] - Injectable git exec (tests).
@@ -59,7 +69,7 @@ export async function executePresetHook(params) {
     contextProjection,
     proposalContextProjection,
     commitIdentity,
-    root,
+    releaseWorkspaceRoot,
     evidencePath,
     exec,
     hookRunner,
@@ -67,6 +77,15 @@ export async function executePresetHook(params) {
   } = params ?? {};
   if (!hook || typeof hook.preset !== 'string') {
     throw new ReleaseError(POST_PUBLISH_VERIFY_FAILED, 'preset execution requires a preset hook entry');
+  }
+  if (params?.root !== undefined) {
+    // F-04: the ambiguous `root` is gone. Silently honoring it would let the
+    // detached execution worktree impersonate the release workspace again.
+    throw new ReleaseError(
+      POST_PUBLISH_VERIFY_FAILED,
+      'executePresetHook no longer accepts the ambiguous "root" option; pass releaseWorkspaceRoot (the real project root) explicitly — the detached tag worktree is the execution worktree for materialize/steps/custom command hooks and is never the release workspace',
+      {},
+    );
   }
   const proposalProjection = proposalContextProjection ?? contextProjection;
 
@@ -108,7 +127,7 @@ export async function executePresetHook(params) {
           hook,
           contextProjection: proposalProjection,
           commitIdentity,
-          root,
+          releaseWorkspaceRoot,
           ...(exec !== undefined ? { exec } : {}),
         });
       }
@@ -124,7 +143,7 @@ export async function executePresetHook(params) {
         hook,
         contextProjection,
         commitIdentity,
-        root,
+        releaseWorkspaceRoot,
         ...(exec !== undefined ? { exec } : {}),
         ...(hookRunner !== undefined ? { hookRunner } : {}),
       });
@@ -136,7 +155,7 @@ export async function executePresetHook(params) {
         contextProjection,
         commitIdentity,
         payloadDir,
-        root,
+        releaseWorkspaceRoot,
         ...(exec !== undefined ? { exec } : {}),
         ...(hookRunner !== undefined ? { hookRunner } : {}),
       });

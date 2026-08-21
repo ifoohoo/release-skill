@@ -103,7 +103,7 @@ postPublish:                # 可选；发布后分发配置（W2 closure）
         email: <string>         # RFC 5322 valid
       payloadDir: <string>      # 相对路径
       dryRun?: boolean          # 可选；只本地执行
-      materialize?: {          # 可选；分发前钩子
+      materialize?: {          # 可选；缺省时载荷由冻结 publicFiles 经 Foundation 托管投影物化
         command: <string>       # 可执行文件
         args: [<string>]        # 参数数组，禁止 shell 字符串
         outputMarker?: <string> # 输出标记，用于验证

@@ -10,6 +10,8 @@
 import { open, mkdir, writeFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 
+import { redactEmbeddedUrlCredentials } from './git-url-policy.mjs';
+
 /** Schema version for evidence events. */
 const SCHEMA_VERSION = 1;
 
@@ -66,11 +68,16 @@ export function redact(obj) {
   }
 
   if (typeof obj === 'string') {
+    // F-05: strip any embedded URL userinfo before the value reaches disk.
+    // Only credential-bearing URL spans are rewritten; ordinary strings and
+    // credential-free URLs pass through unchanged.
+    const urlRedacted = redactEmbeddedUrlCredentials(obj);
     for (const { prefix, label } of CREDENTIAL_PREFIXES) {
-      if (obj.startsWith(prefix)) {
+      if (urlRedacted.startsWith(prefix)) {
         return `[REDACTED:${label}]`;
       }
     }
+    return urlRedacted;
   }
 
   return obj;

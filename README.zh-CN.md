@@ -2,35 +2,37 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.6.3 -->
+<!-- release-skill:release-version: 0.7.0 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.6.3** (2026-08-20)
+**0.7.0** (2026-08-22)
 
-v0.6.3 新增 postPublish hooks v2 注册机制与六个内置预设、面向下游写 hook 的 checkpoint 级批准记录、只在主 run 到达 VERIFIED 后执行 hook 的 postVerify 阶段、为已接入项目起草 postPublish hook 声明的 setup 增量提案、O1–O7 发布周期提速，以及 release-skill 自身的 dogfood hub 提案声明——本次发布即在 postVerify 阶段经自身 checkpoint 批准向公开的 skill-family-hub 仓库投递该提案。
+v0.7.0 收口了 v0.6.3 之后识别出的发布架构缺口：postPublish 私有执行输入随批准计划冻结，检查点批准只能从不可变权威路径消费，下游投影直接复用已发布的 Skill Family Foundation 0.8.0 合同，不再依赖工作区本地替代实现。
 
 **新增**
 
-- **postPublish hooks v2 与六个预设**：`releaseUnit.postPublish` 在既有 `targets` 之外接受声明式 `hooks` 数组；每个 hook 要么是命名预设，要么是遵循 prepare hooks 规则（可执行文件/参数数组、相对 cwd、timeout、环境变量白名单——拒绝 shell 字符串）的自定义 command hook。六个内置预设随 bundle 分发，由 `release-skill distribute --list-presets` 枚举：`git-mirror` 与 `marketplace-index-render`（以 `targets` 形态声明），以及 `proposal-inbox`、`marketplace-registry-entry`、`docs-refresh`、`notify-handoff`（以 `hooks` 形态声明）；写下游预设共用 `remoteUrl`/`workspace` 双寻址，`proposal-inbox` 未声明 target 时退化为 `notify-handoff` 行为而非报错，`notify-handoff` 是零写地板，只渲染确定性的人工同步清单。所有声明归一化进冻结计划，hook 变化即 plan digest 变化，既有批准随之失效；既有 `targets` 配置原样可用，执行语义不变。
-- **checkpoint 级 hook 批准**：`requiresApproval: true` 的 hook（公开写预设缺省为 true；项目可以收紧，不得放松）停留 `AWAITING_APPROVAL`、零远端写，直到用 `release-skill approve --plan <plan> --hook <hookId> --actor <name>` 铸造并经 `distribute --hook-approval` 或 `ship --hook-approval` 消费自己的 checkpoint 批准。批准记录遵循新的 `postpublish-approval-record` schema，绑定 `(planDigest, hookId)`，24 小时有效；hook 配置变化即 plan digest 变化，批准随之失效。run schema 新增 `AWAITING_APPROVAL` checkpoint 状态，批准界面展示被批准 hook 的归一化条目摘要。
-- **postVerify 阶段**：声明 `phase: postVerify` 的 hook 只在主 run 到达 VERIFIED 之后执行；`ship` 把它们路由进一个独立的 postVerify run，其 hook 上下文携带验证证据（`verifyEvidence` 仅该阶段存在）。postVerify run 失败即保持 PARTIAL、可 reconcile，但绝不把主 run 从 VERIFIED 回退——失败在 evidence 中显著记录，绝不静默。
-- **setup 增量 hook 提案**：面向已接入项目，`setup --discover-downstream` 只读发现下游候选（git remote、marketplace/docs 仓线索、`artifact-graph` 配置、foundation profile），`setup --propose-hooks` 起草 postPublish hook 声明供人工审阅；人工确认 `setupDigest` 后只追加 hooks 段，绝不重写既有配置的任何其他部分。create-once 边界保持：既有配置绝不重新生成。
-- **dogfood hub 提案声明**：release-skill 自身的项目配置声明了一个 `proposal-inbox`（git-push）hub 提案，指向公开仓 `skill-family-hub`，在本次发布的 postVerify 阶段经自身 checkpoint 批准投递；投递成功加 evidence 中的确定性人工同步提示即闭环——hub 侧消费不在本期范围。
+- **冻结 postPublish 执行包**：发布单元可以声明私有 `executionFiles`；prepare 把精确字节及资源闭包冻结进不可变计划，distribute 或 postVerify 只把复验通过的执行包安装到隔离执行工作树。批准后的实时工作区改动无法改变实际执行命令。
+- **从权威路径消费检查点批准**：postPublish 批准只接受由计划摘要和 hook id 推导出的规范路径。任何 hook 或外部写入开始前，消费端都会复核计划摘要、批准摘要、严格读取的文件字节，以及整条权威路径不存在符号链接。
+- **由 Foundation 托管下游投影**：postPublish 载荷投影改用已发布的 `skill-family-engineering-kit` 投影编译器和运行器，并通过 `skill-family-harness-node` 完成严格读取与资源闭包复验。
 
 **变更**
 
-- **发布周期提速（O1–O7）**：`build-adapters --check` 与 self-bootstrap 事实钉套件成为 prepare 快速前置门禁，先于 hooks 与全量测试门禁执行（快速前置，不替代全量测试）；新增派生产物一键同步命令，按依赖顺序校验并按需重建 version/docs/bundle/adapters/manifest/public-files 各区，绝不写 src 与测试钉；`build-adapters --apply` 成为既有漂移 adapter 的受支持重建路径；`ship` happy-end 编排缺省 `prepare --production --online`，非生产与 offline 计划给出明确补救提示；online production prepare 在本地分支领先 origin 时给出 warning 级观测（不阻塞）；`verify --run` 接受 run 目录并自动解析其中的 `release-run.json`（传文件行为不变）；修复 `generate-platform-manifest --check` 的基线漂移。
+- **区分两类工作区**：预设执行明确区分维护者的 `releaseWorkspaceRoot` 与隔离的 `executionWorktreeRoot`；拒绝含义模糊的旧 `root` 回退，也不允许预设把发布工作区自身作为目标。
+- **精确采用 Foundation 0.8.0**：`skill-family-contracts`、`skill-family-harness-node` 与 `skill-family-engineering-kit` 均钉扎 0.8.0；包运行时钉扎 Node.js `>=22.22.2 <23`。
+- **显式 distribute 权威**：`distribute` 必须取得与计划绑定的发布批准记录；postPublish hook 批准继续使用独立的检查点记录。
 
 **修复**
 
-- **生产 CLI distribute adapter 注册**：两处生产 CLI adapter 注册表现在都注册 distribute-git adapter；修复前生产 `distribute`/`ship` 自动分发路径以 `no distribute adapter registered` 失败。状态机参考件补全 `DISTRIBUTING`/`DISTRIBUTED` 状态及其转移。
+- **拒绝并脱敏携带凭证的 Git URL**：配置中的 Git 远端在 schema 与运行时两层拒绝 URL userinfo。错误、证据和摘要统一经过共享脱敏路径，避免持久化嵌入式凭证。
+- **生产门禁失败关闭**：`NODE_TEST_CONTEXT` 不再能够豁免派生产物门禁；adapter 按计划版本明确处理语义；兼容 Node.js 22 的测试报告格式，同时不放宽断言。
+- **公开打包与许可证收口**：工作区说明与公开包统一采用 Apache-2.0，公开 bundle 同时携带所需的 Apache-2.0 与 MIT 许可证正文。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.6.3 是当前源码候选，v0.4.1 仍是最新已发布版本（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.7.0 是当前源码候选，v0.6.3 是最新已发布版本。v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -43,7 +45,7 @@ v0.6.3 新增 postPublish hooks v2 注册机制与六个内置预设、面向下
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.6.3 是当前源码候选，v0.4.1 是最新已发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.7.0 是当前源码候选，v0.6.3 是最新已发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -82,7 +84,7 @@ v0.6.3 新增 postPublish hooks v2 注册机制与六个内置预设、面向下
 > 退化为 `notify-handoff` 行为而非报错。`notify-handoff` 是零写地板：
 > 只渲染确定性的人工同步清单。release-skill 自己也在使用该能力：本仓库的
 > 项目配置声明了一个 `proposal-inbox`（git-push）hub 提案，指向公开仓
-> `skill-family-hub`，将在 v0.6.3 发布的 postVerify 阶段经自身的
+> `skill-family-hub`，将在 v0.7.0 发布的 postVerify 阶段经自身的
 > checkpoint 批准投递。
 <!-- release-skill:capability:postpublish-presets -->
 
@@ -490,7 +492,7 @@ hook 在 `prepare` 调用时运行，命令调用本身即授权执行。gate �
 
 ### postPublish hook
 
-`postPublish.hooks` 声明 `publish` 之后执行的下游投递动作。每个条目要么是命名预设，要么是自定义 command hook，遵守与上文相同的命令规则（可执行文件/参数数组，不是 shell 字符串）。预设收到冻结计划的只读投影；自定义 command hook 在冻结 tag 工作树中执行：
+`postPublish.hooks` 声明 `publish` 之后执行的下游投递动作。每个条目要么是命名预设，要么是自定义 command hook，遵守与上文相同的命令规则（可执行文件/参数数组，不是 shell 字符串）。预设收到冻结计划的只读投影；自定义 command hook 在冻结 tag 工作树中执行。`materialize` 钩子是可选的：缺省时，`distribute` 改为把发布单元冻结的 `publicFiles` 映射经 Foundation 托管投影物化——全新载荷根、全量预检、零写入拒绝、完整闭包回滚——计划冻结后绝不重读实时项目配置：
 
 ```yaml
 postPublish:

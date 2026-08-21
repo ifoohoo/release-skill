@@ -1304,9 +1304,8 @@
     },
     "planPostPublish": {
       "type": "object",
-      "description": "冻结的发布后分发块：声明本身 + tag/tagCommit/unitId/payloadSource 绑定。整体参与 plan digest（planVersion 2 记录层剥离不包含该块），任何配置变更都会改变 planDigest。tagCommit 仅在 prepare 能冻结 create-tag 预期 commit 时存在（production 资产）；缺省时 distribute fail-closed。",
+      "description": "冻结的发布后分发块：声明本身 + tag/tagCommit/unitId/payloadSource 绑定。整体参与 plan digest（planVersion 2 记录层剥离不包含该块），任何配置变更都会改变 planDigest。tagCommit 仅在 prepare 能冻结 create-tag 预期 commit 时存在（production 资产）；缺省时 distribute fail-closed。materialize 钩子自 T6 起可选：载荷物化要么由消费者 materialize 钩子完成，要么由冻结 executionBundle.publicFiles 经 Foundation Engineering Kit 托管投影完成（两者至少其一，见 anyOf）。",
       "required": [
-        "materialize",
         "commitIdentity",
         "tag",
         "unitId",
@@ -1376,8 +1375,141 @@
         "payloadSource": {
           "const": "tag-worktree",
           "description": "时序契约：载荷只能来自 tagCommit 处的 detached worktree，绝不读取工作区状态"
+        },
+        "executionBundle": {
+          "type": "object",
+          "description": "冻结的私有执行包（F-01/T1）：closure 直接采用 Foundation computeResourceClosure() 的返回（排序、去重、受收容读取与摘要均由 Foundation 完成），publicFiles 是从发布单元投影的公开映射。计划是该执行包的唯一事实源：随整个 plan digest 绑定，不维护平行 manifest，也不另造 bundle digest。字节写入计划权威 .release-skill 的 postpublish-bundles/<closure.digest>/<resource.path>；distribute/postVerify 在任何 hook/外部写之前经 Foundation 严格复验并重算闭包，任何不一致即失败。",
+          "required": [
+            "foundationMechanism",
+            "closure",
+            "publicFiles"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "foundationMechanism": {
+              "const": "foundation.harness.resource-closure"
+            },
+            "closure": {
+              "type": "object",
+              "description": "Foundation skill-family.resource-closure（schemaVersion 1）原样冻结",
+              "required": [
+                "schemaVersion",
+                "kind",
+                "digestAlgorithm",
+                "digest",
+                "resources"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "schemaVersion": {
+                  "const": 1
+                },
+                "kind": {
+                  "const": "skill-family.resource-closure"
+                },
+                "digestAlgorithm": {
+                  "const": "sha256"
+                },
+                "digest": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "resources": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "path",
+                      "role",
+                      "exists",
+                      "sha256"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
+                      },
+                      "role": {
+                        "const": "input",
+                        "description": "私有执行输入只有 input 资源；output 角色不属于执行包"
+                      },
+                      "exists": {
+                        "const": true
+                      },
+                      "sha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "publicFiles": {
+              "type": "array",
+              "description": "从已通过 schema 与运行时校验的发布单元投影进冻结计划的公开映射（T6 托管投影输入）",
+              "items": {
+                "type": "object",
+                "required": [
+                  "from",
+                  "to",
+                  "mode"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "sourceScope": {
+                    "type": "string",
+                    "enum": [
+                      "unit",
+                      "workspace"
+                    ]
+                  },
+                  "from": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$"
+                  },
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$"
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "preserve"
+                    ]
+                  }
+                }
+              }
+            }
+          }
         }
-      }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "materialize"
+          ]
+        },
+        {
+          "description": "无 materialize 钩子时，冻结的 executionBundle.publicFiles 必须非空：载荷由 Foundation 托管投影物化（F-06/T6）",
+          "required": [
+            "executionBundle"
+          ],
+          "properties": {
+            "executionBundle": {
+              "properties": {
+                "publicFiles": {
+                  "minItems": 1
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     "planPostPublishHook": {
       "type": "object",
@@ -1552,7 +1684,7 @@
         },
         "remoteUrl": {
           "type": "string",
-          "pattern": "^(?:https?|file)://.+\\.git$"
+          "pattern": "^(?:https?|file)://[^@]+\\.git$"
         },
         "visibility": {
           "type": "string",

@@ -28,6 +28,7 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 
 import { ReleaseError, GATE_FAILED } from './errors.mjs';
 import { applyDownstreamGitChange } from './preset-gitwrite.mjs';
+import { redactUrlCredentialsIfPresent } from './git-url-policy.mjs';
 
 /**
  * Assert `from` stays inside the materialized payload directory (declaration
@@ -60,14 +61,15 @@ function resolvePayloadSource(payloadDir, from) {
  * @param {object} params.commitIdentity - Frozen commitIdentity.
  * @param {string} params.payloadDir - Materialized payload directory
  *   (distribute phase; postVerify contexts never carry it).
- * @param {string} params.root - Release workspace root.
+ * @param {string} params.releaseWorkspaceRoot - Release workspace root (the
+ *   real project root; workspace addressing resolution + write exclusion).
  * @param {Function} [params.exec] - Injectable git exec (tests).
  * @param {Function} [params.hookRunner] - Injectable gate runner (tests).
  * @returns {Promise<{ status: string, observation: object,
  *   observations: object[], mode: string }>}
  */
 export async function executeDocsRefreshHook(params) {
-  const { hook, contextProjection, commitIdentity, payloadDir, root, exec, hookRunner } = params ?? {};
+  const { hook, contextProjection, commitIdentity, payloadDir, releaseWorkspaceRoot, exec, hookRunner } = params ?? {};
   const config = hook?.config;
   const repositories = config?.repositories;
   if (!Array.isArray(repositories) || repositories.length === 0) {
@@ -124,7 +126,7 @@ export async function executeDocsRefreshHook(params) {
         mutate,
         gates,
         contextProjection,
-        root,
+        releaseWorkspaceRoot,
         ...(exec !== undefined ? { exec } : {}),
         ...(hookRunner !== undefined ? { hookRunner } : {}),
       });
@@ -137,7 +139,9 @@ export async function executeDocsRefreshHook(params) {
     }
     observations.push({
       repositoryIndex: index,
-      ...(typeof target.remoteUrl === 'string' ? { remoteUrl: target.remoteUrl } : {}),
+      ...(typeof target.remoteUrl === 'string'
+        ? { remoteUrl: redactUrlCredentialsIfPresent(target.remoteUrl) }
+        : {}),
       ...(typeof target.workspace === 'string' ? { workspace: target.workspace } : {}),
       branch: target.branch,
       ...(result.observation ?? {}),

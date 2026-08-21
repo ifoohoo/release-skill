@@ -99,13 +99,14 @@ export function serializeRegistry(registry) {
  * @param {object} params.hook - Declared hook entry (config bound).
  * @param {object} params.contextProjection - The §2.3 context projection.
  * @param {object} params.commitIdentity - Frozen commitIdentity.
- * @param {string} params.root - Release workspace root.
+ * @param {string} params.releaseWorkspaceRoot - Release workspace root (the
+ *   real project root; workspace addressing resolution + write exclusion).
  * @param {Function} [params.exec] - Injectable git exec (tests).
  * @param {Function} [params.hookRunner] - Injectable gate runner (tests).
  * @returns {Promise<{ status: string, observation: object, registryPath: string }>}
  */
 export async function executeMarketplaceRegistryEntryHook(params) {
-  const { hook, contextProjection, commitIdentity, root, exec, hookRunner } = params ?? {};
+  const { hook, contextProjection, commitIdentity, releaseWorkspaceRoot, exec, hookRunner } = params ?? {};
   const config = hook?.config;
   const target = config?.target;
   if (!target || typeof target.branch !== 'string') {
@@ -166,7 +167,7 @@ export async function executeMarketplaceRegistryEntryHook(params) {
     mutate,
     gates: config?.gates ?? [],
     contextProjection,
-    root,
+    releaseWorkspaceRoot,
     ...(exec !== undefined ? { exec } : {}),
     ...(hookRunner !== undefined ? { hookRunner } : {}),
   });

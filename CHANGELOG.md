@@ -1,5 +1,30 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.7.0 locale=en baseline=sha256:a4d6989dd03d562c498344baf0dc1d0e1d0a225aecf0d48a7c4f9850c495b0ef -->
+## [0.7.0] - 2026-08-22
+
+v0.7.0 closes the release architecture gaps identified after v0.6.3. Private postPublish inputs are now frozen into the approved plan, checkpoint approvals must be consumed from their authoritative immutable path, and downstream projection reuses the published Skill Family Foundation 0.8.0 contracts instead of workspace-local substitutes.
+
+### Added
+
+- **Frozen postPublish execution bundles**: release units can declare private `executionFiles`; prepare freezes their exact bytes and resource closure into the immutable plan, and distribute or postVerify installs only that verified bundle into the detached execution worktree. Live workspace edits after approval cannot change the executed command.
+- **Authoritative checkpoint approval consumption**: postPublish approvals are accepted only from the canonical path derived from the plan digest and hook id. The consumer rechecks the plan digest, approval digest, strict file bytes, and symlink-free authority chain before any hook or external write.
+- **Foundation-managed downstream projection**: postPublish payload projection now uses the published `skill-family-engineering-kit` projection compiler and runner, with strict reads and resource-closure verification from `skill-family-harness-node`.
+
+### Changed
+
+- **Separated workspace roles**: preset execution now distinguishes the maintainer's `releaseWorkspaceRoot` from the detached `executionWorktreeRoot`; ambiguous legacy root fallback is rejected, and presets cannot target the release workspace itself.
+- **Exact Foundation 0.8.0 baseline**: `skill-family-contracts`, `skill-family-harness-node`, and `skill-family-engineering-kit` are pinned to 0.8.0. The package runtime is pinned to Node.js `>=22.22.2 <23`.
+- **Explicit distribute authority**: `distribute` requires the plan-bound release approval record; postPublish hook approvals remain separate checkpoint records.
+
+### Fixed
+
+- **Credential-bearing Git URL rejection and redaction**: configured Git remotes reject URL userinfo at schema and runtime boundaries. Errors, evidence, and summaries pass through the shared redaction path so embedded credentials are not persisted.
+- **Fail-closed production gates**: `NODE_TEST_CONTEXT` can no longer exempt derived-artifact gates, adapter behavior is explicit for each plan version, and Node.js 22 test-reporter output is accepted without weakening assertions.
+- **Public packaging and license closure**: the workspace documentation and public package now agree on Apache-2.0, and the public bundle carries the required Apache-2.0 and MIT license texts.
+<!-- release-skill:changelog:end version=0.7.0 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.6.3 locale=en baseline=sha256:a1b8f98d720cae60e0855677b22dd3fd75f6c43eb31123951a5129d149626e70 -->
 ## [0.6.3] - 2026-08-20
 

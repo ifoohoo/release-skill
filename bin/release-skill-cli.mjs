@@ -1433,13 +1433,13 @@ if (command === 'distribute') {
   if (args.includes('--help')) {
     const helpText = `Distribute command: Distributes frozen artifacts to post-publish targets
   
-Usage: release-skill distribute --plan <path> --run <path> [options]
+Usage: release-skill distribute --plan <path> --run <path> --approval <path> [options]
 
 Options:
   --root     Project root directory (default: cwd)
   --plan     Path to the release plan file (required)
   --run      Path to the release run file (required)
-  --approval Path to the approval record (optional but recommended)
+  --approval Path to the approval record (required)
   --hook-approval <path>  Checkpoint approval for a requiresApproval postPublish hook (repeatable)
   --dry-run  Preview distribution steps without executing (default: false)
   --list-presets  Enumerate the postPublish preset registry (no plan/run needed)
@@ -1453,12 +1453,12 @@ Description:
       console.log(JSON.stringify({
         command: 'distribute',
         description: 'Distributes frozen artifacts to post-publish targets (git mirror + marketplace) after PUBLISHED',
-        usage: 'release-skill distribute --plan <path> --run <path> [options]',
+        usage: 'release-skill distribute --plan <path> --run <path> --approval <path> [options]',
         options: {
           '--root': 'Project root directory (default: cwd)',
           '--plan': 'Path to the release plan file (required)',
           '--run': 'Path to the release run file (required)',
-          '--approval': 'Path to the approval record (optional but recommended)',
+          '--approval': 'Path to the approval record (required)',
           '--hook-approval': 'Checkpoint approval for a requiresApproval postPublish hook (repeatable)',
           '--dry-run': 'Preview distribution steps without executing (default: false)',
           '--list-presets': 'Enumerate the postPublish preset registry (no plan/run needed)',
@@ -1471,8 +1471,8 @@ Description:
     process.exit(0);
   }
 
-  if (!planPath || !runPath) {
-    const msg = 'distribute requires --plan <path> and --run <path>';
+  if (!planPath || !runPath || !approvalPath) {
+    const msg = 'distribute requires --plan <path>, --run <path>, and --approval <path>';
     if (hasJson) {
       console.log(JSON.stringify({ error: 'MISSING_PARAMETERS', message: msg, exitCode: 1 }));
     } else {

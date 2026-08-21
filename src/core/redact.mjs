@@ -23,15 +23,25 @@
  *   sha256 digests, stable field names, and fragment-anchored JSON pointers
  *   (#/required) are likewise preserved verbatim. Any other two-or-more
  *   segment '/'-led token stays redacted as the fail-closed default.
+ * - URL userinfo (F-05): strings additionally pass through the Git URL
+ *   policy boundary (core/git-url-policy.mjs), which strips embedded
+ *   username/password from any credential-bearing URL span and delegates the
+ *   actual redaction to the Foundation redactor. Credential-free URLs and
+ *   all non-URL text pass through unchanged, so error prose keeps its
+ *   diagnostic value.
  * - Arrays and plain objects: recursed; every string value is redacted.
  * - Everything else (numbers, booleans, null, undefined, and non-plain
  *   objects such as Buffers/Dates/Maps) is returned untouched.
  *
- * Pure and zero-dependency: no imports from src/artifacts/* (no cycles, no
- * cross-layer coupling); node built-ins only (none required).
+ * Pure; no imports from src/artifacts/* (no cycles, no cross-layer
+ * coupling). The only local dependency is the release-domain Git URL policy
+ * boundary, which itself only consumes the exact released Foundation
+ * package (no top-level await anywhere in this module graph).
  *
  * @module core/redact
  */
+
+import { redactEmbeddedUrlCredentials } from './git-url-policy.mjs';
 
 /** Stable placeholder substituted for every redacted absolute path. */
 export const REDACTED_PATH_PLACEHOLDER = '<redacted-path>';
@@ -160,7 +170,7 @@ function isUncPath(token) {
  * @returns {string}
  */
 function redactString(input) {
-  return input.replace(PATH_TOKEN_RE, (raw) => {
+  const pathRedacted = input.replace(PATH_TOKEN_RE, (raw) => {
     const match = TRAILING_PUNCT_RE.exec(raw);
     const core = match[1];
     const tail = match[2];
@@ -169,6 +179,9 @@ function redactString(input) {
     }
     return raw;
   });
+  // F-05: strip embedded URL credentials (delegates to the Foundation
+  // redactor through the Git URL policy boundary).
+  return redactEmbeddedUrlCredentials(pathRedacted);
 }
 
 /**

@@ -29,6 +29,7 @@ import {
   validatePresetHook,
   resolvePresetRequiresApproval,
 } from './presets.mjs';
+import { checkGitRemoteUrl, describeGitRemoteUrlFailure } from './git-url-policy.mjs';
 
 /** Secret-ish environment variable denylist (R3 credential hygiene). */
 export const ENV_ALLOWLIST_DENYLIST = /TOKEN|SECRET|PASSWORD|PASSPHRASE|API_KEY|CREDENTIAL/i;
@@ -38,9 +39,6 @@ const ENV_KEY_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
 
 /** Safe target/step id and step name pattern. */
 const SAFE_ID_RE = /^[a-z0-9][a-z0-9._-]*$/;
-
-/** Remote URL pattern: http(s) or file (test transport) and .git-suffixed. */
-const REMOTE_URL_RE = /^(?:https?|file):\/\/.+\.git$/;
 
 /** Branch pattern (leading alphanumeric blocks option-like names). */
 const BRANCH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
@@ -121,10 +119,13 @@ function validateTarget(target, index) {
   if (target.kind !== 'payload-mirror' && target.kind !== 'marketplace-index') {
     fail(`${where}.kind must be "payload-mirror" or "marketplace-index"`, { kind: target.kind });
   }
-  if (typeof target.remoteUrl !== 'string' || !REMOTE_URL_RE.test(target.remoteUrl)) {
-    fail(`${where}.remoteUrl must be an http(s)/file URL ending in .git`, { remoteUrl: target.remoteUrl });
+  const remoteUrlVerdict = checkGitRemoteUrl(target.remoteUrl);
+  if (!remoteUrlVerdict.ok) {
+    fail(
+      `${where}.remoteUrl ${describeGitRemoteUrlFailure(remoteUrlVerdict.reason)}`,
+      { reason: remoteUrlVerdict.reason },
+    );
   }
-  assertNoControlChars(`${where}.remoteUrl`, target.remoteUrl);
   if (target.visibility !== 'internal' && target.visibility !== 'public') {
     fail(`${where}.visibility must be "internal" or "public"`, { visibility: target.visibility });
   }
@@ -366,19 +367,25 @@ export function validatePostPublishDeclaration(postPublish, options = {}) {
     fail(`${unitLabel}postPublish must be a non-null object`);
   }
 
-  validateHookCommand(`${unitLabel}materialize`, postPublish.materialize);
-  if (typeof postPublish.materialize.outputMarker !== 'string'
-    || postPublish.materialize.outputMarker.length === 0) {
-    fail(`${unitLabel}materialize.outputMarker must be a non-empty string`);
-  }
-  assertNoControlChars(`${unitLabel}materialize.outputMarker`, postPublish.materialize.outputMarker);
-  if (postPublish.materialize.requireReport !== undefined) {
-    const { parse, equals } = postPublish.materialize.requireReport ?? {};
-    if (parse !== 'stdout-first-json') {
-      fail(`${unitLabel}materialize.requireReport.parse must be "stdout-first-json"`);
+  // materialize is optional since F-06/T6: a declaration without a consumer
+  // materialize hook stages the payload through the frozen publicFiles
+  // managed projection (Foundation Engineering Kit). When present, the hook
+  // fields stay fail-closed exactly as before.
+  if (postPublish.materialize !== undefined) {
+    validateHookCommand(`${unitLabel}materialize`, postPublish.materialize);
+    if (typeof postPublish.materialize.outputMarker !== 'string'
+      || postPublish.materialize.outputMarker.length === 0) {
+      fail(`${unitLabel}materialize.outputMarker must be a non-empty string`);
     }
-    if (equals !== undefined && (typeof equals !== 'object' || Array.isArray(equals) || equals === null)) {
-      fail(`${unitLabel}materialize.requireReport.equals must be a plain object`);
+    assertNoControlChars(`${unitLabel}materialize.outputMarker`, postPublish.materialize.outputMarker);
+    if (postPublish.materialize.requireReport !== undefined) {
+      const { parse, equals } = postPublish.materialize.requireReport ?? {};
+      if (parse !== 'stdout-first-json') {
+        fail(`${unitLabel}materialize.requireReport.parse must be "stdout-first-json"`);
+      }
+      if (equals !== undefined && (typeof equals !== 'object' || Array.isArray(equals) || equals === null)) {
+        fail(`${unitLabel}materialize.requireReport.equals must be a plain object`);
+      }
     }
   }
 

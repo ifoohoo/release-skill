@@ -26,7 +26,7 @@
 
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdir, readFile, rm } from 'node:fs/promises';
+import { mkdir, readFile, realpath, rm } from 'node:fs/promises';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -56,7 +56,8 @@ import {
   POSTPUBLISH_CONTEXT_ENV,
   PAYLOAD_SOURCE_TAG_WORKTREE,
 } from '../core/postpublish.mjs';
-import { validatePostPublishApproval } from '../core/postpublish-approval.mjs';
+import { verifyAndInstallExecutionBundle } from '../core/postpublish-bundle.mjs';
+import { assertPostPublishApprovalAuthority, validatePostPublishApproval } from '../core/postpublish-approval.mjs';
 import { executePresetHook } from '../core/preset-executor.mjs';
 import {
   ReleaseError,
@@ -122,7 +123,9 @@ function mapToSchemaCode(code) {
  * @param {Function} [options.runHookFn] - Injectable hook runner (tests).
  * @param {string[]} [options.postpublishApprovalPaths] - Checkpoint approval
  *   records for requiresApproval postVerify hooks; each record binds
- *   (planDigest, hookId) and is validated fail-closed before any write.
+ *   (planDigest, hookId), must be consumed from the immutable digest-
+ *   addressed authority minted by approvePostPublishHook (F-02), and is
+ *   validated fail-closed before any write.
  *
  * @returns {Promise<{ planPath: string, runPath: string, status: string, checkpoints: Object[] }>}
  *
@@ -252,9 +255,14 @@ export async function postVerifyRelease(options) {
 
   // =========================================================================
   // Gate 4: checkpoint approvals for requiresApproval hooks. Every provided
-  // record is validated fail-closed BEFORE any write (planDigest binding,
-  // declared hook, requiresApproval, 24h window, expiry). A bad approval
-  // aborts the whole run; a missing one parks the hook at AWAITING_APPROVAL.
+  // record is validated fail-closed BEFORE any write: first the immutable
+  // authority binding (F-02: the consumption path must BE the digest-
+  // addressed authority minted by approvePostPublishHook — recomputed
+  // planDigest directory, recomputed approvalDigest file name, strict
+  // no-follow regular-file read, no symlinked ancestor), then the content
+  // checks (schema, planDigest binding, declared hook, requiresApproval,
+  // 24h window, expiry). A bad approval aborts the whole run; a missing one
+  // parks the hook at AWAITING_APPROVAL.
   // =========================================================================
   const approvedHookIds = new Set();
   const hookApprovalPaths = postpublishApprovalPaths ?? [];
@@ -279,6 +287,10 @@ export async function postVerifyRelease(options) {
         { hookApprovalPath },
       );
     }
+    // F-02: identical bytes anywhere else are not an approval. The authority
+    // assertion runs before content validation and before the hook may enter
+    // approvedHookIds.
+    await assertPostPublishApprovalAuthority(planPath, hookApprovalPath, plan, hookApprovalRaw);
     validatePostPublishApproval(plan, hookApproval, { clock: clockFn });
     if (approvedHookIds.has(hookApproval.hookId)) {
       throw new ReleaseError(
@@ -428,6 +440,28 @@ export async function postVerifyRelease(options) {
     // Durable pre-execute authority (seq 0).
     await snapshot(DISTRIBUTING);
 
+    // =======================================================================
+    // F-04 root split: postVerify holds TWO distinct roots —
+    // - releaseWorkspaceRoot: the real project root the user releases from;
+    //   only used to resolve preset target.workspace, compare the release-
+    //   workspace write exclusion, and audit;
+    // - executionWorktreeRoot (worktreePath): the detached worktree at the
+    //   frozen tagCommit; only used as the hook runner context.root for
+    //   custom command hooks.
+    // The two roots never fall back onto each other through defaults.
+    // =======================================================================
+    let releaseWorkspaceRoot;
+    try {
+      releaseWorkspaceRoot = await realpath(root);
+    } catch (err) {
+      await recordBlocked();
+      throw new ReleaseError(
+        GATE_FAILED,
+        `release workspace root does not resolve to an existing directory: ${err.message}`,
+        { root, cause: err.code },
+      );
+    }
+
     // R1 timing contract carries over: hooks run inside a detached worktree
     // at the frozen tagCommit, never in the live workspace. Dry-run executes
     // nothing, so no worktree is allocated for a rehearsal.
@@ -450,6 +484,41 @@ export async function postVerifyRelease(options) {
         );
       }
       await evidence.append({ phase: 'worktree', status: 'passed' });
+
+      // =====================================================================
+      // Private execution bundle (F-01 / T1): postVerify re-entry consumes
+      // the SAME frozen bundle bytes — never the live workspace copies.
+      // Strictly re-read the digest-addressed bytes, recompute the closure
+      // through Foundation, and install ONLY the verified bytes into the
+      // fresh tag worktree before any hook runs; any mismatch fails closed
+      // before a hook or an external write.
+      // =====================================================================
+      let installedBundlePaths = [];
+      try {
+        ({ installed: installedBundlePaths } = await verifyAndInstallExecutionBundle({
+          plan,
+          planPath,
+          worktreePath,
+        }));
+      } catch (err) {
+        await evidence.append({
+          phase: 'worktree',
+          gate: 'execution-bundle',
+          status: 'failed',
+          error: boundedOutputTail(err?.message ?? String(err)),
+        });
+        await recordBlocked();
+        throw err instanceof ReleaseError ? err : new ReleaseError(
+          GATE_FAILED,
+          `cannot verify the frozen execution bundle: ${err?.message ?? err}`,
+        );
+      }
+      await evidence.append({
+        phase: 'worktree',
+        gate: 'execution-bundle',
+        status: 'passed',
+        installed: installedBundlePaths,
+      });
     }
 
     // §2.3 context projection: verifyEvidence PRESENT (postVerify phase);
@@ -535,7 +604,10 @@ export async function postVerifyRelease(options) {
             contextProjection: hookContextProjection,
             proposalContextProjection,
             commitIdentity: postPublish.commitIdentity,
-            root: worktreePath,
+            // F-04: presets receive the RELEASE workspace root (target.workspace
+            // resolution + release-workspace write exclusion). The detached
+            // worktree is the execution worktree and never impersonates it.
+            releaseWorkspaceRoot,
             evidencePath: join(runDir, 'evidence.jsonl'),
             exec,
             hookRunner,
@@ -623,6 +695,8 @@ export async function postVerifyRelease(options) {
             ...(hook.envAllowlist ? { envAllowlist: hook.envAllowlist } : {}),
           },
           {
+            // F-04: custom command hooks keep running in the execution
+            // worktree; the runner's cwd containment binds them there.
             root: worktreePath,
             env: process.env,
             injectEnv: { [POSTPUBLISH_CONTEXT_ENV]: JSON.stringify(hookContextProjection) },
