@@ -1,5 +1,16 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.7.1 locale=en baseline=sha256:9f86def686489f30d89bb67884dfd8c44ee1d48b5d0cf5efabba44f87998d7d4 -->
+## [0.7.1] - 2026-08-22
+
+v0.7.1 fixes a leakage-scan false positive that blocked generated JSON Schema validators containing POSIX-like JSON Pointer segments.
+
+### Fixed
+
+- **Context-aware POSIX path detection**: the snapshot leakage scanner no longer treats JSON Pointer property segments or ordinary URL paths as machine-local absolute paths. Concrete Linux root, home, and user-home paths remain release-blocking findings.
+<!-- release-skill:changelog:end version=0.7.1 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.7.0 locale=en baseline=sha256:a4d6989dd03d562c498344baf0dc1d0e1d0a225aecf0d48a7c4f9850c495b0ef -->
 ## [0.7.0] - 2026-08-22
 

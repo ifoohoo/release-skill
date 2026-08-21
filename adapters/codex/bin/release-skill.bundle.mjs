@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.7.0"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.7.1"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "f8978e3fb25219e3f69c7d483818837bb3443e9db587b030cfe6d8030e4995eb";
+const __bundleSourceDigest = "71df85a039086a78d5b4a7586cd88bcd7b2887dca8d07341be0bc6463f26d005";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -32285,7 +32285,7 @@ var init_report = __esm({
     init_closure();
     init_errors2();
     init_validation();
-    PACKAGE_META = Object.freeze({ "name": "release-skill", "version": "0.7.0" });
+    PACKAGE_META = Object.freeze({ "name": "release-skill", "version": "0.7.1" });
     REPORT_RENDERER_VERSION = PACKAGE_META.version;
     SUPPORTED_REPORT_LOCALES = Object.freeze(["zh-CN", "en-US"]);
     EXECUTION_STATUSES = Object.freeze([
@@ -46063,8 +46063,12 @@ var init_scan = __esm({
     ]);
     BINARY_PROBE_SIZE = 8192;
     ABSOLUTE_PATH_PATTERNS = [
-      /\/(?:Users|home)\/[A-Za-z0-9_-][A-Za-z0-9._-]*(?:\/[^\s"'`<>]*)?/,
-      /\/root\/[A-Za-z0-9_-][A-Za-z0-9._-]*(?:\/[^\s"'`<>]*)?/,
+      /(?<![A-Za-z0-9_#])\/(?:Users|home)\/[A-Za-z0-9_-][A-Za-z0-9._-]*(?:\/[^\s"'`<>]*)?/,
+      // A JSON Pointer may contain a property segment named "root".
+      // Require a path boundary before that segment so it is not mistaken for a
+      // Linux absolute path, while preserving real root-home paths after
+      // whitespace or punctuation.
+      /(?<![A-Za-z0-9_#])\/root\/[A-Za-z0-9_-][A-Za-z0-9._-]*(?:\/[^\s"'`<>]*)?/,
       /\/tmp\/(?=[^\s"'`<>]*(?:secret|token|credential|password|private[-_]?key|id_rsa))[^\s"'`<>]+/i,
       /(?:^|[^A-Za-z0-9_])[A-Za-z]:\\[A-Za-z0-9_$-][A-Za-z0-9._$-]*(?:\\[^\s"'`<>]*)?/
     ];

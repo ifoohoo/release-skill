@@ -2,37 +2,23 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.7.0 -->
+<!-- release-skill:release-version: 0.7.1 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.7.0** (2026-08-22)
+**0.7.1** (2026-08-22)
 
-v0.7.0 收口了 v0.6.3 之后识别出的发布架构缺口：postPublish 私有执行输入随批准计划冻结，检查点批准只能从不可变权威路径消费，下游投影直接复用已发布的 Skill Family Foundation 0.8.0 合同，不再依赖工作区本地替代实现。
-
-**新增**
-
-- **冻结 postPublish 执行包**：发布单元可以声明私有 `executionFiles`；prepare 把精确字节及资源闭包冻结进不可变计划，distribute 或 postVerify 只把复验通过的执行包安装到隔离执行工作树。批准后的实时工作区改动无法改变实际执行命令。
-- **从权威路径消费检查点批准**：postPublish 批准只接受由计划摘要和 hook id 推导出的规范路径。任何 hook 或外部写入开始前，消费端都会复核计划摘要、批准摘要、严格读取的文件字节，以及整条权威路径不存在符号链接。
-- **由 Foundation 托管下游投影**：postPublish 载荷投影改用已发布的 `skill-family-engineering-kit` 投影编译器和运行器，并通过 `skill-family-harness-node` 完成严格读取与资源闭包复验。
-
-**变更**
-
-- **区分两类工作区**：预设执行明确区分维护者的 `releaseWorkspaceRoot` 与隔离的 `executionWorktreeRoot`；拒绝含义模糊的旧 `root` 回退，也不允许预设把发布工作区自身作为目标。
-- **精确采用 Foundation 0.8.0**：`skill-family-contracts`、`skill-family-harness-node` 与 `skill-family-engineering-kit` 均钉扎 0.8.0；包运行时钉扎 Node.js `>=22.22.2 <23`。
-- **显式 distribute 权威**：`distribute` 必须取得与计划绑定的发布批准记录；postPublish hook 批准继续使用独立的检查点记录。
+v0.7.1 修复了泄漏扫描误报：生成的 JSON Schema 校验器包含形似 POSIX 路径的 JSON Pointer 时，不再被错误阻断。
 
 **修复**
 
-- **拒绝并脱敏携带凭证的 Git URL**：配置中的 Git 远端在 schema 与运行时两层拒绝 URL userinfo。错误、证据和摘要统一经过共享脱敏路径，避免持久化嵌入式凭证。
-- **生产门禁失败关闭**：`NODE_TEST_CONTEXT` 不再能够豁免派生产物门禁；adapter 按计划版本明确处理语义；兼容 Node.js 22 的测试报告格式，同时不放宽断言。
-- **公开打包与许可证收口**：工作区说明与公开包统一采用 Apache-2.0，公开 bundle 同时携带所需的 Apache-2.0 与 MIT 许可证正文。
+- **按上下文识别 POSIX 路径**：快照泄漏扫描不再把 JSON Pointer 属性片段或普通 URL 路径当成本机绝对路径；真实的 Linux root、home 和用户主目录路径仍会阻断发布。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.7.0 是当前源码候选，v0.6.3 是最新已发布版本。v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.7.1 是当前源码候选，v0.6.3 是最新已发布版本。v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -45,7 +31,7 @@ v0.7.0 收口了 v0.6.3 之后识别出的发布架构缺口：postPublish 私�
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.7.0 是当前源码候选，v0.6.3 是最新已发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.7.1 是当前源码候选，v0.6.3 是最新已发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**

@@ -48,8 +48,12 @@ const BINARY_PROBE_SIZE = 8192;
  * such as `/Users/...` alone.
  */
 const ABSOLUTE_PATH_PATTERNS = [
-  /\/(?:Users|home)\/[A-Za-z0-9_-][A-Za-z0-9._-]*(?:\/[^\s"'`<>]*)?/,
-  /\/root\/[A-Za-z0-9_-][A-Za-z0-9._-]*(?:\/[^\s"'`<>]*)?/,
+  /(?<![A-Za-z0-9_#])\/(?:Users|home)\/[A-Za-z0-9_-][A-Za-z0-9._-]*(?:\/[^\s"'`<>]*)?/,
+  // A JSON Pointer may contain a property segment named "root".
+  // Require a path boundary before that segment so it is not mistaken for a
+  // Linux absolute path, while preserving real root-home paths after
+  // whitespace or punctuation.
+  /(?<![A-Za-z0-9_#])\/root\/[A-Za-z0-9_-][A-Za-z0-9._-]*(?:\/[^\s"'`<>]*)?/,
   /\/tmp\/(?=[^\s"'`<>]*(?:secret|token|credential|password|private[-_]?key|id_rsa))[^\s"'`<>]+/i,
   /(?:^|[^A-Za-z0-9_])[A-Za-z]:\\[A-Za-z0-9_$-][A-Za-z0-9._$-]*(?:\\[^\s"'`<>]*)?/,
 ];
