@@ -134,6 +134,7 @@ function codexCrossValidateListEntry(found, action) {
 
 const CLAUDE = Object.freeze({
   id: 'claude',
+  skillProjectionSurface: 'platforms/claude-code',
   distributionType: 'claude-plugin',
   actionType: 'claude-marketplace-install',
   // Runtime adapter implementing this platform's marketplace-install action.
@@ -199,6 +200,7 @@ const CLAUDE = Object.freeze({
 
 const CODEX = Object.freeze({
   id: 'codex',
+  skillProjectionSurface: 'platforms/codex',
   distributionType: 'codex-plugin',
   actionType: 'codex-marketplace-install',
   adapter: 'plugin-marketplace',
@@ -260,6 +262,7 @@ const CODEX = Object.freeze({
 
 const KIMI = Object.freeze({
   id: 'kimi',
+  skillProjectionSurface: 'platforms/kimi-code',
   distributionType: 'kimi-plugin',
   actionType: 'kimi-marketplace-install',
   adapter: 'plugin-marketplace',
@@ -333,6 +336,7 @@ const KIMI = Object.freeze({
 // (distributionType/actionType/consumer) stays `codebuddy`.
 const CODEBUDDY = Object.freeze({
   id: 'codebuddy',
+  skillProjectionSurface: 'platforms/workbuddy',
   distributionType: 'codebuddy-plugin',
   actionType: 'codebuddy-marketplace-install',
   adapter: 'plugin-marketplace',
@@ -418,6 +422,7 @@ const VALID_REF_STRENGTHS = new Set(['commit-sha', 'name-ref', 'unfixable']);
 const VALID_OUTPUT_PROTOCOLS = new Set(['structured', 'text', 'none']);
 const VALID_IDENTITY_EVIDENCE = new Set(['list-record', 'install-output', 'filesystem-payload', 'human-attestation']);
 const VALID_DEGRADATION_POLICIES = new Set(['block', 'human-attestation', 'human-attestation-with-fallback']);
+const SKILL_PROJECTION_SURFACE_PATTERN = /^platforms\/[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 
 /**
  * Look up a platform descriptor by id.
@@ -432,6 +437,20 @@ export function getPlatform(id) {
 }
 
 /**
+ * Resolve a declared skill projection surface to its public host name.
+ * The host is always derived from the descriptor's authoritative
+ * `buildAdapter.name`; unknown surfaces fail closed with `null`.
+ *
+ * @param {string} surfaceId
+ * @param {object[]} [registry]
+ * @returns {string|null}
+ */
+export function resolveSkillProjectionSurfaceHost(surfaceId, registry = PLATFORMS) {
+  const platform = registry.find((item) => item.skillProjectionSurface === surfaceId);
+  return platform?.buildAdapter?.name ?? null;
+}
+
+/**
  * Validate a registry (defaults to the module registry). Throws on the first
  * malformed description so a registry typo fails at import time.
  *
@@ -439,6 +458,7 @@ export function getPlatform(id) {
  */
 export function assertRegistry(registry = PLATFORMS) {
   const seen = new Set();
+  const seenSkillProjectionSurfaces = new Set();
   for (const platform of registry) {
     const label = platform?.id ?? '<missing id>';
     if (typeof platform?.id !== 'string' || platform.id.length === 0) {
@@ -489,6 +509,17 @@ export function assertRegistry(registry = PLATFORMS) {
     // declared-host reconciliation and the build producer both key on it.
     if (typeof platform.buildAdapter.name !== 'string' || platform.buildAdapter.name.length === 0) {
       throw new Error(`platform registry: ${label} buildAdapter needs a non-empty name (its adapter directory name)`);
+    }
+    if (typeof platform.skillProjectionSurface !== 'string'
+        || !SKILL_PROJECTION_SURFACE_PATTERN.test(platform.skillProjectionSurface)) {
+      throw new Error(`platform registry: ${label} skillProjectionSurface must match platforms/<slug>`);
+    }
+    if (seenSkillProjectionSurfaces.has(platform.skillProjectionSurface)) {
+      throw new Error(`platform registry: duplicate skillProjectionSurface "${platform.skillProjectionSurface}"; aliases must be unique`);
+    }
+    seenSkillProjectionSurfaces.add(platform.skillProjectionSurface);
+    if (resolveSkillProjectionSurfaceHost(platform.skillProjectionSurface, registry) !== platform.buildAdapter.name) {
+      throw new Error(`platform registry: ${label} skillProjectionSurface must map to buildAdapter.name`);
     }
     if (!VALID_LIST_OUTPUTS.has(platform.jsonProtocol?.listOutput)) {
       throw new Error(`platform registry: ${label} has illegal jsonProtocol.listOutput "${platform.jsonProtocol?.listOutput}"`);

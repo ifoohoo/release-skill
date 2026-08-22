@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.7.3"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.7.4"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "0e814c8b806446476595498baed8b129ca3cb024e3b922049db5774f022c90be";
+const __bundleSourceDigest = "94f8a4247206a95c5365d48448b1cce5e47d4fc42a711ac72e761565bc2dcb69";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -36390,8 +36390,13 @@ function getPlatform(id) {
   if (!platform) throw new Error(`unknown platform: ${id}`);
   return platform;
 }
+function resolveSkillProjectionSurfaceHost(surfaceId, registry = PLATFORMS) {
+  const platform = registry.find((item) => item.skillProjectionSurface === surfaceId);
+  return platform?.buildAdapter?.name ?? null;
+}
 function assertRegistry(registry = PLATFORMS) {
   const seen = /* @__PURE__ */ new Set();
+  const seenSkillProjectionSurfaces = /* @__PURE__ */ new Set();
   for (const platform of registry) {
     const label = platform?.id ?? "<missing id>";
     if (typeof platform?.id !== "string" || platform.id.length === 0) {
@@ -36439,6 +36444,16 @@ function assertRegistry(registry = PLATFORMS) {
     }
     if (typeof platform.buildAdapter.name !== "string" || platform.buildAdapter.name.length === 0) {
       throw new Error(`platform registry: ${label} buildAdapter needs a non-empty name (its adapter directory name)`);
+    }
+    if (typeof platform.skillProjectionSurface !== "string" || !SKILL_PROJECTION_SURFACE_PATTERN.test(platform.skillProjectionSurface)) {
+      throw new Error(`platform registry: ${label} skillProjectionSurface must match platforms/<slug>`);
+    }
+    if (seenSkillProjectionSurfaces.has(platform.skillProjectionSurface)) {
+      throw new Error(`platform registry: duplicate skillProjectionSurface "${platform.skillProjectionSurface}"; aliases must be unique`);
+    }
+    seenSkillProjectionSurfaces.add(platform.skillProjectionSurface);
+    if (resolveSkillProjectionSurfaceHost(platform.skillProjectionSurface, registry) !== platform.buildAdapter.name) {
+      throw new Error(`platform registry: ${label} skillProjectionSurface must map to buildAdapter.name`);
     }
     if (!VALID_LIST_OUTPUTS.has(platform.jsonProtocol?.listOutput)) {
       throw new Error(`platform registry: ${label} has illegal jsonProtocol.listOutput "${platform.jsonProtocol?.listOutput}"`);
@@ -36567,7 +36582,7 @@ function resolveCapabilityConflicts(platform) {
   }
   return { hasConflict: false, conflicts: [] };
 }
-var CLAUDE, CODEX, KIMI, CODEBUDDY, PLATFORMS, VALID_DISTRIBUTION_TYPES, VALID_ACTION_TYPES, VALID_SOURCE_FORMS, VALID_MARKETPLACE_REF_FORMS, VALID_LIST_OUTPUTS, VALID_CLI_OUTPUTS, VALID_ENTRY_VERSION_BINDING, VALID_INSTALL_METHODS, VALID_REF_STRENGTHS, VALID_OUTPUT_PROTOCOLS, VALID_IDENTITY_EVIDENCE, VALID_DEGRADATION_POLICIES;
+var CLAUDE, CODEX, KIMI, CODEBUDDY, PLATFORMS, VALID_DISTRIBUTION_TYPES, VALID_ACTION_TYPES, VALID_SOURCE_FORMS, VALID_MARKETPLACE_REF_FORMS, VALID_LIST_OUTPUTS, VALID_CLI_OUTPUTS, VALID_ENTRY_VERSION_BINDING, VALID_INSTALL_METHODS, VALID_REF_STRENGTHS, VALID_OUTPUT_PROTOCOLS, VALID_IDENTITY_EVIDENCE, VALID_DEGRADATION_POLICIES, SKILL_PROJECTION_SURFACE_PATTERN;
 var init_registry2 = __esm({
   async "src/platforms/registry.mjs"() {
     await init_kimi();
@@ -36582,6 +36597,7 @@ var init_registry2 = __esm({
     __name(codexCrossValidateListEntry, "codexCrossValidateListEntry");
     CLAUDE = Object.freeze({
       id: "claude",
+      skillProjectionSurface: "platforms/claude-code",
       distributionType: "claude-plugin",
       actionType: "claude-marketplace-install",
       // Runtime adapter implementing this platform's marketplace-install action.
@@ -36646,6 +36662,7 @@ var init_registry2 = __esm({
     });
     CODEX = Object.freeze({
       id: "codex",
+      skillProjectionSurface: "platforms/codex",
       distributionType: "codex-plugin",
       actionType: "codex-marketplace-install",
       adapter: "plugin-marketplace",
@@ -36706,6 +36723,7 @@ var init_registry2 = __esm({
     });
     KIMI = Object.freeze({
       id: "kimi",
+      skillProjectionSurface: "platforms/kimi-code",
       distributionType: "kimi-plugin",
       actionType: "kimi-marketplace-install",
       adapter: "plugin-marketplace",
@@ -36765,6 +36783,7 @@ var init_registry2 = __esm({
     });
     CODEBUDDY = Object.freeze({
       id: "codebuddy",
+      skillProjectionSurface: "platforms/workbuddy",
       distributionType: "codebuddy-plugin",
       actionType: "codebuddy-marketplace-install",
       adapter: "plugin-marketplace",
@@ -36847,7 +36866,9 @@ var init_registry2 = __esm({
     VALID_OUTPUT_PROTOCOLS = /* @__PURE__ */ new Set(["structured", "text", "none"]);
     VALID_IDENTITY_EVIDENCE = /* @__PURE__ */ new Set(["list-record", "install-output", "filesystem-payload", "human-attestation"]);
     VALID_DEGRADATION_POLICIES = /* @__PURE__ */ new Set(["block", "human-attestation", "human-attestation-with-fallback"]);
+    SKILL_PROJECTION_SURFACE_PATTERN = /^platforms\/[a-z0-9]+(?:-[a-z0-9]+)*$/u;
     __name(getPlatform, "getPlatform");
+    __name(resolveSkillProjectionSurfaceHost, "resolveSkillProjectionSurfaceHost");
     __name(assertRegistry, "assertRegistry");
     assertRegistry();
     __name(resolvePlatformRoute, "resolvePlatformRoute");
@@ -44399,8 +44420,13 @@ async function collectRegularFiles(dir, results) {
   }
 }
 function inferSurfaceHost(surfaceId, defaultHost) {
-  const match = ADAPTER_SURFACE_PATTERN.exec(surfaceId);
-  return match?.[1] ?? defaultHost;
+  const adapterMatch = ADAPTER_SURFACE_PATTERN.exec(surfaceId);
+  if (adapterMatch) return adapterMatch[1];
+  const platformMatch = PLATFORM_SURFACE_PATTERN.exec(surfaceId);
+  if (platformMatch) {
+    return resolveSkillProjectionSurfaceHost(surfaceId) ?? `unknown-platform:${platformMatch[1]}`;
+  }
+  return defaultHost;
 }
 function receiptProjection(result) {
   return {
@@ -44509,6 +44535,7 @@ async function checkSkillResourceClosure({
     const pluginRoot = resolvePluginRoot(skill, scanRoot2);
     const surfaceId = relativeStable(scanRoot2, pluginRoot);
     const surfaceHost = inferSurfaceHost(surfaceId, host);
+    const firstSkillOnSurface = !surfaceMap.has(surfaceId);
     const surface = surfaceMap.get(surfaceId) ?? {
       id: surfaceId,
       host: surfaceHost,
@@ -44518,6 +44545,19 @@ async function checkSkillResourceClosure({
     };
     surface.skillCount += 1;
     surfaceMap.set(surfaceId, surface);
+    if (firstSkillOnSurface && PLATFORM_SURFACE_PATTERN.test(surfaceId) && resolveSkillProjectionSurfaceHost(surfaceId) === null) {
+      findings.push({
+        host: surfaceHost,
+        surface: surfaceId,
+        skill: null,
+        line: null,
+        reference: surfaceId,
+        classification: CLASSIFICATION.UNKNOWN_PLATFORM_SURFACE,
+        resolutionRoot: surfaceId,
+        resolvedTarget: surfaceId,
+        code: FINDING_CODE.UNKNOWN_PLATFORM_SURFACE
+      });
+    }
     if (!skillsBySurface.has(surfaceId)) skillsBySurface.set(surfaceId, []);
     skillsBySurface.get(surfaceId).push(skill);
     const content = await readFile12(resolve17(scanRoot2, skill), "utf8");
@@ -44711,13 +44751,14 @@ function evaluateDeclaredHostSurfaceCoverage(expectedHosts, surfaces) {
   }
   return { passed: missing.length === 0, missing };
 }
-var CHECKER_VERSION, BARE_PREFIXES, EXPLICIT_PREFIXES, SOURCE_TREE_PATTERN, MACHINE_ABSOLUTE_PATTERN, HOME_DIRECTORY_PATTERN, ADAPTER_SURFACE_PATTERN, CLOSURE_RESOURCE_DIRS, GLOB_PATTERN, SOURCE_ONLY_MARKER, TRANSPORT_EXCLUSIONS, CLASSIFICATION, FINDING_CODE;
+var CHECKER_VERSION, BARE_PREFIXES, EXPLICIT_PREFIXES, SOURCE_TREE_PATTERN, MACHINE_ABSOLUTE_PATTERN, HOME_DIRECTORY_PATTERN, ADAPTER_SURFACE_PATTERN, PLATFORM_SURFACE_PATTERN, CLOSURE_RESOURCE_DIRS, GLOB_PATTERN, SOURCE_ONLY_MARKER, TRANSPORT_EXCLUSIONS, CLASSIFICATION, FINDING_CODE;
 var init_skill_resource_closure = __esm({
-  "src/core/skill-resource-closure.mjs"() {
+  async "src/core/skill-resource-closure.mjs"() {
     init_src();
     init_errors3();
     init_frozen();
-    CHECKER_VERSION = "skill-resource-closure-v2";
+    await init_registry2();
+    CHECKER_VERSION = "skill-resource-closure-v3";
     BARE_PREFIXES = ["references/", "assets/", "schemas/", "examples/", "scripts/"];
     EXPLICIT_PREFIXES = [
       "<plugin-root>/",
@@ -44731,6 +44772,7 @@ var init_skill_resource_closure = __esm({
     MACHINE_ABSOLUTE_PATTERN = /^(?:\/(?:Users|home|root|tmp|var|etc|opt)(?:\/|$)|[A-Za-z]:[\\/])/u;
     HOME_DIRECTORY_PATTERN = /^(?:~|\$HOME|\$\{HOME\})\/.+/u;
     ADAPTER_SURFACE_PATTERN = /^adapters\/([^/]+)$/u;
+    PLATFORM_SURFACE_PATTERN = /^platforms\/(.+)$/u;
     CLOSURE_RESOURCE_DIRS = Object.freeze(["references", "assets", "schemas", "examples", "scripts"]);
     GLOB_PATTERN = /[*?\[]/u;
     SOURCE_ONLY_MARKER = /(?:\bsource-only\b|仅源码包)/iu;
@@ -44748,7 +44790,8 @@ var init_skill_resource_closure = __esm({
       HOME_DIRECTORY: "home_directory",
       OUT_OF_BOUNDS: "out_of_bounds",
       RESOURCE_DRIFT: "resource_drift",
-      STALE_RESOURCE: "stale_resource"
+      STALE_RESOURCE: "stale_resource",
+      UNKNOWN_PLATFORM_SURFACE: "unknown_platform_surface"
     });
     FINDING_CODE = Object.freeze({
       SNAPSHOT_UNSAFE: "SNAPSHOT_UNSAFE",
@@ -44760,7 +44803,8 @@ var init_skill_resource_closure = __esm({
       OUT_OF_BOUNDS: "OUT_OF_BOUNDS",
       SYMLINK_NOT_ALLOWED: "SYMLINK_NOT_ALLOWED",
       RESOURCE_DRIFT: "RESOURCE_DRIFT",
-      STALE_RESOURCE: "STALE_RESOURCE"
+      STALE_RESOURCE: "STALE_RESOURCE",
+      UNKNOWN_PLATFORM_SURFACE: "UNKNOWN_PLATFORM_SURFACE"
     });
     __name(toPosix, "toPosix");
     __name(relativeStable, "relativeStable");
@@ -100763,7 +100807,7 @@ var init_prepare = __esm({
     init_evidence();
     await init_plan();
     init_digest();
-    init_skill_resource_closure();
+    await init_skill_resource_closure();
     init_public_map();
     init_public_path();
     init_scan();
@@ -102785,7 +102829,7 @@ var init_publish = __esm({
     init_baseline2();
     init_previous_public_baseline();
     init_evidence();
-    init_skill_resource_closure();
+    await init_skill_resource_closure();
     init_checkpoints();
     await init_run();
     init_errors3();
@@ -105332,7 +105376,7 @@ var init_verify = __esm({
     init_public_path();
     init_npm();
     init_verification_gates();
-    init_skill_resource_closure();
+    await init_skill_resource_closure();
     init_checkpoints();
     init_installation_contract();
     init_npm_entry_closure();

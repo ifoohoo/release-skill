@@ -1,5 +1,16 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.7.4 locale=en baseline=sha256:c1d8df84f44367edc819829462687c58f30eb7ea23b8761c317254bd386ece85 -->
+## [0.7.4] - 2026-08-22
+
+v0.7.4 recognizes declared plugin hosts in both generated adapter trees and registered platform projection trees, so valid releases such as Skill Family Audit are no longer blocked by a false missing-host result.
+
+### Fixed
+
+- **Registry-driven projection surfaces**: each platform descriptor now declares its exact `platforms/*` skill projection surface. The resource-closure gate derives the host from the existing `buildAdapter.name` authority. Claude, Codex, Kimi, and WorkBuddy projections satisfy declared-host coverage without copying adapter trees; unknown platform projections still fail closed. The changed closure algorithm is identified as `skill-resource-closure-v3`, so frozen plans from earlier checker versions cannot cross the publish boundary.
+<!-- release-skill:changelog:end version=0.7.4 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.7.3 locale=en baseline=sha256:18caf087c567201044292c958694b39ae9989d4c1abb1886aaa5a1ce8ca57bca -->
 ## [0.7.3] - 2026-08-22
 

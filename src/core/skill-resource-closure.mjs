@@ -13,8 +13,9 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { canonicalJson, digestDocument } from 'skill-family-contracts';
 import { GATE_FAILED, ReleaseError } from './errors.mjs';
 import { computeFrozenSnapshot } from '../snapshot/frozen.mjs';
+import { resolveSkillProjectionSurfaceHost } from '../platforms/registry.mjs';
 
-export const CHECKER_VERSION = 'skill-resource-closure-v2';
+export const CHECKER_VERSION = 'skill-resource-closure-v3';
 
 const BARE_PREFIXES = ['references/', 'assets/', 'schemas/', 'examples/', 'scripts/'];
 const EXPLICIT_PREFIXES = [
@@ -32,6 +33,7 @@ const MACHINE_ABSOLUTE_PATTERN = /^(?:\/(?:Users|home|root|tmp|var|etc|opt)(?:\/
 // isPathToken, so prose words are never matched; fail-closed over silent miss.
 const HOME_DIRECTORY_PATTERN = /^(?:~|\$HOME|\$\{HOME\})\/.+/u;
 const ADAPTER_SURFACE_PATTERN = /^adapters\/([^/]+)$/u;
+const PLATFORM_SURFACE_PATTERN = /^platforms\/(.+)$/u;
 // G3: skill-local resource closure directories. Regular files inside these
 // directories (under a skill directory) must be referenced by a SKILL.md of
 // the same surface or they are reported as stale on adapter surfaces.
@@ -58,6 +60,7 @@ export const CLASSIFICATION = Object.freeze({
   OUT_OF_BOUNDS: 'out_of_bounds',
   RESOURCE_DRIFT: 'resource_drift',
   STALE_RESOURCE: 'stale_resource',
+  UNKNOWN_PLATFORM_SURFACE: 'unknown_platform_surface',
 });
 
 export const FINDING_CODE = Object.freeze({
@@ -71,6 +74,7 @@ export const FINDING_CODE = Object.freeze({
   SYMLINK_NOT_ALLOWED: 'SYMLINK_NOT_ALLOWED',
   RESOURCE_DRIFT: 'RESOURCE_DRIFT',
   STALE_RESOURCE: 'STALE_RESOURCE',
+  UNKNOWN_PLATFORM_SURFACE: 'UNKNOWN_PLATFORM_SURFACE',
 });
 
 function toPosix(value) {
@@ -281,8 +285,14 @@ async function collectRegularFiles(dir, results) {
 }
 
 function inferSurfaceHost(surfaceId, defaultHost) {
-  const match = ADAPTER_SURFACE_PATTERN.exec(surfaceId);
-  return match?.[1] ?? defaultHost;
+  const adapterMatch = ADAPTER_SURFACE_PATTERN.exec(surfaceId);
+  if (adapterMatch) return adapterMatch[1];
+  const platformMatch = PLATFORM_SURFACE_PATTERN.exec(surfaceId);
+  if (platformMatch) {
+    return resolveSkillProjectionSurfaceHost(surfaceId)
+      ?? `unknown-platform:${platformMatch[1]}`;
+  }
+  return defaultHost;
 }
 
 function receiptProjection(result) {
@@ -413,6 +423,7 @@ export async function checkSkillResourceClosure({
     const pluginRoot = resolvePluginRoot(skill, scanRoot);
     const surfaceId = relativeStable(scanRoot, pluginRoot);
     const surfaceHost = inferSurfaceHost(surfaceId, host);
+    const firstSkillOnSurface = !surfaceMap.has(surfaceId);
     const surface = surfaceMap.get(surfaceId) ?? {
       id: surfaceId,
       host: surfaceHost,
@@ -422,6 +433,21 @@ export async function checkSkillResourceClosure({
     };
     surface.skillCount += 1;
     surfaceMap.set(surfaceId, surface);
+    if (firstSkillOnSurface
+        && PLATFORM_SURFACE_PATTERN.test(surfaceId)
+        && resolveSkillProjectionSurfaceHost(surfaceId) === null) {
+      findings.push({
+        host: surfaceHost,
+        surface: surfaceId,
+        skill: null,
+        line: null,
+        reference: surfaceId,
+        classification: CLASSIFICATION.UNKNOWN_PLATFORM_SURFACE,
+        resolutionRoot: surfaceId,
+        resolvedTarget: surfaceId,
+        code: FINDING_CODE.UNKNOWN_PLATFORM_SURFACE,
+      });
+    }
     if (!skillsBySurface.has(surfaceId)) skillsBySurface.set(surfaceId, []);
     skillsBySurface.get(surfaceId).push(skill);
 
