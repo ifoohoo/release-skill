@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.7.4"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.7.5"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "94f8a4247206a95c5365d48448b1cce5e47d4fc42a711ac72e761565bc2dcb69";
+const __bundleSourceDigest = "9ced58c843d3cdefc52185b6f64dd05deaf480edc7807ee5bf9efd54023c5ed7";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -44283,8 +44283,17 @@ async function discoverSkills(root, base = root) {
 function resolvePluginRoot(skillRelativePath, scanRoot2) {
   const parts = toPosix(skillRelativePath).split("/");
   const skillsIndex = parts.lastIndexOf("skills");
-  if (skillsIndex < 0) return resolve17(scanRoot2);
-  return resolve17(scanRoot2, ...parts.slice(0, skillsIndex));
+  if (skillsIndex >= 0) return resolve17(scanRoot2, ...parts.slice(0, skillsIndex));
+  if (parts[0] === "platforms" && parts.length >= 3) {
+    const registeredSurface = parts.slice(0, 2).join("/");
+    if (resolveSkillProjectionSurfaceHost(registeredSurface) !== null) {
+      return resolve17(scanRoot2, ...parts.slice(0, 2));
+    }
+    const skillIndex = parts.lastIndexOf("skill");
+    if (skillIndex >= 2) return resolve17(scanRoot2, ...parts.slice(0, skillIndex));
+    return resolve17(scanRoot2, ...parts.slice(0, 2));
+  }
+  return resolve17(scanRoot2);
 }
 function resolveSkillRoot(skillRelativePath, scanRoot2) {
   return resolve17(scanRoot2, dirname7(skillRelativePath));
@@ -44758,7 +44767,7 @@ var init_skill_resource_closure = __esm({
     init_errors3();
     init_frozen();
     await init_registry2();
-    CHECKER_VERSION = "skill-resource-closure-v3";
+    CHECKER_VERSION = "skill-resource-closure-v4";
     BARE_PREFIXES = ["references/", "assets/", "schemas/", "examples/", "scripts/"];
     EXPLICIT_PREFIXES = [
       "<plugin-root>/",

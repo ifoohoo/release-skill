@@ -1,5 +1,16 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.7.5 locale=en baseline=sha256:39f8f00f21c9071341106ea4becf4e8d10a732bd01b430e244dc4e3c5bf07da2 -->
+## [0.7.5] - 2026-08-22
+
+v0.7.5 recognizes registered platform projections that publish a single `skill/` entry, closing the remaining false missing-host result for Skill Failure Auditor releases.
+
+### Fixed
+
+- **Singular platform skill surfaces**: resource closure now assigns `platforms/<host>/skill/SKILL.md` to the registered `platforms/<host>` surface, while preserving root, adapter, and plural `skills/` behavior. Unregistered platform trees still fail closed. The changed closure algorithm is identified as `skill-resource-closure-v4`, so plans frozen by earlier checker versions cannot cross the publish boundary.
+<!-- release-skill:changelog:end version=0.7.5 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.7.4 locale=en baseline=sha256:c1d8df84f44367edc819829462687c58f30eb7ea23b8761c317254bd386ece85 -->
 ## [0.7.4] - 2026-08-22
 

@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.7.4 -->
+<!-- release-skill:release-version: 0.7.5 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,17 +14,17 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.7.4** (2026-08-22)
+**0.7.5** (2026-08-22)
 
-v0.7.4 recognizes declared plugin hosts in both generated adapter trees and registered platform projection trees, so valid releases such as Skill Family Audit are no longer blocked by a false missing-host result.
+v0.7.5 recognizes registered platform projections that publish a single `skill/` entry, closing the remaining false missing-host result for Skill Failure Auditor releases.
 
 **Fixed**
 
-- **Registry-driven projection surfaces**: each platform descriptor now declares its exact `platforms/*` skill projection surface. The resource-closure gate derives the host from the existing `buildAdapter.name` authority. Claude, Codex, Kimi, and WorkBuddy projections satisfy declared-host coverage without copying adapter trees; unknown platform projections still fail closed. The changed closure algorithm is identified as `skill-resource-closure-v3`, so frozen plans from earlier checker versions cannot cross the publish boundary.
+- **Singular platform skill surfaces**: resource closure now assigns `platforms/<host>/skill/SKILL.md` to the registered `platforms/<host>` surface, while preserving root, adapter, and plural `skills/` behavior. Unregistered platform trees still fail closed. The changed closure algorithm is identified as `skill-resource-closure-v4`, so plans frozen by earlier checker versions cannot cross the publish boundary.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.7.4 is the current source candidate; v0.7.3 remains
+> **Current boundary:** v0.7.5 is the current source candidate; v0.7.4 remains
 > the latest published release. v0.4.1 was an earlier published milestone;
 > v0.2.2 previously held published status before the platform verification
 > convergence fix was added.
@@ -44,8 +44,8 @@ v0.7.4 recognizes declared plugin hosts in both generated adapter trees and regi
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.7.4 is the current
-> source candidate and v0.7.3 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
+> **Production path verified since the v0.1.1 milestone; v0.7.5 is the current
+> source candidate and v0.7.4 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
 > **Start here:**

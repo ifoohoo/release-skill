@@ -2,23 +2,23 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.7.4 -->
+<!-- release-skill:release-version: 0.7.5 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.7.4** (2026-08-22)
+**0.7.5** (2026-08-22)
 
-v0.7.4 同时识别生成的 adapter 目录和平台注册的投影目录，不再把 Skill Family Audit 这类合法发布误判为缺少宿主面。
+v0.7.5 能识别只发布一个 `skill/` 入口的平台注册投影，消除了 Skill Failure Auditor 发布中剩余的宿主面误判。
 
 **修复**
 
-- **由平台注册表统一识别投影面**：每个平台描述符现在声明精确的 `platforms/*` 技能投影目录。资源闭包门禁继续从既有 `buildAdapter.name` 权威字段派生宿主名。Claude、Codex、Kimi 和 WorkBuddy 投影无需复制 adapter 目录即可满足宿主覆盖；未知平台投影仍会失败关闭。变更后的闭包算法标识为 `skill-resource-closure-v3`，旧检查器冻结的计划不能越过发布边界。
+- **单数平台技能目录**：资源闭包现在会把 `platforms/<host>/skill/SKILL.md` 归入已登记的 `platforms/<host>` 投影面，同时保持根目录、adapter 和复数 `skills/` 布局的原有行为。未登记的平台目录仍会失败关闭。闭包算法标识升级为 `skill-resource-closure-v4`，早期检查器冻结的计划不能越过发布边界。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.7.4 是当前源码候选，v0.7.3 是最新已发布版本。v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.7.5 是当前源码候选，v0.7.4 是最新已发布版本。v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -31,7 +31,7 @@ v0.7.4 同时识别生成的 adapter 目录和平台注册的投影目录，不�
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.7.4 是当前源码候选，v0.7.3 是最新已发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.7.5 是当前源码候选，v0.7.4 是最新已发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**

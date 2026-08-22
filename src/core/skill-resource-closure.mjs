@@ -4,7 +4,8 @@
  * Only path tokens in Markdown code spans, fenced code blocks, and local link
  * targets are interpreted. Bare Skill resources resolve from the directory
  * containing SKILL.md. Explicit plugin-root tokens resolve from the parent of
- * the nearest `skills/` directory.
+ * the nearest `skills/` directory or from a registered platform projection
+ * root when the projection publishes a singular `skill/` entry.
  */
 
 import { lstat, readFile, readdir } from 'node:fs/promises';
@@ -15,7 +16,7 @@ import { GATE_FAILED, ReleaseError } from './errors.mjs';
 import { computeFrozenSnapshot } from '../snapshot/frozen.mjs';
 import { resolveSkillProjectionSurfaceHost } from '../platforms/registry.mjs';
 
-export const CHECKER_VERSION = 'skill-resource-closure-v3';
+export const CHECKER_VERSION = 'skill-resource-closure-v4';
 
 const BARE_PREFIXES = ['references/', 'assets/', 'schemas/', 'examples/', 'scripts/'];
 const EXPLICIT_PREFIXES = [
@@ -117,8 +118,27 @@ export async function discoverSkills(root, base = root) {
 export function resolvePluginRoot(skillRelativePath, scanRoot) {
   const parts = toPosix(skillRelativePath).split('/');
   const skillsIndex = parts.lastIndexOf('skills');
-  if (skillsIndex < 0) return resolve(scanRoot);
-  return resolve(scanRoot, ...parts.slice(0, skillsIndex));
+  if (skillsIndex >= 0) return resolve(scanRoot, ...parts.slice(0, skillsIndex));
+
+  // Published platform projections may expose one platform-level `skill/`
+  // entry rather than an adapter-style `skills/<name>/` tree. A registered
+  // platform surface remains the authority for its root even when the skill
+  // directory below it has a different physical name.
+  if (parts[0] === 'platforms' && parts.length >= 3) {
+    const registeredSurface = parts.slice(0, 2).join('/');
+    if (resolveSkillProjectionSurfaceHost(registeredSurface) !== null) {
+      return resolve(scanRoot, ...parts.slice(0, 2));
+    }
+
+    // Preserve fail-closed discovery for an unregistered singular platform
+    // projection, including nested platform paths. A direct platform SKILL
+    // without either marker still belongs to its first two path segments.
+    const skillIndex = parts.lastIndexOf('skill');
+    if (skillIndex >= 2) return resolve(scanRoot, ...parts.slice(0, skillIndex));
+    return resolve(scanRoot, ...parts.slice(0, 2));
+  }
+
+  return resolve(scanRoot);
 }
 
 export function resolveSkillRoot(skillRelativePath, scanRoot) {
