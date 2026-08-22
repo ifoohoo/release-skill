@@ -70,6 +70,20 @@ releaseUnits:               # 发布单元数组，至少 1 个
           versionMarkers:      # 可选；id 唯一
             - id: <string>
               pattern: <string> # 含 {version} 占位符的精确标记模式
+    postPublish:            # 可选；发布单元级的发布后分发配置
+      commitIdentity:
+        name: <string>
+        email: <string>
+      targets:              # 可选；镜像或市场索引目标
+        - id: <string>
+          kind: payload-mirror # 或 marketplace-index
+          remoteUrl: <string>  # file:// 或 https://；禁止 ssh
+          visibility: public   # 或 private / internal
+          branch: <string>
+      hooks:                # 可选；命名 preset 或自定义 command hook
+        - id: <string>
+          command: [<executable>, <arg>]
+          phase: distribute # 或 postVerify
 
 verificationGates:         # 可选；定义会进入冻结计划摘要
   - id: <stable-id>
@@ -83,41 +97,53 @@ verificationGates:         # 可选；定义会进入冻结计划摘要
     envAllowlist: []
 
 hooks:                      # 可选，命令 hooks
+  lint: <hook>
   docs: <hook>
   build: <hook>
   test: <hook>
   typecheck: <hook>
-  lint: <hook>
-
-postPublish:                # 可选；发布后分发配置（W2 closure）
-  distribute:               # 分发行动数组
-    - actionType: <string>      # "distribute-mirror" | "distribute-marketplace-index"
-      adapter: <string>         # "distribute-git" | "distribute-marketplace"
-      kind: <string>            # "payload-mirror" | "marketplace-index-form"
-      targetId: <string>        # 目标标识
-      remoteUrl: <string>       # file:// 或 https://；禁止 ssh
-      branch: <string>          # 分支名，不得以 '-' 开头
-      tag: <string>             # tag 模板，用于版本验证
-      commitIdentity:           # 冻结提交身份
-        name: <string>          # 禁止以 '-' 开头
-        email: <string>         # RFC 5322 valid
-      payloadDir: <string>      # 相对路径
-      dryRun?: boolean          # 可选；只本地执行
-      materialize?: {          # 可选；缺省时载荷由冻结 publicFiles 经 Foundation 托管投影物化
-        command: <string>       # 可执行文件
-        args: [<string>]        # 参数数组，禁止 shell 字符串
-        outputMarker?: <string> # 输出标记，用于验证
-        requireReport: {}       # 前置报告要求
-        urlDependsOn: [<string>]> # 依赖动作完成
-      onConflict?: <string>     # "FAIL" (默认) | "RETRY"
-      retryPolicy?: {          # 可选；重试策略
-        maxAttempts: number
-        backoffMs: number
-      }
 
 policy:                     # 可选，安全策略
   forbiddenPaths: [<string>]
   forbiddenContentPatterns: [<string>]
+```
+
+`postPublish` 只能位于某个 `releaseUnits[]` 条目内。下面的完整结构样例会由 schema 契约测试直接读取并校验，避免文档层级再次漂移：
+
+```yaml
+# schema-example: postpublish-release-unit
+apiVersion: release-skill/v1
+kind: ReleaseProject
+project:
+  name: postpublish-example
+  defaultBranch: main
+releaseUnits:
+  - id: postpublish-example
+    source: .
+    publicRepo: example/postpublish-example
+    version:
+      source: package.json
+      tagTemplate: v{version}
+    distributions:
+      - type: npm
+        package: postpublish-example
+        registry: https://registry.npmjs.org
+        publisher: example
+    publicFiles:
+      - from: README.md
+        to: README.md
+        mode: preserve
+    requiredPublicFiles: [README.md]
+    previousPublicBaseline:
+      mode: none
+    postPublish:
+      commitIdentity:
+        name: release-bot
+        email: release-bot@example.com
+      hooks:
+        - id: notify-downstream
+          command: [node, scripts/notify-downstream.mjs]
+          phase: postVerify
 ```
 
 ---
@@ -218,7 +244,7 @@ squash、rebase 和默认分支上的无关后续提交可以通过；冲突解�
 | `timeoutMs` | 整数 | 否 | 最小 1000，最大 7200000（2 小时） |
 | `envAllowlist` | 字符串数组 | 否 | 每个元素匹配 `^[A-Z_][A-Z0-9_]*$`；无重复元素 |
 
-hook 执行规则：
+hook 执行顺序固定为 `lint → docs → build → test → typecheck`，优先运行成本最低的检查。执行规则如下：
 
 - 使用 `execFile`，不使用 `exec` 或 `{ shell: true }`。
 - 通过 `realpath` 解析 cwd，拒绝逃逸到项目根目录之外。
@@ -254,7 +280,7 @@ hooks:
 
 `snapshot-verify` 获得冻结公开快照的一次性可写副本；副本销毁后重新摘要原快照，失败时还没有远端写入。`consumer-verify` 只在精确 npm 或 Claude/Codex 隔离安装成功后，从安装根执行；结果摘要进入 verify run，失败不得达到 VERIFIED。
 
-gate 与 legacy hook 都是无网络沙箱的本地进程，必须显式确认副作用。release-skill 会限制环境、路径、超时和证据输出，但不能替项目保证其命令不会写文件或访问网络。Git push、tag、默认分支、GitHub Release 和 npm publish 只能是冻结计划里的 adapter action，不能注册为 hook/gate。
+gate 与 legacy hook 都是没有网络沙箱的本地进程。在 `.release-skill/project.yaml` 中配置命令即完成授权，调用对应命令时直接执行，不再增加触发前确认点。旧参数 `--acknowledge-hook-side-effects` 和 `--acknowledge-gate-side-effects` 只作为无效果的兼容输入保留。release-skill 会限制环境、路径、超时和证据输出，但不能替项目保证命令不会写文件或访问网络。恢复触发前强制确认门属于后续设计变更，0.7.6 不提供该确认门。Git push、tag、默认分支、GitHub Release 和 npm publish 只能是冻结计划里的 adapter action，不能注册为 hook/gate。
 
 ### 4.2 首次接入 setup
 

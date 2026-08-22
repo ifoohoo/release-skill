@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.7.5 -->
+<!-- release-skill:release-version: 0.7.6 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,17 +14,23 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.7.5** (2026-08-22)
+**0.7.6** (2026-08-22)
 
-v0.7.5 recognizes registered platform projections that publish a single `skill/` entry, closing the remaining false missing-host result for Skill Failure Auditor releases.
+v0.7.6 executes every schema-declared prepare hook and corrects the documented postPublish hierarchy while preserving the current hook authorization and Codex adapter-root semantics.
+
+**Changed**
+
+- **Codex adapter contract coverage**: isolated-copy and negative path tests now preserve the existing self-contained adapter root: the host-provided skill path matches `PLUGIN_ROOT/skills/<skill>/SKILL.md`, and the launcher remains `PLUGIN_ROOT/bin/release-skill.mjs`. This is contract hardening, not a runtime protocol change.
+- **Hook authorization remains unchanged**: configuring a hook and invoking its workflow authorizes execution without a separate confirmation point. The legacy acknowledgement flags remain no-effect compatibility inputs; v0.7.6 does not restore a pre-execution confirmation gate.
 
 **Fixed**
 
-- **Singular platform skill surfaces**: resource closure now assigns `platforms/<host>/skill/SKILL.md` to the registered `platforms/<host>` surface, while preserving root, adapter, and plural `skills/` behavior. Unregistered platform trees still fail closed. The changed closure algorithm is identified as `skill-resource-closure-v4`, so plans frozen by earlier checker versions cannot cross the publish boundary.
+- **Prepare lint hook**: `lint` now runs before `docs`, `build`, `test`, and `typecheck`; a non-zero lint result stops prepare with `GATE_FAILED`. A schema-to-execution-table contract prevents accepted hook keys from becoming silent dead configuration.
+- **postPublish documentation**: the project configuration standard now places `postPublish` inside each `releaseUnits[]` item and carries a schema-validated example.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.7.5 is the current source candidate; v0.7.4 remains
+> **Current boundary:** v0.7.6 is the current source candidate; v0.7.5 remains
 > the latest published release. v0.4.1 was an earlier published milestone;
 > v0.2.2 previously held published status before the platform verification
 > convergence fix was added.
@@ -44,8 +50,8 @@ v0.7.5 recognizes registered platform projections that publish a single `skill/`
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.7.5 is the current
-> source candidate and v0.7.4 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
+> **Production path verified since the v0.1.1 milestone; v0.7.6 is the current
+> source candidate and v0.7.5 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
 > **Start here:**
@@ -528,9 +534,11 @@ hooks:
     envAllowlist: []
 ```
 
-Hooks run when `prepare` is invoked; the command call itself authorizes
-execution. Gates are the controlled extension point for release calibration
-(see `references/02-project-config.md`).
+Hooks run when `prepare` is invoked. Configuring the command and invoking the
+workflow authorizes execution without an extra confirmation point. The legacy
+`--acknowledge-hook-side-effects` and `--acknowledge-gate-side-effects` flags
+remain accepted as no-effect compatibility inputs. Gates are the controlled
+extension point for release calibration (see `references/02-project-config.md`).
 
 ### postPublish hooks
 

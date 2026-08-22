@@ -5,7 +5,7 @@ description: Freeze an immutable release plan with local configuration, document
 
 > **Codex 安装入口解析协议**：在调用 CLI 前，Agent 必须从宿主当前已加载技能的元数据中取得本 `SKILL.md` 的实际绝对路径，并将该字面量记为 `SKILL_FILE`。
 > `SKILL_FILE` 不是环境变量；禁止从工作目录、可执行搜索路径、源码仓库或 shell 调用上下文猜测。若宿主未提供该绝对路径，立即停止并报告安装定位失败。
-> 对 `SKILL_FILE` 执行 `realpath`，取其目录向上两级得到 `PLUGIN_ROOT`；校验真实技能路径匹配 `PLUGIN_ROOT/skills/*/SKILL.md`。
+> 对 `SKILL_FILE` 执行 `realpath`，取其目录向上两级得到 `PLUGIN_ROOT`；校验真实技能路径匹配 `PLUGIN_ROOT/skills/*/SKILL.md` 且仍位于插件根内（路径包含检查）。
 > 令 `RELEASE_SKILL_ENTRY=PLUGIN_ROOT/bin/release-skill.mjs`，对入口执行 `realpath` containment、`lstat` 非符号链接且为普通文件校验。
 > 每一次 shell 工具调用都必须在同一个调用中用上述已验证绝对值设置 `RELEASE_SKILL_ENTRY`，然后执行 `node "$RELEASE_SKILL_ENTRY" ...`；不得依赖前一次 shell 的变量。
 >
@@ -20,7 +20,7 @@ description: Freeze an immutable release plan with local configuration, document
 
 运行项目构建/测试 hook，生成公开快照并扫描泄漏，冻结不可变发布计划。prepare 自身不调用发布 adapter，但会执行用户配置的 hook。
 
-**Hook 授权契约（配置时刻即授权，FM-16 处置 A）**: hook 是任意本地进程——在 `.release-skill/project.yaml` 中配置 hook 命令即完成授权，构成「配置时刻即授权」的显式契约。hook 不提供沙箱、无文件系统/网络隔离、触发前无确认点，命令调用本身即授权执行已配置的 hook 和 gate，不再设置额外人工授权环节；hook 可能产生项目目录外的副作用或远端写入，配置者须对其内容负责。恢复「触发前强制确认门」属于后续加固项（属设计变更，需随新版本引入），当前版本不提供该确认门。
+**Hook 授权契约（配置时刻即授权，FM-16 处置 A）**: hook 是任意本地进程——在 `.release-skill/project.yaml` 中配置 hook 命令即完成授权，构成「配置时刻即授权」的显式契约。hook 不提供沙箱、无文件系统/网络隔离、触发前无确认点，命令调用本身即授权执行已配置的 hook 和 gate，不再设置额外人工授权环节；hook 可能产生项目目录外的副作用或远端写入，配置者须对其内容负责。旧参数 `--acknowledge-hook-side-effects` 和 `--acknowledge-gate-side-effects` 仍可解析，但只作为无效果的兼容输入，不能改变授权或执行语义。恢复「触发前强制确认门」属于后续加固项（属设计变更，需随新版本引入），当前版本不提供该确认门。
 
 **阶段通过规则**: 本阶段的通过只能由 CLI exit code 0 和结构化状态码 `PREPARED` 确认。Agent 无权自行宣布计划冻结成功。
 

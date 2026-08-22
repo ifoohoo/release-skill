@@ -4,7 +4,8 @@
 
 | Version | Supported |
 | ------- | --------- |
-| 0.1.x   | Yes       |
+| 0.7.x   | Yes       |
+| 0.6.x and earlier | No |
 
 ## Reporting a Vulnerability
 
@@ -30,12 +31,17 @@ release-skill is designed with the following security guarantees:
 
 - **No automatic external writes**: The `prepare` phase never pushes,
   creates releases, or publishes packages itself. User-configured hooks
-  may produce arbitrary side effects; pass `--acknowledge-hook-side-effects`
-  to authorize hook execution.
+  and gates may produce arbitrary side effects. Configuring a command and
+  invoking the workflow authorizes its execution without an extra confirmation
+  point. The legacy `--acknowledge-hook-side-effects` and
+  `--acknowledge-gate-side-effects` flags remain accepted only as no-effect
+  compatibility inputs.
 - **Approval-gated publishing**: The `publish` phase requires an explicit,
-  non-expired approval record bound to a frozen release plan. Approval
-  expires after 24 hours and auto-invalidates when the plan, tree hash,
-  target version, or remote conflict state changes.
+  non-expired approval record bound to an immutable plan v2, its frozen
+  artifact, release action, and target version. Approval expires after 24
+  hours. Workspace tree or hash drift is retained as audit evidence rather
+  than an approval binding, while a remote conflict blocks publish preflight
+  instead of changing the approval record.
 - **Checkpoint-based execution**: Every external write is a checkpoint.
   Failure stops subsequent actions and enters a `PARTIAL` state. The system
   never auto-deletes remote tags, overwrites releases, unpublishes npm

@@ -2,23 +2,29 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.7.5 -->
+<!-- release-skill:release-version: 0.7.6 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.7.5** (2026-08-22)
+**0.7.6** (2026-08-22)
 
-v0.7.5 能识别只发布一个 `skill/` 入口的平台注册投影，消除了 Skill Failure Auditor 发布中剩余的宿主面误判。
+v0.7.6 执行 schema 接受的全部 prepare hook，修正 postPublish 的文档层级，并保持现行 hook 授权与 Codex 适配器根目录语义不变。
+
+**变更**
+
+- **Codex 适配器契约覆盖**：新增复制隔离与路径负例测试，锁定既有的自包含适配器根目录语义：宿主提供的技能路径匹配 `PLUGIN_ROOT/skills/<skill>/SKILL.md`，入口仍为 `PLUGIN_ROOT/bin/release-skill.mjs`。这只是加强契约测试，不是运行时协议变更。
+- **hook 授权语义保持不变**：配置 hook 并调用对应工作流即授权执行，不增加独立确认点。旧确认参数仍是无效果的兼容输入；v0.7.6 不恢复执行前确认门。
 
 **修复**
 
-- **单数平台技能目录**：资源闭包现在会把 `platforms/<host>/skill/SKILL.md` 归入已登记的 `platforms/<host>` 投影面，同时保持根目录、adapter 和复数 `skills/` 布局的原有行为。未登记的平台目录仍会失败关闭。闭包算法标识升级为 `skill-resource-closure-v4`，早期检查器冻结的计划不能越过发布边界。
+- **prepare lint hook**：`lint` 现在先于 `docs`、`build`、`test` 和 `typecheck` 执行；lint 返回非零退出码时，prepare 以 `GATE_FAILED` 停止。schema 与执行表之间新增覆盖契约，避免合法配置再次变成静默失效的死键。
+- **postPublish 文档**：项目配置标准现在把 `postPublish` 放在各个 `releaseUnits[]` 条目内，并提供经过 schema 校验的完整样例。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.7.5 是当前源码候选，v0.7.4 是最新已发布版本。v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.7.6 是当前源码候选，v0.7.5 是最新已发布版本。v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -31,7 +37,7 @@ v0.7.5 能识别只发布一个 `skill/` 入口的平台注册投影，消除了
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.7.5 是当前源码候选，v0.7.4 是最新已发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.7.6 是当前源码候选，v0.7.5 是最新已发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -474,7 +480,7 @@ hooks:
     envAllowlist: []
 ```
 
-hook 在 `prepare` 调用时运行，命令调用本身即授权执行。gate 是发布校准的受控扩展点（见 `references/02-project-config.md`）。
+hook 在 `prepare` 调用时运行；配置命令并调用工作流即授权执行，不再增加触发前确认点。旧参数 `--acknowledge-hook-side-effects` 和 `--acknowledge-gate-side-effects` 只作为无效果的兼容输入保留。gate 是发布校准的受控扩展点（见 `references/02-project-config.md`）。
 
 ### postPublish hook
 

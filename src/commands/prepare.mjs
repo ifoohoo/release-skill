@@ -247,7 +247,7 @@ export {
 import { boundedOutputTail } from '../core/bounded-output.mjs';
 
 /**
- * Run all declared project hooks in order: docs, build, test, typecheck.
+ * Run all declared project hooks in order: lint, docs, build, test, typecheck.
  *
  * Incremental cache (T3.2): a hook that opts in with `cacheable: true` and a
  * non-empty `cacheInputs` is fingerprinted by its configuration plus the
@@ -286,13 +286,14 @@ import { boundedOutputTail } from '../core/bounded-output.mjs';
  * @throws {ReleaseError} GATE_FAILED if any hook returns a non-zero exit code,
  *   throws, or declares a cacheInputs glob that matches no file.
  */
+export const HOOK_EXECUTION_ORDER = Object.freeze(['lint', 'docs', 'build', 'test', 'typecheck']);
+
 export async function runDeclaredHooks(config, root, evidence, hookFn = runHook, options = {}) {
-  const hookOrder = ['docs', 'build', 'test', 'typecheck'];
   const hooks = config.hooks ?? {};
   const cacheEnabled = options.hookCache !== false;
   const records = [];
 
-  for (const name of hookOrder) {
+  for (const name of HOOK_EXECUTION_ORDER) {
     const hook = hooks[name];
     if (!hook) continue;
 

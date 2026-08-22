@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.7.5"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.7.6"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "9ced58c843d3cdefc52185b6f64dd05deaf480edc7807ee5bf9efd54023c5ed7";
+const __bundleSourceDigest = "898adf636ceb9d435fd52c9d6f95d0c1bd041f2bdc3b0347902ac5086460c986";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -97994,6 +97994,7 @@ var init_refresh_service = __esm({
 // src/commands/prepare.mjs
 var prepare_exports = {};
 __export(prepare_exports, {
+  HOOK_EXECUTION_ORDER: () => HOOK_EXECUTION_ORDER,
   HOOK_OUTPUT_TAIL_MAX_BYTES: () => HOOK_OUTPUT_TAIL_MAX_BYTES,
   HOOK_OUTPUT_TAIL_MAX_LINES: () => HOOK_OUTPUT_TAIL_MAX_LINES,
   boundedOutputTail: () => boundedOutputTail,
@@ -98105,11 +98106,10 @@ async function resolveAllUnitVersions(units, root, explicitVersion, evidence) {
   return resolvedVersions;
 }
 async function runDeclaredHooks(config, root, evidence, hookFn = runHook, options = {}) {
-  const hookOrder = ["docs", "build", "test", "typecheck"];
   const hooks = config.hooks ?? {};
   const cacheEnabled = options.hookCache !== false;
   const records = [];
-  for (const name of hookOrder) {
+  for (const name of HOOK_EXECUTION_ORDER) {
     const hook = hooks[name];
     if (!hook) continue;
     const selectionField = name === "test" ? { testSelection: hook.testSelection === "incremental" ? "incremental" : "full" } : {};
@@ -100803,7 +100803,7 @@ async function prepareRelease(options) {
     await lock.release();
   }
 }
-var execFile8, CONSUMER_INSTALL_RECIPE_VERSION2, EXTERNAL_MARKETPLACE_SHA_RE2;
+var execFile8, CONSUMER_INSTALL_RECIPE_VERSION2, HOOK_EXECUTION_ORDER, EXTERNAL_MARKETPLACE_SHA_RE2;
 var init_prepare = __esm({
   async "src/commands/prepare.mjs"() {
     init_src2();
@@ -100843,6 +100843,7 @@ var init_prepare = __esm({
     CONSUMER_INSTALL_RECIPE_VERSION2 = "consumer-install-v1";
     __name(resolveUnitVersion, "resolveUnitVersion");
     __name(resolveAllUnitVersions, "resolveAllUnitVersions");
+    HOOK_EXECUTION_ORDER = Object.freeze(["lint", "docs", "build", "test", "typecheck"]);
     __name(runDeclaredHooks, "runDeclaredHooks");
     __name(resolveReleaseDocsPlanFn, "resolveReleaseDocsPlanFn");
     __name(runReleaseDocsFreshnessGate, "runReleaseDocsFreshnessGate");

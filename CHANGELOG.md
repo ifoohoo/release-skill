@@ -1,5 +1,22 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.7.6 locale=en baseline=sha256:16665362b8c0f06b7ed94f2839f5b380216b13ca6ab5e6c51b043985f8a8c8c2 -->
+## [0.7.6] - 2026-08-22
+
+v0.7.6 executes every schema-declared prepare hook and corrects the documented postPublish hierarchy while preserving the current hook authorization and Codex adapter-root semantics.
+
+### Changed
+
+- **Codex adapter contract coverage**: isolated-copy and negative path tests now preserve the existing self-contained adapter root: the host-provided skill path matches `PLUGIN_ROOT/skills/<skill>/SKILL.md`, and the launcher remains `PLUGIN_ROOT/bin/release-skill.mjs`. This is contract hardening, not a runtime protocol change.
+- **Hook authorization remains unchanged**: configuring a hook and invoking its workflow authorizes execution without a separate confirmation point. The legacy acknowledgement flags remain no-effect compatibility inputs; v0.7.6 does not restore a pre-execution confirmation gate.
+
+### Fixed
+
+- **Prepare lint hook**: `lint` now runs before `docs`, `build`, `test`, and `typecheck`; a non-zero lint result stops prepare with `GATE_FAILED`. A schema-to-execution-table contract prevents accepted hook keys from becoming silent dead configuration.
+- **postPublish documentation**: the project configuration standard now places `postPublish` inside each `releaseUnits[]` item and carries a schema-validated example.
+<!-- release-skill:changelog:end version=0.7.6 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.7.5 locale=en baseline=sha256:39f8f00f21c9071341106ea4becf4e8d10a732bd01b430e244dc4e3c5bf07da2 -->
 ## [0.7.5] - 2026-08-22
 
