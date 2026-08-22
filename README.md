@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.7.1 -->
+<!-- release-skill:release-version: 0.7.2 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,17 +14,17 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.7.1** (2026-08-22)
+**0.7.2** (2026-08-22)
 
-v0.7.1 fixes a leakage-scan false positive that blocked generated JSON Schema validators containing POSIX-like JSON Pointer segments.
+v0.7.2 fixes native safe-fs loading from generated host adapters whose installation roots intentionally omit package.json.
 
 **Fixed**
 
-- **Context-aware POSIX path detection**: the snapshot leakage scanner no longer treats JSON Pointer property segments or ordinary URL paths as machine-local absolute paths. Concrete Linux root, home, and user-home paths remain release-blocking findings.
+- **Adapter-safe native loader anchor**: the bundled runtime now anchors createRequire() to the shipped CLI entry shared by source and adapter layouts. Claude, Codex, Kimi, and WorkBuddy adapters can load their packaged native safe-fs addon without relying on a root package manifest.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.7.1 is the current source candidate; v0.6.3 remains
+> **Current boundary:** v0.7.2 is the current source candidate; v0.7.1 remains
 > the latest published release. v0.4.1 was an earlier published milestone;
 > v0.2.2 previously held published status before the platform verification
 > convergence fix was added.
@@ -44,8 +44,8 @@ v0.7.1 fixes a leakage-scan false positive that blocked generated JSON Schema va
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.7.1 is the current
-> source candidate and v0.6.3 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
+> **Production path verified since the v0.1.1 milestone; v0.7.2 is the current
+> source candidate and v0.7.1 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
 > **Start here:**

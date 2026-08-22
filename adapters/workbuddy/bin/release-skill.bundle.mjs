@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.7.1"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.7.2"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "71df85a039086a78d5b4a7586cd88bcd7b2887dca8d07341be0bc6463f26d005";
+const __bundleSourceDigest = "151b10d546755e2b693a841c27569302a499a5424861834dfb8ec05138dca3b8";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -32285,7 +32285,7 @@ var init_report = __esm({
     init_closure();
     init_errors2();
     init_validation();
-    PACKAGE_META = Object.freeze({ "name": "release-skill", "version": "0.7.1" });
+    PACKAGE_META = Object.freeze({ "name": "release-skill", "version": "0.7.2" });
     REPORT_RENDERER_VERSION = PACKAGE_META.version;
     SUPPORTED_REPORT_LOCALES = Object.freeze(["zh-CN", "en-US"]);
     EXECUTION_STATUSES = Object.freeze([
@@ -38737,7 +38737,7 @@ function validateManifestEntry(entry, key) {
 }
 function requireAddon(addonPath) {
   try {
-    const require2 = createRequire(resolve9(PKG_ROOT2, "package.json"));
+    const require2 = createRequire(resolve9(PKG_ROOT2, "bin/release-skill.mjs"));
     return require2(addonPath);
   } catch (err) {
     throw new ReleaseError(SAFE_WRITE_UNAVAILABLE, sanitizeError(err));

@@ -2,23 +2,23 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.7.1 -->
+<!-- release-skill:release-version: 0.7.2 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.7.1** (2026-08-22)
+**0.7.2** (2026-08-22)
 
-v0.7.1 修复了泄漏扫描误报：生成的 JSON Schema 校验器包含形似 POSIX 路径的 JSON Pointer 时，不再被错误阻断。
+v0.7.2 修复了宿主适配器的 native safe-fs 加载问题：适配器安装根目录按设计不包含 package.json，现在也能正常加载。
 
 **修复**
 
-- **按上下文识别 POSIX 路径**：快照泄漏扫描不再把 JSON Pointer 属性片段或普通 URL 路径当成本机绝对路径；真实的 Linux root、home 和用户主目录路径仍会阻断发布。
+- **适配器可用的原生加载锚点**：bundled runtime 现在把 createRequire() 锚定到源码包和适配器都会携带的 CLI 入口。Claude、Codex、Kimi 和 WorkBuddy 适配器无需依赖根 package.json，也能加载随包分发的 native safe-fs 插件。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.7.1 是当前源码候选，v0.6.3 是最新已发布版本。v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.7.2 是当前源码候选，v0.7.1 是最新已发布版本。v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -31,7 +31,7 @@ v0.7.1 修复了泄漏扫描误报：生成的 JSON Schema 校验器包含形似
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.7.1 是当前源码候选，v0.6.3 是最新已发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.7.2 是当前源码候选，v0.7.1 是最新已发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**

@@ -180,8 +180,9 @@ function validateManifestEntry(entry, key) {
 
 function requireAddon(addonPath) {
   try {
-    // Use PKG_ROOT-relative resolution so bundled mode can find the addon.
-    const require = createRequire(resolve(PKG_ROOT, 'package.json'));
+    // Anchor require() to a file present in both the source package and every
+    // generated adapter. Adapter roots intentionally do not ship package.json.
+    const require = createRequire(resolve(PKG_ROOT, 'bin/release-skill.mjs'));
     return require(addonPath);
   } catch (err) {
     throw new ReleaseError(SAFE_WRITE_UNAVAILABLE, sanitizeError(err));

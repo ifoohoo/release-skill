@@ -1,5 +1,16 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.7.2 locale=en baseline=sha256:2d5868f216a43f817df4db597c239ab7db305398dba7af1ffe555b47105dbe75 -->
+## [0.7.2] - 2026-08-22
+
+v0.7.2 fixes native safe-fs loading from generated host adapters whose installation roots intentionally omit package.json.
+
+### Fixed
+
+- **Adapter-safe native loader anchor**: the bundled runtime now anchors createRequire() to the shipped CLI entry shared by source and adapter layouts. Claude, Codex, Kimi, and WorkBuddy adapters can load their packaged native safe-fs addon without relying on a root package manifest.
+<!-- release-skill:changelog:end version=0.7.2 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.7.1 locale=en baseline=sha256:9f86def686489f30d89bb67884dfd8c44ee1d48b5d0cf5efabba44f87998d7d4 -->
 ## [0.7.1] - 2026-08-22
 
