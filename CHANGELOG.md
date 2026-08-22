@@ -1,5 +1,16 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.7.3 locale=en baseline=sha256:18caf087c567201044292c958694b39ae9989d4c1abb1886aaa5a1ce8ca57bca -->
+## [0.7.3] - 2026-08-22
+
+v0.7.3 adopts Foundation 0.8.1 so generated host adapters can initialize Foundation reports and managed projection without rewriting Foundation package identity.
+
+### Fixed
+
+- **Foundation-owned bundle identity**: release-skill now consumes the exact 0.8.1 Contracts, Harness, and Engineering Kit packages and removes its report.mjs identity rewrite. Claude, Codex, Kimi, and WorkBuddy adapters now reach release-domain GATE_FAILED diagnostics for missing plans, while a frozen Codex distribution completes Foundation managed projection and reaches DISTRIBUTED.
+<!-- release-skill:changelog:end version=0.7.3 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.7.2 locale=en baseline=sha256:2d5868f216a43f817df4db597c239ab7db305398dba7af1ffe555b47105dbe75 -->
 ## [0.7.2] - 2026-08-22
 

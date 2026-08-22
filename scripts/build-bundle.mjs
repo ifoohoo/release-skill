@@ -150,17 +150,6 @@ function verifyRuntimeReadsResolve(content, outDir) {
   return [...missing].sort();
 }
 
-// Inlined Foundation modules must not perform bundle-relative runtime reads
-// of files that adapter closures do not ship. skill-family-harness-node's
-// report.mjs reads its own package.json at module init
-// (readFileSync(new URL("../package.json", import.meta.url))); once inlined
-// into the bundle that read resolves next to the bundle and breaks in
-// adapter closures (which ship no package.json by design — the banner
-// injects __bundlePkg instead). Neutralize the read at build time with the
-// same injected package identity, fail-closed if Foundation changes shape.
-const REPORT_PACKAGE_META_READ_RE =
-  /JSON\.parse\(readFileSync\(new URL\("\.\.\/package\.json", import\.meta\.url\), "utf8"\)\)/;
-
 async function buildBundle() {
   // Dynamic import so the script works even if esbuild is not yet installed.
   let esbuild;
@@ -175,25 +164,6 @@ async function buildBundle() {
   const sourceDigest = await computeBundleSourceDigest(PKG_ROOT);
   const banner = buildBanner({ name: pkgJson.name, version: pkgJson.version }, sourceDigest);
 
-  const identity = Object.freeze({ name: pkgJson.name, version: pkgJson.version });
-
-  const identityPlugins = [{
-    name: 'inline-foundation-package-identity',
-    setup(build) {
-      build.onLoad({ filter: /skill-family-harness-node[\\/]src[\\/]report\.mjs$/ }, async (args) => {
-        const source = await readFile(args.path, 'utf-8');
-        const injected = source.replace(REPORT_PACKAGE_META_READ_RE, () =>
-          `Object.freeze(${JSON.stringify(identity)})`);
-        if (injected === source) {
-          throw new Error(
-            'build-bundle: could not neutralize Foundation report.mjs package.json read',
-          );
-        }
-        return { contents: injected, loader: 'js' };
-      });
-    },
-  }];
-
   const result = await esbuild.build({
     entryPoints: [ENTRY],
     absWorkingDir: PKG_ROOT,
@@ -203,7 +173,6 @@ async function buildBundle() {
     target: 'node22',
     outfile: OUTFILE,
     banner: { js: banner },
-    plugins: identityPlugins,
     // External: Node.js builtins, native addon loader, and the native addon itself.
     external: [
       'node:*',

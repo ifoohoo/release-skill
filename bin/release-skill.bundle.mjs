@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.7.2"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.7.3"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "151b10d546755e2b693a841c27569302a499a5424861834dfb8ec05138dca3b8";
+const __bundleSourceDigest = "0e814c8b806446476595498baed8b129ca3cb024e3b922049db5774f022c90be";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -48,7 +48,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.8.0/node_modules/skill-family-contracts/src/errors.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.8.1/node_modules/skill-family-contracts/src/errors.mjs
 import { readFileSync } from "node:fs";
 function deepFreeze(obj) {
   if (obj === null || typeof obj !== "object") return obj;
@@ -66,7 +66,7 @@ function isRegisteredErrorCode(code) {
 }
 var ERROR_REGISTRY, CODE_INDEX, ContractsError, ERROR_CODES;
 var init_errors = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.8.0/node_modules/skill-family-contracts/src/errors.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.8.1/node_modules/skill-family-contracts/src/errors.mjs"() {
     __name(deepFreeze, "deepFreeze");
     ERROR_REGISTRY = deepFreeze(JSON.parse(
       readFileSync(new URL("./error-codes.json", import.meta.url), "utf8")
@@ -88,7 +88,7 @@ var init_errors = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.8.0/node_modules/skill-family-contracts/src/registry.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.8.1/node_modules/skill-family-contracts/src/registry.mjs
 import { readFileSync as readFileSync2 } from "node:fs";
 function deepFreeze2(obj) {
   if (obj === null || typeof obj !== "object") return obj;
@@ -106,7 +106,7 @@ function findSchemaByObject(object, registry = REGISTRY) {
 }
 var REGISTRY;
 var init_registry = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.8.0/node_modules/skill-family-contracts/src/registry.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.8.1/node_modules/skill-family-contracts/src/registry.mjs"() {
     init_errors();
     __name(deepFreeze2, "deepFreeze");
     REGISTRY = deepFreeze2(JSON.parse(
@@ -7875,11 +7875,11 @@ var require__ = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.8.0/node_modules/skill-family-contracts/src/validator.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.8.1/node_modules/skill-family-contracts/src/validator.mjs
 import { readFileSync as readFileSync3 } from "node:fs";
 var import_ajv, import__, SUPPORTED_DIALECTS, DIALECT_CONSTRUCTORS, VALIDATION_POLICIES;
 var init_validator = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.8.0/node_modules/skill-family-contracts/src/validator.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.8.1/node_modules/skill-family-contracts/src/validator.mjs"() {
     import_ajv = __toESM(require_ajv(), 1);
     import__ = __toESM(require__(), 1);
     init_errors();
@@ -7913,7 +7913,7 @@ var init_validator = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.8.0/node_modules/skill-family-contracts/src/kernel.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.8.1/node_modules/skill-family-contracts/src/kernel.mjs
 import { readFileSync as readFileSync4 } from "node:fs";
 function deepFreeze3(obj) {
   if (obj === null || typeof obj !== "object") return obj;
@@ -7928,7 +7928,7 @@ function deepFreeze3(obj) {
 }
 var import_ajv2, KERNEL, paramsAjv;
 var init_kernel = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.8.0/node_modules/skill-family-contracts/src/kernel.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.8.1/node_modules/skill-family-contracts/src/kernel.mjs"() {
     import_ajv2 = __toESM(require_ajv(), 1);
     __name(deepFreeze3, "deepFreeze");
     KERNEL = deepFreeze3(JSON.parse(
@@ -7938,11 +7938,11 @@ var init_kernel = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.8.0/node_modules/skill-family-contracts/src/fixtures.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.8.1/node_modules/skill-family-contracts/src/fixtures.mjs
 import { readdirSync, readFileSync as readFileSync5 } from "node:fs";
 var FIXTURE_CLASSES, FIXTURES_DIR;
 var init_fixtures = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.8.0/node_modules/skill-family-contracts/src/fixtures.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.8.1/node_modules/skill-family-contracts/src/fixtures.mjs"() {
     init_errors();
     init_registry();
     init_kernel();
@@ -7952,11 +7952,11 @@ var init_fixtures = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.8.0/node_modules/skill-family-contracts/src/checker.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.8.1/node_modules/skill-family-contracts/src/checker.mjs
 import { readFileSync as readFileSync6 } from "node:fs";
 var RULES_DOCUMENT, CHECK_TYPES, MANDATORY_RULES, RULE_BUDGET;
 var init_checker = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.8.0/node_modules/skill-family-contracts/src/checker.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.8.1/node_modules/skill-family-contracts/src/checker.mjs"() {
     init_errors();
     init_registry();
     init_fixtures();
@@ -7975,10 +7975,10 @@ var init_checker = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.8.0/node_modules/skill-family-contracts/src/token-estimate-consumption.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.8.1/node_modules/skill-family-contracts/src/token-estimate-consumption.mjs
 var TOKEN_ESTIMATE_CONSUMPTION_ERROR_KIND, RECORD_KIND, TOKEN_ESTIMATE_CONSUMPTION, TOKEN_ESTIMATE_CONSUMPTION_REASONS;
 var init_token_estimate_consumption = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.8.0/node_modules/skill-family-contracts/src/token-estimate-consumption.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.8.1/node_modules/skill-family-contracts/src/token-estimate-consumption.mjs"() {
     init_errors();
     TOKEN_ESTIMATE_CONSUMPTION_ERROR_KIND = "token-estimate-consumption-failed";
     RECORD_KIND = "skill-family.token-estimate-record";
@@ -8010,7 +8010,7 @@ var init_token_estimate_consumption = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.8.0/node_modules/skill-family-contracts/src/audit-surface.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.8.1/node_modules/skill-family-contracts/src/audit-surface.mjs
 import { createHash } from "node:crypto";
 import { readFileSync as readFileSync7 } from "node:fs";
 function canonicalJson(value) {
@@ -8049,7 +8049,7 @@ function digestDocument(value, { algorithm = "sha256" } = {}) {
 }
 var AUDIT_DIGEST_ALGORITHMS, BASELINE_PIN_KINDS;
 var init_audit_surface = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.8.0/node_modules/skill-family-contracts/src/audit-surface.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.8.1/node_modules/skill-family-contracts/src/audit-surface.mjs"() {
     init_errors();
     init_registry();
     init_kernel();
@@ -8066,10 +8066,10 @@ var init_audit_surface = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.8.0/node_modules/skill-family-contracts/src/index.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.8.1/node_modules/skill-family-contracts/src/index.mjs
 var CONTRACT_OBJECTS, CONTRACT_BOUNDARY;
 var init_src = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.8.0/node_modules/skill-family-contracts/src/index.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.8.1/node_modules/skill-family-contracts/src/index.mjs"() {
     init_errors();
     init_registry();
     init_validator();
@@ -8118,7 +8118,7 @@ var init_src = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/errors.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/errors.mjs
 function mechanismError(kind, message, extraDetails) {
   const values = Object.values(HARNESS_ERROR_KINDS);
   if (!values.includes(kind)) {
@@ -8129,7 +8129,7 @@ function mechanismError(kind, message, extraDetails) {
 }
 var HARNESS_ERROR_KINDS, HarnessError;
 var init_errors2 = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/errors.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/errors.mjs"() {
     init_src();
     HARNESS_ERROR_KINDS = Object.freeze({
       INVALID_PATH: "invalid-path",
@@ -8203,7 +8203,7 @@ var init_errors2 = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/paths.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/paths.mjs
 import { lstat, readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import process2 from "node:process";
@@ -8414,7 +8414,7 @@ async function readFileContained(root, relPath, { encoding } = {}) {
 }
 var WINDOWS_DRIVE_PATTERN, WINDOWS_UNC_PATTERN, POSIX_UNC_PATTERN;
 var init_paths = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/paths.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/paths.mjs"() {
     init_errors2();
     WINDOWS_DRIVE_PATTERN = /^[A-Za-z]:/;
     WINDOWS_UNC_PATTERN = /^\\\\/;
@@ -8429,7 +8429,7 @@ var init_paths = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/closure.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/closure.mjs
 import { createHash as createHash2 } from "node:crypto";
 import path2 from "node:path";
 function digestBytes(bytes) {
@@ -8527,7 +8527,7 @@ async function computeResourceClosure({ root, resources } = {}) {
 }
 var CLOSURE_KIND, CLOSURE_SCHEMA_VERSION, DIGEST_ALGORITHM, ROLES;
 var init_closure = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/closure.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/closure.mjs"() {
     init_errors2();
     init_paths();
     CLOSURE_KIND = "skill-family.resource-closure";
@@ -8540,7 +8540,7 @@ var init_closure = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/strict-read.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/strict-read.mjs
 import { constants as FS_CONSTANTS } from "node:fs";
 import { lstat as lstat2, open } from "node:fs/promises";
 function sameIdentity(left, right) {
@@ -8641,7 +8641,7 @@ async function readFileStrict(root, relPath, { encoding, expectedSha256 } = {}) 
 }
 var SHA256_HEX_PATTERN;
 var init_strict_read = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/strict-read.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/strict-read.mjs"() {
     init_closure();
     init_errors2();
     init_paths();
@@ -8651,7 +8651,7 @@ var init_strict_read = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/url-redaction.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/url-redaction.mjs
 function redactUrlCredentials(value) {
   let url;
   if (value instanceof URL) {
@@ -8671,13 +8671,13 @@ function redactUrlCredentials(value) {
 }
 var REDACTED_URL_PLACEHOLDER;
 var init_url_redaction = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/url-redaction.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/url-redaction.mjs"() {
     REDACTED_URL_PLACEHOLDER = "[redacted-url]";
     __name(redactUrlCredentials, "redactUrlCredentials");
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/atomic.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/atomic.mjs
 import { createHash as createHash3, randomBytes } from "node:crypto";
 import { constants as FS_CONSTANTS2 } from "node:fs";
 import { link, lstat as lstat3, mkdir, open as open2, realpath as realpath2, rename, rm, unlink } from "node:fs/promises";
@@ -9036,7 +9036,7 @@ async function writeFileAtomic(root, relPath, data, { mode = 420 } = {}) {
 }
 var testHooks;
 var init_atomic = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/atomic.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/atomic.mjs"() {
     init_errors2();
     init_paths();
     testHooks = null;
@@ -9060,7 +9060,7 @@ var init_atomic = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/token-lock.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/token-lock.mjs
 import { createHash as createHash4, randomBytes as randomBytes2 } from "node:crypto";
 import { constants as FS_CONSTANTS3 } from "node:fs";
 import { lstat as lstat4, open as open3, realpath as realpath3, unlink as unlink2 } from "node:fs/promises";
@@ -9218,7 +9218,7 @@ async function recoverFilesystemLock(root, relPath, { expectedTokenDigest, confi
 }
 var TOKEN_PATTERN;
 var init_token_lock = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/token-lock.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/token-lock.mjs"() {
     init_errors2();
     init_atomic();
     init_paths();
@@ -9237,7 +9237,7 @@ var init_token_lock = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/baseline.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/baseline.mjs
 import { createHash as createHash5 } from "node:crypto";
 import { lstat as lstat5, mkdir as mkdir2, mkdtemp, readdir, readFile as readFile2, rm as rm2, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -9383,7 +9383,7 @@ async function materializeBaseline({ baselineDir, baselineDigest, prefix = "sf-b
 }
 var TEST_HOOKS, DIGEST_PATTERN;
 var init_baseline = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/baseline.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/baseline.mjs"() {
     init_errors2();
     TEST_HOOKS = { beforePostDigest: void 0 };
     __name(runTestHook2, "runTestHook");
@@ -9395,7 +9395,7 @@ var init_baseline = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/workspace.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/workspace.mjs
 import { mkdtemp as mkdtemp2, rm as rm3 } from "node:fs/promises";
 import os2 from "node:os";
 import path6 from "node:path";
@@ -9427,7 +9427,7 @@ async function withTemporaryWorkspace(fn, options) {
 }
 var TemporaryWorkspace;
 var init_workspace = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/workspace.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/workspace.mjs"() {
     init_baseline();
     init_errors2();
     init_paths();
@@ -9549,28 +9549,28 @@ var init_workspace = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/chokepoint.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/chokepoint.mjs
 import path7 from "node:path";
 var init_chokepoint = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/chokepoint.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/chokepoint.mjs"() {
     init_errors2();
     init_paths();
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/validation.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/validation.mjs
 var init_validation = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/validation.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/validation.mjs"() {
     init_src();
     init_errors2();
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/surface-scan.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/surface-scan.mjs
 import path8 from "node:path";
 var POLICY_SCHEMA_ID;
 var init_surface_scan = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/surface-scan.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/surface-scan.mjs"() {
     init_src();
     init_errors2();
     init_paths();
@@ -9579,12 +9579,12 @@ var init_surface_scan = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/declared-read-surface.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/declared-read-surface.mjs
 import path9 from "node:path";
 import { readFileSync as readFileSync8, readdirSync as readdirSync2, statSync } from "node:fs";
 var WRITE_FS_VERBS, WRITE_FS_APIS, DECLARED_READ_SURFACE_RULES, RESULT_GUARANTEES;
 var init_declared_read_surface = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/declared-read-surface.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/declared-read-surface.mjs"() {
     init_errors2();
     WRITE_FS_VERBS = ["writeFile", "appendFile", "mkdir", "rm", "unlink", "rename", "copyFile"];
     WRITE_FS_APIS = WRITE_FS_VERBS.map((verb) => `${verb}Sync`).concat([
@@ -31718,7 +31718,7 @@ var require_dist2 = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/structured-scan.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/structured-scan.mjs
 import { mkdtempSync, rmSync, writeFileSync, lstatSync, readlinkSync } from "node:fs";
 import os3 from "node:os";
 import path10 from "node:path";
@@ -32006,7 +32006,7 @@ function scanTreeJsonContent(ctx, relPath, bytes) {
 }
 var import_ipaddr, import_lockfile, import_yaml, POLICY_SCHEMA_ID2, STRUCTURED_SCAN_RULES, URL_PATTERN, EMAIL_PATTERN, HOST_KEY_STRING_PATTERN, HOST_KEY_ARRAY_PATTERN, QUOTED_TOKEN_PATTERN, NPM_SCOPE_PATTERN, IP_RUN_PATTERN, IPV4_SHAPED_PATTERN, HEX_GROUP_SEGMENT_PATTERN, ALPHA_SHORT_SEGMENT_PATTERN, HEX_LETTER_PATTERN, DECIMAL_DIGIT_PATTERN, LOCKFILE_URL_REFERENCE_PATTERN, LOCAL_LOCKFILE_REF_PREFIXES, BUILTIN_ADAPTERS;
 var init_structured_scan = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/structured-scan.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/structured-scan.mjs"() {
     init_src();
     import_ipaddr = __toESM(require_ipaddr(), 1);
     import_lockfile = __toESM(require_lib18(), 1);
@@ -32062,10 +32062,10 @@ var init_structured_scan = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/token-estimate.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/token-estimate.mjs
 var GUARANTEES, TOKEN_GUARANTEES, CJK_CODE_POINT_RANGES;
 var init_token_estimate = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/token-estimate.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/token-estimate.mjs"() {
     GUARANTEES = Object.freeze([
       "covers-content-text-only",
       "no-model-calls",
@@ -32089,7 +32089,7 @@ var init_token_estimate = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/state-store.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/state-store.mjs
 import { constants as FS_CONSTANTS4 } from "node:fs";
 import {
   link as link2,
@@ -32106,7 +32106,7 @@ import path11 from "node:path";
 import process4 from "node:process";
 var STATE_GENESIS_DIGEST, EVENT_SCHEMA_ID, SNAPSHOT_SCHEMA_ID;
 var init_state_store = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/state-store.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/state-store.mjs"() {
     init_src();
     init_errors2();
     init_validation();
@@ -32116,22 +32116,22 @@ var init_state_store = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/budget-guard.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/budget-guard.mjs
 var init_budget_guard = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/budget-guard.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/budget-guard.mjs"() {
     init_errors2();
     init_token_lock();
     init_state_store();
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/supervise-process.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/supervise-process.mjs
 import { spawn as nodeSpawn } from "node:child_process";
 import { existsSync, readFileSync as readFileSync9, statSync as statSync2, writeFileSync as writeFileSync2, renameSync } from "node:fs";
 import path12 from "node:path";
 var WATCHDOG_REASONS, TERMINATION_REASONS, PROCESS_STATUSES, ENVELOPE_GUARANTEES, TIMEOUT_POLICY_FIELDS, defaultDeps, WATCHDOG_TO_TERMINATION;
 var init_supervise_process = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/supervise-process.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/supervise-process.mjs"() {
     init_errors2();
     WATCHDOG_REASONS = Object.freeze([
       "max_seconds",
@@ -32228,7 +32228,7 @@ var init_supervise_process = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/request.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/request.mjs
 function schemaIdFor(objectName) {
   const registration = findSchemaByObject(objectName);
   if (!registration) {
@@ -32241,7 +32241,7 @@ function schemaIdFor(objectName) {
 }
 var REQUEST_ENVELOPE, REQUEST_SCHEMA_ID, RESULT_SCHEMA_ID;
 var init_request = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/request.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/request.mjs"() {
     init_src();
     init_errors2();
     init_validation();
@@ -32255,14 +32255,14 @@ var init_request = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/host.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/host.mjs
 import { constants } from "node:fs";
 import { access, lstat as lstat7, mkdtemp as mkdtemp3, readFile as readFile3, realpath as realpath5, rename as rename3, rm as rm4 } from "node:fs/promises";
 import path13 from "node:path";
 import { spawnSync } from "node:child_process";
 var SCHEMAS;
 var init_host = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/host.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/host.mjs"() {
     init_src();
     init_atomic();
     init_closure();
@@ -32276,17 +32276,84 @@ var init_host = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/report.mjs
-import { readFileSync as readFileSync10 } from "node:fs";
-var PACKAGE_META, REPORT_RENDERER_VERSION, SUPPORTED_REPORT_LOCALES, EXECUTION_STATUSES, REPORT_AUDIENCES, RESULT_STATE_EXECUTION_STATUSES, REPORT_STYLE_RULES, TRANSLATESE_ZH, TRANSLATESE_EN, UNEXPLAINED_TERMS, REPORT_MODEL_SCHEMA_ID, REPORT_BINDING_SCHEMA_ID, OPERATION_RESULT_SCHEMA_ID, TEXT;
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/package.json
+var package_default;
+var init_package = __esm({
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/package.json"() {
+    package_default = {
+      "//": '~~ Generated by projen. To modify, edit .projenrc.js and run "npx projen".',
+      author: "\u5E7F\u5DDE\u5E02\u98CE\u8377\u79D1\u6280\u6709\u9650\u516C\u53F8",
+      bin: {
+        "skill-family-token-estimate": "./src/token-estimate-cli.mjs"
+      },
+      bugs: {
+        url: "https://github.com/ifoohoo/skill-family-harness-node/issues"
+      },
+      dependencies: {
+        "@pnpm/lockfile.fs": "1001.1.35",
+        "ipaddr.js": "2.5.0",
+        "skill-family-contracts": "0.8.1",
+        yaml: "2.9.0"
+      },
+      description: "Thin Node.js mechanism runtime for Skill Family engineering contracts.",
+      engines: {
+        node: ">=22.22.2 <23",
+        pnpm: "10.30.0"
+      },
+      exports: {
+        ".": "./src/index.mjs",
+        "./candidate/quickstart-profile": "./candidate/quickstart-profile.mjs",
+        "./candidate/rename-directory-no-replace": "./candidate/rename-directory-no-replace/rename-directory-no-replace.mjs"
+      },
+      files: [
+        "src",
+        "candidate",
+        "release-notes",
+        "README.md",
+        "README.zh-CN.md",
+        "CHANGELOG.md",
+        "CHANGELOG.zh-CN.md",
+        "NOTICE",
+        "SECURITY.md",
+        "CONTRIBUTING.md",
+        "CODE_OF_CONDUCT.md"
+      ],
+      homepage: "https://github.com/ifoohoo/skill-family-harness-node",
+      license: "Apache-2.0",
+      name: "skill-family-harness-node",
+      private: false,
+      repository: {
+        type: "git",
+        url: "https://github.com/ifoohoo/skill-family-harness-node.git"
+      },
+      type: "module",
+      version: "0.8.1",
+      scripts: {
+        check: "node --test",
+        test: "node --test"
+      }
+    };
+  }
+});
+
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/report-version.mjs
+var REPORT_RENDERER_VERSION;
+var init_report_version = __esm({
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/report-version.mjs"() {
+    init_package();
+    REPORT_RENDERER_VERSION = package_default.version;
+  }
+});
+
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/report.mjs
+var SUPPORTED_REPORT_LOCALES, EXECUTION_STATUSES, REPORT_AUDIENCES, RESULT_STATE_EXECUTION_STATUSES, REPORT_STYLE_RULES, TRANSLATESE_ZH, TRANSLATESE_EN, UNEXPLAINED_TERMS, REPORT_MODEL_SCHEMA_ID, REPORT_BINDING_SCHEMA_ID, OPERATION_RESULT_SCHEMA_ID, TEXT;
 var init_report = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/report.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/report.mjs"() {
     init_src();
     init_closure();
     init_errors2();
+    init_report_version();
     init_validation();
-    PACKAGE_META = Object.freeze({ "name": "release-skill", "version": "0.7.2" });
-    REPORT_RENDERER_VERSION = PACKAGE_META.version;
     SUPPORTED_REPORT_LOCALES = Object.freeze(["zh-CN", "en-US"]);
     EXECUTION_STATUSES = Object.freeze([
       "SUCCEEDED",
@@ -32399,10 +32466,10 @@ var init_report = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/index.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/index.mjs
 var HARNESS_CAPABILITIES, HARNESS_EXCLUSIONS;
 var init_src2 = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/index.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/index.mjs"() {
     init_errors2();
     init_paths();
     init_strict_read();
@@ -33272,7 +33339,7 @@ var init_foundation_inflight = __esm({
 
 // src/artifacts/project-lock.mjs
 import { mkdir as mkdir4, writeFile as writeFile2, lstat as lstat8, open as open5 } from "node:fs/promises";
-import { readFileSync as readFileSync11 } from "node:fs";
+import { readFileSync as readFileSync10 } from "node:fs";
 import { join } from "node:path";
 import { hostname } from "node:os";
 import { randomBytes as randomBytes4 } from "node:crypto";
@@ -33290,7 +33357,7 @@ function buildOwner(command2, clock) {
 }
 function getBootId() {
   try {
-    return readFileSync11("/proc/sys/kernel/random/boot_id", "utf8").trim();
+    return readFileSync10("/proc/sys/kernel/random/boot_id", "utf8").trim();
   } catch {
     return `pid-${process.pid}-uptime-${Math.floor(process.uptime())}`;
   }
@@ -33964,7 +34031,7 @@ var init_pkg_root = __esm({
 });
 
 // src/core/trusted-resource.mjs
-import { lstatSync as lstatSync2, readFileSync as readFileSync12, realpathSync } from "node:fs";
+import { lstatSync as lstatSync2, readFileSync as readFileSync11, realpathSync } from "node:fs";
 import { lstat as lstat9 } from "node:fs/promises";
 import { isAbsolute, relative, resolve as resolve2, sep } from "node:path";
 function fail(code, resource, reason) {
@@ -34039,7 +34106,7 @@ function readTrustedPackageResourceSync(resource, { code = CONFIG_INVALID } = {}
   }
   assertPhysicalContainment(physicalRoot, physicalPath, resource, code);
   try {
-    return readFileSync12(physicalPath);
+    return readFileSync11(physicalPath);
   } catch {
     fail(code, resource, "READ_FAILED");
   }
@@ -38632,7 +38699,7 @@ import { createRequire } from "node:module";
 import { dirname as dirname4, resolve as resolve9 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 import { realpath as realpath8 } from "node:fs/promises";
-import { readFileSync as readFileSync13, realpathSync as realpathSync2, lstatSync as lstatSync3 } from "node:fs";
+import { readFileSync as readFileSync12, realpathSync as realpathSync2, lstatSync as lstatSync3 } from "node:fs";
 import { createHash as createHash7 } from "node:crypto";
 function failPrebuildManifest(reason, message = "prebuilds manifest not readable") {
   throw new ReleaseError(
@@ -38672,7 +38739,7 @@ function readTrustedPrebuildManifest() {
     );
   }
   try {
-    return JSON.parse(readFileSync13(physicalManifest, "utf8"));
+    return JSON.parse(readFileSync12(physicalManifest, "utf8"));
   } catch {
     failPrebuildManifest("READ_FAILED");
   }
@@ -38787,7 +38854,7 @@ function readStableAddon(options = {}) {
   if (!physicalAddonFile.startsWith(nativeBaseDir + "/") && physicalAddonFile !== nativeBaseDir) {
     throw new ReleaseError(SAFE_WRITE_UNAVAILABLE, "prebuilt addon physical path escapes base directory");
   }
-  const readFn = hooks.readFileSync || readFileSync13;
+  const readFn = hooks.readFileSync || readFileSync12;
   let data;
   try {
     data = readFn(physicalAddonFile);
@@ -58983,15 +59050,15 @@ var require_polyfill = __commonJS({
       utimes
     } = __require("fs/promises");
     var {
-      dirname: dirname24,
+      dirname: dirname23,
       isAbsolute: isAbsolute26,
-      join: join44,
+      join: join43,
       parse: parse2,
       resolve: resolve39,
       sep: sep9,
       toNamespacedPath
     } = __require("path");
-    var { fileURLToPath: fileURLToPath5 } = __require("url");
+    var { fileURLToPath: fileURLToPath4 } = __require("url");
     var defaultOptions = {
       dereference: false,
       errorOnExist: false,
@@ -59012,7 +59079,7 @@ var require_polyfill = __commonJS({
     }
     __name(cp3, "cp");
     function getValidatedPath(fileURLOrPath) {
-      const path28 = fileURLOrPath != null && fileURLOrPath.href && fileURLOrPath.origin ? fileURLToPath5(fileURLOrPath) : fileURLOrPath;
+      const path28 = fileURLOrPath != null && fileURLOrPath.href && fileURLOrPath.origin ? fileURLToPath4(fileURLOrPath) : fileURLOrPath;
       return path28;
     }
     __name(getValidatedPath, "getValidatedPath");
@@ -59087,7 +59154,7 @@ var require_polyfill = __commonJS({
     }
     __name(getStats, "getStats");
     async function checkParentDir(destStat, src, dest, opts) {
-      const destParent = dirname24(dest);
+      const destParent = dirname23(dest);
       const dirExists = await pathExists2(destParent);
       if (dirExists) {
         return getStatsForCopy(destStat, src, dest, opts);
@@ -59105,8 +59172,8 @@ var require_polyfill = __commonJS({
     }
     __name(pathExists2, "pathExists");
     async function checkParentPaths(src, srcStat, dest) {
-      const srcParent = resolve39(dirname24(src));
-      const destParent = resolve39(dirname24(dest));
+      const srcParent = resolve39(dirname23(src));
+      const destParent = resolve39(dirname23(dest));
       if (destParent === srcParent || destParent === parse2(destParent).root) {
         return;
       }
@@ -59266,8 +59333,8 @@ var require_polyfill = __commonJS({
       const dir = await readdir26(src);
       for (let i = 0; i < dir.length; i++) {
         const item = dir[i];
-        const srcItem = join44(src, item);
-        const destItem = join44(dest, item);
+        const srcItem = join43(src, item);
+        const destItem = join43(dest, item);
         const { destStat } = await checkPaths(srcItem, destItem, opts);
         await startCopy(destStat, srcItem, destItem, opts);
       }
@@ -59276,7 +59343,7 @@ var require_polyfill = __commonJS({
     async function onLink(destStat, src, dest) {
       let resolvedSrc = await readlink2(src);
       if (!isAbsolute26(resolvedSrc)) {
-        resolvedSrc = resolve39(dirname24(src), resolvedSrc);
+        resolvedSrc = resolve39(dirname23(src), resolvedSrc);
       }
       if (!destStat) {
         return symlink(resolvedSrc, dest);
@@ -59291,7 +59358,7 @@ var require_polyfill = __commonJS({
         throw err;
       }
       if (!isAbsolute26(resolvedDest)) {
-        resolvedDest = resolve39(dirname24(dest), resolvedDest);
+        resolvedDest = resolve39(dirname23(dest), resolvedDest);
       }
       if (isSrcSubdir(resolvedSrc, resolvedDest)) {
         throw new ERR_FS_CP_EINVAL({
@@ -59343,7 +59410,7 @@ var require_cp = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/with-temp-dir.js
 var require_with_temp_dir = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/with-temp-dir.js"(exports, module) {
-    var { join: join44, sep: sep9 } = __require("path");
+    var { join: join43, sep: sep9 } = __require("path");
     var getOptions = require_get_options();
     var { mkdir: mkdir31, mkdtemp: mkdtemp14, rm: rm20 } = __require("fs/promises");
     var withTempDir = /* @__PURE__ */ __name(async (root, fn, opts) => {
@@ -59351,7 +59418,7 @@ var require_with_temp_dir = __commonJS({
         copy: ["tmpPrefix"]
       });
       await mkdir31(root, { recursive: true });
-      const target = await mkdtemp14(join44(`${root}${sep9}`, options.tmpPrefix || ""));
+      const target = await mkdtemp14(join43(`${root}${sep9}`, options.tmpPrefix || ""));
       let err;
       let result;
       try {
@@ -59376,13 +59443,13 @@ var require_with_temp_dir = __commonJS({
 var require_readdir_scoped = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/readdir-scoped.js"(exports, module) {
     var { readdir: readdir26 } = __require("fs/promises");
-    var { join: join44 } = __require("path");
+    var { join: join43 } = __require("path");
     var readdirScoped = /* @__PURE__ */ __name(async (dir) => {
       const results = [];
       for (const item of await readdir26(dir)) {
         if (item.startsWith("@")) {
-          for (const scopedItem of await readdir26(join44(dir, item))) {
-            results.push(join44(item, scopedItem));
+          for (const scopedItem of await readdir26(join43(dir, item))) {
+            results.push(join43(item, scopedItem));
           }
         } else {
           results.push(item);
@@ -59397,7 +59464,7 @@ var require_readdir_scoped = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/move-file.js
 var require_move_file = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/move-file.js"(exports, module) {
-    var { dirname: dirname24, join: join44, resolve: resolve39, relative: relative29, isAbsolute: isAbsolute26 } = __require("path");
+    var { dirname: dirname23, join: join43, resolve: resolve39, relative: relative29, isAbsolute: isAbsolute26 } = __require("path");
     var fs = __require("fs/promises");
     var pathExists2 = /* @__PURE__ */ __name(async (path28) => {
       try {
@@ -59418,7 +59485,7 @@ var require_move_file = __commonJS({
       if (!options.overwrite && await pathExists2(destination)) {
         throw new Error(`The destination file exists: ${destination}`);
       }
-      await fs.mkdir(dirname24(destination), { recursive: true });
+      await fs.mkdir(dirname23(destination), { recursive: true });
       try {
         await fs.rename(source, destination);
       } catch (error) {
@@ -59427,7 +59494,7 @@ var require_move_file = __commonJS({
           if (sourceStat.isDirectory()) {
             const files = await fs.readdir(source);
             await Promise.all(files.map(
-              (file) => moveFile(join44(source, file), join44(destination, file), options, false, symlinks)
+              (file) => moveFile(join43(source, file), join43(destination, file), options, false, symlinks)
             ));
           } else if (sourceStat.isSymbolicLink()) {
             symlinks.push({ source, destination });
@@ -59446,7 +59513,7 @@ var require_move_file = __commonJS({
           }
           let targetStat = "file";
           try {
-            targetStat = await fs.stat(resolve39(dirname24(symSource), target));
+            targetStat = await fs.stat(resolve39(dirname23(symSource), target));
             if (targetStat.isDirectory()) {
               targetStat = "junction";
             }
@@ -74680,7 +74747,7 @@ var require_index_min = __commonJS({
 var require_lib35 = __commonJS({
   "../../node_modules/.pnpm/which@5.0.0/node_modules/which/lib/index.js"(exports, module) {
     var { isexe, sync: isexeSync } = require_index_min();
-    var { join: join44, delimiter, sep: sep9, posix: posix3 } = __require("path");
+    var { join: join43, delimiter, sep: sep9, posix: posix3 } = __require("path");
     var isWindows = process.platform === "win32";
     var rSlash = new RegExp(`[${posix3.sep}${sep9 === posix3.sep ? "" : sep9}]`.replace(/(\\)/g, "\\$1"));
     var rRel = new RegExp(`^\\.${rSlash.source}`);
@@ -74709,7 +74776,7 @@ var require_lib35 = __commonJS({
     var getPathPart = /* @__PURE__ */ __name((raw, cmd) => {
       const pathPart = /^".*"$/.test(raw) ? raw.slice(1, -1) : raw;
       const prefix = !pathPart && rRel.test(cmd) ? cmd.slice(0, 2) : "";
-      return prefix + join44(pathPart, cmd);
+      return prefix + join43(pathPart, cmd);
     }, "getPathPart");
     var which = /* @__PURE__ */ __name(async (cmd, opt = {}) => {
       const { pathEnv, pathExt, pathExtExe } = getPathInfo(cmd, opt);
@@ -75848,7 +75915,7 @@ var require_lib37 = __commonJS({
 // ../../node_modules/.pnpm/npm-normalize-package-bin@4.0.0/node_modules/npm-normalize-package-bin/lib/index.js
 var require_lib38 = __commonJS({
   "../../node_modules/.pnpm/npm-normalize-package-bin@4.0.0/node_modules/npm-normalize-package-bin/lib/index.js"(exports, module) {
-    var { join: join44, basename: basename15 } = __require("path");
+    var { join: join43, basename: basename15 } = __require("path");
     var normalize4 = /* @__PURE__ */ __name((pkg) => !pkg.bin ? removeBin(pkg) : typeof pkg.bin === "string" ? normalizeString(pkg) : Array.isArray(pkg.bin) ? normalizeArray(pkg) : typeof pkg.bin === "object" ? normalizeObject(pkg) : removeBin(pkg), "normalize");
     var normalizeString = /* @__PURE__ */ __name((pkg) => {
       if (!pkg.name) {
@@ -75873,11 +75940,11 @@ var require_lib38 = __commonJS({
       const clean = {};
       let hasBins = false;
       Object.keys(orig).forEach((binKey) => {
-        const base = join44("/", basename15(binKey.replace(/\\|:/g, "/"))).slice(1);
+        const base = join43("/", basename15(binKey.replace(/\\|:/g, "/"))).slice(1);
         if (typeof orig[binKey] !== "string" || !base) {
           return;
         }
-        const binTarget = join44("/", orig[binKey].replace(/\\/g, "/")).replace(/\\/g, "/").slice(1);
+        const binTarget = join43("/", orig[binKey].replace(/\\/g, "/")).replace(/\\/g, "/").slice(1);
         if (!binTarget) {
           return;
         }
@@ -76187,13 +76254,13 @@ var require_is = __commonJS({
 var require_find = __commonJS({
   "../../node_modules/.pnpm/@npmcli+git@6.0.3/node_modules/@npmcli/git/lib/find.js"(exports, module) {
     var is = require_is();
-    var { dirname: dirname24 } = __require("path");
+    var { dirname: dirname23 } = __require("path");
     module.exports = async ({ cwd = process.cwd(), root } = {}) => {
       while (true) {
         if (await is({ cwd })) {
           return cwd;
         }
-        const next = dirname24(cwd);
+        const next = dirname23(cwd);
         if (cwd === root || cwd === next) {
           return null;
         }
@@ -85881,12 +85948,12 @@ var require_url = __commonJS({
   "../../node_modules/.pnpm/tuf-js@3.1.0/node_modules/tuf-js/dist/utils/url.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.join = join44;
+    exports.join = join43;
     var url_1 = __require("url");
-    function join44(base, path28) {
+    function join43(base, path28) {
       return new url_1.URL(ensureTrailingSlash(base) + removeLeadingSlash(path28)).toString();
     }
-    __name(join44, "join");
+    __name(join43, "join");
     function ensureTrailingSlash(path28) {
       return path28.endsWith("/") ? path28 : path28 + "/";
     }
@@ -105358,7 +105425,7 @@ ${registryTokenKey(normalizedRegistry)}=${token}
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/errors.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/errors.mjs
 function kitError(kind, message, extraDetails) {
   const values = Object.values(KIT_ERROR_KINDS);
   if (!values.includes(kind)) {
@@ -105377,7 +105444,7 @@ function refusalError(refusals, message, extraDetails) {
 }
 var KIT_ERROR_KINDS, KitError, REFUSED_MUTATION_FLAGS;
 var init_errors4 = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/errors.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/errors.mjs"() {
     init_src();
     KIT_ERROR_KINDS = Object.freeze({
       // scaffold
@@ -105473,13 +105540,13 @@ var init_errors4 = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/gitprobe.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/gitprobe.mjs
 import { spawnSync as spawnSync2 } from "node:child_process";
 import { readFile as readFile30 } from "node:fs/promises";
 import path16 from "node:path";
 var GIT_STATUS_ARGS, GIT_LS_FILES_ARGS, GIT_CHECK_IGNORE_ARGS, GIT_READ_ONLY_ALLOWLIST;
 var init_gitprobe = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/gitprobe.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/gitprobe.mjs"() {
     GIT_STATUS_ARGS = Object.freeze([
       "--no-optional-locks",
       "-c",
@@ -105511,28 +105578,28 @@ var init_gitprobe = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/licensing.mjs
-import { readFileSync as readFileSync14 } from "node:fs";
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/licensing.mjs
+import { readFileSync as readFileSync13 } from "node:fs";
 import path17 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 var APACHE_2_TEXT, MIT_TEMPLATE;
 var init_licensing = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/licensing.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/licensing.mjs"() {
     init_src2();
     init_src();
     init_errors4();
-    APACHE_2_TEXT = readFileSync14(
+    APACHE_2_TEXT = readFileSync13(
       new URL("./license-texts/Apache-2.0.txt", import.meta.url),
       "utf8"
     );
-    MIT_TEMPLATE = readFileSync14(
+    MIT_TEMPLATE = readFileSync13(
       new URL("./license-texts/MIT.txt", import.meta.url),
       "utf8"
     );
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/workspace.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/workspace.mjs
 import { lstat as lstat25, readdir as readdir17, readFile as readFile31, stat as stat9 } from "node:fs/promises";
 import path18 from "node:path";
 async function resolveTargetRoot(rootInput) {
@@ -105685,7 +105752,7 @@ async function loadTargetFacts(root) {
 }
 var OPAQUE_DIRECTORIES, DEFAULT_HANDWRITTEN_PATTERNS;
 var init_workspace2 = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/workspace.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/workspace.mjs"() {
     init_errors4();
     OPAQUE_DIRECTORIES = Object.freeze([".git", "node_modules"]);
     DEFAULT_HANDWRITTEN_PATTERNS = Object.freeze([
@@ -105711,12 +105778,12 @@ var init_workspace2 = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/migration.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/migration.mjs
 import { lstat as lstat26, readFile as readFile32 } from "node:fs/promises";
 import { TextDecoder as TextDecoder2 } from "node:util";
 var UTF8_STRICT_DECODER, MIGRATION_MANIFEST_SCHEMA_ID, MIGRATION_MANIFEST_STATES, EXCEPTION_REQUIRED_FIELDS, MIGRATION_STATES, REQUIRED_FOUNDATION_PACKAGES, VERIFICATION_EVIDENCE_KINDS;
 var init_migration = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/migration.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/migration.mjs"() {
     init_src();
     init_src2();
     init_workspace2();
@@ -105755,22 +105822,89 @@ var init_migration = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/skeleton.mjs
-import { readFileSync as readFileSync15 } from "node:fs";
-import { fileURLToPath as fileURLToPath4 } from "node:url";
-import { dirname as dirname16, join as join27 } from "node:path";
-var KIT_TOOL_NAME, __dirname, _kitPkg, KIT_VERSION, PROJECT_MANIFEST_PATH, MANAGED_LOCK_PATH, PROJECTION_MANIFEST_PATH, IDENTITY_RECORD_PATH, PUBLIC_BOUNDARY_DECLARATION_PATH, PLATFORM_SUBSET_DECLARATION_PATH;
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/package.json
+var package_default2;
+var init_package2 = __esm({
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/package.json"() {
+    package_default2 = {
+      "//": '~~ Generated by projen. To modify, edit .projenrc.js and run "npx projen".',
+      author: "\u5E7F\u5DDE\u5E02\u98CE\u8377\u79D1\u6280\u6709\u9650\u516C\u53F8",
+      bin: {
+        "skill-family-kit": "./src/cli.mjs"
+      },
+      bugs: {
+        url: "https://github.com/ifoohoo/skill-family-engineering-kit/issues"
+      },
+      dependencies: {
+        "skill-family-contracts": "0.8.1",
+        "skill-family-harness-node": "0.8.1"
+      },
+      description: "Build-time scaffold, adoption planning, projection, and checks.",
+      engines: {
+        node: ">=22.22.2 <23",
+        pnpm: "10.30.0"
+      },
+      exports: {
+        ".": "./src/index.mjs",
+        "./candidate/quickstart-profile": "./candidate/index.mjs",
+        "./profile-spi": "./profile-spi/index.mjs"
+      },
+      files: [
+        "src",
+        "candidate",
+        "data",
+        "profile-spi",
+        "release-notes",
+        "LICENSE",
+        "README.md",
+        "README.zh-CN.md",
+        "CHANGELOG.md",
+        "CHANGELOG.zh-CN.md",
+        "NOTICE",
+        "THIRD_PARTY_NOTICES",
+        "SECURITY.md",
+        "CONTRIBUTING.md",
+        "CODE_OF_CONDUCT.md",
+        "docs"
+      ],
+      homepage: "https://github.com/ifoohoo/skill-family-engineering-kit",
+      license: "Apache-2.0",
+      name: "skill-family-engineering-kit",
+      private: false,
+      repository: {
+        type: "git",
+        url: "https://github.com/ifoohoo/skill-family-engineering-kit.git"
+      },
+      type: "module",
+      version: "0.8.1",
+      scripts: {
+        check: "node --test",
+        test: "node --test"
+      }
+    };
+  }
+});
+
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/version.mjs
+var KIT_VERSION;
+var init_version = __esm({
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/version.mjs"() {
+    init_package2();
+    KIT_VERSION = package_default2.version;
+  }
+});
+
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/skeleton.mjs
+var KIT_TOOL_NAME, PROJECT_MANIFEST_PATH, MANAGED_LOCK_PATH, PROJECTION_MANIFEST_PATH, IDENTITY_RECORD_PATH, PUBLIC_BOUNDARY_DECLARATION_PATH, PLATFORM_SUBSET_DECLARATION_PATH;
 var init_skeleton = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/skeleton.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/skeleton.mjs"() {
     init_src();
     init_src2();
     init_errors4();
     init_licensing();
     init_migration();
+    init_version();
     KIT_TOOL_NAME = "skill-family-engineering-kit";
-    __dirname = dirname16(fileURLToPath4(import.meta.url));
-    _kitPkg = JSON.parse(readFileSync15(join27(__dirname, "..", "package.json"), "utf8"));
-    KIT_VERSION = _kitPkg.version;
     PROJECT_MANIFEST_PATH = "skill-family.project-manifest.json";
     MANAGED_LOCK_PATH = "skill-family.managed-file-lock.json";
     PROJECTION_MANIFEST_PATH = "skill-family.projection.json";
@@ -105780,12 +105914,12 @@ var init_skeleton = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/identity-check.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/identity-check.mjs
 import { readdir as readdir18 } from "node:fs/promises";
 import path19 from "node:path";
 var IDENTITY_SOURCE_PRIORITY;
 var init_identity_check = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/identity-check.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/identity-check.mjs"() {
     init_src2();
     init_licensing();
     IDENTITY_SOURCE_PRIORITY = Object.freeze([
@@ -105801,11 +105935,11 @@ var init_identity_check = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/check.mjs
-import { readFileSync as readFileSync16 } from "node:fs";
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/check.mjs
+import { readFileSync as readFileSync14 } from "node:fs";
 var CHECK_CLASSES, DOCUMENT_STATES;
 var init_check = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/check.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/check.mjs"() {
     init_src();
     init_src2();
     init_errors4();
@@ -105834,10 +105968,10 @@ var init_check = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/adopt-plan.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/adopt-plan.mjs
 import path20 from "node:path";
 var init_adopt_plan = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/adopt-plan.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/adopt-plan.mjs"() {
     init_src();
     init_src2();
     init_check();
@@ -105848,12 +105982,12 @@ var init_adopt_plan = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/core-check.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/core-check.mjs
 import { lstat as lstat27 } from "node:fs/promises";
 import path21 from "node:path";
 var CORE_CHECK_SECURITY_KINDS, CLASS_READ_PATHS;
 var init_core_check = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/core-check.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/core-check.mjs"() {
     init_errors4();
     init_check();
     init_skeleton();
@@ -105889,10 +106023,10 @@ var init_core_check = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/entry-check.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/entry-check.mjs
 var ENTRY_FORMS, ENTRY_SIDE_EFFECT_CLASSES;
 var init_entry_check = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/entry-check.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/entry-check.mjs"() {
     init_src2();
     init_src();
     init_errors4();
@@ -105903,11 +106037,11 @@ var init_entry_check = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/relock.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/relock.mjs
 import { lstat as lstat28, readFile as readFile33 } from "node:fs/promises";
 import path22 from "node:path";
 var init_relock = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/relock.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/relock.mjs"() {
     init_src2();
     init_errors4();
     init_skeleton();
@@ -105917,7 +106051,7 @@ var init_relock = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/projection.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/projection.mjs
 import {
   chmod as chmod4,
   lstat as lstat29,
@@ -107256,7 +107390,7 @@ async function runProjection({ root, manifest: manifestInput, candidateRoot, fau
 }
 var SHA256_HEX_PATTERN2, V2_KIND, OWNER_KIND, TARGET_FACTS_CONTROL_PATHS, PROJECTION_AUTHORITY_BINDING_KINDS, BASE64_PATTERN;
 var init_projection = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/projection.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/projection.mjs"() {
     init_src();
     init_src2();
     init_errors4();
@@ -107329,12 +107463,12 @@ var init_projection = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/report.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/report.mjs
 import process5 from "node:process";
 import { lstat as lstat30, readFile as readFile35, realpath as realpath21, rm as rm11, stat as stat11 } from "node:fs/promises";
 import path24 from "node:path";
 var init_report2 = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/report.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/report.mjs"() {
     init_src2();
     init_src();
     init_errors4();
@@ -107342,11 +107476,11 @@ var init_report2 = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/scaffold.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/scaffold.mjs
 import { lstat as lstat31, mkdir as mkdir20, readdir as readdir20 } from "node:fs/promises";
 import path25 from "node:path";
 var init_scaffold = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/scaffold.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/scaffold.mjs"() {
     init_src();
     init_src2();
     init_errors4();
@@ -107355,11 +107489,11 @@ var init_scaffold = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-drivers.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-drivers.mjs
 import path26 from "node:path";
 var CAPABILITIES, DRIVERS, HOST_DRIVER_IDS;
 var init_host_drivers = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-drivers.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-drivers.mjs"() {
     init_src2();
     CAPABILITIES = Object.freeze(["cli", "version", "payload", "registry", "discover", "enabled", "reload", "smoke", "uninstall"]);
     DRIVERS = Object.freeze({
@@ -107370,19 +107504,19 @@ var init_host_drivers = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-profiles.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-profiles.mjs
 var init_host_profiles = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-profiles.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-profiles.mjs"() {
     init_src();
     init_src2();
     init_errors4();
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host.mjs
 import path27 from "node:path";
 var init_host2 = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host.mjs"() {
     init_src();
     init_src2();
     init_errors4();
@@ -107391,10 +107525,10 @@ var init_host2 = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/index.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/index.mjs
 var TOP_LEVEL_COMMANDS, FORBIDDEN_SIDE_EFFECTS, COMMAND_SIDE_EFFECTS, KIT_EXIT_CODES;
 var init_src3 = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/index.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.8.1_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/index.mjs"() {
     init_src();
     init_adopt_plan();
     init_check();
@@ -107460,7 +107594,7 @@ var init_src3 = __esm({
 
 // src/core/postpublish-projection.mjs
 import { chmod as chmod5, lstat as lstat32, mkdir as mkdir21, realpath as realpath22, writeFile as writeFile10 } from "node:fs/promises";
-import { dirname as dirname17, join as join28 } from "node:path";
+import { dirname as dirname16, join as join27 } from "node:path";
 function fail4(message, details = {}) {
   throw new ReleaseError(POST_PUBLISH_VERIFY_FAILED, `public payload projection: ${message}`, details);
 }
@@ -107483,7 +107617,7 @@ async function projectPublicPayload({ executionWorktreeRoot, candidateRoot, publ
   if (!worktreeReal) {
     fail4("the execution worktree does not resolve to an existing directory", { executionWorktreeRoot });
   }
-  const payloadPath = join28(worktreeReal, PUBLIC_PAYLOAD_DIRNAME);
+  const payloadPath = join27(worktreeReal, PUBLIC_PAYLOAD_DIRNAME);
   const preExisting = await lstat32(payloadPath).catch(() => null);
   if (preExisting) {
     fail4(`the payload root already exists in the tag worktree (${preExisting.isSymbolicLink() ? "symbolic link" : "pre-existing entry"})`, {
@@ -107501,8 +107635,8 @@ async function projectPublicPayload({ executionWorktreeRoot, candidateRoot, publ
         kind: cause?.details?.kind
       });
     }
-    const stagePath = join28(candidateRoot, entry.to);
-    await mkdir21(dirname17(stagePath), { recursive: true });
+    const stagePath = join27(candidateRoot, entry.to);
+    await mkdir21(dirname16(stagePath), { recursive: true });
     await writeFile10(stagePath, receipt.content);
     await chmod5(stagePath, receipt.mode);
     stagedResources.push({ path: entry.to, sha256: receipt.sha256, mode: receipt.mode });
@@ -107631,7 +107765,7 @@ import { execFile as execFileCb13 } from "node:child_process";
 import { promisify as promisify13 } from "node:util";
 import { mkdir as mkdir22, mkdtemp as mkdtemp8, readFile as readFile36, rm as rm12, writeFile as writeFile11 } from "node:fs/promises";
 import { tmpdir as tmpdir5 } from "node:os";
-import { dirname as dirname18, join as join29 } from "node:path";
+import { dirname as dirname17, join as join28 } from "node:path";
 function defaultExec2(command2, args2, options = {}) {
   return execFileAsync3(command2, args2, { shell: false, encoding: "utf8", timeout: GIT_TIMEOUT_MS, ...options });
 }
@@ -107778,7 +107912,7 @@ async function deliverProposalGitPush(params) {
   const exec = typeof execOpt === "function" ? execOpt : defaultExec2;
   const serialized = `${JSON.stringify(proposalDocument, null, 2)}
 `;
-  const cloneDir = await mkdtemp8(join29(tmpdir5(), TMP_PREFIX));
+  const cloneDir = await mkdtemp8(join28(tmpdir5(), TMP_PREFIX));
   try {
     try {
       await exec("git", ["clone", "--quiet", remoteUrl, cloneDir], {
@@ -107808,7 +107942,7 @@ async function deliverProposalGitPush(params) {
     } else {
       await git3(["checkout", "--quiet", "--orphan", branch]);
     }
-    const targetPath2 = join29(cloneDir, proposalPath);
+    const targetPath2 = join28(cloneDir, proposalPath);
     let existing = null;
     try {
       existing = await readFile36(targetPath2, "utf8");
@@ -107828,7 +107962,7 @@ async function deliverProposalGitPush(params) {
         { remoteUrl: redactUrlCredentialsIfPresent(remoteUrl), proposalPath }
       );
     }
-    await mkdir22(dirname18(targetPath2), { recursive: true });
+    await mkdir22(dirname17(targetPath2), { recursive: true });
     await writeFile11(targetPath2, serialized);
     await git3(["add", "-A"]);
     await git3([
@@ -107936,7 +108070,7 @@ async function deliverProposalLocalFile(params) {
   }
   const serialized = `${JSON.stringify(proposalDocument, null, 2)}
 `;
-  const targetPath2 = join29(workspaceRealpath, proposalPath);
+  const targetPath2 = join28(workspaceRealpath, proposalPath);
   let existing = null;
   try {
     existing = await readFile36(targetPath2, "utf8");
@@ -107953,7 +108087,7 @@ async function deliverProposalLocalFile(params) {
       { workspace: workspaceRealpath, proposalPath }
     );
   }
-  await mkdir22(dirname18(targetPath2), { recursive: true });
+  await mkdir22(dirname17(targetPath2), { recursive: true });
   await writeFile11(targetPath2, serialized);
   await git3(["add", "--", proposalPath]);
   await git3([
@@ -108078,7 +108212,7 @@ import { execFile as execFileCb14 } from "node:child_process";
 import { promisify as promisify14 } from "node:util";
 import { mkdtemp as mkdtemp9, rm as rm13 } from "node:fs/promises";
 import { tmpdir as tmpdir6 } from "node:os";
-import { join as join30 } from "node:path";
+import { join as join29 } from "node:path";
 function defaultExec3(command2, args2, options = {}) {
   return execFileAsync4(command2, args2, { shell: false, encoding: "utf8", timeout: GIT_TIMEOUT_MS2, ...options });
 }
@@ -108198,7 +108332,7 @@ async function applyDownstreamGitChange(params) {
   let workspaceRealpath = null;
   if (hasRemoteUrl) {
     assertSafeRemoteUrl2(target.remoteUrl);
-    worktree = await mkdtemp9(join30(tmpdir6(), TMP_PREFIX2));
+    worktree = await mkdtemp9(join29(tmpdir6(), TMP_PREFIX2));
     isClone = true;
     try {
       await exec("git", ["clone", "--quiet", target.remoteUrl, worktree], {
@@ -108436,7 +108570,7 @@ var init_preset_gitwrite = __esm({
 
 // src/core/marketplace-registry-entry.mjs
 import { readFile as readFile37 } from "node:fs/promises";
-import { join as join31 } from "node:path";
+import { join as join30 } from "node:path";
 function updateRegistryEntry(registry, params) {
   const { entryKey, fieldsFromPlan, contextProjection } = params ?? {};
   if (!registry || typeof registry !== "object" || Array.isArray(registry)) {
@@ -108498,7 +108632,7 @@ async function executeMarketplaceRegistryEntryHook(params) {
   const version = contextProjection?.version ?? "unknown";
   let currentText = null;
   const mutate = /* @__PURE__ */ __name(async (worktree) => {
-    const absoluteRegistry = join31(worktree, registryPath);
+    const absoluteRegistry = join30(worktree, registryPath);
     let raw;
     try {
       raw = await readFile37(absoluteRegistry, "utf8");
@@ -108554,7 +108688,7 @@ var init_marketplace_registry_entry = __esm({
 
 // src/core/docs-refresh-preset.mjs
 import { mkdir as mkdir23, readFile as readFile38, writeFile as writeFile12 } from "node:fs/promises";
-import { dirname as dirname19, isAbsolute as isAbsolute22, join as join32, relative as relative26, resolve as resolve31 } from "node:path";
+import { dirname as dirname18, isAbsolute as isAbsolute22, join as join31, relative as relative26, resolve as resolve31 } from "node:path";
 function resolvePayloadSource(payloadDir, from) {
   const sourcePath = resolve31(payloadDir, from);
   const rel = relative26(payloadDir, sourcePath);
@@ -108603,8 +108737,8 @@ async function executeDocsRefreshHook(params) {
         const text = content.toString("utf8");
         content = Buffer.from(text.split(mapping.versionMarker).join(version), "utf8");
       }
-      const destination = join32(worktree, mapping.to);
-      await mkdir23(dirname19(destination), { recursive: true });
+      const destination = join31(worktree, mapping.to);
+      await mkdir23(dirname18(destination), { recursive: true });
       await writeFile12(destination, content);
     }
   }, "mutate");
@@ -108788,7 +108922,7 @@ import { promisify as promisify15 } from "node:util";
 import { realpath as realpath23, lstat as lstat33, mkdir as mkdir24, readFile as readFile39, rm as rm14 } from "node:fs/promises";
 import { mkdtemp as mkdtemp10 } from "node:fs/promises";
 import { tmpdir as tmpdir7 } from "node:os";
-import { isAbsolute as isAbsolute23, join as join33, relative as relative27, resolve as resolve32 } from "node:path";
+import { isAbsolute as isAbsolute23, join as join32, relative as relative27, resolve as resolve32 } from "node:path";
 function defaultClock6() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
@@ -108916,7 +109050,7 @@ async function distributeRelease(options) {
   } else {
     await mkdir24(runDir, { recursive: true });
   }
-  const runPath = join33(runDir, "release-run.json");
+  const runPath = join32(runDir, "release-run.json");
   const evidence = createEvidenceWriter({ runDir, command: "distribute", clock: clockFn });
   let lineageKnown = false;
   let sourceRunId = null;
@@ -109290,8 +109424,8 @@ async function distributeRelease(options) {
     }
     await evidence.append({ phase: "worktree", status: "started", tagCommit: postPublish.tagCommit });
     try {
-      tmpBase = await mkdtemp10(join33(tmpdir7(), "release-skill-distribute-"));
-      worktreePath = join33(tmpBase, "worktree");
+      tmpBase = await mkdtemp10(join32(tmpdir7(), "release-skill-distribute-"));
+      worktreePath = join32(tmpBase, "worktree");
       await exec("git", ["-C", root, "worktree", "add", "--detach", worktreePath, postPublish.tagCommit]);
     } catch (err) {
       await evidence.append({ phase: "worktree", status: "failed", error: boundedOutputTail(err?.stderr ?? err?.message) });
@@ -109440,7 +109574,7 @@ async function distributeRelease(options) {
           "public payload projection: the frozen plan declares no materialize hook and carries no non-empty executionBundle.publicFiles mapping; the payload cannot be staged"
         ));
       }
-      const candidateRoot = join33(tmpBase, "projection-candidate");
+      const candidateRoot = join32(tmpBase, "projection-candidate");
       try {
         await mkdir24(candidateRoot, { recursive: true });
         const projected = await projectPublicPayload({
@@ -109772,7 +109906,7 @@ async function distributeRelease(options) {
             // resolution + release-workspace write exclusion). The detached
             // worktree is the execution worktree and never impersonates it.
             releaseWorkspaceRoot,
-            evidencePath: join33(runDir, "evidence.jsonl"),
+            evidencePath: join32(runDir, "evidence.jsonl"),
             payloadDir: hookContextProjection.payloadDir,
             exec,
             hookRunner
@@ -110022,7 +110156,7 @@ import { promisify as promisify16 } from "node:util";
 import { mkdir as mkdir25, readFile as readFile40, realpath as realpath24, rm as rm15 } from "node:fs/promises";
 import { mkdtemp as mkdtemp11 } from "node:fs/promises";
 import { tmpdir as tmpdir8 } from "node:os";
-import { join as join34 } from "node:path";
+import { join as join33 } from "node:path";
 function defaultClock7() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
@@ -110200,7 +110334,7 @@ async function postVerifyRelease(options) {
   } else {
     await mkdir25(runDir, { recursive: true });
   }
-  const runPath = join34(runDir, "release-run.json");
+  const runPath = join33(runDir, "release-run.json");
   const evidence = createEvidenceWriter({ runDir, command: "postverify", clock: clockFn });
   let finalRecordWritten = false;
   const startedAt = clockFn();
@@ -110288,8 +110422,8 @@ async function postVerifyRelease(options) {
     }
     if (dryRun !== true) {
       try {
-        tmpBase = await mkdtemp11(join34(tmpdir8(), "release-skill-postverify-"));
-        worktreePath = join34(tmpBase, "worktree");
+        tmpBase = await mkdtemp11(join33(tmpdir8(), "release-skill-postverify-"));
+        worktreePath = join33(tmpBase, "worktree");
         await exec("git", ["-C", root, "worktree", "add", "--detach", worktreePath, postPublish.tagCommit]);
       } catch (err) {
         await evidence.append({
@@ -110395,7 +110529,7 @@ async function postVerifyRelease(options) {
             // resolution + release-workspace write exclusion). The detached
             // worktree is the execution worktree and never impersonates it.
             releaseWorkspaceRoot,
-            evidencePath: join34(runDir, "evidence.jsonl"),
+            evidencePath: join33(runDir, "evidence.jsonl"),
             exec,
             hookRunner
           });
@@ -110814,9 +110948,9 @@ __export(ship_exports, {
   advanceShip: () => advanceShip
 });
 import { readFile as readFile42, lstat as lstat35, mkdir as mkdir26, rename as rename6, rm as rm17, writeFile as writeFile14 } from "node:fs/promises";
-import { dirname as dirname20, resolve as resolve34 } from "node:path";
+import { dirname as dirname19, resolve as resolve34 } from "node:path";
 async function writeJsonAtomic(path28, value) {
-  await mkdir26(dirname20(path28), { recursive: true });
+  await mkdir26(dirname19(path28), { recursive: true });
   const temp = `${path28}.${process.pid}.${Date.now()}.tmp`;
   const { stateDigest: _oldDigest, ...body } = value;
   const sealed = {
@@ -111835,7 +111969,7 @@ import { execFile as execFileCb20 } from "node:child_process";
 import { promisify as promisify20 } from "node:util";
 import { cp as cp2, copyFile, mkdir as mkdir27, mkdtemp as mkdtemp12, readdir as readdir21, rm as rm18, stat as stat12, writeFile as writeFile15 } from "node:fs/promises";
 import { tmpdir as tmpdir9 } from "node:os";
-import { dirname as dirname21, isAbsolute as isAbsolute24, join as join35 } from "node:path";
+import { dirname as dirname20, isAbsolute as isAbsolute24, join as join34 } from "node:path";
 function classifyProbeFailure(text) {
   const output = typeof text === "string" ? text : "";
   if (AUTH_FAILURE_PATTERNS3.some((pattern) => pattern.test(output))) return "auth";
@@ -111956,7 +112090,7 @@ async function countFiles(dir) {
   const entries = await readdir21(dir, { withFileTypes: true });
   for (const entry of entries) {
     if (entry.name === ".git") continue;
-    const fullPath = join35(dir, entry.name);
+    const fullPath = join34(dir, entry.name);
     if (entry.isDirectory()) {
       total += await countFiles(fullPath);
     } else if (entry.isFile() || entry.isSymbolicLink()) {
@@ -112068,7 +112202,7 @@ function createDistributeGitAdapter(deps = {}) {
   __name(assertMirrorActionShape, "assertMirrorActionShape");
   async function mirror(action) {
     assertMirrorActionShape(action);
-    const cloneDir = await mkdtempFn(join35(tmpRoot, TMP_PREFIX3));
+    const cloneDir = await mkdtempFn(join34(tmpRoot, TMP_PREFIX3));
     const git3 = /* @__PURE__ */ __name((args2, options = {}) => exec("git", args2, { cwd: cloneDir, shell: false, timeout: GIT_TIMEOUT_MS3, ...options }), "git");
     try {
       await exec("git", ["clone", "--quiet", action.remoteUrl, cloneDir], {
@@ -112090,7 +112224,7 @@ function createDistributeGitAdapter(deps = {}) {
       }
       for (const entry of await readdir21(cloneDir)) {
         if (entry === ".git") continue;
-        await rm18(join35(cloneDir, entry), { recursive: true, force: true });
+        await rm18(join34(cloneDir, entry), { recursive: true, force: true });
       }
       if (action.kind === "payload-mirror") {
         const payloadStat = await stat12(action.payloadDir).catch(() => null);
@@ -112105,13 +112239,13 @@ function createDistributeGitAdapter(deps = {}) {
           sha: action.dependency.sha ?? null,
           dependencyUrl: action.dependency.remoteUrl
         });
-        await mkdir27(join35(cloneDir, ".claude-plugin"), { recursive: true });
-        await writeFile15(join35(cloneDir, ".claude-plugin", "marketplace.json"), `${JSON.stringify(index, null, 2)}
+        await mkdir27(join34(cloneDir, ".claude-plugin"), { recursive: true });
+        await writeFile15(join34(cloneDir, ".claude-plugin", "marketplace.json"), `${JSON.stringify(index, null, 2)}
 `);
       }
       for (const file of action.staticFiles ?? []) {
-        await mkdir27(dirname21(join35(cloneDir, file.to)), { recursive: true });
-        await copyFile(file.sourcePath, join35(cloneDir, file.to));
+        await mkdir27(dirname20(join34(cloneDir, file.to)), { recursive: true });
+        await copyFile(file.sourcePath, join34(cloneDir, file.to));
       }
       const payloadFileCount = await countFiles(cloneDir);
       await git3(["add", "-A"]);
@@ -112341,7 +112475,7 @@ __export(attest_exports, {
   recordManualAttestation: () => recordManualAttestation
 });
 import { readFile as readFile43 } from "node:fs/promises";
-import { resolve as resolve35, join as join36 } from "node:path";
+import { resolve as resolve35, join as join35 } from "node:path";
 async function validateInstalledConsumerClosure({
   root,
   platform,
@@ -112429,7 +112563,7 @@ async function recordManualAttestation(options = {}, injected = {}) {
     throw new ReleaseError(MISSING_PARAMETERS, "attest requires --result <passed|failed>");
   }
   const authorityDir = resolve35(root, ".release-skill", descriptor.directory, plugin);
-  const requirementPath = join36(authorityDir, descriptor.requirementFile);
+  const requirementPath = join35(authorityDir, descriptor.requirementFile);
   let requirement;
   try {
     requirement = JSON.parse(await readFile43(requirementPath, "utf8"));
@@ -112482,7 +112616,7 @@ async function recordManualAttestation(options = {}, injected = {}) {
       extraInstalledPaths: installBinding.extraInstalledPaths
     } : {}
   };
-  const attestationPath = join36(authorityDir, requirement.attestationFile);
+  const attestationPath = join35(authorityDir, requirement.attestationFile);
   await writeEvidenceAtomic(attestationPath, receipt);
   return {
     command: "attest",
@@ -112517,7 +112651,7 @@ var init_attest = __esm({
 
 // src/artifacts/policy.mjs
 import { readFile as readFile44 } from "node:fs/promises";
-import { join as join37 } from "node:path";
+import { join as join36 } from "node:path";
 import { createHash as createHash16 } from "node:crypto";
 function validateArtifactPolicy(policy) {
   const ok = _validate(policy);
@@ -112613,7 +112747,7 @@ async function parseSafeYamlWithinRoot(root, policyPath) {
     }
     throw err;
   }
-  const fullPath = join37(root, policyPath);
+  const fullPath = join36(root, policyPath);
   let content;
   try {
     content = await readFile44(fullPath, "utf8");
@@ -112728,7 +112862,7 @@ var init_policy = __esm({
 
 // src/artifacts/entry.mjs
 import { lstat as lstat36, readdir as readdir22, readFile as readFile45 } from "node:fs/promises";
-import { join as join38 } from "node:path";
+import { join as join37 } from "node:path";
 import { promisify as promisify21 } from "node:util";
 import { execFile as execFile14 } from "node:child_process";
 function statToGitMode(stat16) {
@@ -112751,7 +112885,7 @@ async function enumerateTreeEntries(root, dirPath, relBase) {
   const items = await readdir22(dirPath, { withFileTypes: true });
   for (const item of items) {
     if (SKIP_DIRS2.has(item.name)) continue;
-    const absPath = join38(dirPath, item.name);
+    const absPath = join37(dirPath, item.name);
     const relPath = relBase ? `${relBase}/${item.name}` : item.name;
     const st = await lstat36(absPath);
     if (st.isSymbolicLink()) {
@@ -112802,7 +112936,7 @@ async function readEntry({ root, path: path28, source = "worktree" } = {}) {
   if (source !== "worktree") {
     throw new ReleaseError(PATH_UNSAFE, `unsupported readEntry source: ${source}`, { source });
   }
-  const absPath = join38(root, path28);
+  const absPath = join37(root, path28);
   let st;
   try {
     st = await lstat36(absPath);
@@ -113100,17 +113234,17 @@ var init_graph = __esm({
 
 // src/artifacts/producer-registry.mjs
 import { readFile as readFile46, readdir as readdir23, stat as stat13, mkdir as mkdir28, writeFile as writeFile16, rm as rm19 } from "node:fs/promises";
-import { join as join39 } from "node:path";
+import { join as join38 } from "node:path";
 import { mkdtemp as mkdtemp13 } from "node:fs/promises";
 import { tmpdir as tmpdir10 } from "node:os";
-import { readFileSync as readFileSync17 } from "node:fs";
+import { readFileSync as readFileSync15 } from "node:fs";
 function collectStaticImports(filePath, visited = /* @__PURE__ */ new Set()) {
   const abs = new URL(`file://${filePath}`).pathname;
   if (visited.has(abs)) return [];
   visited.add(abs);
   let source;
   try {
-    source = readFileSync17(abs, "utf-8");
+    source = readFileSync15(abs, "utf-8");
   } catch {
     return [abs];
   }
@@ -113120,7 +113254,7 @@ function collectStaticImports(filePath, visited = /* @__PURE__ */ new Set()) {
   const dir = abs.replace(/\/[^/]*$/, "");
   while ((match = importRe.exec(source)) !== null) {
     const spec = match[1];
-    let resolved = join39(dir, spec);
+    let resolved = join38(dir, spec);
     if (!resolved.endsWith(".mjs")) resolved += ".mjs";
     results.push(...collectStaticImports(resolved, visited));
   }
@@ -113128,7 +113262,7 @@ function collectStaticImports(filePath, visited = /* @__PURE__ */ new Set()) {
 }
 async function createBuiltInProducerRegistry() {
   const producers = /* @__PURE__ */ new Map();
-  const lockfilePath = join39(new URL("../../..", import.meta.url).pathname, "pnpm-lock.yaml");
+  const lockfilePath = join38(new URL("../../..", import.meta.url).pathname, "pnpm-lock.yaml");
   let lockfileBytes;
   try {
     lockfileBytes = await readFile46(lockfilePath);
@@ -113168,7 +113302,7 @@ async function readDirEntries(dirPath, relBase = "") {
   const items = await readdir23(dirPath, { withFileTypes: true });
   for (const item of items) {
     if (item.name === ".git") continue;
-    const absPath = join39(dirPath, item.name);
+    const absPath = join38(dirPath, item.name);
     const relPath = relBase ? `${relBase}/${item.name}` : item.name;
     const st = await stat13(absPath);
     if (st.isDirectory()) {
@@ -113191,11 +113325,11 @@ async function readDirEntries(dirPath, relBase = "") {
 async function materializeEntries(entries, dirPath) {
   for (const entry of entries) {
     if (!entry.path) continue;
-    const targetPath2 = join39(dirPath, entry.path);
+    const targetPath2 = join38(dirPath, entry.path);
     if (entry.type === "tree" || entry.kind === "tree") {
       await mkdir28(targetPath2, { recursive: true });
     } else {
-      await mkdir28(join39(targetPath2, ".."), { recursive: true });
+      await mkdir28(join38(targetPath2, ".."), { recursive: true });
       if (entry.content) {
         await writeFile16(targetPath2, entry.content);
       }
@@ -113239,7 +113373,7 @@ async function runProducerClosure({
   graph,
   inputSnapshot,
   artifactIds,
-  tempRootFactory = /* @__PURE__ */ __name(async () => mkdtemp13(join39(tmpdir10(), "producer-")), "tempRootFactory")
+  tempRootFactory = /* @__PURE__ */ __name(async () => mkdtemp13(join38(tmpdir10(), "producer-")), "tempRootFactory")
 } = {}) {
   const generatedSet = new Set(graph.topologicalOrder);
   for (const id of artifactIds) {
@@ -113276,7 +113410,7 @@ async function runProducerClosure({
         if (inputEntries) {
           const first = inputEntries[0];
           if (first && first.path) {
-            const absPath = first.path.startsWith("/") ? first.path : join39(process.cwd(), first.path);
+            const absPath = first.path.startsWith("/") ? first.path : join38(process.cwd(), first.path);
             try {
               const st = await stat13(absPath);
               if (st.isDirectory()) {
@@ -113702,7 +113836,7 @@ var init_state = __esm({
 
 // src/artifacts/artifact-plan.mjs
 import { writeFile as writeFile17, mkdir as mkdir29, readFile as readFile47, rename as rename7, open as open11 } from "node:fs/promises";
-import { dirname as dirname22 } from "node:path";
+import { dirname as dirname21 } from "node:path";
 function assemblePlan({
   operation,
   bindings,
@@ -113725,7 +113859,7 @@ function assemblePlan({
   return Object.freeze(plan);
 }
 async function writePlan(plan, outputPath) {
-  const dir = dirname22(outputPath);
+  const dir = dirname21(outputPath);
   await mkdir29(dir, { recursive: true });
   const tmpPath = `${outputPath}.tmp`;
   const content = JSON.stringify(plan, null, 2);
@@ -114391,7 +114525,7 @@ var init_adoption = __esm({
 import { promisify as promisify24 } from "node:util";
 import { execFile as execFile17 } from "node:child_process";
 import { readdir as readdir24, stat as stat14, readFile as readFile48 } from "node:fs/promises";
-import { join as join40 } from "node:path";
+import { join as join39 } from "node:path";
 async function hasNestedGitRoots(root) {
   try {
     const { stdout } = await execFileAsync10(
@@ -114401,9 +114535,9 @@ async function hasNestedGitRoots(root) {
     );
     const dirs = stdout.split("\n").filter((s) => s.length > 0);
     for (const dir of dirs) {
-      const absDir = join40(root, dir);
+      const absDir = join39(root, dir);
       try {
-        const nestedGit = join40(absDir, ".git");
+        const nestedGit = join39(absDir, ".git");
         await stat14(nestedGit);
         return true;
       } catch {
@@ -114663,7 +114797,7 @@ var init_inspect = __esm({
 
 // src/artifacts/resolution.mjs
 import { mkdir as mkdir30, open as open12, readFile as readFile49, stat as stat15, lstat as lstat37, chmod as chmod6 } from "node:fs/promises";
-import { join as join41, resolve as resolve36, relative as relative28, isAbsolute as isAbsolute25, basename as basename13 } from "node:path";
+import { join as join40, resolve as resolve36, relative as relative28, isAbsolute as isAbsolute25, basename as basename13 } from "node:path";
 function decodeBuffer(value, label) {
   if (value == null) return null;
   if (Buffer.isBuffer(value)) return value;
@@ -114765,9 +114899,9 @@ function assertSafeArtifactId(id) {
 }
 async function assertNoSymlinksInPath(root, artifactId) {
   const levels = [
-    join41(root, ".release-skill"),
-    join41(root, ".release-skill", "resolution"),
-    join41(root, ".release-skill", "resolution", artifactId)
+    join40(root, ".release-skill"),
+    join40(root, ".release-skill", "resolution"),
+    join40(root, ".release-skill", "resolution", artifactId)
   ];
   for (const dir of levels) {
     try {
@@ -114946,13 +115080,13 @@ async function materializeResolution({
   const template = buildConflictTemplate(artifact.conflict ?? {}, decodedBuffers);
   const templateDigest = sha256Hex(template);
   await assertNoSymlinksInPath(root, artifactId);
-  const resolutionDir = join41(root, ".release-skill", "resolution", artifactId);
+  const resolutionDir = join40(root, ".release-skill", "resolution", artifactId);
   await mkdir30(resolutionDir, { recursive: true, mode: 448 });
   const dirStat = await stat15(resolutionDir);
   if ((dirStat.mode & 511) !== 448) {
     await chmod6(resolutionDir, 448);
   }
-  const resolvedPath = join41(resolutionDir, `${artifactId}.resolved`);
+  const resolvedPath = join40(resolutionDir, `${artifactId}.resolved`);
   const fh = await open12(resolvedPath, "wx", 384);
   try {
     await fh.write(template, 0, template.length);
@@ -115163,7 +115297,7 @@ __export(artifacts_exports, {
   runArtifactsCommand: () => runArtifactsCommand
 });
 import { readFile as readFile50 } from "node:fs/promises";
-import { join as join42 } from "node:path";
+import { join as join41 } from "node:path";
 async function runArtifactsCommand({ subcommand, args: args2, root } = {}) {
   if (!VALID_SUBCOMMANDS.has(subcommand)) {
     throw new ReleaseError(
@@ -115306,7 +115440,7 @@ async function handleAdopt({ args: args2, root }) {
     if (artifact.path) {
       const entry = await readEntry({ root, path: artifact.path, source: "worktree" });
       if (entry.kind === "regular") {
-        const bytes = await readFile50(join42(root, artifact.path));
+        const bytes = await readFile50(join41(root, artifact.path));
         currentEntries.set(artifact.id, Object.freeze({ ...entry, bytes, content: bytes }));
       } else {
         currentEntries.set(artifact.id, entry);
@@ -115383,7 +115517,7 @@ async function handleBootstrap({ args: args2, root }) {
     if (entry.kind !== "regular") {
       throw new ReleaseError("PLAN_STALE", `artifact is no longer a regular file: ${id}`, { id });
     }
-    const bytes = await readFile50(join42(root, artifactPath));
+    const bytes = await readFile50(join41(root, artifactPath));
     currentEntries.set(id, Object.freeze({ ...entry, bytes, content: bytes }));
   }
   let replacementBytes;
@@ -116706,7 +116840,7 @@ Workflow Profiles:
 });
 
 // bin/release-skill-cli.mjs
-import { basename as basename14, dirname as dirname23, join as join43, resolve as resolve38 } from "node:path";
+import { basename as basename14, dirname as dirname22, join as join42, resolve as resolve38 } from "node:path";
 import { execFile as execFileCb22 } from "node:child_process";
 import { promisify as promisify26 } from "node:util";
 
@@ -117002,10 +117136,10 @@ if (!command && (args.includes("--version") || args.includes("-v"))) {
   if (typeof __bundlePkg !== "undefined") {
     pkg = __bundlePkg;
   } else {
-    const { readFileSync: readFileSync18 } = await import("node:fs");
-    const { fileURLToPath: fileURLToPath5 } = await import("node:url");
-    const pkgPath = join43(dirname23(fileURLToPath5(import.meta.url)), "..", "package.json");
-    pkg = JSON.parse(readFileSync18(pkgPath, "utf8"));
+    const { readFileSync: readFileSync16 } = await import("node:fs");
+    const { fileURLToPath: fileURLToPath4 } = await import("node:url");
+    const pkgPath = join42(dirname22(fileURLToPath4(import.meta.url)), "..", "package.json");
+    pkg = JSON.parse(readFileSync16(pkgPath, "utf8"));
   }
   if (hasJson) {
     console.log(JSON.stringify({
@@ -117564,9 +117698,9 @@ if (command === "approve") {
       resolvedDigest = computePlanDigest2(planObj);
     }
     const resolvedPlanPath = resolve38(planPath);
-    const planDir = dirname23(resolvedPlanPath);
-    const releaseDir = basename14(planDir) === "plans" && basename14(resolvedPlanPath) === `${resolvedDigest}.json` ? dirname23(planDir) : planDir;
-    const approvalPath = outputPath ?? join43(releaseDir, "approval-record.json");
+    const planDir = dirname22(resolvedPlanPath);
+    const releaseDir = basename14(planDir) === "plans" && basename14(resolvedPlanPath) === `${resolvedDigest}.json` ? dirname22(planDir) : planDir;
+    const approvalPath = outputPath ?? join42(releaseDir, "approval-record.json");
     const record = await approvePlan2({ planPath, expectedDigest: resolvedDigest, actor, outputPath: approvalPath });
     if (hasJson) {
       console.log(JSON.stringify(record, null, 2));

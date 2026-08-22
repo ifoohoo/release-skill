@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.7.2 -->
+<!-- release-skill:release-version: 0.7.3 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,17 +14,17 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.7.2** (2026-08-22)
+**0.7.3** (2026-08-22)
 
-v0.7.2 fixes native safe-fs loading from generated host adapters whose installation roots intentionally omit package.json.
+v0.7.3 adopts Foundation 0.8.1 so generated host adapters can initialize Foundation reports and managed projection without rewriting Foundation package identity.
 
 **Fixed**
 
-- **Adapter-safe native loader anchor**: the bundled runtime now anchors createRequire() to the shipped CLI entry shared by source and adapter layouts. Claude, Codex, Kimi, and WorkBuddy adapters can load their packaged native safe-fs addon without relying on a root package manifest.
+- **Foundation-owned bundle identity**: release-skill now consumes the exact 0.8.1 Contracts, Harness, and Engineering Kit packages and removes its report.mjs identity rewrite. Claude, Codex, Kimi, and WorkBuddy adapters now reach release-domain GATE_FAILED diagnostics for missing plans, while a frozen Codex distribution completes Foundation managed projection and reaches DISTRIBUTED.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.7.2 is the current source candidate; v0.7.1 remains
+> **Current boundary:** v0.7.3 is the current source candidate; v0.7.2 remains
 > the latest published release. v0.4.1 was an earlier published milestone;
 > v0.2.2 previously held published status before the platform verification
 > convergence fix was added.
@@ -44,8 +44,8 @@ v0.7.2 fixes native safe-fs loading from generated host adapters whose installat
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.7.2 is the current
-> source candidate and v0.7.1 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
+> **Production path verified since the v0.1.1 milestone; v0.7.3 is the current
+> source candidate and v0.7.2 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
 > **Start here:**

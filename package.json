@@ -1,6 +1,6 @@
 {
   "name": "release-skill",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "Safe preparation and frozen GitHub/npm production publishing with full happy end verification",
   "author": {
     "name": "广州市风荷科技有限公司"
@@ -78,9 +78,9 @@
     "ajv-formats": "3.0.1",
     "libnpmpublish": "11.1.0",
     "npm-registry-fetch": "18.0.2",
-    "skill-family-contracts": "0.8.0",
-    "skill-family-engineering-kit": "0.8.0",
-    "skill-family-harness-node": "0.8.0",
+    "skill-family-contracts": "0.8.1",
+    "skill-family-engineering-kit": "0.8.1",
+    "skill-family-harness-node": "0.8.1",
     "yaml": "2.9.0"
   },
   "devDependencies": {
