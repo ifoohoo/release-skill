@@ -25,7 +25,7 @@ import { promisify } from 'node:util';
 
 const execFile = promisify(execFileCb);
 
-import { classifyPathInput } from 'skill-family-harness-node';
+import { classifyPathInput, writeFileAtomic } from 'skill-family-harness-node';
 import { loadProjectConfig } from '../core/config.mjs';
 import { captureBaseline } from '../core/baseline.mjs';
 import { runHook } from '../core/hooks.mjs';
@@ -62,6 +62,7 @@ import { PKG_ROOT } from '../core/pkg-root.mjs';
 import { writeFrozenMarker, FROZEN_MARKER_FILENAME } from '../core/frozen-marker.mjs';
 import {
   SOURCE_INPUT_ALGORITHM_VERSION,
+  createPublicSourceAuthorityReceipt,
   computeSourceInputClosure,
   checkSourceInputDirty,
   verifySnapshotSourcesMatchClosure,
@@ -80,6 +81,7 @@ import {
   PAYLOAD_SOURCE_TAG_WORKTREE,
 } from '../core/postpublish.mjs';
 import { freezeExecutionBundle, bundleRootForAuthorityDir } from '../core/postpublish-bundle.mjs';
+import { digestReleaseAssetIdentities } from '../core/release-assets.mjs';
 
 // ---------------------------------------------------------------------------
 // 安装契约常量
@@ -1513,7 +1515,7 @@ export async function resolveExternalMarketplaceFreezes({
  * @param {string} realRoot - The project root for relative path calculation.
  * @returns {object[]} Array of external action descriptors.
  */
-export function buildExternalActions(unitResults, resolvedVersions, productionAssets, externalFreezes = new Map(), frozenDistributions = null) {
+export function buildExternalActions(unitResults, resolvedVersions, productionAssets, externalFreezes = new Map(), frozenDistributions = null, publicSourceAuthorityReceipt = null) {
   const actions = [];
 
   if (!productionAssets) {
@@ -1785,6 +1787,9 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
     }
 
     // GitHub release
+    const releaseAssets = publicSourceAuthorityReceipt?.coordinatorUnitId === unit.id
+      ? [publicSourceAuthorityReceipt.asset]
+      : null;
     actions.push({
       id: `github-release-${unit.id}`,
       type: 'github-release',
@@ -1802,10 +1807,12 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
           .replaceAll('{version}', unitVersion)
           .replaceAll('{unit}', unit.id),
         notes: unit.production?.releaseNotes ?? `Release ${resolvedTag}`,
+        ...(releaseAssets ? { releaseAssets } : {}),
       },
       expected: {
         tag: resolvedTag,
         commit: asset.commit,
+        ...(releaseAssets ? { releaseAssetsDigest: digestReleaseAssetIdentities(releaseAssets) } : {}),
       },
       status: 'PENDING',
     });
@@ -3648,7 +3655,68 @@ export async function prepareRelease(options) {
     // 构建冻结分发映射：unitId -> frozen distributions
     const frozenDistributionsMap = new Map(units.map((u) => [u.id, u.distributions]));
 
-    let externalActions = buildExternalActions(unitResults, resolvedVersions, productionAssets, externalMarketplaceFreezes, frozenDistributionsMap);
+    let publicSourceAuthorityReceipt = null;
+    if (config.publicSourceAuthorityReceipt) {
+      if (!production || !sourceAuthority) {
+        throw new ReleaseError(
+          CONFIG_INVALID,
+          'publicSourceAuthorityReceipt requires a production prepare with source-authority closure enabled',
+        );
+      }
+      const unitsById = new Map(units.map((unit) => [unit.id, unit]));
+      const subjects = config.publicSourceAuthorityReceipt.subjectUnitIds.map((unitId) => {
+        const unit = unitsById.get(unitId);
+        const npmDistribution = unit?.distributions?.find((distribution) => distribution.type === 'npm');
+        const npm = unit?.frozenSnapshot?.npm;
+        if (!unit || !npmDistribution || !npm) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `public source-authority subject unit "${unitId}" is missing its frozen npm tarball`,
+          );
+        }
+        return {
+          packageName: npmDistribution.package,
+          version: unit.targetVersion,
+          filename: basename(npm.tarballPath),
+          sha256: npm.tarballSha256,
+        };
+      });
+      const builtReceipt = createPublicSourceAuthorityReceipt({
+        sourceRepository: sourceAuthority.sourceRepository,
+        sourceBaseCommit: baseline.gitHead,
+        subjects,
+      });
+      const assetName = 'source-authority-receipt.json';
+      const assetDirectory = resolve(runDir, 'release-assets');
+      await mkdir(assetDirectory, { recursive: true });
+      await writeFileAtomic(assetDirectory, assetName, builtReceipt.bytes, { mode: 0o644 });
+      publicSourceAuthorityReceipt = {
+        coordinatorUnitId: config.publicSourceAuthorityReceipt.coordinatorUnitId,
+        subjectUnitIds: [...config.publicSourceAuthorityReceipt.subjectUnitIds],
+        asset: {
+          name: assetName,
+          path: relative(realRoot, resolve(assetDirectory, assetName)),
+          sha256: builtReceipt.sha256,
+        },
+      };
+      await evidence.append({
+        phase: 'public-source-authority-receipt',
+        status: 'frozen',
+        coordinatorUnitId: publicSourceAuthorityReceipt.coordinatorUnitId,
+        subjectUnitIds: publicSourceAuthorityReceipt.subjectUnitIds,
+        assetPath: publicSourceAuthorityReceipt.asset.path,
+        assetSha256: publicSourceAuthorityReceipt.asset.sha256,
+      });
+    }
+
+    let externalActions = buildExternalActions(
+      unitResults,
+      resolvedVersions,
+      productionAssets,
+      externalMarketplaceFreezes,
+      frozenDistributionsMap,
+      publicSourceAuthorityReceipt,
+    );
 
     // Compute overall snapshot digest
     const overallSnapshotDigest = sha256Hex(snapshotDigests.join(':'));
@@ -3823,6 +3891,7 @@ export async function prepareRelease(options) {
       } : {}),
       units,
       externalActions,
+      ...(publicSourceAuthorityReceipt ? { publicSourceAuthorityReceipt } : {}),
       ...(frozenPostPublish ? { postPublish: frozenPostPublish } : {}),
       ...(sourceAuthority ? { sourceAuthority } : {}),
       createdAt: production ? createdAtTimestamp : (clock ? clock() : new Date().toISOString()),

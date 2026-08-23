@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.7.6"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.7.7"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "898adf636ceb9d435fd52c9d6f95d0c1bd041f2bdc3b0347902ac5086460c986";
+const __bundleSourceDigest = "abe5151f6131b7016e6d66bdd83c223b92b40586443e9110d9367f5986e81bf4";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -34341,6 +34341,640 @@ var init_installation_contract = __esm({
   }
 });
 
+// src/core/source-authority.mjs
+import { execFile as execFileCb } from "node:child_process";
+import { promisify } from "node:util";
+import { lstat as lstat10, mkdtemp as mkdtemp4, readFile as readFile4, readdir as readdir3, realpath as realpath6, rm as rm5 } from "node:fs/promises";
+import { join as join2, relative as relative2, resolve as resolve3, sep as sep2 } from "node:path";
+import { tmpdir } from "node:os";
+function createPublicSourceAuthorityReceipt({
+  sourceRepository,
+  sourceBaseCommit,
+  subjects
+}) {
+  if (!REPOSITORY_RE.test(sourceRepository ?? "")) {
+    throw new ReleaseError(CONFIG_INVALID, "public source-authority receipt requires an explicit GitHub owner/repo");
+  }
+  if (!COMMIT_RE.test(sourceBaseCommit ?? "")) {
+    throw new ReleaseError(CONFIG_INVALID, "public source-authority receipt requires a full hexadecimal source base commit");
+  }
+  if (!Array.isArray(subjects) || subjects.length === 0) {
+    throw new ReleaseError(CONFIG_INVALID, "public source-authority receipt requires at least one npm tarball subject");
+  }
+  const packageNames = /* @__PURE__ */ new Set();
+  const normalizedSubjects = subjects.map((subject, index) => {
+    const keys = Object.keys(subject ?? {}).sort();
+    if (canonicalJson2(keys) !== canonicalJson2(["filename", "packageName", "sha256", "version"])) {
+      throw new ReleaseError(CONFIG_INVALID, `public source-authority subject ${index} has an invalid field set`);
+    }
+    if (!NPM_PACKAGE_RE.test(subject.packageName ?? "")) {
+      throw new ReleaseError(CONFIG_INVALID, `public source-authority subject ${index} has an invalid packageName`);
+    }
+    if (packageNames.has(subject.packageName)) {
+      throw new ReleaseError(CONFIG_INVALID, `public source-authority receipt has duplicate packageName "${subject.packageName}"`);
+    }
+    packageNames.add(subject.packageName);
+    if (typeof subject.version !== "string" || subject.version.length === 0) {
+      throw new ReleaseError(CONFIG_INVALID, `public source-authority subject "${subject.packageName}" has an invalid version`);
+    }
+    if (!TARBALL_FILENAME_RE.test(subject.filename ?? "")) {
+      throw new ReleaseError(CONFIG_INVALID, `public source-authority subject "${subject.packageName}" has an invalid tarball filename`);
+    }
+    if (!SHA256_RE.test(subject.sha256 ?? "")) {
+      throw new ReleaseError(CONFIG_INVALID, `public source-authority subject "${subject.packageName}" has an invalid SHA-256`);
+    }
+    return {
+      packageName: subject.packageName,
+      version: subject.version,
+      filename: subject.filename,
+      sha256: subject.sha256
+    };
+  });
+  normalizedSubjects.sort((left, right) => left.packageName < right.packageName ? -1 : left.packageName > right.packageName ? 1 : 0);
+  const receipt = {
+    schemaVersion: 1,
+    kind: "skill-family.source-authority-receipt",
+    sourceRepository,
+    sourceBaseCommit,
+    subjects: normalizedSubjects
+  };
+  const bytes = Buffer.from(canonicalJson2(receipt), "utf8");
+  return Object.freeze({ receipt: Object.freeze(receipt), bytes, sha256: sha256Hex(bytes) });
+}
+function consumePublicSourceAuthorityReceipt(bytes, actualSubjects) {
+  let parsed;
+  try {
+    parsed = JSON.parse(Buffer.isBuffer(bytes) ? bytes.toString("utf8") : String(bytes));
+  } catch (error) {
+    throw new ReleaseError(CONFIG_INVALID, `public source-authority receipt is not valid JSON: ${error.message}`);
+  }
+  const topKeys = Object.keys(parsed ?? {}).sort();
+  if (canonicalJson2(topKeys) !== canonicalJson2([
+    "kind",
+    "schemaVersion",
+    "sourceBaseCommit",
+    "sourceRepository",
+    "subjects"
+  ])) {
+    throw new ReleaseError(CONFIG_INVALID, "public source-authority receipt has an invalid field set");
+  }
+  if (parsed.schemaVersion !== 1 || parsed.kind !== "skill-family.source-authority-receipt") {
+    throw new ReleaseError(CONFIG_INVALID, "public source-authority receipt kind or schemaVersion is unsupported");
+  }
+  const rebuilt = createPublicSourceAuthorityReceipt(parsed);
+  if (!Buffer.from(bytes).equals(rebuilt.bytes)) {
+    throw new ReleaseError(CONFIG_INVALID, "public source-authority receipt bytes are not canonical JSON");
+  }
+  if (actualSubjects !== void 0) {
+    const actual = createPublicSourceAuthorityReceipt({
+      sourceRepository: parsed.sourceRepository,
+      sourceBaseCommit: parsed.sourceBaseCommit,
+      subjects: actualSubjects
+    }).receipt.subjects;
+    if (canonicalJson2(actual) !== canonicalJson2(rebuilt.receipt.subjects)) {
+      throw new ReleaseError(CONTENT_MISMATCH, "public source-authority receipt subjects do not match actual tarballs");
+    }
+  }
+  return Object.freeze({
+    sourceRepository: rebuilt.receipt.sourceRepository,
+    sourceBaseCommit: rebuilt.receipt.sourceBaseCommit,
+    subjects: rebuilt.receipt.subjects,
+    sha256: rebuilt.sha256
+  });
+}
+async function computeSourceInputClosure({ units, root }) {
+  const realRoot = await realpath6(resolve3(root));
+  const entriesByPath = /* @__PURE__ */ new Map();
+  for (const unit of units ?? []) {
+    for (const mapping of unit.publicFiles ?? []) {
+      if (typeof mapping?.from !== "string" || mapping.from.length === 0) continue;
+      await collectPath({
+        absolutePath: resolveInside(realRoot, mapping.from),
+        root: realRoot,
+        entriesByPath
+      });
+    }
+    const versionSource = unit.version?.source;
+    if (typeof versionSource === "string" && versionSource.length > 0) {
+      const unitRoot = resolveInside(realRoot, unit.source ?? ".");
+      await collectPath({
+        absolutePath: resolveInside(unitRoot, versionSource, realRoot),
+        root: realRoot,
+        entriesByPath
+      });
+    }
+  }
+  const entries = [...entriesByPath.values()].sort((left, right) => left.path.localeCompare(right.path));
+  const digest2 = computeEntriesDigest(entries);
+  return {
+    algorithmVersion: SOURCE_INPUT_ALGORITHM_VERSION,
+    entries,
+    digest: digest2
+  };
+}
+function computeEntriesDigest(entries) {
+  return sha256Hex(canonicalJson2(entries.map(({ path: path28, digest: digest2, mode }) => ({
+    digest: digest2,
+    mode,
+    path: path28
+  }))));
+}
+async function collectPath({ absolutePath, root, entriesByPath }) {
+  let stat16;
+  try {
+    stat16 = await lstat10(absolutePath);
+  } catch (error) {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      `source-input closure cannot stat "${toRelative(root, absolutePath)}": ${error.message}`,
+      { cause: error.code ?? "UNKNOWN", path: toRelative(root, absolutePath) }
+    );
+  }
+  const rel = toRelative(root, absolutePath);
+  if (stat16.isSymbolicLink()) {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      `source-input closure rejects symlink "${rel}"`,
+      { path: rel }
+    );
+  }
+  const physicalPath = await realpath6(absolutePath);
+  if (physicalPath !== absolutePath) {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      `source-input closure rejects symlinked ancestor for "${rel}"`,
+      { path: rel }
+    );
+  }
+  if (stat16.isDirectory()) {
+    const children = await readdir3(absolutePath, { withFileTypes: true });
+    children.sort((left, right) => left.name.localeCompare(right.name));
+    for (const child of children) {
+      await collectPath({
+        absolutePath: join2(absolutePath, child.name),
+        root,
+        entriesByPath
+      });
+    }
+    return;
+  }
+  if (!stat16.isFile()) {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      `source-input closure rejects non-regular file "${rel}"`,
+      { path: rel }
+    );
+  }
+  const content = await readFile4(absolutePath);
+  entriesByPath.set(rel, {
+    path: rel,
+    digest: sha256Hex(content),
+    mode: normalizeLocalGitMode(stat16.mode)
+  });
+}
+function resolveInside(base, candidate, containmentRoot = base) {
+  const resolved = resolve3(base, candidate);
+  const root = resolve3(containmentRoot);
+  if (resolved !== root && !resolved.startsWith(`${root}${sep2}`)) {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      `source-input closure path escapes workspace root: "${candidate}"`,
+      { path: candidate }
+    );
+  }
+  return resolved;
+}
+function toRelative(root, absolutePath) {
+  const rel = relative2(root, absolutePath).split(sep2).join("/");
+  if (!rel || rel === "." || rel.startsWith("../") || rel === "..") {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      `source-input closure path is outside the workspace: "${absolutePath}"`,
+      { path: absolutePath }
+    );
+  }
+  return rel;
+}
+function normalizeLocalGitMode(mode) {
+  return (mode & 73) === 0 ? "100644" : "100755";
+}
+async function checkSourceInputDirty({ closure, root, execFn = execFile }) {
+  const paths = (closure?.entries ?? []).map((entry) => entry.path);
+  if (paths.length === 0) return { dirty: false, dirtyPaths: [] };
+  let stdout;
+  try {
+    ({ stdout } = await execFn(
+      "git",
+      [
+        "status",
+        "--porcelain=v1",
+        "-z",
+        "--untracked-files=all",
+        "--ignored=matching",
+        "--",
+        ...paths
+      ],
+      { cwd: root, encoding: "utf8", shell: false }
+    ));
+  } catch (error) {
+    throw new ReleaseError(
+      DIRTY_SOURCE_INPUT,
+      `cannot check source-input dirty status: ${error.message}`,
+      { cause: error.code ?? "UNKNOWN" }
+    );
+  }
+  const dirtyPaths = [];
+  const records = String(stdout).split("\0").filter(Boolean);
+  for (let index = 0; index < records.length; index += 1) {
+    const record = records[index];
+    if (record.length < 4) continue;
+    const status = record.slice(0, 2);
+    const recordPath = record.slice(3);
+    dirtyPaths.push(recordPath);
+    if (status.startsWith("R") || status.startsWith("C")) index += 1;
+  }
+  return {
+    dirty: dirtyPaths.length > 0,
+    dirtyPaths: [...new Set(dirtyPaths)].sort()
+  };
+}
+function verifySnapshotSourcesMatchClosure({ closure, unitResults }) {
+  if (!closure || !Array.isArray(closure.entries)) {
+    return failure(CONFIG_INVALID, "source-input closure is missing");
+  }
+  const closureByPath = new Map(
+    closure.entries.map((entry) => [entry.path, entry])
+  );
+  const mismatchedPaths = [];
+  for (const { manifest } of unitResults ?? []) {
+    for (const entry of manifest?.entries ?? []) {
+      const expected = closureByPath.get(entry.from);
+      const actualMode = normalizeSnapshotGitMode(entry.mode);
+      if (!expected || entry.hash !== expected.digest || actualMode !== expected.mode) {
+        mismatchedPaths.push(entry.from);
+      }
+    }
+  }
+  if (mismatchedPaths.length > 0) {
+    const paths = [...new Set(mismatchedPaths)].sort();
+    return {
+      passed: false,
+      error: {
+        code: DIRTY_SOURCE_INPUT,
+        message: `frozen snapshots differ from ${paths.length} source-input closure file(s)`,
+        paths
+      }
+    };
+  }
+  return {
+    passed: true,
+    observation: {
+      snapshotSourceCount: new Set(
+        (unitResults ?? []).flatMap(({ manifest }) => (manifest?.entries ?? []).map((entry) => entry.from))
+      ).size
+    }
+  };
+}
+function normalizeSnapshotGitMode(mode) {
+  if (typeof mode === "string" && GIT_MODE_RE.test(mode)) return mode;
+  if (typeof mode === "number") return normalizeLocalGitMode(mode);
+  return null;
+}
+async function verifyRemoteSourceContent({
+  sourceRepository,
+  defaultBranch,
+  closure,
+  readRemoteFn,
+  execFn = execFile
+}) {
+  if (!REPOSITORY_RE.test(sourceRepository ?? "")) {
+    return failure(CONFIG_MISSING, "project.sourceRepository must be an explicit GitHub owner/repo");
+  }
+  if (typeof defaultBranch !== "string" || defaultBranch.length === 0) {
+    return failure(CONFIG_MISSING, "project.defaultBranch must be an explicit branch name");
+  }
+  if (!closure || closure.algorithmVersion !== SOURCE_INPUT_ALGORITHM_VERSION) {
+    return failure(CONFIG_INVALID, "source-input closure algorithm is unsupported");
+  }
+  if (!Array.isArray(closure.entries) || computeEntriesDigest(closure.entries) !== closure.digest) {
+    return failure(CONFIG_INVALID, "source-input closure entries do not match the frozen digest");
+  }
+  if (readRemoteFn) {
+    return verifyWithInjectedReader({
+      closure,
+      defaultBranch,
+      readRemoteFn,
+      sourceRepository
+    });
+  }
+  return verifyWithTemporaryGit({
+    closure,
+    defaultBranch,
+    execFn,
+    sourceRepository
+  });
+}
+async function verifyWithInjectedReader({
+  closure,
+  defaultBranch,
+  readRemoteFn,
+  sourceRepository
+}) {
+  const mismatchedPaths = [];
+  let observedCommit;
+  for (const entry of closure.entries) {
+    let result;
+    try {
+      result = await readRemoteFn(sourceRepository, defaultBranch, entry.path);
+    } catch (error) {
+      return failure(REMOTE_UNAVAILABLE, error.message);
+    }
+    const classified = classifyRemoteStatus(result, sourceRepository, defaultBranch);
+    if (classified) return classified;
+    if (result.observedCommit !== void 0) {
+      if (observedCommit !== void 0 && observedCommit !== result.observedCommit) {
+        return failure(REMOTE_UNAVAILABLE, "remote source reader returned inconsistent observed commits");
+      }
+      observedCommit = result.observedCommit;
+    }
+    if (sha256Hex(Buffer.isBuffer(result.content) ? result.content : Buffer.from(result.content)) !== entry.digest || result.mode !== entry.mode) {
+      mismatchedPaths.push(entry.path);
+    }
+  }
+  return mismatchedPaths.length > 0 ? mismatch(defaultBranch, mismatchedPaths) : {
+    passed: true,
+    observation: {
+      defaultBranch,
+      entryCount: closure.entries.length,
+      ...observedCommit ? { observedCommit } : {},
+      sourceRepository
+    }
+  };
+}
+function classifyRemoteStatus(result, repository, branch) {
+  if (result?.status === "ok") return null;
+  if (result?.status === "ref_missing") {
+    return failure(
+      REF_MISSING,
+      result.error ?? `remote ref "${branch}" does not exist in "${repository}"`
+    );
+  }
+  if (result?.status === "not_default") {
+    return failure(
+      NOT_DEFAULT,
+      result.error ?? `"${branch}" is not the default branch of "${repository}"`
+    );
+  }
+  return failure(
+    REMOTE_UNAVAILABLE,
+    result?.error ?? `remote source "${repository}" is unavailable`
+  );
+}
+async function verifyWithTemporaryGit({
+  closure,
+  defaultBranch,
+  execFn,
+  sourceRepository
+}) {
+  const repositoryUrl = `https://github.com/${sourceRepository}.git`;
+  let observed;
+  try {
+    ({ stdout: observed } = await execFn(
+      "git",
+      ["ls-remote", "--symref", repositoryUrl, "HEAD", `refs/heads/${defaultBranch}`],
+      { encoding: "utf8", shell: false, timeout: 6e4 }
+    ));
+  } catch (error) {
+    return failure(REMOTE_UNAVAILABLE, `cannot observe "${sourceRepository}": ${error.message}`);
+  }
+  const lines = String(observed).split(/\r?\n/u).filter(Boolean);
+  const headSymref = lines.find((line) => line.startsWith("ref: refs/heads/"));
+  const actualDefault = headSymref?.match(/^ref: refs\/heads\/(.+)\tHEAD$/u)?.[1] ?? null;
+  if (!actualDefault) {
+    return failure(REMOTE_UNAVAILABLE, `remote default branch is not observable for "${sourceRepository}"`);
+  }
+  if (actualDefault !== defaultBranch) {
+    return failure(
+      NOT_DEFAULT,
+      `configured defaultBranch "${defaultBranch}" does not match remote default "${actualDefault}"`
+    );
+  }
+  const branchLine = lines.find((line) => line.endsWith(`	refs/heads/${defaultBranch}`));
+  if (!branchLine) {
+    return failure(REF_MISSING, `remote ref "refs/heads/${defaultBranch}" does not exist`);
+  }
+  const tempRoot = await mkdtemp4(join2(tmpdir(), "release-skill-source-authority-"));
+  try {
+    await execFn("git", ["init", "--bare", tempRoot], {
+      encoding: "utf8",
+      shell: false,
+      timeout: 3e4
+    });
+    await execFn(
+      "git",
+      [
+        "-C",
+        tempRoot,
+        "fetch",
+        "--depth=1",
+        repositoryUrl,
+        `refs/heads/${defaultBranch}:refs/source-authority/target`
+      ],
+      { encoding: "utf8", shell: false, timeout: 12e4 }
+    );
+    const { stdout: fetchedCommitOutput } = await execFn(
+      "git",
+      ["-C", tempRoot, "rev-parse", "refs/source-authority/target"],
+      { encoding: "utf8", shell: false, timeout: 3e4 }
+    );
+    const observedCommit = String(fetchedCommitOutput).trim();
+    const { stdout: treeOutput } = await execFn(
+      "git",
+      ["-C", tempRoot, "ls-tree", "-r", "-z", "refs/source-authority/target"],
+      { encoding: "utf8", maxBuffer: 64 * 1024 * 1024, shell: false, timeout: 3e4 }
+    );
+    const tree = parseLsTree(treeOutput);
+    const mismatchedPaths = [];
+    for (const expected of closure.entries) {
+      const actual = tree.get(expected.path);
+      if (!actual || actual.type !== "blob" || actual.mode !== expected.mode) {
+        mismatchedPaths.push(expected.path);
+        continue;
+      }
+      const { stdout: content } = await execFn(
+        "git",
+        ["-C", tempRoot, "cat-file", "blob", actual.objectId],
+        { encoding: null, maxBuffer: 64 * 1024 * 1024, shell: false, timeout: 3e4 }
+      );
+      const bytes = Buffer.isBuffer(content) ? content : Buffer.from(content);
+      if (sha256Hex(bytes) !== expected.digest) mismatchedPaths.push(expected.path);
+    }
+    return mismatchedPaths.length > 0 ? mismatch(defaultBranch, mismatchedPaths) : {
+      passed: true,
+      observation: {
+        defaultBranch,
+        entryCount: closure.entries.length,
+        observedCommit,
+        sourceRepository
+      }
+    };
+  } catch (error) {
+    return failure(REMOTE_UNAVAILABLE, `cannot read remote source tree: ${error.message}`);
+  } finally {
+    await rm5(tempRoot, { force: true, recursive: true });
+  }
+}
+function parseLsTree(output) {
+  const result = /* @__PURE__ */ new Map();
+  for (const record of String(output).split("\0").filter(Boolean)) {
+    const match = record.match(/^([0-9]{6}) ([a-z]+) ([0-9a-f]{40,64})\t(.+)$/u);
+    if (!match) continue;
+    result.set(match[4], {
+      mode: match[1],
+      objectId: match[3],
+      type: match[2]
+    });
+  }
+  return result;
+}
+function mismatch(defaultBranch, paths) {
+  const uniquePaths = [...new Set(paths)].sort();
+  return {
+    passed: false,
+    error: {
+      code: CONTENT_MISMATCH,
+      message: `remote default branch "${defaultBranch}" differs from ${uniquePaths.length} frozen source input(s)`,
+      paths: uniquePaths
+    }
+  };
+}
+function failure(code, message) {
+  return { passed: false, error: { code, message } };
+}
+function verifySourceAuthorityReceipt({ plan, run: run6 }) {
+  const authority = plan.sourceAuthority;
+  if (!authority) return { passed: true };
+  const matching = (run6.sourceAuthorityReceipts ?? []).find((receipt) => receipt.sourceRepository === authority.sourceRepository && receipt.defaultBranch === authority.defaultBranch && receipt.inputDigest === authority.inputDigest && receipt.algorithmVersion === authority.algorithmVersion && receipt.entryCount === authority.entries.length && receipt.planDigest === plan.digest && receipt.result === "CONSISTENT");
+  if (!matching) {
+    return {
+      passed: false,
+      reason: "publish run has no CONSISTENT source-authority receipt bound to this plan digest"
+    };
+  }
+  if (plan.publicSourceAuthorityReceipt && matching.observedCommit !== plan.baseline?.headCommit) {
+    return {
+      passed: false,
+      reason: "publish source-authority receipt observedCommit does not match the public receipt sourceBaseCommit"
+    };
+  }
+  return { passed: true, receipt: matching };
+}
+function createSourceAuthorityReceipt({
+  plan,
+  result,
+  observation,
+  mismatchedPaths,
+  clock = /* @__PURE__ */ __name(() => (/* @__PURE__ */ new Date()).toISOString(), "clock")
+}) {
+  const authority = plan.sourceAuthority;
+  return {
+    algorithmVersion: authority.algorithmVersion,
+    defaultBranch: authority.defaultBranch,
+    entryCount: authority.entries.length,
+    inputDigest: authority.inputDigest,
+    planDigest: plan.digest,
+    result,
+    sourceRepository: authority.sourceRepository,
+    verifiedAt: clock(),
+    ...observation?.observedCommit ? { observedCommit: observation.observedCommit } : {},
+    ...mismatchedPaths?.length ? { mismatchedPaths: [...new Set(mismatchedPaths)].sort() } : {}
+  };
+}
+var execFile, REPOSITORY_RE, GIT_MODE_RE, COMMIT_RE, SHA256_RE, NPM_PACKAGE_RE, TARBALL_FILENAME_RE, SOURCE_INPUT_ALGORITHM_VERSION;
+var init_source_authority = __esm({
+  "src/core/source-authority.mjs"() {
+    init_digest();
+    init_errors3();
+    execFile = promisify(execFileCb);
+    REPOSITORY_RE = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/u;
+    GIT_MODE_RE = /^(?:100644|100755)$/u;
+    COMMIT_RE = /^[a-f0-9]{40,64}$/u;
+    SHA256_RE = /^[a-f0-9]{64}$/u;
+    NPM_PACKAGE_RE = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/u;
+    TARBALL_FILENAME_RE = /^(?!\.{1,2}$)[A-Za-z0-9@][A-Za-z0-9._@+-]*\.tgz$/u;
+    SOURCE_INPUT_ALGORITHM_VERSION = 1;
+    __name(createPublicSourceAuthorityReceipt, "createPublicSourceAuthorityReceipt");
+    __name(consumePublicSourceAuthorityReceipt, "consumePublicSourceAuthorityReceipt");
+    __name(computeSourceInputClosure, "computeSourceInputClosure");
+    __name(computeEntriesDigest, "computeEntriesDigest");
+    __name(collectPath, "collectPath");
+    __name(resolveInside, "resolveInside");
+    __name(toRelative, "toRelative");
+    __name(normalizeLocalGitMode, "normalizeLocalGitMode");
+    __name(checkSourceInputDirty, "checkSourceInputDirty");
+    __name(verifySnapshotSourcesMatchClosure, "verifySnapshotSourcesMatchClosure");
+    __name(normalizeSnapshotGitMode, "normalizeSnapshotGitMode");
+    __name(verifyRemoteSourceContent, "verifyRemoteSourceContent");
+    __name(verifyWithInjectedReader, "verifyWithInjectedReader");
+    __name(classifyRemoteStatus, "classifyRemoteStatus");
+    __name(verifyWithTemporaryGit, "verifyWithTemporaryGit");
+    __name(parseLsTree, "parseLsTree");
+    __name(mismatch, "mismatch");
+    __name(failure, "failure");
+    __name(verifySourceAuthorityReceipt, "verifySourceAuthorityReceipt");
+    __name(createSourceAuthorityReceipt, "createSourceAuthorityReceipt");
+  }
+});
+
+// src/core/release-assets.mjs
+import { basename as basename2 } from "node:path";
+function normalizeReleaseAssets(assets) {
+  if (assets === void 0) return [];
+  if (!Array.isArray(assets) || assets.length === 0) {
+    throw new TypeError("releaseAssets must be a non-empty array when present");
+  }
+  const names = /* @__PURE__ */ new Set();
+  const normalized = assets.map((asset, index) => {
+    if (!asset || typeof asset !== "object" || Array.isArray(asset)) {
+      throw new TypeError(`releaseAssets[${index}] must be an object`);
+    }
+    const keys = Object.keys(asset).sort();
+    if (canonicalJson2(keys) !== canonicalJson2(["name", "path", "sha256"])) {
+      throw new TypeError(`releaseAssets[${index}] must contain only name, path, and sha256`);
+    }
+    if (typeof asset.path !== "string" || asset.path.length === 0) {
+      throw new TypeError(`releaseAssets[${index}].path must be a non-empty project-relative path`);
+    }
+    if (!SAFE_ASSET_NAME_RE.test(asset.name ?? "") || basename2(asset.path) !== asset.name) {
+      throw new TypeError(`releaseAssets[${index}].name must be a safe basename matching path`);
+    }
+    if (!SHA256_RE2.test(asset.sha256 ?? "")) {
+      throw new TypeError(`releaseAssets[${index}].sha256 must be a lowercase SHA-256 digest`);
+    }
+    if (names.has(asset.name)) {
+      throw new TypeError(`releaseAssets contains duplicate asset name "${asset.name}"`);
+    }
+    names.add(asset.name);
+    return Object.freeze({ name: asset.name, path: asset.path, sha256: asset.sha256 });
+  });
+  normalized.sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
+  return Object.freeze(normalized);
+}
+function digestReleaseAssetIdentities(assets) {
+  const identities = normalizeReleaseAssets(assets).map(({ name, sha256 }) => ({ name, sha256 }));
+  return sha256Hex(canonicalJson2(identities));
+}
+var SHA256_RE2, SAFE_ASSET_NAME_RE;
+var init_release_assets = __esm({
+  "src/core/release-assets.mjs"() {
+    init_digest();
+    SHA256_RE2 = /^[a-f0-9]{64}$/u;
+    SAFE_ASSET_NAME_RE = /^(?!\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$/u;
+    __name(normalizeReleaseAssets, "normalizeReleaseAssets");
+    __name(digestReleaseAssetIdentities, "digestReleaseAssetIdentities");
+  }
+});
+
 // src/core/plan.mjs
 var plan_exports = {};
 __export(plan_exports, {
@@ -34353,20 +34987,20 @@ __export(plan_exports, {
   writePlanAtomic: () => writePlanAtomic,
   writePlanImmutable: () => writePlanImmutable
 });
-import { readFile as readFile4, mkdir as mkdir5, lstat as lstat10 } from "node:fs/promises";
-import { basename as basename2, dirname as dirname3, join as join2, resolve as resolve3, parse, sep as sep2 } from "node:path";
+import { readFile as readFile5, mkdir as mkdir5, lstat as lstat11 } from "node:fs/promises";
+import { basename as basename3, dirname as dirname3, join as join3, resolve as resolve4, parse, sep as sep3 } from "node:path";
 async function assertNoSymlinkAncestors(directory) {
-  const absolute = resolve3(directory);
+  const absolute = resolve4(directory);
   const parsed = parse(absolute);
-  const segments = absolute.slice(parsed.root.length).split(sep2).filter(Boolean);
+  const segments = absolute.slice(parsed.root.length).split(sep3).filter(Boolean);
   const releaseIndex = segments.lastIndexOf(".release-skill");
   const firstChecked = releaseIndex >= 0 ? releaseIndex : Math.max(0, segments.length - 1);
-  let current = join2(parsed.root, ...segments.slice(0, firstChecked));
+  let current = join3(parsed.root, ...segments.slice(0, firstChecked));
   for (const segment of segments.slice(firstChecked)) {
-    current = join2(current, segment);
+    current = join3(current, segment);
     let stat16;
     try {
-      stat16 = await lstat10(current);
+      stat16 = await lstat11(current);
     } catch (error) {
       if (error.code === "ENOENT") continue;
       throw error;
@@ -34381,17 +35015,17 @@ async function assertNoSymlinkAncestors(directory) {
   }
 }
 async function prepareAuthorityDirectory(directory) {
-  const absolute = resolve3(directory);
+  const absolute = resolve4(directory);
   await assertNoSymlinkAncestors(absolute);
   await mkdir5(absolute, { recursive: true });
   await assertNoSymlinkAncestors(absolute);
   return absolute;
 }
 async function assertAuthorityFileTarget(filePath) {
-  const absolute = resolve3(filePath);
+  const absolute = resolve4(filePath);
   await prepareAuthorityDirectory(dirname3(absolute));
   try {
-    const stat16 = await lstat10(absolute);
+    const stat16 = await lstat11(absolute);
     if (stat16.isSymbolicLink() || !stat16.isFile()) {
       throw new ReleaseError(
         GATE_FAILED,
@@ -34407,8 +35041,8 @@ async function assertAuthorityFileTarget(filePath) {
 function assertImmutablePlanAuthority(planPath, plan) {
   if (!plan?.production) return;
   const digest2 = computePlanDigest(plan);
-  const absolute = resolve3(planPath);
-  if (basename2(dirname3(absolute)) !== "plans" || basename2(absolute) !== `${digest2}.json`) {
+  const absolute = resolve4(planPath);
+  if (basename3(dirname3(absolute)) !== "plans" || basename3(absolute) !== `${digest2}.json`) {
     throw new ReleaseError(
       GATE_FAILED,
       "production commands require plans/<planDigest>.json immutable authority; mutable release-plan.json aliases are not accepted",
@@ -34504,7 +35138,7 @@ async function writePlanAtomic(planPath, plan) {
   const dir = dirname3(planPath);
   await prepareAuthorityDirectory(dir);
   await assertAuthorityFileTarget(planPath);
-  await writeFileAtomic(dir, basename2(planPath), json);
+  await writeFileAtomic(dir, basename3(planPath), json);
   return { planPath, planDigest };
 }
 async function writePlanImmutable(planPath, plan) {
@@ -34523,10 +35157,10 @@ async function writePlanImmutable(planPath, plan) {
   await prepareAuthorityDirectory(dir);
   await assertAuthorityFileTarget(planPath);
   try {
-    await publishFileExclusive(dir, basename2(planPath), json, { mode: 384 });
+    await publishFileExclusive(dir, basename3(planPath), json, { mode: 384 });
   } catch (cause) {
     if (cause?.details?.kind === HARNESS_ERROR_KINDS.EXCLUSIVE_PUBLISH_CONFLICT) {
-      const existing = await readFile4(planPath, "utf8").catch(() => null);
+      const existing = await readFile5(planPath, "utf8").catch(() => null);
       if (existing === json) return { planPath, planDigest };
       if (plan.planVersion === 2 && existing !== null) {
         let existingPlan = null;
@@ -34571,6 +35205,57 @@ function validatePlanActionCompleteness(plan, options = {}) {
   const units = Array.isArray(plan.units) ? plan.units : [];
   const actions = Array.isArray(plan.externalActions) ? plan.externalActions : [];
   const expectedAdapterMap = buildExpectedAdapterMap();
+  let publicReceiptBinding = null;
+  if (plan.publicSourceAuthorityReceipt) {
+    try {
+      if (plan.production?.mode !== "github-npm-v1") {
+        failures.push("publicSourceAuthorityReceipt requires a production plan");
+      }
+      if (!plan.sourceAuthority?.sourceRepository || !plan.baseline?.headCommit) {
+        failures.push("publicSourceAuthorityReceipt requires sourceAuthority.sourceRepository and baseline.headCommit");
+      }
+      const descriptor = plan.publicSourceAuthorityReceipt;
+      const coordinator = units.find((unit) => unit.id === descriptor.coordinatorUnitId);
+      if (!coordinator) failures.push(`publicSourceAuthorityReceipt references unknown coordinator unit "${descriptor.coordinatorUnitId}"`);
+      const subjectIds = descriptor.subjectUnitIds ?? [];
+      if (new Set(subjectIds).size !== subjectIds.length) {
+        failures.push("publicSourceAuthorityReceipt subjectUnitIds must be unique");
+      }
+      const subjects = subjectIds.map((unitId) => {
+        const unit = units.find((candidate) => candidate.id === unitId);
+        if (!unit) throw new Error(`unknown subject unit "${unitId}"`);
+        const npmDistributions = (unit.distributions ?? []).filter((distribution) => distribution.type === "npm");
+        if (npmDistributions.length !== 1 || !unit.frozenSnapshot?.npm) {
+          throw new Error(`subject unit "${unitId}" must bind exactly one frozen npm tarball`);
+        }
+        return {
+          packageName: npmDistributions[0].package,
+          version: unit.targetVersion,
+          filename: basename3(unit.frozenSnapshot.npm.tarballPath),
+          sha256: unit.frozenSnapshot.npm.tarballSha256
+        };
+      });
+      const rebuilt = createPublicSourceAuthorityReceipt({
+        sourceRepository: plan.sourceAuthority?.sourceRepository,
+        sourceBaseCommit: plan.baseline?.headCommit,
+        subjects
+      });
+      const assets = normalizeReleaseAssets([descriptor.asset]);
+      if (descriptor.asset.name !== "source-authority-receipt.json") {
+        failures.push("publicSourceAuthorityReceipt asset name must be source-authority-receipt.json");
+      }
+      if (descriptor.asset.sha256 !== rebuilt.sha256) {
+        failures.push("publicSourceAuthorityReceipt asset SHA-256 does not match the mechanically derived receipt bytes");
+      }
+      publicReceiptBinding = {
+        coordinatorUnitId: descriptor.coordinatorUnitId,
+        assets,
+        assetsDigest: digestReleaseAssetIdentities(assets)
+      };
+    } catch (error) {
+      failures.push(`publicSourceAuthorityReceipt is invalid: ${error.message}`);
+    }
+  }
   if (actions.length === 0) {
     failures.push("plan has no external actions; at least one is required");
     return { passed: false, details: { failures, expectedCount: 0, actualCount: 0 } };
@@ -34747,6 +35432,31 @@ function validatePlanActionCompleteness(plan, options = {}) {
             _checkRequired(action, "parameters.notes", action.parameters?.notes, productionConfig.releaseNotes ?? `Release ${expectedTag}`, unitId, failures);
             _checkRequired(action, "expected.tag", action.expected?.tag, expectedTag, unitId, failures);
             _checkRequired(action, "expected.commit", action.expected?.commit, frozen?.commit, unitId, failures);
+            if (publicReceiptBinding?.coordinatorUnitId === unitId) {
+              try {
+                const actualAssets = normalizeReleaseAssets(action.parameters?.releaseAssets);
+                if (canonicalJson2(actualAssets) !== canonicalJson2(publicReceiptBinding.assets)) {
+                  failures.push(`unit "${unitId}", action "${action.id}": parameters.releaseAssets do not match publicSourceAuthorityReceipt.asset`);
+                }
+              } catch (error) {
+                failures.push(`unit "${unitId}", action "${action.id}": invalid parameters.releaseAssets: ${error.message}`);
+              }
+              _checkRequired(
+                action,
+                "expected.releaseAssetsDigest",
+                action.expected?.releaseAssetsDigest,
+                publicReceiptBinding.assetsDigest,
+                unitId,
+                failures
+              );
+            } else {
+              if (action.parameters?.releaseAssets !== void 0) {
+                failures.push(`unit "${unitId}", action "${action.id}": unexpected parameters.releaseAssets`);
+              }
+              if (action.expected?.releaseAssetsDigest !== void 0) {
+                failures.push(`unit "${unitId}", action "${action.id}": unexpected expected.releaseAssetsDigest`);
+              }
+            }
           }
         }
       }
@@ -35299,6 +36009,8 @@ var init_plan = __esm({
     init_errors3();
     init_trusted_resource();
     init_installation_contract();
+    init_source_authority();
+    init_release_assets();
     await init_registry2();
     RELEASE_PLAN_SCHEMA = JSON.parse((await readTrustedPackageResource(
       "schemas/release-plan.schema.json"
@@ -35326,8 +36038,8 @@ var init_plan = __esm({
 });
 
 // src/platforms/kimi.mjs
-import { readFile as readFile5 } from "node:fs/promises";
-import { join as join3, resolve as resolve4, relative as relative2, isAbsolute as isAbsolute2 } from "node:path";
+import { readFile as readFile6 } from "node:fs/promises";
+import { join as join4, resolve as resolve5, relative as relative3, isAbsolute as isAbsolute2 } from "node:path";
 function normalizePlanForDigest(plan) {
   const normalized = { ...plan, status: "PREPARED" };
   if (Array.isArray(plan.externalActions)) {
@@ -35360,9 +36072,9 @@ function kimiAuthorityDir(context, planDigest, plugin) {
   if (!SAFE_ID_RE.test(plugin)) {
     throw new Error(`kimi attestation authority requires a safe plugin id: "${plugin}"`);
   }
-  const base = resolve4(context.root, ".release-skill", "kimi-attestations");
-  const dir = resolve4(base, plugin);
-  const rel = relative2(base, dir);
+  const base = resolve5(context.root, ".release-skill", "kimi-attestations");
+  const dir = resolve5(base, plugin);
+  const rel = relative3(base, dir);
   const sep9 = process.platform === "win32" ? "\\" : "/";
   if (rel === "" || rel === ".." || isAbsolute2(rel) || rel.startsWith(`..${sep9}`) || rel.split(sep9).some((segment) => segment === ".." || segment === "")) {
     throw new Error("kimi attestation authority path escapes its base");
@@ -35392,10 +36104,10 @@ function buildKimiManualInstructions({
 }
 async function readKimiManifest(pluginRootReal) {
   for (const manifestRelative of KIMI_MANIFEST_CANDIDATES) {
-    const manifestPath = resolve4(pluginRootReal, manifestRelative);
+    const manifestPath = resolve5(pluginRootReal, manifestRelative);
     let content;
     try {
-      content = await readFile5(manifestPath, "utf8");
+      content = await readFile6(manifestPath, "utf8");
     } catch {
       continue;
     }
@@ -35576,11 +36288,11 @@ async function executeKimiManualRequirement(action, context) {
       });
     }
   }
-  const requirementPath = resolve4(attestationDir, KIMI_REQUIREMENT_FILE);
+  const requirementPath = resolve5(attestationDir, KIMI_REQUIREMENT_FILE);
   let existing = null;
   let requirementMissing = false;
   try {
-    const existingRaw = await readFile5(requirementPath, "utf8");
+    const existingRaw = await readFile6(requirementPath, "utf8");
     try {
       existing = JSON.parse(existingRaw);
     } catch (parseErr) {
@@ -35651,7 +36363,7 @@ var init_kimi = __esm({
     HEX_DIGEST_RE = /^[a-f0-9]{64}$/;
     KIMI_MANIFEST_CANDIDATES = Object.freeze([
       "kimi.plugin.json",
-      join3(".kimi-plugin", "plugin.json")
+      join4(".kimi-plugin", "plugin.json")
     ]);
     __name(normalizePlanForDigest, "normalizePlanForDigest");
     __name(resolveBoundPlanDigest, "resolveBoundPlanDigest");
@@ -35665,8 +36377,8 @@ var init_kimi = __esm({
 });
 
 // src/platforms/codebuddy.mjs
-import { readFile as readFile6 } from "node:fs/promises";
-import { join as join4, resolve as resolve5, relative as relative3, isAbsolute as isAbsolute3 } from "node:path";
+import { readFile as readFile7 } from "node:fs/promises";
+import { join as join5, resolve as resolve6, relative as relative4, isAbsolute as isAbsolute3 } from "node:path";
 function normalizePlanForDigest2(plan) {
   const normalized = { ...plan, status: "PREPARED" };
   if (Array.isArray(plan.externalActions)) {
@@ -35713,9 +36425,9 @@ function codebuddyAuthorityDir(context, planDigest, plugin) {
   if (!SAFE_ID_RE.test(plugin)) {
     throw new Error(`codebuddy attestation authority requires a safe plugin id: "${plugin}"`);
   }
-  const base = resolve5(context.root, ".release-skill", "codebuddy-attestations");
-  const dir = resolve5(base, plugin);
-  const rel = relative3(base, dir);
+  const base = resolve6(context.root, ".release-skill", "codebuddy-attestations");
+  const dir = resolve6(base, plugin);
+  const rel = relative4(base, dir);
   const sep9 = process.platform === "win32" ? "\\" : "/";
   if (rel === "" || rel === ".." || isAbsolute3(rel) || rel.startsWith(`..${sep9}`) || rel.split(sep9).some((segment) => segment === ".." || segment === "")) {
     throw new Error("codebuddy attestation authority path escapes its base");
@@ -35743,10 +36455,10 @@ function buildCodeBuddyManualInstructions({
 }
 async function readCodeBuddyManifest(pluginRootReal) {
   const manifestRelative = CODEBUDDY_PLUGIN_MANIFEST_RELATIVE;
-  const manifestPath = resolve5(pluginRootReal, manifestRelative);
+  const manifestPath = resolve6(pluginRootReal, manifestRelative);
   let content;
   try {
-    content = await readFile6(manifestPath, "utf8");
+    content = await readFile7(manifestPath, "utf8");
   } catch {
     throw new Error(`no codebuddy plugin manifest found (expected ${manifestRelative})`);
   }
@@ -35983,11 +36695,11 @@ async function executeCodeBuddyManualRequirement(action, context) {
       });
     }
   }
-  const requirementPath = resolve5(attestationDir, CODEBUDDY_REQUIREMENT_FILE);
+  const requirementPath = resolve6(attestationDir, CODEBUDDY_REQUIREMENT_FILE);
   let existing = null;
   let requirementMissing = false;
   try {
-    const existingRaw = await readFile6(requirementPath, "utf8");
+    const existingRaw = await readFile7(requirementPath, "utf8");
     try {
       existing = JSON.parse(existingRaw);
     } catch (parseErr) {
@@ -36059,7 +36771,7 @@ var init_codebuddy = __esm({
     CODEBUDDY_MARKETPLACE_SOURCE = "https://github.com/ifoohoo/artifact-skill-set";
     __name(resolveCodeBuddyMarketplace, "resolveCodeBuddyMarketplace");
     __name(resolveCodeBuddyMarketplaceSource, "resolveCodeBuddyMarketplaceSource");
-    CODEBUDDY_PLUGIN_MANIFEST_RELATIVE = join4(".codebuddy-plugin", "plugin.json");
+    CODEBUDDY_PLUGIN_MANIFEST_RELATIVE = join5(".codebuddy-plugin", "plugin.json");
     CODEBUDDY_MAX_ATTESTATION_VALIDITY_MS = 24 * 60 * 60 * 1e3;
     __name(resolveCodeBuddyBoundPlanDigest, "resolveCodeBuddyBoundPlanDigest");
     __name(codebuddyAuthorityDir, "codebuddyAuthorityDir");
@@ -36071,8 +36783,8 @@ var init_codebuddy = __esm({
 });
 
 // src/platforms/codex.mjs
-import { readFile as readFile7 } from "node:fs/promises";
-import { join as join5, resolve as resolve6, relative as relative4, isAbsolute as isAbsolute4 } from "node:path";
+import { readFile as readFile8 } from "node:fs/promises";
+import { join as join6, resolve as resolve7, relative as relative5, isAbsolute as isAbsolute4 } from "node:path";
 function normalizePlanForDigest3(plan) {
   const normalized = { ...plan, status: "PREPARED" };
   if (Array.isArray(plan.externalActions)) {
@@ -36106,9 +36818,9 @@ function codexAuthorityDir(context, planDigest, plugin) {
   if (!SAFE_ID_RE.test(plugin)) {
     throw new Error(`codex attestation authority requires a safe plugin id: "${plugin}"`);
   }
-  const base = resolve6(context.root, ".release-skill", "codex-attestations");
-  const dir = resolve6(base, plugin);
-  const rel = relative4(base, dir);
+  const base = resolve7(context.root, ".release-skill", "codex-attestations");
+  const dir = resolve7(base, plugin);
+  const rel = relative5(base, dir);
   const sep9 = process.platform === "win32" ? "\\" : "/";
   if (rel === "" || rel === ".." || isAbsolute4(rel) || rel.startsWith(`..${sep9}`) || rel.split(sep9).some((segment) => segment === ".." || segment === "")) {
     throw new Error("codex attestation authority path escapes its base");
@@ -36150,11 +36862,11 @@ function validateCodexAttestation(attestation, action, isoNow, boundPlanDigest) 
   return { valid: true, error: null };
 }
 async function readCodexManifest(pluginRootReal) {
-  const manifestRelative = join5(".codex-plugin", "plugin.json");
-  const manifestPath = resolve6(pluginRootReal, manifestRelative);
+  const manifestRelative = join6(".codex-plugin", "plugin.json");
+  const manifestPath = resolve7(pluginRootReal, manifestRelative);
   let content;
   try {
-    content = await readFile7(manifestPath, "utf8");
+    content = await readFile8(manifestPath, "utf8");
   } catch {
     throw new Error(`no codex plugin manifest found (expected ${manifestRelative})`);
   }
@@ -36244,11 +36956,11 @@ async function executeCodexManualRequirement(action, context) {
       });
     }
   }
-  const requirementPath = resolve6(attestationDir, CODEX_REQUIREMENT_FILE);
+  const requirementPath = resolve7(attestationDir, CODEX_REQUIREMENT_FILE);
   let existing = null;
   let requirementMissing = false;
   try {
-    const existingRaw = await readFile7(requirementPath, "utf8");
+    const existingRaw = await readFile8(requirementPath, "utf8");
     try {
       existing = JSON.parse(existingRaw);
     } catch (parseErr) {
@@ -36325,7 +37037,7 @@ var init_codex = __esm({
 });
 
 // src/platforms/registry.mjs
-import { join as join6 } from "node:path";
+import { join as join7 } from "node:path";
 function claudeParseListOutput(listOutput, pluginId) {
   if (!Array.isArray(listOutput)) {
     return { ok: false, error: "Claude plugin list did not return an array" };
@@ -36624,7 +37336,7 @@ var init_registry2 = __esm({
         marketplaceAddOutput: null,
         pluginInstallOutput: null
       }),
-      isolationEnv: /* @__PURE__ */ __name((home) => ({ HOME: home, CLAUDE_CONFIG_DIR: join6(home, ".claude") }), "isolationEnv"),
+      isolationEnv: /* @__PURE__ */ __name((home) => ({ HOME: home, CLAUDE_CONFIG_DIR: join7(home, ".claude") }), "isolationEnv"),
       // execute pre-creates the claude config dir under the isolated HOME.
       isolationSubdirs: Object.freeze([".claude"]),
       manifestPaths: Object.freeze({
@@ -36878,44 +37590,44 @@ var init_registry2 = __esm({
 
 // src/snapshot/frozen.mjs
 import { createHash as createHash6 } from "node:crypto";
-import { execFile as execFileCb, spawn } from "node:child_process";
-import { promisify } from "node:util";
+import { execFile as execFileCb2, spawn } from "node:child_process";
+import { promisify as promisify2 } from "node:util";
 import {
   chmod,
-  lstat as lstat11,
+  lstat as lstat12,
   mkdir as mkdir6,
-  mkdtemp as mkdtemp4,
+  mkdtemp as mkdtemp5,
   open as open6,
-  readdir as readdir3,
-  realpath as realpath6,
-  rm as rm5,
+  readdir as readdir4,
+  realpath as realpath7,
+  rm as rm6,
   unlink as unlink4
 } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
-import { isAbsolute as isAbsolute5, join as join7, relative as relative5, resolve as resolve7 } from "node:path";
+import { isAbsolute as isAbsolute5, join as join8, relative as relative6, resolve as resolve8 } from "node:path";
 function frozenError(message, details = {}) {
   return new ReleaseError(GATE_FAILED, message, details);
 }
 function isInside(parent, candidate) {
-  const rel = relative5(parent, candidate);
+  const rel = relative6(parent, candidate);
   return rel === "" || !isAbsolute5(rel) && rel !== ".." && !rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`);
 }
 async function resolveFrozenPath(root, relativePath, label = "frozen path") {
   if (!relativePath || typeof relativePath !== "string" || isAbsolute5(relativePath)) {
     throw frozenError(`${label} must be a non-empty project-relative path`);
   }
-  const rootReal = await realpath6(root);
-  const lexical = resolve7(rootReal, relativePath);
+  const rootReal = await realpath7(root);
+  const lexical = resolve8(rootReal, relativePath);
   if (!isInside(rootReal, lexical)) {
     throw frozenError(`${label} escapes project root`, { relativePath });
   }
-  const lexicalStat = await lstat11(lexical).catch((err) => {
+  const lexicalStat = await lstat12(lexical).catch((err) => {
     throw frozenError(`${label} is missing`, { relativePath, cause: err.code });
   });
   if (lexicalStat.isSymbolicLink()) {
     throw frozenError(`${label} must not be a symlink`, { relativePath });
   }
-  const physical = await realpath6(lexical).catch((err) => {
+  const physical = await realpath7(lexical).catch((err) => {
     throw frozenError(`${label} is missing`, { relativePath, cause: err.code });
   });
   if (!isInside(rootReal, physical)) {
@@ -36924,7 +37636,7 @@ async function resolveFrozenPath(root, relativePath, label = "frozen path") {
   return physical;
 }
 async function readStableRegularFile(filePath, displayPath) {
-  const before = await lstat11(filePath);
+  const before = await lstat12(filePath);
   if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1) {
     throw frozenError(`frozen snapshot entry is not a single-link regular file: ${displayPath}`);
   }
@@ -36945,8 +37657,8 @@ async function readStableRegularFile(filePath, displayPath) {
   }
 }
 async function computeFrozenSnapshot(snapshotDir, { excludeRootEntries = [] } = {}) {
-  const root = await realpath6(snapshotDir);
-  const rootStat = await lstat11(root);
+  const root = await realpath7(snapshotDir);
+  const rootStat = await lstat12(root);
   if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
     throw frozenError("frozen snapshot root must be a real directory");
   }
@@ -36968,14 +37680,14 @@ async function computeFrozenSnapshot(snapshotDir, { excludeRootEntries = [] } = 
     }
   }
   async function walk(dir) {
-    const children = await readdir3(dir, { withFileTypes: true });
+    const children = await readdir4(dir, { withFileTypes: true });
     children.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
     for (const child of children) {
       if (dir === root && excludedRootNames.has(child.name)) continue;
-      const absolute = join7(dir, child.name);
-      const rel = relative5(root, absolute).split("\\").join("/");
+      const absolute = join8(dir, child.name);
+      const rel = relative6(root, absolute).split("\\").join("/");
       if (excludedPathPrefixes.some((prefix) => rel === prefix || rel.startsWith(`${prefix}/`))) continue;
-      const st = await lstat11(absolute);
+      const st = await lstat12(absolute);
       if (st.isSymbolicLink()) {
         throw frozenError(`frozen snapshot contains symlink: ${rel}`);
       }
@@ -37021,10 +37733,10 @@ async function verifyFrozenFile({ root, filePath, expectedSha256, label = "froze
 }
 async function verifyFrozenDirectoryStructure(directory, label = "frozen directory") {
   async function walk(current) {
-    const children = await readdir3(current, { withFileTypes: true });
+    const children = await readdir4(current, { withFileTypes: true });
     for (const child of children) {
-      const absolute = join7(current, child.name);
-      const st = await lstat11(absolute);
+      const absolute = join8(current, child.name);
+      const st = await lstat12(absolute);
       if (st.isSymbolicLink()) {
         throw frozenError(`${label} contains a symlink`);
       }
@@ -37045,7 +37757,7 @@ async function verifyFrozenGitRepository({
   tree,
   parentCommit,
   commitTimestamp,
-  exec = execFile
+  exec = execFile2
 }) {
   const gitDir = await resolveFrozenPath(root, gitObjectDir, "frozen git object directory");
   await verifyFrozenDirectoryStructure(gitDir, "frozen git object directory");
@@ -37195,7 +37907,7 @@ async function buildFrozenGitRepository({
   expectedSnapshotDigest,
   parent,
   commitTimestamp,
-  exec = execFile
+  exec = execFile2
 }) {
   const canonicalTimestamp = normalizeGitTimestamp(commitTimestamp, "frozen commit timestamp");
   if (!expectedSnapshotDigest) throw frozenError("Git object build requires the sealed snapshot digest");
@@ -37229,7 +37941,7 @@ async function buildFrozenGitRepository({
     }
     parentCommit = parent.commit;
   }
-  const indexPath = join7(repositoryDir, "release-index");
+  const indexPath = join8(repositoryDir, "release-index");
   const env = { ...process.env, GIT_INDEX_FILE: indexPath };
   await exec("git", [
     "--git-dir",
@@ -37287,8 +37999,8 @@ function contentEntries(entries) {
   return entries.map(({ path: path28, size, contentDigest }) => ({ path: path28, size, contentDigest }));
 }
 async function createDetachedReadHandle(bytes, directory) {
-  const tempDir = await mkdtemp4(join7(directory, ".tar-fd-"));
-  const tempPath = join7(tempDir, "package.tgz");
+  const tempDir = await mkdtemp5(join8(directory, ".tar-fd-"));
+  const tempPath = join8(tempDir, "package.tgz");
   let handle;
   try {
     const writer = await open6(tempPath, "wx", 256);
@@ -37300,12 +38012,12 @@ async function createDetachedReadHandle(bytes, directory) {
     }
     handle = await open6(tempPath, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
     await unlink4(tempPath);
-    await rm5(tempDir, { recursive: true, force: true });
+    await rm6(tempDir, { recursive: true, force: true });
     return handle;
   } catch (err) {
     await handle?.close().catch(() => {
     });
-    await rm5(tempDir, { recursive: true, force: true });
+    await rm6(tempDir, { recursive: true, force: true });
     throw err;
   }
 }
@@ -37365,7 +38077,7 @@ async function inspectNpmTarballContent({ tarballBytes, tarballDir }) {
     await listHandle.close();
   }
   validateNpmTarballListing(listOut);
-  const verifyDir = await mkdtemp4(join7(tarballDir, ".verify-"));
+  const verifyDir = await mkdtemp5(join8(tarballDir, ".verify-"));
   try {
     const extractHandle = await createDetachedReadHandle(tarballBytes, tarballDir);
     try {
@@ -37373,9 +38085,9 @@ async function inspectNpmTarballContent({ tarballBytes, tarballDir }) {
     } finally {
       await extractHandle.close();
     }
-    return await computeFrozenSnapshot(join7(verifyDir, "package"));
+    return await computeFrozenSnapshot(join8(verifyDir, "package"));
   } finally {
-    await rm5(verifyDir, { recursive: true, force: true });
+    await rm6(verifyDir, { recursive: true, force: true });
   }
 }
 async function verifyNpmTarballContent({ snapshotDir, tarballBytes, tarballDir, expectedSnapshotDigest }) {
@@ -37395,7 +38107,7 @@ async function buildNpmTarballFileIndex({ tarballBytes, tarballDir }) {
   const packed = await inspectNpmTarballContent({ tarballBytes, tarballDir });
   return new Map(packed.entries.map((entry) => [entry.path, { type: entry.type }]));
 }
-async function buildFrozenNpmTarball({ snapshotDir, tarballDir, expectedSnapshotDigest, exec = execFile }) {
+async function buildFrozenNpmTarball({ snapshotDir, tarballDir, expectedSnapshotDigest, exec = execFile2 }) {
   await mkdir6(tarballDir, { recursive: true });
   const { stdout } = await exec(
     "npm",
@@ -37412,7 +38124,7 @@ async function buildFrozenNpmTarball({ snapshotDir, tarballDir, expectedSnapshot
   if (!info?.filename || !info?.integrity) {
     throw frozenError("npm pack did not return filename and integrity");
   }
-  const tarballPath = join7(tarballDir, info.filename);
+  const tarballPath = join8(tarballDir, info.filename);
   const { bytes } = await readStableRegularFile(tarballPath, info.filename);
   if (!expectedSnapshotDigest) throw frozenError("npm tarball build requires the sealed snapshot digest");
   await verifyNpmTarballContent({
@@ -37430,10 +38142,10 @@ async function buildFrozenNpmTarball({ snapshotDir, tarballDir, expectedSnapshot
 }
 async function sealFrozenSnapshot(snapshotDir) {
   async function walk(dir) {
-    const children = await readdir3(dir, { withFileTypes: true });
+    const children = await readdir4(dir, { withFileTypes: true });
     for (const child of children) {
-      const absolute = join7(dir, child.name);
-      const st = await lstat11(absolute);
+      const absolute = join8(dir, child.name);
+      const st = await lstat12(absolute);
       if (st.isDirectory()) {
         await walk(absolute);
         await chmod(absolute, 365);
@@ -37446,11 +38158,11 @@ async function sealFrozenSnapshot(snapshotDir) {
   await walk(snapshotDir);
   await chmod(snapshotDir, 365);
 }
-var execFile, GIT_ISO8601_STRICT_RE;
+var execFile2, GIT_ISO8601_STRICT_RE;
 var init_frozen = __esm({
   "src/snapshot/frozen.mjs"() {
     init_errors3();
-    execFile = promisify(execFileCb);
+    execFile2 = promisify2(execFileCb2);
     __name(frozenError, "frozenError");
     __name(isInside, "isInside");
     __name(resolveFrozenPath, "resolveFrozenPath");
@@ -37478,7 +38190,7 @@ var init_frozen = __esm({
 });
 
 // src/npm/npm-entry-closure.mjs
-import { tmpdir } from "node:os";
+import { tmpdir as tmpdir2 } from "node:os";
 function entryError(field, target, reason, message) {
   return { field, target, reason, message };
 }
@@ -37635,7 +38347,7 @@ function checkNpmEntryClosure(manifest, fileIndex) {
   }
   return result;
 }
-async function buildTarballFileIndex(tarballBytes, tarballDir = tmpdir()) {
+async function buildTarballFileIndex(tarballBytes, tarballDir = tmpdir2()) {
   return buildNpmTarballFileIndex({ tarballBytes, tarballDir });
 }
 async function buildDirectoryFileIndex(packageDir) {
@@ -37670,8 +38382,8 @@ __export(presets_exports, {
   resolveProposalInboxTransport: () => resolveProposalInboxTransport,
   validatePresetHook: () => validatePresetHook
 });
-import { realpath as realpath7, stat as stat2 } from "node:fs/promises";
-import { isAbsolute as isAbsolute6, resolve as resolve8 } from "node:path";
+import { realpath as realpath8, stat as stat2 } from "node:fs/promises";
+import { isAbsolute as isAbsolute6, resolve as resolve9 } from "node:path";
 function assertSafeStaticFilePath(where, field, value, failFn) {
   if (typeof value !== "string" || value.length === 0) {
     failFn(`${where}.${field} must be a non-empty string`);
@@ -37952,13 +38664,13 @@ function resolvePresetWorkspace(workspace, releaseWorkspaceRoot) {
       kind: classification.kind
     });
   }
-  return resolve8(releaseWorkspaceRoot, workspace);
+  return resolve9(releaseWorkspaceRoot, workspace);
 }
 async function preflightPresetWorkspace(workspace, { releaseWorkspaceRoot }) {
   const resolved = resolvePresetWorkspace(workspace, releaseWorkspaceRoot);
   let real;
   try {
-    real = await realpath7(resolved);
+    real = await realpath8(resolved);
   } catch {
     failWorkspace(`path does not resolve to an existing directory: ${workspace}`, { workspace });
   }
@@ -37966,7 +38678,7 @@ async function preflightPresetWorkspace(workspace, { releaseWorkspaceRoot }) {
   if (!stats || !stats.isDirectory()) {
     failWorkspace(`path is not a directory: ${workspace}`, { workspace });
   }
-  const gitEntry = await stat2(resolve8(real, ".git")).catch(() => null);
+  const gitEntry = await stat2(resolve9(real, ".git")).catch(() => null);
   if (!gitEntry) {
     failWorkspace(`path is not a git worktree (no .git entry): ${workspace}`, { workspace });
   }
@@ -37976,7 +38688,7 @@ async function assertPresetWorkspaceExecution(workspace, { releaseWorkspaceRoot,
   const resolved = resolvePresetWorkspace(workspace, releaseWorkspaceRoot);
   let real;
   try {
-    real = await realpath7(resolved);
+    real = await realpath8(resolved);
   } catch {
     failWorkspace(`path no longer resolves at execution time: ${workspace}`, { workspace });
   }
@@ -37988,7 +38700,7 @@ async function assertPresetWorkspaceExecution(workspace, { releaseWorkspaceRoot,
   }
   let rootReal;
   try {
-    rootReal = await realpath7(releaseWorkspaceRoot);
+    rootReal = await realpath8(releaseWorkspaceRoot);
   } catch {
     failWorkspace(
       "release workspace root does not resolve to an existing directory; the release-workspace write exclusion fails closed",
@@ -38717,9 +39429,9 @@ var init_postpublish = __esm({
 
 // src/artifacts/safe-fs-backend-internal.mjs
 import { createRequire } from "node:module";
-import { dirname as dirname4, resolve as resolve9 } from "node:path";
+import { dirname as dirname4, resolve as resolve10 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
-import { realpath as realpath8 } from "node:fs/promises";
+import { realpath as realpath9 } from "node:fs/promises";
 import { readFileSync as readFileSync12, realpathSync as realpathSync2, lstatSync as lstatSync3 } from "node:fs";
 import { createHash as createHash7 } from "node:crypto";
 function failPrebuildManifest(reason, message = "prebuilds manifest not readable") {
@@ -38774,8 +39486,8 @@ function sanitizeError(err) {
   return "native addon error";
 }
 function isWithinPackageBuildDir(addonPath) {
-  const buildDir = resolve9(NATIVE_BASE, "build/");
-  const resolved = resolve9(addonPath);
+  const buildDir = resolve10(NATIVE_BASE, "build/");
+  const resolved = resolve10(addonPath);
   if (!resolved.startsWith(buildDir + "/") && resolved !== buildDir) {
     return null;
   }
@@ -38812,7 +39524,7 @@ function validateManifestEntry(entry, key) {
   if (typeof entry.exports !== "object" || !Array.isArray(entry.exports)) {
     throw new ReleaseError(SAFE_WRITE_UNAVAILABLE, `manifest entry missing exports for ${key}`);
   }
-  const resolved = resolve9(NATIVE_BASE, entry.path);
+  const resolved = resolve10(NATIVE_BASE, entry.path);
   const baseDir = NATIVE_BASE;
   if (!resolved.startsWith(baseDir + "/") && resolved !== baseDir) {
     throw new ReleaseError(SAFE_WRITE_UNAVAILABLE, `manifest path escapes base directory for ${key}`);
@@ -38825,7 +39537,7 @@ function validateManifestEntry(entry, key) {
 }
 function requireAddon(addonPath) {
   try {
-    const require2 = createRequire(resolve9(PKG_ROOT2, "bin/release-skill.mjs"));
+    const require2 = createRequire(resolve10(PKG_ROOT2, "bin/release-skill.mjs"));
     return require2(addonPath);
   } catch (err) {
     throw new ReleaseError(SAFE_WRITE_UNAVAILABLE, sanitizeError(err));
@@ -38846,7 +39558,7 @@ function readStableAddon(options = {}) {
     );
   }
   validateManifestEntry(entry, key);
-  const addonFile = resolve9(NATIVE_BASE, entry.path);
+  const addonFile = resolve10(NATIVE_BASE, entry.path);
   const lstatFn = hooks.lstatSync || lstatSync3;
   const lstatOpts = { bigint: true };
   let preStat;
@@ -39255,11 +39967,11 @@ var PKG_ROOT2, NATIVE_BASE, PREBUILDS_PATH, PREBUILDS_RESOURCE, DEFAULT_ADDON_PA
 var init_safe_fs_backend_internal = __esm({
   "src/artifacts/safe-fs-backend-internal.mjs"() {
     init_errors3();
-    PKG_ROOT2 = typeof __bundlePkgRoot !== "undefined" ? __bundlePkgRoot : resolve9(dirname4(fileURLToPath2(import.meta.url)), "..", "..");
-    NATIVE_BASE = resolve9(PKG_ROOT2, "native/safe-write");
-    PREBUILDS_PATH = resolve9(NATIVE_BASE, "prebuilds.json");
+    PKG_ROOT2 = typeof __bundlePkgRoot !== "undefined" ? __bundlePkgRoot : resolve10(dirname4(fileURLToPath2(import.meta.url)), "..", "..");
+    NATIVE_BASE = resolve10(PKG_ROOT2, "native/safe-write");
+    PREBUILDS_PATH = resolve10(NATIVE_BASE, "prebuilds.json");
     PREBUILDS_RESOURCE = "native/safe-write/prebuilds.json";
-    DEFAULT_ADDON_PATH = resolve9(NATIVE_BASE, "build/Release/safe_write.node");
+    DEFAULT_ADDON_PATH = resolve10(NATIVE_BASE, "build/Release/safe_write.node");
     EXPECTED_EXPORTS = Object.freeze([
       "openRoot",
       "openDir",
@@ -39294,8 +40006,8 @@ __export(safe_fs_exports, {
   loadSafeFs: () => loadSafeFs,
   requireSafeFs: () => requireSafeFs
 });
-import { realpath as realpath9 } from "node:fs/promises";
-import { tmpdir as tmpdir2 } from "node:os";
+import { realpath as realpath10 } from "node:fs/promises";
+import { tmpdir as tmpdir3 } from "node:os";
 async function loadSafeFs(options = {}) {
   const addon = loadNativeAddon(options.addonPath);
   return createBackend(addon);
@@ -39306,7 +40018,7 @@ async function requireSafeFs(options = {}) {
   if (options.root) {
     root = options.root;
   } else {
-    root = await realpath9(tmpdir2());
+    root = await realpath10(tmpdir3());
   }
   const result = await backend.probe(root);
   if (!result.supported) {
@@ -39333,31 +40045,31 @@ __export(setup_exports, {
   proposePostPublishHooks: () => proposePostPublishHooks,
   setupProject: () => setupProject
 });
-import { execFile as execFileCb2 } from "node:child_process";
+import { execFile as execFileCb3 } from "node:child_process";
 import { createHash as createHash8 } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { promisify as promisify2 } from "node:util";
+import { promisify as promisify3 } from "node:util";
 import {
-  lstat as lstat12,
-  readFile as readFile8,
-  readdir as readdir4,
-  realpath as realpath10
+  lstat as lstat13,
+  readFile as readFile9,
+  readdir as readdir5,
+  realpath as realpath11
 } from "node:fs/promises";
-import { basename as basename3, dirname as dirname5, isAbsolute as isAbsolute7, join as join8, relative as relative6, resolve as resolve10 } from "node:path";
+import { basename as basename4, dirname as dirname5, isAbsolute as isAbsolute7, join as join9, relative as relative7, resolve as resolve11 } from "node:path";
 function setupError(code, message, details = {}) {
   return new ReleaseError(code, message, details);
 }
 function safeRelative(root, path28) {
-  const rel = relative6(root, path28).split("\\").join("/");
+  const rel = relative7(root, path28).split("\\").join("/");
   return rel || ".";
 }
 async function readJsonBounded(path28, label) {
-  const stat16 = await lstat12(path28);
+  const stat16 = await lstat13(path28);
   if (!stat16.isFile() || stat16.isSymbolicLink() || stat16.size > MAX_JSON_BYTES) {
     throw setupError(CONFIG_INVALID, `${label} must be a regular JSON file no larger than 1 MiB`, { path: path28 });
   }
   try {
-    return JSON.parse(await readFile8(path28, "utf8"));
+    return JSON.parse(await readFile9(path28, "utf8"));
   } catch (error) {
     throw setupError(CONFIG_INVALID, `${label} is not valid JSON: ${error.message}`, { path: path28 });
   }
@@ -39366,11 +40078,11 @@ async function walkDiscoveryFiles(root, maxDepth = 8) {
   const found = [];
   async function walk(directory, depth) {
     if (depth > maxDepth) return;
-    const children = await readdir4(directory, { withFileTypes: true });
+    const children = await readdir5(directory, { withFileTypes: true });
     children.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
     for (const child of children) {
       if (child.isSymbolicLink()) continue;
-      const absolute = join8(directory, child.name);
+      const absolute = join9(directory, child.name);
       if (child.isDirectory()) {
         if (!SKIP_DIRS.has(child.name)) await walk(absolute, depth + 1);
       } else if (child.isFile() && (child.name === "package.json" || child.name === "public-release.json" || child.name === "SKILL.md" || /^README(?:\.|$)/i.test(child.name) || /^LICENSE(?:\.|$)/i.test(child.name) || /^CHANGELOG(?:\.|$)/i.test(child.name) || [...DISCOVERY_MANIFEST_SUFFIXES].some((suffix) => absolute.endsWith(`/${suffix}`)))) {
@@ -39383,11 +40095,11 @@ async function walkDiscoveryFiles(root, maxDepth = 8) {
   return found;
 }
 async function digestFile(path28) {
-  const before = await lstat12(path28);
+  const before = await lstat13(path28);
   if (!before.isFile() || before.isSymbolicLink()) throw setupError(CONFIG_INVALID, "discovered file must be regular", { path: path28 });
   const hash = createHash8("sha256");
   for await (const chunk of createReadStream(path28)) hash.update(chunk);
-  const after = await lstat12(path28);
+  const after = await lstat13(path28);
   if (before.size !== after.size || before.mtimeMs !== after.mtimeMs || before.ino !== after.ino) {
     throw setupError(CONFIG_INVALID, "discovered file changed while setup was reading it", { path: path28 });
   }
@@ -39402,7 +40114,7 @@ function parseGithubRepo(value) {
 }
 function safeUnitId(pkg, relDir) {
   const fromName = typeof pkg.name === "string" ? pkg.name.replace(/^@[^/]+\//, "") : "";
-  const fallback = relDir === "." ? "root" : basename3(relDir);
+  const fallback = relDir === "." ? "root" : basename4(relDir);
   const candidate = (fromName || fallback).toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
   return candidate || "release-unit";
 }
@@ -39436,7 +40148,7 @@ function summarizeLegacyReleaseConfig(value, path28) {
     const plugins = Array.isArray(value.plugins) ? value.plugins : [];
     const pluginName = plugins.filter((plugin) => plugin && typeof plugin === "object" && !Array.isArray(plugin)).map((plugin) => optionalString(plugin.name)).find(Boolean);
     releaseUnits.push({
-      id: pluginName ?? basename3(topLevelSource),
+      id: pluginName ?? basename4(topLevelSource),
       source: topLevelSource,
       publicRepo: topLevelRepo,
       tagPrefix: optionalString(value.tagPrefix),
@@ -39481,7 +40193,7 @@ function classifyScript(name, command2, unitId, distributionTypes) {
   const normalizedName = name.toLowerCase();
   const inspectedArgv = normalizeLegacyCommand(command2);
   const argv = inspectedArgv?.map((token) => token.toLowerCase()) ?? [];
-  const executable = basename3(argv[0] ?? "");
+  const executable = basename4(argv[0] ?? "");
   const subcommand = argv[1] ?? "";
   const isSmoke = /smoke/.test(normalizedName);
   const llmLikely = /(?:^|[:_-])llm(?:$|[:_-])/.test(normalizedName) || argv.some((token) => /(?:^|[-_/])(?:llm|claude|openai)(?:[-_.\/]|$)/.test(token));
@@ -39522,7 +40234,7 @@ function classifyScript(name, command2, unitId, distributionTypes) {
 async function discoverGit(root) {
   const run6 = /* @__PURE__ */ __name(async (args2) => {
     try {
-      const { stdout } = await execFile2("git", args2, { cwd: root, shell: false, encoding: "utf8", timeout: 5e3 });
+      const { stdout } = await execFile3("git", args2, { cwd: root, shell: false, encoding: "utf8", timeout: 5e3 });
       return stdout.trim();
     } catch {
       return "";
@@ -39552,7 +40264,7 @@ async function discoverGit(root) {
 async function discoverUnitGit(unitAbsDir, parentRoot) {
   const run6 = /* @__PURE__ */ __name(async (cwd, args2) => {
     try {
-      const { stdout } = await execFile2("git", args2, { cwd, shell: false, encoding: "utf8", timeout: 5e3 });
+      const { stdout } = await execFile3("git", args2, { cwd, shell: false, encoding: "utf8", timeout: 5e3 });
       return stdout.trim();
     } catch {
       return "";
@@ -39602,7 +40314,7 @@ async function discoverUnitGit(unitAbsDir, parentRoot) {
 }
 async function pathIsGitIgnored(unitAbsDir, target) {
   try {
-    await execFile2("git", ["check-ignore", "--no-index", "--quiet", "--", target], {
+    await execFile3("git", ["check-ignore", "--no-index", "--quiet", "--", target], {
       cwd: unitAbsDir,
       shell: false,
       timeout: 5e3
@@ -39617,7 +40329,7 @@ async function classifyNpmEntryCandidate(unitAbsDir, target, trackedFiles) {
   const ignored = await pathIsGitIgnored(unitAbsDir, target);
   let stat16 = null;
   try {
-    stat16 = await lstat12(join8(unitAbsDir, target));
+    stat16 = await lstat13(join9(unitAbsDir, target));
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
   }
@@ -39672,7 +40384,7 @@ async function discoverNpmEntryCandidates(root, pkg, matchingLegacyUnits, unitGi
       }
     }
   }
-  const unitAbsDir = resolve10(root, pkg.directory);
+  const unitAbsDir = resolve11(root, pkg.directory);
   const candidates = [];
   for (const item of [...byPath.values()].sort((a, b) => a.path.localeCompare(b.path))) {
     candidates.push({
@@ -39689,10 +40401,10 @@ async function discoverNpmEntryCandidates(root, pkg, matchingLegacyUnits, unitGi
 }
 async function discoverFacts(root) {
   const files = await walkDiscoveryFiles(root);
-  const packageFiles = files.filter((path28) => basename3(path28) === "package.json" && !/[\\/]adapters[\\/](?:claude|codex|kimi)[\\/]package\.json$/.test(path28));
+  const packageFiles = files.filter((path28) => basename4(path28) === "package.json" && !/[\\/]adapters[\\/](?:claude|codex|kimi)[\\/]package\.json$/.test(path28));
   const pluginFiles = files.filter((path28) => path28.endsWith("/plugin.json"));
   const marketplaceFiles = files.filter((path28) => path28.endsWith("/marketplace.json"));
-  const legacyReleaseFiles = files.filter((path28) => basename3(path28) === "public-release.json");
+  const legacyReleaseFiles = files.filter((path28) => basename4(path28) === "public-release.json");
   const fileDigests = [];
   for (const path28 of files) {
     fileDigests.push({ path: safeRelative(root, path28), ...await digestFile(path28) });
@@ -39743,7 +40455,7 @@ async function discoverFacts(root) {
     legacyReleaseConfigs.push(summarizeLegacyReleaseConfig(value, safeRelative(root, path28)));
   }
   const git3 = await discoverGit(root);
-  const skills = files.filter((path28) => basename3(path28) === "SKILL.md").map((path28) => {
+  const skills = files.filter((path28) => basename4(path28) === "SKILL.md").map((path28) => {
     const relPath = safeRelative(root, path28);
     const segments = relPath.split("/");
     const skillIndex = segments.lastIndexOf("skills");
@@ -39755,7 +40467,7 @@ async function discoverFacts(root) {
   }).filter((item) => item.name).sort((a, b) => canonicalJson2(a).localeCompare(canonicalJson2(b)));
   const unitGit = {};
   for (const pkg of packages) {
-    const unitAbsDir = resolve10(root, pkg.directory);
+    const unitAbsDir = resolve11(root, pkg.directory);
     unitGit[pkg.directory] = await discoverUnitGit(unitAbsDir, root);
     const inferredId = safeUnitId(pkg, pkg.directory);
     const matchingLegacyUnits = legacyReleaseConfigs.flatMap((config) => config.releaseUnits).filter((unit) => unit.id === inferredId || unit.source === pkg.directory || unit.source === dirname5(pkg.path));
@@ -40043,7 +40755,7 @@ function buildCandidates(facts) {
   const unownedPluginRoots = [...new Set(manifestRoots.filter((manifest) => manifest.kind === "plugin" && !manifestOwners.has(manifest.path)).map((manifest) => manifest.root))];
   for (const pluginRoot of unownedPluginRoots.sort()) {
     const rootManifests = manifestRoots.filter((manifest) => manifest.root === pluginRoot && manifest.kind === "plugin");
-    const name = rootManifests.map((manifest) => manifest.name).find(Boolean) || basename3(pluginRoot);
+    const name = rootManifests.map((manifest) => manifest.name).find(Boolean) || basename4(pluginRoot);
     const baseId = String(name).toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "plugin";
     let id = baseId;
     let suffix = 2;
@@ -40450,8 +41162,8 @@ async function assertConfigDirectoryStillBound(root, safeFs, expected) {
 async function createConfigOnce(root, config, { beforeRename } = {}) {
   const { loadSafeFs: loadSafeFs2 } = await Promise.resolve().then(() => (init_safe_fs(), safe_fs_exports));
   const safeFs = await loadSafeFs2();
-  const releaseDir = join8(root, ".release-skill");
-  const target = join8(releaseDir, "project.yaml");
+  const releaseDir = join9(root, ".release-skill");
+  const target = join9(releaseDir, "project.yaml");
   const bound = await openBoundConfigDirectory(root, safeFs);
   let tempToken;
   const bytes = Buffer.from(import_yaml2.default.stringify(config, { lineWidth: 0 }), "utf8");
@@ -40508,13 +41220,13 @@ async function setupProject({ root, answersPath, write = false, confirmSetup, fa
   if (!root || typeof root !== "string" || !isAbsolute7(root)) {
     throw setupError(CONFIG_INVALID, "setup root must be an absolute path");
   }
-  const rootReal = await realpath10(root).catch((error) => {
+  const rootReal = await realpath11(root).catch((error) => {
     throw setupError(CONFIG_INVALID, `cannot resolve setup root: ${error.message}`);
   });
-  const configPath = join8(rootReal, ".release-skill", "project.yaml");
+  const configPath = join9(rootReal, ".release-skill", "project.yaml");
   let configExists = false;
   try {
-    const stat16 = await lstat12(configPath);
+    const stat16 = await lstat13(configPath);
     configExists = true;
     if (!stat16.isFile() || stat16.isSymbolicLink()) {
       throw setupError(CONFIG_INVALID, "existing project.yaml must be a regular file");
@@ -40526,7 +41238,7 @@ async function setupProject({ root, answersPath, write = false, confirmSetup, fa
     if (write) throw setupError(CONFIG_EXISTS, "configuration already exists; setup never overwrites it", { configPath });
     const [facts2, configBytes] = await Promise.all([
       discoverFacts(rootReal),
-      readFile8(configPath, "utf8")
+      readFile9(configPath, "utf8")
     ]);
     const candidates2 = buildCandidates(facts2);
     let configuredUnitIds = [];
@@ -40590,7 +41302,7 @@ async function setupProject({ root, answersPath, write = false, confirmSetup, fa
   )].sort();
   let answers = null;
   if (answersPath) {
-    const resolvedAnswers = isAbsolute7(answersPath) ? answersPath : resolve10(rootReal, answersPath);
+    const resolvedAnswers = isAbsolute7(answersPath) ? answersPath : resolve11(rootReal, answersPath);
     answers = await readJsonBounded(resolvedAnswers, "setup answers");
     validateAnswers(answers, candidates.gates);
   }
@@ -40644,7 +41356,7 @@ async function setupProject({ root, answersPath, write = false, confirmSetup, fa
       if (faultInjector) await faultInjector("before-config-commit");
       const lockedFacts = await discoverFacts(rootReal);
       const lockedCandidates = buildCandidates(lockedFacts);
-      const resolvedAnswers = isAbsolute7(answersPath) ? answersPath : resolve10(rootReal, answersPath);
+      const resolvedAnswers = isAbsolute7(answersPath) ? answersPath : resolve11(rootReal, answersPath);
       const lockedAnswers = await readJsonBounded(resolvedAnswers, "setup answers");
       validateAnswers(lockedAnswers, lockedCandidates.gates);
       const lockedAuthority = {
@@ -40719,7 +41431,7 @@ async function setupProject({ root, answersPath, write = false, confirmSetup, fa
 }
 async function r5IsRegularFile(path28) {
   try {
-    const entry = await lstat12(path28);
+    const entry = await lstat13(path28);
     return entry.isFile() && !entry.isSymbolicLink();
   } catch {
     return false;
@@ -40727,7 +41439,7 @@ async function r5IsRegularFile(path28) {
 }
 async function r5IsDirectory(path28) {
   try {
-    const entry = await lstat12(path28);
+    const entry = await lstat13(path28);
     return entry.isDirectory() && !entry.isSymbolicLink();
   } catch {
     return false;
@@ -40735,7 +41447,7 @@ async function r5IsDirectory(path28) {
 }
 async function r5HasGitEntry(absDir) {
   try {
-    await lstat12(join8(absDir, ".git"));
+    await lstat13(join9(absDir, ".git"));
     return true;
   } catch {
     return false;
@@ -40746,18 +41458,18 @@ async function r5SiblingDirs(rootReal) {
   if (!parent || parent === rootReal) return [];
   let entries;
   try {
-    entries = await readdir4(parent, { withFileTypes: true });
+    entries = await readdir5(parent, { withFileTypes: true });
   } catch {
     return [];
   }
-  const rootBase = basename3(rootReal);
+  const rootBase = basename4(rootReal);
   const siblings = [];
   for (const entry of entries) {
     if (entry.name === rootBase) continue;
     if (entry.isSymbolicLink()) continue;
     if (!entry.isDirectory()) continue;
     if (SKIP_DIRS.has(entry.name)) continue;
-    siblings.push(join8(parent, entry.name));
+    siblings.push(join9(parent, entry.name));
   }
   return siblings.sort().slice(0, MAX_NEIGHBOR_SCAN);
 }
@@ -40765,12 +41477,12 @@ async function r5DetectCluesInDir(absDir) {
   const clues = [];
   for (const suffix of DISCOVERY_MANIFEST_SUFFIXES) {
     if (typeof suffix !== "string" || !suffix.includes("marketplace.json")) continue;
-    if (await r5IsRegularFile(join8(absDir, suffix))) {
+    if (await r5IsRegularFile(join9(absDir, suffix))) {
       clues.push({ path: suffix, kind: "marketplace" });
     }
   }
-  const hasMkdocs = await r5IsRegularFile(join8(absDir, "mkdocs.yml"));
-  const hasDocsDir = await r5IsDirectory(join8(absDir, "docs"));
+  const hasMkdocs = await r5IsRegularFile(join9(absDir, "mkdocs.yml"));
+  const hasDocsDir = await r5IsDirectory(join9(absDir, "docs"));
   if (hasMkdocs || hasDocsDir) {
     const gitBacked = await r5HasGitEntry(absDir);
     clues.push({ path: hasMkdocs ? "mkdocs.yml" : "docs", kind: gitBacked ? "docs-repo" : "docs" });
@@ -40795,19 +41507,19 @@ async function r5FindFoundationProfile(rootReal, explicitPath) {
   const candidates = [];
   if (explicitPath && typeof explicitPath === "string" && explicitPath.length > 0) {
     candidates.push({
-      abs: isAbsolute7(explicitPath) ? explicitPath : resolve10(rootReal, explicitPath),
+      abs: isAbsolute7(explicitPath) ? explicitPath : resolve11(rootReal, explicitPath),
       desc: explicitPath
     });
   }
   candidates.push(
-    { abs: join8(rootReal, ".release-skill", FOUNDATION_PROFILE_FILENAME), desc: `.release-skill/${FOUNDATION_PROFILE_FILENAME}` },
-    { abs: join8(rootReal, FOUNDATION_PROFILE_FILENAME), desc: FOUNDATION_PROFILE_FILENAME }
+    { abs: join9(rootReal, ".release-skill", FOUNDATION_PROFILE_FILENAME), desc: `.release-skill/${FOUNDATION_PROFILE_FILENAME}` },
+    { abs: join9(rootReal, FOUNDATION_PROFILE_FILENAME), desc: FOUNDATION_PROFILE_FILENAME }
   );
   for (const sibling of await r5SiblingDirs(rootReal)) {
-    const name = basename3(sibling);
+    const name = basename4(sibling);
     candidates.push(
-      { abs: join8(sibling, ".release-skill", FOUNDATION_PROFILE_FILENAME), desc: `../${name}/.release-skill/${FOUNDATION_PROFILE_FILENAME}` },
-      { abs: join8(sibling, FOUNDATION_PROFILE_FILENAME), desc: `../${name}/${FOUNDATION_PROFILE_FILENAME}` }
+      { abs: join9(sibling, ".release-skill", FOUNDATION_PROFILE_FILENAME), desc: `../${name}/.release-skill/${FOUNDATION_PROFILE_FILENAME}` },
+      { abs: join9(sibling, FOUNDATION_PROFILE_FILENAME), desc: `../${name}/${FOUNDATION_PROFILE_FILENAME}` }
     );
   }
   for (const candidate of candidates) {
@@ -40816,7 +41528,7 @@ async function r5FindFoundationProfile(rootReal, explicitPath) {
   return null;
 }
 async function r5Discover(rootReal, foundationProfilePath) {
-  const configPath = join8(rootReal, ".release-skill", "project.yaml");
+  const configPath = join9(rootReal, ".release-skill", "project.yaml");
   const configExists = await r5IsRegularFile(configPath);
   const git3 = await discoverGit(rootReal);
   const gitRemotes = git3.remotes.map((remote) => ({ name: remote.name, url: remote.url, repo: remote.repo }));
@@ -40824,11 +41536,11 @@ async function r5Discover(rootReal, foundationProfilePath) {
     git3.remotes.map((remote) => remote.repo).filter(Boolean)
   )].sort();
   const mirrorCandidates = git3.remotes.filter((remote) => R5_REMOTE_URL_RE.test(remote.url)).map((remote) => ({ remoteName: remote.name, remoteUrl: remote.url, repo: remote.repo })).sort((a, b) => canonicalJson2(a).localeCompare(canonicalJson2(b)));
-  const artifactGraphPresent = await r5IsRegularFile(join8(rootReal, "artifact-graph.config.yaml"));
+  const artifactGraphPresent = await r5IsRegularFile(join9(rootReal, "artifact-graph.config.yaml"));
   const workspaceClues = (await r5DetectCluesInDir(rootReal)).sort((a, b) => canonicalJson2(a).localeCompare(canonicalJson2(b)));
   const neighborClues = [];
   for (const sibling of await r5SiblingDirs(rootReal)) {
-    const name = basename3(sibling);
+    const name = basename4(sibling);
     if (/hub/i.test(name)) neighborClues.push({ sibling: name, kind: "hub" });
     for (const clue of await r5DetectCluesInDir(sibling)) {
       neighborClues.push({ sibling: name, kind: clue.kind, path: clue.path });
@@ -40841,7 +41553,7 @@ async function r5Discover(rootReal, foundationProfilePath) {
   const found = await r5FindFoundationProfile(rootReal, foundationProfilePath);
   if (found) {
     try {
-      const raw = JSON.parse(await readFile8(found.abs, "utf8"));
+      const raw = JSON.parse(await readFile9(found.abs, "utf8"));
       const parsed = r5ValidateProfileShape(raw);
       foundationProfile = {
         path: found.desc,
@@ -40875,7 +41587,7 @@ async function discoverDownstream({ root, foundationProfilePath } = {}) {
   if (!root || typeof root !== "string" || !isAbsolute7(root)) {
     throw setupError(CONFIG_INVALID, "discovery root must be an absolute path");
   }
-  const rootReal = await realpath10(root).catch((error) => {
+  const rootReal = await realpath11(root).catch((error) => {
     throw setupError(CONFIG_INVALID, `cannot resolve discovery root: ${error.message}`);
   });
   const discovery = await r5Discover(rootReal, foundationProfilePath);
@@ -41072,12 +41784,12 @@ async function r5AppendHooksOnce(rootReal, hookDrafts, unitIndex) {
   }
 }
 async function r5Compute({ rootReal, foundationProfilePath, selectedHookIds, unitId }) {
-  const configPath = join8(rootReal, ".release-skill", "project.yaml");
+  const configPath = join9(rootReal, ".release-skill", "project.yaml");
   let configBytes = null;
   let existingParsed = null;
   const configExists = await r5IsRegularFile(configPath);
   if (configExists) {
-    configBytes = await readFile8(configPath, "utf8");
+    configBytes = await readFile9(configPath, "utf8");
     try {
       existingParsed = import_yaml2.default.parse(configBytes);
     } catch (error) {
@@ -41170,7 +41882,7 @@ async function proposePostPublishHooks({
   if (!root || typeof root !== "string" || !isAbsolute7(root)) {
     throw setupError(CONFIG_INVALID, "proposal root must be an absolute path");
   }
-  const rootReal = await realpath10(root).catch((error) => {
+  const rootReal = await realpath11(root).catch((error) => {
     throw setupError(CONFIG_INVALID, `cannot resolve proposal root: ${error.message}`);
   });
   const computed = await r5Compute({ rootReal, foundationProfilePath, selectedHookIds, unitId });
@@ -41263,7 +41975,7 @@ async function proposePostPublishHooks({
     next: "\u8FD0\u884C release-skill assess\uFF1B\u5206\u53D1\u524D\u5BA1\u9605\u8FFD\u52A0\u7684 postPublish hooks \u4E0E\u5176\u6279\u51C6\u5206\u7EA7\u3002"
   };
 }
-var import_yaml2, import_ajv4, import_ajv_formats2, execFile2, SKIP_DIRS, DISCOVERY_MANIFEST_SUFFIXES, MANIFEST_SUFFIX_HOST_MAP, MAX_JSON_BYTES, schema, ajv2, validateProjectConfig, R5_REMOTE_URL_RE, FOUNDATION_PROFILE_FILENAME, MAX_NEIGHBOR_SCAN, R5_HOOK_DRAFT_FIELDS;
+var import_yaml2, import_ajv4, import_ajv_formats2, execFile3, SKIP_DIRS, DISCOVERY_MANIFEST_SUFFIXES, MANIFEST_SUFFIX_HOST_MAP, MAX_JSON_BYTES, schema, ajv2, validateProjectConfig, R5_REMOTE_URL_RE, FOUNDATION_PROFILE_FILENAME, MAX_NEIGHBOR_SCAN, R5_HOOK_DRAFT_FIELDS;
 var init_setup = __esm({
   async "src/commands/setup.mjs"() {
     import_yaml2 = __toESM(require_dist2(), 1);
@@ -41277,7 +41989,7 @@ var init_setup = __esm({
     init_trusted_resource();
     init_presets();
     init_postpublish();
-    execFile2 = promisify2(execFileCb2);
+    execFile3 = promisify3(execFileCb3);
     SKIP_DIRS = /* @__PURE__ */ new Set([
       ".git",
       ".release-skill",
@@ -41459,7 +42171,7 @@ var init_path_key = __esm({
 });
 
 // src/snapshot/public-path.mjs
-import { isAbsolute as isAbsolute8, relative as relative7, resolve as resolve11 } from "node:path";
+import { isAbsolute as isAbsolute8, relative as relative8, resolve as resolve12 } from "node:path";
 function canonicalPublicPath(raw, { allowDot = false } = {}) {
   if (allowDot && raw === ".") {
     return { path: "." };
@@ -41489,9 +42201,9 @@ function resolveUnitScopedPath(baseDir, unitId, { suffix = "" } = {}) {
       { unitId }
     );
   }
-  const base = resolve11(baseDir);
-  const candidate = resolve11(base, `${unitId}${suffix}`);
-  const rel = relative7(base, candidate);
+  const base = resolve12(baseDir);
+  const candidate = resolve12(base, `${unitId}${suffix}`);
+  const rel = relative8(base, candidate);
   const separator = process.platform === "win32" ? "\\" : "/";
   if (rel === "" || isAbsolute8(rel) || rel === ".." || rel.startsWith(`..${separator}`)) {
     throw new ReleaseError(
@@ -41515,13 +42227,13 @@ var init_public_path = __esm({
 });
 
 // src/core/public-surface.mjs
-import { lstat as lstat13, readdir as readdir5, realpath as realpath11 } from "node:fs/promises";
+import { lstat as lstat14, readdir as readdir6, realpath as realpath12 } from "node:fs/promises";
 import {
   isAbsolute as isAbsolute9,
-  join as join9,
-  relative as relative8,
-  resolve as resolve12,
-  sep as sep3
+  join as join10,
+  relative as relative9,
+  resolve as resolve13,
+  sep as sep4
 } from "node:path";
 function compareStrings(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
@@ -41536,14 +42248,14 @@ function collectExpectedPublicSurfaceAdoptionWarnings(config) {
   );
 }
 function toPosixPath(path28) {
-  return path28.split(sep3).join("/");
+  return path28.split(sep4).join("/");
 }
 function isContainedOrEqual(root, candidate) {
-  const rel = relative8(root, candidate);
-  return rel === "" || rel !== ".." && !rel.startsWith(`..${sep3}`) && !isAbsolute9(rel);
+  const rel = relative9(root, candidate);
+  return rel === "" || rel !== ".." && !rel.startsWith(`..${sep4}`) && !isAbsolute9(rel);
 }
 function isWorkspaceControlPath(workspaceRoot, candidate) {
-  return ROOT_CONTROL_DIRECTORIES.some((name) => isContainedOrEqual(join9(workspaceRoot, name), candidate));
+  return ROOT_CONTROL_DIRECTORIES.some((name) => isContainedOrEqual(join10(workspaceRoot, name), candidate));
 }
 function failConfig(message, details) {
   throw new ReleaseError(CONFIG_INVALID, message, details);
@@ -41619,7 +42331,7 @@ async function assertSafeDirectoryPath({
       root: configuredRoot
     });
   }
-  const rel = relative8(workspaceRoot, candidate);
+  const rel = relative9(workspaceRoot, candidate);
   if (!isContainedOrEqual(workspaceRoot, candidate)) {
     failConfig("public surface scan root escapes the workspace", {
       reason: "PUBLIC_SURFACE_SCAN_ROOT_UNSAFE",
@@ -41628,11 +42340,11 @@ async function assertSafeDirectoryPath({
     });
   }
   let cursor = workspaceRoot;
-  for (const segment of rel.split(sep3).filter(Boolean)) {
-    cursor = join9(cursor, segment);
+  for (const segment of rel.split(sep4).filter(Boolean)) {
+    cursor = join10(cursor, segment);
     let stat16;
     try {
-      stat16 = await lstat13(cursor);
+      stat16 = await lstat14(cursor);
     } catch (error) {
       failConfig(`cannot inspect public surface scan root "${configuredRoot}"`, {
         reason: "PUBLIC_SURFACE_SCAN_ROOT_UNSAFE",
@@ -41653,8 +42365,8 @@ async function assertSafeDirectoryPath({
   let physicalContainmentRoot;
   try {
     [physicalCandidate, physicalContainmentRoot] = await Promise.all([
-      realpath11(candidate),
-      realpath11(containmentRoot)
+      realpath12(candidate),
+      realpath12(containmentRoot)
     ]);
   } catch (error) {
     failConfig(`cannot resolve public surface scan root "${configuredRoot}"`, {
@@ -41676,7 +42388,7 @@ async function assertSafeDirectoryPath({
 async function resolveScanRoots({ root, unit }) {
   let workspaceRoot;
   try {
-    workspaceRoot = await realpath11(resolve12(root));
+    workspaceRoot = await realpath12(resolve13(root));
   } catch (error) {
     failConfig("cannot resolve public surface workspace root", {
       reason: "PUBLIC_SURFACE_SCAN_ROOT_UNSAFE",
@@ -41685,7 +42397,7 @@ async function resolveScanRoots({ root, unit }) {
     });
   }
   const unitSource = canonicalPublicPath(unit.source, { allowDot: true }).path;
-  const unitRoot = resolve12(workspaceRoot, unitSource);
+  const unitRoot = resolve13(workspaceRoot, unitSource);
   await assertSafeDirectoryPath({
     workspaceRoot,
     containmentRoot: workspaceRoot,
@@ -41699,7 +42411,7 @@ async function resolveScanRoots({ root, unit }) {
     const configuredRoot = rule.root ?? ".";
     const rootPath = canonicalPublicPath(configuredRoot, { allowDot: true }).path;
     const scopeRoot = sourceScope === "workspace" ? workspaceRoot : unitRoot;
-    const candidate = resolve12(scopeRoot, rootPath);
+    const candidate = resolve13(scopeRoot, rootPath);
     if (isWorkspaceControlPath(workspaceRoot, candidate)) {
       failConfig(`public surface scan root cannot target workspace control paths: "${configuredRoot}"`, {
         reason: "PUBLIC_SURFACE_SCAN_ROOT_CONTROL_PATH",
@@ -41762,12 +42474,12 @@ async function scanRoot({ workspaceRoot, unit, rule }) {
   const files = [];
   let skippedNonRegularCount = 0;
   const skippedControlPaths = new Set(
-    ROOT_CONTROL_DIRECTORIES.map((name) => join9(workspaceRoot, name))
+    ROOT_CONTROL_DIRECTORIES.map((name) => join10(workspaceRoot, name))
   );
   async function walk(directory, relativeDirectory) {
     let entries;
     try {
-      entries = await readdir5(directory, { withFileTypes: true });
+      entries = await readdir6(directory, { withFileTypes: true });
     } catch (error) {
       failConfig(`cannot read public surface scan root for unit "${unit.id}"`, {
         reason: "PUBLIC_SURFACE_SCAN_ROOT_UNSAFE",
@@ -41778,7 +42490,7 @@ async function scanRoot({ workspaceRoot, unit, rule }) {
     }
     entries.sort((left, right) => compareStrings(left.name, right.name));
     for (const entry of entries) {
-      const absolutePath = join9(directory, entry.name);
+      const absolutePath = join10(directory, entry.name);
       if (skippedControlPaths.has(absolutePath)) continue;
       if (entry.isDirectory()) {
         const childRelative = relativeDirectory ? `${relativeDirectory}/${entry.name}` : entry.name;
@@ -41789,7 +42501,7 @@ async function scanRoot({ workspaceRoot, unit, rule }) {
       const includePatterns = matchingPatterns(rule.includeMatchers, relativePath);
       const excludePatterns = matchingPatterns(rule.excludeMatchers, relativePath);
       const workspaceRelative = canonicalPublicPath(
-        toPosixPath(relative8(workspaceRoot, absolutePath))
+        toPosixPath(relative9(workspaceRoot, absolutePath))
       ).path;
       if (!entry.isFile()) {
         if (includePatterns.length === 0 && excludePatterns.length > 0) {
@@ -41941,10 +42653,10 @@ var init_public_surface = __esm({
 });
 
 // src/core/baseline.mjs
-import { execFile as execFileCb3 } from "node:child_process";
-import { promisify as promisify3 } from "node:util";
+import { execFile as execFileCb4 } from "node:child_process";
+import { promisify as promisify4 } from "node:util";
 import { createHash as createHash9 } from "node:crypto";
-import { lstat as lstat14, open as open7, readlink } from "node:fs/promises";
+import { lstat as lstat15, open as open7, readlink } from "node:fs/promises";
 import { constants as fsConstants2 } from "node:fs";
 import path14 from "node:path";
 function isControlPlanePath(p) {
@@ -41996,9 +42708,9 @@ async function computeWorkspaceDigest(root) {
     { stdout: changedOut },
     { stdout: untrackedOut }
   ] = await Promise.all([
-    execFile3("git", ["ls-files", "-s", "-z"], opts),
-    execFile3("git", ["diff", "--name-only", "-z"], opts),
-    execFile3("git", ["ls-files", "-o", "--exclude-standard", "-z"], opts)
+    execFile4("git", ["ls-files", "-s", "-z"], opts),
+    execFile4("git", ["diff", "--name-only", "-z"], opts),
+    execFile4("git", ["ls-files", "-o", "--exclude-standard", "-z"], opts)
   ]);
   const parts = [];
   for (const record of splitNul(stagedOut)) {
@@ -42011,7 +42723,7 @@ async function computeWorkspaceDigest(root) {
   const diffOpts = { ...opts, maxBuffer: DIFF_MAX_BUFFER };
   const changedPaths = splitNul(changedOut).filter((p) => !isControlPlanePath(p));
   for (const changedPath of changedPaths) {
-    const { stdout: patch } = await execFile3(
+    const { stdout: patch } = await execFile4(
       "git",
       ["diff", "--no-ext-diff", "--no-textconv", "--binary", "--no-color", "--", changedPath],
       diffOpts
@@ -42028,7 +42740,7 @@ async function computeWorkspaceDigest(root) {
           `Refusing to read path outside repository root: ${relPath} resolves to ${absPath}`
         );
       }
-      const stat16 = await lstat14(absPath);
+      const stat16 = await lstat15(absPath);
       let type;
       if (stat16.isSymbolicLink()) {
         type = "symlink";
@@ -42080,9 +42792,9 @@ async function computeWorkspaceDigest(root) {
 async function captureBaseline(root) {
   const opts = { cwd: root, shell: false, encoding: "utf8" };
   const [{ stdout: headOut }, { stdout: treeOut }, { stdout: statusOut }] = await Promise.all([
-    execFile3("git", ["rev-parse", "HEAD"], opts),
-    execFile3("git", ["rev-parse", "HEAD^{tree}"], opts),
-    execFile3("git", ["status", "--porcelain=v1", "-z", "--untracked-files=all"], opts)
+    execFile4("git", ["rev-parse", "HEAD"], opts),
+    execFile4("git", ["rev-parse", "HEAD^{tree}"], opts),
+    execFile4("git", ["status", "--porcelain=v1", "-z", "--untracked-files=all"], opts)
   ]);
   const gitHead = headOut.trim();
   const gitTreeHash = treeOut.trim();
@@ -42097,10 +42809,10 @@ async function captureBaseline(root) {
     capturedAt: (/* @__PURE__ */ new Date()).toISOString()
   };
 }
-var execFile3, WORKSPACE_DIGEST_ALGORITHM, CONTROL_PLANE_PREFIXES, RESERVED_CONTROL_PREFIXES, CONTROL_PLANE_EXACT, DIGEST, IMMUTABLE_PLAN, IMMUTABLE_APPROVAL;
+var execFile4, WORKSPACE_DIGEST_ALGORITHM, CONTROL_PLANE_PREFIXES, RESERVED_CONTROL_PREFIXES, CONTROL_PLANE_EXACT, DIGEST, IMMUTABLE_PLAN, IMMUTABLE_APPROVAL;
 var init_baseline2 = __esm({
   "src/core/baseline.mjs"() {
-    execFile3 = promisify3(execFileCb3);
+    execFile4 = promisify4(execFileCb4);
     WORKSPACE_DIGEST_ALGORITHM = "git-workspace-v2";
     CONTROL_PLANE_PREFIXES = [
       ".release-skill/lock",
@@ -42155,8 +42867,8 @@ var config_exports = {};
 __export(config_exports, {
   loadProjectConfig: () => loadProjectConfig
 });
-import { readFile as readFile9 } from "node:fs/promises";
-import { resolve as resolve13, isAbsolute as isAbsolute10, relative as relative9, normalize as normalize2 } from "node:path";
+import { readFile as readFile10 } from "node:fs/promises";
+import { resolve as resolve14, isAbsolute as isAbsolute10, relative as relative10, normalize as normalize2 } from "node:path";
 function containsAlias(node) {
   if (!node || typeof node !== "object") {
     return false;
@@ -42181,8 +42893,8 @@ function containsAlias(node) {
 }
 function resolveConfigPath(root, configPath) {
   const rootNorm = normalize2(root);
-  const resolved = isAbsolute10(configPath) ? normalize2(configPath) : resolve13(rootNorm, configPath);
-  const rel = relative9(rootNorm, resolved);
+  const resolved = isAbsolute10(configPath) ? normalize2(configPath) : resolve14(rootNorm, configPath);
+  const rel = relative10(rootNorm, resolved);
   if (rel.startsWith("..") || rel === ".." || isAbsolute10(rel)) {
     throw new ReleaseError(
       CONFIG_INVALID,
@@ -42200,7 +42912,7 @@ async function loadProjectConfig({ root, configPath } = {}) {
   const absConfigPath = resolveConfigPath(root, effectivePath);
   let content;
   try {
-    content = await readFile9(absConfigPath, "utf8");
+    content = await readFile10(absConfigPath, "utf8");
   } catch (err) {
     throw new ReleaseError(
       CONFIG_INVALID,
@@ -42448,6 +43160,37 @@ async function loadProjectConfig({ root, configPath } = {}) {
       }
     }
   const unitsById = new Map(config.releaseUnits.map((unit) => [unit.id, unit]));
+  const publicReceipt = config.publicSourceAuthorityReceipt;
+  if (publicReceipt) {
+    if (!config.project?.sourceRepository) {
+      throw new ReleaseError(
+        CONFIG_INVALID,
+        "publicSourceAuthorityReceipt requires project.sourceRepository"
+      );
+    }
+    if (!unitsById.has(publicReceipt.coordinatorUnitId)) {
+      throw new ReleaseError(
+        CONFIG_INVALID,
+        `publicSourceAuthorityReceipt references unknown coordinator unit "${publicReceipt.coordinatorUnitId}"`
+      );
+    }
+    for (const unitId of publicReceipt.subjectUnitIds) {
+      const unit = unitsById.get(unitId);
+      if (!unit) {
+        throw new ReleaseError(
+          CONFIG_INVALID,
+          `publicSourceAuthorityReceipt references unknown subject unit "${unitId}"`
+        );
+      }
+      const npmDistributions = (unit.distributions ?? []).filter((distribution) => distribution.type === "npm");
+      if (npmDistributions.length !== 1) {
+        throw new ReleaseError(
+          CONFIG_INVALID,
+          `publicSourceAuthorityReceipt subject unit "${unitId}" must declare exactly one npm distribution`
+        );
+      }
+    }
+  }
   const gateIds = /* @__PURE__ */ new Set();
   for (const gate of config.verificationGates ?? []) {
     if (gateIds.has(gate.id)) {
@@ -42528,10 +43271,10 @@ __export(assess_exports, {
   describeVersionSequenceGap: () => describeVersionSequenceGap,
   parseSemverVersion: () => parseSemverVersion
 });
-import { readFile as readFile10, stat as stat3, writeFile as writeFile3, mkdir as mkdir7 } from "node:fs/promises";
-import { resolve as resolve14, dirname as dirname6, relative as relative10 } from "node:path";
-import { execFile as execFileCb4 } from "node:child_process";
-import { promisify as promisify4 } from "node:util";
+import { readFile as readFile11, stat as stat3, writeFile as writeFile3, mkdir as mkdir7 } from "node:fs/promises";
+import { resolve as resolve15, dirname as dirname6, relative as relative11 } from "node:path";
+import { execFile as execFileCb5 } from "node:child_process";
+import { promisify as promisify5 } from "node:util";
 async function fileExists(filePath) {
   try {
     await stat3(filePath);
@@ -42648,9 +43391,9 @@ async function checkCommonDocs(root, config) {
     { file: "LICENSE", code: "LICENSE_MISSING", message: "\u7F3A\u5C11 LICENSE \u6587\u4EF6" }
   ];
   for (const unit of units) {
-    const unitRoot = resolve14(root, unit.source);
+    const unitRoot = resolve15(root, unit.source);
     for (const doc of requiredDocs) {
-      const exists = await fileExists(resolve14(unitRoot, doc.file));
+      const exists = await fileExists(resolve15(unitRoot, doc.file));
       if (!exists) {
         gaps.push(
           createGap({
@@ -42671,9 +43414,9 @@ async function checkCommonDocs(root, config) {
     { file: "CONTRIBUTING.md", code: "CONTRIBUTING_MISSING", message: "\u5EFA\u8BAE\u6DFB\u52A0 CONTRIBUTING.md" }
   ];
   for (const unit of units) {
-    const unitRoot = resolve14(root, unit.source);
+    const unitRoot = resolve15(root, unit.source);
     for (const doc of recommendedDocs) {
-      const exists = await fileExists(resolve14(unitRoot, doc.file));
+      const exists = await fileExists(resolve15(unitRoot, doc.file));
       if (!exists) {
         gaps.push(
           createGap({
@@ -42695,9 +43438,9 @@ async function checkPluginManifests(root, config) {
   const units = config.releaseUnits ?? [];
   for (const unit of units) {
     const distributionTypes = new Set((unit.distributions ?? []).map((dist) => dist.type));
-    const unitRoot = resolve14(root, unit.source);
+    const unitRoot = resolve15(root, unit.source);
     if (distributionTypes.has("claude-plugin")) {
-      const manifestPath = resolve14(unitRoot, ".claude-plugin", "plugin.json");
+      const manifestPath = resolve15(unitRoot, ".claude-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".claude-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -42713,7 +43456,7 @@ async function checkPluginManifests(root, config) {
         );
       } else {
         try {
-          const content = await readFile10(manifestPath, "utf8");
+          const content = await readFile11(manifestPath, "utf8");
           const manifest = JSON.parse(content);
           const requiredFields = ["name", "version", "description"];
           const missingFields = requiredFields.filter((f) => !(f in manifest));
@@ -42744,7 +43487,7 @@ async function checkPluginManifests(root, config) {
       }
     }
     if (distributionTypes.has("codex-plugin")) {
-      const manifestPath = resolve14(unitRoot, ".codex-plugin", "plugin.json");
+      const manifestPath = resolve15(unitRoot, ".codex-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".codex-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -42760,7 +43503,7 @@ async function checkPluginManifests(root, config) {
         );
       } else {
         try {
-          const content = await readFile10(manifestPath, "utf8");
+          const content = await readFile11(manifestPath, "utf8");
           const manifest = JSON.parse(content);
           const requiredFields = ["name", "version", "description"];
           const missingFields = requiredFields.filter((f) => !(f in manifest));
@@ -42791,7 +43534,7 @@ async function checkPluginManifests(root, config) {
       }
     }
     if (distributionTypes.has("kimi-plugin")) {
-      const manifestPath = resolve14(unitRoot, ".kimi-plugin", "plugin.json");
+      const manifestPath = resolve15(unitRoot, ".kimi-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".kimi-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -42807,7 +43550,7 @@ async function checkPluginManifests(root, config) {
         );
       } else {
         try {
-          const content = await readFile10(manifestPath, "utf8");
+          const content = await readFile11(manifestPath, "utf8");
           const manifest = JSON.parse(content);
           const requiredFields = ["name", "version", "description"];
           const missingFields = requiredFields.filter((f) => !(f in manifest));
@@ -42838,7 +43581,7 @@ async function checkPluginManifests(root, config) {
       }
     }
     if (distributionTypes.has("codebuddy-plugin")) {
-      const manifestPath = resolve14(unitRoot, ".codebuddy-plugin", "plugin.json");
+      const manifestPath = resolve15(unitRoot, ".codebuddy-plugin", "plugin.json");
       const displayPath = unitFile(unit, ".codebuddy-plugin/plugin.json");
       const exists = await fileExists(manifestPath);
       if (!exists) {
@@ -42854,7 +43597,7 @@ async function checkPluginManifests(root, config) {
         );
       } else {
         try {
-          const content = await readFile10(manifestPath, "utf8");
+          const content = await readFile11(manifestPath, "utf8");
           const manifest = JSON.parse(content);
           const requiredFields = ["name", "version", "description"];
           const missingFields = requiredFields.filter((f) => !(f in manifest));
@@ -42904,8 +43647,8 @@ async function checkPackageMetadata(root, config) {
   for (const unit of units) {
     const hasNpmDist = (unit.distributions ?? []).some((d) => d.type === "npm");
     if (!hasNpmDist) continue;
-    const unitRoot = resolve14(root, unit.source);
-    const pkgPath = resolve14(unitRoot, "package.json");
+    const unitRoot = resolve15(root, unit.source);
+    const pkgPath = resolve15(unitRoot, "package.json");
     const exists = await fileExists(pkgPath);
     if (!exists) {
       gaps.push(
@@ -42921,7 +43664,7 @@ async function checkPackageMetadata(root, config) {
       continue;
     }
     try {
-      const content = await readFile10(pkgPath, "utf8");
+      const content = await readFile11(pkgPath, "utf8");
       const pkg = JSON.parse(content);
       const requiredFields = ["name", "version"];
       const missingFields = requiredFields.filter((f) => !(f in pkg));
@@ -42957,7 +43700,7 @@ async function checkRemotePrerequisites(root, config, offline) {
   const gaps = [];
   const units = config.releaseUnits ?? [];
   try {
-    const { stdout } = await execFile4("git", ["remote", "get-url", "origin"], {
+    const { stdout } = await execFile5("git", ["remote", "get-url", "origin"], {
       cwd: root,
       shell: false,
       encoding: "utf8",
@@ -42988,10 +43731,10 @@ async function checkRemotePrerequisites(root, config, offline) {
   for (const unit of units) {
     const npmDist = (unit.distributions ?? []).find((d) => d.type === "npm");
     if (!npmDist?.package) continue;
-    const pkgPath = resolve14(root, unit.source, "package.json");
+    const pkgPath = resolve15(root, unit.source, "package.json");
     let version;
     try {
-      const content = await readFile10(pkgPath, "utf8");
+      const content = await readFile11(pkgPath, "utf8");
       const pkg = JSON.parse(content);
       version = pkg.version;
     } catch {
@@ -42999,7 +43742,7 @@ async function checkRemotePrerequisites(root, config, offline) {
     }
     if (!version) continue;
     try {
-      await execFile4(
+      await execFile5(
         "npm",
         ["view", `${npmDist.package}@${version}`, "version"],
         { cwd: root, shell: false, encoding: "utf8", timeout: 15e3 }
@@ -43072,7 +43815,7 @@ async function checkReleaseTagSequence(root, config) {
     const tagPattern = tagTemplate.replace("{version}", "*");
     let stdout;
     try {
-      ({ stdout } = await execFile4(
+      ({ stdout } = await execFile5(
         "git",
         ["ls-remote", `https://github.com/${unit.publicRepo}.git`, `refs/tags/${tagPattern}`],
         { cwd: root, shell: false, encoding: "utf8", timeout: 15e3 }
@@ -43082,7 +43825,7 @@ async function checkReleaseTagSequence(root, config) {
     }
     let targetVersion;
     try {
-      const pkg = JSON.parse(await readFile10(resolve14(root, unit.source, "package.json"), "utf8"));
+      const pkg = JSON.parse(await readFile11(resolve15(root, unit.source, "package.json"), "utf8"));
       targetVersion = pkg.version;
     } catch {
       continue;
@@ -43125,12 +43868,12 @@ async function checkReadmeStructure(root, config) {
   const gaps = [];
   const units = config.releaseUnits ?? [];
   for (const unit of units) {
-    const readmePath = resolve14(root, unit.source, "README.md");
+    const readmePath = resolve15(root, unit.source, "README.md");
     const displayPath = unitFile(unit, "README.md");
     const exists = await fileExists(readmePath);
     if (!exists) continue;
     try {
-      const content = await readFile10(readmePath, "utf8");
+      const content = await readFile11(readmePath, "utf8");
       const hasHeading = /^#\s+/m.test(content);
       if (!hasHeading) {
         gaps.push(
@@ -43319,13 +44062,13 @@ async function writeReport(outputPath, report) {
   await mkdir7(dir, { recursive: true });
   await writeFile3(outputPath, JSON.stringify(report, null, 2), "utf8");
 }
-var execFile4, Severity, GapScope, GapCategory;
+var execFile5, Severity, GapScope, GapCategory;
 var init_assess = __esm({
   async "src/commands/assess.mjs"() {
     await init_config();
     init_errors3();
     init_public_surface();
-    execFile4 = promisify4(execFileCb4);
+    execFile5 = promisify5(execFileCb5);
     Severity = Object.freeze({
       ERROR: "error",
       WARNING: "warning"
@@ -43369,7 +44112,7 @@ var init_assess = __esm({
 
 // src/core/evidence.mjs
 import { open as open8, mkdir as mkdir8, writeFile as writeFile4 } from "node:fs/promises";
-import { basename as basename4 } from "node:path";
+import { basename as basename5 } from "node:path";
 function redact(obj) {
   if (obj === null || obj === void 0) {
     return obj;
@@ -43401,7 +44144,7 @@ function redact(obj) {
 }
 function createEvidenceWriter({ runDir, command: command2, clock }) {
   const clockFn = typeof clock === "function" ? clock : () => (/* @__PURE__ */ new Date()).toISOString();
-  const runId = basename4(runDir);
+  const runId = basename5(runDir);
   const evidencePath = `${runDir}/evidence.jsonl`;
   const summaryPath = `${runDir}/summary.json`;
   let sequence = 1;
@@ -43473,10 +44216,10 @@ var hooks_exports = {};
 __export(hooks_exports, {
   runHook: () => runHook
 });
-import { execFile as execFileCb5 } from "node:child_process";
-import { promisify as promisify5 } from "node:util";
-import { resolve as resolve15, relative as relative11, isAbsolute as isAbsolute11 } from "node:path";
-import { realpath as realpath12 } from "node:fs/promises";
+import { execFile as execFileCb6 } from "node:child_process";
+import { promisify as promisify6 } from "node:util";
+import { resolve as resolve16, relative as relative12, isAbsolute as isAbsolute11 } from "node:path";
+import { realpath as realpath13 } from "node:fs/promises";
 function validateHook(hook) {
   if (!hook || typeof hook !== "object" || Array.isArray(hook)) {
     throw new ReleaseError("INVALID_HOOK", "hook must be a non-null object");
@@ -43569,9 +44312,9 @@ async function runHook(hook, context) {
     throw new ReleaseError("INVALID_HOOK", "context.root must be an absolute path");
   }
   const { command: command2, cwd, timeoutMs, envAllowlist = [] } = hook;
-  const rootReal = await realpath12(context.root);
-  const resolvedCwd = cwd ? await realpath12(resolve15(rootReal, cwd)) : rootReal;
-  const rel = relative11(rootReal, resolvedCwd);
+  const rootReal = await realpath13(context.root);
+  const resolvedCwd = cwd ? await realpath13(resolve16(rootReal, cwd)) : rootReal;
+  const rel = relative12(rootReal, resolvedCwd);
   if (rel.startsWith("..") || rel === "..") {
     throw new ReleaseError(
       "INVALID_HOOK",
@@ -43643,7 +44386,7 @@ var execFileAsync, PLATFORM_REQUIRED_VARS, ENV_KEY_PATTERN2;
 var init_hooks = __esm({
   "src/core/hooks.mjs"() {
     init_errors3();
-    execFileAsync = promisify5(execFileCb5);
+    execFileAsync = promisify6(execFileCb6);
     PLATFORM_REQUIRED_VARS = (() => {
       const posix3 = ["PATH", "HOME", "USER", "LANG", "LC_ALL", "LC_CTYPE", "TERM"];
       const win323 = ["PATH", "HOME", "USER", "SystemRoot", "SYSTEMROOT", "COMSPEC", "PATHEXT", "TEMP", "TMP"];
@@ -43657,8 +44400,8 @@ var init_hooks = __esm({
 });
 
 // src/core/hook-cache.mjs
-import { readdir as readdir6, readFile as readFile11, mkdir as mkdir9, writeFile as writeFile5 } from "node:fs/promises";
-import { join as join10 } from "node:path";
+import { readdir as readdir7, readFile as readFile12, mkdir as mkdir9, writeFile as writeFile5 } from "node:fs/promises";
+import { join as join11 } from "node:path";
 function globToRegExp(glob) {
   let source = "";
   let i = 0;
@@ -43687,7 +44430,7 @@ async function listInputFiles(root) {
   async function walk(dirAbs, dirRel) {
     let entries;
     try {
-      entries = await readdir6(dirAbs, { withFileTypes: true });
+      entries = await readdir7(dirAbs, { withFileTypes: true });
     } catch {
       return;
     }
@@ -43695,7 +44438,7 @@ async function listInputFiles(root) {
       if (entry.isDirectory()) {
         if (SKIPPED_DIRS.has(entry.name)) continue;
         const rel = dirRel ? `${dirRel}/${entry.name}` : entry.name;
-        await walk(join10(dirAbs, entry.name), rel);
+        await walk(join11(dirAbs, entry.name), rel);
       } else if (entry.isFile()) {
         out.push(dirRel ? `${dirRel}/${entry.name}` : entry.name);
       }
@@ -43734,21 +44477,21 @@ async function computeHookCacheKey(hook, root) {
   matched.sort();
   const fileEntries = [];
   for (const relPath of matched) {
-    const content = await readFile11(join10(root, relPath));
+    const content = await readFile12(join11(root, relPath));
     fileEntries.push({ path: relPath, sha256: sha256Hex(content) });
   }
   const cacheKey = sha256Hex(canonicalJson2(hook) + canonicalJson2(fileEntries));
   return { cacheKey, matchedFiles: matched };
 }
 function hookCacheDir(root, hookName) {
-  return join10(root, ...CACHE_BASE, hookName);
+  return join11(root, ...CACHE_BASE, hookName);
 }
 function hookCachePath(root, hookName, cacheKey) {
-  return join10(hookCacheDir(root, hookName), `${cacheKey}.json`);
+  return join11(hookCacheDir(root, hookName), `${cacheKey}.json`);
 }
 async function readHookCache(root, hookName, cacheKey) {
   try {
-    const raw = await readFile11(hookCachePath(root, hookName, cacheKey), "utf8");
+    const raw = await readFile12(hookCachePath(root, hookName, cacheKey), "utf8");
     const record = JSON.parse(raw);
     if (record && record.cacheKey === cacheKey && record.exitCode === 0) {
       return record;
@@ -43799,8 +44542,8 @@ var init_hook_cache = __esm({
 // src/core/verification-gates.mjs
 import { createHash as createHash10 } from "node:crypto";
 import { spawn as spawn2 } from "node:child_process";
-import { chmod as chmod2, cp, lstat as lstat15, mkdir as mkdir10, readdir as readdir7, realpath as realpath13, rm as rm6 } from "node:fs/promises";
-import { isAbsolute as isAbsolute12, join as join11, relative as relative12, resolve as resolve16 } from "node:path";
+import { chmod as chmod2, cp, lstat as lstat16, mkdir as mkdir10, readdir as readdir8, realpath as realpath14, rm as rm7 } from "node:fs/promises";
+import { isAbsolute as isAbsolute12, join as join12, relative as relative13, resolve as resolve17 } from "node:path";
 function gateError(gate, message, details = {}) {
   return new ReleaseError(GATE_FAILED, `verification gate "${gate?.id ?? "unknown"}" ${message}`, {
     gateId: gate?.id,
@@ -43808,7 +44551,7 @@ function gateError(gate, message, details = {}) {
   });
 }
 function isInside2(parent, candidate) {
-  const rel = relative12(parent, candidate);
+  const rel = relative13(parent, candidate);
   const separator = process.platform === "win32" ? "\\" : "/";
   return rel === "" || !isAbsolute12(rel) && rel !== ".." && !rel.startsWith(`..${separator}`);
 }
@@ -43865,25 +44608,25 @@ function filteredEnv(allowlist, suppliedEnv, fixedEnv = {}) {
   return result;
 }
 async function resolveSafeCwd(executionRoot, cwd, gate) {
-  const rootStat = await lstat15(executionRoot).catch((error) => {
+  const rootStat = await lstat16(executionRoot).catch((error) => {
     throw gateError(gate, "execution root is missing", { cause: error.code });
   });
   if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
     throw gateError(gate, "execution root must be a real directory");
   }
-  const rootReal = await realpath13(executionRoot);
-  const lexical = resolve16(rootReal, cwd ?? ".");
+  const rootReal = await realpath14(executionRoot);
+  const lexical = resolve17(rootReal, cwd ?? ".");
   if (!isInside2(rootReal, lexical)) throw gateError(gate, "cwd escapes the execution root");
-  const rel = relative12(rootReal, lexical);
+  const rel = relative13(rootReal, lexical);
   let current = rootReal;
   for (const segment of rel.split(/[\\/]/).filter(Boolean)) {
-    current = join11(current, segment);
-    const stat16 = await lstat15(current).catch((error) => {
+    current = join12(current, segment);
+    const stat16 = await lstat16(current).catch((error) => {
       throw gateError(gate, "cwd does not exist", { cause: error.code });
     });
     if (stat16.isSymbolicLink()) throw gateError(gate, "cwd contains a symlink");
   }
-  const physical = await realpath13(lexical);
+  const physical = await realpath14(lexical);
   if (!isInside2(rootReal, physical)) throw gateError(gate, "cwd resolves outside the execution root");
   return physical;
 }
@@ -44122,12 +44865,12 @@ async function runVerificationGate({
   return result;
 }
 async function makeTreeWritable(root) {
-  const stat16 = await lstat15(root);
+  const stat16 = await lstat16(root);
   if (!stat16.isDirectory() || stat16.isSymbolicLink()) throw new Error("gate copy root must be a real directory");
   await chmod2(root, stat16.mode | 448);
-  for (const child of await readdir7(root, { withFileTypes: true })) {
-    const absolute = join11(root, child.name);
-    const childStat = await lstat15(absolute);
+  for (const child of await readdir8(root, { withFileTypes: true })) {
+    const absolute = join12(root, child.name);
+    const childStat = await lstat16(absolute);
     if (childStat.isSymbolicLink()) throw new Error("gate copy must not contain symlinks");
     if (childStat.isDirectory()) await makeTreeWritable(absolute);
     else if (childStat.isFile() && childStat.nlink === 1) await chmod2(absolute, childStat.mode | 384);
@@ -44145,7 +44888,7 @@ async function runSnapshotVerificationGates({
   const snapshotGates = gates.filter((item) => item.phase === "snapshot-verify");
   if (snapshotGates.length === 0) return [];
   const byUnit = new Map(unitResults.map((item) => [item.unit.id, item]));
-  const gateRoot = join11(runDir, "snapshot-gates");
+  const gateRoot = join12(runDir, "snapshot-gates");
   await mkdir10(gateRoot, { recursive: true });
   const results = [];
   for (const gate of snapshotGates) {
@@ -44193,7 +44936,7 @@ async function runSnapshotVerificationGates({
         });
       }
     } finally {
-      await rm6(copyDir, { recursive: true, force: true }).catch(() => {
+      await rm7(copyDir, { recursive: true, force: true }).catch(() => {
       });
     }
   }
@@ -44245,32 +44988,32 @@ var init_verification_gates = __esm({
 });
 
 // src/core/skill-resource-closure.mjs
-import { lstat as lstat16, readFile as readFile12, readdir as readdir8 } from "node:fs/promises";
-import { dirname as dirname7, isAbsolute as isAbsolute13, join as join12, relative as relative13, resolve as resolve17, sep as sep4 } from "node:path";
+import { lstat as lstat17, readFile as readFile13, readdir as readdir9 } from "node:fs/promises";
+import { dirname as dirname7, isAbsolute as isAbsolute13, join as join13, relative as relative14, resolve as resolve18, sep as sep5 } from "node:path";
 function toPosix(value) {
   return value.replaceAll("\\", "/");
 }
 function relativeStable(root, target) {
-  const value = toPosix(relative13(root, target));
+  const value = toPosix(relative14(root, target));
   return value === "" ? "." : value;
 }
 function isInside3(parent, candidate) {
-  const rel = relative13(parent, candidate);
-  return rel === "" || !isAbsolute13(rel) && rel !== ".." && !rel.startsWith(`..${sep4}`);
+  const rel = relative14(parent, candidate);
+  return rel === "" || !isAbsolute13(rel) && rel !== ".." && !rel.startsWith(`..${sep5}`);
 }
 async function discoverSkills(root, base = root) {
   const results = [];
   let entries;
   try {
-    entries = await readdir8(root, { withFileTypes: true });
+    entries = await readdir9(root, { withFileTypes: true });
   } catch (error) {
     if (error.code === "ENOENT") return results;
     throw error;
   }
   for (const entry of entries) {
     if (entry.name === ".git" || entry.name === "node_modules") continue;
-    const absolute = join12(root, entry.name);
-    const stableRelative = toPosix(relative13(base, absolute));
+    const absolute = join13(root, entry.name);
+    const stableRelative = toPosix(relative14(base, absolute));
     if (stableRelative === ".codex-plugin/migrated-command-skills") continue;
     if (entry.isDirectory()) {
       results.push(...await discoverSkills(absolute, base));
@@ -44283,20 +45026,20 @@ async function discoverSkills(root, base = root) {
 function resolvePluginRoot(skillRelativePath, scanRoot2) {
   const parts = toPosix(skillRelativePath).split("/");
   const skillsIndex = parts.lastIndexOf("skills");
-  if (skillsIndex >= 0) return resolve17(scanRoot2, ...parts.slice(0, skillsIndex));
+  if (skillsIndex >= 0) return resolve18(scanRoot2, ...parts.slice(0, skillsIndex));
   if (parts[0] === "platforms" && parts.length >= 3) {
     const registeredSurface = parts.slice(0, 2).join("/");
     if (resolveSkillProjectionSurfaceHost(registeredSurface) !== null) {
-      return resolve17(scanRoot2, ...parts.slice(0, 2));
+      return resolve18(scanRoot2, ...parts.slice(0, 2));
     }
     const skillIndex = parts.lastIndexOf("skill");
-    if (skillIndex >= 2) return resolve17(scanRoot2, ...parts.slice(0, skillIndex));
-    return resolve17(scanRoot2, ...parts.slice(0, 2));
+    if (skillIndex >= 2) return resolve18(scanRoot2, ...parts.slice(0, skillIndex));
+    return resolve18(scanRoot2, ...parts.slice(0, 2));
   }
-  return resolve17(scanRoot2);
+  return resolve18(scanRoot2);
 }
 function resolveSkillRoot(skillRelativePath, scanRoot2) {
-  return resolve17(scanRoot2, dirname7(skillRelativePath));
+  return resolve18(scanRoot2, dirname7(skillRelativePath));
 }
 function trimCandidate(value) {
   return value.trim().replace(/^["']/u, "").replace(/["']$/u, "").replace(/[.,;:]+$/u, "");
@@ -44370,13 +45113,13 @@ function classifyReference(token, skillRoot, pluginRoot, scanRoot2) {
       classification: CLASSIFICATION.SOURCE_BACKJUMP,
       resolutionRoot: "(source-tree)",
       resolvedTarget: token,
-      absoluteTarget: resolve17(scanRoot2, token)
+      absoluteTarget: resolve18(scanRoot2, token)
     };
   }
   const explicit = EXPLICIT_PREFIXES.some((prefix) => token.startsWith(prefix));
   const resolutionRootAbsolute = explicit ? pluginRoot : skillRoot;
   const relativeTarget = explicit ? stripExplicitPrefix(token) : token;
-  const absoluteTarget = resolve17(resolutionRootAbsolute, relativeTarget);
+  const absoluteTarget = resolve18(resolutionRootAbsolute, relativeTarget);
   const inBounds = isInside3(resolutionRootAbsolute, absoluteTarget);
   return {
     classification: inBounds ? explicit ? CLASSIFICATION.PLUGIN_ROOT : CLASSIFICATION.SKILL_LOCAL : CLASSIFICATION.OUT_OF_BOUNDS,
@@ -44387,24 +45130,24 @@ function classifyReference(token, skillRoot, pluginRoot, scanRoot2) {
 }
 async function inspectRegularFile(root, target) {
   if (!isInside3(root, target)) return { code: FINDING_CODE.OUT_OF_BOUNDS };
-  const parts = relative13(root, target).split(sep4).filter(Boolean);
+  const parts = relative14(root, target).split(sep5).filter(Boolean);
   let current = root;
-  const rootStat = await lstat16(root);
+  const rootStat = await lstat17(root);
   if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) {
     return { code: FINDING_CODE.SYMLINK_NOT_ALLOWED };
   }
   for (const part of parts) {
-    current = join12(current, part);
+    current = join13(current, part);
     let stat16;
     try {
-      stat16 = await lstat16(current);
+      stat16 = await lstat17(current);
     } catch (error) {
       if (error.code === "ENOENT") return { code: FINDING_CODE.RESOURCE_MISSING };
       throw error;
     }
     if (stat16.isSymbolicLink()) return { code: FINDING_CODE.SYMLINK_NOT_ALLOWED };
   }
-  const targetStat = await lstat16(target);
+  const targetStat = await lstat17(target);
   if (!targetStat.isFile() || targetStat.nlink !== 1) {
     return { code: FINDING_CODE.RESOURCE_NOT_REGULAR_FILE };
   }
@@ -44413,14 +45156,14 @@ async function inspectRegularFile(root, target) {
 async function collectRegularFiles(dir, results) {
   let entries;
   try {
-    entries = await readdir8(dir, { withFileTypes: true });
+    entries = await readdir9(dir, { withFileTypes: true });
   } catch (error) {
     if (error.code === "ENOENT") return;
     throw error;
   }
   for (const entry of [...entries].sort((a, b) => a.name.localeCompare(b.name))) {
     if (entry.isSymbolicLink()) continue;
-    const absolute = join12(dir, entry.name);
+    const absolute = join13(dir, entry.name);
     if (entry.isDirectory()) {
       await collectRegularFiles(absolute, results);
     } else if (entry.isFile()) {
@@ -44502,8 +45245,8 @@ async function checkSkillResourceClosure({
   if (typeof snapshotDir !== "string" || snapshotDir.length === 0) {
     throw new TypeError("snapshotDir must be a non-empty string");
   }
-  const scanRoot2 = resolve17(snapshotDir);
-  const scanStat = await lstat16(scanRoot2);
+  const scanRoot2 = resolve18(snapshotDir);
+  const scanStat = await lstat17(scanRoot2);
   if (!scanStat.isDirectory() || scanStat.isSymbolicLink()) {
     throw new Error("snapshotDir must be a real directory");
   }
@@ -44569,7 +45312,7 @@ async function checkSkillResourceClosure({
     }
     if (!skillsBySurface.has(surfaceId)) skillsBySurface.set(surfaceId, []);
     skillsBySurface.get(surfaceId).push(skill);
-    const content = await readFile12(resolve17(scanRoot2, skill), "utf8");
+    const content = await readFile13(resolve18(scanRoot2, skill), "utf8");
     for (const pathToken of extractPathTokens(content)) {
       referenceCount += 1;
       surface.referenceCount += 1;
@@ -44644,7 +45387,7 @@ async function checkSkillResourceClosure({
     if (!contentDigestCache.has(absoluteTarget)) {
       contentDigestCache.set(
         absoluteTarget,
-        digestDocument({ content: await readFile12(absoluteTarget, "utf8") })
+        digestDocument({ content: await readFile13(absoluteTarget, "utf8") })
       );
     }
     return contentDigestCache.get(absoluteTarget);
@@ -44693,14 +45436,14 @@ async function checkSkillResourceClosure({
   for (const surfaceId of [...skillsBySurface.keys()].sort((a, b) => a.localeCompare(b))) {
     if (!ADAPTER_SURFACE_PATTERN.test(surfaceId)) continue;
     const surface = surfaceMap.get(surfaceId);
-    const surfaceRootAbsolute = resolve17(scanRoot2, surfaceId);
+    const surfaceRootAbsolute = resolve18(scanRoot2, surfaceId);
     const referencedTargets = referencedTargetsBySurface.get(surfaceId) ?? /* @__PURE__ */ new Set();
     const stale = [];
     for (const skill of skillsBySurface.get(surfaceId)) {
-      const skillDir = resolve17(scanRoot2, dirname7(skill));
+      const skillDir = resolve18(scanRoot2, dirname7(skill));
       for (const closureDir of CLOSURE_RESOURCE_DIRS) {
         const files = [];
-        await collectRegularFiles(join12(skillDir, closureDir), files);
+        await collectRegularFiles(join13(skillDir, closureDir), files);
         for (const absolute of files) {
           if (referencedTargets.has(absolute)) continue;
           const relativeResource = relativeStable(surfaceRootAbsolute, absolute);
@@ -44840,9 +45583,9 @@ var init_skill_resource_closure = __esm({
 });
 
 // src/snapshot/public-map.mjs
-import { lstat as lstat17, readFile as readFile13, mkdir as mkdir11, readdir as readdir9, realpath as realpath14, chmod as fsChmod } from "node:fs/promises";
+import { lstat as lstat18, readFile as readFile14, mkdir as mkdir11, readdir as readdir10, realpath as realpath15, chmod as fsChmod } from "node:fs/promises";
 import { open as fsOpen } from "node:fs/promises";
-import { relative as relative14, resolve as resolve18, dirname as dirname8, sep as pathSep, isAbsolute as isAbsolute14 } from "node:path";
+import { relative as relative15, resolve as resolve19, dirname as dirname8, sep as pathSep, isAbsolute as isAbsolute14 } from "node:path";
 import { posix, win32 } from "node:path";
 import { constants as fsConstants3 } from "node:fs";
 import { createHash as createHash11 } from "node:crypto";
@@ -44855,14 +45598,14 @@ function _isContainedWith(relativeFn, isAbsoluteFn, root, candidate, relPathSep 
   return classifyPathInput(rel, platform).ok === true;
 }
 function isContained(root, candidate) {
-  return _isContainedWith(relative14, isAbsolute14, root, candidate);
+  return _isContainedWith(relative15, isAbsolute14, root, candidate);
 }
-async function assertNoAncestorSymlinks(root, filePath, fs = { lstat: lstat17 }) {
-  const rel = relative14(root, filePath);
+async function assertNoAncestorSymlinks(root, filePath, fs = { lstat: lstat18 }) {
+  const rel = relative15(root, filePath);
   const segments = rel.split(/[/\\]/);
   let current = root;
   for (const segment of segments) {
-    current = resolve18(current, segment);
+    current = resolve19(current, segment);
     try {
       const st = await fs.lstat(current, { stage: "source-ancestor" });
       if (st.isSymbolicLink()) {
@@ -44884,7 +45627,7 @@ async function assertNoAncestorSymlinks(root, filePath, fs = { lstat: lstat17 })
     }
   }
 }
-async function assertOutputAncestorsNoFollow(effectiveOutputDir, fs = { lstat: lstat17 }) {
+async function assertOutputAncestorsNoFollow(effectiveOutputDir, fs = { lstat: lstat18 }) {
   const parts = effectiveOutputDir.split(pathSep).filter(Boolean);
   let accumulated = "";
   for (const part of parts) {
@@ -44918,12 +45661,12 @@ async function assertOutputAncestorsNoFollow(effectiveOutputDir, fs = { lstat: l
     }
   }
 }
-async function assertDestAncestorsNoFollow(realOutputRoot, destPath, fs = { lstat: lstat17 }) {
-  const relDest = relative14(realOutputRoot, destPath);
+async function assertDestAncestorsNoFollow(realOutputRoot, destPath, fs = { lstat: lstat18 }) {
+  const relDest = relative15(realOutputRoot, destPath);
   const segments = relDest.split(pathSep).filter(Boolean);
   let current = realOutputRoot;
   for (const segment of segments) {
-    current = resolve18(current, segment);
+    current = resolve19(current, segment);
     try {
       const st = await fs.lstat(current, { stage: "dest-ancestor" });
       if (st.isSymbolicLink()) {
@@ -45077,12 +45820,12 @@ async function buildPublicStaging({
     throw new ReleaseError(CONFIG_INVALID, "unit.publicFiles must be an array");
   }
   const fs = {
-    lstat: _fsOps.lstat ? (p, ctx) => _fsOps.lstat({ operation: "lstat", path: p, ...ctx }) : lstat17,
-    realpath: _fsOps.realpath ? (p, ctx) => _fsOps.realpath({ operation: "realpath", path: p, ...ctx }) : realpath14,
-    readFile: _fsOps.readFile ? (p, ctx) => _fsOps.readFile({ operation: "readFile", path: p, ...ctx }) : readFile13,
+    lstat: _fsOps.lstat ? (p, ctx) => _fsOps.lstat({ operation: "lstat", path: p, ...ctx }) : lstat18,
+    realpath: _fsOps.realpath ? (p, ctx) => _fsOps.realpath({ operation: "realpath", path: p, ...ctx }) : realpath15,
+    readFile: _fsOps.readFile ? (p, ctx) => _fsOps.readFile({ operation: "readFile", path: p, ...ctx }) : readFile14,
     open: _fsOps.open ? (p, flags, mode, ctx) => _fsOps.open({ operation: "open", path: p, flags, mode, ...ctx }) : fsOpen,
     mkdir: _fsOps.mkdir ? (p, opts, ctx) => _fsOps.mkdir({ operation: "mkdir", path: p, opts, ...ctx }) : mkdir11,
-    readdir: _fsOps.readdir ? (p, ctx) => _fsOps.readdir({ operation: "readdir", path: p, ...ctx }) : readdir9,
+    readdir: _fsOps.readdir ? (p, ctx) => _fsOps.readdir({ operation: "readdir", path: p, ...ctx }) : readdir10,
     chmod: _fsOps.chmod ? (p, mode, ctx) => _fsOps.chmod({ operation: "chmod", path: p, mode, ...ctx }) : fsChmod
   };
   let realSourceRoot;
@@ -45114,7 +45857,7 @@ async function buildPublicStaging({
       { count: mappings.length, limit: MAX_MAPPINGS }
     );
   }
-  const unitRootLexical = resolve18(sourceRoot, unit.source);
+  const unitRootLexical = resolve19(sourceRoot, unit.source);
   let realUnitRoot;
   try {
     realUnitRoot = await fs.realpath(unitRootLexical, { stage: "unit-root-realpath" });
@@ -45127,14 +45870,14 @@ async function buildPublicStaging({
       { sourceRoot, unitSource: unit.source, cause: code }
     );
   }
-  const effectiveOutputDir = resolve18(
-    outputDir ?? resolve18(sourceRoot, ".release-skill", "staging")
+  const effectiveOutputDir = resolve19(
+    outputDir ?? resolve19(sourceRoot, ".release-skill", "staging")
   );
   const preflightRecords = [];
   const requiredTargetSet = new Set(unit.requiredPublicFiles ?? []);
   for (const mapping of mappings) {
-    const srcPath = resolve18(sourceRoot, mapping.from);
-    const destPath = resolve18(effectiveOutputDir, mapping.to);
+    const srcPath = resolve19(sourceRoot, mapping.from);
+    const destPath = resolve19(effectiveOutputDir, mapping.to);
     if (srcPath.length > MAX_PATH_LENGTH || destPath.length > MAX_PATH_LENGTH) {
       preflightRecords.push({
         ok: false,
@@ -45621,11 +46364,11 @@ async function buildPublicStaging({
       );
     }
     const destDir = dirname8(destPath);
-    const relDest = relative14(realOutputRoot, destDir);
+    const relDest = relative15(realOutputRoot, destDir);
     const destSegments = relDest.split(pathSep).filter(Boolean);
     let accumulatedPath = realOutputRoot;
     for (const seg of destSegments) {
-      accumulatedPath = resolve18(accumulatedPath, seg);
+      accumulatedPath = resolve19(accumulatedPath, seg);
       try {
         const segStat = await fs.lstat(accumulatedPath, { stage: "dest-ancestor-pre-mkdir" });
         if (segStat.isSymbolicLink()) {
@@ -45925,25 +46668,25 @@ var init_public_map = __esm({
 });
 
 // src/snapshot/scan.mjs
-import { readFile as readFile14, readdir as readdir10, stat as stat4 } from "node:fs/promises";
-import { join as join13, relative as relative15, extname, posix as posix2, win32 as win322 } from "node:path";
+import { readFile as readFile15, readdir as readdir11, stat as stat4 } from "node:fs/promises";
+import { join as join14, relative as relative16, extname, posix as posix2, win32 as win322 } from "node:path";
 import { createHash as createHash12 } from "node:crypto";
 async function collectFiles(dir, base = dir) {
   const results = [];
   let entries;
   try {
-    entries = await readdir10(dir, { withFileTypes: true });
+    entries = await readdir11(dir, { withFileTypes: true });
   } catch {
     return results;
   }
   for (const entry of entries) {
     if (entry.name === ".git") continue;
-    const abs = join13(dir, entry.name);
+    const abs = join14(dir, entry.name);
     if (entry.isDirectory()) {
       const sub = await collectFiles(abs, base);
       results.push(...sub);
     } else if (entry.isFile()) {
-      results.push(relative15(base, abs));
+      results.push(relative16(base, abs));
     }
   }
   return results;
@@ -45994,7 +46737,7 @@ async function scanFile(relPath, absPath, forbiddenPaths, forbiddenContentPatter
   }
   let content;
   try {
-    content = await readFile14(absPath, "utf8");
+    content = await readFile15(absPath, "utf8");
   } catch {
     return findings;
   }
@@ -46063,10 +46806,10 @@ async function scanFile(relPath, absPath, forbiddenPaths, forbiddenContentPatter
 }
 async function scanForStaleDist(snapshotDir) {
   const findings = [];
-  const manifestPath = join13(snapshotDir, "dist", "manifest.json");
+  const manifestPath = join14(snapshotDir, "dist", "manifest.json");
   let manifest;
   try {
-    const raw = await readFile14(manifestPath, "utf8");
+    const raw = await readFile15(manifestPath, "utf8");
     manifest = JSON.parse(raw);
   } catch {
     return findings;
@@ -46074,13 +46817,13 @@ async function scanForStaleDist(snapshotDir) {
   if (!manifest.files || typeof manifest.files !== "object") {
     return findings;
   }
-  const distDir = join13(snapshotDir, "dist");
+  const distDir = join14(snapshotDir, "dist");
   for (const [fileRel, expectedHash] of Object.entries(manifest.files)) {
     if (typeof expectedHash !== "string") continue;
-    const fileAbs = join13(distDir, fileRel);
+    const fileAbs = join14(distDir, fileRel);
     let actualContent;
     try {
-      actualContent = await readFile14(fileAbs);
+      actualContent = await readFile15(fileAbs);
     } catch {
       findings.push({
         kind: STALE_BUILD_ARTIFACT,
@@ -46121,7 +46864,7 @@ async function scanSnapshot({ snapshotDir, policy = {} } = {}) {
   const relFiles = await collectFiles(snapshotDir);
   const seenKinds = /* @__PURE__ */ new Set();
   for (const relPath of relFiles) {
-    const absPath = join13(snapshotDir, relPath);
+    const absPath = join14(snapshotDir, relPath);
     const normRel = relPath.replaceAll(win322.sep, posix2.sep);
     if (await isBinaryFile(relPath, absPath)) continue;
     const fileFindings = await scanFile(normRel, absPath, forbiddenPaths, forbiddenContentPatterns, seenKinds);
@@ -46216,7 +46959,7 @@ var init_scan = __esm({
 });
 
 // src/readme/contract.mjs
-import { readFile as readFile15 } from "node:fs/promises";
+import { readFile as readFile16 } from "node:fs/promises";
 import path15 from "node:path";
 function extractMarkers(content) {
   const regex = /<!--\s*release-skill:((?:[\w-]+:)*[\w-]+)\s*-->/g;
@@ -46246,7 +46989,7 @@ function extractExecBlocks(content) {
 }
 async function safeRead(filePath) {
   try {
-    return await readFile15(filePath, "utf8");
+    return await readFile16(filePath, "utf8");
   } catch {
     return null;
   }
@@ -46377,19 +47120,19 @@ var init_contract2 = __esm({
 });
 
 // src/core/bundle-freshness.mjs
-import { readFile as readFile16, readdir as readdir11, stat as stat5 } from "node:fs/promises";
-import { join as join14 } from "node:path";
+import { readFile as readFile17, readdir as readdir12, stat as stat5 } from "node:fs/promises";
+import { join as join15 } from "node:path";
 import { createHash as createHash13 } from "node:crypto";
 function bundlePathFor(pkgRoot) {
-  return join14(pkgRoot, BUNDLE_RELPATH);
+  return join15(pkgRoot, BUNDLE_RELPATH);
 }
 async function listFilesSorted(dir, prefix = "") {
-  const entries = await readdir11(dir, { withFileTypes: true });
+  const entries = await readdir12(dir, { withFileTypes: true });
   const files = [];
   for (const entry of entries.sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {
     const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
-      files.push(...await listFilesSorted(join14(dir, entry.name), rel));
+      files.push(...await listFilesSorted(join15(dir, entry.name), rel));
     } else if (entry.isFile()) {
       files.push(rel);
     }
@@ -46399,7 +47142,7 @@ async function listFilesSorted(dir, prefix = "") {
 async function listBundleSourceInputs(pkgRoot) {
   const inputs = [];
   for (const dir of SOURCE_DIRS) {
-    const abs = join14(pkgRoot, dir);
+    const abs = join15(pkgRoot, dir);
     const st = await stat5(abs).catch(() => null);
     if (st?.isDirectory()) {
       for (const rel of await listFilesSorted(abs)) {
@@ -46408,7 +47151,7 @@ async function listBundleSourceInputs(pkgRoot) {
     }
   }
   for (const rel of SOURCE_FILES) {
-    const st = await stat5(join14(pkgRoot, rel)).catch(() => null);
+    const st = await stat5(join15(pkgRoot, rel)).catch(() => null);
     if (st?.isFile()) {
       inputs.push(rel.split(/[\\/]/).join("/"));
     }
@@ -46421,7 +47164,7 @@ async function computeBundleSourceDigest(pkgRoot) {
   hash.update(BUNDLE_SOURCE_DIGEST_ALGORITHM);
   hash.update("\n");
   for (const rel of inputs) {
-    const content = await readFile16(join14(pkgRoot, rel));
+    const content = await readFile17(join15(pkgRoot, rel));
     hash.update(rel);
     hash.update("\0");
     hash.update(createHash13("sha256").update(content).digest("hex"));
@@ -46432,7 +47175,7 @@ async function computeBundleSourceDigest(pkgRoot) {
 async function readEmbeddedBundleDigest(bundlePath) {
   let content;
   try {
-    content = await readFile16(bundlePath, "utf8");
+    content = await readFile17(bundlePath, "utf8");
   } catch {
     return null;
   }
@@ -46447,7 +47190,7 @@ async function checkBundleFreshness(pkgRoot) {
     sourceDigest: null,
     algorithm: BUNDLE_SOURCE_DIGEST_ALGORITHM
   };
-  const srcStat = await stat5(join14(pkgRoot, "src")).catch(() => null);
+  const srcStat = await stat5(join15(pkgRoot, "src")).catch(() => null);
   if (!srcStat?.isDirectory()) {
     return { ...base, applicable: false, reason: "installed-layout" };
   }
@@ -46497,9 +47240,9 @@ var init_bundle_freshness = __esm({
   "src/core/bundle-freshness.mjs"() {
     init_errors3();
     BUNDLE_SOURCE_DIGEST_ALGORITHM = "bundle-source-digest-v1";
-    BUNDLE_RELPATH = join14("bin", "release-skill.bundle.mjs");
+    BUNDLE_RELPATH = join15("bin", "release-skill.bundle.mjs");
     SOURCE_DIRS = ["src", "skills-src"];
-    SOURCE_FILES = [join14("bin", "release-skill-cli.mjs"), "package.json"];
+    SOURCE_FILES = [join15("bin", "release-skill-cli.mjs"), "package.json"];
     EMBEDDED_DIGEST_PATTERN = /const __bundleSourceDigest = "([a-f0-9]{64})";/;
     __name(bundlePathFor, "bundlePathFor");
     __name(listFilesSorted, "listFilesSorted");
@@ -46541,13 +47284,13 @@ var init_bounded_output = __esm({
 });
 
 // src/core/derived-artifact-gates.mjs
-import { lstat as lstat18 } from "node:fs/promises";
-import { join as join15 } from "node:path";
-import { execFile as execFileCb6 } from "node:child_process";
-import { promisify as promisify6 } from "node:util";
+import { lstat as lstat19 } from "node:fs/promises";
+import { join as join16 } from "node:path";
+import { execFile as execFileCb7 } from "node:child_process";
+import { promisify as promisify7 } from "node:util";
 async function isFile(path28) {
   try {
-    return (await lstat18(path28)).isFile();
+    return (await lstat19(path28)).isFile();
   } catch {
     return false;
   }
@@ -46561,7 +47304,7 @@ async function checkDerivedArtifactGate(kind, pkgRoot, options = {}) {
   if (kind === "self-bootstrap-facts" && process.env[FACTS_GATE_NESTED_ENV]) {
     return { applicable: false, reason: "nested-gate-run", artifact: gate.artifact };
   }
-  if (!await isFile(join15(pkgRoot, gate.marker))) {
+  if (!await isFile(join16(pkgRoot, gate.marker))) {
     return { applicable: false, reason: "installed-layout", artifact: gate.artifact };
   }
   const startedAt = Date.now();
@@ -46631,28 +47374,28 @@ var init_derived_artifact_gates = __esm({
   "src/core/derived-artifact-gates.mjs"() {
     init_errors3();
     init_bounded_output();
-    defaultExecFile = promisify6(execFileCb6);
+    defaultExecFile = promisify7(execFileCb7);
     DERIVED_ARTIFACT_PREGATE_NOTE = "This is a fast pre-gate and does not replace the full test hooks\uFF08\u5FEB\u901F\u524D\u7F6E\uFF0C\u4E0D\u66FF\u4EE3\u5168\u91CF\u6D4B\u8BD5\uFF09.";
     DERIVED_SYNC_COMMAND = "node scripts/sync-derived-artifacts.mjs";
     FACTS_GATE_NESTED_ENV = "RELEASE_SKILL_FACTS_GATE_ACTIVE";
     GATES = Object.freeze({
       adapters: Object.freeze({
         artifact: "adapters",
-        marker: join15("scripts", "build-adapters.mjs"),
-        argv: /* @__PURE__ */ __name((pkgRoot) => [join15(pkgRoot, "scripts", "build-adapters.mjs"), "--check"], "argv"),
+        marker: join16("scripts", "build-adapters.mjs"),
+        argv: /* @__PURE__ */ __name((pkgRoot) => [join16(pkgRoot, "scripts", "build-adapters.mjs"), "--check"], "argv"),
         timeoutMs: 12e4,
         remediation: `Rebuild the existing adapters with: node scripts/build-adapters.mjs --apply (or run the one-click derived-artifact sync from the workspace root: ${DERIVED_SYNC_COMMAND}).`
       }),
       "self-bootstrap-facts": Object.freeze({
         artifact: "self-bootstrap-facts",
-        marker: join15("test", "release-docs-self-bootstrap.test.mjs"),
+        marker: join16("test", "release-docs-self-bootstrap.test.mjs"),
         // Hermetic fact-pin section only (see module docs): byte-level version
         // facts + in-process planner — no npm/git, no fixture prepares.
         argv: /* @__PURE__ */ __name((pkgRoot) => [
           "--test",
           "--test-name-pattern",
           "\\[self-bootstrap 1",
-          join15(pkgRoot, "test", "release-docs-self-bootstrap.test.mjs")
+          join16(pkgRoot, "test", "release-docs-self-bootstrap.test.mjs")
         ], "argv"),
         timeoutMs: 12e4,
         remediation: `Refresh the derived documents and version points first (workspace root: ${DERIVED_SYNC_COMMAND}); if the pins still fail, update the fact pins deliberately \u2014 the gate never edits sources or test pins itself.`
@@ -46667,10 +47410,10 @@ var init_derived_artifact_gates = __esm({
 });
 
 // src/core/frozen-marker.mjs
-import { readFile as readFile17, writeFile as writeFile6, unlink as unlink5 } from "node:fs/promises";
-import { join as join16 } from "node:path";
+import { readFile as readFile18, writeFile as writeFile6, unlink as unlink5 } from "node:fs/promises";
+import { join as join17 } from "node:path";
 function frozenMarkerPath(releaseDir) {
-  return join16(releaseDir, FROZEN_MARKER_FILENAME);
+  return join17(releaseDir, FROZEN_MARKER_FILENAME);
 }
 async function writeFrozenMarker(releaseDir, marker) {
   const payload = {
@@ -46698,473 +47441,6 @@ var init_frozen_marker = __esm({
     __name(frozenMarkerPath, "frozenMarkerPath");
     __name(writeFrozenMarker, "writeFrozenMarker");
     __name(clearFrozenMarker, "clearFrozenMarker");
-  }
-});
-
-// src/core/source-authority.mjs
-import { execFile as execFileCb7 } from "node:child_process";
-import { promisify as promisify7 } from "node:util";
-import { lstat as lstat19, mkdtemp as mkdtemp5, readFile as readFile18, readdir as readdir12, realpath as realpath15, rm as rm7 } from "node:fs/promises";
-import { join as join17, relative as relative16, resolve as resolve19, sep as sep5 } from "node:path";
-import { tmpdir as tmpdir3 } from "node:os";
-async function computeSourceInputClosure({ units, root }) {
-  const realRoot = await realpath15(resolve19(root));
-  const entriesByPath = /* @__PURE__ */ new Map();
-  for (const unit of units ?? []) {
-    for (const mapping of unit.publicFiles ?? []) {
-      if (typeof mapping?.from !== "string" || mapping.from.length === 0) continue;
-      await collectPath({
-        absolutePath: resolveInside(realRoot, mapping.from),
-        root: realRoot,
-        entriesByPath
-      });
-    }
-    const versionSource = unit.version?.source;
-    if (typeof versionSource === "string" && versionSource.length > 0) {
-      const unitRoot = resolveInside(realRoot, unit.source ?? ".");
-      await collectPath({
-        absolutePath: resolveInside(unitRoot, versionSource, realRoot),
-        root: realRoot,
-        entriesByPath
-      });
-    }
-  }
-  const entries = [...entriesByPath.values()].sort((left, right) => left.path.localeCompare(right.path));
-  const digest2 = computeEntriesDigest(entries);
-  return {
-    algorithmVersion: SOURCE_INPUT_ALGORITHM_VERSION,
-    entries,
-    digest: digest2
-  };
-}
-function computeEntriesDigest(entries) {
-  return sha256Hex(canonicalJson2(entries.map(({ path: path28, digest: digest2, mode }) => ({
-    digest: digest2,
-    mode,
-    path: path28
-  }))));
-}
-async function collectPath({ absolutePath, root, entriesByPath }) {
-  let stat16;
-  try {
-    stat16 = await lstat19(absolutePath);
-  } catch (error) {
-    throw new ReleaseError(
-      CONFIG_INVALID,
-      `source-input closure cannot stat "${toRelative(root, absolutePath)}": ${error.message}`,
-      { cause: error.code ?? "UNKNOWN", path: toRelative(root, absolutePath) }
-    );
-  }
-  const rel = toRelative(root, absolutePath);
-  if (stat16.isSymbolicLink()) {
-    throw new ReleaseError(
-      CONFIG_INVALID,
-      `source-input closure rejects symlink "${rel}"`,
-      { path: rel }
-    );
-  }
-  const physicalPath = await realpath15(absolutePath);
-  if (physicalPath !== absolutePath) {
-    throw new ReleaseError(
-      CONFIG_INVALID,
-      `source-input closure rejects symlinked ancestor for "${rel}"`,
-      { path: rel }
-    );
-  }
-  if (stat16.isDirectory()) {
-    const children = await readdir12(absolutePath, { withFileTypes: true });
-    children.sort((left, right) => left.name.localeCompare(right.name));
-    for (const child of children) {
-      await collectPath({
-        absolutePath: join17(absolutePath, child.name),
-        root,
-        entriesByPath
-      });
-    }
-    return;
-  }
-  if (!stat16.isFile()) {
-    throw new ReleaseError(
-      CONFIG_INVALID,
-      `source-input closure rejects non-regular file "${rel}"`,
-      { path: rel }
-    );
-  }
-  const content = await readFile18(absolutePath);
-  entriesByPath.set(rel, {
-    path: rel,
-    digest: sha256Hex(content),
-    mode: normalizeLocalGitMode(stat16.mode)
-  });
-}
-function resolveInside(base, candidate, containmentRoot = base) {
-  const resolved = resolve19(base, candidate);
-  const root = resolve19(containmentRoot);
-  if (resolved !== root && !resolved.startsWith(`${root}${sep5}`)) {
-    throw new ReleaseError(
-      CONFIG_INVALID,
-      `source-input closure path escapes workspace root: "${candidate}"`,
-      { path: candidate }
-    );
-  }
-  return resolved;
-}
-function toRelative(root, absolutePath) {
-  const rel = relative16(root, absolutePath).split(sep5).join("/");
-  if (!rel || rel === "." || rel.startsWith("../") || rel === "..") {
-    throw new ReleaseError(
-      CONFIG_INVALID,
-      `source-input closure path is outside the workspace: "${absolutePath}"`,
-      { path: absolutePath }
-    );
-  }
-  return rel;
-}
-function normalizeLocalGitMode(mode) {
-  return (mode & 73) === 0 ? "100644" : "100755";
-}
-async function checkSourceInputDirty({ closure, root, execFn = execFile5 }) {
-  const paths = (closure?.entries ?? []).map((entry) => entry.path);
-  if (paths.length === 0) return { dirty: false, dirtyPaths: [] };
-  let stdout;
-  try {
-    ({ stdout } = await execFn(
-      "git",
-      [
-        "status",
-        "--porcelain=v1",
-        "-z",
-        "--untracked-files=all",
-        "--ignored=matching",
-        "--",
-        ...paths
-      ],
-      { cwd: root, encoding: "utf8", shell: false }
-    ));
-  } catch (error) {
-    throw new ReleaseError(
-      DIRTY_SOURCE_INPUT,
-      `cannot check source-input dirty status: ${error.message}`,
-      { cause: error.code ?? "UNKNOWN" }
-    );
-  }
-  const dirtyPaths = [];
-  const records = String(stdout).split("\0").filter(Boolean);
-  for (let index = 0; index < records.length; index += 1) {
-    const record = records[index];
-    if (record.length < 4) continue;
-    const status = record.slice(0, 2);
-    const recordPath = record.slice(3);
-    dirtyPaths.push(recordPath);
-    if (status.startsWith("R") || status.startsWith("C")) index += 1;
-  }
-  return {
-    dirty: dirtyPaths.length > 0,
-    dirtyPaths: [...new Set(dirtyPaths)].sort()
-  };
-}
-function verifySnapshotSourcesMatchClosure({ closure, unitResults }) {
-  if (!closure || !Array.isArray(closure.entries)) {
-    return failure(CONFIG_INVALID, "source-input closure is missing");
-  }
-  const closureByPath = new Map(
-    closure.entries.map((entry) => [entry.path, entry])
-  );
-  const mismatchedPaths = [];
-  for (const { manifest } of unitResults ?? []) {
-    for (const entry of manifest?.entries ?? []) {
-      const expected = closureByPath.get(entry.from);
-      const actualMode = normalizeSnapshotGitMode(entry.mode);
-      if (!expected || entry.hash !== expected.digest || actualMode !== expected.mode) {
-        mismatchedPaths.push(entry.from);
-      }
-    }
-  }
-  if (mismatchedPaths.length > 0) {
-    const paths = [...new Set(mismatchedPaths)].sort();
-    return {
-      passed: false,
-      error: {
-        code: DIRTY_SOURCE_INPUT,
-        message: `frozen snapshots differ from ${paths.length} source-input closure file(s)`,
-        paths
-      }
-    };
-  }
-  return {
-    passed: true,
-    observation: {
-      snapshotSourceCount: new Set(
-        (unitResults ?? []).flatMap(({ manifest }) => (manifest?.entries ?? []).map((entry) => entry.from))
-      ).size
-    }
-  };
-}
-function normalizeSnapshotGitMode(mode) {
-  if (typeof mode === "string" && GIT_MODE_RE.test(mode)) return mode;
-  if (typeof mode === "number") return normalizeLocalGitMode(mode);
-  return null;
-}
-async function verifyRemoteSourceContent({
-  sourceRepository,
-  defaultBranch,
-  closure,
-  readRemoteFn,
-  execFn = execFile5
-}) {
-  if (!REPOSITORY_RE.test(sourceRepository ?? "")) {
-    return failure(CONFIG_MISSING, "project.sourceRepository must be an explicit GitHub owner/repo");
-  }
-  if (typeof defaultBranch !== "string" || defaultBranch.length === 0) {
-    return failure(CONFIG_MISSING, "project.defaultBranch must be an explicit branch name");
-  }
-  if (!closure || closure.algorithmVersion !== SOURCE_INPUT_ALGORITHM_VERSION) {
-    return failure(CONFIG_INVALID, "source-input closure algorithm is unsupported");
-  }
-  if (!Array.isArray(closure.entries) || computeEntriesDigest(closure.entries) !== closure.digest) {
-    return failure(CONFIG_INVALID, "source-input closure entries do not match the frozen digest");
-  }
-  if (readRemoteFn) {
-    return verifyWithInjectedReader({
-      closure,
-      defaultBranch,
-      readRemoteFn,
-      sourceRepository
-    });
-  }
-  return verifyWithTemporaryGit({
-    closure,
-    defaultBranch,
-    execFn,
-    sourceRepository
-  });
-}
-async function verifyWithInjectedReader({
-  closure,
-  defaultBranch,
-  readRemoteFn,
-  sourceRepository
-}) {
-  const mismatchedPaths = [];
-  for (const entry of closure.entries) {
-    let result;
-    try {
-      result = await readRemoteFn(sourceRepository, defaultBranch, entry.path);
-    } catch (error) {
-      return failure(REMOTE_UNAVAILABLE, error.message);
-    }
-    const classified = classifyRemoteStatus(result, sourceRepository, defaultBranch);
-    if (classified) return classified;
-    if (sha256Hex(Buffer.isBuffer(result.content) ? result.content : Buffer.from(result.content)) !== entry.digest || result.mode !== entry.mode) {
-      mismatchedPaths.push(entry.path);
-    }
-  }
-  return mismatchedPaths.length > 0 ? mismatch(defaultBranch, mismatchedPaths) : {
-    passed: true,
-    observation: {
-      defaultBranch,
-      entryCount: closure.entries.length,
-      sourceRepository
-    }
-  };
-}
-function classifyRemoteStatus(result, repository, branch) {
-  if (result?.status === "ok") return null;
-  if (result?.status === "ref_missing") {
-    return failure(
-      REF_MISSING,
-      result.error ?? `remote ref "${branch}" does not exist in "${repository}"`
-    );
-  }
-  if (result?.status === "not_default") {
-    return failure(
-      NOT_DEFAULT,
-      result.error ?? `"${branch}" is not the default branch of "${repository}"`
-    );
-  }
-  return failure(
-    REMOTE_UNAVAILABLE,
-    result?.error ?? `remote source "${repository}" is unavailable`
-  );
-}
-async function verifyWithTemporaryGit({
-  closure,
-  defaultBranch,
-  execFn,
-  sourceRepository
-}) {
-  const repositoryUrl = `https://github.com/${sourceRepository}.git`;
-  let observed;
-  try {
-    ({ stdout: observed } = await execFn(
-      "git",
-      ["ls-remote", "--symref", repositoryUrl, "HEAD", `refs/heads/${defaultBranch}`],
-      { encoding: "utf8", shell: false, timeout: 6e4 }
-    ));
-  } catch (error) {
-    return failure(REMOTE_UNAVAILABLE, `cannot observe "${sourceRepository}": ${error.message}`);
-  }
-  const lines = String(observed).split(/\r?\n/u).filter(Boolean);
-  const headSymref = lines.find((line) => line.startsWith("ref: refs/heads/"));
-  const actualDefault = headSymref?.match(/^ref: refs\/heads\/(.+)\tHEAD$/u)?.[1] ?? null;
-  if (!actualDefault) {
-    return failure(REMOTE_UNAVAILABLE, `remote default branch is not observable for "${sourceRepository}"`);
-  }
-  if (actualDefault !== defaultBranch) {
-    return failure(
-      NOT_DEFAULT,
-      `configured defaultBranch "${defaultBranch}" does not match remote default "${actualDefault}"`
-    );
-  }
-  const branchLine = lines.find((line) => line.endsWith(`	refs/heads/${defaultBranch}`));
-  if (!branchLine) {
-    return failure(REF_MISSING, `remote ref "refs/heads/${defaultBranch}" does not exist`);
-  }
-  const tempRoot = await mkdtemp5(join17(tmpdir3(), "release-skill-source-authority-"));
-  try {
-    await execFn("git", ["init", "--bare", tempRoot], {
-      encoding: "utf8",
-      shell: false,
-      timeout: 3e4
-    });
-    await execFn(
-      "git",
-      [
-        "-C",
-        tempRoot,
-        "fetch",
-        "--depth=1",
-        repositoryUrl,
-        `refs/heads/${defaultBranch}:refs/source-authority/target`
-      ],
-      { encoding: "utf8", shell: false, timeout: 12e4 }
-    );
-    const { stdout: fetchedCommitOutput } = await execFn(
-      "git",
-      ["-C", tempRoot, "rev-parse", "refs/source-authority/target"],
-      { encoding: "utf8", shell: false, timeout: 3e4 }
-    );
-    const observedCommit = String(fetchedCommitOutput).trim();
-    const { stdout: treeOutput } = await execFn(
-      "git",
-      ["-C", tempRoot, "ls-tree", "-r", "-z", "refs/source-authority/target"],
-      { encoding: "utf8", maxBuffer: 64 * 1024 * 1024, shell: false, timeout: 3e4 }
-    );
-    const tree = parseLsTree(treeOutput);
-    const mismatchedPaths = [];
-    for (const expected of closure.entries) {
-      const actual = tree.get(expected.path);
-      if (!actual || actual.type !== "blob" || actual.mode !== expected.mode) {
-        mismatchedPaths.push(expected.path);
-        continue;
-      }
-      const { stdout: content } = await execFn(
-        "git",
-        ["-C", tempRoot, "cat-file", "blob", actual.objectId],
-        { encoding: null, maxBuffer: 64 * 1024 * 1024, shell: false, timeout: 3e4 }
-      );
-      const bytes = Buffer.isBuffer(content) ? content : Buffer.from(content);
-      if (sha256Hex(bytes) !== expected.digest) mismatchedPaths.push(expected.path);
-    }
-    return mismatchedPaths.length > 0 ? mismatch(defaultBranch, mismatchedPaths) : {
-      passed: true,
-      observation: {
-        defaultBranch,
-        entryCount: closure.entries.length,
-        observedCommit,
-        sourceRepository
-      }
-    };
-  } catch (error) {
-    return failure(REMOTE_UNAVAILABLE, `cannot read remote source tree: ${error.message}`);
-  } finally {
-    await rm7(tempRoot, { force: true, recursive: true });
-  }
-}
-function parseLsTree(output) {
-  const result = /* @__PURE__ */ new Map();
-  for (const record of String(output).split("\0").filter(Boolean)) {
-    const match = record.match(/^([0-9]{6}) ([a-z]+) ([0-9a-f]{40,64})\t(.+)$/u);
-    if (!match) continue;
-    result.set(match[4], {
-      mode: match[1],
-      objectId: match[3],
-      type: match[2]
-    });
-  }
-  return result;
-}
-function mismatch(defaultBranch, paths) {
-  const uniquePaths = [...new Set(paths)].sort();
-  return {
-    passed: false,
-    error: {
-      code: CONTENT_MISMATCH,
-      message: `remote default branch "${defaultBranch}" differs from ${uniquePaths.length} frozen source input(s)`,
-      paths: uniquePaths
-    }
-  };
-}
-function failure(code, message) {
-  return { passed: false, error: { code, message } };
-}
-function verifySourceAuthorityReceipt({ plan, run: run6 }) {
-  const authority = plan.sourceAuthority;
-  if (!authority) return { passed: true };
-  const matching = (run6.sourceAuthorityReceipts ?? []).find((receipt) => receipt.sourceRepository === authority.sourceRepository && receipt.defaultBranch === authority.defaultBranch && receipt.inputDigest === authority.inputDigest && receipt.algorithmVersion === authority.algorithmVersion && receipt.entryCount === authority.entries.length && receipt.planDigest === plan.digest && receipt.result === "CONSISTENT");
-  return matching ? { passed: true, receipt: matching } : {
-    passed: false,
-    reason: "publish run has no CONSISTENT source-authority receipt bound to this plan digest"
-  };
-}
-function createSourceAuthorityReceipt({
-  plan,
-  result,
-  observation,
-  mismatchedPaths,
-  clock = /* @__PURE__ */ __name(() => (/* @__PURE__ */ new Date()).toISOString(), "clock")
-}) {
-  const authority = plan.sourceAuthority;
-  return {
-    algorithmVersion: authority.algorithmVersion,
-    defaultBranch: authority.defaultBranch,
-    entryCount: authority.entries.length,
-    inputDigest: authority.inputDigest,
-    planDigest: plan.digest,
-    result,
-    sourceRepository: authority.sourceRepository,
-    verifiedAt: clock(),
-    ...observation?.observedCommit ? { observedCommit: observation.observedCommit } : {},
-    ...mismatchedPaths?.length ? { mismatchedPaths: [...new Set(mismatchedPaths)].sort() } : {}
-  };
-}
-var execFile5, REPOSITORY_RE, GIT_MODE_RE, SOURCE_INPUT_ALGORITHM_VERSION;
-var init_source_authority = __esm({
-  "src/core/source-authority.mjs"() {
-    init_digest();
-    init_errors3();
-    execFile5 = promisify7(execFileCb7);
-    REPOSITORY_RE = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/u;
-    GIT_MODE_RE = /^(?:100644|100755)$/u;
-    SOURCE_INPUT_ALGORITHM_VERSION = 1;
-    __name(computeSourceInputClosure, "computeSourceInputClosure");
-    __name(computeEntriesDigest, "computeEntriesDigest");
-    __name(collectPath, "collectPath");
-    __name(resolveInside, "resolveInside");
-    __name(toRelative, "toRelative");
-    __name(normalizeLocalGitMode, "normalizeLocalGitMode");
-    __name(checkSourceInputDirty, "checkSourceInputDirty");
-    __name(verifySnapshotSourcesMatchClosure, "verifySnapshotSourcesMatchClosure");
-    __name(normalizeSnapshotGitMode, "normalizeSnapshotGitMode");
-    __name(verifyRemoteSourceContent, "verifyRemoteSourceContent");
-    __name(verifyWithInjectedReader, "verifyWithInjectedReader");
-    __name(classifyRemoteStatus, "classifyRemoteStatus");
-    __name(verifyWithTemporaryGit, "verifyWithTemporaryGit");
-    __name(parseLsTree, "parseLsTree");
-    __name(mismatch, "mismatch");
-    __name(failure, "failure");
-    __name(verifySourceAuthorityReceipt, "verifySourceAuthorityReceipt");
-    __name(createSourceAuthorityReceipt, "createSourceAuthorityReceipt");
   }
 });
 
@@ -75968,7 +76244,7 @@ var require_lib37 = __commonJS({
 // ../../node_modules/.pnpm/npm-normalize-package-bin@4.0.0/node_modules/npm-normalize-package-bin/lib/index.js
 var require_lib38 = __commonJS({
   "../../node_modules/.pnpm/npm-normalize-package-bin@4.0.0/node_modules/npm-normalize-package-bin/lib/index.js"(exports, module) {
-    var { join: join43, basename: basename15 } = __require("path");
+    var { join: join43, basename: basename16 } = __require("path");
     var normalize4 = /* @__PURE__ */ __name((pkg) => !pkg.bin ? removeBin(pkg) : typeof pkg.bin === "string" ? normalizeString(pkg) : Array.isArray(pkg.bin) ? normalizeArray(pkg) : typeof pkg.bin === "object" ? normalizeObject(pkg) : removeBin(pkg), "normalize");
     var normalizeString = /* @__PURE__ */ __name((pkg) => {
       if (!pkg.name) {
@@ -75979,7 +76255,7 @@ var require_lib38 = __commonJS({
     }, "normalizeString");
     var normalizeArray = /* @__PURE__ */ __name((pkg) => {
       pkg.bin = pkg.bin.reduce((acc, k) => {
-        acc[basename15(k)] = k;
+        acc[basename16(k)] = k;
         return acc;
       }, {});
       return normalizeObject(pkg);
@@ -75993,7 +76269,7 @@ var require_lib38 = __commonJS({
       const clean = {};
       let hasBins = false;
       Object.keys(orig).forEach((binKey) => {
-        const base = join43("/", basename15(binKey.replace(/\\|:/g, "/"))).slice(1);
+        const base = join43("/", basename16(binKey.replace(/\\|:/g, "/"))).slice(1);
         if (typeof orig[binKey] !== "string" || !base) {
           return;
         }
@@ -89255,15 +89531,15 @@ var init_npm = __esm({
 // src/core/run.mjs
 import { lstat as lstat21, mkdir as mkdir12, readFile as readFile20, stat as stat6 } from "node:fs/promises";
 import { realpathSync as realpathSync3 } from "node:fs";
-import { dirname as dirname10, join as join19, resolve as resolve21, basename as basename5, relative as relative18, isAbsolute as isAbsolute16 } from "node:path";
+import { dirname as dirname10, join as join19, resolve as resolve21, basename as basename6, relative as relative18, isAbsolute as isAbsolute16 } from "node:path";
 function resolveDefaultRunDir(planPath, command2, runId = `${command2}-${Date.now()}`) {
   const absolute = resolve21(planPath);
-  const fileName = basename5(absolute);
+  const fileName = basename6(absolute);
   const parentDir = dirname10(absolute);
   if (fileName === "release-plan.json") {
     return `${parentDir}/runs/${runId}`;
   }
-  if (basename5(parentDir) === "plans") {
+  if (basename6(parentDir) === "plans") {
     const releaseDir = dirname10(parentDir);
     return join19(releaseDir, "runs", runId);
   }
@@ -89390,13 +89666,13 @@ async function loadRun(runPath, options = {}) {
 function assertImmutableRunAuthority(runPath, planPath, run6) {
   const absolutePlan = realpathSync3(resolve21(planPath));
   const planDir = dirname10(absolutePlan);
-  if (basename5(planDir) !== "plans") {
+  if (basename6(planDir) !== "plans") {
     throw new ReleaseError(GATE_FAILED, "run authority requires an immutable plans/<digest>.json plan path");
   }
   let authorityRoot = dirname10(planDir);
   let cursor = planDir;
   while (dirname10(cursor) !== cursor) {
-    if (basename5(cursor) === ".release-skill") {
+    if (basename6(cursor) === ".release-skill") {
       authorityRoot = cursor;
       break;
     }
@@ -89408,9 +89684,9 @@ function assertImmutableRunAuthority(runPath, planPath, run6) {
   if (isAbsolute16(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
     throw new ReleaseError(GATE_FAILED, "production run authority must be inside the plan sibling runs/ directory");
   }
-  const fileName = basename5(absoluteRun);
+  const fileName = basename6(absoluteRun);
   const isFinal = fileName === "release-run.json";
-  const isState = /^\d{6}\.json$/.test(fileName) && basename5(dirname10(absoluteRun)) === "states" && run6.stateSequence === Number(fileName.slice(0, 6));
+  const isState = /^\d{6}\.json$/.test(fileName) && basename6(dirname10(absoluteRun)) === "states" && run6.stateSequence === Number(fileName.slice(0, 6));
   if (!isFinal && !isState) {
     throw new ReleaseError(
       GATE_FAILED,
@@ -89422,7 +89698,7 @@ function assertImmutableRunAuthority(runPath, planPath, run6) {
 async function createProductionRunDir(runDir, planPath) {
   const absolutePlan = realpathSync3(resolve21(planPath));
   const planDir = dirname10(absolutePlan);
-  if (basename5(planDir) !== "plans") {
+  if (basename6(planDir) !== "plans") {
     throw new ReleaseError(GATE_FAILED, "production run directory requires an immutable plans/<digest>.json authority");
   }
   const authorityRoot = dirname10(planDir);
@@ -89505,7 +89781,7 @@ async function createProductionRunDirWithinAuthority(runDir, authorityRoot) {
       cause: error.code
     });
   }
-  if (physicalParent !== physicalRunsDir || basename5(requested) === "" || basename5(requested) === "." || basename5(requested) === "..") {
+  if (physicalParent !== physicalRunsDir || basename6(requested) === "" || basename6(requested) === "." || basename6(requested) === "..") {
     throw new ReleaseError(
       GATE_FAILED,
       "production run directory must be a fresh direct child of the immutable .release-skill/runs authority",
@@ -89551,7 +89827,7 @@ async function validateStatePredecessorChain(run6, runPath, options = {}) {
   while (true) {
     const sequence = current.stateSequence;
     const expectedName = `${String(sequence).padStart(6, "0")}.json`;
-    if (!Number.isSafeInteger(sequence) || sequence < 0 || basename5(currentPath) !== expectedName || basename5(dirname10(currentPath)) !== "states") {
+    if (!Number.isSafeInteger(sequence) || sequence < 0 || basename6(currentPath) !== expectedName || basename6(dirname10(currentPath)) !== "states") {
       throw new ReleaseError(GATE_FAILED, "run state sequence is not bound to its immutable states/<sequence>.json slot");
     }
     if (sequence === 0) {
@@ -89737,7 +90013,7 @@ async function writeRunAtomic(runPath, run6) {
   const dir = dirname10(runPath);
   await mkdir12(dir, { recursive: true });
   try {
-    await publishFileExclusive(dir, basename5(runPath), json, { mode: 384 });
+    await publishFileExclusive(dir, basename6(runPath), json, { mode: 384 });
   } catch (cause) {
     if (cause?.details?.kind === HARNESS_ERROR_KINDS.EXCLUSIVE_PUBLISH_CONFLICT) {
       const existing = await readFile20(runPath, "utf8").catch(() => null);
@@ -89835,7 +90111,7 @@ __export(plugin_marketplace_exports, {
 import { execFile as execFileCb9 } from "node:child_process";
 import { promisify as promisify9 } from "node:util";
 import { readFile as readFile21, stat as stat7, mkdir as mkdir13, readdir as readdir13, realpath as realpath17, lstat as lstat22 } from "node:fs/promises";
-import { join as join20, resolve as resolve22, relative as relative19, isAbsolute as isAbsolute17, basename as basename6 } from "node:path";
+import { join as join20, resolve as resolve22, relative as relative19, isAbsolute as isAbsolute17, basename as basename7 } from "node:path";
 import { createHash as createHash15 } from "node:crypto";
 function transportPayload(entries) {
   return entries.map(({ path: path28, type, mode, size, contentDigest }) => ({
@@ -92588,13 +92864,13 @@ var init_plugin_marketplace = __esm({
 
 // src/core/postpublish-bundle.mjs
 import { mkdir as mkdir14 } from "node:fs/promises";
-import { basename as basename7, join as join21, resolve as resolve23, sep as sep6 } from "node:path";
+import { basename as basename8, join as join21, resolve as resolve23, sep as sep6 } from "node:path";
 function fail3(message, details = {}) {
   throw new ReleaseError(GATE_FAILED, `execution bundle: ${message}`, details);
 }
 function bundleRootForAuthorityDir(releaseSkillDir) {
   const absolute = resolve23(releaseSkillDir);
-  if (basename7(absolute) !== RELEASE_SKILL_DIRNAME) {
+  if (basename8(absolute) !== RELEASE_SKILL_DIRNAME) {
     fail3("bundle root must be derived from a .release-skill authority directory", { releaseSkillDir: absolute });
   }
   return join21(absolute, POSTPUBLISH_BUNDLES_DIRNAME);
@@ -98010,7 +98286,7 @@ __export(prepare_exports, {
   resolveUnitVersion: () => resolveUnitVersion,
   runDeclaredHooks: () => runDeclaredHooks
 });
-import { resolve as resolve25, relative as relative22, isAbsolute as isAbsolute19, normalize as normalize3, dirname as dirname11, basename as basename8, posix as pathPosix } from "node:path";
+import { resolve as resolve25, relative as relative22, isAbsolute as isAbsolute19, normalize as normalize3, dirname as dirname11, basename as basename9, posix as pathPosix } from "node:path";
 import { readFile as readFile23, mkdir as mkdir15, readdir as readdir15, realpath as realpath18, lstat as lstat23 } from "node:fs/promises";
 import { execFile as execFileCb10 } from "node:child_process";
 import { promisify as promisify10 } from "node:util";
@@ -98956,7 +99232,7 @@ async function resolveExternalMarketplaceFreezes({
   }
   return freezes;
 }
-function buildExternalActions(unitResults, resolvedVersions, productionAssets, externalFreezes = /* @__PURE__ */ new Map(), frozenDistributions = null) {
+function buildExternalActions(unitResults, resolvedVersions, productionAssets, externalFreezes = /* @__PURE__ */ new Map(), frozenDistributions = null, publicSourceAuthorityReceipt = null) {
   const actions = [];
   if (!productionAssets) {
     for (let index = 0; index < unitResults.length; index += 1) {
@@ -99191,6 +99467,7 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
         status: "PENDING"
       });
     }
+    const releaseAssets = publicSourceAuthorityReceipt?.coordinatorUnitId === unit.id ? [publicSourceAuthorityReceipt.asset] : null;
     actions.push({
       id: `github-release-${unit.id}`,
       type: "github-release",
@@ -99204,11 +99481,13 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
         githubHost: unit.production?.githubHost ?? "github.com",
         commit: asset.commit,
         name: (unit.production?.releaseTitleTemplate ?? "Release {tag}").replaceAll("{tag}", resolvedTag).replaceAll("{version}", unitVersion).replaceAll("{unit}", unit.id),
-        notes: unit.production?.releaseNotes ?? `Release ${resolvedTag}`
+        notes: unit.production?.releaseNotes ?? `Release ${resolvedTag}`,
+        ...releaseAssets ? { releaseAssets } : {}
       },
       expected: {
         tag: resolvedTag,
-        commit: asset.commit
+        commit: asset.commit,
+        ...releaseAssets ? { releaseAssetsDigest: digestReleaseAssetIdentities(releaseAssets) } : {}
       },
       status: "PENDING"
     });
@@ -100589,7 +100868,67 @@ async function prepareRelease(options) {
       };
     }));
     const frozenDistributionsMap = new Map(units.map((u) => [u.id, u.distributions]));
-    let externalActions = buildExternalActions(unitResults, resolvedVersions, productionAssets, externalMarketplaceFreezes, frozenDistributionsMap);
+    let publicSourceAuthorityReceipt = null;
+    if (config.publicSourceAuthorityReceipt) {
+      if (!production || !sourceAuthority) {
+        throw new ReleaseError(
+          CONFIG_INVALID,
+          "publicSourceAuthorityReceipt requires a production prepare with source-authority closure enabled"
+        );
+      }
+      const unitsById = new Map(units.map((unit) => [unit.id, unit]));
+      const subjects = config.publicSourceAuthorityReceipt.subjectUnitIds.map((unitId) => {
+        const unit = unitsById.get(unitId);
+        const npmDistribution = unit?.distributions?.find((distribution) => distribution.type === "npm");
+        const npm = unit?.frozenSnapshot?.npm;
+        if (!unit || !npmDistribution || !npm) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `public source-authority subject unit "${unitId}" is missing its frozen npm tarball`
+          );
+        }
+        return {
+          packageName: npmDistribution.package,
+          version: unit.targetVersion,
+          filename: basename9(npm.tarballPath),
+          sha256: npm.tarballSha256
+        };
+      });
+      const builtReceipt = createPublicSourceAuthorityReceipt({
+        sourceRepository: sourceAuthority.sourceRepository,
+        sourceBaseCommit: baseline.gitHead,
+        subjects
+      });
+      const assetName = "source-authority-receipt.json";
+      const assetDirectory = resolve25(runDir, "release-assets");
+      await mkdir15(assetDirectory, { recursive: true });
+      await writeFileAtomic(assetDirectory, assetName, builtReceipt.bytes, { mode: 420 });
+      publicSourceAuthorityReceipt = {
+        coordinatorUnitId: config.publicSourceAuthorityReceipt.coordinatorUnitId,
+        subjectUnitIds: [...config.publicSourceAuthorityReceipt.subjectUnitIds],
+        asset: {
+          name: assetName,
+          path: relative22(realRoot, resolve25(assetDirectory, assetName)),
+          sha256: builtReceipt.sha256
+        }
+      };
+      await evidence.append({
+        phase: "public-source-authority-receipt",
+        status: "frozen",
+        coordinatorUnitId: publicSourceAuthorityReceipt.coordinatorUnitId,
+        subjectUnitIds: publicSourceAuthorityReceipt.subjectUnitIds,
+        assetPath: publicSourceAuthorityReceipt.asset.path,
+        assetSha256: publicSourceAuthorityReceipt.asset.sha256
+      });
+    }
+    let externalActions = buildExternalActions(
+      unitResults,
+      resolvedVersions,
+      productionAssets,
+      externalMarketplaceFreezes,
+      frozenDistributionsMap,
+      publicSourceAuthorityReceipt
+    );
     const overallSnapshotDigest = sha256Hex(snapshotDigests.join(":"));
     let workflowDecision = null;
     if (workflow === "config") {
@@ -100725,6 +101064,7 @@ async function prepareRelease(options) {
       } : {},
       units,
       externalActions,
+      ...publicSourceAuthorityReceipt ? { publicSourceAuthorityReceipt } : {},
       ...frozenPostPublish ? { postPublish: frozenPostPublish } : {},
       ...sourceAuthority ? { sourceAuthority } : {},
       createdAt: production ? createdAtTimestamp : clock ? clock() : (/* @__PURE__ */ new Date()).toISOString()
@@ -100753,7 +101093,7 @@ async function prepareRelease(options) {
         configUnits.map((unit, index) => [unit.id, resolvedVersions[index]])
       ),
       createdAt: plan.createdAt,
-      runId: basename8(runDir)
+      runId: basename9(runDir)
     });
     await evidence.append({
       phase: "frozen-marker",
@@ -100837,6 +101177,7 @@ var init_prepare = __esm({
     init_installation_contract();
     init_postpublish();
     init_postpublish_bundle();
+    init_release_assets();
     init_bounded_output();
     init_bounded_output();
     execFile8 = promisify10(execFileCb10);
@@ -100919,7 +101260,7 @@ var init_hooks2 = __esm({
 
 // src/core/approval.mjs
 import { readFile as readFile24 } from "node:fs/promises";
-import { basename as basename9, dirname as dirname12, join as join23, resolve as resolve27 } from "node:path";
+import { basename as basename10, dirname as dirname12, join as join23, resolve as resolve27 } from "node:path";
 function validateApprovalRecordSchema(approval) {
   if (validateApprovalSchema(approval)) return;
   const errors = validateApprovalSchema.errors ?? [];
@@ -100995,7 +101336,7 @@ function assertImmutableApprovalAuthority(approvalPath, plan, rawApproval) {
   const approvalDigest = computeApprovalDigest(rawApproval);
   const absolute = resolve27(approvalPath);
   const planDirectory = dirname12(absolute);
-  if (basename9(absolute) !== `${approvalDigest}.json` || basename9(planDirectory) !== planDigest || basename9(dirname12(planDirectory)) !== "approvals") {
+  if (basename10(absolute) !== `${approvalDigest}.json` || basename10(planDirectory) !== planDigest || basename10(dirname12(planDirectory)) !== "approvals") {
     throw new ReleaseError(
       GATE_FAILED,
       "production commands require approvals/<planDigest>/<approvalDigest>.json immutable authority",
@@ -101208,7 +101549,7 @@ var init_approval = __esm({
 });
 
 // src/core/postpublish-approval.mjs
-import { basename as basename10, dirname as dirname13, relative as relative23, resolve as resolve28, sep as sep8 } from "node:path";
+import { basename as basename11, dirname as dirname13, relative as relative23, resolve as resolve28, sep as sep8 } from "node:path";
 function validatePostPublishApprovalRecordSchema(approval) {
   if (validatePostPublishApprovalSchema(approval)) return;
   const errors = validatePostPublishApprovalSchema.errors ?? [];
@@ -101254,7 +101595,7 @@ function validatePostPublishApproval(plan, approval, options = {}) {
 function derivePostPublishApprovalAuthorityPath(planPath, planDigest, approvalDigest) {
   const absolutePlanPath = resolve28(planPath);
   const planDir = dirname13(absolutePlanPath);
-  const releaseDir = basename10(planDir) === "plans" && basename10(absolutePlanPath) === `${planDigest}.json` ? dirname13(planDir) : planDir;
+  const releaseDir = basename11(planDir) === "plans" && basename11(absolutePlanPath) === `${planDigest}.json` ? dirname13(planDir) : planDir;
   return {
     releaseDir,
     authorityPath: resolve28(releaseDir, "approvals", "postpublish", planDigest, `${approvalDigest}.json`)
@@ -101326,7 +101667,7 @@ __export(approve_exports, {
   approvePostPublishHook: () => approvePostPublishHook
 });
 import { readFile as readFile25, writeFile as writeFile7 } from "node:fs/promises";
-import { resolve as resolve29, dirname as dirname14, basename as basename11 } from "node:path";
+import { resolve as resolve29, dirname as dirname14, basename as basename12 } from "node:path";
 function defaultClock() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
@@ -101455,7 +101796,7 @@ async function approvePlan(options) {
   };
   validateApprovalRecordSchema(approvalRecord);
   const planDir = dirname14(resolve29(planPath));
-  const releaseDir = basename11(planDir) === "plans" && basename11(planPath) === `${actualDigest}.json` ? dirname14(planDir) : planDir;
+  const releaseDir = basename12(planDir) === "plans" && basename12(planPath) === `${actualDigest}.json` ? dirname14(planDir) : planDir;
   if (plan.production?.mode === "github-npm-v1" && outputPath && resolve29(outputPath) !== resolve29(releaseDir, "approval-record.json")) {
     throw new ReleaseError(
       GATE_FAILED,
@@ -102228,6 +102569,17 @@ async function publishRelease(options) {
           }, root);
         }
       }
+      for (const action of plan.externalActions ?? []) {
+        for (const releaseAsset of normalizeReleaseAssets(action.parameters?.releaseAssets)) {
+          const verifiedAsset = await verifyFrozenFile({
+            root,
+            filePath: releaseAsset.path,
+            expectedSha256: releaseAsset.sha256,
+            label: `frozen GitHub Release asset "${releaseAsset.name}"`
+          });
+          assertInsideAssetRoot(assetRoot, verifiedAsset.physical, "frozen GitHub Release asset");
+        }
+      }
       await evidence.append({ phase: "safety-gate", gate: "frozen-artifacts", status: "passed" });
     }
     if (plan.skillResourceClosure) {
@@ -102523,6 +102875,25 @@ async function publishRelease(options) {
           errorCode,
           `source authority content gate failed: ${remoteResult.error?.message}`,
           remoteResult.error
+        );
+      }
+      if (plan.publicSourceAuthorityReceipt && remoteResult.observation?.observedCommit !== plan.baseline.headCommit) {
+        const observedCommit = remoteResult.observation?.observedCommit ?? null;
+        await evidence.append({
+          phase: "safety-gate",
+          gate: "source-authority",
+          status: "failed",
+          expectedCommit: plan.baseline.headCommit,
+          observedCommit
+        });
+        throw new ReleaseError(
+          CONTENT_MISMATCH,
+          "source authority commit gate failed: remote observedCommit does not match the public receipt sourceBaseCommit",
+          {
+            gate: "source-authority",
+            expectedCommit: plan.baseline.headCommit,
+            observedCommit
+          }
         );
       }
       sourceAuthorityReceipt = createSourceAuthorityReceipt({
@@ -102849,6 +103220,7 @@ var init_publish = __esm({
     init_observe_retry();
     init_frozen();
     init_npm();
+    init_release_assets();
     __name(assertInsideAssetRoot, "assertInsideAssetRoot");
     __name(defaultClock3, "defaultClock");
     __name(deepClone, "deepClone");
@@ -104003,14 +104375,47 @@ __export(verify_exports, {
   VERIFICATION_RESOLVED_TYPES: () => VERIFICATION_RESOLVED_TYPES,
   evaluateDistributeGateRun: () => evaluateDistributeGateRun,
   runSmokeTest: () => runSmokeTest,
+  verifyPublicSourceAuthorityReceiptOffline: () => verifyPublicSourceAuthorityReceiptOffline,
   verifyRelease: () => verifyRelease
 });
 import { readFile as readFile29, writeFile as writeFile9, mkdtemp as mkdtemp7, rm as rm10, mkdir as mkdir19, lstat as lstat24, realpath as realpath19, readdir as readdir16 } from "node:fs/promises";
 import { realpathSync as realpathSync4 } from "node:fs";
-import { dirname as dirname15, join as join26, relative as relative25, isAbsolute as isAbsolute21, resolve as resolve30, basename as basename12 } from "node:path";
+import { dirname as dirname15, join as join26, relative as relative25, isAbsolute as isAbsolute21, resolve as resolve30, basename as basename13 } from "node:path";
 import { tmpdir as tmpdir4 } from "node:os";
 import { execFile as execFileCb12 } from "node:child_process";
 import { promisify as promisify12 } from "node:util";
+async function verifyPublicSourceAuthorityReceiptOffline({ plan, root }) {
+  const descriptor = plan.publicSourceAuthorityReceipt;
+  const verifiedAsset = await verifyFrozenFile({
+    root,
+    filePath: descriptor.asset.path,
+    expectedSha256: descriptor.asset.sha256,
+    label: "public source-authority receipt"
+  });
+  const actualSubjects = [];
+  for (const unitId of descriptor.subjectUnitIds) {
+    const unit = plan.units.find((candidate) => candidate.id === unitId);
+    const npmDistribution = unit?.distributions?.find((distribution) => distribution.type === "npm");
+    const npm = unit?.frozenSnapshot?.npm;
+    await verifyFrozenNpmTarballContract({
+      package: npmDistribution?.package,
+      version: unit?.targetVersion,
+      tarballPath: npm?.tarballPath,
+      tarballSha256: npm?.tarballSha256,
+      integrity: npm?.integrity
+    }, root);
+    actualSubjects.push({
+      packageName: npmDistribution.package,
+      version: unit.targetVersion,
+      filename: basename13(npm.tarballPath),
+      sha256: npm.tarballSha256
+    });
+  }
+  return consumePublicSourceAuthorityReceipt(
+    await readFile29(verifiedAsset.physical),
+    actualSubjects
+  );
+}
 function defaultClock5() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
@@ -104442,7 +104847,7 @@ async function runSmokeTest(plan, root, options = {}) {
 }
 async function discoverDistributeRuns({ planPath, plan }) {
   const planDir = dirname15(planPath);
-  const releaseDir = basename12(planDir) === "plans" ? dirname15(planDir) : planDir;
+  const releaseDir = basename13(planDir) === "plans" ? dirname15(planDir) : planDir;
   const runsDir = resolve30(releaseDir, "runs");
   try {
     const runsDirStat = await lstat24(runsDir);
@@ -104745,7 +105150,7 @@ async function verifyRelease(options) {
     const actions = plan.externalActions ?? [];
     const trustedVerifyRuns = [];
     const planDir = dirname15(planPath);
-    const releaseDir = basename12(planDir) === "plans" ? dirname15(planDir) : planDir;
+    const releaseDir = basename13(planDir) === "plans" ? dirname15(planDir) : planDir;
     const runsDir = resolve30(releaseDir, "runs");
     let runsDirReal = null;
     let authorityDirReal = null;
@@ -105119,6 +105524,18 @@ async function verifyRelease(options) {
     const rejectedAction = actionResults.find((result) => result.status === "rejected");
     if (rejectedAction) throw rejectedAction.reason;
     await evidence.append({ phase: "verify", step: "adapter-verify", status: "completed" });
+    if (plan.publicSourceAuthorityReceipt) {
+      const consumed = await verifyPublicSourceAuthorityReceiptOffline({ plan, root });
+      await evidence.append({
+        phase: "public-source-authority-receipt",
+        status: "passed",
+        verificationMode: "offline-consumer",
+        sourceRepository: consumed.sourceRepository,
+        sourceBaseCommit: consumed.sourceBaseCommit,
+        subjectCount: consumed.subjects.length,
+        assetSha256: consumed.sha256
+      });
+    }
     await evidence.append({ phase: "verify", step: "smoke-test", status: "started" });
     let smokeTest;
     try {
@@ -105379,6 +105796,7 @@ var init_verify = __esm({
     await init_approval();
     init_errors3();
     init_source_authority();
+    init_frozen();
     init_baseline_advance();
     await init_config();
     init_state_machine();
@@ -105398,6 +105816,7 @@ var init_verify = __esm({
       PASSED_MANUAL: "PASSED_MANUAL",
       NOT_REQUIRED_UNCHANGED: "NOT_REQUIRED_UNCHANGED"
     });
+    __name(verifyPublicSourceAuthorityReceiptOffline, "verifyPublicSourceAuthorityReceiptOffline");
     ADAPTER_ACTION_TYPE_MAP2 = {
       "push-commit": "git-push",
       "push-snapshot": "push-snapshot",
@@ -111783,6 +112202,75 @@ async function readRemoteBranchCommit(action, exec) {
   );
   return stdout.trim().split(/\s+/)[0] ?? "";
 }
+async function validateLocalReleaseAssets(action, context) {
+  const assets = normalizeReleaseAssets(action.releaseAssets);
+  const verified = [];
+  for (const asset of assets) {
+    const file = await verifyFrozenFile({
+      root: context.root,
+      filePath: asset.path,
+      expectedSha256: asset.sha256,
+      label: `frozen GitHub Release asset "${asset.name}"`
+    });
+    verified.push({ ...asset, physical: file.physical });
+  }
+  return verified;
+}
+async function readReleaseWithAssets(action, context, exec) {
+  const environment = { ...process.env, GH_HOST: action.githubHost ?? "github.com" };
+  const { stdout } = await exec(
+    "gh",
+    ["api", `repos/${action.repo}/releases/tags/${action.tag}`],
+    { cwd: context.root, shell: false, encoding: "utf8", env: environment }
+  );
+  const release = JSON.parse(stdout);
+  const commitResult = await exec(
+    "gh",
+    ["api", `repos/${action.repo}/git/ref/tags/${action.tag}`, "--jq", ".object.sha"],
+    { cwd: context.root, shell: false, encoding: "utf8", env: environment }
+  );
+  const plannedAssets = normalizeReleaseAssets(action.releaseAssets);
+  const observedAssets = [];
+  const missingAssets = [];
+  for (const planned of plannedAssets) {
+    const matches = (release.assets ?? []).filter((asset) => asset?.name === planned.name);
+    if (matches.length > 1) throw new Error(`GitHub Release has duplicate asset name "${planned.name}"`);
+    if (matches.length === 0) {
+      missingAssets.push(planned.name);
+      continue;
+    }
+    const remote = matches[0];
+    if (!Number.isInteger(remote.id)) throw new Error(`GitHub Release asset "${planned.name}" has no stable asset id`);
+    const downloaded = await exec(
+      "gh",
+      ["api", `repos/${action.repo}/releases/assets/${remote.id}`, "-H", "Accept: application/octet-stream"],
+      { cwd: context.root, shell: false, encoding: null, env: environment, maxBuffer: 64 * 1024 * 1024 }
+    );
+    const bytes = Buffer.isBuffer(downloaded.stdout) ? downloaded.stdout : Buffer.from(downloaded.stdout ?? "", "utf8");
+    observedAssets.push({ ...planned, sha256: sha256Hex(bytes) });
+  }
+  return {
+    observation: {
+      tag: release.tag_name,
+      commit: commitResult.stdout.trim(),
+      releaseUrl: release.html_url,
+      ...missingAssets.length > 0 ? { exists: false, missingReleaseAssets: missingAssets } : { releaseAssetsDigest: digestReleaseAssetIdentities(observedAssets) }
+    },
+    missingAssets,
+    observedAssets
+  };
+}
+function assertExistingReleaseCompatible(action, state) {
+  if (state.observation.tag !== action.tag || state.observation.commit !== action.commit) {
+    throw new Error("existing GitHub Release tag or commit conflicts with the frozen plan");
+  }
+  const expectedByName = new Map(normalizeReleaseAssets(action.releaseAssets).map((asset) => [asset.name, asset]));
+  for (const observed of state.observedAssets) {
+    if (expectedByName.get(observed.name)?.sha256 !== observed.sha256) {
+      throw new Error(`GitHub Release asset "${observed.name}" bytes conflict with the frozen plan`);
+    }
+  }
+}
 function createGitGithubAdapter(deps = {}) {
   const exec = deps.exec ?? run4;
   return Object.freeze({
@@ -111801,6 +112289,7 @@ function createGitGithubAdapter(deps = {}) {
         } else if (action.actionType === ActionType.GITHUB_RELEASE) {
           if (!action.repo || !action.tag) throw new Error("github-release requires repo, tag, and commit");
           validateOid2(action.commit);
+          const localAssets = await validateLocalReleaseAssets(action, context);
           await exec("gh", ["auth", "status"], {
             cwd: context.root,
             shell: false,
@@ -111814,12 +112303,19 @@ function createGitGithubAdapter(deps = {}) {
             throw new Error(`cannot access GitHub repository ${action.repo}: ${err.message}`);
           });
           try {
-            await exec("gh", ["api", `repos/${action.repo}/releases/tags/${action.tag}`], {
-              cwd: context.root,
-              shell: false,
-              env: { ...process.env, GH_HOST: action.githubHost ?? "github.com" }
-            });
-            throw new Error(`GitHub Release already exists for ${action.tag}; human intervention required`);
+            if (localAssets.length === 0) {
+              await exec("gh", ["api", `repos/${action.repo}/releases/tags/${action.tag}`], {
+                cwd: context.root,
+                shell: false,
+                env: { ...process.env, GH_HOST: action.githubHost ?? "github.com" }
+              });
+              throw new Error(`GitHub Release already exists for ${action.tag}; human intervention required`);
+            }
+            const state = await readReleaseWithAssets(action, context, exec);
+            assertExistingReleaseCompatible(action, state);
+            if (state.missingAssets.length === 0) {
+              throw new Error(`GitHub Release and assets already exist for ${action.tag}`);
+            }
           } catch (err) {
             if (err.message?.includes("already exists")) throw err;
             if (!isNotFound2(err)) throw new Error(`cannot determine GitHub Release uniqueness: ${err.message}`);
@@ -111883,18 +112379,41 @@ function createGitGithubAdapter(deps = {}) {
             `refs/tags/${action.tag}`
           ], { shell: false });
         } else if (action.actionType === ActionType.GITHUB_RELEASE) {
-          await exec("gh", [
-            "release",
-            "create",
-            action.tag,
-            "--repo",
-            ghRepo(action),
-            "--verify-tag",
-            "--title",
-            action.name ?? `Release ${action.tag}`,
-            "--notes",
-            action.notes ?? `Release ${action.tag}`
-          ], { cwd: context.root, shell: false, env: { ...process.env, GH_HOST: action.githubHost ?? "github.com" } });
+          const assets = await validateLocalReleaseAssets(action, context);
+          let existing = null;
+          if (assets.length > 0) {
+            try {
+              existing = await readReleaseWithAssets(action, context, exec);
+            } catch (error) {
+              if (!isNotFound2(error)) throw error;
+            }
+          }
+          if (existing) {
+            assertExistingReleaseCompatible(action, existing);
+            const missing = new Set(existing.missingAssets);
+            const uploadPaths = assets.filter((asset) => missing.has(asset.name)).map((asset) => asset.physical);
+            if (uploadPaths.length > 0) {
+              await exec("gh", ["release", "upload", action.tag, "--repo", ghRepo(action), ...uploadPaths], {
+                cwd: context.root,
+                shell: false,
+                env: { ...process.env, GH_HOST: action.githubHost ?? "github.com" }
+              });
+            }
+          } else {
+            await exec("gh", [
+              "release",
+              "create",
+              action.tag,
+              "--repo",
+              ghRepo(action),
+              "--verify-tag",
+              "--title",
+              action.name ?? `Release ${action.tag}`,
+              "--notes",
+              action.notes ?? `Release ${action.tag}`,
+              ...assets.map((asset) => asset.physical)
+            ], { cwd: context.root, shell: false, env: { ...process.env, GH_HOST: action.githubHost ?? "github.com" } });
+          }
         } else if (action.actionType === ActionType.SET_DEFAULT_BRANCH) {
           validateDefaultBranchAction(action);
           const { stdout: current } = await exec("gh", ["api", `repos/${action.repo}`, "--jq", ".default_branch"], {
@@ -111937,22 +112456,26 @@ function createGitGithubAdapter(deps = {}) {
           const { remoteUrl } = await validateTagAction(action, context, exec);
           observation = { tag: action.tag, commit: await readRemoteTag(action, remoteUrl, exec) };
         } else if (action.actionType === ActionType.GITHUB_RELEASE) {
-          const { stdout } = await exec("gh", [
-            "release",
-            "view",
-            action.tag,
-            "--repo",
-            ghRepo(action),
-            "--json",
-            "tagName,url"
-          ], { cwd: context.root, shell: false, env: { ...process.env, GH_HOST: action.githubHost ?? "github.com" } });
-          const release = JSON.parse(stdout);
-          const commitResult = await exec(
-            "gh",
-            ["api", `repos/${action.repo}/git/ref/tags/${action.tag}`, "--jq", ".object.sha"],
-            { cwd: context.root, shell: false, env: { ...process.env, GH_HOST: action.githubHost ?? "github.com" } }
-          );
-          observation = { tag: release.tagName, commit: commitResult.stdout.trim(), releaseUrl: release.url };
+          if (normalizeReleaseAssets(action.releaseAssets).length > 0) {
+            observation = (await readReleaseWithAssets(action, context, exec)).observation;
+          } else {
+            const { stdout } = await exec("gh", [
+              "release",
+              "view",
+              action.tag,
+              "--repo",
+              ghRepo(action),
+              "--json",
+              "tagName,url"
+            ], { cwd: context.root, shell: false, env: { ...process.env, GH_HOST: action.githubHost ?? "github.com" } });
+            const release = JSON.parse(stdout);
+            const commitResult = await exec(
+              "gh",
+              ["api", `repos/${action.repo}/git/ref/tags/${action.tag}`, "--jq", ".object.sha"],
+              { cwd: context.root, shell: false, env: { ...process.env, GH_HOST: action.githubHost ?? "github.com" } }
+            );
+            observation = { tag: release.tagName, commit: commitResult.stdout.trim(), releaseUrl: release.url };
+          }
         } else if (action.actionType === ActionType.SET_DEFAULT_BRANCH) {
           validateDefaultBranchAction(action);
           const { stdout: current } = await exec("gh", ["api", `repos/${action.repo}`, "--jq", ".default_branch"], {
@@ -111998,6 +112521,8 @@ var init_git_github = __esm({
     init_contract();
     init_frozen();
     init_push_snapshot();
+    init_release_assets();
+    init_digest();
     execFile12 = promisify19(execFileCb19);
     NAME4 = "git-github";
     __name(run4, "run");
@@ -112008,6 +112533,9 @@ var init_git_github = __esm({
     __name(readRemoteTag, "readRemoteTag");
     __name(validateDefaultBranchAction, "validateDefaultBranchAction");
     __name(readRemoteBranchCommit, "readRemoteBranchCommit");
+    __name(validateLocalReleaseAssets, "validateLocalReleaseAssets");
+    __name(readReleaseWithAssets, "readReleaseWithAssets");
+    __name(assertExistingReleaseCompatible, "assertExistingReleaseCompatible");
     __name(createGitGithubAdapter, "createGitGithubAdapter");
   }
 });
@@ -114851,7 +115379,7 @@ var init_inspect = __esm({
 
 // src/artifacts/resolution.mjs
 import { mkdir as mkdir30, open as open12, readFile as readFile49, stat as stat15, lstat as lstat37, chmod as chmod6 } from "node:fs/promises";
-import { join as join40, resolve as resolve36, relative as relative28, isAbsolute as isAbsolute25, basename as basename13 } from "node:path";
+import { join as join40, resolve as resolve36, relative as relative28, isAbsolute as isAbsolute25, basename as basename14 } from "node:path";
 function decodeBuffer(value, label) {
   if (value == null) return null;
   if (Buffer.isBuffer(value)) return value;
@@ -114982,7 +115510,7 @@ async function assertSafeResolvedPath(root, artifactId, resolvedPath) {
       { resolvedPath, resolutionDir }
     );
   }
-  const filename = basename13(resolvedPath);
+  const filename = basename14(resolvedPath);
   if (filename !== `${artifactId}.resolved`) {
     throw new ReleaseError(
       PATH_UNSAFE,
@@ -116894,7 +117422,7 @@ Workflow Profiles:
 });
 
 // bin/release-skill-cli.mjs
-import { basename as basename14, dirname as dirname22, join as join42, resolve as resolve38 } from "node:path";
+import { basename as basename15, dirname as dirname22, join as join42, resolve as resolve38 } from "node:path";
 import { execFile as execFileCb22 } from "node:child_process";
 import { promisify as promisify26 } from "node:util";
 
@@ -116932,9 +117460,50 @@ __name(computeReadinessStatus, "computeReadinessStatus");
 // bin/release-skill-cli.mjs
 init_errors3();
 init_redact();
+var outputStreamStates = /* @__PURE__ */ new WeakMap();
+function guardOutputStream(stream) {
+  const state = { failed: false };
+  outputStreamStates.set(stream, state);
+  stream.on("error", () => {
+    state.failed = true;
+  });
+}
+__name(guardOutputStream, "guardOutputStream");
+guardOutputStream(process.stdout);
+guardOutputStream(process.stderr);
 registerPathRedactor(redactSensitivePaths);
 var execFile19 = promisify26(execFileCb22);
 var COMMANDS = /* @__PURE__ */ new Set(["help", "setup", "assess", "prepare", "approve", "publish", "reconcile", "verify", "ship", "attest", "hooks", "artifacts", "docs", "distribute", "route", "lineage"]);
+function flushOutputStream(stream) {
+  if (!stream?.writable || stream.destroyed || stream.writableEnded || outputStreamStates.get(stream)?.failed) {
+    return Promise.resolve();
+  }
+  return new Promise((resolveFlush) => {
+    let settled = false;
+    const finish = /* @__PURE__ */ __name(() => {
+      if (settled) return;
+      settled = true;
+      stream.off("error", finish);
+      resolveFlush();
+    }, "finish");
+    stream.once("error", finish);
+    try {
+      stream.write("", finish);
+    } catch {
+      finish();
+    }
+  });
+}
+__name(flushOutputStream, "flushOutputStream");
+async function exitAfterFlush(exitCode) {
+  process.exitCode = exitCode;
+  await Promise.all([
+    flushOutputStream(process.stdout),
+    flushOutputStream(process.stderr)
+  ]);
+  process.exit(exitCode);
+}
+__name(exitAfterFlush, "exitAfterFlush");
 async function checkDependency(command2, versionArgs = ["--version"]) {
   try {
     const { stdout } = await execFile19(command2, versionArgs, {
@@ -117205,7 +117774,7 @@ if (!command && (args.includes("--version") || args.includes("-v"))) {
   } else {
     console.log(pkg.version);
   }
-  process.exit(0);
+  await exitAfterFlush(0);
 }
 if (!command || command === "help") {
   if (hasJson) {
@@ -117284,10 +117853,10 @@ if (!command || command === "help") {
       output.recommendations.push("Install Codex CLI before releasing a configured codex-plugin distribution");
     }
     console.log(JSON.stringify(output, null, 2));
-    process.exit(readiness.status === "READY" ? 0 : 1);
+    await exitAfterFlush(readiness.status === "READY" ? 0 : 1);
   } else {
     printHelp();
-    process.exit(0);
+    await exitAfterFlush(0);
   }
 }
 if (!COMMANDS.has(command)) {
@@ -117302,7 +117871,7 @@ if (!COMMANDS.has(command)) {
     console.error(`Error: Unknown command '${command}'`);
     console.error('Run "release-skill help" for available commands.');
   }
-  process.exit(2);
+  await exitAfterFlush(2);
 }
 if (command === "setup") {
   const rootIdx = args.indexOf("--root");
@@ -117346,7 +117915,7 @@ if (command === "setup") {
         if (report.next) console.log(`Next: ${report.next}`);
       }
       const okStatuses = ["HOOKS_PROPOSAL_READY", "HOOKS_APPENDED", "HOOKS_NO_CHANGE", "postpublish-discovery"];
-      process.exit(okStatuses.includes(report.status ?? report.mode) ? 0 : 2);
+      await exitAfterFlush(okStatuses.includes(report.status ?? report.mode) ? 0 : 2);
     } catch (err) {
       if (hasJson) {
         console.log(JSON.stringify({
@@ -117358,7 +117927,7 @@ if (command === "setup") {
       } else {
         console.error(`Error: ${err.message}`);
       }
-      process.exit(err.exitCode ?? 1);
+      await exitAfterFlush(err.exitCode ?? 1);
     }
   }
   try {
@@ -117372,7 +117941,7 @@ if (command === "setup") {
       if (report.configPath) console.log(`Config: ${report.configPath}`);
       if (report.next) console.log(`Next: ${report.next}`);
     }
-    process.exit(["READY_TO_WRITE", "CONFIG_CREATED", "ALREADY_CONFIGURED"].includes(report.status) ? 0 : 2);
+    await exitAfterFlush(["READY_TO_WRITE", "CONFIG_CREATED", "ALREADY_CONFIGURED"].includes(report.status) ? 0 : 2);
   } catch (err) {
     if (hasJson) {
       console.log(JSON.stringify({
@@ -117384,7 +117953,7 @@ if (command === "setup") {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 if (command === "assess") {
@@ -117402,7 +117971,7 @@ if (command === "assess") {
     } else {
       console.log(report.summary);
     }
-    process.exit(report.status === "ASSESSED" ? 0 : 1);
+    await exitAfterFlush(report.status === "ASSESSED" ? 0 : 1);
   } catch (err) {
     if (hasJson) {
       const errOutput = {
@@ -117415,7 +117984,7 @@ if (command === "assess") {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 if (command === "hooks") {
@@ -117426,7 +117995,7 @@ if (command === "hooks") {
     const message = "hooks requires subcommand: hooks validate";
     if (hasJson) console.log(JSON.stringify({ error: "MISSING_PARAMETERS", message }));
     else console.error(`Error: ${message}`);
-    process.exit(1);
+    await exitAfterFlush(1);
   }
   try {
     const { validateDeclaredHooks: validateDeclaredHooks2 } = await init_hooks2().then(() => hooks_exports2);
@@ -117441,7 +118010,7 @@ if (command === "hooks") {
       console.log(`Declared hooks: ${result.status}`);
       console.log(`Reusable receipt evidence: ${result.evidenceDir}`);
     }
-    process.exit(0);
+    await exitAfterFlush(0);
   } catch (err) {
     if (hasJson) {
       console.log(JSON.stringify({
@@ -117451,7 +118020,7 @@ if (command === "hooks") {
         exitCode: err.exitCode ?? 1
       }));
     } else console.error(`Error: ${err.message}`);
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 if (command === "ship") {
@@ -117527,7 +118096,7 @@ if (command === "ship") {
         console.log(`Manual requirement [${requirement.platform}]: ${requirement.requirementPath}`);
       }
     }
-    process.exit(0);
+    await exitAfterFlush(0);
   } catch (err) {
     if (hasJson) {
       console.log(JSON.stringify({
@@ -117539,7 +118108,7 @@ if (command === "ship") {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 if (command === "attest") {
@@ -117567,7 +118136,7 @@ if (command === "attest") {
       console.log(`Bound plan digest: ${result.planDigest}`);
       console.log(`Receipt: ${result.attestationPath}`);
     }
-    process.exit(0);
+    await exitAfterFlush(0);
   } catch (err) {
     if (hasJson) {
       console.log(JSON.stringify({
@@ -117579,7 +118148,7 @@ if (command === "attest") {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 if (command === "prepare") {
@@ -117667,7 +118236,7 @@ if (command === "prepare") {
         }
       }
     }
-    process.exit(0);
+    await exitAfterFlush(0);
   } catch (err) {
     if (hasJson) {
       const errOutput = {
@@ -117680,7 +118249,7 @@ if (command === "prepare") {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 if (command === "approve") {
@@ -117703,7 +118272,7 @@ if (command === "approve") {
     } else {
       console.error(`Error: ${msg}`);
     }
-    process.exit(1);
+    await exitAfterFlush(1);
   }
   if (hookId) {
     try {
@@ -117727,7 +118296,7 @@ if (command === "approve") {
           console.log(`  ${key}: ${typeof value === "object" ? JSON.stringify(value) : value}`);
         }
       }
-      process.exit(0);
+      await exitAfterFlush(0);
     } catch (err) {
       if (hasJson) {
         console.log(JSON.stringify({
@@ -117738,7 +118307,7 @@ if (command === "approve") {
       } else {
         console.error(`Error: ${err.message}`);
       }
-      process.exit(err.exitCode ?? 1);
+      await exitAfterFlush(err.exitCode ?? 1);
     }
   }
   try {
@@ -117753,7 +118322,7 @@ if (command === "approve") {
     }
     const resolvedPlanPath = resolve38(planPath);
     const planDir = dirname22(resolvedPlanPath);
-    const releaseDir = basename14(planDir) === "plans" && basename14(resolvedPlanPath) === `${resolvedDigest}.json` ? dirname22(planDir) : planDir;
+    const releaseDir = basename15(planDir) === "plans" && basename15(resolvedPlanPath) === `${resolvedDigest}.json` ? dirname22(planDir) : planDir;
     const approvalPath = outputPath ?? join42(releaseDir, "approval-record.json");
     const record = await approvePlan2({ planPath, expectedDigest: resolvedDigest, actor, outputPath: approvalPath });
     if (hasJson) {
@@ -117763,7 +118332,7 @@ if (command === "approve") {
       console.log(`Approval record: ${record.approvalPath}`);
       console.log(`Expires at: ${record.expiresAt}`);
     }
-    process.exit(0);
+    await exitAfterFlush(0);
   } catch (err) {
     if (hasJson) {
       const errOutput = {
@@ -117775,7 +118344,7 @@ if (command === "approve") {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 if (command === "reconcile") {
@@ -117795,7 +118364,7 @@ if (command === "reconcile") {
     } else {
       console.error(`Error: ${msg}`);
     }
-    process.exit(1);
+    await exitAfterFlush(1);
   }
   try {
     const { reconcileRelease: reconcileRelease2 } = await init_reconcile().then(() => reconcile_exports);
@@ -117825,7 +118394,7 @@ if (command === "reconcile") {
         console.log(`  ${cp3.actionId}: ${cp3.status}`);
       }
     }
-    process.exit(result.status === "PUBLISHED" ? 0 : 1);
+    await exitAfterFlush(result.status === "PUBLISHED" ? 0 : 1);
   } catch (err) {
     if (hasJson) {
       const errOutput = {
@@ -117837,7 +118406,7 @@ if (command === "reconcile") {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 if (command === "verify") {
@@ -117856,7 +118425,7 @@ if (command === "verify") {
     } else {
       console.error(`Error: ${msg}`);
     }
-    process.exit(1);
+    await exitAfterFlush(1);
   }
   try {
     const { verifyRelease: verifyRelease2 } = await init_verify().then(() => verify_exports);
@@ -117894,7 +118463,7 @@ if (command === "verify") {
         }
       }
     }
-    process.exit(result.status === "VERIFIED" ? 0 : 1);
+    await exitAfterFlush(result.status === "VERIFIED" ? 0 : 1);
   } catch (err) {
     if (hasJson) {
       const errOutput = {
@@ -117906,7 +118475,7 @@ if (command === "verify") {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 if (command === "publish") {
@@ -117924,7 +118493,7 @@ if (command === "publish") {
     } else {
       console.error(`Error: ${msg}`);
     }
-    process.exit(1);
+    await exitAfterFlush(1);
   }
   try {
     const { publishRelease: publishRelease2 } = await init_publish().then(() => publish_exports);
@@ -117954,7 +118523,7 @@ if (command === "publish") {
         console.log(`  ${cp3.actionId}: ${cp3.status}`);
       }
     }
-    process.exit(result.status === "PUBLISHED" ? 0 : 1);
+    await exitAfterFlush(result.status === "PUBLISHED" ? 0 : 1);
   } catch (err) {
     if (hasJson) {
       const errOutput = {
@@ -117966,7 +118535,7 @@ if (command === "publish") {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 if (command === "artifacts") {
@@ -117996,7 +118565,7 @@ if (command === "artifacts") {
       "CONFLICT",
       "DIRTY_SCOPE_CONFLICT"
     ]);
-    process.exit(blockingStatuses.has(result.status) ? 1 : 0);
+    await exitAfterFlush(blockingStatuses.has(result.status) ? 1 : 0);
   } catch (err) {
     if (hasJson) {
       const errOutput = {
@@ -118013,7 +118582,7 @@ if (command === "artifacts") {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 if (command === "docs") {
@@ -118108,7 +118677,7 @@ if (command === "docs") {
         }
       }
     }
-    process.exit(0);
+    await exitAfterFlush(0);
   } catch (err) {
     console.log(JSON.stringify({
       error: err.code ?? "UNKNOWN_ERROR",
@@ -118116,7 +118685,7 @@ if (command === "docs") {
       details: err.details ?? {},
       exitCode: err.exitCode ?? 1
     }));
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 if (command === "distribute") {
@@ -118156,7 +118725,7 @@ if (command === "distribute") {
         console.log(`    write-downstream: ${preset.writeDownstream}; target optional: ${preset.targetOptional}; status: ${status}`);
       }
     }
-    process.exit(0);
+    await exitAfterFlush(0);
   }
   if (args.includes("--help")) {
     const helpText = `Distribute command: Distributes frozen artifacts to post-publish targets
@@ -118196,7 +118765,7 @@ Description:
     } else {
       console.log(helpText);
     }
-    process.exit(0);
+    await exitAfterFlush(0);
   }
   if (!planPath || !runPath || !approvalPath) {
     const msg = "distribute requires --plan <path>, --run <path>, and --approval <path>";
@@ -118205,7 +118774,7 @@ Description:
     } else {
       console.error(`Error: ${msg}`);
     }
-    process.exit(1);
+    await exitAfterFlush(1);
   }
   try {
     const { distributeRelease: distributeRelease2 } = await init_distribute().then(() => distribute_exports);
@@ -118242,7 +118811,7 @@ Description:
         console.log(`Distribute run: ${result.distributeRunPath}`);
       }
     }
-    process.exit(result.status === "DISTRIBUTED" ? 0 : 1);
+    await exitAfterFlush(result.status === "DISTRIBUTED" ? 0 : 1);
   } catch (err) {
     if (hasJson) {
       const errOutput = {
@@ -118255,7 +118824,7 @@ Description:
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 if (command === "route") {
@@ -118271,7 +118840,7 @@ if (command === "route") {
 \u274C Route command failed with status: ${result.error}`);
       }
     }
-    process.exit(result.exitCode ?? 0);
+    await exitAfterFlush(result.exitCode ?? 0);
   } catch (err) {
     if (hasJson) {
       console.log(JSON.stringify({
@@ -118283,7 +118852,7 @@ if (command === "route") {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 if (command === "lineage") {
@@ -118299,7 +118868,7 @@ if (command === "lineage") {
 \u274C Lineage command failed: ${result.error}`);
       }
     }
-    process.exit(result.status === "ERROR" ? 1 : 0);
+    await exitAfterFlush(result.status === "ERROR" ? 1 : 0);
   } catch (err) {
     if (hasJson) {
       console.log(JSON.stringify({
@@ -118311,11 +118880,11 @@ if (command === "lineage") {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 console.error(`Command '${command}' is not yet implemented.`);
-process.exit(1);
+await exitAfterFlush(1);
 /*! Bundled license information:
 
 imurmurhash/imurmurhash.js:

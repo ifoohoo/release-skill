@@ -1,5 +1,25 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.7.7 locale=en baseline=sha256:bdd8a5cd123e916f5581051c7138f56572b35b3640187551aca6faa453ea1a51 -->
+## [0.7.7] - 2026-08-24
+
+v0.7.7 can publish a small public source-authority receipt that binds an exact source repository and commit to one or more frozen npm tarballs.
+
+### Security
+
+- **Remote commit binding**: publish now requires the remotely observed source commit to equal the receipt's frozen `sourceBaseCommit` before any adapter preflight or write. Verify and reconcile retain the same constraint.
+- **Actual tarball verification**: offline receipt verification reopens every frozen subject tgz with the existing no-follow, file-identity, digest, package-name, and package-version checks before accepting its receipt entry.
+
+### Added
+
+- **Optional public source authority**: projects may declare `publicSourceAuthorityReceipt` with one coordinator release unit and one or more npm subject units. Production prepare freezes canonical `source-authority-receipt.json` bytes from the normalized source repository, baseline commit, package name, version, tarball filename, and SHA-256. Publish then uploads those exact bytes as a GitHub Release asset.
+
+### Upgrade Notes
+
+`publicSourceAuthorityReceipt` is optional. Existing projects require no configuration or migration; enable it only when a release needs the public source-authority asset.
+<!-- release-skill:changelog:end version=0.7.7 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.7.6 locale=en baseline=sha256:16665362b8c0f06b7ed94f2839f5b380216b13ca6ab5e6c51b043985f8a8c8c2 -->
 ## [0.7.6] - 2026-08-22
 

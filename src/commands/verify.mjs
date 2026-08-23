@@ -46,7 +46,11 @@ import {
   POST_PUBLISH_VERIFY_FAILED,
   CONSUMER_VERIFICATION_DEFERRED,
 } from '../core/errors.mjs';
-import { verifySourceAuthorityReceipt } from '../core/source-authority.mjs';
+import {
+  consumePublicSourceAuthorityReceipt,
+  verifySourceAuthorityReceipt,
+} from '../core/source-authority.mjs';
+import { verifyFrozenFile } from '../snapshot/frozen.mjs';
 import {
   deriveBaselineAdvances,
   applyBaselineAdvances,
@@ -61,6 +65,7 @@ import {
   normalizeRegistry,
   registryTokenKey,
   resolveNpmRegistryAuthToken,
+  verifyFrozenNpmTarballContract,
 } from '../adapters/npm.mjs';
 import { runConsumerVerificationGates } from '../core/verification-gates.mjs';
 import {
@@ -108,6 +113,40 @@ export const VERIFICATION_RESOLVED_TYPES = Object.freeze({
   PASSED_MANUAL: 'PASSED_MANUAL',
   NOT_REQUIRED_UNCHANGED: 'NOT_REQUIRED_UNCHANGED',
 });
+
+/** Re-read every frozen subject tarball before consuming the public receipt. */
+export async function verifyPublicSourceAuthorityReceiptOffline({ plan, root }) {
+  const descriptor = plan.publicSourceAuthorityReceipt;
+  const verifiedAsset = await verifyFrozenFile({
+    root,
+    filePath: descriptor.asset.path,
+    expectedSha256: descriptor.asset.sha256,
+    label: 'public source-authority receipt',
+  });
+  const actualSubjects = [];
+  for (const unitId of descriptor.subjectUnitIds) {
+    const unit = plan.units.find((candidate) => candidate.id === unitId);
+    const npmDistribution = unit?.distributions?.find((distribution) => distribution.type === 'npm');
+    const npm = unit?.frozenSnapshot?.npm;
+    await verifyFrozenNpmTarballContract({
+      package: npmDistribution?.package,
+      version: unit?.targetVersion,
+      tarballPath: npm?.tarballPath,
+      tarballSha256: npm?.tarballSha256,
+      integrity: npm?.integrity,
+    }, root);
+    actualSubjects.push({
+      packageName: npmDistribution.package,
+      version: unit.targetVersion,
+      filename: basename(npm.tarballPath),
+      sha256: npm.tarballSha256,
+    });
+  }
+  return consumePublicSourceAuthorityReceipt(
+    await readFile(verifiedAsset.physical),
+    actualSubjects,
+  );
+}
 
 /**
  * Map plan action type to adapter ActionType.
@@ -1688,6 +1727,19 @@ export async function verifyRelease(options) {
     if (rejectedAction) throw rejectedAction.reason;
 
     await evidence.append({ phase: 'verify', step: 'adapter-verify', status: 'completed' });
+
+    if (plan.publicSourceAuthorityReceipt) {
+      const consumed = await verifyPublicSourceAuthorityReceiptOffline({ plan, root });
+      await evidence.append({
+        phase: 'public-source-authority-receipt',
+        status: 'passed',
+        verificationMode: 'offline-consumer',
+        sourceRepository: consumed.sourceRepository,
+        sourceBaseCommit: consumed.sourceBaseCommit,
+        subjectCount: consumed.subjects.length,
+        assetSha256: consumed.sha256,
+      });
+    }
 
     // =======================================================================
     // Step 4: Installation smoke test

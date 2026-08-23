@@ -27,8 +27,114 @@ import {
 const execFile = promisify(execFileCb);
 const REPOSITORY_RE = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/u;
 const GIT_MODE_RE = /^(?:100644|100755)$/u;
+const COMMIT_RE = /^[a-f0-9]{40,64}$/u;
+const SHA256_RE = /^[a-f0-9]{64}$/u;
+const NPM_PACKAGE_RE = /^(?:@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$/u;
+const TARBALL_FILENAME_RE = /^(?!\.{1,2}$)[A-Za-z0-9@][A-Za-z0-9._@+-]*\.tgz$/u;
 
 export const SOURCE_INPUT_ALGORITHM_VERSION = 1;
+
+/**
+ * Build the intentionally small public source-authority receipt.
+ *
+ * The receipt is an external release asset. It contains no plan/run fields
+ * and no self digest; the frozen action binds the canonical bytes instead.
+ */
+export function createPublicSourceAuthorityReceipt({
+  sourceRepository,
+  sourceBaseCommit,
+  subjects,
+}) {
+  if (!REPOSITORY_RE.test(sourceRepository ?? '')) {
+    throw new ReleaseError(CONFIG_INVALID, 'public source-authority receipt requires an explicit GitHub owner/repo');
+  }
+  if (!COMMIT_RE.test(sourceBaseCommit ?? '')) {
+    throw new ReleaseError(CONFIG_INVALID, 'public source-authority receipt requires a full hexadecimal source base commit');
+  }
+  if (!Array.isArray(subjects) || subjects.length === 0) {
+    throw new ReleaseError(CONFIG_INVALID, 'public source-authority receipt requires at least one npm tarball subject');
+  }
+  const packageNames = new Set();
+  const normalizedSubjects = subjects.map((subject, index) => {
+    const keys = Object.keys(subject ?? {}).sort();
+    if (canonicalJson(keys) !== canonicalJson(['filename', 'packageName', 'sha256', 'version'])) {
+      throw new ReleaseError(CONFIG_INVALID, `public source-authority subject ${index} has an invalid field set`);
+    }
+    if (!NPM_PACKAGE_RE.test(subject.packageName ?? '')) {
+      throw new ReleaseError(CONFIG_INVALID, `public source-authority subject ${index} has an invalid packageName`);
+    }
+    if (packageNames.has(subject.packageName)) {
+      throw new ReleaseError(CONFIG_INVALID, `public source-authority receipt has duplicate packageName "${subject.packageName}"`);
+    }
+    packageNames.add(subject.packageName);
+    if (typeof subject.version !== 'string' || subject.version.length === 0) {
+      throw new ReleaseError(CONFIG_INVALID, `public source-authority subject "${subject.packageName}" has an invalid version`);
+    }
+    if (!TARBALL_FILENAME_RE.test(subject.filename ?? '')) {
+      throw new ReleaseError(CONFIG_INVALID, `public source-authority subject "${subject.packageName}" has an invalid tarball filename`);
+    }
+    if (!SHA256_RE.test(subject.sha256 ?? '')) {
+      throw new ReleaseError(CONFIG_INVALID, `public source-authority subject "${subject.packageName}" has an invalid SHA-256`);
+    }
+    return {
+      packageName: subject.packageName,
+      version: subject.version,
+      filename: subject.filename,
+      sha256: subject.sha256,
+    };
+  });
+  normalizedSubjects.sort((left, right) => (
+    left.packageName < right.packageName ? -1 : left.packageName > right.packageName ? 1 : 0
+  ));
+  const receipt = {
+    schemaVersion: 1,
+    kind: 'skill-family.source-authority-receipt',
+    sourceRepository,
+    sourceBaseCommit,
+    subjects: normalizedSubjects,
+  };
+  const bytes = Buffer.from(canonicalJson(receipt), 'utf8');
+  return Object.freeze({ receipt: Object.freeze(receipt), bytes, sha256: sha256Hex(bytes) });
+}
+
+/** Parse public bytes and verify them against actual offline tarball facts. */
+export function consumePublicSourceAuthorityReceipt(bytes, actualSubjects) {
+  let parsed;
+  try {
+    parsed = JSON.parse(Buffer.isBuffer(bytes) ? bytes.toString('utf8') : String(bytes));
+  } catch (error) {
+    throw new ReleaseError(CONFIG_INVALID, `public source-authority receipt is not valid JSON: ${error.message}`);
+  }
+  const topKeys = Object.keys(parsed ?? {}).sort();
+  if (canonicalJson(topKeys) !== canonicalJson([
+    'kind', 'schemaVersion', 'sourceBaseCommit', 'sourceRepository', 'subjects',
+  ])) {
+    throw new ReleaseError(CONFIG_INVALID, 'public source-authority receipt has an invalid field set');
+  }
+  if (parsed.schemaVersion !== 1 || parsed.kind !== 'skill-family.source-authority-receipt') {
+    throw new ReleaseError(CONFIG_INVALID, 'public source-authority receipt kind or schemaVersion is unsupported');
+  }
+  const rebuilt = createPublicSourceAuthorityReceipt(parsed);
+  if (!Buffer.from(bytes).equals(rebuilt.bytes)) {
+    throw new ReleaseError(CONFIG_INVALID, 'public source-authority receipt bytes are not canonical JSON');
+  }
+  if (actualSubjects !== undefined) {
+    const actual = createPublicSourceAuthorityReceipt({
+      sourceRepository: parsed.sourceRepository,
+      sourceBaseCommit: parsed.sourceBaseCommit,
+      subjects: actualSubjects,
+    }).receipt.subjects;
+    if (canonicalJson(actual) !== canonicalJson(rebuilt.receipt.subjects)) {
+      throw new ReleaseError(CONTENT_MISMATCH, 'public source-authority receipt subjects do not match actual tarballs');
+    }
+  }
+  return Object.freeze({
+    sourceRepository: rebuilt.receipt.sourceRepository,
+    sourceBaseCommit: rebuilt.receipt.sourceBaseCommit,
+    subjects: rebuilt.receipt.subjects,
+    sha256: rebuilt.sha256,
+  });
+}
 
 /**
  * Compute the deterministic source-input closure for release units.
@@ -325,6 +431,7 @@ async function verifyWithInjectedReader({
   sourceRepository,
 }) {
   const mismatchedPaths = [];
+  let observedCommit;
   for (const entry of closure.entries) {
     let result;
     try {
@@ -334,6 +441,12 @@ async function verifyWithInjectedReader({
     }
     const classified = classifyRemoteStatus(result, sourceRepository, defaultBranch);
     if (classified) return classified;
+    if (result.observedCommit !== undefined) {
+      if (observedCommit !== undefined && observedCommit !== result.observedCommit) {
+        return failure(REMOTE_UNAVAILABLE, 'remote source reader returned inconsistent observed commits');
+      }
+      observedCommit = result.observedCommit;
+    }
     if (
       sha256Hex(Buffer.isBuffer(result.content) ? result.content : Buffer.from(result.content))
         !== entry.digest
@@ -349,6 +462,7 @@ async function verifyWithInjectedReader({
         observation: {
           defaultBranch,
           entryCount: closure.entries.length,
+          ...(observedCommit ? { observedCommit } : {}),
           sourceRepository,
         },
       };
@@ -515,12 +629,22 @@ export function verifySourceAuthorityReceipt({ plan, run }) {
     && receipt.planDigest === plan.digest
     && receipt.result === 'CONSISTENT'
   ));
-  return matching
-    ? { passed: true, receipt: matching }
-    : {
+  if (!matching) {
+    return {
         passed: false,
         reason: 'publish run has no CONSISTENT source-authority receipt bound to this plan digest',
       };
+  }
+  if (
+    plan.publicSourceAuthorityReceipt
+    && matching.observedCommit !== plan.baseline?.headCommit
+  ) {
+    return {
+      passed: false,
+      reason: 'publish source-authority receipt observedCommit does not match the public receipt sourceBaseCommit',
+    };
+  }
+  return { passed: true, receipt: matching };
 }
 
 /** Create the digest-bound receipt persisted by publish. */

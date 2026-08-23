@@ -7,6 +7,23 @@ import { parseNodeMajor, meetsMinimum, computeReadinessStatus } from '../src/cor
 import { registerPathRedactor } from '../src/core/errors.mjs';
 import { redactSensitivePaths } from '../src/core/redact.mjs';
 
+// Process output errors can be emitted immediately after a large console
+// write, before command routing reaches its exit path. Guard both streams at
+// module initialization so EPIPE and other destination failures cannot become
+// uncaught exceptions that replace the command's selected business exit code.
+const outputStreamStates = new WeakMap();
+
+function guardOutputStream(stream) {
+  const state = { failed: false };
+  outputStreamStates.set(stream, state);
+  stream.on('error', () => {
+    state.failed = true;
+  });
+}
+
+guardOutputStream(process.stdout);
+guardOutputStream(process.stderr);
+
 // Install the path-redaction choke point eagerly and synchronously (static
 // imports, no top-level await) so every ReleaseError constructed on any
 // command path is redacted from the very first statement — in source mode and
@@ -20,6 +37,58 @@ registerPathRedactor(redactSensitivePaths);
 const execFile = promisify(execFileCb);
 
 const COMMANDS = new Set(['help', 'setup', 'assess', 'prepare', 'approve', 'publish', 'reconcile', 'verify', 'ship', 'attest', 'hooks', 'artifacts', 'docs', 'distribute', 'route', 'lineage']);
+
+/**
+ * Wait until writes already queued on a process output stream have reached
+ * the underlying destination. Stream failures do not replace the command's
+ * previously selected exit code.
+ *
+ * @param {NodeJS.WriteStream} stream
+ * @returns {Promise<void>}
+ */
+function flushOutputStream(stream) {
+  if (
+    !stream?.writable
+    || stream.destroyed
+    || stream.writableEnded
+    || outputStreamStates.get(stream)?.failed
+  ) {
+    return Promise.resolve();
+  }
+  return new Promise((resolveFlush) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      stream.off('error', finish);
+      resolveFlush();
+    };
+    stream.once('error', finish);
+    try {
+      // The callback runs after this empty write and every earlier console
+      // write have been flushed. This also covers a stream waiting for drain.
+      stream.write('', finish);
+    } catch {
+      finish();
+    }
+  });
+}
+
+/**
+ * Preserve CLI exit semantics while preventing buffered stdout/stderr from
+ * being discarded by process.exit().
+ *
+ * @param {number} exitCode
+ * @returns {Promise<never>}
+ */
+async function exitAfterFlush(exitCode) {
+  process.exitCode = exitCode;
+  await Promise.all([
+    flushOutputStream(process.stdout),
+    flushOutputStream(process.stderr),
+  ]);
+  process.exit(exitCode);
+}
 
 /**
  * Check if a command is available and get its version.
@@ -346,7 +415,7 @@ if (!command && (args.includes('--version') || args.includes('-v'))) {
   } else {
     console.log(pkg.version);
   }
-  process.exit(0);
+  await exitAfterFlush(0);
 }
 
 if (!command || command === 'help') {
@@ -442,10 +511,10 @@ if (!command || command === 'help') {
     // availability is informational and never blocks release readiness.
 
     console.log(JSON.stringify(output, null, 2));
-    process.exit(readiness.status === 'READY' ? 0 : 1);
+    await exitAfterFlush(readiness.status === 'READY' ? 0 : 1);
   } else {
     printHelp();
-    process.exit(0);
+    await exitAfterFlush(0);
   }
 }
 
@@ -461,7 +530,7 @@ if (!COMMANDS.has(command)) {
     console.error(`Error: Unknown command '${command}'`);
     console.error('Run "release-skill help" for available commands.');
   }
-  process.exit(2);
+  await exitAfterFlush(2);
 }
 
 // --- Setup command routing ---
@@ -513,7 +582,7 @@ if (command === 'setup') {
         if (report.next) console.log(`Next: ${report.next}`);
       }
       const okStatuses = ['HOOKS_PROPOSAL_READY', 'HOOKS_APPENDED', 'HOOKS_NO_CHANGE', 'postpublish-discovery'];
-      process.exit(okStatuses.includes(report.status ?? report.mode) ? 0 : 2);
+      await exitAfterFlush(okStatuses.includes(report.status ?? report.mode) ? 0 : 2);
     } catch (err) {
       if (hasJson) {
         console.log(JSON.stringify({
@@ -525,7 +594,7 @@ if (command === 'setup') {
       } else {
         console.error(`Error: ${err.message}`);
       }
-      process.exit(err.exitCode ?? 1);
+      await exitAfterFlush(err.exitCode ?? 1);
     }
   }
 
@@ -540,7 +609,7 @@ if (command === 'setup') {
       if (report.configPath) console.log(`Config: ${report.configPath}`);
       if (report.next) console.log(`Next: ${report.next}`);
     }
-    process.exit(['READY_TO_WRITE', 'CONFIG_CREATED', 'ALREADY_CONFIGURED'].includes(report.status) ? 0 : 2);
+    await exitAfterFlush(['READY_TO_WRITE', 'CONFIG_CREATED', 'ALREADY_CONFIGURED'].includes(report.status) ? 0 : 2);
   } catch (err) {
     if (hasJson) {
       console.log(JSON.stringify({
@@ -552,7 +621,7 @@ if (command === 'setup') {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 
@@ -575,7 +644,7 @@ if (command === 'assess') {
       console.log(report.summary);
     }
 
-    process.exit(report.status === 'ASSESSED' ? 0 : 1);
+    await exitAfterFlush(report.status === 'ASSESSED' ? 0 : 1);
   } catch (err) {
     if (hasJson) {
       const errOutput = {
@@ -588,7 +657,7 @@ if (command === 'assess') {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 
@@ -601,7 +670,7 @@ if (command === 'hooks') {
     const message = 'hooks requires subcommand: hooks validate';
     if (hasJson) console.log(JSON.stringify({ error: 'MISSING_PARAMETERS', message }));
     else console.error(`Error: ${message}`);
-    process.exit(1);
+    await exitAfterFlush(1);
   }
   try {
     const { validateDeclaredHooks } = await import('../src/commands/hooks.mjs');
@@ -616,7 +685,7 @@ if (command === 'hooks') {
       console.log(`Declared hooks: ${result.status}`);
       console.log(`Reusable receipt evidence: ${result.evidenceDir}`);
     }
-    process.exit(0);
+    await exitAfterFlush(0);
   } catch (err) {
     if (hasJson) {
       console.log(JSON.stringify({
@@ -626,7 +695,7 @@ if (command === 'hooks') {
         exitCode: err.exitCode ?? 1,
       }));
     } else console.error(`Error: ${err.message}`);
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 
@@ -710,7 +779,7 @@ if (command === 'ship') {
         console.log(`Manual requirement [${requirement.platform}]: ${requirement.requirementPath}`);
       }
     }
-    process.exit(0);
+    await exitAfterFlush(0);
   } catch (err) {
     if (hasJson) {
       console.log(JSON.stringify({
@@ -722,7 +791,7 @@ if (command === 'ship') {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 
@@ -752,7 +821,7 @@ if (command === 'attest') {
       console.log(`Bound plan digest: ${result.planDigest}`);
       console.log(`Receipt: ${result.attestationPath}`);
     }
-    process.exit(0);
+    await exitAfterFlush(0);
   } catch (err) {
     if (hasJson) {
       console.log(JSON.stringify({
@@ -764,7 +833,7 @@ if (command === 'attest') {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 
@@ -869,7 +938,7 @@ if (command === 'prepare') {
       }
     }
 
-    process.exit(0);
+    await exitAfterFlush(0);
   } catch (err) {
     if (hasJson) {
       const errOutput = {
@@ -882,7 +951,7 @@ if (command === 'prepare') {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 
@@ -909,7 +978,7 @@ if (command === 'approve') {
     } else {
       console.error(`Error: ${msg}`);
     }
-    process.exit(1);
+    await exitAfterFlush(1);
   }
 
   // --- Checkpoint-level postPublish hook approval (v0.6.3 R1, review N-6) ---
@@ -935,7 +1004,7 @@ if (command === 'approve') {
           console.log(`  ${key}: ${typeof value === 'object' ? JSON.stringify(value) : value}`);
         }
       }
-      process.exit(0);
+      await exitAfterFlush(0);
     } catch (err) {
       if (hasJson) {
         console.log(JSON.stringify({
@@ -946,7 +1015,7 @@ if (command === 'approve') {
       } else {
         console.error(`Error: ${err.message}`);
       }
-      process.exit(err.exitCode ?? 1);
+      await exitAfterFlush(err.exitCode ?? 1);
     }
   }
 
@@ -979,7 +1048,7 @@ if (command === 'approve') {
       console.log(`Expires at: ${record.expiresAt}`);
     }
 
-    process.exit(0);
+    await exitAfterFlush(0);
   } catch (err) {
     if (hasJson) {
       const errOutput = {
@@ -991,7 +1060,7 @@ if (command === 'approve') {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 
@@ -1015,7 +1084,7 @@ if (command === 'reconcile') {
     } else {
       console.error(`Error: ${msg}`);
     }
-    process.exit(1);
+    await exitAfterFlush(1);
   }
 
   try {
@@ -1050,7 +1119,7 @@ if (command === 'reconcile') {
       }
     }
 
-    process.exit(result.status === 'PUBLISHED' ? 0 : 1);
+    await exitAfterFlush(result.status === 'PUBLISHED' ? 0 : 1);
   } catch (err) {
     if (hasJson) {
       const errOutput = {
@@ -1062,7 +1131,7 @@ if (command === 'reconcile') {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 
@@ -1085,7 +1154,7 @@ if (command === 'verify') {
     } else {
       console.error(`Error: ${msg}`);
     }
-    process.exit(1);
+    await exitAfterFlush(1);
   }
 
   try {
@@ -1127,7 +1196,7 @@ if (command === 'verify') {
       }
     }
 
-    process.exit(result.status === 'VERIFIED' ? 0 : 1);
+    await exitAfterFlush(result.status === 'VERIFIED' ? 0 : 1);
   } catch (err) {
     if (hasJson) {
       const errOutput = {
@@ -1139,7 +1208,7 @@ if (command === 'verify') {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 
@@ -1161,7 +1230,7 @@ if (command === 'publish') {
     } else {
       console.error(`Error: ${msg}`);
     }
-    process.exit(1);
+    await exitAfterFlush(1);
   }
 
   try {
@@ -1196,7 +1265,7 @@ if (command === 'publish') {
       }
     }
 
-    process.exit(result.status === 'PUBLISHED' ? 0 : 1);
+    await exitAfterFlush(result.status === 'PUBLISHED' ? 0 : 1);
   } catch (err) {
     if (hasJson) {
       const errOutput = {
@@ -1208,7 +1277,7 @@ if (command === 'publish') {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 
@@ -1242,7 +1311,7 @@ if (command === 'artifacts') {
       'BASE_UNAVAILABLE', 'POLICY_INVALID', 'PATH_UNSAFE',
       'CONFLICT', 'DIRTY_SCOPE_CONFLICT',
     ]);
-    process.exit(blockingStatuses.has(result.status) ? 1 : 0);
+    await exitAfterFlush(blockingStatuses.has(result.status) ? 1 : 0);
   } catch (err) {
     if (hasJson) {
       const errOutput = {
@@ -1259,7 +1328,7 @@ if (command === 'artifacts') {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 
@@ -1369,7 +1438,7 @@ if (command === 'docs') {
       }
     }
 
-    process.exit(0);
+    await exitAfterFlush(0);
   } catch (err) {
     // docs parameter errors must surface the stable JSON error shape even in
     // text mode (CLI parameter validation precedes any service I/O).
@@ -1379,7 +1448,7 @@ if (command === 'docs') {
       details: err.details ?? {},
       exitCode: err.exitCode ?? 1,
     }));
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 
@@ -1426,7 +1495,7 @@ if (command === 'distribute') {
         console.log(`    write-downstream: ${preset.writeDownstream}; target optional: ${preset.targetOptional}; status: ${status}`);
       }
     }
-    process.exit(0);
+    await exitAfterFlush(0);
   }
 
   // Handle --help explicitly
@@ -1468,7 +1537,7 @@ Description:
     } else {
       console.log(helpText);
     }
-    process.exit(0);
+    await exitAfterFlush(0);
   }
 
   if (!planPath || !runPath || !approvalPath) {
@@ -1478,7 +1547,7 @@ Description:
     } else {
       console.error(`Error: ${msg}`);
     }
-    process.exit(1);
+    await exitAfterFlush(1);
   }
 
   try {
@@ -1522,7 +1591,7 @@ Description:
       }
     }
 
-    process.exit(result.status === 'DISTRIBUTED' ? 0 : 1);
+    await exitAfterFlush(result.status === 'DISTRIBUTED' ? 0 : 1);
   } catch (err) {
     if (hasJson) {
       const errOutput = {
@@ -1535,7 +1604,7 @@ Description:
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 
@@ -1558,7 +1627,7 @@ if (command === 'route') {
       }
     }
 
-    process.exit(result.exitCode ?? 0);
+    await exitAfterFlush(result.exitCode ?? 0);
   } catch (err) {
     if (hasJson) {
       console.log(JSON.stringify({
@@ -1570,7 +1639,7 @@ if (command === 'route') {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 
@@ -1592,7 +1661,7 @@ if (command === 'lineage') {
       }
     }
 
-    process.exit(result.status === 'ERROR' ? 1 : 0);
+    await exitAfterFlush(result.status === 'ERROR' ? 1 : 0);
   } catch (err) {
     if (hasJson) {
       console.log(JSON.stringify({
@@ -1604,10 +1673,10 @@ if (command === 'lineage') {
     } else {
       console.error(`Error: ${err.message}`);
     }
-    process.exit(err.exitCode ?? 1);
+    await exitAfterFlush(err.exitCode ?? 1);
   }
 }
 
 // Placeholder: remaining commands will be wired in later commands
 console.error(`Command '${command}' is not yet implemented.`);
-process.exit(1);
+await exitAfterFlush(1);

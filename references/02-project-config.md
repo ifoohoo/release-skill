@@ -27,6 +27,10 @@ project:
   defaultBranch: <string>        # workspace 远端默认分支，必填；不限定为 main
   sourceRepository: <owner/repo> # workspace 源仓库；生产发布必填
 
+publicSourceAuthorityReceipt:    # 可选；把源码坐标与多个 npm tarball 绑定为公开 Release asset
+  coordinatorUnitId: <release-unit-id>
+  subjectUnitIds: [<release-unit-id>]
+
 releaseUnits:               # 发布单元数组，至少 1 个
   - id: <string>            # 唯一标识
     source: <string>        # 源码相对路径（相对项目根目录）
@@ -107,6 +111,20 @@ policy:                     # 可选，安全策略
   forbiddenPaths: [<string>]
   forbiddenContentPatterns: [<string>]
 ```
+
+`publicSourceAuthorityReceipt` 只适用于 production prepare。`coordinatorUnitId`
+指定承载该文件的 GitHub Release；`subjectUnitIds` 必须引用现有 release unit，且每个
+unit 恰好声明一个 npm distribution。prepare 等所有 subject tarball 冻结后生成
+`source-authority-receipt.json`，其公开结构固定为：
+
+```json
+{"schemaVersion":1,"kind":"skill-family.source-authority-receipt","sourceRepository":"owner/workspace","sourceBaseCommit":"<full-commit>","subjects":[{"packageName":"@scope/package","version":"1.2.3","filename":"scope-package-1.2.3.tgz","sha256":"<sha256>"}]}
+```
+
+该文件使用 canonical JSON，不带自摘要，也不包含 release-skill 的计划、运行或批准字段。
+冻结计划记录文件 SHA-256；publish 将相同字节上传到 coordinator GitHub Release，verify
+重新下载远端字节并核对 SHA-256。离线消费者只需该文件和其中 subjects 对应的精确 tarball，便可
+核对包名、版本、文件名、tarball SHA-256、源码仓库与源码基线提交。
 
 `postPublish` 只能位于某个 `releaseUnits[]` 条目内。下面的完整结构样例会由 schema 契约测试直接读取并校验，避免文档层级再次漂移：
 

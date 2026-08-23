@@ -8,8 +8,10 @@ import {
   createResult,
   matchObservation,
 } from './contract.mjs';
-import { resolveFrozenPath, verifyFrozenDirectoryStructure } from '../snapshot/frozen.mjs';
+import { resolveFrozenPath, verifyFrozenDirectoryStructure, verifyFrozenFile } from '../snapshot/frozen.mjs';
 import { githubRepositoryUrl } from './push-snapshot.mjs';
+import { digestReleaseAssetIdentities, normalizeReleaseAssets } from '../core/release-assets.mjs';
+import { sha256Hex } from '../core/digest.mjs';
 
 const execFile = promisify(execFileCb);
 const NAME = 'git-github';
@@ -91,6 +93,82 @@ async function readRemoteBranchCommit(action, exec) {
   return stdout.trim().split(/\s+/)[0] ?? '';
 }
 
+async function validateLocalReleaseAssets(action, context) {
+  const assets = normalizeReleaseAssets(action.releaseAssets);
+  const verified = [];
+  for (const asset of assets) {
+    const file = await verifyFrozenFile({
+      root: context.root,
+      filePath: asset.path,
+      expectedSha256: asset.sha256,
+      label: `frozen GitHub Release asset "${asset.name}"`,
+    });
+    verified.push({ ...asset, physical: file.physical });
+  }
+  return verified;
+}
+
+async function readReleaseWithAssets(action, context, exec) {
+  const environment = { ...process.env, GH_HOST: action.githubHost ?? 'github.com' };
+  const { stdout } = await exec(
+    'gh',
+    ['api', `repos/${action.repo}/releases/tags/${action.tag}`],
+    { cwd: context.root, shell: false, encoding: 'utf8', env: environment },
+  );
+  const release = JSON.parse(stdout);
+  const commitResult = await exec(
+    'gh',
+    ['api', `repos/${action.repo}/git/ref/tags/${action.tag}`, '--jq', '.object.sha'],
+    { cwd: context.root, shell: false, encoding: 'utf8', env: environment },
+  );
+  const plannedAssets = normalizeReleaseAssets(action.releaseAssets);
+  const observedAssets = [];
+  const missingAssets = [];
+  for (const planned of plannedAssets) {
+    const matches = (release.assets ?? []).filter((asset) => asset?.name === planned.name);
+    if (matches.length > 1) throw new Error(`GitHub Release has duplicate asset name "${planned.name}"`);
+    if (matches.length === 0) {
+      missingAssets.push(planned.name);
+      continue;
+    }
+    const remote = matches[0];
+    if (!Number.isInteger(remote.id)) throw new Error(`GitHub Release asset "${planned.name}" has no stable asset id`);
+    const downloaded = await exec(
+      'gh',
+      ['api', `repos/${action.repo}/releases/assets/${remote.id}`, '-H', 'Accept: application/octet-stream'],
+      { cwd: context.root, shell: false, encoding: null, env: environment, maxBuffer: 64 * 1024 * 1024 },
+    );
+    const bytes = Buffer.isBuffer(downloaded.stdout)
+      ? downloaded.stdout
+      : Buffer.from(downloaded.stdout ?? '', 'utf8');
+    observedAssets.push({ ...planned, sha256: sha256Hex(bytes) });
+  }
+  return {
+    observation: {
+      tag: release.tag_name,
+      commit: commitResult.stdout.trim(),
+      releaseUrl: release.html_url,
+      ...(missingAssets.length > 0
+        ? { exists: false, missingReleaseAssets: missingAssets }
+        : { releaseAssetsDigest: digestReleaseAssetIdentities(observedAssets) }),
+    },
+    missingAssets,
+    observedAssets,
+  };
+}
+
+function assertExistingReleaseCompatible(action, state) {
+  if (state.observation.tag !== action.tag || state.observation.commit !== action.commit) {
+    throw new Error('existing GitHub Release tag or commit conflicts with the frozen plan');
+  }
+  const expectedByName = new Map(normalizeReleaseAssets(action.releaseAssets).map((asset) => [asset.name, asset]));
+  for (const observed of state.observedAssets) {
+    if (expectedByName.get(observed.name)?.sha256 !== observed.sha256) {
+      throw new Error(`GitHub Release asset "${observed.name}" bytes conflict with the frozen plan`);
+    }
+  }
+}
+
 export function createGitGithubAdapter(deps = {}) {
   const exec = deps.exec ?? run;
   return Object.freeze({
@@ -110,6 +188,7 @@ export function createGitGithubAdapter(deps = {}) {
         } else if (action.actionType === ActionType.GITHUB_RELEASE) {
           if (!action.repo || !action.tag) throw new Error('github-release requires repo, tag, and commit');
           validateOid(action.commit);
+          const localAssets = await validateLocalReleaseAssets(action, context);
           await exec('gh', ['auth', 'status'], {
             cwd: context.root,
             shell: false,
@@ -123,12 +202,19 @@ export function createGitGithubAdapter(deps = {}) {
             throw new Error(`cannot access GitHub repository ${action.repo}: ${err.message}`);
           });
           try {
-            await exec('gh', ['api', `repos/${action.repo}/releases/tags/${action.tag}`], {
-              cwd: context.root,
-              shell: false,
-              env: { ...process.env, GH_HOST: action.githubHost ?? 'github.com' },
-            });
-            throw new Error(`GitHub Release already exists for ${action.tag}; human intervention required`);
+            if (localAssets.length === 0) {
+              await exec('gh', ['api', `repos/${action.repo}/releases/tags/${action.tag}`], {
+                cwd: context.root,
+                shell: false,
+                env: { ...process.env, GH_HOST: action.githubHost ?? 'github.com' },
+              });
+              throw new Error(`GitHub Release already exists for ${action.tag}; human intervention required`);
+            }
+            const state = await readReleaseWithAssets(action, context, exec);
+            assertExistingReleaseCompatible(action, state);
+            if (state.missingAssets.length === 0) {
+              throw new Error(`GitHub Release and assets already exist for ${action.tag}`);
+            }
           } catch (err) {
             if (err.message?.includes('already exists')) throw err;
             if (!isNotFound(err)) throw new Error(`cannot determine GitHub Release uniqueness: ${err.message}`);
@@ -192,13 +278,36 @@ export function createGitGithubAdapter(deps = {}) {
             `refs/tags/${action.tag}`,
           ], { shell: false });
         } else if (action.actionType === ActionType.GITHUB_RELEASE) {
-          await exec('gh', [
-            'release', 'create', action.tag,
-            '--repo', ghRepo(action),
-            '--verify-tag',
-            '--title', action.name ?? `Release ${action.tag}`,
-            '--notes', action.notes ?? `Release ${action.tag}`,
-          ], { cwd: context.root, shell: false, env: { ...process.env, GH_HOST: action.githubHost ?? 'github.com' } });
+          const assets = await validateLocalReleaseAssets(action, context);
+          let existing = null;
+          if (assets.length > 0) {
+            try {
+              existing = await readReleaseWithAssets(action, context, exec);
+            } catch (error) {
+              if (!isNotFound(error)) throw error;
+            }
+          }
+          if (existing) {
+            assertExistingReleaseCompatible(action, existing);
+            const missing = new Set(existing.missingAssets);
+            const uploadPaths = assets.filter((asset) => missing.has(asset.name)).map((asset) => asset.physical);
+            if (uploadPaths.length > 0) {
+              await exec('gh', ['release', 'upload', action.tag, '--repo', ghRepo(action), ...uploadPaths], {
+                cwd: context.root,
+                shell: false,
+                env: { ...process.env, GH_HOST: action.githubHost ?? 'github.com' },
+              });
+            }
+          } else {
+            await exec('gh', [
+              'release', 'create', action.tag,
+              '--repo', ghRepo(action),
+              '--verify-tag',
+              '--title', action.name ?? `Release ${action.tag}`,
+              '--notes', action.notes ?? `Release ${action.tag}`,
+              ...assets.map((asset) => asset.physical),
+            ], { cwd: context.root, shell: false, env: { ...process.env, GH_HOST: action.githubHost ?? 'github.com' } });
+          }
         } else if (action.actionType === ActionType.SET_DEFAULT_BRANCH) {
           validateDefaultBranchAction(action);
           const { stdout: current } = await exec('gh', ['api', `repos/${action.repo}`, '--jq', '.default_branch'], {
@@ -242,18 +351,22 @@ export function createGitGithubAdapter(deps = {}) {
           const { remoteUrl } = await validateTagAction(action, context, exec);
           observation = { tag: action.tag, commit: await readRemoteTag(action, remoteUrl, exec) };
         } else if (action.actionType === ActionType.GITHUB_RELEASE) {
-          const { stdout } = await exec('gh', [
-            'release', 'view', action.tag,
-            '--repo', ghRepo(action),
-            '--json', 'tagName,url',
-          ], { cwd: context.root, shell: false, env: { ...process.env, GH_HOST: action.githubHost ?? 'github.com' } });
-          const release = JSON.parse(stdout);
-          const commitResult = await exec(
-            'gh',
-            ['api', `repos/${action.repo}/git/ref/tags/${action.tag}`, '--jq', '.object.sha'],
-            { cwd: context.root, shell: false, env: { ...process.env, GH_HOST: action.githubHost ?? 'github.com' } },
-          );
-          observation = { tag: release.tagName, commit: commitResult.stdout.trim(), releaseUrl: release.url };
+          if (normalizeReleaseAssets(action.releaseAssets).length > 0) {
+            observation = (await readReleaseWithAssets(action, context, exec)).observation;
+          } else {
+            const { stdout } = await exec('gh', [
+              'release', 'view', action.tag,
+              '--repo', ghRepo(action),
+              '--json', 'tagName,url',
+            ], { cwd: context.root, shell: false, env: { ...process.env, GH_HOST: action.githubHost ?? 'github.com' } });
+            const release = JSON.parse(stdout);
+            const commitResult = await exec(
+              'gh',
+              ['api', `repos/${action.repo}/git/ref/tags/${action.tag}`, '--jq', '.object.sha'],
+              { cwd: context.root, shell: false, env: { ...process.env, GH_HOST: action.githubHost ?? 'github.com' } },
+            );
+            observation = { tag: release.tagName, commit: commitResult.stdout.trim(), releaseUrl: release.url };
+          }
         } else if (action.actionType === ActionType.SET_DEFAULT_BRANCH) {
           validateDefaultBranchAction(action);
           const { stdout: current } = await exec('gh', ['api', `repos/${action.repo}`, '--jq', '.default_branch'], {

@@ -504,6 +504,37 @@ export async function loadProjectConfig({ root, configPath } = {}) {
   // inferred at execution time. A gate must name one existing unit and, for
   // consumer verification, one distribution that the unit actually ships.
   const unitsById = new Map(config.releaseUnits.map((unit) => [unit.id, unit]));
+  const publicReceipt = config.publicSourceAuthorityReceipt;
+  if (publicReceipt) {
+    if (!config.project?.sourceRepository) {
+      throw new ReleaseError(
+        CONFIG_INVALID,
+        'publicSourceAuthorityReceipt requires project.sourceRepository',
+      );
+    }
+    if (!unitsById.has(publicReceipt.coordinatorUnitId)) {
+      throw new ReleaseError(
+        CONFIG_INVALID,
+        `publicSourceAuthorityReceipt references unknown coordinator unit "${publicReceipt.coordinatorUnitId}"`,
+      );
+    }
+    for (const unitId of publicReceipt.subjectUnitIds) {
+      const unit = unitsById.get(unitId);
+      if (!unit) {
+        throw new ReleaseError(
+          CONFIG_INVALID,
+          `publicSourceAuthorityReceipt references unknown subject unit "${unitId}"`,
+        );
+      }
+      const npmDistributions = (unit.distributions ?? []).filter((distribution) => distribution.type === 'npm');
+      if (npmDistributions.length !== 1) {
+        throw new ReleaseError(
+          CONFIG_INVALID,
+          `publicSourceAuthorityReceipt subject unit "${unitId}" must declare exactly one npm distribution`,
+        );
+      }
+    }
+  }
   const gateIds = new Set();
   for (const gate of config.verificationGates ?? []) {
     if (gateIds.has(gate.id)) {

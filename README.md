@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.7.6 -->
+<!-- release-skill:release-version: 0.7.7 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,23 +14,26 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.7.6** (2026-08-22)
+**0.7.7** (2026-08-24)
 
-v0.7.6 executes every schema-declared prepare hook and corrects the documented postPublish hierarchy while preserving the current hook authorization and Codex adapter-root semantics.
+v0.7.7 can publish a small public source-authority receipt that binds an exact source repository and commit to one or more frozen npm tarballs.
 
-**Changed**
+**Security**
 
-- **Codex adapter contract coverage**: isolated-copy and negative path tests now preserve the existing self-contained adapter root: the host-provided skill path matches `PLUGIN_ROOT/skills/<skill>/SKILL.md`, and the launcher remains `PLUGIN_ROOT/bin/release-skill.mjs`. This is contract hardening, not a runtime protocol change.
-- **Hook authorization remains unchanged**: configuring a hook and invoking its workflow authorizes execution without a separate confirmation point. The legacy acknowledgement flags remain no-effect compatibility inputs; v0.7.6 does not restore a pre-execution confirmation gate.
+- **Remote commit binding**: publish now requires the remotely observed source commit to equal the receipt's frozen `sourceBaseCommit` before any adapter preflight or write. Verify and reconcile retain the same constraint.
+- **Actual tarball verification**: offline receipt verification reopens every frozen subject tgz with the existing no-follow, file-identity, digest, package-name, and package-version checks before accepting its receipt entry.
 
-**Fixed**
+**Added**
 
-- **Prepare lint hook**: `lint` now runs before `docs`, `build`, `test`, and `typecheck`; a non-zero lint result stops prepare with `GATE_FAILED`. A schema-to-execution-table contract prevents accepted hook keys from becoming silent dead configuration.
-- **postPublish documentation**: the project configuration standard now places `postPublish` inside each `releaseUnits[]` item and carries a schema-validated example.
+- **Optional public source authority**: projects may declare `publicSourceAuthorityReceipt` with one coordinator release unit and one or more npm subject units. Production prepare freezes canonical `source-authority-receipt.json` bytes from the normalized source repository, baseline commit, package name, version, tarball filename, and SHA-256. Publish then uploads those exact bytes as a GitHub Release asset.
+
+**Upgrade Notes**
+
+`publicSourceAuthorityReceipt` is optional. Existing projects require no configuration or migration; enable it only when a release needs the public source-authority asset.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.7.6 is the current source candidate; v0.7.5 remains
+> **Current boundary:** v0.7.7 is the current source candidate; v0.7.6 remains
 > the latest published release. v0.4.1 was an earlier published milestone;
 > v0.2.2 previously held published status before the platform verification
 > convergence fix was added.
@@ -50,8 +53,8 @@ v0.7.6 executes every schema-declared prepare hook and corrects the documented p
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.7.6 is the current
-> source candidate and v0.7.5 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
+> **Production path verified since the v0.1.1 milestone; v0.7.7 is the current
+> source candidate and v0.7.6 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
 > **Start here:**

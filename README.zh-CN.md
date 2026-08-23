@@ -2,29 +2,32 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.7.6 -->
+<!-- release-skill:release-version: 0.7.7 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.7.6** (2026-08-22)
+**0.7.7** (2026-08-24)
 
-v0.7.6 执行 schema 接受的全部 prepare hook，修正 postPublish 的文档层级，并保持现行 hook 授权与 Codex 适配器根目录语义不变。
+v0.7.7 可以发布精简的公开源码权威收据，把精确的源码仓库与提交绑定到一个或多个已冻结的 npm tarball。
 
-**变更**
+**安全**
 
-- **Codex 适配器契约覆盖**：新增复制隔离与路径负例测试，锁定既有的自包含适配器根目录语义：宿主提供的技能路径匹配 `PLUGIN_ROOT/skills/<skill>/SKILL.md`，入口仍为 `PLUGIN_ROOT/bin/release-skill.mjs`。这只是加强契约测试，不是运行时协议变更。
-- **hook 授权语义保持不变**：配置 hook 并调用对应工作流即授权执行，不增加独立确认点。旧确认参数仍是无效果的兼容输入；v0.7.6 不恢复执行前确认门。
+- **远端提交绑定**：publish 现在会在任何 adapter preflight 或写入前，要求远端实际提交与收据中的源码基线字段 `sourceBaseCommit` 一致。verify 与 reconcile 保留相同约束。
+- **实际 tarball 验证**：离线验证会重新打开每个主体的真实冻结 tgz。既有检查会核对符号链接、文件身份、摘要、包名和版本，通过后才接受对应的收据条目。
 
-**修复**
+**新增**
 
-- **prepare lint hook**：`lint` 现在先于 `docs`、`build`、`test` 和 `typecheck` 执行；lint 返回非零退出码时，prepare 以 `GATE_FAILED` 停止。schema 与执行表之间新增覆盖契约，避免合法配置再次变成静默失效的死键。
-- **postPublish 文档**：项目配置标准现在把 `postPublish` 放在各个 `releaseUnits[]` 条目内，并提供经过 schema 校验的完整样例。
+- **可选的公开源码权威收据**：项目可以通过可选配置 `publicSourceAuthorityReceipt` 声明一个协调发布单元和一个或多个 npm 主体单元。生产 prepare 根据规范化后的源码仓库、基线提交、包名、版本、tarball 文件名和 SHA-256，生成 canonical JSON（规范化 JSON）格式的公开收据文件 `source-authority-receipt.json`。publish 随后把完全相同的字节作为 GitHub Release 资产上传。
+
+**升级说明**
+
+`publicSourceAuthorityReceipt` 是可选配置。现有项目不需要修改配置或迁移；只有发布需要公开源码权威资产时才启用。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.7.6 是当前源码候选，v0.7.5 是最新已发布版本。v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.7.7 是当前源码候选，v0.7.6 是最新已发布版本。v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -37,7 +40,7 @@ v0.7.6 执行 schema 接受的全部 prepare hook，修正 postPublish 的文档
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.7.6 是当前源码候选，v0.7.5 是最新已发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.7.7 是当前源码候选，v0.7.6 是最新已发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**

@@ -61,6 +61,7 @@ import {
   GATE_FAILED,
   CONFIG_MISSING,
   BASELINE_CHANGED,
+  CONTENT_MISMATCH,
   PARTIAL_RELEASE,
   CONSUMER_VERIFICATION_DEFERRED,
 } from '../core/errors.mjs';
@@ -78,6 +79,7 @@ import {
   verifyFrozenSnapshot,
 } from '../snapshot/frozen.mjs';
 import { verifyFrozenNpmTarballContract } from '../adapters/npm.mjs';
+import { normalizeReleaseAssets } from '../core/release-assets.mjs';
 
 function assertInsideAssetRoot(assetRoot, candidate, label) {
   const rel = relative(assetRoot, candidate);
@@ -608,6 +610,17 @@ export async function publishRelease(options) {
           }, root);
         }
       }
+      for (const action of plan.externalActions ?? []) {
+        for (const releaseAsset of normalizeReleaseAssets(action.parameters?.releaseAssets)) {
+          const verifiedAsset = await verifyFrozenFile({
+            root,
+            filePath: releaseAsset.path,
+            expectedSha256: releaseAsset.sha256,
+            label: `frozen GitHub Release asset "${releaseAsset.name}"`,
+          });
+          assertInsideAssetRoot(assetRoot, verifiedAsset.physical, 'frozen GitHub Release asset');
+        }
+      }
       await evidence.append({ phase: 'safety-gate', gate: 'frozen-artifacts', status: 'passed' });
     }
 
@@ -984,6 +997,29 @@ export async function publishRelease(options) {
           errorCode,
           `source authority content gate failed: ${remoteResult.error?.message}`,
           remoteResult.error,
+        );
+      }
+
+      if (
+        plan.publicSourceAuthorityReceipt
+        && remoteResult.observation?.observedCommit !== plan.baseline.headCommit
+      ) {
+        const observedCommit = remoteResult.observation?.observedCommit ?? null;
+        await evidence.append({
+          phase: 'safety-gate',
+          gate: 'source-authority',
+          status: 'failed',
+          expectedCommit: plan.baseline.headCommit,
+          observedCommit,
+        });
+        throw new ReleaseError(
+          CONTENT_MISMATCH,
+          'source authority commit gate failed: remote observedCommit does not match the public receipt sourceBaseCommit',
+          {
+            gate: 'source-authority',
+            expectedCommit: plan.baseline.headCommit,
+            observedCommit,
+          },
         );
       }
 

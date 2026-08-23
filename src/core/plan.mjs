@@ -26,6 +26,8 @@ import { canonicalJson, sha256Hex } from './digest.mjs';
 import { ReleaseError, GATE_FAILED } from './errors.mjs';
 import { readTrustedPackageResource } from './trusted-resource.mjs';
 import { computeInstallationContractDigest, INSTALLATION_CONTRACT_ALGORITHM_VERSION } from './installation-contract.mjs';
+import { createPublicSourceAuthorityReceipt } from './source-authority.mjs';
+import { digestReleaseAssetIdentities, normalizeReleaseAssets } from './release-assets.mjs';
 // NOTE (T2.2 step 3): plan.mjs and the platform registry form a module cycle
 // (plan -> registry -> platforms/kimi -> plan, because the kimi strategies
 // bind computePlanDigest). PLATFORMS is therefore only ever read inside
@@ -450,6 +452,57 @@ export function validatePlanActionCompleteness(plan, options = {}) {
   const units = Array.isArray(plan.units) ? plan.units : [];
   const actions = Array.isArray(plan.externalActions) ? plan.externalActions : [];
   const expectedAdapterMap = buildExpectedAdapterMap();
+  let publicReceiptBinding = null;
+  if (plan.publicSourceAuthorityReceipt) {
+    try {
+      if (plan.production?.mode !== 'github-npm-v1') {
+        failures.push('publicSourceAuthorityReceipt requires a production plan');
+      }
+      if (!plan.sourceAuthority?.sourceRepository || !plan.baseline?.headCommit) {
+        failures.push('publicSourceAuthorityReceipt requires sourceAuthority.sourceRepository and baseline.headCommit');
+      }
+      const descriptor = plan.publicSourceAuthorityReceipt;
+      const coordinator = units.find((unit) => unit.id === descriptor.coordinatorUnitId);
+      if (!coordinator) failures.push(`publicSourceAuthorityReceipt references unknown coordinator unit "${descriptor.coordinatorUnitId}"`);
+      const subjectIds = descriptor.subjectUnitIds ?? [];
+      if (new Set(subjectIds).size !== subjectIds.length) {
+        failures.push('publicSourceAuthorityReceipt subjectUnitIds must be unique');
+      }
+      const subjects = subjectIds.map((unitId) => {
+        const unit = units.find((candidate) => candidate.id === unitId);
+        if (!unit) throw new Error(`unknown subject unit "${unitId}"`);
+        const npmDistributions = (unit.distributions ?? []).filter((distribution) => distribution.type === 'npm');
+        if (npmDistributions.length !== 1 || !unit.frozenSnapshot?.npm) {
+          throw new Error(`subject unit "${unitId}" must bind exactly one frozen npm tarball`);
+        }
+        return {
+          packageName: npmDistributions[0].package,
+          version: unit.targetVersion,
+          filename: basename(unit.frozenSnapshot.npm.tarballPath),
+          sha256: unit.frozenSnapshot.npm.tarballSha256,
+        };
+      });
+      const rebuilt = createPublicSourceAuthorityReceipt({
+        sourceRepository: plan.sourceAuthority?.sourceRepository,
+        sourceBaseCommit: plan.baseline?.headCommit,
+        subjects,
+      });
+      const assets = normalizeReleaseAssets([descriptor.asset]);
+      if (descriptor.asset.name !== 'source-authority-receipt.json') {
+        failures.push('publicSourceAuthorityReceipt asset name must be source-authority-receipt.json');
+      }
+      if (descriptor.asset.sha256 !== rebuilt.sha256) {
+        failures.push('publicSourceAuthorityReceipt asset SHA-256 does not match the mechanically derived receipt bytes');
+      }
+      publicReceiptBinding = {
+        coordinatorUnitId: descriptor.coordinatorUnitId,
+        assets,
+        assetsDigest: digestReleaseAssetIdentities(assets),
+      };
+    } catch (error) {
+      failures.push(`publicSourceAuthorityReceipt is invalid: ${error.message}`);
+    }
+  }
 
   // --- Must have at least one action ---
   if (actions.length === 0) {
@@ -666,6 +719,31 @@ export function validatePlanActionCompleteness(plan, options = {}) {
             _checkRequired(action, 'parameters.notes', action.parameters?.notes, productionConfig.releaseNotes ?? `Release ${expectedTag}`, unitId, failures);
             _checkRequired(action, 'expected.tag', action.expected?.tag, expectedTag, unitId, failures);
             _checkRequired(action, 'expected.commit', action.expected?.commit, frozen?.commit, unitId, failures);
+            if (publicReceiptBinding?.coordinatorUnitId === unitId) {
+              try {
+                const actualAssets = normalizeReleaseAssets(action.parameters?.releaseAssets);
+                if (canonicalJson(actualAssets) !== canonicalJson(publicReceiptBinding.assets)) {
+                  failures.push(`unit "${unitId}", action "${action.id}": parameters.releaseAssets do not match publicSourceAuthorityReceipt.asset`);
+                }
+              } catch (error) {
+                failures.push(`unit "${unitId}", action "${action.id}": invalid parameters.releaseAssets: ${error.message}`);
+              }
+              _checkRequired(
+                action,
+                'expected.releaseAssetsDigest',
+                action.expected?.releaseAssetsDigest,
+                publicReceiptBinding.assetsDigest,
+                unitId,
+                failures,
+              );
+            } else {
+              if (action.parameters?.releaseAssets !== undefined) {
+                failures.push(`unit "${unitId}", action "${action.id}": unexpected parameters.releaseAssets`);
+              }
+              if (action.expected?.releaseAssetsDigest !== undefined) {
+                failures.push(`unit "${unitId}", action "${action.id}": unexpected expected.releaseAssetsDigest`);
+              }
+            }
           }
         }
       }

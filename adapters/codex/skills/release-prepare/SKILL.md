@@ -40,6 +40,10 @@ description: Freeze an immutable release plan with local configuration, document
 
 若用户明确要求 GitHub+npm 生产发布，加入 `--production`。该模式还会封存独立
 Git commit/tree 和 npm tarball，并把路径、SHA/integrity、branch/tag 写入计划。
+配置声明 `publicSourceAuthorityReceipt` 时，prepare 必须在所有 subject npm tarball
+冻结后生成 `source-authority-receipt.json`，并把该文件的路径与 SHA-256 绑定到
+coordinator unit 的 `github-release` action。该能力不支持非生产 prepare；不得手工
+补写 receipt 或把私有 plan/run 字段复制进公开文件。
 每个 npm tarball 在计划落盘前必须静态验证 `package.json` 的具体
 `bin`/`main`/`module`/`types`/`typings`/`exports` 入口均为 tarball 内普通文件；
 该门禁不依赖项目是否配置 `requiredPublicFiles` 或 `smokeBin`。通配符 exports 不做
