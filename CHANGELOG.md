@@ -1,5 +1,25 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.7.8 locale=en baseline=sha256:058929eb1d0fa2abb8488f1b7f736da9046ac494c312057767d649f792bb9b81 -->
+## [0.7.8] - 2026-08-24
+
+v0.7.8 lets a fresh publish safely accept an npm version that already contains the exact frozen tarball, without executing npm publish again.
+
+### Security
+
+- **Fail-closed integrity check**: a different, missing, blank, or unparseable observed integrity stops the run before any adapter execute. The existing classifier, approval model, and forward-recovery state machine remain unchanged.
+- **Checkpoint evidence**: a matching skipped npm checkpoint records only the observed integrity in `remoteRef.integrity`; package, version, registry, expected integrity, and tarball SHA-256 remain authoritative in the frozen plan.
+
+### Fixed
+
+- **Existing npm version recovery**: when npm preflight finds the target version already published, publish compares the registry observation with the immutable plan. An exact match becomes `SKIPPED`, the npm execute count stays zero, and the remaining release actions continue.
+
+### Upgrade Notes
+
+No configuration or migration is required. Existing release-run files remain valid because `remoteRef.integrity` is optional.
+<!-- release-skill:changelog:end version=0.7.8 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.7.7 locale=en baseline=sha256:bdd8a5cd123e916f5581051c7138f56572b35b3640187551aca6faa453ea1a51 -->
 ## [0.7.7] - 2026-08-24
 

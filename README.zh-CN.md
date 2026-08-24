@@ -2,32 +2,32 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.7.7 -->
+<!-- release-skill:release-version: 0.7.8 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.7.7** (2026-08-24)
+**0.7.8** (2026-08-24)
 
-v0.7.7 可以发布精简的公开源码权威收据，把精确的源码仓库与提交绑定到一个或多个已冻结的 npm tarball。
+v0.7.8 允许全新的发布安全接受已经包含同一份冻结 tarball 的 npm 版本，不会再次执行 npm publish。
 
 **安全**
 
-- **远端提交绑定**：publish 现在会在任何 adapter preflight 或写入前，要求远端实际提交与收据中的源码基线字段 `sourceBaseCommit` 一致。verify 与 reconcile 保留相同约束。
-- **实际 tarball 验证**：离线验证会重新打开每个主体的真实冻结 tgz。既有检查会核对符号链接、文件身份、摘要、包名和版本，通过后才接受对应的收据条目。
+- **integrity 失败关闭**：观察到的 integrity 不同、缺失、空白或无法解析时，run 会在任何 Adapter execute 前停止。现有 classifier、批准模型和前向恢复状态机保持不变。
+- **检查点证据**：npm 检查点一致并跳过时，只在 `remoteRef.integrity` 记录本次观察到的 integrity；包名、版本、registry、预期 integrity 和 tarball SHA-256 继续以冻结计划为准。
 
-**新增**
+**修复**
 
-- **可选的公开源码权威收据**：项目可以通过可选配置 `publicSourceAuthorityReceipt` 声明一个协调发布单元和一个或多个 npm 主体单元。生产 prepare 根据规范化后的源码仓库、基线提交、包名、版本、tarball 文件名和 SHA-256，生成 canonical JSON（规范化 JSON）格式的公开收据文件 `source-authority-receipt.json`。publish 随后把完全相同的字节作为 GitHub Release 资产上传。
+- **已存在 npm 版本的恢复**：npm preflight 发现目标版本已经发布后，publish 会把 registry observation 与不可变计划逐项比较。完全一致时，npm 检查点进入 `SKIPPED`，npm execute 次数保持为零，其他发布动作继续执行。
 
 **升级说明**
 
-`publicSourceAuthorityReceipt` 是可选配置。现有项目不需要修改配置或迁移；只有发布需要公开源码权威资产时才启用。
+无需修改配置或迁移。`remoteRef.integrity` 是可选字段，已有 release-run 文件继续有效。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.7.7 是当前源码候选，v0.7.6 是最新已发布版本。v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.7.8 是当前源码候选，v0.7.7 是最新已发布版本。v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -40,7 +40,7 @@ v0.7.7 可以发布精简的公开源码权威收据，把精确的源码仓库�
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.7.7 是当前源码候选，v0.7.6 是最新已发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.7.8 是当前源码候选，v0.7.7 是最新已发布版本。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**

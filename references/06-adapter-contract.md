@@ -205,6 +205,7 @@ marketplace install action 的安装侧载荷校验以 action 参数 `payloadCon
 
 ### 4.1 幂等规则
 
+- `publish` 在全局 preflight 发现远端对象已存在时，先用同一套 `observe` 分类判断它是已一致还是冲突；已一致的检查点进入 `SKIPPED`，冲突或无法可靠判断时在任何 execute 前失败关闭。
 - `reconcile` 阶段首先通过 `observe` 查询所有计划操作的远端状态。
 - 状态为 `CONSISTENT` 的操作幂等跳过，不重新执行。
 - 状态为 `MISSING` 的操作安全重试。
@@ -226,7 +227,7 @@ marketplace install action 的安装侧载荷校验以 action 参数 `payloadCon
 - 执行前的 `observe` 结果。
 - 执行结果（成功/失败/跳过）。
 - 执行后的 `observe` 验证结果。
-- 远端资源标识（commit、tag、版本、URL）。
+- 远端资源标识（commit、tag、版本、URL）。npm 检查点因 `preObserve=CONSISTENT` 而跳过时，可在 `remoteRef.integrity` 保存本次观察到的有效 integrity；其他 npm 身份和摘要继续由冻结计划提供。
 
 ---
 
@@ -238,9 +239,9 @@ marketplace install action 的安装侧载荷校验以 action 参数 `payloadCon
 2. 重新验证发布计划摘要。
 3. 检查批准记录是否过期。
 4. 按 planVersion 分叉复验工作区基线：planVersion 1 计划基线变化即失败（`BASELINE_CHANGED`）；planVersion 2 计划基线漂移仅记录 warning 级证据事件并继续，产物身份由外部写之前的冻结产物复验保证。
-5. 执行远程 preflight。
+5. 执行全局远程 preflight；占用类结果先用只读 pre-observe 仲裁，`CONSISTENT` 放行到幂等跳过路径，`CONFLICTING` 或不可可靠观察时失败关闭。
 6. 按批准的操作列表顺序执行每个检查点。
-7. 每个检查点：preflight -> execute -> observe -> 记录。
+7. 每个检查点：pre-observe -> preflight -> execute -> post-observe -> 记录。pre-observe 为 `CONSISTENT` 时直接记录 `SKIPPED`，不调用 execute 或 post-observe。
 8. 任一检查点失败时停止后续动作，计算 PARTIAL（若已有成功检查点）。
 9. 所有检查点成功后进入 PUBLISHED 状态。
 

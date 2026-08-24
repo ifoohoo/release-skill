@@ -1171,6 +1171,7 @@ export async function publishRelease(options) {
           : 'pending',
         ...(checkpoint.preObserve ? { preObserve: checkpoint.preObserve } : {}),
         ...(checkpoint.postObserve ? { postObserve: checkpoint.postObserve } : {}),
+        ...(checkpoint.remoteRef ? { remoteRef: checkpoint.remoteRef } : {}),
         ...(checkpoint.error ? { error: { code: 'GATE_FAILED', message: checkpoint.error } } : {}),
         ...(checkpoint.reason === CONSUMER_VERIFICATION_DEFERRED
           ? { reason: CONSUMER_VERIFICATION_DEFERRED, phase: checkpoint.phase ?? 'post-publish-verification' }
@@ -1294,6 +1295,20 @@ export async function publishRelease(options) {
         checkpoint.error = result.error;
         if (result.preObserve) checkpoint.preObserve = result.preObserve;
         if (result.postObserve) checkpoint.postObserve = result.postObserve;
+        // When npm is already published with the exact frozen integrity, keep
+        // that observed integrity on the existing checkpoint authority. The
+        // immutable plan remains the source for package/version/registry and
+        // expected artifact identity; no second receipt or duplicated fields
+        // are introduced here.
+        if (
+          action.type === 'npm-publish'
+          && result.status === 'SKIPPED'
+          && result.preObserve === PRE_OBSERVE.CONSISTENT
+          && typeof result.observation?.integrity === 'string'
+          && /^sha512-[A-Za-z0-9+/]+={0,2}$/.test(result.observation.integrity)
+        ) {
+          checkpoint.remoteRef = { integrity: result.observation.integrity };
+        }
         action.status = result.status;
         await evidence.append({
           phase: 'checkpoint',

@@ -148,7 +148,7 @@ postPublish hooks 分两个阶段，各自对应独立的 distribute run：
 
 工作区基线（Git tree hash、workspace digest、捕获时间）与生命周期状态（计划 status、createdAt、action 运行时 status）是**记录层审计数据**：继续写入计划与审批文件以备查，但不参与 planVersion 2 的 digest、不使批准失效。publish/reconcile 检测到基线漂移时记录 warning 级证据事件并继续执行，产物完整性由发布前的冻结产物重验兜底。planVersion 1（旧版）计划维持旧规则：Git tree hash 与 workspace digest 变化同样使批准失效，基线漂移硬失败（BASELINE_CHANGED）。
 
-远端冲突状态（如 tag 已存在、npm 版本冲突等）不在 approval 绑定字段中；它在 publish/reconcile 的 preflight 阶段阻断执行并要求人工决策。
+远端冲突状态不在 approval 绑定字段中。远端对象已存在但与冻结计划完全一致时，`publish`/`reconcile` 把对应检查点标为 `SKIPPED`；存在且不一致，或无法可靠判断时，preflight 阶段阻断执行并要求人工决策。npm 版本只有在观察到有效且与冻结计划相同的 integrity 时才能进入 `SKIPPED`；integrity 缺失、空白、无法解析或不同都在任何 Adapter execute 前失败关闭。
 
 失效后系统回退到 PREPARED 状态，要求重新批准。
 
@@ -161,7 +161,7 @@ postPublish hooks 分两个阶段，各自对应独立的 distribute run：
 3. 创建并推送签名或可追溯 tag。
 4. 发布 npm 包。
 5. 创建 GitHub Release。
-6. 写入远端 URL、commit、tag、包版本、integrity 和执行结果。
+6. 写入远端 URL、commit、tag、包版本、integrity 和执行结果。若 npm 检查点因执行前观察结果为 `CONSISTENT` 而跳过，只把本次观察到的 integrity 保存到检查点的 `remoteRef.integrity`；包名、版本、registry、预期 integrity 和 tarball 摘要继续以冻结计划为准。
 
 任一步失败都停止后续动作，保存检查点并进入 PARTIAL。已完成的检查点通过 `observe` 验证后在 `reconcile` 中幂等跳过。
 

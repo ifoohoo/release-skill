@@ -199,6 +199,11 @@
               },
               "url": {
                 "type": "string"
+              },
+              "integrity": {
+                "type": "string",
+                "pattern": "^sha512-[A-Za-z0-9+/]{86}==$",
+                "description": "Observed npm dist.integrity when an already-consistent npm publish is skipped"
               }
             }
           },
@@ -280,7 +285,42 @@
             "minimum": 0,
             "description": "写入目标的载荷文件数"
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "remoteRef": {
+                  "type": "object",
+                  "required": [
+                    "integrity"
+                  ]
+                }
+              },
+              "required": [
+                "remoteRef"
+              ]
+            },
+            "then": {
+              "properties": {
+                "actionType": {
+                  "const": "npm-publish"
+                },
+                "status": {
+                  "const": "skipped"
+                },
+                "preObserve": {
+                  "const": "CONSISTENT"
+                }
+              },
+              "required": [
+                "actionType",
+                "status",
+                "preObserve"
+              ]
+            }
+          }
+        ]
       }
     },
     "sourceAuthorityReceipts": {

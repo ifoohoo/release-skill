@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.7.7 -->
+<!-- release-skill:release-version: 0.7.8 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,26 +14,26 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.7.7** (2026-08-24)
+**0.7.8** (2026-08-24)
 
-v0.7.7 can publish a small public source-authority receipt that binds an exact source repository and commit to one or more frozen npm tarballs.
+v0.7.8 lets a fresh publish safely accept an npm version that already contains the exact frozen tarball, without executing npm publish again.
 
 **Security**
 
-- **Remote commit binding**: publish now requires the remotely observed source commit to equal the receipt's frozen `sourceBaseCommit` before any adapter preflight or write. Verify and reconcile retain the same constraint.
-- **Actual tarball verification**: offline receipt verification reopens every frozen subject tgz with the existing no-follow, file-identity, digest, package-name, and package-version checks before accepting its receipt entry.
+- **Fail-closed integrity check**: a different, missing, blank, or unparseable observed integrity stops the run before any adapter execute. The existing classifier, approval model, and forward-recovery state machine remain unchanged.
+- **Checkpoint evidence**: a matching skipped npm checkpoint records only the observed integrity in `remoteRef.integrity`; package, version, registry, expected integrity, and tarball SHA-256 remain authoritative in the frozen plan.
 
-**Added**
+**Fixed**
 
-- **Optional public source authority**: projects may declare `publicSourceAuthorityReceipt` with one coordinator release unit and one or more npm subject units. Production prepare freezes canonical `source-authority-receipt.json` bytes from the normalized source repository, baseline commit, package name, version, tarball filename, and SHA-256. Publish then uploads those exact bytes as a GitHub Release asset.
+- **Existing npm version recovery**: when npm preflight finds the target version already published, publish compares the registry observation with the immutable plan. An exact match becomes `SKIPPED`, the npm execute count stays zero, and the remaining release actions continue.
 
 **Upgrade Notes**
 
-`publicSourceAuthorityReceipt` is optional. Existing projects require no configuration or migration; enable it only when a release needs the public source-authority asset.
+No configuration or migration is required. Existing release-run files remain valid because `remoteRef.integrity` is optional.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.7.7 is the current source candidate; v0.7.6 remains
+> **Current boundary:** v0.7.8 is the current source candidate; v0.7.7 remains
 > the latest published release. v0.4.1 was an earlier published milestone;
 > v0.2.2 previously held published status before the platform verification
 > convergence fix was added.
@@ -53,8 +53,8 @@ v0.7.7 can publish a small public source-authority receipt that binds an exact s
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.7.7 is the current
-> source candidate and v0.7.6 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
+> **Production path verified since the v0.1.1 milestone; v0.7.8 is the current
+> source candidate and v0.7.7 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
 > **Start here:**

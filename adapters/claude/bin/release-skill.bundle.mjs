@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.7.7"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.7.8"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "abe5151f6131b7016e6d66bdd83c223b92b40586443e9110d9367f5986e81bf4";
+const __bundleSourceDigest = "33dc18dc83ac5f6211859bd64e1b323b9166acf7307e5b8748ea1d2d99376df2";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -103001,6 +103001,7 @@ async function publishRelease(options) {
         status: checkpoint.status === "SUCCEEDED" ? "succeeded" : checkpoint.status === "FAILED" ? "failed" : checkpoint.status === "UNCERTAIN" ? "uncertain" : checkpoint.status === "SKIPPED" ? "skipped" : checkpoint.status === "DEFERRED" ? "deferred" : "pending",
         ...checkpoint.preObserve ? { preObserve: checkpoint.preObserve } : {},
         ...checkpoint.postObserve ? { postObserve: checkpoint.postObserve } : {},
+        ...checkpoint.remoteRef ? { remoteRef: checkpoint.remoteRef } : {},
         ...checkpoint.error ? { error: { code: "GATE_FAILED", message: checkpoint.error } } : {},
         ...checkpoint.reason === CONSUMER_VERIFICATION_DEFERRED ? { reason: CONSUMER_VERIFICATION_DEFERRED, phase: checkpoint.phase ?? "post-publish-verification" } : {}
       })),
@@ -103080,6 +103081,9 @@ async function publishRelease(options) {
         checkpoint.error = result.error;
         if (result.preObserve) checkpoint.preObserve = result.preObserve;
         if (result.postObserve) checkpoint.postObserve = result.postObserve;
+        if (action.type === "npm-publish" && result.status === "SKIPPED" && result.preObserve === PRE_OBSERVE.CONSISTENT && typeof result.observation?.integrity === "string" && /^sha512-[A-Za-z0-9+/]+={0,2}$/.test(result.observation.integrity)) {
+          checkpoint.remoteRef = { integrity: result.observation.integrity };
+        }
         action.status = result.status;
         await evidence.append({
           phase: "checkpoint",
