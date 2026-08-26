@@ -327,8 +327,15 @@ Options:
   --run-dir <path> Override prepare run directory; production requires one direct child of .release-skill/runs
   --workflow <full|docs|config|marketplace> Workflow profile for prepare (default full). docs/config/marketplace
                    deterministically trim code-class gates (declared hooks, snapshot-verify gates,
-                   source-authority closure, skill-resource-closure) and record workflowDecision in the plan;
-                   config also reports whether the public bytes are unchanged (no publish path)
+                   skill-resource-closure) and record workflowDecision in the plan.
+                   config A: unchanged public bytes => no externalActions and no sourceAuthority,
+                   even when a public source receipt is configured; no approve/publish/verify path.
+                   config B: changed or indeterminable bytes => publish-needed; production prepare
+                   freezes sourceAuthority. docs production requires the same source authority.
+                   publish/reconcile/verify retain frozen-source and remote consistency checks.
+                   Old plans missing sourceAuthority require fresh prepare and approval, not migration;
+                   existing PARTIAL checkpoints must be preserved for matching-version recovery.
+                   marketplace delegation to the target workspace remains unchanged.
   --test-selection <full|incremental> Test selection for the test hook (prepare). Only 'full' is accepted at
                    freeze time; 'incremental' is reserved for a future preflight mode and is rejected
                    ('incremental selection is not allowed at freeze time')
@@ -545,6 +552,42 @@ if (command === 'setup') {
     ? args[confirmationIdx + 1]
     : undefined;
   const write = args.includes('--write');
+
+  // WP-6 — read-only adoption assessment: four-category matrix, hook cost
+  // observations, structured gate drafts. Never writes, never goes remote.
+  if (args.includes('--assess-adoption')) {
+    try {
+      const setupModule = await import('../src/commands/setup.mjs');
+      const report = await setupModule.assessAdoption({ root });
+      if (hasJson) {
+        console.log(JSON.stringify(report, null, 2));
+      } else {
+        console.log(`Adoption status: ${report.status}`);
+        for (const finding of report.findings) {
+          console.log(`  [${finding.category}] ${finding.code} ${finding.fieldPath ?? ''} ${finding.message}`);
+        }
+        if (report.gateSuggestions.length > 0) {
+          console.log(`Gate suggestions: ${report.gateSuggestions.map((s) => s.script).join(', ')} (需人工确认，未写入配置)`);
+        }
+        if (report.next) console.log(`Next: ${report.next}`);
+      }
+      const adopted = report.status === 'ADOPTED' || report.status === 'ADOPTED_WITH_SUGGESTIONS';
+      const exitCode = adopted ? 0 : report.status === 'NOT_CONFIGURED' ? 1 : 2;
+      await exitAfterFlush(exitCode);
+    } catch (err) {
+      if (hasJson) {
+        console.log(JSON.stringify({
+          error: err.code ?? 'UNKNOWN_ERROR',
+          message: err.message,
+          details: err.details ?? {},
+          exitCode: err.exitCode ?? 1,
+        }));
+      } else {
+        console.error(`Error: ${err.message}`);
+      }
+      await exitAfterFlush(err.exitCode ?? 1);
+    }
+  }
 
   // R5 — downstream discovery + postPublish hook proposal (guided config) and
   // the independent incremental-proposal mode for existing projects. These

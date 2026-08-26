@@ -261,6 +261,11 @@ squash、rebase 和默认分支上的无关后续提交可以通过；冲突解�
 | `cwd` | 字符串 | 否 | 相对路径，不得以 `/` 开头，不得包含 `..` |
 | `timeoutMs` | 整数 | 否 | 最小 1000，最大 7200000（2 小时） |
 | `envAllowlist` | 字符串数组 | 否 | 每个元素匹配 `^[A-Z_][A-Z0-9_]*$`；无重复元素 |
+| `cacheable` | 布尔 | 否 | `true` 时启用增量结果缓存：`cacheInputs` 指纹未变且上次运行成功时，prepare 回放缓存结果而不重跑；缺省（或 `false`）恒为全量执行。`cacheable: true` 必须同时声明非空 `cacheInputs`（运行时强制，见 `src/core/hooks.mjs`） |
+| `cacheInputs` | 字符串数组 | 否 | 根相对 glob，声明 hook 的完整输入集（源码、脚本、配置、锁文件等）。缓存键对每个匹配文件的内容取指纹；任何 glob 匹配不到文件时拒绝缓存（fail closed）。必须覆盖全部输入，否则缓存可能返回假命中。输入完整性只能由项目自己声明并证明，工具不会代猜或代写 |
+| `testSelection` | 枚举 | 否 | 仅对 test hook 有意义：`full`（缺省同义）表示运行完整测试套件，prepare 的内置全量测试冻结门要求计算计划摘要前必须是全量；`incremental` 保留给未来 preflight 模式，冻结时拒绝（`incremental selection is not allowed at freeze time`）。内置门，项目 overlay 不能禁用 |
+
+缓存回放只表示"上次成功结果的复用"，`cached: true` 的 hook 事件不构成真实执行成本；接入评估只从受信 producer 的 started/completed 事件对推导实际耗时，从不把 `timeoutMs` 当作实际成本，也从不替项目补写 `cacheable`/`cacheInputs`。
 
 hook 执行顺序固定为 `lint → docs → build → test → typecheck`，优先运行成本最低的检查。执行规则如下：
 

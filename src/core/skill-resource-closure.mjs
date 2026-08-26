@@ -14,9 +14,15 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { canonicalJson, digestDocument } from 'skill-family-contracts';
 import { GATE_FAILED, ReleaseError } from './errors.mjs';
 import { computeFrozenSnapshot } from '../snapshot/frozen.mjs';
-import { resolveSkillProjectionSurfaceHost } from '../platforms/registry.mjs';
+import { normalizeHostId, resolveSkillProjectionSurfaceHost } from '../platforms/registry.mjs';
 
-export const CHECKER_VERSION = 'skill-resource-closure-v4';
+// R-13 (0.8.0): v5 binds real host surfaces from frozen installation facts —
+// the platform registry, marketplace sources, and the plugin manifest skills
+// paths — via in-memory `surfaceHostBindings` instead of guessing host labels
+// from the shipped directory tree alone. Receipt and plan schemas are
+// unchanged; the surfaces' host labels derive from the same rules at
+// prepare/publish/verify.
+export const CHECKER_VERSION = 'skill-resource-closure-v5';
 
 const BARE_PREFIXES = ['references/', 'assets/', 'schemas/', 'examples/', 'scripts/'];
 const EXPLICIT_PREFIXES = [
@@ -304,13 +310,21 @@ async function collectRegularFiles(dir, results) {
   }
 }
 
-function inferSurfaceHost(surfaceId, defaultHost) {
+async function inferSurfaceHost(surfaceId, defaultHost) {
   const adapterMatch = ADAPTER_SURFACE_PATTERN.exec(surfaceId);
-  if (adapterMatch) return adapterMatch[1];
+  if (adapterMatch) {
+    // Adapter directory names are free-form observed labels: normalize them
+    // through the Foundation host profiles when registered, keep the raw
+    // label when not (fallback), so an unknown adapter never aborts the scan.
+    return normalizeHostId(adapterMatch[1], { fallback: true });
+  }
   const platformMatch = PLATFORM_SURFACE_PATTERN.exec(surfaceId);
   if (platformMatch) {
-    return resolveSkillProjectionSurfaceHost(surfaceId)
-      ?? `unknown-platform:${platformMatch[1]}`;
+    const registeredHost = resolveSkillProjectionSurfaceHost(surfaceId);
+    if (registeredHost === null) return `unknown-platform:${platformMatch[1]}`;
+    // Registered platform hosts must resolve in the Foundation profiles;
+    // an SFC2003 here fails closed instead of silently relabeling.
+    return normalizeHostId(registeredHost);
   }
   return defaultHost;
 }
@@ -388,9 +402,33 @@ export function evaluateConsumerSkillResourceClosureReceipts(plan, receipts) {
 export async function checkSkillResourceClosure({
   snapshotDir,
   host = 'root',
+  surfaceHostBindings = [],
 } = {}) {
   if (typeof snapshotDir !== 'string' || snapshotDir.length === 0) {
     throw new TypeError('snapshotDir must be a non-empty string');
+  }
+  if (!Array.isArray(surfaceHostBindings)) {
+    throw new TypeError('surfaceHostBindings must be an array of { surfaceId, host }');
+  }
+  const bindingBySurface = new Map();
+  for (const binding of surfaceHostBindings) {
+    if (!binding || typeof binding !== 'object' || typeof binding.surfaceId !== 'string'
+        || typeof binding.host !== 'string') {
+      throw new ReleaseError(
+        GATE_FAILED,
+        'surfaceHostBindings entries must be objects with string surfaceId and host',
+        { binding },
+      );
+    }
+    const priorHost = bindingBySurface.get(binding.surfaceId);
+    if (priorHost !== undefined && priorHost !== binding.host) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `surface "${binding.surfaceId}" is claimed by multiple hosts: ${priorHost} and ${binding.host}`,
+        { surfaceId: binding.surfaceId, hosts: [priorHost, binding.host] },
+      );
+    }
+    bindingBySurface.set(binding.surfaceId, binding.host);
   }
   const scanRoot = resolve(snapshotDir);
   const scanStat = await lstat(scanRoot);
@@ -442,7 +480,10 @@ export async function checkSkillResourceClosure({
     const skillRoot = resolveSkillRoot(skill, scanRoot);
     const pluginRoot = resolvePluginRoot(skill, scanRoot);
     const surfaceId = relativeStable(scanRoot, pluginRoot);
-    const surfaceHost = inferSurfaceHost(surfaceId, host);
+    // R-13: a frozen installation contract binding wins over inference; the
+    // binding host is already canonicalized by the caller's derivation rules.
+    const surfaceHost = bindingBySurface.get(surfaceId)
+      ?? await inferSurfaceHost(surfaceId, host);
     const firstSkillOnSurface = !surfaceMap.has(surfaceId);
     const surface = surfaceMap.get(surfaceId) ?? {
       id: surfaceId,

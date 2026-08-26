@@ -12,8 +12,9 @@
  * - prepare recomputes the source digest and compares it with the embedded
  *   constant. Any mismatch — including a missing bundle or a bundle without
  *   the constant — fails closed with BUNDLE_STALE.
- * - Installed distributions ship no mutable src/ next to the bundle, so the
- *   gate is not applicable there; it records that fact instead of failing.
+ * - Installed distributions ship no mutable src/ next to the bundle except
+ *   the projected runtime schemas (src/schemas), so the gate is not
+ *   applicable there; it records that fact instead of failing.
  *
  * The digest algorithm is shared with scripts/build-bundle.mjs so build and
  * gate can never disagree about what "in sync" means.
@@ -151,6 +152,14 @@ export async function readEmbeddedBundleDigest(bundlePath) {
 /**
  * Decide bundle freshness for a package root (pure decision, no throw).
  *
+ * Installed-layout classification (ruling 9 / B1): the 0.8.0 build projects
+ * the contracts runtime schemas into `src/schemas/` next to the bundle, so
+ * an installed root or adapter ships an `src/` directory even though no
+ * source checkout is present. The layout is "installed" only when src/
+ * contains nothing but the `schemas` subtree; any other src/ member — even a
+ * PARTIAL source tree — is a source layout and fails closed through the
+ * regular digest comparison.
+ *
  * @param {string} pkgRoot - Absolute package root.
  * @returns {Promise<{
  *   applicable: boolean,
@@ -171,9 +180,17 @@ export async function checkBundleFreshness(pkgRoot) {
   };
 
   // Installed distributions ship the bundle without mutable sources next to
-  // it; staleness is a source-checkout concern only.
+  // it; staleness is a source-checkout concern only. The ONLY src/ content an
+  // installed layout carries is the projected runtime-schema subtree.
   const srcStat = await stat(join(pkgRoot, 'src')).catch(() => null);
   if (!srcStat?.isDirectory()) {
+    return { ...base, applicable: false, reason: 'installed-layout' };
+  }
+  const srcMembers = await readdir(join(pkgRoot, 'src'));
+  const schemasOnly = srcMembers.length > 0
+    && srcMembers.every((name) => name === 'schemas')
+    && (await stat(join(pkgRoot, 'src', 'schemas')).catch(() => null))?.isDirectory();
+  if (schemasOnly) {
     return { ...base, applicable: false, reason: 'installed-layout' };
   }
 

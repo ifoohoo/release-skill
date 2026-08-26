@@ -20,9 +20,12 @@ plan → `publishPath: 'publish-needed'`（fail-safe）。决策以 `workflowDec
 进 plan digest，不可篡改。**不存在** `NO_PUBLISH_NEEDED`/`REPORTED` 虚构状态：
 prepare 的真实输出是 plan 内的 `workflowDecision`。
 
-**边界**: 跳过代码类 gates（declared hooks、snapshot-verify gates、source-authority
-closure、skill-resource-closure）。保留 baseline/snapshots/plan freeze/docs
-freshness。consumer-verify 仅在触发生效发布时参与。
+**边界**：裁剪代码类检查（declared hooks、snapshot-verify gates、skill-resource-closure），保留基线、快照、计划冻结和文档新鲜度检查。来源权威检查按发布分支决定，不能一并裁掉：
+
+- 场景 A：公开字节未变，`externalActions=[]`，不生成 `plan.sourceAuthority`（冻结的源码来源权威），也不进入 approve/publish/verify。即使配置了公开来源收据，这一边界也不变。
+- 场景 B：公开字节变化或不可判定，需要发布。production prepare 必须通过现有来源权威检查并冻结 `plan.sourceAuthority`；publish、reconcile、verify 继续校验冻结绑定和远端一致性，consumer-verify 保留。
+
+旧 production 计划缺少 `sourceAuthority` 时，仍在外部写入前拒绝。未发生外部写入的旧计划必须重新 prepare 并批准新摘要，不补字段、不迁移旧批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。docs production 同样要求来源权威；marketplace 委托目标工作区发布的边界不变。
 
 ## 职责与边界
 
@@ -108,10 +111,8 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" verify \
 ┌───────────────┐   ┌───────────────────┐
 │ public bytes  │   │ public bytes      │
 │ unchanged     │   │ changed /         │
-│ (or no plan   │   │ indeterminable    │
-│  → fail-safe  │   │                   │
-│  → publish    │   │                   │
-│  needed)      │   │                   │
+│               │   │ indeterminable    │
+│               │   │ (no prior plan)   │
 └───────┬───────┘   └────────┬──────────┘
         │                    │
         ▼                    ▼

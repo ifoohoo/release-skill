@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.filesystem-bound-read-prebuild-manifest",
+  "status": "stable",
+  "entries": [
+    {
+      "platformKey": "darwin-arm64",
+      "os": "darwin",
+      "arch": "arm64",
+      "libc": "none",
+      "binary": "prebuilds/darwin-arm64/bound_read.darwin-arm64.node",
+      "mode": 420,
+      "sha256": "edf0be6988f0c0d26ec03860e55d81be8ddf85fd82d29aba4ab6963bd58f9651",
+      "napi": 10,
+      "exports": [
+        "closeParentDirectory",
+        "openParentDirectory",
+        "platform",
+        "readFileBoundNative",
+        "renameDirectoryNoReplace"
+      ]
+    },
+    {
+      "platformKey": "darwin-x64",
+      "os": "darwin",
+      "arch": "x64",
+      "libc": "none",
+      "binary": "prebuilds/darwin-x64/bound_read.darwin-x64.node",
+      "mode": 420,
+      "sha256": "cf11633c8ea804a4c9af58eb205852d38eb6f49979bdad21abc93ba49184ac41",
+      "napi": 10,
+      "exports": [
+        "closeParentDirectory",
+        "openParentDirectory",
+        "platform",
+        "readFileBoundNative",
+        "renameDirectoryNoReplace"
+      ]
+    },
+    {
+      "platformKey": "linux-arm64-gnu",
+      "os": "linux",
+      "arch": "arm64",
+      "libc": "glibc",
+      "binary": "prebuilds/linux-arm64-gnu/bound_read.linux-arm64-gnu.node",
+      "mode": 420,
+      "sha256": "577db2c4b200ecddf0e5807034a57afa0f4d98fd6ee7cdbaeb358f3ff05313ae",
+      "napi": 10,
+      "exports": [
+        "closeParentDirectory",
+        "openParentDirectory",
+        "platform",
+        "readFileBoundNative",
+        "renameDirectoryNoReplace"
+      ]
+    },
+    {
+      "platformKey": "linux-x64-gnu",
+      "os": "linux",
+      "arch": "x64",
+      "libc": "glibc",
+      "binary": "prebuilds/linux-x64-gnu/bound_read.linux-x64-gnu.node",
+      "mode": 420,
+      "sha256": "f12ed96d4b5a338d87232a074b5d95117d81c5fdeb31f79c664a93c17f28a809",
+      "napi": 10,
+      "exports": [
+        "closeParentDirectory",
+        "openParentDirectory",
+        "platform",
+        "readFileBoundNative",
+        "renameDirectoryNoReplace"
+      ]
+    }
+  ]
+}

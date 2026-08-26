@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.host-descriptor",
+  "hostId": "workbuddy",
+  "displayName": "WorkBuddy",
+  "support": "manual",
+  "maturity": "manual",
+  "verification": {
+    "driverId": "workbuddy-codebuddy-print-v1",
+    "authStrategy": "existing-user-state",
+    "credentialMutation": "host-managed"
+  },
+  "sourceAliases": [],
+  "pathCategories": [
+    {
+      "id": "plugin-adapter-skill-root",
+      "role": "skill-root",
+      "scope": "project",
+      "anchor": "project-root",
+      "relPath": "skills"
+    }
+  ],
+  "probeCapabilities": [
+    "cli",
+    "version",
+    "payload",
+    "registry",
+    "discover",
+    "enabled",
+    "reload",
+    "smoke",
+    "uninstall"
+  ]
+}

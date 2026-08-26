@@ -8,7 +8,14 @@
  * @internal
  */
 
-import { createRequire } from 'node:module';
+// Namespace import (not `import { createRequire }`): the harness 0.11.0
+// native loader (inlined into the same bundle) also imports createRequire,
+// and esbuild renames the later-importing module's binding (createRequire2),
+// breaking the adapter-native-loader anchor contract. The namespace form has
+// no colliding top-level binding, so the anchor keeps its exact
+// `createRequire(resolve(PKG_ROOT, 'bin/release-skill.mjs'))` shape in every
+// bundle (adapter-native-loader-anchor.test.mjs).
+import * as nodeModule from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { realpath } from 'node:fs/promises';
@@ -182,7 +189,7 @@ function requireAddon(addonPath) {
   try {
     // Anchor require() to a file present in both the source package and every
     // generated adapter. Adapter roots intentionally do not ship package.json.
-    const require = createRequire(resolve(PKG_ROOT, 'bin/release-skill.mjs'));
+    const require = nodeModule.createRequire(resolve(PKG_ROOT, 'bin/release-skill.mjs'));
     return require(addonPath);
   } catch (err) {
     throw new ReleaseError(SAFE_WRITE_UNAVAILABLE, sanitizeError(err));

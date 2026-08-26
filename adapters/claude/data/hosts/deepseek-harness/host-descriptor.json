@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.host-descriptor",
+  "hostId": "deepseek-harness",
+  "displayName": "DeepSeek Harness",
+  "support": "manual",
+  "maturity": "developer-preview",
+  "sourceAliases": [
+    "dsh"
+  ],
+  "pathCategories": [],
+  "probeCapabilities": [
+    "cli",
+    "version",
+    "payload",
+    "registry",
+    "discover",
+    "enabled",
+    "reload",
+    "smoke",
+    "uninstall"
+  ]
+}

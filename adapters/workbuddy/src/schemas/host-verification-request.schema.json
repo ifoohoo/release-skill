@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/host-verification-request.json",
+  "title": "Host verification request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "operation", "common", "host", "auth", "execution"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.host-verification-request" },
+    "operation": { "const": "host-verification" },
+    "common": { "$ref": "#/$defs/common" },
+    "host": { "$ref": "#/$defs/host" },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "credentialMutation"],
+      "properties": {
+        "strategy": { "const": "existing-user-state" },
+        "credentialMutation": { "const": "host-managed" }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["timeoutPolicy", "modelOverridePolicy"],
+      "properties": {
+        "timeoutPolicy": { "$ref": "https://contracts.skill-family.example/v1/timeout-policy.json" },
+        "modelOverridePolicy": { "const": "forbidden" }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "digest": { "$ref": "#/$defs/sha256" },
+    "opaque": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "common": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verificationSetId", "candidateRef", "candidateManifestSha256", "workloadDocumentSha256", "fixtureClosureDigest", "protectedWorkspaceClosureDigest"],
+      "properties": {
+        "verificationSetId": { "$ref": "#/$defs/opaque" },
+        "candidateRef": { "$ref": "#/$defs/opaque" },
+        "candidateManifestSha256": { "$ref": "#/$defs/sha256" },
+        "workloadDocumentSha256": { "$ref": "#/$defs/sha256" },
+        "fixtureClosureDigest": { "$ref": "#/$defs/digest" },
+        "protectedWorkspaceClosureDigest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hostId", "descriptorSha256", "driverId", "driverVersion", "platformManifestSha256", "adapterClosureDigest", "installedSkillClosureDigest", "effectivePromptSha256", "executableSha256"],
+      "properties": {
+        "hostId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+        "descriptorSha256": { "$ref": "#/$defs/sha256" },
+        "driverId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,127}$" },
+        "driverVersion": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$" },
+        "platformManifestSha256": { "$ref": "#/$defs/sha256" },
+        "adapterClosureDigest": { "$ref": "#/$defs/digest" },
+        "installedSkillClosureDigest": { "$ref": "#/$defs/digest" },
+        "effectivePromptSha256": { "$ref": "#/$defs/sha256" },
+        "executableSha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

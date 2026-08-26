@@ -33,6 +33,8 @@
 
 import { join } from 'node:path';
 
+import { bundledHostProfilesRoot, resolveHostId } from 'skill-family-engineering-kit';
+
 import {
   executeKimiManualRequirement,
   readKimiManifest,
@@ -705,4 +707,59 @@ export function resolveCapabilityConflicts(platform) {
  */
 export function deriveAutomatable(platform) {
   return platform.installMethod === 'structured-cli';
+}
+
+// ---------------------------------------------------------------------------
+// Host identity normalization — Foundation thin entry (0.8.0 R-13)
+// ---------------------------------------------------------------------------
+// The only host-normalization entry point: read `buildAdapter.name` from this
+// registry (or an observed adapter surface directory) and canonicalize it
+// through the Foundation host profiles (`resolveHostId`). The profiles
+// registry.json + descriptor bytes ship inside the released bundle; the
+// absolute profiles root is resolved lazily and never stored in plans or
+// receipts. No user-fillable host string and no second host registry exist.
+let cachedHostsRoot = null;
+
+/** @type {Map<string, string>} canonicalized hostId cache */
+const normalizedHostIds = new Map();
+
+async function foundationHostsRoot() {
+  if (cachedHostsRoot === null) {
+    cachedHostsRoot = bundledHostProfilesRoot();
+  }
+  return cachedHostsRoot;
+}
+
+/**
+ * Normalize a host identity through the Foundation host profiles.
+ *
+ * Unknown host ids propagate the Foundation SFC2003 error so strict callers —
+ * the G4 expected host list, publish/verify registry mappings — fail closed
+ * instead of shipping an unregistered identity. The checker's free-form
+ * adapter-surface inference passes `{ fallback: true }` so an unregistered
+ * adapter directory name degrades to its raw label instead of aborting the
+ * scan.
+ *
+ * @param {string} hostId - raw host identity (registry buildAdapter.name or
+ *   an observed adapter surface directory name).
+ * @param {object} [options]
+ * @param {boolean} [options.fallback] - when true, unknown host ids return
+ *   the raw input instead of throwing.
+ * @returns {Promise<string>} canonical hostId
+ */
+export async function normalizeHostId(hostId, { fallback = false } = {}) {
+  const key = hostId ?? '';
+  if (normalizedHostIds.has(key)) return normalizedHostIds.get(key);
+  const root = await foundationHostsRoot();
+  try {
+    const canonical = await resolveHostId({ hostId, hostsRoot: root });
+    normalizedHostIds.set(key, canonical);
+    return canonical;
+  } catch (err) {
+    if (fallback && err?.code === 'SFC2003' && hostId) {
+      normalizedHostIds.set(key, hostId);
+      return hostId;
+    }
+    throw err;
+  }
 }

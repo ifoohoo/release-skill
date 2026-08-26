@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/filesystem-root-binding.json",
+  "title": "Filesystem root binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "digestAlgorithm", "basis", "digest"],
+  "properties": {
+    "kind": { "const": "trusted-filesystem-root-binding" },
+    "digestAlgorithm": { "const": "sha256" },
+    "basis": { "const": "canonical-realpath-device-inode-type-mode-v1" },
+    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

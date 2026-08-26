@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/host-verification-result.json",
+  "title": "Host verification result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "operation", "status", "requestDigest", "common", "host", "runtimeIdentities", "execution", "snapshots", "streams", "reason", "requiredActions"],
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "observed" } } },
+      "then": {
+        "properties": {
+          "runtimeIdentities": { "type": "object" },
+          "execution": {
+            "type": "object",
+            "properties": {
+              "spawned": { "const": true },
+              "exitStatus": { "const": 0 },
+              "processStatus": { "const": "EXITED" },
+              "terminationReason": { "const": null },
+              "watchdogReason": { "const": null },
+              "runnerModelOverrideAbsent": { "const": true }
+            }
+          },
+          "snapshots": { "type": "object" },
+          "streams": { "type": "object" },
+          "reason": { "const": null },
+          "requiredActions": { "type": "array", "maxItems": 0 }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "indeterminate" } } },
+      "then": {
+        "properties": {
+          "reason": { "const": "boundary-state-indeterminate" },
+          "requiredActions": { "type": "array", "minItems": 1 }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "rejected" } } },
+      "then": {
+        "properties": {
+          "runtimeIdentities": { "const": null },
+          "execution": {
+            "type": "object",
+            "properties": {
+              "spawned": { "const": false },
+              "exitStatus": { "const": null },
+              "processStatus": { "const": null },
+              "terminationReason": { "const": null },
+              "watchdogReason": { "const": null }
+            }
+          },
+          "snapshots": { "const": null },
+          "streams": { "const": null },
+          "reason": { "enum": ["preflight-rejected", "executable-observation-mismatch"] },
+          "requiredActions": { "type": "array", "maxItems": 0 }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "failed" } } },
+      "then": {
+        "properties": {
+          "reason": { "enum": ["executable-observation-mismatch", "execution-failed", "snapshot-mismatch", "private-evidence-publication-failed"] },
+          "requiredActions": { "type": "array", "maxItems": 0 }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "reason": { "const": "snapshot-mismatch" } } },
+      "then": {
+        "properties": {
+          "execution": {
+            "type": "object",
+            "properties": { "spawned": { "const": true } }
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.host-verification-result" },
+    "operation": { "const": "host-verification" },
+    "status": { "enum": ["observed", "rejected", "failed", "indeterminate"] },
+    "requestDigest": { "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256" },
+    "common": { "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/common" },
+    "host": { "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/host" },
+    "runtimeIdentities": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["cliVersion"],
+      "properties": { "cliVersion": { "type": "string", "minLength": 1, "maxLength": 256 } }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spawned", "exitStatus", "processStatus", "terminationReason", "watchdogReason", "runnerModelOverrideAbsent"],
+      "properties": {
+        "spawned": { "type": "boolean" },
+        "exitStatus": { "type": ["integer", "null"], "minimum": 0 },
+        "processStatus": { "type": ["string", "null"], "enum": ["PLANNED", "STARTING", "RUNNING", "EXITED", "FAILED_TO_START", "TIMED_OUT", "TERMINATED", null] },
+        "terminationReason": { "$ref": "https://contracts.skill-family.example/v1/watchdog-termination-envelope.json#/properties/terminationReason" },
+        "watchdogReason": { "$ref": "https://contracts.skill-family.example/v1/watchdog-termination-envelope.json#/properties/watchdogReason" },
+        "runnerModelOverrideAbsent": { "type": "boolean" }
+      }
+    },
+    "snapshots": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["installedSkill", "fixture", "protectedWorkspace"],
+      "properties": {
+        "installedSkill": { "$ref": "#/$defs/snapshot" },
+        "fixture": { "$ref": "#/$defs/snapshot" },
+        "protectedWorkspace": { "$ref": "#/$defs/snapshot" }
+      }
+    },
+    "streams": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["stdout", "stderr"],
+      "properties": { "stdout": { "$ref": "#/$defs/stream" }, "stderr": { "$ref": "#/$defs/stream" } }
+    },
+    "reason": { "enum": [null, "preflight-rejected", "executable-observation-mismatch", "execution-failed", "snapshot-mismatch", "private-evidence-publication-failed", "boundary-state-indeterminate"] },
+    "requiredActions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["manual-temporary-root-inspection-required"] }
+    }
+  },
+  "$defs": {
+    "snapshot": {
+      "type": "object", "additionalProperties": false,
+      "required": ["preClosureDigest", "postClosureDigest"],
+      "properties": {
+        "preClosureDigest": { "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256" },
+        "postClosureDigest": { "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256" }
+      }
+    },
+    "stream": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sha256", "bytes", "sensitivity"],
+      "properties": { "sha256": { "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256" }, "bytes": { "type": "integer", "minimum": 0 }, "sensitivity": { "const": "private" } }
+    }
+  }
+}

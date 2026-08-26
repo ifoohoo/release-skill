@@ -48,6 +48,7 @@ import {
   recoverFilesystemLock,
   HARNESS_ERROR_KINDS as INFLIGHT_KINDS,
 } from '../core/foundation-inflight.mjs';
+import { renderRecoveryArgv } from '../core/recovery.mjs';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -599,11 +600,40 @@ export async function acquireProjectLock({
     handle = await acquireFilesystemLock(root, LOCK_REL_PATH, { owner: ownerJson });
   } catch (cause) {
     if (cause?.details?.kind === INFLIGHT_KINDS.STORE_LOCKED) {
-      // Lock is held — TTL never permits automatic breakage
+      // Lock is held — TTL never permits automatic breakage (R-09). Surface
+      // everything a human needs to decide: the persisted owner record, the
+      // acquiredAt timestamp, liveness 'unknown' (no PID liveness inference),
+      // and the EXACT manual break-lock argv. Never unlock automatically.
+      let ownerRecord = null;
+      let acquiredAt = null;
+      try {
+        const inspected = await inspectFilesystemLock(root, LOCK_REL_PATH);
+        if (inspected.locked) {
+          if (typeof inspected.owner === 'string') {
+            try {
+              ownerRecord = JSON.parse(inspected.owner);
+            } catch {
+              ownerRecord = null; // corrupt record: still fail closed
+            }
+          } else {
+            ownerRecord = inspected.owner ?? null;
+          }
+          acquiredAt = inspected.acquiredAt ?? null;
+        }
+      } catch {
+        // The lock may have vanished between the failed acquire and the
+        // inspection; keep the conflict fail-closed with what is known.
+      }
       throw new ReleaseError(
         TRANSACTION_INCOMPLETE,
         'project lock is already held; another command is in progress',
-        { root, lockPath: lockPath(root) },
+        {
+          owner: ownerRecord,
+          acquiredAt,
+          liveness: 'unknown',
+          recovery: { argv: renderRecoveryArgv('RESOLVE_LOCK', { owner: ownerRecord }) },
+          lockPath: LOCK_REL_PATH,
+        },
       );
     }
     throw mapFoundationError(cause, 'project lock acquisition failed');

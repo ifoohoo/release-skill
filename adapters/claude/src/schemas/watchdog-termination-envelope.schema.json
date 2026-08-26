@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/watchdog-termination-envelope.json",
+  "title": "WatchdogTerminationEnvelope",
+  "description": "Termination evidence envelope produced by bounded subprocess supervision (FND-ADR-012). Closed enums, fail-closed direction and mechanism purity are declared in `guarantees`: the mechanism reports the termination fact only; retry/restart policy stays with the upper orchestration layer (workflow-orchestration exclusion), and the mechanism never auto-restarts the supervised process. Liveness is confirmed only by explicit events (exit, signal, process-group probe); ps/process-table observation, if ever used, is restricted to residual-descendant tracking and is never used for liveness guessing. `terminationReason`/`watchdogReason` are the closed vocabulary of FND-ADR-012 section 7 (watchdog_reason 9 values, termination_reason 8 values, process status 7 values), each nullable when no watchdog termination occurred.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "ok",
+    "exitStatus",
+    "processStatus",
+    "terminationReason",
+    "watchdogReason",
+    "evidence"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.watchdog-termination-envelope" },
+    "ok": { "type": "boolean" },
+    "exitStatus": { "type": "integer", "minimum": 0 },
+    "processStatus": {
+      "enum": [
+        "PLANNED",
+        "STARTING",
+        "RUNNING",
+        "EXITED",
+        "FAILED_TO_START",
+        "TIMED_OUT",
+        "TERMINATED"
+      ]
+    },
+    "terminationReason": {
+      "enum": [
+        "hard_ceiling",
+        "startup_idle",
+        "stream_idle",
+        "tool_lease_expired",
+        "failed_to_start",
+        "completed",
+        "child_exit",
+        "context_budget_exhausted",
+        null
+      ]
+    },
+    "watchdogReason": {
+      "enum": [
+        "max_seconds",
+        "startup_stale_progress",
+        "stale_progress",
+        "tool_lease_expired",
+        "runtime_error",
+        "terminal_progress",
+        "no_terminal_result",
+        "residual_process_group",
+        "context_budget_exhausted",
+        null
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "command",
+        "args",
+        "cwd",
+        "startedAt",
+        "finishedAt",
+        "checkIntervalSeconds",
+        "signalSequence",
+        "forcedKill",
+        "startupProgressPaths",
+        "terminalProgressPaths",
+        "timeoutPolicy",
+        "guarantees"
+      ],
+      "properties": {
+        "command": { "type": "string" },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "cwd": { "type": "string" },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "finishedAt": { "type": "string", "format": "date-time" },
+        "checkIntervalSeconds": { "type": "number", "exclusiveMinimum": 0 },
+        "pid": { "type": "integer", "minimum": 0 },
+        "processGroupId": { "type": "integer", "minimum": 0 },
+        "childExitCode": { "type": ["integer", "null"], "minimum": 0 },
+        "childSignal": { "type": ["string", "null"] },
+        "spawnError": { "type": "string" },
+        "signalSequence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["signal", "requestedMode"],
+            "properties": {
+              "signal": { "type": "string" },
+              "requestedMode": { "enum": ["process_group", "child_process"] },
+              "successfulMode": { "enum": ["process_group", "child_process"] }
+            }
+          }
+        },
+        "forcedKill": { "type": "boolean" },
+        "startupProgressPaths": { "type": "array", "items": { "type": "string" } },
+        "terminalProgressPaths": { "type": "array", "items": { "type": "string" } },
+        "timeoutPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["maxSeconds", "killGraceSeconds"],
+          "properties": {
+            "startupStaleSeconds": { "type": "number", "exclusiveMinimum": 0 },
+            "startupIdleSeconds": { "type": "number", "exclusiveMinimum": 0 },
+            "streamIdleSeconds": { "type": "number", "exclusiveMinimum": 0 },
+            "maxSeconds": { "type": "number", "exclusiveMinimum": 0 },
+            "toolLeaseSeconds": { "type": "number", "exclusiveMinimum": 0 },
+            "killGraceSeconds": { "type": "number", "exclusiveMinimum": 0 }
+          }
+        },
+        "terminalIdentity": { "type": "string" },
+        "terminalStatus": { "type": "string" },
+        "residualGroupCleanupCompleted": { "type": "boolean" },
+        "guarantees": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "closed-enum-evidence",
+              "fail-closed",
+              "no-auto-restart",
+              "no-liveness-guessing",
+              "process-group-termination",
+              "mechanism-holds-no-timeout-values"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

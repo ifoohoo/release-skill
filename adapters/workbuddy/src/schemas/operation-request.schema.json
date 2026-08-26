@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/operation-request.json",
+  "title": "OperationRequest",
+  "description": "One kernel protocol request: a named operation with params, addressed to a registered protocol name/version. Envelope shape is frozen; the operation vocabulary is registered in the kernel protocol definition.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "protocol", "operationId", "operation", "params"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.operation-request"
+    },
+    "protocol": {
+      "$ref": "#/$defs/protocolRef"
+    },
+    "operationId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+      "description": "Caller-chosen identifier; unique per caller, echoed by the result."
+    },
+    "operation": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "description": "Operation name; must be in the frozen vocabulary of the referenced protocol version."
+    },
+    "params": {
+      "type": "object",
+      "description": "Operation-specific params. The frozen params contract of each operation lives in the kernel protocol definition, not here."
+    },
+    "requestedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Optional RFC 3339 date-time when the request was created."
+    }
+  },
+  "$defs": {
+    "protocolRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*(\\.[a-z][a-z0-9]*(-[a-z0-9]+)*)*$",
+          "description": "Registered protocol name (dot-separated kebab-case segments)."
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Registered protocol version."
+        }
+      }
+    }
+  }
+}

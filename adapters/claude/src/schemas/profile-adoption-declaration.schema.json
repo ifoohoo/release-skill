@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/profile-adoption-declaration.json",
+  "title": "ProfileAdoptionDeclaration",
+  "description": "Profile adoption and override declaration (audit remediation D-6/D-8, SPI v3). Stand-alone contract form of the optional adoption and overrides sections of a provider descriptor and the required sections of a project profile: the adoption block carries the lightweight adoption proof (adopted Foundation profile identity plus the three-package Foundation pin with real-file sha256 digests), and the overrides block carries self-tightening rule declarations that reuse existing rule ids with project-level numeric values. The SPI layer forwards to these definitions and verifies tightening direction against the frozen rule baseline catalog.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "adoption"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.profile-adoption-declaration" },
+    "adoption": { "$ref": "#/$defs/adoption" },
+    "overrides": { "$ref": "#/$defs/overrides" },
+    "note": {
+      "type": "string",
+      "description": "Optional human rationale; not consumed mechanically."
+    }
+  },
+  "$defs": {
+    "pinnedPackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "path", "sha256"],
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "adoption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["foundation_profile", "foundation_pin", "adopted_at"],
+      "properties": {
+        "foundation_profile": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "version", "stability"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+            },
+            "version": { "type": "integer", "minimum": 1 },
+            "stability": { "enum": ["stable", "candidate-only"] }
+          }
+        },
+        "foundation_pin": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["algorithm", "packages"],
+          "properties": {
+            "algorithm": { "const": "sha256" },
+            "packages": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "skill-family-contracts",
+                "skill-family-harness-node",
+                "skill-family-engineering-kit"
+              ],
+              "properties": {
+                "skill-family-contracts": { "$ref": "#/$defs/pinnedPackage" },
+                "skill-family-harness-node": { "$ref": "#/$defs/pinnedPackage" },
+                "skill-family-engineering-kit": { "$ref": "#/$defs/pinnedPackage" }
+              }
+            }
+          }
+        },
+        "adopted_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "overrides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ruleId", "parameter", "value"],
+        "properties": {
+          "ruleId": {
+            "type": "string",
+            "pattern": "^SFA-[A-Z0-9]+-[0-9]{3}$"
+          },
+          "parameter": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9]*$"
+          },
+          "value": { "type": "number" },
+          "note": { "type": "string" }
+        }
+      }
+    }
+  }
+}

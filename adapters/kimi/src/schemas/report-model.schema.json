@@ -1,0 +1,308 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/report-model.json",
+  "title": "ReportModel",
+  "description": "A caller-authored, machine-validated model that is the only structured source for human-report facts. Harness never interprets business outputs or invents report prose, but it does bind the model to the source operation result's digest, terminal state, and complete stable-coded errors.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "identity",
+    "timeRange",
+    "outcome",
+    "errors",
+    "changes",
+    "evidence",
+    "risks",
+    "unresolved",
+    "nextActions",
+    "appendices",
+    "source",
+    "renderer"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.report-model"
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runId", "skillFamily", "audience", "locale"],
+      "properties": {
+        "runId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+          "description": "The machine run/operation identity this report is about."
+        },
+        "skillFamily": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The skill family whose run produced the underlying machine result."
+        },
+        "stageId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+          "description": "Optional stage identity echoed from the machine result when present."
+        },
+        "audience": {
+          "enum": ["operator", "reviewer", "consumer"],
+          "description": "The declared reader of the report; selection only, never a license to add facts."
+        },
+        "locale": {
+          "enum": ["zh-CN", "en-US"],
+          "description": "Frozen rendering locale set; an unsupported locale is a hard failure (SFC3002), never a silent fallback."
+        }
+      }
+    },
+    "timeRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startedAt", "completedAt"],
+      "properties": {
+        "startedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC 3339 start time copied from the machine result; never invented by the renderer."
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC 3339 terminal time copied from the machine result; never invented by the renderer."
+        }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executionStatus", "summary", "counts"],
+      "properties": {
+        "executionStatus": {
+          "enum": [
+            "SUCCEEDED",
+            "SUCCEEDED_WITH_WARNINGS",
+            "FAILED",
+            "BLOCKED",
+            "NEEDS_INPUT",
+            "SKIPPED",
+            "CANCELLED"
+          ],
+          "description": "The machine execution status, copied verbatim from the machine result vocabulary."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The conclusion sentence(s). A report without a conclusion is a missing element (SFC3002), never an empty render."
+        },
+        "blockingReason": {
+          "type": ["string", "null"],
+          "description": "Present only when the machine result carries one (FAILED/BLOCKED); never invented."
+        },
+        "counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["changes", "evidence", "risks", "unresolved", "nextActions", "appendices"],
+          "properties": {
+            "changes": { "type": "integer", "minimum": 0 },
+            "evidence": { "type": "integer", "minimum": 0 },
+            "risks": { "type": "integer", "minimum": 0 },
+            "unresolved": { "type": "integer", "minimum": 0 },
+            "nextActions": { "type": "integer", "minimum": 0 },
+            "appendices": { "type": "integer", "minimum": 0 }
+          },
+          "description": "Mechanically derived section counts; must equal the array lengths below. A mismatch is fact drift."
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "description": "The source operation-result errors copied without loss. It must be empty for successful outcomes; when a source result is supplied, Harness requires canonical equality with result.errors.",
+      "items": {
+        "$ref": "https://contracts.skill-family.example/v1/operation-result.json#/$defs/error"
+      }
+    },
+    "changes": {
+      "type": "array",
+      "description": "Changed artifacts declared by the machine result; may legitimately be empty. Order is preserved from the machine result.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "description"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Descriptive artifact path as stated by the machine result; rendering never reads or resolves it."
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Traceable evidence entries; a report model without at least one evidence entry is a missing element (SFC3002).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "reference"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+            "description": "Stable evidence identifier used for in-report referencing."
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reference": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The exact reference target of this evidence. A rendered link may only point at a declared reference or an in-report anchor; any other target is fact drift."
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "risks": {
+      "type": "array",
+      "description": "Declared risks; may be empty, but the section itself is mandatory in every rendered report.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "unresolved": {
+      "type": "array",
+      "description": "Unresolved questions carried out of the run; may be empty.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "nextActions": {
+      "type": "array",
+      "description": "Follow-up actions; may be empty, but the section itself is mandatory in every rendered report.",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "appendices": {
+      "type": "array",
+      "description": "Supplementary material copied from the machine result; may be empty. Never a place for renderer-added prose.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title", "body"],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resultDigest", "resultState"],
+      "properties": {
+        "resultDigest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "sha256 hex digest over the canonical JSON of the source machine result document."
+        },
+        "resultState": {
+          "enum": ["succeeded", "failed", "rejected"],
+          "description": "The terminal state copied verbatim from the source operation result. Harness verifies it and the compatible human executionStatus without interpreting outputs."
+        },
+        "resultKind": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Optional kind discriminator of the source machine result document."
+        }
+      }
+    },
+    "renderer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$",
+          "description": "Identity of the deterministic renderer that produced the model."
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "Exact semver of the renderer; no ranges."
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "type": "object",
+            "properties": {
+              "executionStatus": {
+                "enum": ["SUCCEEDED", "SUCCEEDED_WITH_WARNINGS"]
+              }
+            },
+            "required": ["executionStatus"]
+          }
+        },
+        "required": ["outcome"]
+      },
+      "then": {
+        "properties": {
+          "errors": {
+            "type": "array",
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "outcome": {
+            "type": "object",
+            "properties": {
+              "executionStatus": {
+                "enum": ["FAILED", "BLOCKED"]
+              }
+            },
+            "required": ["executionStatus"]
+          }
+        },
+        "required": ["outcome"]
+      },
+      "then": {
+        "properties": {
+          "errors": {
+            "type": "array",
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
+}

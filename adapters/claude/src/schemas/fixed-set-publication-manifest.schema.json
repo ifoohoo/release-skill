@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/fixed-set-publication-manifest.json",
+  "title": "Fixed-set publication manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "source", "target", "members", "digest"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.fixed-set-publication-manifest" },
+    "source": { "$ref": "#/$defs/sourceClosure" },
+    "target": { "$ref": "#/$defs/targetClosure" },
+    "members": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/member" }
+    },
+    "digest": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "decimalIdentity": { "type": "string", "pattern": "^(?:0|[1-9][0-9]*)$", "maxLength": 40 },
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)(?!.*\\u0000)[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$"
+    },
+    "rootBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "digestAlgorithm", "basis", "digest"],
+      "properties": {
+        "kind": { "const": "trusted-filesystem-root-binding" },
+        "digestAlgorithm": { "const": "sha256" },
+        "basis": { "const": "canonical-realpath-device-inode-type-mode-v1" },
+        "digest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "directoryIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "mode", "device", "inode"],
+      "properties": {
+        "type": { "const": "directory" },
+        "mode": { "type": "integer", "minimum": 0, "maximum": 511 },
+        "device": { "$ref": "#/$defs/decimalIdentity" },
+        "inode": { "$ref": "#/$defs/decimalIdentity" }
+      }
+    },
+    "directoryMember": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "type", "mode", "device", "inode"],
+      "properties": {
+        "path": { "$ref": "#/$defs/relativePath" },
+        "type": { "const": "directory" },
+        "mode": { "type": "integer", "minimum": 0, "maximum": 511 },
+        "device": { "$ref": "#/$defs/decimalIdentity" },
+        "inode": { "$ref": "#/$defs/decimalIdentity" }
+      }
+    },
+    "sourceClosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rootBinding", "root", "directories", "closureDigest"],
+      "properties": {
+        "rootBinding": { "$ref": "#/$defs/rootBinding" },
+        "root": { "$ref": "#/$defs/directoryIdentity" },
+        "directories": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/directoryMember" }
+        },
+        "closureDigest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "targetClosure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rootBinding", "root", "directories", "closureDigest", "expectation"],
+      "properties": {
+        "rootBinding": { "$ref": "#/$defs/rootBinding" },
+        "root": { "$ref": "#/$defs/directoryIdentity" },
+        "directories": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/directoryMember" }
+        },
+        "closureDigest": { "$ref": "#/$defs/sha256" },
+        "expectation": { "const": "absent" }
+      }
+    },
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "type", "mode", "bytes", "sha256"],
+      "properties": {
+        "path": { "$ref": "#/$defs/relativePath" },
+        "type": { "const": "regular" },
+        "mode": { "type": "integer", "minimum": 0, "maximum": 511 },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

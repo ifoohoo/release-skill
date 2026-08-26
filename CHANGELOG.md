@@ -1,5 +1,28 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.8.0 locale=en baseline=sha256:9f03d331f89e4b0f5c3578d853f10e2ee42396ad626540c58ab3bdd48dafac79 -->
+## [0.8.0] - 2026-08-26
+
+The local 0.8.0 candidate completed independent acceptance on 2026-08-26. This summary records version scope and verification boundaries; it is not a publication record or a consumer upgrade instruction. Local acceptance does not establish remote publication or consumer-installation verification. Release availability must be established from the corresponding release records and post-publish verification results.
+
+### Changed
+
+- Pin all three Foundation dependencies to released 0.12.0 packages. Packaging uses the existing generators for runtime resources, native files, and legal materials. The generated outputs were included in local independent acceptance, limited to the accepted inputs and environment.
+- Reuse existing Foundation APIs for ship state writes, baseline configuration replacement, temporary workspaces, and README result reads and digests. This removes duplicated mechanisms; Harness source is unchanged between 0.11.0 and 0.12.0. Candidate host verification does not replace production gates or the three-role README acceptance.
+- Evidence v2 closes the top level and stores phase extensions in typed details. Evidence v1 remains read-only. Summaries, producer versions, and recovery suggestions are diagnostic, never publication authority.
+
+### Fixed
+
+- Config branch A keeps zero external actions and no sourceAuthority, even with a configured public source receipt. Production branch B and docs production freeze plan.sourceAuthority and retain remote consistency checks. Marketplace delegation is unchanged.
+- Fixes cover installed host surfaces, release-run lineage, Git hooks in frozen checkouts, pure configuration checks before long hooks, and adoption assessment. These fixes were included in local independent acceptance, limited to the accepted inputs and environment. Focused self-tests do not establish candidate acceptance.
+- FAILED summaries, compatibility details, and returned errors now project the same domain recovery result when current-run evidence is available. Existing fallbacks, unknown without evidence, and successful verify null suggestions remain unchanged. These fixes were included in local independent acceptance, limited to the accepted inputs and environment.
+
+### Upgrade Notes
+
+Old production plans missing sourceAuthority and checker v4 plans must not be silently upgraded; when no external writes occurred, prepare again and approve the new digest. Do not migrate old approvals or evidence. Preserve existing PARTIAL checkpoints and use matching-version recovery. Hook cache v1 is unchanged; old full-test evidence is not imported. R-02 safe full-tree inventory, R-05 Hook cache v2, R-10 implementation, real Kimi/WorkBuddy production gates, and the Audit public offline release-record verifier are excluded.
+<!-- release-skill:changelog:end version=0.8.0 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.7.8 locale=en baseline=sha256:058929eb1d0fa2abb8488f1b7f736da9046ac494c312057767d649f792bb9b81 -->
 ## [0.7.8] - 2026-08-24
 

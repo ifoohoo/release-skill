@@ -25,7 +25,8 @@ import {
 } from './errors.mjs';
 
 const execFile = promisify(execFileCb);
-const REPOSITORY_RE = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/u;
+/** GitHub owner/repo shape shared by the pure-config gate and the receipts. */
+export const REPOSITORY_RE = /^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/u;
 const GIT_MODE_RE = /^(?:100644|100755)$/u;
 const COMMIT_RE = /^[a-f0-9]{40,64}$/u;
 const SHA256_RE = /^[a-f0-9]{64}$/u;

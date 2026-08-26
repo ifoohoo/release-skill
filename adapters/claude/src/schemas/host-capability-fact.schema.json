@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/host-capability-fact.json",
+  "title": "Skill Family host capability fact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "hostId", "capability", "state", "evidence"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.host-capability-fact" },
+    "hostId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+    "capability": { "enum": ["cli", "version", "payload", "registry", "discover", "enabled", "reload", "smoke", "uninstall"] },
+    "state": { "enum": ["available", "unavailable", "unknown", "error"] },
+    "evidence": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "type": "string", "minLength": 1, "maxLength": 300 } },
+    "observedVersion": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$" },
+    "unknownReason": { "enum": ["timeout", "permission-denied", "interactive-required", "spawn-restricted", "not-probed", "driver-limited"] },
+    "manualSteps": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "type": "string", "minLength": 1, "maxLength": 300 } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "state": { "const": "unknown" } }, "required": ["state"] },
+      "then": { "properties": { "unknownReason": true, "manualSteps": true }, "required": ["unknownReason", "manualSteps"] },
+      "else": { "properties": { "unknownReason": false, "manualSteps": false } }
+    },
+    {
+      "if": { "properties": { "capability": { "const": "version" }, "state": { "const": "available" } }, "required": ["capability", "state"] },
+      "then": { "properties": { "observedVersion": true }, "required": ["observedVersion"] },
+      "else": { "properties": { "observedVersion": false } }
+    }
+  ]
+}

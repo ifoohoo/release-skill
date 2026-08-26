@@ -627,7 +627,7 @@ function extraInstalledPathsAudit(binding) {
  * @param {string} skillsRaw
  * @returns {string} normalized relative path ('' for the plugin root itself)
  */
-function normalizeKimiSkillsRel(skillsRaw) {
+export function normalizeKimiSkillsRel(skillsRaw) {
   if (typeof skillsRaw !== 'string' || skillsRaw.length === 0) {
     throw new Error('kimi manifest skills must be a non-empty relative path when present');
   }
@@ -731,7 +731,7 @@ async function resolveKimiEntrySkillFile(pluginRootReal, manifest, entrySkill) {
  * @param {string} skillsRaw
  * @returns {string} normalized relative path ('' for the plugin root itself)
  */
-function normalizeCodeBuddySkillsRel(skillsRaw) {
+export function normalizeCodeBuddySkillsRel(skillsRaw) {
   // CodeBuddy real validator accepts array form; extract first element for
   // backward compatibility with string form.
   let skillsPath;

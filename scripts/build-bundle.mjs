@@ -8,9 +8,11 @@
  *
  * Schemas and native addons remain external (loaded at runtime from
  * the plugin root via PKG_ROOT). Runtime JSON resources read by inlined
- * dependency modules (new URL(<rel>, import.meta.url)) are emitted as
- * deterministic sidecars next to the bundle (see "Runtime sidecar
- * resources" section below).
+ * dependency modules (new URL(<rel>, import.meta.url)) are selected,
+ * written, recorded and verified by the Foundation resource projection
+ * (see src/producers/foundation-resource-projection.mjs) — one selection
+ * result drives the member set, the verification scope and the binding
+ * record.
  *
  * Usage:
  *   node scripts/build-bundle.mjs           # build mode
@@ -18,10 +20,15 @@
  */
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { computeBundleSourceDigest } from '../src/core/bundle-freshness.mjs';
+import {
+  computeFoundationProjection,
+  verifyFoundationProjection,
+  writeFoundationProjection,
+} from '../src/producers/foundation-resource-projection.mjs';
 
 const CHECK_MODE = process.argv.includes('--check');
 
@@ -67,76 +74,23 @@ const REQUIRE_SHIM_PATTERN = /var __require = \/\* @__PURE__ \*\/ \(\(x\) => typ
 
 const REQUIRE_SHIM_REPLACEMENT = `var __require = __bundleRealRequire;`;
 
-// ─── Runtime sidecar resources for inlined dependencies ────────────────
+// ─── Runtime resources for inlined dependencies ─────────────────────────
 //
 // Dependencies bundled into the CLI (e.g. skill-family-contracts) can load
-// JSON resources at module init via new URL(<rel>, import.meta.url). Once
+// JSON resources at runtime via new URL(<rel>, import.meta.url). Once
 // inlined into the bundle, import.meta.url is the bundle's own URL, so such
-// reads resolve relative to the bundle directory (bin/). To keep the bundle
-// self-contained in copied/installed closures (no node_modules), the build
-// emits each referenced resource that is not already provided at that
-// target as a deterministic sidecar next to the bundle. Reads whose target
-// already exists (e.g. ../package.json resolving to the package's own
-// package.json) are host-provided by design and are not emitted. --check
-// verifies bundle bytes, every expected sidecar, and that every runtime
-// read in the output resolves next to the bundle (fail-closed).
+// reads resolve relative to the bundle directory (bin/). Every such resource
+// — bundle-adjacent or bundle-relative — is selected, written, recorded and
+// verified by the Foundation resource projection
+// (src/producers/foundation-resource-projection.mjs); there is no separate
+// sidecar mechanism and no bin/ special case (ruling 10 / B2-B4). --check
+// verifies bundle bytes, the complete projected closure and that every
+// runtime read in the output resolves next to the bundle (fail-closed).
 
-// Module markers esbuild leaves in the output: `// <path>` comments and
-// `<path>() {` __esm keys, with <path> relative to the package root.
-const MODULE_MARK_RE = /(?:\/\/\s*|")((?:\.\.\/)+[^\s"()]+\.(?:mjs|js|cjs))/g;
 const RUNTIME_URL_READ_RE = /new URL\(\s*"([^"]+)"\s*,\s*import\.meta\.url\s*\)/g;
 
 function isAbsoluteOrScheme(rel) {
   return rel.startsWith('/') || /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(rel);
-}
-
-/** Collect every relative runtime read (module source → rel) present in the output. */
-function collectRuntimeReads(content, pkgRoot) {
-  const reads = [];
-  const seenModules = new Set();
-  for (const mark of content.matchAll(MODULE_MARK_RE)) {
-    const modulePath = mark[1];
-    if (seenModules.has(modulePath)) continue;
-    seenModules.add(modulePath);
-    const sourceFile = join(pkgRoot, modulePath);
-    if (!existsSync(sourceFile)) continue;
-    const sourceText = readFileSync(sourceFile, 'utf-8');
-    for (const read of sourceText.matchAll(RUNTIME_URL_READ_RE)) {
-      const rel = read[1];
-      if (isAbsoluteOrScheme(rel)) continue;
-      reads.push({ modulePath, rel });
-    }
-  }
-  return reads;
-}
-
-/** Sidecars to emit: reads whose target next to the bundle is not already provided. */
-function computeSidecars(reads, pkgRoot, outDir) {
-  const sidecars = [];
-  for (const { modulePath, rel } of reads) {
-    if (rel.endsWith('/')) continue; // directory URL composition; not a file load
-    const target = resolve(outDir, rel);
-    const source = resolve(join(pkgRoot, modulePath), '..', rel);
-    if (!existsSync(source)) {
-      throw new Error(
-        `build-bundle: runtime read "${rel}" in ${modulePath} has no source resource (${source})`,
-      );
-    }
-    // Host-provided targets (e.g. ../package.json resolving to the package's
-    // own package.json) lie outside the bundle directory and must not be
-    // emitted or freshened. Targets inside the bundle directory are
-    // sidecar-managed: an existing target is NOT host-provided — a stale
-    // sidecar from a previous dependency generation must be freshened in
-    // write mode and must fail the --check byte comparison.
-    const relativeToOutDir = relative(outDir, target);
-    if (relativeToOutDir.startsWith('..') || isAbsolute(relativeToOutDir)) {
-      continue;
-    }
-    if (!sidecars.some((s) => s.target === target)) {
-      sidecars.push({ target, source });
-    }
-  }
-  return sidecars;
 }
 
 /** Fail-closed check: every relative runtime read in the output must resolve next to the bundle. */
@@ -202,19 +156,20 @@ async function buildBundle() {
   // Normalize them so committed bundles pass repository whitespace checks.
   content = content.replace(/[ \t]+$/gm, '');
 
-  // Compute runtime sidecars (resources read by inlined dependency modules
-  // via new URL(<rel>, import.meta.url), resolved next to the bundle).
-  const sidecars = computeSidecars(
-    collectRuntimeReads(content, PKG_ROOT),
-    PKG_ROOT,
-    dirname(OUTFILE),
-  );
+  // Compute the Foundation runtime resource closure (host Profiles,
+  // contracts schemas, harness native prebuilds, legal notices, and every
+  // bundle-adjacent runtime read) — ONE selection result drives the member
+  // set, the verification scope and the binding record.
+  const projection = await computeFoundationProjection({
+    pkgRoot: PKG_ROOT,
+    bundleContent: content,
+  });
 
-  return { content, sidecars };
+  return { content, projection };
 }
 
 async function main() {
-  const { content, sidecars } = await buildBundle();
+  const { content, projection } = await buildBundle();
   const outDir = dirname(OUTFILE);
 
   if (CHECK_MODE) {
@@ -233,37 +188,27 @@ async function main() {
       console.error(`  expected: sha256:${expectedHash}`);
       process.exit(1);
     }
-    for (const { target, source } of sidecars) {
-      let existingSidecar;
-      try {
-        existingSidecar = await readFile(target);
-      } catch {
-        console.error(`Bundle drift: runtime sidecar missing: ${relative(PKG_ROOT, target)}`);
-        process.exit(1);
-      }
-      const expectedSidecar = await readFile(source);
-      if (!existingSidecar.equals(expectedSidecar)) {
-        console.error(`Bundle drift: runtime sidecar differs: ${relative(PKG_ROOT, target)}`);
-        process.exit(1);
-      }
-    }
     const unresolved = verifyRuntimeReadsResolve(content, outDir);
     if (unresolved.length > 0) {
       console.error(`Bundle drift: runtime resource reads unresolved next to bundle: ${unresolved.join(', ')}`);
+      process.exit(1);
+    }
+    try {
+      await verifyFoundationProjection(PKG_ROOT, projection);
+    } catch (error) {
+      console.error(`Bundle drift: ${error.message}`);
       process.exit(1);
     }
     console.log('Bundle in sync.');
     process.exit(0);
   }
 
-  for (const { target, source } of sidecars) {
-    const bytes = await readFile(source);
-    await mkdir(dirname(target), { recursive: true });
-    await writeFile(target, bytes);
-    const hash = createHash('sha256').update(bytes).digest('hex');
-    console.log(`Sidecar written: ${relative(PKG_ROOT, target)}`);
-    console.log(`  sha256:${hash}`);
+  await writeFoundationProjection(PKG_ROOT, projection);
+  for (const entry of projection.resources) {
+    console.log(`Projected: ${entry.path}`);
+    console.log(`  ${entry.package} sha256:${entry.sha256}`);
   }
+  console.log(`Binding record written: ${relative(PKG_ROOT, join(PKG_ROOT, 'bin', 'foundation-resource-binding.json'))}`);
   await mkdir(outDir, { recursive: true });
   await writeFile(OUTFILE, content, 'utf-8');
   const hash = createHash('sha256').update(content).digest('hex');

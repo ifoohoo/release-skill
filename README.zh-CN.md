@@ -2,32 +2,38 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.7.8 -->
+<!-- release-skill:release-version: 0.8.0 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.7.8** (2026-08-24)
+**0.8.0** (2026-08-26)
 
-v0.7.8 允许全新的发布安全接受已经包含同一份冻结 tarball 的 npm 版本，不会再次执行 npm publish。
+0.8.0 的本地候选于 2026-08-26 完成独立验收。本说明记录版本范围与验证边界，不构成远端发布记录或消费者升级指引。本地验收不证明对应版本已完成远端发布或消费者安装验证；版本可用性以对应发布记录及发布后验证结果为准。
 
-**安全**
+**变更**
 
-- **integrity 失败关闭**：观察到的 integrity 不同、缺失、空白或无法解析时，run 会在任何 Adapter execute 前停止。现有 classifier、批准模型和前向恢复状态机保持不变。
-- **检查点证据**：npm 检查点一致并跳过时，只在 `remoteRef.integrity` 记录本次观察到的 integrity；包名、版本、registry、预期 integrity 和 tarball SHA-256 继续以冻结计划为准。
+- Foundation 三包精确依赖已发布的 0.12.0。打包通过既有生成器携带运行资源、原生文件和法律材料。生成物已纳入本地独立验收，结论限于已验收的输入与环境。
+- ship 状态写入、基线配置替换、临时工作区及 README 结果读取和摘要计算改用 Foundation 既有 API，删除重复机制。Harness 的 0.11.0 与 0.12.0 源码相同。候选宿主验证不能替代生产门禁或 README 三角色验收。
+- evidence v2 顶层封闭，阶段扩展进入受类型约束的 details；evidence v1 保持只读。摘要、生产者版本和恢复建议只作诊断，不构成发布权威。
 
 **修复**
 
-- **已存在 npm 版本的恢复**：npm preflight 发现目标版本已经发布后，publish 会把 registry observation 与不可变计划逐项比较。完全一致时，npm 检查点进入 `SKIPPED`，npm execute 次数保持为零，其他发布动作继续执行。
+- config 场景 A 保持零外部动作、不生成 sourceAuthority，即使配置了公开来源收据也不例外。production 场景 B 与 docs production 冻结 plan.sourceAuthority，保留远端一致性检查。marketplace 委托发布的边界不变。
+- 修复覆盖实际安装宿主表面、发布运行血缘、冻结副本中的 Git Hook、长 Hook 前纯配置检查和接入评估。这些修复已纳入本地独立验收，结论限于已验收的输入与环境。聚焦自测不代表候选验收通过。
+- 有本次证据时，FAILED 摘要、兼容 details 与返回错误已接齐同一次领域恢复计算结果。既有回退、无证据时的 unknown 和成功 verify 的 null 建议保持不变。这些修复已纳入本地独立验收，结论限于已验收的输入与环境。
 
 **升级说明**
 
-无需修改配置或迁移。`remoteRef.integrity` 是可选字段，已有 release-run 文件继续有效。
+缺 sourceAuthority 的旧 production 计划和 checker v4 计划不得静默升级；未发生外部写入时须重新 prepare 并批准新摘要，不迁移旧批准或证据。已有 PARTIAL 保留检查点，走匹配版本的恢复路径。Hook cache v1 不变，不导入旧 full-test 证据。本版不包含 R-02 安全整树盘点、R-05 Hook cache v2、R-10 产品实现、真实 Kimi/WorkBuddy production 门禁或 Audit 公开离线发布记录验证器。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.7.8 是当前源码候选，v0.7.7 是最新已发布版本。v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
+> **当前边界：** v0.8.0 是当前源码候选，已于 2026-08-26 完成本地独立验收。
+> 结论限于已验收的输入与环境；本地验收不证明对应版本已完成远端发布或消费者安装验证。
+> 版本可用性以对应发布记录及发布后验证结果为准。
+> v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
 > 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
 > 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
@@ -40,12 +46,29 @@ v0.7.8 允许全新的发布安全接受已经包含同一份冻结 tarball 的 
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.7.8 是当前源码候选，v0.7.7 是最新已发布版本。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.8.0 是当前源码候选，本地验收不证明对应版本已完成远端发布或消费者安装验证。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
 > - npm 安装：`npm install -g release-skill` → `release-skill help`
 > - 源码 checkout：`node "$RELEASE_SKILL_HOME/packages/release-skill/bin/release-skill.mjs" help`
+
+### 0.8.0 范围与验证边界
+
+`prepare --workflow config` 按公开字节是否变化分支：
+
+- 场景 A（`no-publish-needed`）没有外部动作，也不生成 `sourceAuthority`（源码来源权威），即使配置了公开来源收据也不例外。该分支直接结束，不进入 approve/publish/verify。
+- 场景 B（`publish-needed`）的 production prepare 必须冻结 `plan.sourceAuthority`。docs production 适用同一要求；publish、reconcile、verify 继续校验冻结绑定和远端一致性。
+
+marketplace 委托目标工作区发布的边界不变。
+
+旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
+
+本版不包含 R-02 安全整树盘点、R-05 Hook cache v2、R-10 历史发布验证的产品实现、真实 Kimi/WorkBuddy production 门禁或 Audit 公开离线发布记录验证器。本范围说明不构成远端发布记录或消费者升级指引。
+
+Foundation 三包精确依赖已发布的 0.12.0。状态写入、基线替换、临时工作区及 README 结果读取和摘要计算复用 Foundation 既有 API。Harness 的 0.11.0 与 0.12.0 源码相同；候选宿主验证不能替代生产门禁或 README 三角色验收。
+
+Foundation 的候选接口 `runHostVerification` 和 `verifyHostVerificationBindings` 不决定领域 PASS/FAIL，也不隔离认证、冻结模型身份或禁用宿主工具。可执行文件摘要只记录启动前的观察；成员快照只覆盖两次观察时声明的成员。
 
 <!-- release-skill:maturity:distribute-v1 -->
 <!-- release-skill:capability:distribute -->
@@ -113,6 +136,8 @@ v0.7.8 允许全新的发布安全接受已经包含同一份冻结 tarball 的 
 
 ## 快速开始
 
+发布单元是独立配置版本、公开文件和分发目标的发布对象。
+
 ### 安装
 
 - Node.js 22+、Git 2.30+、至少已有一个提交的目标 Git 仓库。
@@ -156,6 +181,8 @@ CodeBuddy、Codex 和 Kimi Code 的完整命令见 [INSTALL.zh-CN.md](INSTALL.zh
 一次可读的冻结计划批准。`ship` 自动执行配置中的 hooks 和验证门禁，不进入
 hook 授权等待态。Kimi/CodeBuddy 安装是发布完成后的非阻塞人工后续任务，
 系统不核验其完成结果。
+
+发布计划是供批准前审阅的记录，将目标版本、冻结产物和拟执行的外部动作关联起来；详见[人工审阅与批准步骤](#release-plan-review)。
 
 ```bash
 release-skill ship --root "$PROJECT" --target-version 1.2.3 --json
@@ -232,6 +259,10 @@ ACTOR=your-name
    （create-once 边界不受影响）。foundation profile 只是提案输入之一，绝不
    自动生效。
    完整多步流程见 [INSTALL.zh-CN.md](INSTALL.zh-CN.md#首次接入)。
+   **接入评估（只读）：** 对已接入项目，`setup --assess-adoption` 报告已满足项、
+   必选缺口、可选建议和不适用项，不写入任何文件；未配置项目返回 `NOT_CONFIGURED`
+   并指向首次接入。Hook 耗时建议只从当前版本生产者产生的事件推导；工具绝不代猜
+   或代写项目的 `cacheInputs`。
 3. **assess** — 只读就绪评估：
    ```bash
    "${CLI[@]}" assess --root "$PROJECT" --offline --json
@@ -240,7 +271,7 @@ ACTOR=your-name
    ```bash
    "${CLI[@]}" prepare --root "$PROJECT" --offline --json
    ```
-5. **人工审阅：** 检查 `planPath`、`externalActions`、`targetVersion` 和 `planDigest`。
+5. <a id="release-plan-review"></a>**人工审阅：** 检查 `planPath`、`externalActions`、`targetVersion` 和 `planDigest`。
 6. **prepare --production** — 冻结生产计划：
    ```bash
    PLAN_JSON=$("${CLI[@]}" prepare --root "$PROJECT" --online --production --json)
@@ -253,6 +284,12 @@ ACTOR=your-name
      --actor "$ACTOR" --json)
    APPROVAL_PATH=$(printf '%s\n' "$APPROVAL_JSON" | jq -r '.approvalPath')
    ```
+   批准绑定计划摘要（`planDigest`）、各发布单元的目标版本和获批动作集合。这些绑定发生变化时，必须重新批准。
+
+   `planVersion: 2` 的摘要绑定冻结产物、配置和动作。
+   工作区基线（baseline）漂移仅作为记录层审计数据，不会单独使批准失效；发布前仍必须重新核验冻结产物。
+   `planVersion: 1` 保留包含工作区基线的旧绑定规则。
+
    `--actor` 只是未经身份认证的本地审计字符串，不是身份核验、数字签名，也不能证明某位特定人员
    已批准计划；需要此类保证时，应接入外部已认证的审批系统。
 8. **publish** — 远端写入开始：
@@ -416,13 +453,34 @@ releaseUnits:
       - from: packages/plugin/package.json
         to: package.json
         mode: preserve
-    requiredPublicFiles: [package.json]
+      - from: packages/plugin/.claude-plugin/marketplace.json
+        to: .claude-plugin/marketplace.json
+        mode: preserve
+      - from: packages/plugin/.claude-plugin/plugin.json
+        to: .claude-plugin/plugin.json
+        mode: preserve
+      - from: packages/plugin/skills/my-plugin-help/SKILL.md
+        to: skills/my-plugin-help/SKILL.md
+        mode: preserve
+    requiredPublicFiles:
+      - package.json
+      - .claude-plugin/marketplace.json
+      - .claude-plugin/plugin.json
+      - skills/my-plugin-help/SKILL.md
     previousPublicBaseline:
       mode: none
     production:
       branchTemplate: release/{tag}
       branchStrategy: create-release-branch
 ```
+
+本例把插件放在快照根目录。准备前须在 `packages/plugin` 下创建映射中的四个源文件：
+
+- 市场索引 `.claude-plugin/marketplace.json` 的名称为 `my-plugin`，其中 `my-plugin` 条目的 `source` 设为 `"./"`。
+- 插件清单 `.claude-plugin/plugin.json` 的 `name` 设为 `my-plugin`，`version` 与 `package.json` 一致，`skills` 设为 `"./skills/"`。
+- 入口文件为 `skills/my-plugin-help/SKILL.md`，其前置元数据声明 `name: my-plugin-help`。
+
+这个最小 Skill 不引用其他文件；新增引用时，须逐文件映射所需资源。
 
 在提取出的 `recommendedAnswers` 中添加 gate：编辑 `verificationGates` 并在 `selectedGateIds` 中绑定同一 id：
 
@@ -533,7 +591,7 @@ release-skill ship --root "$PROJECT" --hook-approval "$HOOK_APPROVAL_PATH" --jso
 ## Skills
 
 - `release-help`：环境检查和下一步引导。
-- `release-setup`：首次接入的只读发现、人工校准和 create-once 配置创建。
+- `release-setup`：首次接入的只读发现、人工校准、create-once 配置创建和只读接入评估（`setup --assess-adoption`）。
 - `release-assess`：只读发布就绪度报告。
 - `release-prepare`：本地快照和可审阅发布计划。
 - `release-publish`：经批准的冻结 GitHub+npm 发布；内部摘要由系统自动校验。
@@ -564,6 +622,7 @@ release-skill ship --root "$PROJECT" --hook-approval "$HOOK_APPROVAL_PATH" --jso
 静态门禁会阻断，直到入口声明收窄为具体目标。
 
 <!-- release-skill:capability:unsupported-scope -->
+- **当前版本不含：** Hook cache v2（执行器身份收据，R-05）——当前版本保持 v1 内容绑定缓存，且从不导入旧运行证据；消费者安装整树盘点（R-02）——只对声明文件做逐字节核对；真实宿主（Kimi/WorkBuddy）验证门禁——宿主验证仍是设计，本版本中不能产生 `PASS` 或 `VERIFIED`；
 - 不自动生成 README，不覆盖项目源文件；
 - 不自动合并冲突，也不要求回滚工作流；
 - 不声称已经替项目完成真实生产 canary，不声称已完成真实插件市场验证；

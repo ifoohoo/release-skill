@@ -18,11 +18,13 @@ import { dirname, join, relative, isAbsolute, resolve, basename } from 'node:pat
 import { tmpdir } from 'node:os';
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
+import { resolveContained } from 'skill-family-harness-node';
 
 const execFile = promisify(execFileCb);
 
 import { validatePlan, computePlanDigest, validatePlanActionCompleteness } from '../core/plan.mjs';
 import { createEvidenceWriter } from '../core/evidence.mjs';
+import { readRunRecovery } from '../core/recovery.mjs';
 import {
   loadRun,
   resolveRunPath,
@@ -69,11 +71,14 @@ import {
 } from '../adapters/npm.mjs';
 import { runConsumerVerificationGates } from '../core/verification-gates.mjs';
 import {
+  assertSkillResourceClosureReceipt,
   checkSkillResourceClosure,
   createSkillResourceClosureReceipt,
   evaluateConsumerSkillResourceClosureReceipts,
 } from '../core/skill-resource-closure.mjs';
+import { deriveSurfaceHostBinding, pluginRootFromManifestRelativePath } from '../core/surface-host-bindings.mjs';
 import { isRemoteWriteAction, isMarketplaceAction } from '../core/checkpoints.mjs';
+import { PLATFORMS, normalizeHostId } from '../platforms/registry.mjs';
 import {
   shouldSkipVerification,
   INSTALLATION_CONTRACT_ALGORITHM_VERSION,
@@ -1796,24 +1801,64 @@ export async function verifyRelease(options) {
     if (plan.skillResourceClosure) {
       await evidence.append({ phase: 'verify', step: 'skill-resource-closure', status: 'started' });
 
-      // Collect install paths from marketplace adapter checks
+      // Collect install paths from marketplace adapter checks.
+      // R-13 P2 (ruling 6): the surface binding is derived from the frozen
+      // installation contract at the REAL install coordinates — the same
+      // derivation rule prepare and publish use, never a hard-coded '.'.
+      // Plans without a frozen installation contract (legacy) fall back to
+      // the plugin-root surface ('.') with the legacy permissive checks.
       const installSurfaces = [];
-      const actionDistribution = {
-        'claude-marketplace-install': 'claude-plugin',
-        'codex-marketplace-install': 'codex-plugin',
-        'kimi-marketplace-install': 'kimi-plugin',
-        'codebuddy-marketplace-install': 'codebuddy-plugin',
-      };
       for (const check of adapterChecks) {
-        const distribution = actionDistribution[check.actionType];
-        if (distribution && check.observation?.installPath) {
-          installSurfaces.push({
-            host: distribution.replace('-plugin', ''),
-            distribution,
-            installPath: check.observation.installPath,
-            actionId: check.actionId,
-            unitId: actions.find((a) => a.id === check.actionId)?.unitId,
+        const platform = PLATFORMS.find((p) => p.actionType === check.actionType);
+        if (!platform || !check.observation?.installPath) continue;
+        const unitId = actions.find((a) => a.id === check.actionId)?.unitId;
+        const unit = (plan.units ?? []).find((u) => u.id === unitId);
+        const dist = unit?.distributions?.find((d) => d.type === platform.distributionType);
+        let binding = null;
+        const contract = dist?.installationContract;
+        if (contract?.normalizedManifest) {
+          binding = await deriveSurfaceHostBinding({
+            manifest: contract.normalizedManifest,
+            pluginRoot: pluginRootFromManifestRelativePath(contract.manifestRelativePath),
+            platform,
+            snapshotDir: check.observation.installPath,
           });
+        }
+        installSurfaces.push({
+          host: await normalizeHostId(platform.buildAdapter.name),
+          distribution: platform.distributionType,
+          installPath: check.observation.installPath,
+          actionId: check.actionId,
+          unitId,
+          surfaceId: binding?.surfaceId ?? '.',
+          binding,
+          unit,
+        });
+      }
+
+      // P2: one physical surface must never be claimed by two hosts across
+      // consumer install coordinates (the same rule the checker enforces
+      // inside one closure run). Only derived bindings make a claim; the
+      // legacy '.' fallback of old plans claims nothing.
+      {
+        const bindingBySurface = new Map();
+        for (const surface of installSurfaces) {
+          if (!surface.binding) continue;
+          // Relative ids belong to their install roots. Canonicalize the
+          // actual directory so aliases and overlapping roots share a key.
+          // resolveContained deliberately rejects the root itself ('.').
+          const surfacePath = await realpath(surface.surfaceId === '.'
+            ? surface.installPath
+            : await resolveContained(surface.installPath, surface.surfaceId));
+          const prior = bindingBySurface.get(surfacePath);
+          if (prior !== undefined && prior !== surface.host) {
+            throw new ReleaseError(
+              POST_PUBLISH_VERIFY_FAILED,
+              `consumer install surfaces claim "${surface.surfaceId}" for multiple hosts: ${prior} and ${surface.host}`,
+              { surfaceId: surface.surfaceId, hosts: [prior, surface.host] },
+            );
+          }
+          bindingBySurface.set(surfacePath, surface.host);
         }
       }
 
@@ -1821,6 +1866,7 @@ export async function verifyRelease(options) {
         const closureResult = await checkSkillResourceClosure({
           snapshotDir: surface.installPath,
           host: surface.host,
+          surfaceHostBindings: [{ surfaceId: surface.surfaceId, host: surface.host }],
         });
 
         if (closureResult.findings.length > 0) {
@@ -1846,6 +1892,68 @@ export async function verifyRelease(options) {
             `skill resource closure installed surface is empty or unbound for ${surface.distribution}`,
             { unitId: surface.unitId, distribution: surface.distribution },
           );
+        }
+        // P2 (ruling 6): with a derived binding, the install coordinate must
+        // reproduce the bound surface (id + host + at least one skill); the
+        // frozen contract and the observed install can never silently diverge.
+        if (surface.binding) {
+          const boundSurface = closureResult.surfaces.find(
+            (candidate) => candidate.id === surface.binding.surfaceId,
+          );
+          if (
+            !boundSurface
+            || boundSurface.host !== surface.binding.host
+            || boundSurface.skillCount < 1
+          ) {
+            await evidence.append({
+              phase: 'verify',
+              step: 'skill-resource-closure',
+              status: 'failed',
+              host: surface.host,
+              reason: 'installed-surface-binding-mismatch',
+              expectedSurfaceId: surface.binding.surfaceId,
+              observedSurfaces: closureResult.surfaces.map((item) => ({
+                id: item.id,
+                host: item.host,
+                skillCount: item.skillCount,
+              })),
+            });
+            throw new ReleaseError(
+              POST_PUBLISH_VERIFY_FAILED,
+              `skill resource closure surface binding mismatch for ${surface.distribution}: the frozen contract binds "${surface.binding.surfaceId}" to ${surface.binding.host}, but the install coordinate does not reproduce that surface`,
+              {
+                unitId: surface.unitId,
+                distribution: surface.distribution,
+                expectedSurfaceId: surface.binding.surfaceId,
+                observedSurfaces: closureResult.surfaces.map((item) => ({
+                  id: item.id,
+                  host: item.host,
+                  skillCount: item.skillCount,
+                })),
+              },
+            );
+          }
+          // For single-plugin units (the root-surface distributions this
+          // design covers) the install payload IS the frozen snapshot, so the
+          // recomputed receipt must equal the frozen unit receipt field for
+          // field (checker version, input digest, surface/skill/reference/
+          // finding counts, receipt digest). Record-layer fields (preparedAt,
+          // exitCode) are carried from the frozen receipt — the same rule
+          // publish's recheck uses.
+          const pluginDistCount = (surface.unit?.distributions ?? [])
+            .filter((d) => d.type !== 'npm').length;
+          if (pluginDistCount === 1) {
+            const observedReceipt = createSkillResourceClosureReceipt(closureResult, {
+              unitId: surface.unitId,
+              preparedAt: expectedUnitReceipt.preparedAt ?? null,
+              exitCode: expectedUnitReceipt.exitCode ?? 0,
+            });
+            assertSkillResourceClosureReceipt(
+              expectedUnitReceipt,
+              observedReceipt,
+              `unit "${surface.unitId}"`,
+            );
+          }
         }
         skillResourceClosureReceipts.push(createSkillResourceClosureReceipt(
           closureResult,
@@ -2006,6 +2114,7 @@ export async function verifyRelease(options) {
 
     await evidence.finish({
       status: VERIFIED,
+      recoveryActionCode: null,
       planPath,
       sourceRunId: sourceRun.runId,
       sourceRunDigest,
@@ -2020,21 +2129,29 @@ export async function verifyRelease(options) {
       planPath,
       status: VERIFIED,
       adapterChecks,
+      recoveryActionCode: null,
       smokeTest,
       gateResults: consumerGateResults,
       ...(manualFollowUps.length > 0 ? { manualFollowUps } : {}),
       ...(baselineAdvance ? { baselineAdvance } : {}),
     };
   } catch (err) {
+    const { recoveryActionCode } = await readRunRecovery(resolvedSourceRunPath, {
+      planPath, clock: clockFn, command: 'verify', error: err,
+    });
+    err.details = { ...err.details, recoveryActionCode };
     await evidence.append({
       phase: 'verify',
       status: 'failed',
-      error: { code: err.code, message: err.message },
+      error: { code: err.code, message: err.message, details: err.details },
+      details: { recoveryActionCode },
     });
 
     await evidence.finish({
       status: 'FAILED',
-      error: { code: err.code, message: err.message },
+      recoveryActionCode,
+      error: { code: err.code, message: err.message, details: err.details },
+      details: { recoveryActionCode },
       failedAt: clockFn(),
     });
 

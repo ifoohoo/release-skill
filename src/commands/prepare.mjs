@@ -28,14 +28,14 @@ const execFile = promisify(execFileCb);
 import { classifyPathInput, writeFileAtomic } from 'skill-family-harness-node';
 import { loadProjectConfig } from '../core/config.mjs';
 import { captureBaseline } from '../core/baseline.mjs';
-import { runHook } from '../core/hooks.mjs';
+import { findPostPublishUnitConflict, runHook } from '../core/hooks.mjs';
 import { computeHookCacheKey, readHookCache, writeHookCache } from '../core/hook-cache.mjs';
 import {
   assertExpectedPublicSurface,
   collectExpectedPublicSurfaceAdoptionWarnings,
 } from '../core/public-surface.mjs';
 import { runSnapshotVerificationGates } from '../core/verification-gates.mjs';
-import { createEvidenceWriter } from '../core/evidence.mjs';
+import { asError, createEvidenceWriter } from '../core/evidence.mjs';
 import { computePlanDigest, writePlanAtomic, writePlanImmutable } from '../core/plan.mjs';
 import { sha256Hex } from '../core/digest.mjs';
 import {
@@ -62,16 +62,18 @@ import { PKG_ROOT } from '../core/pkg-root.mjs';
 import { writeFrozenMarker, FROZEN_MARKER_FILENAME } from '../core/frozen-marker.mjs';
 import {
   SOURCE_INPUT_ALGORITHM_VERSION,
+  REPOSITORY_RE,
   createPublicSourceAuthorityReceipt,
   computeSourceInputClosure,
   checkSourceInputDirty,
   verifySnapshotSourcesMatchClosure,
 } from '../core/source-authority.mjs';
 import { acquireProjectLock } from '../artifacts/project-lock.mjs';
-import { assertPreviousPublicBaselineTarget, observePreviousPublicBaseline } from '../core/previous-public-baseline.mjs';
+import { observePreviousPublicBaseline } from '../core/previous-public-baseline.mjs';
 import { verifyFrozenNpmTarballContract } from '../adapters/npm.mjs';
 import { createProductionPrepareRunDir } from '../core/run.mjs';
-import { PLATFORMS } from '../platforms/registry.mjs';
+import { PLATFORMS, normalizeHostId } from '../platforms/registry.mjs';
+import { deriveSurfaceHostBinding, pluginRootFromManifestRelativePath } from '../core/surface-host-bindings.mjs';
 import { validateMarketplaceSourceSelection, MARKETPLACE_SOURCE_TYPES, resolvePluginManifestFromMarketplaceEntrySource, resolveMarketplaceRoot } from '../adapters/plugin-marketplace.mjs';
 import { buildInstallationContract, computeInstallationContractDigest, INSTALLATION_CONTRACT_ALGORITHM_VERSION } from '../core/installation-contract.mjs';
 import {
@@ -413,7 +415,7 @@ export async function runDeclaredHooks(config, root, evidence, hookFn = runHook,
           status: 'warning',
           hookName: name,
           warning: 'hook cache write failed; continuing without caching',
-          error: written.error,
+          error: { code: 'HOOK_CACHE_WRITE_FAILED', message: written.error },
         });
       }
     }
@@ -884,6 +886,120 @@ function resolveProductionBranch(unit, version) {
       .replaceAll('{unit}', unit.id),
     branchStrategy: unit.production?.branchStrategy ?? 'create-release-branch',
   };
+}
+
+/**
+ * R-03 (WP-5): pure-config consistency rules for ONE production unit,
+ * collected as independent defects (T10, ruling 21).
+ *
+ * Only checks that depend on NO build artifact, NO snapshot, NO remote
+ * observation and NO public-file scan belong here: branchStrategy
+ * requirements (online, bound baseline, matching ref) and
+ * previousPublicBaseline repo/host consistency with the production unit.
+ * Shared by the pre-hook Step 2b gate (aggregating collector) and the
+ * post-hook baseline section (throwing projection) so the two windows can
+ * never drift apart.
+ *
+ * The repo/host conditions mirror core/previous-public-baseline.mjs
+ * `assertPreviousPublicBaselineTarget` (which stays the authority for
+ * publish/reconcile) with identical message text.
+ *
+ * @param {Object} unit - Resolved release unit config.
+ * @param {string} version - Resolved target version (branch derivation).
+ * @param {Object} input
+ * @param {boolean} input.production - Production prepare flag.
+ * @param {boolean} input.offline - Offline prepare flag.
+ * @param {string} input.githubHost - Production GitHub host.
+ * @param {Array<Object>} defects - Collector for
+ *   `{ code, unitId, field, message, remediation }` entries.
+ */
+function collectProductionUnitPureConfigDefects(unit, version, { production, offline, githubHost }, defects) {
+  const ppbConfig = unit.previousPublicBaseline;
+  if (!ppbConfig) return;
+  const { branch, branchStrategy } = resolveProductionBranch(unit, version);
+  if (production && ['advance-existing-branch', 'initialize-default-branch'].includes(branchStrategy)) {
+    if (offline) {
+      defects.push({
+        code: GATE_FAILED,
+        unitId: unit.id,
+        field: `releaseUnits[${unit.id}].production.branchStrategy`,
+        message:
+          `unit "${unit.id}" branch strategy "${branchStrategy}" requires online production prepare. ` +
+          `Remediation: release-skill prepare --production --online`,
+        remediation: 'release-skill prepare --production --online',
+      });
+    }
+    if (ppbConfig.mode !== 'bound') {
+      defects.push({
+        code: GATE_FAILED,
+        unitId: unit.id,
+        field: `releaseUnits[${unit.id}].previousPublicBaseline.mode`,
+        message: `unit "${unit.id}" branch strategy "${branchStrategy}" requires previousPublicBaseline.mode=bound`,
+        remediation: 'set previousPublicBaseline.mode=bound and freeze the previous release commit',
+      });
+    }
+    if (
+      branchStrategy === 'advance-existing-branch' &&
+      ppbConfig.ref !== `refs/heads/${branch}`
+    ) {
+      defects.push({
+        code: GATE_FAILED,
+        unitId: unit.id,
+        field: `releaseUnits[${unit.id}].previousPublicBaseline.ref`,
+        message: `unit "${unit.id}" advance-existing-branch baseline ref must equal refs/heads/${branch}`,
+        remediation: `set previousPublicBaseline.ref to refs/heads/${branch}`,
+      });
+    }
+  }
+  if (ppbConfig.mode === 'bound') {
+    if (ppbConfig.repo !== unit.publicRepo) {
+      defects.push({
+        code: GATE_FAILED,
+        unitId: unit.id,
+        field: `releaseUnits[${unit.id}].previousPublicBaseline.repo`,
+        message: 'previous public baseline repo does not match the production repository',
+        remediation: `align previousPublicBaseline.repo with the unit publicRepo "${unit.publicRepo}"`,
+      });
+    }
+    // T09 (ruling 21): only fill the host default when the baseline does NOT
+    // declare githubHost; an explicit value is preserved and compared so a
+    // real host conflict is detected instead of being overwritten away.
+    const baselineHost = ppbConfig.githubHost ?? githubHost;
+    if (baselineHost !== githubHost) {
+      defects.push({
+        code: GATE_FAILED,
+        unitId: unit.id,
+        field: `releaseUnits[${unit.id}].previousPublicBaseline.githubHost`,
+        message: 'previous public baseline host does not match the production GitHub host',
+        remediation: 'align previousPublicBaseline.githubHost with the unit production githubHost (or remove the explicit host to use the default)',
+      });
+    }
+  }
+}
+
+/**
+ * R-03 (WP-5) throwing projection: fail on the first defect of one production
+ * unit. Used by the post-hook baseline re-validation window (the pre-hook
+ * Step 2b gate aggregates ALL independent defects via the collector above).
+ *
+ * @throws {ReleaseError} on the first collected consistency defect.
+ */
+function assertProductionUnitPureConfig(unit, version, { production, offline, githubHost }) {
+  const defects = [];
+  collectProductionUnitPureConfigDefects(
+    unit,
+    version,
+    { production, offline, githubHost },
+    defects,
+  );
+  if (defects.length > 0) {
+    const first = defects[0];
+    throw new ReleaseError(first.code, first.message, {
+      unitId: first.unitId,
+      field: first.field,
+      remediation: first.remediation,
+    });
+  }
 }
 
 function normalizedProductionConfig(unit) {
@@ -1984,6 +2100,261 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
  */
 
 /**
+ * R-14: source-authority content closure gate, extracted from Step 3c so the
+ * config workflow can run it either at Step 3c (docs) or deferred at the
+ * Step 6b-pre public-byte decision (config scenario B). Behavior is byte-for-
+ * byte the original Step 3c: CONFIG_MISSING when production configs declare no
+ * sourceRepository, deterministic source-input closure, dirty closure inputs
+ * fail closed, and the O5 origin-ahead observation stays a non-blocking
+ * warning in online runs.
+ *
+ * @param {object} input
+ * @param {string|null} input.sourceRepository - config.project.sourceRepository
+ * @param {string|null} input.configDefaultBranch - config.project.defaultBranch
+ * @param {Array<object>} input.configUnits - resolved unit configs
+ * @param {string} input.realRoot - real project root
+ * @param {boolean} input.offline - offline prepare flag
+ * @param {object} input.evidence - evidence stream (append)
+ * @param {Function} input.observeOriginAheadFn - injectable origin observer
+ * @param {Array<object>} input.runWarnings - warning collector (pushed into)
+ * @param {string} input.configPath - config file path for error attribution
+ * @returns {Promise<{ sourceAuthority: object, sourceInputClosure: object }>}
+ */
+async function computeSourceAuthorityClosure({
+  sourceRepository,
+  configDefaultBranch,
+  configUnits,
+  realRoot,
+  offline,
+  evidence,
+  observeOriginAheadFn,
+  runWarnings,
+  configPath,
+}) {
+  if (!sourceRepository || typeof sourceRepository !== 'string') {
+    throw new ReleaseError(
+      CONFIG_MISSING,
+      'production prepare requires project.sourceRepository in configuration; source authority content gate needs a workspace source repository',
+      { configPath },
+    );
+  }
+
+  await evidence.append({ phase: 'source-authority', status: 'started' });
+
+  // Compute source-input closure from resolved unit configs
+  const unitConfigsForClosure = configUnits.map((unit, idx) => ({
+    ...unit,
+    version: { ...unit.version },
+  }));
+  const sourceInputClosure = await computeSourceInputClosure({
+    units: unitConfigsForClosure,
+    root: realRoot,
+  });
+
+  await evidence.append({
+    phase: 'source-authority',
+    step: 'closure-computed',
+    status: 'computed',
+    entryCount: sourceInputClosure.entries.length,
+    inputDigest: sourceInputClosure.digest,
+  });
+
+  // Check only closure inputs for dirty (not whole workspace)
+  const dirtyResult = await checkSourceInputDirty({
+    closure: sourceInputClosure,
+    root: realRoot,
+  });
+  if (dirtyResult.dirty) {
+    await evidence.append({
+      phase: 'source-authority',
+      status: 'blocking',
+      reason: 'DIRTY_SOURCE_INPUT',
+      dirtyPaths: dirtyResult.dirtyPaths,
+    });
+    throw new ReleaseError(
+      DIRTY_SOURCE_INPUT,
+      `source-input closure files have uncommitted changes: ${dirtyResult.dirtyPaths.join(', ')}`,
+      { dirtyPaths: dirtyResult.dirtyPaths },
+    );
+  }
+
+  await evidence.append({
+    phase: 'source-authority',
+    step: 'dirty-check',
+    status: 'clean',
+  });
+
+  // Build sourceAuthority binding for plan digest
+  const sourceAuthority = {
+    sourceRepository,
+    defaultBranch: configDefaultBranch,
+    entries: sourceInputClosure.entries,
+    inputDigest: sourceInputClosure.digest,
+    algorithmVersion: SOURCE_INPUT_ALGORITHM_VERSION,
+  };
+
+  await evidence.append({
+    phase: 'source-authority',
+    status: 'completed',
+    sourceRepository,
+    defaultBranch: configDefaultBranch,
+    inputDigest: sourceInputClosure.digest,
+    remoteObservation: offline ? 'unobserved-offline' : 'deferred-to-publish',
+  });
+
+  // --- Step 3c-ahead: local vs origin ahead observation (O5) ---
+  // Online production prepare only. WARNING level, never blocking: pushing
+  // is a legitimate pre-publish action, but the operator must know before
+  // approval — the publish source-authority gate compares the frozen
+  // source-input closure against the remote default branch and rejects
+  // unpushed local commits (0.6.1 cycle: 15 commits ahead, discovered only
+  // at publish). Offline prepare keeps the legacy zero-observation form.
+  if (!offline) {
+    if (!configDefaultBranch) {
+      await evidence.append({
+        phase: 'origin-ahead',
+        status: 'skipped',
+        reason: 'no project.defaultBranch configured',
+      });
+    } else {
+      await evidence.append({ phase: 'origin-ahead', status: 'started' });
+      const observeOriginAheadImpl = observeOriginAheadFn ?? observeOriginAhead;
+      let originObservation;
+      try {
+        originObservation = await observeOriginAheadImpl({
+          root: realRoot,
+          defaultBranch: configDefaultBranch,
+        });
+      } catch (err) {
+        originObservation = { status: 'unknown', error: err?.message ?? String(err) };
+      }
+      if (originObservation?.status === 'ahead') {
+        await evidence.append({
+          phase: 'origin-ahead',
+          status: 'warning',
+          defaultBranch: configDefaultBranch,
+          localHead: originObservation.localHead ?? null,
+          remoteHead: originObservation.remoteHead ?? null,
+          aheadCount: originObservation.aheadCount ?? null,
+          guidance: 'push the workspace before publish (git push); the publish source-authority gate compares against the remote default branch',
+        });
+        runWarnings.push({
+          code: 'ORIGIN_AHEAD',
+          defaultBranch: configDefaultBranch,
+          aheadCount: originObservation.aheadCount ?? null,
+          message:
+            `local HEAD is ${originObservation.aheadCount ?? 'an unknown number of'} commit(s) ahead of origin/${configDefaultBranch}; ` +
+            'the publish source-authority gate compares against the remote default branch — push the workspace (git push) before publish',
+        });
+      } else if (['in-sync', 'behind', 'diverged'].includes(originObservation?.status)) {
+        await evidence.append({
+          phase: 'origin-ahead',
+          status: 'completed',
+          observation: originObservation.status,
+          defaultBranch: configDefaultBranch,
+          localHead: originObservation.localHead ?? null,
+          remoteHead: originObservation.remoteHead ?? null,
+          aheadCount: originObservation.aheadCount ?? null,
+          behindCount: originObservation.behindCount ?? null,
+        });
+      } else {
+        await evidence.append({
+          phase: 'origin-ahead',
+          status: 'unobserved',
+          reason: originObservation?.status ?? 'unknown',
+          defaultBranch: configDefaultBranch,
+          error: originObservation?.error
+            ? { code: 'ORIGIN_OBSERVE_FAILED', message: originObservation.error }
+            : null,
+        });
+      }
+    }
+  }
+
+  return { sourceAuthority, sourceInputClosure };
+}
+
+/**
+ * R-14: snapshot-to-closure binding verification, extracted from Step 5 so
+ * the config workflow can run it at the same moment as the (possibly
+ * deferred) closure computation. Behavior is byte-for-byte the original
+ * Step 5: snapshot sources must match the closure (SNAPSHOT_SOURCE_DRIFT),
+ * the re-computed closure must equal the frozen one (SOURCE_CLOSURE_DRIFT),
+ * and closure files must still be clean (DIRTY_AFTER_SNAPSHOT).
+ *
+ * @param {object} input
+ * @param {object} input.sourceInputClosure - frozen source-input closure
+ * @param {Array<object>} input.unitResults - unit snapshot results
+ * @param {Array<object>} input.configUnits - resolved unit configs
+ * @param {string} input.realRoot - real project root
+ * @param {object} input.evidence - evidence stream (append)
+ */
+async function verifySnapshotClosureBinding({ sourceInputClosure, unitResults, configUnits, realRoot, evidence }) {
+  const snapshotSourceResult = verifySnapshotSourcesMatchClosure({
+    closure: sourceInputClosure,
+    unitResults,
+  });
+  if (!snapshotSourceResult.passed) {
+    throw new ReleaseError(
+      DIRTY_SOURCE_INPUT,
+      'source inputs changed between closure calculation and frozen snapshot construction',
+      {
+        reason: 'SNAPSHOT_SOURCE_DRIFT',
+        dirtyPaths: snapshotSourceResult.error.paths,
+      },
+    );
+  }
+
+  const finalClosure = await computeSourceInputClosure({
+    units: configUnits,
+    root: realRoot,
+  });
+  if (finalClosure.digest !== sourceInputClosure.digest) {
+    const initialByPath = new Map(
+      sourceInputClosure.entries.map((entry) => [entry.path, entry]),
+    );
+    const finalByPath = new Map(
+      finalClosure.entries.map((entry) => [entry.path, entry]),
+    );
+    const changedPaths = [...new Set([
+      ...sourceInputClosure.entries.map((entry) => entry.path),
+      ...finalClosure.entries.map((entry) => entry.path),
+    ])].filter((path) => (
+      JSON.stringify(initialByPath.get(path) ?? null)
+      !== JSON.stringify(finalByPath.get(path) ?? null)
+    )).sort();
+    throw new ReleaseError(
+      DIRTY_SOURCE_INPUT,
+      'source-input closure changed while preparing frozen snapshots',
+      { reason: 'SOURCE_CLOSURE_DRIFT', dirtyPaths: changedPaths },
+    );
+  }
+
+  const finalDirtyResult = await checkSourceInputDirty({
+    closure: finalClosure,
+    root: realRoot,
+  });
+  if (finalDirtyResult.dirty) {
+    throw new ReleaseError(
+      DIRTY_SOURCE_INPUT,
+      `source-input closure files have uncommitted changes after snapshot construction: ${finalDirtyResult.dirtyPaths.join(', ')}`,
+      {
+        reason: 'DIRTY_AFTER_SNAPSHOT',
+        dirtyPaths: finalDirtyResult.dirtyPaths,
+      },
+    );
+  }
+
+  await evidence.append({
+    phase: 'source-authority',
+    step: 'snapshot-binding',
+    status: 'completed',
+    inputDigest: sourceInputClosure.digest,
+    snapshotSourceCount: snapshotSourceResult.observation.snapshotSourceCount,
+  });
+}
+
+/**
  * Read the newest frozen plan from `.release-skill/plans/` (digest-addressed
  * immutable plans written by writePlanImmutable). Used by the config workflow
  * decision to compare public bytes (per-unit snapshotDigest) against the
@@ -2017,6 +2388,404 @@ export async function readLatestFrozenPlan(root) {
     }
   }
   return best ? { plan: best.plan, fileName: best.fileName } : null;
+}
+
+/**
+ * P4 (ruling 6) Phase A: resolve every plugin distribution's frozen manifest
+ * facts from the local snapshot — marketplace source selection, bundled index
+ * entry, and manifest bytes — BEFORE the local skill-resource closure gate
+ * and any remote marketplace observation. The resolved facts are shared by
+ * the closure gate (surface bindings) and the installation-contract
+ * construction (Phase D), so each manifest is parsed exactly once per
+ * distribution and every consumer reads the same frozen bytes.
+ *
+ * @param {object[]} unitResults - processSnapshots results.
+ * @param {string[]} resolvedVersions - index-aligned target versions.
+ * @returns {Promise<{
+ *   frozenManifestByDist: Map<string, {manifest: object, manifestRelativePath: string}>,
+ *   distributionFacts: Map<string, object>,
+ * }>}
+ */
+async function resolveDistributionManifestFacts(unitResults, resolvedVersions) {
+  const frozenManifestByDist = new Map();
+  const distributionFacts = new Map();
+  for (let idx = 0; idx < unitResults.length; idx += 1) {
+    const { unit, manifest } = unitResults[idx];
+    const unitVersion = resolvedVersions[idx];
+    const snapshotDir = manifest.outputDir;
+    for (const dist of unit.distributions ?? []) {
+      const platform = PLATFORMS.find((p) => p.distributionType === dist.type);
+      if (!platform || dist.type === 'npm') continue;
+      const key = `${unit.id} ${dist.type}`;
+
+      // 校验 marketplaceSourceType：从配置读取，不允许硬编码默认值
+      const sourceTypeResult = validateMarketplaceSourceSelection(platform.id, dist, dist);
+      if (!sourceTypeResult.valid) {
+        throw new ReleaseError(
+          CONFIG_INVALID,
+          `unit "${unit.id}" ${dist.type} marketplace source validation failed: ${sourceTypeResult.error}`,
+          { unitId: unit.id, distributionType: dist.type },
+        );
+      }
+      let marketplaceSourceType = sourceTypeResult.selectedSource;
+      if (!marketplaceSourceType) {
+        marketplaceSourceType = dist.marketplaceRepo ? 'standalone-index' : 'bundled-family';
+      }
+
+      const hasDefaultMarketplace = platform.manifestPaths.marketplace !== null;
+      const hasExplicitMarketplacePath = dist.marketplaceIndexPath != null;
+      const isBundledFamily = marketplaceSourceType === 'bundled-family';
+      const isStandaloneIndex = marketplaceSourceType === 'standalone-index';
+
+      // Bundled index entry resolution is a local snapshot read; the
+      // standalone-index entry is remote-frozen and resolved in Phase C/D.
+      let includeMarketplaceEntryBundled = false;
+      let marketplaceIndexRelative = null;
+      let bundledMarketIndex = null;
+      let selectedMarketplaceEntryBundled = null;
+      if (isBundledFamily) {
+        includeMarketplaceEntryBundled = hasDefaultMarketplace || hasExplicitMarketplacePath;
+        if (includeMarketplaceEntryBundled) {
+          marketplaceIndexRelative = dist.marketplaceIndexPath ?? platform.manifestPaths.marketplace;
+          if (!marketplaceIndexRelative) {
+            throw new ReleaseError(
+              GATE_FAILED,
+              `unit "${unit.id}" ${dist.type} cannot determine marketplace index path: neither marketplaceIndexPath nor platform.manifestPaths.marketplace is set`,
+              { unitId: unit.id, distributionType: dist.type },
+            );
+          }
+          const marketplaceIndexPath = resolve(snapshotDir, marketplaceIndexRelative);
+          let marketplaceIndexRaw;
+          try {
+            marketplaceIndexRaw = await readFile(marketplaceIndexPath, 'utf8');
+          } catch (err) {
+            throw new ReleaseError(
+              GATE_FAILED,
+              `unit "${unit.id}" ${dist.type} cannot read bundled marketplace index "${marketplaceIndexRelative}": ${err.message}`,
+              { unitId: unit.id, distributionType: dist.type, cause: err.code },
+            );
+          }
+          let marketplaceIndex;
+          try {
+            marketplaceIndex = JSON.parse(marketplaceIndexRaw);
+          } catch (err) {
+            throw new ReleaseError(
+              GATE_FAILED,
+              `unit "${unit.id}" ${dist.type} invalid JSON in bundled marketplace index "${marketplaceIndexRelative}": ${err.message}`,
+              { unitId: unit.id, distributionType: dist.type },
+            );
+          }
+          if (!marketplaceIndex || typeof marketplaceIndex !== 'object' || !Array.isArray(marketplaceIndex.plugins)) {
+            throw new ReleaseError(
+              GATE_FAILED,
+              `unit "${unit.id}" ${dist.type} bundled marketplace index "${marketplaceIndexRelative}" must be an object with a plugins array`,
+              { unitId: unit.id, distributionType: dist.type },
+            );
+          }
+          const matchingEntries = marketplaceIndex.plugins.filter(
+            (entry) => entry && entry.name === dist.plugin,
+          );
+          if (matchingEntries.length !== 1) {
+            throw new ReleaseError(
+              GATE_FAILED,
+              `unit "${unit.id}" ${dist.type} bundled marketplace index must contain exactly one plugin entry named "${dist.plugin}", found ${matchingEntries.length}`,
+              { unitId: unit.id, distributionType: dist.type },
+            );
+          }
+          selectedMarketplaceEntryBundled = matchingEntries[0];
+          bundledMarketIndex = marketplaceIndex;
+        }
+      }
+
+      // Read the plugin manifest from the real snapshot.
+      let pluginManifestRelative;
+      let pluginManifestParsed;
+      if (isBundledFamily && bundledMarketIndex && platform.marketplaceSourceForm !== null) {
+        const mktRoot = resolveMarketplaceRoot(platform, marketplaceIndexRelative);
+        try {
+          const resolved = await resolvePluginManifestFromMarketplaceEntrySource(
+            bundledMarketIndex, dist.plugin, platform, snapshotDir, mktRoot,
+          );
+          pluginManifestParsed = resolved.manifest;
+          pluginManifestRelative = resolved.manifestRelativePath;
+        } catch (err) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}" ${dist.type} cannot resolve plugin manifest from marketplace entry source: ${err.message}`,
+            { unitId: unit.id, distributionType: dist.type },
+          );
+        }
+      } else if (platform.strategy.readManifest) {
+        const readResult = await platform.strategy.readManifest(snapshotDir);
+        pluginManifestParsed = readResult.manifest;
+        pluginManifestRelative = readResult.manifestRelative ?? platform.manifestPaths.plugin;
+      } else {
+        pluginManifestRelative = platform.manifestPaths.plugin;
+        const pluginManifestPath = resolve(snapshotDir, pluginManifestRelative);
+        let raw;
+        try {
+          raw = await readFile(pluginManifestPath, 'utf8');
+        } catch (err) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}" ${dist.type} cannot read plugin manifest "${pluginManifestRelative}": ${err.message}`,
+            { unitId: unit.id, distributionType: dist.type, cause: err.code },
+          );
+        }
+        try {
+          pluginManifestParsed = JSON.parse(raw);
+        } catch (err) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}" ${dist.type} invalid JSON in plugin manifest "${pluginManifestRelative}": ${err.message}`,
+            { unitId: unit.id, distributionType: dist.type },
+          );
+        }
+      }
+
+      frozenManifestByDist.set(key, {
+        manifest: pluginManifestParsed,
+        manifestRelativePath: pluginManifestRelative,
+      });
+
+      // 静态校验 manifest 名称和版本（被摘要剔除不等于不校验）
+      if (pluginManifestParsed.name !== dist.plugin) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" ${dist.type} plugin manifest name "${pluginManifestParsed.name}" does not match distribution plugin "${dist.plugin}"`,
+          { unitId: unit.id, distributionType: dist.type },
+        );
+      }
+      if (typeof pluginManifestParsed.version === 'string' && pluginManifestParsed.version !== unitVersion) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" ${dist.type} plugin manifest version "${pluginManifestParsed.version}" does not match target version "${unitVersion}"`,
+          { unitId: unit.id, distributionType: dist.type },
+        );
+      }
+
+      distributionFacts.set(key, {
+        kind: 'plugin',
+        platform,
+        marketplaceSourceType,
+        isBundledFamily,
+        isStandaloneIndex,
+        includeMarketplaceEntryBundled,
+        marketplaceIndexRelative,
+        bundledMarketIndex,
+        selectedMarketplaceEntryBundled,
+        pluginManifestRelative,
+        pluginManifestParsed,
+      });
+    }
+  }
+  return { frozenManifestByDist, distributionFacts };
+}
+
+/**
+ * P4 (ruling 6) Phase B: the built-in local skill-resource closure gate.
+ * Runs on the sealed/final staging snapshots with the surface host bindings
+ * derived from the shared frozen manifest facts (R-13). It must complete
+ * BEFORE any remote marketplace observation (Phase C).
+ *
+ * @param {object} input
+ * @param {object[]} input.unitResults - processSnapshots results.
+ * @param {Map<string, {manifest: object, manifestRelativePath: string}>}
+ *   input.frozenManifestByDist - frozen manifest facts from Phase A.
+ * @param {string|null} input.freezeTimestamp - deterministic freeze timestamp.
+ * @param {object} input.evidence - evidence writer.
+ * @param {boolean} input.skipSkillResourceClosure - workflow trim flag.
+ * @param {string} input.workflow - prepare workflow kind (skip evidence).
+ * @returns {Promise<object[]>} the frozen unit receipts.
+ */
+async function runPrepareSkillResourceClosureGate({
+  unitResults,
+  frozenManifestByDist,
+  freezeTimestamp,
+  evidence,
+  skipSkillResourceClosure,
+  workflow,
+}) {
+  const skillResourceClosureResults = [];
+  if (skipSkillResourceClosure) {
+    await evidence.append({
+      phase: 'skill-resource-closure',
+      status: 'skipped',
+      reason: `workflow "${workflow}" trims the skill resource closure gate`,
+      unitCount: unitResults.length,
+    });
+    return skillResourceClosureResults;
+  }
+  for (const { unit, manifest } of unitResults) {
+    await evidence.append({
+      phase: 'skill-resource-closure',
+      status: 'started',
+      unitId: unit.id,
+    });
+
+    // R-13: 从冻结安装事实推导每个 distribution 的宿主表面绑定
+    // （manifest skills 路径锚定在 manifest 插件根，宿主经 Foundation
+    // 规范化）——checker 用它标记表面宿主，保证与安装契约一致。
+    // 无 skills 字段的 manifest 不产生绑定，checker 推断路径保持权威。
+    // P1: 声明 skills 目录必须真实存在于冻结快照（derive 内校验）。
+    const surfaceHostBindings = [];
+    for (const distribution of unit.distributions ?? []) {
+      const platform = PLATFORMS.find(
+        (p) => p.distributionType === distribution.type,
+      );
+      if (!platform) continue;
+      const frozenManifest = frozenManifestByDist.get(
+        `${unit.id} ${distribution.type}`,
+      );
+      if (!frozenManifest) continue;
+      const pluginRoot = pluginRootFromManifestRelativePath(
+        frozenManifest.manifestRelativePath,
+      );
+      const binding = await deriveSurfaceHostBinding({
+        manifest: frozenManifest.manifest,
+        pluginRoot,
+        platform,
+        snapshotDir: manifest.outputDir,
+      });
+      if (binding) surfaceHostBindings.push(binding);
+    }
+
+    const closureResult = await checkSkillResourceClosure({
+      snapshotDir: manifest.outputDir,
+      host: 'root',
+      surfaceHostBindings,
+    });
+
+    // G5: bind execution time + exit code into the frozen receipt.
+    // preparedAt reuses this prepare's deterministic freeze timestamp
+    // (production: the baseline HEAD commit committer date; otherwise
+    // null) — never a wall-clock sample — so identical sources freeze
+    // byte-identical receipts on every re-prepare.
+    const receipt = createSkillResourceClosureReceipt(closureResult, {
+      unitId: unit.id,
+      preparedAt: freezeTimestamp ?? null,
+      exitCode: 0,
+    });
+    skillResourceClosureResults.push(receipt);
+
+    if (closureResult.findings.length > 0) {
+      await evidence.append({
+        phase: 'skill-resource-closure',
+        status: 'blocking',
+        unitId: unit.id,
+        findingCount: closureResult.findings.length,
+        findings: closureResult.findings.map((f) => ({
+          skill: f.skill,
+          line: f.line,
+          reference: f.reference,
+          classification: f.classification,
+          code: f.code,
+          // D4: RESOURCE_DRIFT findings localize via references (the
+          // finding's own skill/line stay null for a cross-surface drift).
+          ...(f.references ? { references: f.references } : {}),
+        })),
+      });
+      throw new ReleaseError(
+        GATE_FAILED,
+        `skill resource closure gate failed for unit "${unit.id}": ${closureResult.findings.length} finding(s)`,
+        {
+          unitId: unit.id,
+          findingCount: closureResult.findings.length,
+          findings: closureResult.findings,
+        },
+      );
+    }
+
+    // G4: every declared plugin distribution must be backed by a host
+    // surface in the frozen snapshot with at least one skill. If
+    // publicFiles drops an adapter tree, that host surface is silently
+    // absent from the receipt — fail closed here instead of shipping a
+    // unit whose declared host never entered the closure gate.
+    const expectedHosts = [];
+    for (const distribution of unit.distributions ?? []) {
+      const platform = PLATFORMS.find(
+        (p) => p.distributionType === distribution.type,
+      );
+      if (!platform) continue;
+      expectedHosts.push(await normalizeHostId(platform.buildAdapter.name));
+    }
+    const hostCoverage = evaluateDeclaredHostSurfaceCoverage(
+      expectedHosts,
+      closureResult.surfaces,
+    );
+    if (!hostCoverage.passed) {
+      await evidence.append({
+        phase: 'skill-resource-closure',
+        status: 'blocking',
+        unitId: unit.id,
+        reason: 'declared-host-surface-missing',
+        missingHosts: hostCoverage.missing,
+      });
+      throw new ReleaseError(
+        GATE_FAILED,
+        `skill resource closure gate failed for unit "${unit.id}": declared host surface(s) missing or empty: ${hostCoverage.missing.map((item) => item.host).join(', ')}`,
+        {
+          unitId: unit.id,
+          missingHosts: hostCoverage.missing,
+          observedSurfaces: closureResult.surfaces.map((surface) => ({
+            id: surface.id,
+            host: surface.host,
+            skillCount: surface.skillCount,
+          })),
+        },
+      );
+    }
+
+    // R-13: manifest 声明的 skills 表面必须真实存在于冻结快照且至少
+    // 含一个技能（binding-surface existence）。G4 按宿主名覆盖，这里按
+    // 绑定表面路径覆盖 —— 例如 manifest 指向 './adapters/claude/skills/'
+    // 但 publicFiles 丢弃该目录时，绑定表面缺失必须失败关闭。
+    for (const binding of surfaceHostBindings) {
+      const boundSurface = closureResult.surfaces.find(
+        (surface) => surface.id === binding.surfaceId,
+      );
+      if (!boundSurface || boundSurface.skillCount < 1) {
+        await evidence.append({
+          phase: 'skill-resource-closure',
+          status: 'blocking',
+          unitId: unit.id,
+          reason: 'declared-host-surface-missing',
+          missingHosts: [{ host: binding.host, surfaceId: binding.surfaceId }],
+        });
+        throw new ReleaseError(
+          GATE_FAILED,
+          `skill resource closure gate failed for unit "${unit.id}": declared host surface(s) missing or empty: ${binding.host} (${binding.surfaceId})`,
+          {
+            unitId: unit.id,
+            missingHosts: [{ host: binding.host, surfaceId: binding.surfaceId }],
+            observedSurfaces: closureResult.surfaces.map((surface) => ({
+              id: surface.id,
+              host: surface.host,
+              skillCount: surface.skillCount,
+            })),
+          },
+        );
+      }
+    }
+
+    await evidence.append({
+      phase: 'skill-resource-closure',
+      status: 'completed',
+      unitId: unit.id,
+      checkerVersion: closureResult.checkerVersion,
+      surfaceCount: receipt.surfaceCount,
+      skillCount: receipt.skillCount,
+      referenceCount: closureResult.referenceCount,
+      sourceOnlyCount: closureResult.sourceOnlyCount,
+      // D2: per-reference exemption detail for approval/audit review —
+      // evidence-layer only; the receipt object (and its digest binding)
+      // is intentionally left unchanged.
+      sourceOnlyReferences: closureResult.sourceOnlyReferences,
+      findingCount: 0,
+      receiptDigest: closureResult.receiptDigest,
+    });
+  }
+  return skillResourceClosureResults;
 }
 
 export async function prepareRelease(options) {
@@ -2071,7 +2840,12 @@ export async function prepareRelease(options) {
   const trimmedWorkflow = workflow !== 'full';
   const skipDeclaredHooks = trimmedWorkflow;
   const skipSnapshotVerifyGates = trimmedWorkflow;
-  const skipSourceAuthorityClosure = trimmedWorkflow;
+  // R-14: docs keeps the release-skill publish path, so its source-authority
+  // closure gate is never trimmed; config defers the gate to the public-byte
+  // comparison decision and only runs it when publish is needed. Marketplace
+  // keeps the delegated-publish model unchanged (gate stays trimmed).
+  const skipSourceAuthorityClosure = trimmedWorkflow && workflow !== 'docs';
+  const deferSourceAuthorityClosure = trimmedWorkflow && production && workflow === 'config';
   const skipSkillResourceClosure = trimmedWorkflow;
 
   // --- Validate root ---
@@ -2201,8 +2975,13 @@ export async function prepareRelease(options) {
       phase: 'workflow',
       status: 'configured',
       workflowKind: workflow,
+      // R-14: the trim set is scenario-truthful — docs production keeps the
+      // source-authority closure (its publish path stays release-skill
+      // executed); config records the declared trim here and Step 6b records
+      // the final truth after the public-byte comparison.
       trimmedGates: trimmedWorkflow
-        ? ['declared-hooks', 'snapshot-verify-gates', 'source-authority-closure', 'skill-resource-closure']
+        ? ['declared-hooks', 'snapshot-verify-gates', 'skill-resource-closure']
+            .concat(production && !skipSourceAuthorityClosure ? [] : ['source-authority-closure'])
         : [],
       retainedGates: [
         'docs-freshness',
@@ -2327,7 +3106,7 @@ export async function prepareRelease(options) {
     const postPublishDeclarations = configUnits
       .map((unit, index) => ({ unit, index }))
       .filter(({ unit }) => unit.postPublish !== undefined);
-    if (postPublishDeclarations.length > 1) {
+    if (findPostPublishUnitConflict(configUnits)) {
       throw new ReleaseError(
         GATE_FAILED,
         `multiple units declare postPublish (${postPublishDeclarations.map(({ unit }) => unit.id).join(', ')}); a release plan binds exactly one postPublish declaration`,
@@ -2400,6 +3179,90 @@ export async function prepareRelease(options) {
           args: gate.command.slice(1),
           cwd: gate.cwd,
         })),
+      });
+    }
+
+    // --- Step 2b: Production pure-config gate (R-03, WP-5) ---
+    // Runs BEFORE the first declared hook: hooks are arbitrary local
+    // processes that may take tens of minutes, and a config-consistency
+    // defect must fail closed before any of them executes. Only checks that
+    // depend on NO build artifact, NO snapshot, NO remote observation and NO
+    // public-file scan are allowed in this window: sourceRepository presence
+    // and format, branchStrategy requirements, and previousPublicBaseline
+    // repo/host consistency. Artifact-dependent gates (public-surface
+    // scanning, source-input closure, dirty inputs, snapshots, leak scans,
+    // remote baseline observation) stay AFTER hooks.
+    if (production) {
+      await evidence.append({ phase: 'production-config', status: 'started' });
+      const sourceRepository = config.project?.sourceRepository ?? null;
+      // T10 (ruling 21): collect EVERY independent pure-config defect in this
+      // window and report them together — field, unit, and remediation hint —
+      // in ONE pre-hook failure. No aggregation framework and no second
+      // preflight: the same rule functions run, they just append to a shared
+      // defect list instead of throwing one at a time.
+      const pureConfigDefects = [];
+      if (!sourceRepository || typeof sourceRepository !== 'string') {
+        pureConfigDefects.push({
+          code: CONFIG_MISSING,
+          unitId: null,
+          field: 'project.sourceRepository',
+          message: 'production prepare requires project.sourceRepository in configuration; source authority content gate needs a workspace source repository',
+          remediation: 'add project.sourceRepository (<owner>/<repo>) to .release-skill/project.yaml',
+        });
+      } else if (!REPOSITORY_RE.test(sourceRepository)) {
+        pureConfigDefects.push({
+          code: CONFIG_INVALID,
+          unitId: null,
+          field: 'project.sourceRepository',
+          message: `project.sourceRepository "${sourceRepository}" is not a valid GitHub owner/repo`,
+          remediation: 'set project.sourceRepository to a valid GitHub owner/repo (owner/repository)',
+        });
+      }
+      for (let unitIndex = 0; unitIndex < configUnits.length; unitIndex += 1) {
+        collectProductionUnitPureConfigDefects(
+          configUnits[unitIndex],
+          resolvedVersions[unitIndex],
+          {
+            production,
+            offline,
+            githubHost: configUnits[unitIndex].production?.githubHost ?? 'github.com',
+          },
+          pureConfigDefects,
+        );
+      }
+      if (pureConfigDefects.length > 0) {
+        // Keep the existing single-defect codes (CONFIG_MISSING /
+        // CONFIG_INVALID / GATE_FAILED); with several defects the most
+        // severe class wins so existing recovery-code semantics stay intact.
+        const CODE_RANK = { CONFIG_MISSING: 0, CONFIG_INVALID: 1, GATE_FAILED: 2 };
+        const code = [...pureConfigDefects]
+          .sort((a, b) => (CODE_RANK[a.code] ?? 3) - (CODE_RANK[b.code] ?? 3))[0].code;
+        const configErrors = pureConfigDefects.map((defect) => ({
+          unitId: defect.unitId,
+          field: defect.field,
+          message: defect.message,
+          remediation: defect.remediation,
+        }));
+        const pureConfigError = new ReleaseError(
+          code,
+          `production pure-config gate failed with ${pureConfigDefects.length} independent defect(s):\n`
+            + configErrors.map((entry) => (
+              `- ${entry.unitId ? `unit "${entry.unitId}" ` : ''}${entry.field}: ${entry.message} (remediation: ${entry.remediation})`
+            )).join('\n'),
+          { configPath, configErrors },
+        );
+        await evidence.append({
+          phase: 'production-config',
+          status: 'failed',
+          gate: 'pure-config',
+          error: asError(pureConfigError.code ?? GATE_FAILED, pureConfigError.message),
+        });
+        throw pureConfigError;
+      }
+      await evidence.append({
+        phase: 'production-config',
+        status: 'passed',
+        unitCount: configUnits.length,
       });
     }
 
@@ -2525,142 +3388,26 @@ export async function prepareRelease(options) {
     let sourceAuthority = null;
     let sourceInputClosure = null;
     if (production && !skipSourceAuthorityClosure) {
-      if (!sourceRepository || typeof sourceRepository !== 'string') {
-        throw new ReleaseError(
-          CONFIG_MISSING,
-          'production prepare requires project.sourceRepository in configuration; source authority content gate needs a workspace source repository',
-          { configPath },
-        );
-      }
-
-      await evidence.append({ phase: 'source-authority', status: 'started' });
-
-      // Compute source-input closure from resolved unit configs
-      const unitConfigsForClosure = configUnits.map((unit, idx) => ({
-        ...unit,
-        version: { ...unit.version },
+      // docs production and full run the gate here, before snapshots.
+      ({ sourceAuthority, sourceInputClosure } = await computeSourceAuthorityClosure({
+        sourceRepository,
+        configDefaultBranch,
+        configUnits,
+        realRoot,
+        offline,
+        evidence,
+        observeOriginAheadFn: options.observeOriginAheadFn,
+        runWarnings,
+        configPath,
       }));
-      sourceInputClosure = await computeSourceInputClosure({
-        units: unitConfigsForClosure,
-        root: realRoot,
-      });
-
+    } else if (production && deferSourceAuthorityClosure) {
+      // config: the gate is deferred until the public-byte comparison
+      // decision (Step 6b); publish-needed runs it before the plan is built.
       await evidence.append({
         phase: 'source-authority',
-        step: 'closure-computed',
-        entryCount: sourceInputClosure.entries.length,
-        inputDigest: sourceInputClosure.digest,
+        status: 'deferred',
+        reason: 'config workflow defers the source-authority closure to the public-byte comparison decision',
       });
-
-      // Check only closure inputs for dirty (not whole workspace)
-      const dirtyResult = await checkSourceInputDirty({
-        closure: sourceInputClosure,
-        root: realRoot,
-      });
-      if (dirtyResult.dirty) {
-        await evidence.append({
-          phase: 'source-authority',
-          status: 'blocking',
-          reason: 'DIRTY_SOURCE_INPUT',
-          dirtyPaths: dirtyResult.dirtyPaths,
-        });
-        throw new ReleaseError(
-          DIRTY_SOURCE_INPUT,
-          `source-input closure files have uncommitted changes: ${dirtyResult.dirtyPaths.join(', ')}`,
-          { dirtyPaths: dirtyResult.dirtyPaths },
-        );
-      }
-
-      await evidence.append({
-        phase: 'source-authority',
-        step: 'dirty-check',
-        status: 'clean',
-      });
-
-      // Build sourceAuthority binding for plan digest
-      sourceAuthority = {
-        sourceRepository,
-        defaultBranch: configDefaultBranch,
-        entries: sourceInputClosure.entries,
-        inputDigest: sourceInputClosure.digest,
-        algorithmVersion: SOURCE_INPUT_ALGORITHM_VERSION,
-      };
-
-      await evidence.append({
-        phase: 'source-authority',
-        status: 'completed',
-        sourceRepository,
-        defaultBranch: configDefaultBranch,
-        inputDigest: sourceInputClosure.digest,
-        remoteObservation: offline ? 'unobserved-offline' : 'deferred-to-publish',
-      });
-
-      // --- Step 3c-ahead: local vs origin ahead observation (O5) ---
-      // Online production prepare only. WARNING level, never blocking: pushing
-      // is a legitimate pre-publish action, but the operator must know before
-      // approval — the publish source-authority gate compares the frozen
-      // source-input closure against the remote default branch and rejects
-      // unpushed local commits (0.6.1 cycle: 15 commits ahead, discovered only
-      // at publish). Offline prepare keeps the legacy zero-observation form.
-      if (!offline) {
-        if (!configDefaultBranch) {
-          await evidence.append({
-            phase: 'origin-ahead',
-            status: 'skipped',
-            reason: 'no project.defaultBranch configured',
-          });
-        } else {
-          await evidence.append({ phase: 'origin-ahead', status: 'started' });
-          const observeOriginAheadFn = options.observeOriginAheadFn ?? observeOriginAhead;
-          let originObservation;
-          try {
-            originObservation = await observeOriginAheadFn({
-              root: realRoot,
-              defaultBranch: configDefaultBranch,
-            });
-          } catch (err) {
-            originObservation = { status: 'unknown', error: err?.message ?? String(err) };
-          }
-          if (originObservation?.status === 'ahead') {
-            await evidence.append({
-              phase: 'origin-ahead',
-              status: 'warning',
-              defaultBranch: configDefaultBranch,
-              localHead: originObservation.localHead ?? null,
-              remoteHead: originObservation.remoteHead ?? null,
-              aheadCount: originObservation.aheadCount ?? null,
-              guidance: 'push the workspace before publish (git push); the publish source-authority gate compares against the remote default branch',
-            });
-            runWarnings.push({
-              code: 'ORIGIN_AHEAD',
-              defaultBranch: configDefaultBranch,
-              aheadCount: originObservation.aheadCount ?? null,
-              message:
-                `local HEAD is ${originObservation.aheadCount ?? 'an unknown number of'} commit(s) ahead of origin/${configDefaultBranch}; ` +
-                'the publish source-authority gate compares against the remote default branch — push the workspace (git push) before publish',
-            });
-          } else if (['in-sync', 'behind', 'diverged'].includes(originObservation?.status)) {
-            await evidence.append({
-              phase: 'origin-ahead',
-              status: 'completed',
-              observation: originObservation.status,
-              defaultBranch: configDefaultBranch,
-              localHead: originObservation.localHead ?? null,
-              remoteHead: originObservation.remoteHead ?? null,
-              aheadCount: originObservation.aheadCount ?? null,
-              behindCount: originObservation.behindCount ?? null,
-            });
-          } else {
-            await evidence.append({
-              phase: 'origin-ahead',
-              status: 'unobserved',
-              reason: originObservation?.status ?? 'unknown',
-              defaultBranch: configDefaultBranch,
-              error: originObservation?.error ?? null,
-            });
-          }
-        }
-      }
     } else if (production) {
       await evidence.append({
         phase: 'source-authority',
@@ -2750,41 +3497,13 @@ export async function prepareRelease(options) {
       const ppbConfig = unit.previousPublicBaseline;
       if (!ppbConfig) continue;
       const productionGithubHost = unit.production?.githubHost ?? 'github.com';
-      const { branch, branchStrategy } = resolveProductionBranch(unit, resolvedVersions[unitIndex]);
-      if (production && ['advance-existing-branch', 'initialize-default-branch'].includes(branchStrategy)) {
-        if (offline) {
-          throw new ReleaseError(
-            GATE_FAILED,
-            `unit "${unit.id}" branch strategy "${branchStrategy}" requires online production prepare. ` +
-            `Remediation: release-skill prepare --production --online`,
-            { unitId: unit.id, branchStrategy },
-          );
-        }
-        if (ppbConfig.mode !== 'bound') {
-          throw new ReleaseError(
-            GATE_FAILED,
-            `unit "${unit.id}" branch strategy "${branchStrategy}" requires previousPublicBaseline.mode=bound`,
-            { unitId: unit.id, branchStrategy },
-          );
-        }
-        if (
-          branchStrategy === 'advance-existing-branch' &&
-          ppbConfig.ref !== `refs/heads/${branch}`
-        ) {
-          throw new ReleaseError(
-            GATE_FAILED,
-            `unit "${unit.id}" advance-existing-branch baseline ref must equal refs/heads/${branch}`,
-            { unitId: unit.id, expectedRef: `refs/heads/${branch}`, actualRef: ppbConfig.ref },
-          );
-        }
-      }
-      const effectivePpbConfig = ppbConfig.mode === 'bound'
-        ? { ...ppbConfig, githubHost: productionGithubHost }
-        : ppbConfig;
-      assertPreviousPublicBaselineTarget({
-        baseline: effectivePpbConfig,
+      // R-03: same pure-config assertions the Step 2b pre-hook gate runs;
+      // re-validated here (after hooks) so hook-side config mutation can
+      // never smuggle a defect past the frozen plan.
+      assertProductionUnitPureConfig(unit, resolvedVersions[unitIndex], {
+        production,
+        offline,
         githubHost: productionGithubHost,
-        publicRepo: unit.publicRepo,
       });
 
       if (ppbConfig.mode === "none") {
@@ -2827,7 +3546,7 @@ export async function prepareRelease(options) {
                 reason: "CHAIN_GAP_DETECTION_FAILED",
                 repo: unit.publicRepo,
                 tagPattern,
-                error: detection.error,
+                error: { code: 'CHAIN_GAP_DETECTION_FAILED', message: detection.error },
               });
             }
           }
@@ -2892,6 +3611,11 @@ export async function prepareRelease(options) {
         ref: ppbConfig.ref,
       });
 
+      // T09 (ruling 21): same default-only fill as the pre-hook window — an
+      // explicit baseline githubHost is preserved so a conflict stays visible.
+      const effectivePpbConfig = ppbConfig.mode === 'bound'
+        ? { ...ppbConfig, githubHost: ppbConfig.githubHost ?? productionGithubHost }
+        : ppbConfig;
       let result;
       try {
         result = await observePreviousPublicBaseline({
@@ -2949,6 +3673,14 @@ export async function prepareRelease(options) {
         consistent: true,
       });
 
+      // R-03: re-derive the branch strategy from pure config (same source as
+      // the pre-hook gate and assertProductionUnitPureConfig above) so the
+      // initialize-default-branch freeze-time check cannot read an
+      // out-of-scope variable.
+      const { branchStrategy } = resolveProductionBranch(
+        unit,
+        resolvedVersions[unitIndex],
+      );
       if (production && branchStrategy === 'initialize-default-branch') {
         const expectedCurrent = unit.production?.expectedCurrentDefaultBranch;
         const observedDefault = await observeDefaultBranch(unit.publicRepo, {
@@ -2960,7 +3692,9 @@ export async function prepareRelease(options) {
           status: observedDefault.status,
           expectedCurrentDefaultBranch: expectedCurrent,
           observedCurrentDefaultBranch: observedDefault.defaultBranch ?? null,
-          ...(observedDefault.error ? { error: observedDefault.error } : {}),
+          ...(observedDefault.error
+            ? { error: { code: 'DEFAULT_BRANCH_OBSERVE_FAILED', message: observedDefault.error } }
+            : {}),
         });
         if (
           observedDefault.status !== 'observed' ||
@@ -3021,67 +3755,12 @@ export async function prepareRelease(options) {
     // Trimmed together with Step 3c when a docs/config/marketplace workflow
     // skips the source-authority closure.
     if (production && !skipSourceAuthorityClosure) {
-      const snapshotSourceResult = verifySnapshotSourcesMatchClosure({
-        closure: sourceInputClosure,
+      await verifySnapshotClosureBinding({
+        sourceInputClosure,
         unitResults,
-      });
-      if (!snapshotSourceResult.passed) {
-        throw new ReleaseError(
-          DIRTY_SOURCE_INPUT,
-          'source inputs changed between closure calculation and frozen snapshot construction',
-          {
-            reason: 'SNAPSHOT_SOURCE_DRIFT',
-            dirtyPaths: snapshotSourceResult.error.paths,
-          },
-        );
-      }
-
-      const finalClosure = await computeSourceInputClosure({
-        units: configUnits,
-        root: realRoot,
-      });
-      if (finalClosure.digest !== sourceInputClosure.digest) {
-        const initialByPath = new Map(
-          sourceInputClosure.entries.map((entry) => [entry.path, entry]),
-        );
-        const finalByPath = new Map(
-          finalClosure.entries.map((entry) => [entry.path, entry]),
-        );
-        const changedPaths = [...new Set([
-          ...sourceInputClosure.entries.map((entry) => entry.path),
-          ...finalClosure.entries.map((entry) => entry.path),
-        ])].filter((path) => (
-          JSON.stringify(initialByPath.get(path) ?? null)
-          !== JSON.stringify(finalByPath.get(path) ?? null)
-        )).sort();
-        throw new ReleaseError(
-          DIRTY_SOURCE_INPUT,
-          'source-input closure changed while preparing frozen snapshots',
-          { reason: 'SOURCE_CLOSURE_DRIFT', dirtyPaths: changedPaths },
-        );
-      }
-
-      const finalDirtyResult = await checkSourceInputDirty({
-        closure: finalClosure,
-        root: realRoot,
-      });
-      if (finalDirtyResult.dirty) {
-        throw new ReleaseError(
-          DIRTY_SOURCE_INPUT,
-          `source-input closure files have uncommitted changes after snapshot construction: ${finalDirtyResult.dirtyPaths.join(', ')}`,
-          {
-            reason: 'DIRTY_AFTER_SNAPSHOT',
-            dirtyPaths: finalDirtyResult.dirtyPaths,
-          },
-        );
-      }
-
-      await evidence.append({
-        phase: 'source-authority',
-        step: 'snapshot-binding',
-        status: 'completed',
-        inputDigest: sourceInputClosure.digest,
-        snapshotSourceCount: snapshotSourceResult.observation.snapshotSourceCount,
+        configUnits,
+        realRoot,
+        evidence,
       });
     }
 
@@ -3194,145 +3873,35 @@ export async function prepareRelease(options) {
         )
       : null;
 
-    // --- Step 7b: Skill resource closure gate ---
-    // Production snapshots are sealed inside buildProductionAssets. Scan only
-    // after that transition so the receipt binds the exact byte/mode identity
-    // publish will re-verify, rather than the writable pre-freeze staging tree.
-    // Non-production plans scan the final staging tree at the same point.
-    // This gate is built in, read-only, and cannot be disabled by overlays.
-    // docs/config/marketplace workflows trim it (H5): the plan omits
-    // `skillResourceClosure` entirely, so publish's conditional re-check
-    // (guarded by plan.skillResourceClosure) and verify's receipt comparison
-    // both skip it consistently. The trim is recorded in workflowDecision.
-    const skillResourceClosureResults = [];
-    if (skipSkillResourceClosure) {
-      await evidence.append({
-        phase: 'skill-resource-closure',
-        status: 'skipped',
-        reason: `workflow "${workflow}" trims the skill resource closure gate`,
-        unitCount: unitResults.length,
-      });
-    } else {
-      for (const { unit, manifest } of unitResults) {
-        await evidence.append({
-          phase: 'skill-resource-closure',
-          status: 'started',
-          unitId: unit.id,
-        });
 
-        const closureResult = await checkSkillResourceClosure({
-          snapshotDir: manifest.outputDir,
-          host: 'root',
-        });
+    // P4 (ruling 6) ordering: local facts and the local closure gate FIRST,
+    // remote marketplace observation AFTER.
+    //
+    // Phase A: resolve every plugin distribution's frozen manifest facts from
+    // the local snapshot (marketplace source selection, bundled index entry,
+    // manifest bytes). No remote observation happens here.
+    const { frozenManifestByDist, distributionFacts } =
+      await resolveDistributionManifestFacts(unitResults, resolvedVersions);
 
-        // G5: bind execution time + exit code into the frozen receipt.
-        // preparedAt reuses this prepare's deterministic freeze timestamp
-        // (production: the baseline HEAD commit committer date; otherwise
-        // null) — never a wall-clock sample — so identical sources freeze
-        // byte-identical receipts on every re-prepare.
-        const receipt = createSkillResourceClosureReceipt(closureResult, {
-          unitId: unit.id,
-          preparedAt: freezeTimestamp ?? null,
-          exitCode: 0,
-        });
-        skillResourceClosureResults.push(receipt);
+    // Phase B: the built-in local skill-resource closure gate. Production
+    // snapshots are sealed inside buildProductionAssets; the receipt binds the
+    // exact byte/mode identity publish will re-verify. A local closure
+    // failure aborts prepare BEFORE any remote marketplace observer runs.
+    const skillResourceClosureResults = await runPrepareSkillResourceClosureGate({
+      unitResults,
+      frozenManifestByDist,
+      freezeTimestamp,
+      evidence,
+      skipSkillResourceClosure,
+      workflow,
+    });
 
-        if (closureResult.findings.length > 0) {
-          await evidence.append({
-            phase: 'skill-resource-closure',
-            status: 'blocking',
-            unitId: unit.id,
-            findingCount: closureResult.findings.length,
-            findings: closureResult.findings.map((f) => ({
-              skill: f.skill,
-              line: f.line,
-              reference: f.reference,
-              classification: f.classification,
-              code: f.code,
-              // D4: RESOURCE_DRIFT findings localize via references (the
-              // finding's own skill/line stay null for a cross-surface drift).
-              ...(f.references ? { references: f.references } : {}),
-            })),
-          });
-          throw new ReleaseError(
-            GATE_FAILED,
-            `skill resource closure gate failed for unit "${unit.id}": ${closureResult.findings.length} finding(s)`,
-            {
-              unitId: unit.id,
-              findingCount: closureResult.findings.length,
-              findings: closureResult.findings,
-            },
-          );
-        }
-
-        // G4: every declared plugin distribution must be backed by a host
-        // surface in the frozen snapshot with at least one skill. If
-        // publicFiles drops an adapter tree, that host surface is silently
-        // absent from the receipt — fail closed here instead of shipping a
-        // unit whose declared host never entered the closure gate.
-        // Expected host names are the adapter directory names declared by the
-        // platform registry (buildAdapter.name, asserted non-empty by
-        // assertRegistry); codebuddy-plugin keeps the historical `workbuddy`
-        // adapter directory name there. npm-only units declare no plugin
-        // hosts and skip.
-        const expectedHosts = (unit.distributions ?? [])
-          .map((distribution) => PLATFORMS.find((platform) => platform.distributionType === distribution.type))
-          .filter(Boolean)
-          .map((platform) => platform.buildAdapter.name);
-        const hostCoverage = evaluateDeclaredHostSurfaceCoverage(
-          expectedHosts,
-          closureResult.surfaces,
-        );
-        if (!hostCoverage.passed) {
-          await evidence.append({
-            phase: 'skill-resource-closure',
-            status: 'blocking',
-            unitId: unit.id,
-            reason: 'declared-host-surface-missing',
-            missingHosts: hostCoverage.missing,
-          });
-          throw new ReleaseError(
-            GATE_FAILED,
-            `skill resource closure gate failed for unit "${unit.id}": declared host surface(s) missing or empty: ${hostCoverage.missing.map((item) => item.host).join(', ')}`,
-            {
-              unitId: unit.id,
-              missingHosts: hostCoverage.missing,
-              observedSurfaces: closureResult.surfaces.map((surface) => ({
-                id: surface.id,
-                host: surface.host,
-                skillCount: surface.skillCount,
-              })),
-            },
-          );
-        }
-
-        await evidence.append({
-          phase: 'skill-resource-closure',
-          status: 'completed',
-          unitId: unit.id,
-          checkerVersion: closureResult.checkerVersion,
-          surfaceCount: receipt.surfaceCount,
-          skillCount: receipt.skillCount,
-          referenceCount: closureResult.referenceCount,
-          sourceOnlyCount: closureResult.sourceOnlyCount,
-          // D2: per-reference exemption detail for approval/audit review —
-          // evidence-layer only; the receipt object (and its digest binding)
-          // is intentionally left unchanged.
-          sourceOnlyReferences: closureResult.sourceOnlyReferences,
-          findingCount: 0,
-          receiptDigest: closureResult.receiptDigest,
-        });
-      }
-    }
-
-    // Freeze external independent marketplace HEADs (production + online only):
-    // for each claude/codex/codebuddy distribution declaring marketplaceRepo,
-    // resolve the external repo's HEAD sha + default branch and validate the
-    // marketplace index entry at that sha before freezing the add-ref. This
-    // MUST happen before installation contract construction so that standalone-index
-    // contracts can use the frozen external entries. Offline production with a
-    // declared marketplaceRepo fails closed inside the resolver. The remote is
-    // only ever read (git ls-remote / gh api), never written.
+    // Phase C: freeze external independent marketplace HEADs (production +
+    // online only): for each claude/codex/codebuddy distribution declaring
+    // marketplaceRepo, resolve the external repo's HEAD sha + default branch
+    // and validate the marketplace index entry at that sha before freezing the
+    // add-ref. The remote is only ever read (git ls-remote / gh api), never
+    // written, and it is only ever reached AFTER the local closure passed.
     const externalMarketplaceFreezes = production
       ? await resolveExternalMarketplaceFreezes({
           unitResults,
@@ -3344,80 +3913,42 @@ export async function prepareRelease(options) {
         })
       : new Map();
 
-    // 为每个分发渠道校验 marketplaceSourceType 并冻结安装契约。
-    // 对每个插件 distribution：
-    // 1. 从 unitResults[].manifest.outputDir 的真实快照读取 manifest
-    // 2. manifest 读取：若平台 strategy.readManifest 存在则调用它，否则读 platform.manifestPaths.plugin
-    // 3. 确定 includeMarketplaceEntry：
-    //    - bundled-family: Kimi=false, Claude/Codex/CodeBuddy=true（从快照读取）
-    //    - standalone-index: Kimi=false, Claude/Codex/CodeBuddy=true（使用外部冻结条目）
-    // 4. 需要条目时：
-    //    - bundled-family: 从 dist.marketplaceIndexPath ?? platform.manifestPaths.marketplace 读取 bundled 索引
-    //    - standalone-index: 从 externalMarketplaceFreezes 获取冻结的 selectedEntry 和 marketplaceIndexPath
-    // 5. 使用 buildInstallationContract 构建完整可审计契约对象
-    // 6. 在 distribution 中冻结 marketplaceSourceType / installationContract / installationContractDigest
-    //    以及独立市场审计字段
+    // Phase D: freeze the installation contract for every plugin
+    // distribution, consuming the SAME frozen manifest facts the closure gate
+    // used (parsed once) plus the remote-freeze entries from Phase C.
     const units = await Promise.all(unitResults.map(async ({ unit, manifest }, idx) => {
       const unitVersion = resolvedVersions[idx];
       const unitBaseline = unitBaselineResults.get(unit.id);
-      const snapshotDir = manifest.outputDir;
 
       const distributionsWithSource = await Promise.all((unit.distributions ?? []).map(async (dist) => {
         const platform = PLATFORMS.find((p) => p.distributionType === dist.type);
-        if (!platform) return dist;
-
-        // 校验 marketplaceSourceType：从配置读取，不允许硬编码默认值
-        const sourceTypeResult = validateMarketplaceSourceSelection(
-          platform.id,
-          dist,  // config
-          dist,  // plan (same source at prepare time)
-        );
-        if (!sourceTypeResult.valid) {
-          throw new ReleaseError(
-            CONFIG_INVALID,
-            `unit "${unit.id}" ${dist.type} marketplace source validation failed: ${sourceTypeResult.error}`,
-            { unitId: unit.id, distributionType: dist.type },
-          );
-        }
-
-        // 仅插件 distribution 需要安装契约
-        if (dist.type === 'npm') {
-          return dist;
-        }
-
-        // 1. 确定 marketplaceSourceType（防御性归一化：旧配置可能仍缺少字段）
-        let marketplaceSourceType = sourceTypeResult.selectedSource;
-        if (!marketplaceSourceType) {
-          marketplaceSourceType = dist.marketplaceRepo ? 'standalone-index' : 'bundled-family';
-        }
-
-        // 2. 确定 includeMarketplaceEntry 和 selectedMarketplaceEntry
-        // bundled-family: 从快照中的 bundled 索引读取唯一选中条目。
-        // standalone-index: 从 externalMarketplaceFreezes 获取冻结的 selectedEntry 和 marketplaceIndexPath。
-        // Kimi 不纳入市场条目（platform.manifestPaths.marketplace === null 且无显式路径）；
-        // Claude/Codex/CodeBuddy 使用默认或显式路径。
-        const hasDefaultMarketplace = platform.manifestPaths.marketplace !== null;
-        const hasExplicitMarketplacePath = dist.marketplaceIndexPath != null;
-        const isBundledFamily = marketplaceSourceType === 'bundled-family';
-        const isStandaloneIndex = marketplaceSourceType === 'standalone-index';
+        if (!platform || dist.type === 'npm') return dist;
+        const key = `${unit.id} ${dist.type}`;
+        const facts = distributionFacts.get(key);
 
         // includeMarketplaceEntry 代表"契约实际包含一条市场条目"，
         // 不能只代表平台理论上支持市场条目。
-        // bundled-family: 平台支持市场时即包含（从快照读取）
-        // standalone-index: 只有拿到冻结条目且非 Kimi 时才包含
+        // bundled-family: 平台支持市场时即包含（Phase A 已从快照读取）。
+        // standalone-index: 只有拿到冻结条目且非 Kimi 时才包含（Phase C）。
         // Kimi 不纳入市场条目：Kimi 无市场 CLI，selectedEntry 仅供静态校验。
         let includeMarketplaceEntry;
-        if (isBundledFamily) {
-          includeMarketplaceEntry = hasDefaultMarketplace || hasExplicitMarketplacePath;
-        } else if (isStandaloneIndex) {
+        let selectedMarketplaceEntry = null;
+        let marketplaceIndexRelative = facts.marketplaceIndexRelative;
+        if (facts.isBundledFamily) {
+          includeMarketplaceEntry = facts.includeMarketplaceEntryBundled;
+          selectedMarketplaceEntry = facts.selectedMarketplaceEntryBundled;
+        } else if (facts.isStandaloneIndex) {
           if (platform.id === 'kimi') {
             // Kimi standalone: 安装契约不纳入市场条目
             includeMarketplaceEntry = false;
           } else {
-            const freezeKey = `${unit.id} ${dist.type}`;
+            const freezeKey = key;
             const freeze = externalMarketplaceFreezes.get(freezeKey);
             if (freeze) {
               includeMarketplaceEntry = true;
+              // standalone-index: 从外部冻结结果获取条目和路径
+              selectedMarketplaceEntry = freeze.selectedEntry;
+              marketplaceIndexRelative = freeze.marketplaceIndexPath;
             } else {
               // 生产在线的独立市场缺冻结结果必须失败关闭
               if (production && !offline) {
@@ -3435,147 +3966,12 @@ export async function prepareRelease(options) {
           includeMarketplaceEntry = false;
         }
 
-        // 3. 需要条目时，根据来源类型获取
-        let selectedMarketplaceEntry = null;
-        let marketplaceIndexRelative = null;
-        let bundledMarketIndex = null;
-        if (includeMarketplaceEntry) {
-          if (isStandaloneIndex) {
-            // standalone-index: 从外部冻结结果获取条目和路径（freeze 已确认存在）
-            const freezeKey = `${unit.id} ${dist.type}`;
-            const freeze = externalMarketplaceFreezes.get(freezeKey);
-            selectedMarketplaceEntry = freeze.selectedEntry;
-            marketplaceIndexRelative = freeze.marketplaceIndexPath;
-          } else {
-            // bundled-family: 从快照中的 bundled 索引读取
-            marketplaceIndexRelative = dist.marketplaceIndexPath ?? platform.manifestPaths.marketplace;
-            if (!marketplaceIndexRelative) {
-              throw new ReleaseError(
-                GATE_FAILED,
-                `unit "${unit.id}" ${dist.type} cannot determine marketplace index path: neither marketplaceIndexPath nor platform.manifestPaths.marketplace is set`,
-                { unitId: unit.id, distributionType: dist.type },
-              );
-            }
-            const marketplaceIndexPath = resolve(snapshotDir, marketplaceIndexRelative);
-            let marketplaceIndexRaw;
-            try {
-              marketplaceIndexRaw = await readFile(marketplaceIndexPath, 'utf8');
-            } catch (err) {
-              throw new ReleaseError(
-                GATE_FAILED,
-                `unit "${unit.id}" ${dist.type} cannot read bundled marketplace index "${marketplaceIndexRelative}": ${err.message}`,
-                { unitId: unit.id, distributionType: dist.type, cause: err.code },
-              );
-            }
-            let marketplaceIndex;
-            try {
-              marketplaceIndex = JSON.parse(marketplaceIndexRaw);
-            } catch (err) {
-              throw new ReleaseError(
-                GATE_FAILED,
-                `unit "${unit.id}" ${dist.type} invalid JSON in bundled marketplace index "${marketplaceIndexRelative}": ${err.message}`,
-                { unitId: unit.id, distributionType: dist.type },
-              );
-            }
-            if (!marketplaceIndex || typeof marketplaceIndex !== 'object' || !Array.isArray(marketplaceIndex.plugins)) {
-              throw new ReleaseError(
-                GATE_FAILED,
-                `unit "${unit.id}" ${dist.type} bundled marketplace index "${marketplaceIndexRelative}" must be an object with a plugins array`,
-                { unitId: unit.id, distributionType: dist.type },
-              );
-            }
-            const matchingEntries = marketplaceIndex.plugins.filter(
-              (entry) => entry && entry.name === dist.plugin,
-            );
-            if (matchingEntries.length !== 1) {
-              throw new ReleaseError(
-                GATE_FAILED,
-                `unit "${unit.id}" ${dist.type} bundled marketplace index must contain exactly one plugin entry named "${dist.plugin}", found ${matchingEntries.length}`,
-                { unitId: unit.id, distributionType: dist.type },
-              );
-            }
-            // 传完整解析条目给 buildInstallationContract，不得只取名字
-            selectedMarketplaceEntry = matchingEntries[0];
-            bundledMarketIndex = marketplaceIndex;
-          }
-        }
-
-        // 4. 从真实快照读取插件 manifest
-        //    bundled-family + 有市场索引：使用 resolvePluginManifestFromMarketplaceEntrySource
-        //    从条目 source 安全解析插件根并读取 manifest（支持子目录布局）。
-        //    其他路径：保留原有策略。
-        let pluginManifestRelative;
-        let pluginManifestParsed;
-        if (isBundledFamily && bundledMarketIndex && platform.marketplaceSourceForm !== null) {
-          // bundled-family 有市场索引且平台支持市场来源解析（Claude/Codex）：
-          // 通过条目 source 路径解析 manifest。
-          // 计算市场根：从 marketplaceIndexRelative 推断（精确后缀匹配）。
-          const mktRoot = resolveMarketplaceRoot(platform, marketplaceIndexRelative);
-          try {
-            const resolved = await resolvePluginManifestFromMarketplaceEntrySource(
-              bundledMarketIndex, dist.plugin, platform, snapshotDir, mktRoot,
-            );
-            pluginManifestParsed = resolved.manifest;
-            pluginManifestRelative = resolved.manifestRelativePath;
-          } catch (err) {
-            throw new ReleaseError(
-              GATE_FAILED,
-              `unit "${unit.id}" ${dist.type} cannot resolve plugin manifest from marketplace entry source: ${err.message}`,
-              { unitId: unit.id, distributionType: dist.type },
-            );
-          }
-        } else if (platform.strategy.readManifest) {
-          // Kimi/Codex/CodeBuddy 有自定义 manifest 读取策略
-          const readResult = await platform.strategy.readManifest(snapshotDir);
-          pluginManifestParsed = readResult.manifest;
-          pluginManifestRelative = readResult.manifestRelative ?? platform.manifestPaths.plugin;
-        } else {
-          // Claude fallback（standalone-index 或无市场索引时）
-          pluginManifestRelative = platform.manifestPaths.plugin;
-          const pluginManifestPath = resolve(snapshotDir, pluginManifestRelative);
-          let raw;
-          try {
-            raw = await readFile(pluginManifestPath, 'utf8');
-          } catch (err) {
-            throw new ReleaseError(
-              GATE_FAILED,
-              `unit "${unit.id}" ${dist.type} cannot read plugin manifest "${pluginManifestRelative}": ${err.message}`,
-              { unitId: unit.id, distributionType: dist.type, cause: err.code },
-            );
-          }
-          try {
-            pluginManifestParsed = JSON.parse(raw);
-          } catch (err) {
-            throw new ReleaseError(
-              GATE_FAILED,
-              `unit "${unit.id}" ${dist.type} invalid JSON in plugin manifest "${pluginManifestRelative}": ${err.message}`,
-              { unitId: unit.id, distributionType: dist.type },
-            );
-          }
-        }
-
-        // 静态校验 manifest 名称和版本（被摘要剔除不等于不校验）
-        if (pluginManifestParsed.name !== dist.plugin) {
-          throw new ReleaseError(
-            GATE_FAILED,
-            `unit "${unit.id}" ${dist.type} plugin manifest name "${pluginManifestParsed.name}" does not match distribution plugin "${dist.plugin}"`,
-            { unitId: unit.id, distributionType: dist.type },
-          );
-        }
-        if (typeof pluginManifestParsed.version === 'string' && pluginManifestParsed.version !== unitVersion) {
-          throw new ReleaseError(
-            GATE_FAILED,
-            `unit "${unit.id}" ${dist.type} plugin manifest version "${pluginManifestParsed.version}" does not match target version "${unitVersion}"`,
-            { unitId: unit.id, distributionType: dist.type },
-          );
-        }
-
-        // 5. 使用 buildInstallationContract 构建完整可审计契约对象
+        // 使用 buildInstallationContract 构建完整可审计契约对象
         const installationContract = buildInstallationContract({
           distributionType: dist.type,
-          manifestRelativePath: pluginManifestRelative,
-          manifest: pluginManifestParsed,
-          marketplaceSourceType,
+          manifestRelativePath: facts.pluginManifestRelative,
+          manifest: facts.pluginManifestParsed,
+          marketplaceSourceType: facts.marketplaceSourceType,
           includeMarketplaceEntry,
           ...(includeMarketplaceEntry ? {
             marketplaceIndexRelativePath: marketplaceIndexRelative,
@@ -3584,12 +3980,12 @@ export async function prepareRelease(options) {
           verificationRecipeVersion: CONSUMER_INSTALL_RECIPE_VERSION,
         });
 
-        // 6. 计算摘要（使用权威算法入口，保证契约对象与摘要一致）
+        // 计算摘要（使用权威算法入口，保证契约对象与摘要一致）
         const installationContractDigest = computeInstallationContractDigest({
           distributionType: dist.type,
-          manifestRelativePath: pluginManifestRelative,
-          manifest: pluginManifestParsed,
-          marketplaceSourceType,
+          manifestRelativePath: facts.pluginManifestRelative,
+          manifest: facts.pluginManifestParsed,
+          marketplaceSourceType: facts.marketplaceSourceType,
           includeMarketplaceEntry,
           ...(includeMarketplaceEntry ? {
             marketplaceIndexRelativePath: marketplaceIndexRelative,
@@ -3598,17 +3994,17 @@ export async function prepareRelease(options) {
           verificationRecipeVersion: CONSUMER_INSTALL_RECIPE_VERSION,
         });
 
-        // 7. 构建返回对象，包含冻结的审计字段
+        // 构建返回对象，包含冻结的审计字段
         const frozenDist = {
           ...dist,
-          marketplaceSourceType,
+          marketplaceSourceType: facts.marketplaceSourceType,
           installationContract,
           installationContractDigest,
         };
 
         // standalone-index 审计字段：来自外部冻结结果
-        if (isStandaloneIndex) {
-          const freezeKey = `${unit.id} ${dist.type}`;
+        if (facts.isStandaloneIndex) {
+          const freezeKey = key;
           const freeze = externalMarketplaceFreezes.get(freezeKey);
           if (freeze) {
             frozenDist.marketplaceRepo = freeze.marketplaceRepo;
@@ -3655,14 +4051,75 @@ export async function prepareRelease(options) {
     // 构建冻结分发映射：unitId -> frozen distributions
     const frozenDistributionsMap = new Map(units.map((u) => [u.id, u.distributions]));
 
+    // --- Step 6b-pre: config public-byte comparison (R-14) ---
+    // The config decision must be known before publicSourceAuthorityReceipt
+    // and the deferred source-authority gate: scenario B (publish-needed)
+    // runs the exact existing source-authority logic here so the frozen plan
+    // carries the binding; scenario A ends with externalActions=[] and no
+    // sourceAuthority. The decision evidence stays in Step 6b below.
+    let configDecision = null;
+    if (workflow === 'config') {
+      const previousPlan = await readLatestFrozenPlan(realRoot);
+      let publishPath;
+      let decision;
+      if (!previousPlan) {
+        publishPath = 'publish-needed';
+        decision = 'indeterminable';
+      } else {
+        const prevDigests = new Map(
+          (previousPlan.plan.units ?? []).map((u) => [u.id, u.snapshotDigest]),
+        );
+        const unchanged =
+          units.length > 0 && units.every((u) => prevDigests.get(u.id) === u.snapshotDigest);
+        publishPath = unchanged ? 'no-publish-needed' : 'publish-needed';
+        decision = unchanged ? 'public-bytes-unchanged' : 'public-bytes-changed';
+      }
+      configDecision = {
+        publishPath,
+        decision,
+        comparedPlan: previousPlan?.fileName ?? null,
+      };
+      if (deferSourceAuthorityClosure && publishPath === 'publish-needed') {
+        ({ sourceAuthority, sourceInputClosure } = await computeSourceAuthorityClosure({
+          sourceRepository,
+          configDefaultBranch,
+          configUnits,
+          realRoot,
+          offline,
+          evidence,
+          observeOriginAheadFn: options.observeOriginAheadFn,
+          runWarnings,
+          configPath,
+        }));
+        await verifySnapshotClosureBinding({
+          sourceInputClosure,
+          unitResults,
+          configUnits,
+          realRoot,
+          evidence,
+        });
+      }
+    }
+
     let publicSourceAuthorityReceipt = null;
     if (config.publicSourceAuthorityReceipt) {
-      if (!production || !sourceAuthority) {
+      // P3 (ruling 7): config scenario A (no-publish-needed) means the public
+      // bytes are unchanged and nothing will be published — a configured
+      // public source receipt must not require or generate a nonexistent
+      // publish binding. The receipt is skipped and evidenced; the
+      // receipt-mandatory rules stay in force for every publish path.
+      if (workflow === 'config' && configDecision?.publishPath === 'no-publish-needed') {
+        await evidence.append({
+          phase: 'public-source-authority-receipt',
+          status: 'skipped',
+          reason: 'config workflow decided no-publish-needed; no public source receipt is generated without a publish path',
+        });
+      } else if (!production || !sourceAuthority) {
         throw new ReleaseError(
           CONFIG_INVALID,
           'publicSourceAuthorityReceipt requires a production prepare with source-authority closure enabled',
         );
-      }
+      } else {
       const unitsById = new Map(units.map((unit) => [unit.id, unit]));
       const subjects = config.publicSourceAuthorityReceipt.subjectUnitIds.map((unitId) => {
         const unit = unitsById.get(unitId);
@@ -3707,6 +4164,7 @@ export async function prepareRelease(options) {
         assetPath: publicSourceAuthorityReceipt.asset.path,
         assetSha256: publicSourceAuthorityReceipt.asset.sha256,
       });
+      }
     }
 
     let externalActions = buildExternalActions(
@@ -3730,21 +4188,10 @@ export async function prepareRelease(options) {
     // `workflowDecision`, making the trim immutable and auditable.
     let workflowDecision = null;
     if (workflow === 'config') {
-      const previousPlan = await readLatestFrozenPlan(realRoot);
-      let publishPath;
-      let decision;
-      if (!previousPlan) {
-        publishPath = 'publish-needed';
-        decision = 'indeterminable';
-      } else {
-        const prevDigests = new Map(
-          (previousPlan.plan.units ?? []).map((u) => [u.id, u.snapshotDigest]),
-        );
-        const unchanged =
-          units.length > 0 && units.every((u) => prevDigests.get(u.id) === u.snapshotDigest);
-        publishPath = unchanged ? 'no-publish-needed' : 'publish-needed';
-        decision = unchanged ? 'public-bytes-unchanged' : 'public-bytes-changed';
-      }
+      const { publishPath, decision, comparedPlan } = configDecision;
+      // R-14: trimmedGates must be scenario-truthful — config scenario B
+      // runs the deferred source-authority closure, so it is not trimmed.
+      const sourceAuthorityClosureTrimmed = !(publishPath === 'publish-needed' && production);
       workflowDecision = {
         workflowKind: workflow,
         decision,
@@ -3752,10 +4199,10 @@ export async function prepareRelease(options) {
         trimmedGates: [
           'declared-hooks',
           'snapshot-verify-gates',
-          'source-authority-closure',
+          ...(sourceAuthorityClosureTrimmed ? ['source-authority-closure'] : []),
           'skill-resource-closure',
         ],
-        ...(previousPlan ? { comparedPlan: previousPlan.fileName } : {}),
+        ...(comparedPlan ? { comparedPlan } : {}),
       };
       if (publishPath === 'no-publish-needed') {
         externalActions = [];
@@ -3764,7 +4211,7 @@ export async function prepareRelease(options) {
         phase: 'workflow-decision',
         status: publishPath,
         decision,
-        ...(previousPlan ? { comparedPlan: previousPlan.fileName } : {}),
+        ...(comparedPlan ? { comparedPlan } : {}),
         actionCount: externalActions.length,
       });
     } else if (trimmedWorkflow) {
@@ -3772,10 +4219,12 @@ export async function prepareRelease(options) {
         workflowKind: workflow,
         decision: 'code-gates-trimmed',
         publishPath: 'publish-needed',
+        // docs production keeps the source-authority closure (its publish
+        // path is release-skill executed), so the trim list reflects it.
         trimmedGates: [
           'declared-hooks',
           'snapshot-verify-gates',
-          'source-authority-closure',
+          ...(production && !skipSourceAuthorityClosure ? [] : ['source-authority-closure']),
           'skill-resource-closure',
         ],
       };
@@ -3982,18 +4431,34 @@ export async function prepareRelease(options) {
       nextSteps,
     };
   } catch (err) {
-    // Record failure evidence
-    await evidence.append({
-      phase: 'prepare',
-      status: 'failed',
-      error: { code: err.code, message: err.message },
-    });
+    // Record failure evidence (best effort). A broken clock can make the
+    // failure event itself fail v2 schema validation (timestamp format);
+    // the stream must still be sealed so the FAILED summary is written and
+    // the evidence fd is released (2026-08-26: badclock fixture leak).
+    try {
+      await evidence.append({
+        phase: 'prepare',
+        status: 'failed',
+        error: { code: err.code, message: err.message },
+      });
+    } catch {
+      // Failure evidence is best-effort; the finish seal below is
+      // authoritative and must never be skipped.
+    }
 
-    await evidence.finish({
-      status: 'FAILED',
-      error: { code: err.code, message: err.message },
-      failedAt: (clock ? clock() : new Date().toISOString()),
-    });
+    // RW-1 hardening alignment (2026-08-26): the failure-path finish is
+    // best-effort too — an evidence-disk failure must never mask the original
+    // error, which always propagates unchanged.
+    try {
+      await evidence.finish({
+        status: 'FAILED',
+        error: { code: err.code, message: err.message },
+        failedAt: (clock ? clock() : new Date().toISOString()),
+      });
+    } catch {
+      // The FAILED summary could not be sealed (e.g. evidence directory
+      // became unwritable); the original failure still propagates.
+    }
 
     throw err;
   } finally {

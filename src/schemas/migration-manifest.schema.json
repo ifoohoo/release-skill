@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/migration-manifest.json",
+  "title": "MigrationManifest",
+  "description": "Declares the migration state of one adoption target: the legacy infrastructure entries that must exit, each bound to its replacement, and any temporary exceptions. Every temporary exception carries exactly four mandatory fields (owner, reason, deadline, migrationTarget); an incomplete exception is never accepted. Path containment beyond shape is a mechanism concern owned by the harness: user-provided paths are only ever read inside the target root.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.migration-manifest"
+    },
+    "manifestVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic manifest generation; bumped whenever the declared legacy/exception set changes."
+    },
+    "legacyInfra": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "replacedBy"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$",
+            "description": "Relative POSIX path of one legacy implementation. Shape only: absolute paths, traversal, UNC/drive forms and symlink escapes are rejected by harness containment at assessment time, fail-closed."
+          },
+          "replacedBy": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The replacement facility (tool/command/module) that supersedes this legacy entry. An empty replacement is never a valid exit claim."
+          }
+        }
+      }
+    },
+    "legacyReferences": {
+      "type": "array",
+      "description": "Legacy text references that must exit from retained files: each entry declares a file that is kept for other purposes, a literal text that must no longer appear in it, and the facility that replaces the old usage. The file itself is never deleted by this mechanism — only the old text must be absent.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "text", "replacedBy"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$",
+            "description": "Relative POSIX path of a retained file. Shape only: containment is enforced at assessment time."
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Exact literal text that must be absent from the file. No regex; byte-exact UTF-8 match."
+          },
+          "replacedBy": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The replacement facility that supersedes this old reference. Empty is never valid."
+          }
+        }
+      }
+    },
+    "exceptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["owner", "reason", "deadline", "migrationTarget"],
+        "properties": {
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "deadline": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Parseable deadline; expiry is judged by the planning clock and never auto-renewed. Structural shape only — semantic parseability is a runtime finding."
+          },
+          "migrationTarget": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "targetProfile": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The profile id this target adopts. Completion requires it to equal the profile id of the adoption plan; a missing or mismatched binding is never completion."
+    },
+    "foundationPackages": {
+      "type": "array",
+      "description": "Exact Foundation package bindings: every entry pins a published name to an exact version and a sha256 tarball/content digest. Ranges, tags and floating aliases are not bindings.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "version", "digest"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+            "description": "Exact semver; no range operators."
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{64}$",
+            "description": "Content digest as sha256:<64 lowercase hex>."
+          }
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Evidence documents proving the adoption is verified: unit, integration, consumer and independent-audit evidence. Every value is a relative POSIX path inside the target root; existence and identity matching are judged by the completion gate, fail-closed.",
+      "properties": {
+        "unit": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+        },
+        "integration": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+        },
+        "consumer": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+        },
+        "independentAudit": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+        }
+      }
+    }
+  }
+}

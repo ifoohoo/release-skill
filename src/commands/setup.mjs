@@ -35,6 +35,28 @@ import {
 import { readTrustedPackageResource } from '../core/trusted-resource.mjs';
 import { validatePresetHook } from '../core/presets.mjs';
 import { validatePostPublishDeclaration } from '../core/postpublish.mjs';
+import { loadProjectConfig } from '../core/config.mjs';
+import { resolveProducerVersion } from '../core/evidence.mjs';
+import { validateHook } from '../core/hooks.mjs';
+import {
+  buildAssessmentReport,
+  classifyGapCategory,
+  createFinding,
+  deriveCheckOnlySuggestions,
+  deriveGateSuggestions,
+  deriveHookDurations,
+  deriveLongHookSuggestions,
+  findPostPublishUnitConflict,
+  scanGateDeclarationFindings,
+  FINDING_CATEGORY,
+  ASSESSMENT_STATUS,
+} from '../core/adoption-assessment.mjs';
+import {
+  checkCommonDocs,
+  checkPackageMetadata,
+  checkPluginManifests,
+  checkReadmeStructure,
+} from './assess.mjs';
 
 const execFile = promisify(execFileCb);
 const SKIP_DIRS = new Set([
@@ -311,6 +333,30 @@ function classifyScript(name, command, unitId, distributionTypes) {
   const sideEffectsUnproven = inspectedArgv !== null &&
     !networkLikely && !interactive && !highCost && !mayWrite;
 
+  // 裁决 19: identified indirect scripts carry an explicit flag (their
+  // ineligibilityReason stays unchanged so discovery keeps failing closed).
+  // The adoption layer treats indirectScript as manual-judgment — an
+  // indirect script's side-effect boundary cannot be proven from the
+  // declaration, and "no danger signals found" is never a safety proof.
+  // No recursive script dependency graph or general-purpose analyzer is
+  // built: the declaration itself is the only input.
+  const packageManagers = new Set(['npm', 'pnpm', 'yarn']);
+  const scriptInterpreters = new Set(['node', 'python', 'python3', 'bash', 'sh']);
+  const indirectScript = inspectedArgv !== null && (
+    // Package-manager delegation to another script.
+    (packageManagers.has(executable) && (subcommand === 'run' || subcommand === 'test'))
+    // Interpreter executing a project script file (relative executable or
+    // non-flag argument that looks like a path).
+    || (argv[0] !== undefined && (argv[0].includes('/') || argv[0].includes('.')))
+    || (scriptInterpreters.has(executable) && argv.some((token, index) => (
+      index > 0 && !token.startsWith('-') && (token.includes('/') || token.includes('.'))
+    )))
+    // Shell/code-string evaluation: opaque by construction.
+    || ((executable === 'bash' || executable === 'sh') && argv.includes('-c'))
+    || (executable === 'node' && argv.includes('-e'))
+    || ((executable === 'python' || executable === 'python3') && argv.includes('-c'))
+  );
+
   const eligibleForRecommendation =
     inspectedArgv !== null &&
     !networkLikely &&
@@ -359,6 +405,7 @@ function classifyScript(name, command, unitId, distributionTypes) {
     },
     eligibleForRecommendation,
     ...(ineligibilityReason ? { ineligibilityReason } : {}),
+    ...(indirectScript ? { indirectScript: true } : {}),
     reason: isSmoke
       ? '脚本名称表明它可能验证安装后的实际使用；必须人工确认后才能注册。'
       : '项目已声明质量脚本，可在冻结快照副本上复用；不会自动注册。',
@@ -2568,4 +2615,605 @@ export async function proposePostPublishHooks({
     committedSetupDigest: computed.setupDigest,
     next: '运行 release-skill assess；分发前审阅追加的 postPublish hooks 与其批准分级。',
   };
+}
+
+// ---------------------------------------------------------------------------
+// WP-6 — adoption assessment (read-only, offline)
+// ---------------------------------------------------------------------------
+
+/**
+ * Check whether a path exists (file or directory) without following the
+ * existence of the last component as a hard requirement.
+ *
+ * @param {string} filePath - Absolute path.
+ * @returns {Promise<boolean>}
+ */
+async function adoptionPathExists(filePath) {
+  try {
+    await lstat(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Read every parsed evidence event from `<root>/.release-skill/runs/<runId>/evidence.jsonl`.
+ *
+ * Read-only observation (R-11): the adoption assessment never writes runs
+ * and never trusts any other evidence location. Unreadable or malformed
+ * lines are skipped; the assessment stays robust to arbitrary run debris.
+ *
+ * @param {string} root - Project root.
+ * @returns {Promise<Array<Object>>} Parsed evidence events.
+ */
+async function readEvidenceEvents(root) {
+  const runsDir = join(root, '.release-skill', 'runs');
+  const events = [];
+  let runDirs;
+  try {
+    runDirs = await readdir(runsDir, { withFileTypes: true });
+  } catch {
+    return events;
+  }
+  for (const entry of runDirs.sort((a, b) => a.name.localeCompare(b.name))) {
+    if (!entry.isDirectory()) continue;
+    let content;
+    try {
+      content = await readFile(join(runsDir, entry.name, 'evidence.jsonl'), 'utf8');
+    } catch {
+      continue;
+    }
+    for (const line of content.split('\n')) {
+      if (line.trim().length === 0) continue;
+      try {
+        const event = JSON.parse(line);
+        if (event !== null && typeof event === 'object' && !Array.isArray(event)) {
+          events.push(event);
+        }
+      } catch {
+        // malformed historical line: observation layer only, never fatal
+      }
+    }
+  }
+  return events;
+}
+
+/**
+ * Build the NOT_CONFIGURED report (acceptance scenario 1).
+ *
+ * Reuses the first-time discovery result (facts + candidates) as a read-only
+ * preview of what `release-skill setup` would propose, gives the precise
+ * first-setup next step, and reports zero findings — missing optional hooks
+ * are never treated as blockers.
+ *
+ * @param {string} root - Project root.
+ * @param {string} configPath - Expected config path.
+ * @returns {Promise<Object>} Frozen report.
+ */
+async function reportNotConfigured(root, configPath) {
+  const facts = await discoverFacts(root);
+  const candidates = buildCandidates(facts);
+  const discovery = {
+    gitRepository: facts.git.repository,
+    unitCandidates: candidates.units.map((unit) => ({
+      id: unit.id,
+      source: unit.source,
+      distributionCandidates: [...unit.distributionCandidates],
+      publicRepoCandidates: [...unit.publicRepoCandidates],
+    })),
+    gateCandidates: candidates.gates.length,
+  };
+  const next = '项目尚未接入 release-skill。运行 release-skill setup（首次创建）或 setup --answers <file> 生成配置提案；评估只读，未修改任何文件。';
+  return Object.freeze({
+    command: 'release-setup',
+    mode: 'adoption-assessment',
+    status: ASSESSMENT_STATUS.NOT_CONFIGURED,
+    configPath: null,
+    configDigest: null,
+    assessmentDigest: null,
+    topology: { type: 'not-configured', releaseUnits: [], distributions: [] },
+    findings: [],
+    hookDurations: [],
+    gateSuggestions: [],
+    workflowPrerequisites: {
+      full: { met: false, note: '缺少 .release-skill/project.yaml；先完成首次 setup。' },
+      docs: { met: false, note: '缺少配置；docs-only 工作流分类由 release-route 决定。' },
+      config: { met: false, note: '缺少配置。' },
+      marketplace: { met: false, note: '缺少配置；插件渠道前提在配置存在后评估。' },
+    },
+    unobserved: [{
+      field: '远端前提（npm/GitHub 可用性、发布标签序列）',
+      note: '评估默认离线，未观测远端；不能据此否定本地接入，也不代表具备生产发布条件。',
+    }],
+    next,
+    discovery,
+    summary: [
+      '项目: (尚未配置)',
+      '接入状态: 尚未配置',
+      '必选缺口 0 | 已满足 0 | 可选建议 0 | 不适用 0',
+      `发现 ${discovery.unitCandidates.length} 个候选发布单元（只读预览，未写入）`,
+      `下一步: ${next}`,
+      '注意: 评估默认离线且只读，未访问远端，未修改任何文件。',
+    ].join('\n'),
+  });
+}
+
+/**
+ * Map a config load failure to field-level findings (acceptance scenarios 2
+ * and 4): never a bare CONFIG_INVALID. Schema errors carry their
+ * instancePath; gate declaration errors (unknown unit, unknown channel,
+ * duplicate ids) are scanned across ALL declared gates so the report lists
+ * every invalid declaration, not just the first one the loader hit.
+ *
+ * @param {string} root - Project root.
+ * @param {string} configPath - Config path.
+ * @param {Object} error - ReleaseError with details.
+ * @returns {Promise<Object>} Frozen report.
+ */
+async function reportConfigLoadError(root, configPath, error) {
+  const findings = [];
+  const details = error.details ?? {};
+  if (Array.isArray(details.validationErrors)) {
+    for (const validationError of details.validationErrors) {
+      findings.push(createFinding({
+        category: FINDING_CATEGORY.MANDATORY_GAP,
+        code: 'CONFIG_INVALID',
+        fieldPath: validationError.instancePath || '/',
+        message: `配置字段不符合 Schema: ${validationError.message}`,
+        evidence: { configPath, schemaPath: validationError.schemaPath },
+        action: '修复该字段后重新运行 release-skill setup --assess-adoption。',
+        severity: 'blocking',
+      }));
+    }
+  }
+  if (typeof details.gateId === 'string') {
+    // 配置加载在第一个无效 gate 处停止；扫描全部声明，逐条列为阻断项。
+    let scanned = [];
+    try {
+      const raw = await readFile(configPath, 'utf8');
+      const parsed = YAML.parse(raw);
+      scanned = scanGateDeclarationFindings({
+        units: parsed?.releaseUnits ?? [],
+        gates: parsed?.verificationGates ?? [],
+      });
+    } catch {
+      scanned = [];
+    }
+    if (scanned.length > 0) {
+      findings.push(...scanned);
+    } else {
+      findings.push(createFinding({
+        category: FINDING_CATEGORY.MANDATORY_GAP,
+        code: 'GATE_DECLARATION_INVALID',
+        unitId: details.unitId,
+        fieldPath: 'verificationGates[]',
+        message: error.message,
+        evidence: { gateId: details.gateId, unitId: details.unitId },
+        action: '修正 verificationGates 声明（单元/渠道必须存在，id 不得重复）后重新评估。',
+        severity: 'blocking',
+      }));
+    }
+  }
+  if (findings.length === 0) {
+    findings.push(createFinding({
+      category: FINDING_CATEGORY.MANDATORY_GAP,
+      code: 'CONFIG_INVALID',
+      fieldPath: '/',
+      message: error.message,
+      evidence: { configPath },
+      action: '修复配置后重新运行 release-skill setup --assess-adoption。',
+      severity: 'blocking',
+    }));
+  }
+  return Object.freeze({
+    command: 'release-setup',
+    mode: 'adoption-assessment',
+    status: ASSESSMENT_STATUS.PARTIALLY_ADOPTED,
+    configPath,
+    configDigest: null,
+    assessmentDigest: null,
+    topology: { type: 'unknown', releaseUnits: [], distributions: [] },
+    findings,
+    hookDurations: [],
+    gateSuggestions: [],
+    workflowPrerequisites: {
+      full: { met: false, note: '配置无法通过校验。' },
+      docs: { met: false, note: '配置无法通过校验。' },
+      config: { met: false, note: '配置无法通过校验。' },
+      marketplace: { met: false, note: '配置无法通过校验。' },
+    },
+    unobserved: [{
+      field: '远端前提（npm/GitHub 可用性、发布标签序列）',
+      note: '评估默认离线，未观测远端；不能据此否定本地接入，也不代表具备生产发布条件。',
+    }],
+    summary: [
+      '项目: (配置加载失败)',
+      '接入状态: 部分接入（存在必选缺口）',
+      `必选缺口 ${findings.length} | 已满足 0 | 可选建议 0 | 不适用 0`,
+      ...findings.map((finding) => `  - [${finding.code}] ${finding.fieldPath ?? ''} ${finding.message}`),
+      `下一步: 修复全部配置错误后重新运行 release-skill setup --assess-adoption。`,
+      '注意: 评估默认离线且只读，未访问远端，未修改任何文件。',
+    ].join('\n'),
+    next: '修复全部配置错误后重新运行 release-skill setup --assess-adoption。',
+  });
+}
+
+/**
+ * WP-6 adoption assessment entry point (read-only, offline).
+ *
+ * Answers whether a project is fully adopted into the release workflow and
+ * reports a four-category matrix (mandatory gaps / satisfied / optional
+ * suggestions / not applicable), hook cost observations (R-11), structured
+ * gate drafts for directly verifiable check commands (scenario 5), and the
+ * precise next step. Never writes any file, never accesses the remote, and
+ * never registers hooks/gates.
+ *
+ * @param {Object} options
+ * @param {string} options.root - Absolute project root.
+ * @returns {Promise<Object>} Adoption report.
+ */
+export async function assessAdoption({ root } = {}) {
+  if (!root || typeof root !== 'string' || !isAbsolute(root)) {
+    throw setupError(CONFIG_INVALID, 'assessment root must be an absolute path');
+  }
+  const rootReal = await realpath(root).catch((error) => {
+    throw setupError(CONFIG_INVALID, `cannot resolve assessment root: ${error.message}`);
+  });
+  const configPath = join(rootReal, '.release-skill', 'project.yaml');
+
+  let configExists = false;
+  try {
+    const stat = await lstat(configPath);
+    configExists = stat.isFile() && !stat.isSymbolicLink();
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  if (!configExists) {
+    return reportNotConfigured(rootReal, configPath);
+  }
+
+  let loaded;
+  try {
+    loaded = await loadProjectConfig({ root: rootReal });
+  } catch (error) {
+    if (error.code !== CONFIG_INVALID) throw error;
+    return reportConfigLoadError(rootReal, configPath, error);
+  }
+  const { config, configDigest } = loaded;
+
+  // --- Discovery facts (read-only) ---
+  const facts = await discoverFacts(rootReal);
+  const candidates = buildCandidates(facts);
+
+  // --- Field-level authority facts (scenario 2) ---
+  const findings = [];
+  const declaredUnits = config.releaseUnits ?? [];
+  // 裁决 17: 区分源仓与公开仓，只比较同类事实。公开仓声明只与同类事实
+  // （单元的 package.json repository 声明）比较；git 远端是源仓侧观察，
+  // 从不单独充当公开仓权威。默认离线：没有同类事实时标记未观测，不默认
+  // 联网，也不宣称远端已核实。不新增仓库 registry。
+  const workspaceGitRepos = [...new Set(
+    facts.git.remotes.map((remote) => remote.repo).filter(Boolean),
+  )].sort();
+  const declaredSourceRepo = (
+    typeof config.project?.sourceRepository === 'string'
+    && config.project.sourceRepository.length > 0
+  ) ? config.project.sourceRepository : null;
+  for (const unit of declaredUnits) {
+    const unitId = unit.id;
+    const unitDir = resolve(rootReal, unit.source);
+
+    // source directory
+    if (await adoptionPathExists(unitDir)) {
+      findings.push(createFinding({
+        category: FINDING_CATEGORY.SATISFIED, code: 'UNIT_SOURCE_OK',
+        unitId, fieldPath: 'releaseUnits[].source',
+        message: `发布单元 "${unitId}" 的 source 目录存在。`,
+        evidence: { source: unit.source },
+      }));
+    } else {
+      findings.push(createFinding({
+        category: FINDING_CATEGORY.MANDATORY_GAP, code: 'UNIT_SOURCE_MISSING',
+        unitId, fieldPath: 'releaseUnits[].source',
+        message: `发布单元 "${unitId}" 的 source 目录不存在: ${unit.source}`,
+        evidence: { source: unit.source },
+        action: '创建该目录，或修正 releaseUnits[].source。',
+        severity: 'blocking',
+      }));
+    }
+
+    // version source (unit-relative, same rule as prepare)
+    const versionSource = unit.version?.source;
+    if (typeof versionSource === 'string') {
+      if (await adoptionPathExists(resolve(unitDir, versionSource))) {
+        findings.push(createFinding({
+          category: FINDING_CATEGORY.SATISFIED, code: 'VERSION_SOURCE_OK',
+          unitId, fieldPath: 'releaseUnits[].version.source',
+          message: `发布单元 "${unitId}" 的版本来源文件存在。`,
+          evidence: { source: versionSource },
+        }));
+      } else {
+        findings.push(createFinding({
+          category: FINDING_CATEGORY.MANDATORY_GAP, code: 'VERSION_SOURCE_MISSING',
+          unitId, fieldPath: 'releaseUnits[].version.source',
+          message: `发布单元 "${unitId}" 的版本来源文件不存在: ${versionSource}`,
+          evidence: { source: versionSource },
+          action: '创建该文件，或修正 releaseUnits[].version.source。',
+          severity: 'blocking',
+        }));
+      }
+    }
+
+    // public repo consistency (裁决 17): same-kind comparison only.
+    const declaredRepo = unit.publicRepo;
+    if (declaredRepo) {
+      // 同类公开仓声明：单元目录下 package.json 的 repository 字段。
+      const unitPackageRepos = [...new Set(
+        facts.packages
+          .filter((pkg) => pkg.directory === unit.source)
+          .map((pkg) => pkg.repository)
+          .filter(Boolean),
+      )].sort();
+      if (unitPackageRepos.includes(declaredRepo)) {
+        findings.push(createFinding({
+          category: FINDING_CATEGORY.SATISFIED, code: 'PUBLIC_REPO_DECLARED',
+          unitId, fieldPath: 'releaseUnits[].publicRepo',
+          message: `发布单元 "${unitId}" 声明的公开仓库与包元数据（package.json repository）一致。`,
+          evidence: { declared: declaredRepo, packageRepository: unitPackageRepos },
+        }));
+      } else if (unitPackageRepos.length > 0) {
+        findings.push(createFinding({
+          category: FINDING_CATEGORY.MANDATORY_GAP, code: 'PUBLIC_REPO_CONFLICT',
+          unitId, fieldPath: 'releaseUnits[].publicRepo',
+          message: `发布单元 "${unitId}" 声明的公开仓库 ${declaredRepo} 与包元数据声明的公开仓库冲突: ${unitPackageRepos.join(', ')}`,
+          evidence: { declared: declaredRepo, packageRepository: unitPackageRepos },
+          action: '核对 package.json repository 与 releaseUnits[].publicRepo 后修正声明。',
+          severity: 'blocking',
+        }));
+      } else if (workspaceGitRepos.includes(declaredRepo)) {
+        findings.push(createFinding({
+          category: FINDING_CATEGORY.SATISFIED, code: 'PUBLIC_REPO_DECLARED',
+          unitId, fieldPath: 'releaseUnits[].publicRepo',
+          message: `发布单元 "${unitId}" 声明的公开仓库与本地工作区仓库身份一致。`,
+          evidence: { declared: declaredRepo, workspaceRepos: workspaceGitRepos },
+        }));
+      } else if (declaredSourceRepo && workspaceGitRepos.includes(declaredSourceRepo)) {
+        findings.push(createFinding({
+          category: FINDING_CATEGORY.SATISFIED, code: 'PUBLIC_REPO_DECLARED',
+          unitId, fieldPath: 'releaseUnits[].publicRepo',
+          message: `发布单元 "${unitId}" 已声明公开仓库；本地 git 身份与声明的源仓库 ${declaredSourceRepo} 一致（拆分仓拓扑），公开仓未本地观测（未宣称已核实）。`,
+          evidence: { declared: declaredRepo, sourceRepository: declaredSourceRepo, unobserved: true },
+        }));
+      } else {
+        findings.push(createFinding({
+          category: FINDING_CATEGORY.SATISFIED, code: 'PUBLIC_REPO_DECLARED',
+          unitId, fieldPath: 'releaseUnits[].publicRepo',
+          message: `发布单元 "${unitId}" 已声明公开仓库；本地无同类公开仓事实可交叉验证（未观测，未联网核实）。`,
+          evidence: { declared: declaredRepo, unobserved: true },
+        }));
+      }
+    }
+
+    // tag template declaration
+    if (typeof unit.version?.tagTemplate === 'string' && unit.version.tagTemplate.includes('{version}')) {
+      findings.push(createFinding({
+        category: FINDING_CATEGORY.SATISFIED, code: 'TAG_TEMPLATE_DECLARED',
+        unitId, fieldPath: 'releaseUnits[].version.tagTemplate',
+        message: `发布单元 "${unitId}" 已声明标签模板（含 {version} 占位符）。`,
+        evidence: { tagTemplate: unit.version.tagTemplate },
+      }));
+    }
+
+    // distributions declaration + per-type prerequisite
+    const distributionTypes = (unit.distributions ?? []).map((dist) => dist.type);
+    findings.push(createFinding({
+      category: FINDING_CATEGORY.SATISFIED, code: 'DISTRIBUTIONS_DECLARED',
+      unitId, fieldPath: 'releaseUnits[].distributions',
+      message: `发布单元 "${unitId}" 已声明分发渠道: ${distributionTypes.join(', ') || '(无)'}`,
+      evidence: { types: distributionTypes },
+    }));
+
+    // previousPublicBaseline declaration
+    if (unit.previousPublicBaseline) {
+      findings.push(createFinding({
+        category: FINDING_CATEGORY.SATISFIED, code: 'PREVIOUS_BASELINE_DECLARED',
+        unitId, fieldPath: 'releaseUnits[].previousPublicBaseline',
+        message: `发布单元 "${unitId}" 已声明上一公开基线（mode: ${unit.previousPublicBaseline.mode}）。`,
+        evidence: { mode: unit.previousPublicBaseline.mode },
+      }));
+    }
+
+    // publicFiles[].from existence (root-relative canonical public paths)
+    const publicFileMappings = unit.publicFiles ?? [];
+    for (const mapping of publicFileMappings) {
+      if (typeof mapping?.from !== 'string') continue;
+      if (await adoptionPathExists(resolve(rootReal, mapping.from))) continue;
+      findings.push(createFinding({
+        category: FINDING_CATEGORY.MANDATORY_GAP, code: 'PUBLIC_FILE_MISSING',
+        unitId, fieldPath: 'releaseUnits[].publicFiles[].from',
+        message: `发布单元 "${unitId}" 的公开文件输入不存在: ${mapping.from}`,
+        evidence: { from: mapping.from, to: mapping.to },
+        action: '创建该文件，或修正 releaseUnits[].publicFiles[].from。',
+        severity: 'blocking',
+      }));
+    }
+    for (const required of unit.requiredPublicFiles ?? []) {
+      if (typeof required?.from !== 'string') continue;
+      if (await adoptionPathExists(resolve(rootReal, required.from))) continue;
+      findings.push(createFinding({
+        category: FINDING_CATEGORY.MANDATORY_GAP, code: 'REQUIRED_PUBLIC_FILE_MISSING',
+        unitId, fieldPath: 'releaseUnits[].requiredPublicFiles[].from',
+        message: `发布单元 "${unitId}" 的必选公开文件输入不存在: ${required.from}`,
+        evidence: { from: required.from },
+        action: '创建该文件，或修正 releaseUnits[].requiredPublicFiles[].from。',
+        severity: 'blocking',
+      }));
+    }
+    if (
+      publicFileMappings.length > 0
+      && (await Promise.all(publicFileMappings
+        .filter((mapping) => typeof mapping?.from === 'string')
+        .map((mapping) => adoptionPathExists(resolve(rootReal, mapping.from)))))
+        .every(Boolean)
+    ) {
+      findings.push(createFinding({
+        category: FINDING_CATEGORY.SATISFIED, code: 'PUBLIC_FILES_OK',
+        unitId, fieldPath: 'releaseUnits[].publicFiles',
+        message: `发布单元 "${unitId}" 的公开文件输入全部存在。`,
+        evidence: { count: publicFileMappings.length },
+      }));
+    }
+
+    // postPublish declaration validity (scenario 4: unknown presets etc.)
+    if (unit.postPublish !== undefined) {
+      try {
+        validatePostPublishDeclaration(unit.postPublish, { unitId });
+        findings.push(createFinding({
+          category: FINDING_CATEGORY.SATISFIED, code: 'POSTPUBLISH_DECLARED_VALID',
+          unitId, fieldPath: 'releaseUnits[].postPublish',
+          message: `发布单元 "${unitId}" 的 postPublish 声明通过 fail-closed 校验。`,
+        }));
+      } catch (error) {
+        findings.push(createFinding({
+          category: FINDING_CATEGORY.MANDATORY_GAP, code: 'POSTPUBLISH_INVALID',
+          unitId, fieldPath: 'releaseUnits[].postPublish',
+          message: `发布单元 "${unitId}" 的 postPublish 声明无效: ${error.message}`,
+          evidence: { unitId, error: error.message },
+          action: '修正 postPublish 声明（preset 必须存在、target/hook id 不得重复冲突）后重新评估。',
+          severity: 'blocking',
+        }));
+      }
+    } else {
+      findings.push(createFinding({
+        category: FINDING_CATEGORY.NOT_APPLICABLE, code: 'POSTPUBLISH_NOT_DECLARED',
+        unitId, fieldPath: 'releaseUnits[].postPublish',
+        message: `发布单元 "${unitId}" 未声明 postPublish（可选扩展，不影响接入）。`,
+      }));
+    }
+  }
+
+  // --- Project-level declarations ---
+  findings.push(createFinding({
+    category: FINDING_CATEGORY.SATISFIED, code: 'CONFIG_VALID',
+    fieldPath: '.release-skill/project.yaml',
+    message: '配置存在并通过 Schema 校验。',
+    evidence: { configDigest },
+  }));
+
+  // 裁决 20: 跨单元 postPublish 规则（一次发布计划只绑定一个声明）。
+  const postPublishConflict = findPostPublishUnitConflict(declaredUnits);
+  if (postPublishConflict) {
+    findings.push(createFinding({
+      category: FINDING_CATEGORY.MANDATORY_GAP, code: 'POSTPUBLISH_MULTI_UNIT_CONFLICT',
+      fieldPath: 'releaseUnits[].postPublish',
+      message: `多个发布单元声明 postPublish（${postPublishConflict.unitIds.join(', ')}）；一次发布计划只绑定一个 postPublish 声明。`,
+      evidence: { unitIds: postPublishConflict.unitIds },
+      action: '只保留一个发布单元的 postPublish 声明（或将分发目标合并进同一单元）后重新评估。',
+      severity: 'blocking',
+    }));
+  }
+
+  // 裁决 20: 评估复用实际 Hook 校验（core/hooks.mjs 的纯校验函数，不调用
+  // runHook、不复制第二套 validator）；运行时会被拒绝的声明在评估里就是
+  // 字段级必选缺口，不能误报已接入。零命令执行。
+  if (config.hooks !== undefined) {
+    const invalidHooks = [];
+    for (const [name, hook] of Object.entries(config.hooks)) {
+      try {
+        validateHook(hook);
+      } catch (error) {
+        invalidHooks.push({ name, error });
+      }
+    }
+    if (invalidHooks.length === 0) {
+      findings.push(createFinding({
+        category: FINDING_CATEGORY.SATISFIED, code: 'HOOKS_DECLARED_VALID',
+        fieldPath: 'hooks',
+        message: `已声明 hooks: ${Object.keys(config.hooks).join(', ')}（Schema 与运行时校验均通过）。`,
+        evidence: { hooks: Object.keys(config.hooks).sort() },
+      }));
+    } else {
+      for (const { name, error } of invalidHooks) {
+        findings.push(createFinding({
+          category: FINDING_CATEGORY.MANDATORY_GAP, code: 'HOOK_DECLARATION_INVALID',
+          fieldPath: `hooks.${name}`,
+          message: `hook "${name}" 声明无效: ${error.message}`,
+          evidence: { hookName: name },
+          action: '修正 hooks 声明（cacheable=true 必须提供非空 cacheInputs 等）后重新评估。',
+          severity: 'blocking',
+        }));
+      }
+    }
+  } else {
+    findings.push(createFinding({
+      category: FINDING_CATEGORY.NOT_APPLICABLE, code: 'HOOKS_NOT_DECLARED',
+      fieldPath: 'hooks',
+      message: '未声明 hooks（可选扩展，不影响接入）。',
+    }));
+  }
+  if (Array.isArray(config.verificationGates)) {
+    findings.push(createFinding({
+      category: FINDING_CATEGORY.SATISFIED, code: 'VERIFICATION_GATES_DECLARED_VALID',
+      fieldPath: 'verificationGates',
+      message: `已声明 ${config.verificationGates.length} 个 verificationGates（加载期已校验单元/渠道/id 唯一性）。`,
+      evidence: { count: config.verificationGates.length },
+    }));
+  } else {
+    findings.push(createFinding({
+      category: FINDING_CATEGORY.NOT_APPLICABLE, code: 'VERIFICATION_GATES_NOT_DECLARED',
+      fieldPath: 'verificationGates',
+      message: '未声明 verificationGates（可选扩展，不影响接入）。',
+    }));
+  }
+
+  // --- Assess checks (offline; only the four local check families) ---
+  const assessGaps = (await Promise.all([
+    checkCommonDocs(rootReal, config),
+    checkPluginManifests(rootReal, config),
+    checkPackageMetadata(rootReal, config),
+    checkReadmeStructure(rootReal, config),
+  ])).flat();
+  for (const gap of assessGaps) {
+    findings.push(createFinding({
+      category: classifyGapCategory(gap.severity),
+      code: gap.code,
+      message: gap.message,
+      evidence: { file: gap.file, scope: gap.scope, category: gap.category },
+      action: classifyGapCategory(gap.severity) === FINDING_CATEGORY.MANDATORY_GAP
+        ? '补齐该文件或修正相关配置后重新评估。'
+        : '可选改进；人工确认后再决定是否采纳。',
+      severity: gap.severity === 'error' ? 'blocking' : 'suggestion',
+    }));
+  }
+
+  // --- R-11: hook cost observations from trusted evidence (裁决 18:
+  // description-matched pairing only; the current declared hooks supply the
+  // current normalized description) ---
+  const hookDurations = deriveHookDurations({
+    events: await readEvidenceEvents(rootReal),
+    declaredHooks: config.hooks ?? {},
+    currentProducerVersion: resolveProducerVersion(),
+  });
+  findings.push(...deriveLongHookSuggestions(hookDurations));
+  findings.push(...deriveCheckOnlySuggestions(config.hooks));
+
+  // --- Gate suggestions (scenarios 5 & 6) ---
+  const gateSuggestions = deriveGateSuggestions({ declaredUnits, candidates });
+
+  const hasBlocking = findings.some((f) => f.category === FINDING_CATEGORY.MANDATORY_GAP);
+  const next = hasBlocking
+    ? '修复全部必选缺口后重新运行 release-skill setup --assess-adoption。'
+    : null;
+
+  return buildAssessmentReport({
+    config,
+    configPath,
+    configDigest,
+    facts,
+    findings,
+    hookDurations,
+    gateSuggestions,
+    next,
+  });
 }

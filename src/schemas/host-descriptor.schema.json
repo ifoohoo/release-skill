@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/host-descriptor.json",
+  "title": "Skill Family host descriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "hostId", "displayName", "support", "pathCategories", "probeCapabilities"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.host-descriptor" },
+    "hostId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+    "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "support": { "enum": ["supported", "manual", "unsupported"] },
+    "maturity": { "enum": ["stable", "manual", "developer-preview", "unsupported"] },
+    "sourceAliases": {
+      "type": "array",
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" }
+    },
+    "unsupportedReason": { "type": "string", "minLength": 1 },
+    "driverId": { "enum": ["claude-version-v1", "codex-version-v1"] },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["driverId", "authStrategy", "credentialMutation"],
+      "properties": {
+        "driverId": { "enum": ["kimi-code-print-v1", "workbuddy-codebuddy-print-v1", "claude-code-print-v1", "codex-exec-v1", "qodercli-print-v1"] },
+        "authStrategy": { "const": "existing-user-state" },
+        "credentialMutation": { "const": "host-managed" }
+      }
+    },
+    "adapterFormat": { "const": "skill-directory-v1" },
+    "pathCategories": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "role", "scope", "anchor", "relPath"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+          "role": { "const": "skill-root" },
+          "scope": { "enum": ["user", "project"] },
+          "anchor": { "enum": ["user-home", "project-root"] },
+          "relPath": { "$ref": "#/$defs/relativePath" }
+        },
+        "allOf": [
+          { "if": { "properties": { "scope": { "const": "user" } }, "required": ["scope"] }, "then": { "properties": { "anchor": { "const": "user-home" } } } },
+          { "if": { "properties": { "scope": { "const": "project" } }, "required": ["scope"] }, "then": { "properties": { "anchor": { "const": "project-root" } } } }
+        ]
+      }
+    },
+    "probeCapabilities": {
+      "type": "array",
+      "items": { "enum": ["cli", "version", "payload", "registry", "discover", "enabled", "reload", "smoke", "uninstall"] },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "relativePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)(?!.*\\u0000)[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$"
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "hostId": { "const": "kimi-code" } }, "required": ["hostId"] },
+      "then": {
+        "required": ["verification"],
+        "properties": { "verification": { "type": "object", "properties": { "driverId": { "const": "kimi-code-print-v1" } } } }
+      }
+    },
+    {
+      "if": { "properties": { "hostId": { "const": "workbuddy" } }, "required": ["hostId"] },
+      "then": {
+        "required": ["verification"],
+        "properties": { "verification": { "type": "object", "properties": { "driverId": { "const": "workbuddy-codebuddy-print-v1" } } } }
+      }
+    },
+    {
+      "if": { "properties": { "hostId": { "const": "claude" } }, "required": ["hostId"] },
+      "then": {
+        "required": ["verification"],
+        "properties": { "verification": { "type": "object", "properties": { "driverId": { "const": "claude-code-print-v1" } } } }
+      }
+    },
+    {
+      "if": { "properties": { "hostId": { "const": "codex" } }, "required": ["hostId"] },
+      "then": {
+        "required": ["verification"],
+        "properties": { "verification": { "type": "object", "properties": { "driverId": { "const": "codex-exec-v1" } } } }
+      }
+    },
+    {
+      "if": { "properties": { "hostId": { "const": "qoder" } }, "required": ["hostId"] },
+      "then": {
+        "required": ["verification"],
+        "properties": { "verification": { "type": "object", "properties": { "driverId": { "const": "qodercli-print-v1" } } } }
+      }
+    },
+    {
+      "if": { "properties": { "hostId": { "enum": ["kimi-code", "workbuddy", "claude", "codex", "qoder"] } }, "required": ["hostId"] },
+      "else": { "properties": { "verification": false } }
+    },
+    {
+      "if": { "properties": { "support": { "const": "supported" } }, "required": ["support"] },
+      "then": {
+        "required": ["driverId", "adapterFormat"],
+        "properties": { "unsupportedReason": false, "maturity": { "enum": ["stable"] }, "driverId": true, "adapterFormat": true, "pathCategories": { "type": "array", "minItems": 1 }, "probeCapabilities": { "type": "array", "minItems": 9, "maxItems": 9 } }
+      }
+    },
+    {
+      "if": { "properties": { "support": { "const": "manual" } }, "required": ["support"] },
+      "then": {
+        "required": ["maturity"],
+        "properties": { "unsupportedReason": false, "maturity": { "enum": ["manual", "developer-preview"] }, "driverId": false, "adapterFormat": false, "pathCategories": { "type": "array", "maxItems": 8 }, "probeCapabilities": { "type": "array", "minItems": 9, "maxItems": 9 } }
+      }
+    },
+    {
+      "if": { "properties": { "support": { "const": "unsupported" } }, "required": ["support"] },
+      "then": {
+        "required": ["unsupportedReason"],
+        "properties": { "unsupportedReason": true, "maturity": { "enum": ["unsupported"] }, "driverId": false, "adapterFormat": false, "pathCategories": { "type": "array", "maxItems": 0 }, "probeCapabilities": { "type": "array", "maxItems": 0 } }
+      }
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "skill-family.contracts.registry",
-  "contractsVersion": "1.7.0",
+  "contractsVersion": "1.12.0",
   "note": "Protocol-name and schema-$id registry. Registration mechanically rejects duplicate protocol name/version (SFC1004) and duplicate $id (SFC1003). This file is the single registration surface; adding an entry is a contracts change.",
   "protocols": [
     {
@@ -229,6 +229,62 @@
       "dialect": "2020-12",
       "status": "stable",
       "file": "src/schemas/token-estimate-record.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/source-authority-receipt.json",
+      "object": "source-authority-receipt",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/source-authority-receipt.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/filesystem-root-binding.json",
+      "object": "filesystem-root-binding",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/filesystem-root-binding.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/fixed-set-publication-manifest.json",
+      "object": "fixed-set-publication-manifest",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/fixed-set-publication-manifest.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/fixed-set-publication-receipt.json",
+      "object": "fixed-set-publication-receipt",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/fixed-set-publication-receipt.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/adapter-peer-verification-request.json",
+      "object": "adapter-peer-verification-request",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/adapter-peer-verification-request.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/adapter-peer-verification-result.json",
+      "object": "adapter-peer-verification-result",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/adapter-peer-verification-result.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/host-verification-request.json",
+      "object": "host-verification-request",
+      "dialect": "2020-12",
+      "status": "candidate",
+      "file": "src/schemas/host-verification-request.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/host-verification-result.json",
+      "object": "host-verification-result",
+      "dialect": "2020-12",
+      "status": "candidate",
+      "file": "src/schemas/host-verification-result.schema.json"
     }
   ],
   "dialects": {

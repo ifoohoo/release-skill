@@ -41,9 +41,10 @@
  *  3. approval record validation (core/approval.mjs)
  *  4. source run lineage: publish|reconcile run at PUBLISHED|VERIFIED whose
  *     planDigest matches the frozen plan (loadRun requireDigest)
- *  5. tag identity: `git rev-parse --verify <tag>^{commit}` in root must
- *     equal the frozen postPublish.tagCommit (fail-closed when absent)
- *  5b. optional assertMainVersionAhead (commit descent of HEAD over the tag)
+ *  5. tag identity (R-01): the frozen create-tag action + same-lineage
+ *     PUBLISHED source run checkpoint + frozen git objects + PUBLIC remote
+ *     observation are the authority; the live local tag is diagnostic only
+ *  5b. optional assertMainVersionAhead (public main line moved past the tag)
  *  6. postPublish declaration re-validation (core/postpublish.mjs)
  *  7. per-target reachability preflight (DISTRIBUTE_PROBE)
  *
@@ -81,9 +82,16 @@ import {
   loadRun,
   resolveDefaultRunDir,
   validateRunPlanDigest,
+  validateRunLineage,
+  validateRunCheckpointMapping,
   writeRunAtomic,
 } from '../core/run.mjs';
-import { createEvidenceWriter } from '../core/evidence.mjs';
+import { asError, createEvidenceWriter } from '../core/evidence.mjs';
+import {
+  resolveFrozenTagAuthority,
+  createFrozenTagWorktree,
+  assertMainLineAhead,
+} from '../core/tag-authority.mjs';
 import { runHook } from '../core/hooks.mjs';
 import { boundedOutputTail } from '../core/bounded-output.mjs';
 import {
@@ -99,6 +107,7 @@ import {
 import { verifyAndInstallExecutionBundle } from '../core/postpublish-bundle.mjs';
 import { projectPublicPayload, PROJECTION_MECHANISM, PUBLIC_PAYLOAD_DIRNAME } from '../core/postpublish-projection.mjs';
 import { assertPostPublishApprovalAuthority, validatePostPublishApproval } from '../core/postpublish-approval.mjs';
+import { readRunRecovery } from '../core/recovery.mjs';
 import { executePresetHook } from '../core/preset-executor.mjs';
 import {
   ReleaseError,
@@ -281,6 +290,8 @@ export async function distributeRelease(options) {
     execFn,
     runHookFn,
     postpublishApprovalPaths,
+    observeTagFn,
+    observeBranchFn,
   } = options ?? {};
 
   const clockFn = typeof clockOpt === 'function' ? clockOpt : defaultClock;
@@ -404,16 +415,16 @@ export async function distributeRelease(options) {
   let approvalDigestValue = null;
 
   // Worktree cleanup: registered exactly once, idempotent, failure-tolerant.
+  // R-01: the worktree is built from a COPY of the frozen bare repo and is
+  // never registered in the source repo's worktree metadata, so removing the
+  // scratch base is the complete cleanup (no `git worktree remove`).
   let worktreePath = null;
   let tmpBase = null;
   const cleanupWorktree = async () => {
-    if (worktreePath) {
-      await exec('git', ['-C', root, 'worktree', 'remove', '--force', worktreePath]).catch(() => {});
-      worktreePath = null;
-    }
     if (tmpBase) {
       await rm(tmpBase, { recursive: true, force: true }).catch(() => {});
       tmpBase = null;
+      worktreePath = null;
     }
   };
 
@@ -475,10 +486,14 @@ export async function distributeRelease(options) {
       );
     }
     validateRunPlanDigest(sourceRun, plan, { planPath });
+    await validateRunLineage(sourceRun, {
+      plan, planPath, runPath: sourceRunPath, production: Boolean(plan.production),
+    });
 
     sourceRunId = sourceRun.runId;
     sourceRunDigest = sourceRun.runDigest;
     lineageKnown = true;
+    validateRunCheckpointMapping(sourceRun, plan.externalActions ?? []);
 
     await evidence.append({
       phase: 'safety-gate',
@@ -649,8 +664,13 @@ export async function distributeRelease(options) {
     await snapshot(DISTRIBUTING);
 
     // =======================================================================
-    // Gate 4: tag identity — the live tag must still point at the frozen
-    // tagCommit. A missing binding or a moved tag fails closed.
+    // Gate 4: tag identity via the frozen authority chain (R-01). The frozen
+    // plan binding + same-lineage PUBLISHED source-run checkpoint + frozen
+    // git objects + PUBLIC remote observation are the authority; the live
+    // local tag is diagnostic only (a fresh split source repo legitimately
+    // has no local tag). Missing binding/objects/lineage fails closed as
+    // GATE_FAILED; remote tag missing/drifted is a REMOTE_CONFLICT requiring
+    // human decision.
     // =======================================================================
     await evidence.append({ phase: 'safety-gate', gate: 'tag-identity', status: 'started' });
 
@@ -668,75 +688,107 @@ export async function distributeRelease(options) {
         { tagCommit: postPublish.tagCommit ?? null },
       ));
     }
-    let observedTagCommit;
+
+    let tagAuthority;
     try {
-      const { stdout } = await exec('git', ['-C', root, 'rev-parse', '--verify', `${postPublish.tag}^{commit}`]);
-      observedTagCommit = `${stdout}`.trim();
+      tagAuthority = await resolveFrozenTagAuthority({
+        plan,
+        unitId: postPublish.unitId,
+        sourceRun,
+        root,
+        exec,
+        observeTagFn,
+        observeBranchFn,
+        // 裁决 15: the public main line is observed only for the explicit
+        // optional gate; with it off, no branch observation happens at all.
+        observeMainLine: postPublish.assertMainVersionAhead === true,
+      });
     } catch (err) {
       await evidence.append({
         phase: 'safety-gate',
         gate: 'tag-identity',
         status: 'failed',
-        error: boundedOutputTail(err?.stderr ?? err?.message),
+        error: asError('TAG_IDENTITY_GATE_FAILED', boundedOutputTail(err?.message ?? String(err))),
+        details: {
+          code: err?.code ?? GATE_FAILED,
+          reason: err?.details?.reason ?? null,
+        },
       });
-      await failBlocked(new ReleaseError(
+      await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
         GATE_FAILED,
-        `tag "${postPublish.tag}" does not resolve to a commit in the source repository; distribute fails closed`,
-        { tag: postPublish.tag },
+        `tag identity cannot be verified: ${err?.message ?? err}`,
       ));
     }
-    if (observedTagCommit !== postPublish.tagCommit) {
+    // Cross-section consistency: the postPublish block and the create-tag
+    // external action must agree on the frozen tag identity.
+    if (tagAuthority.tag !== postPublish.tag || tagAuthority.commit !== postPublish.tagCommit) {
+      await failBlocked(new ReleaseError(
+        GATE_FAILED,
+        'frozen postPublish tag identity conflicts with the frozen create-tag binding',
+        {
+          postPublishTag: postPublish.tag,
+          postPublishTagCommit: postPublish.tagCommit,
+          bindingTag: tagAuthority.tag,
+          bindingCommit: tagAuthority.commit,
+        },
+      ));
+    }
+    if (tagAuthority.localTagDrifted) {
+      // R-01: the local tag is a diagnostic only — never a failure.
       await evidence.append({
         phase: 'safety-gate',
         gate: 'tag-identity',
-        status: 'failed',
-        frozenTagCommit: postPublish.tagCommit,
-        observedTagCommit,
+        status: 'warning',
+        detail: 'local tag drifted from the frozen commit; public remote stays authoritative',
+        localTagCommit: tagAuthority.localTagCommit,
+        frozenTagCommit: tagAuthority.commit,
       });
-      await failBlocked(new ReleaseError(
-        GATE_FAILED,
-        `tag "${postPublish.tag}" points at ${observedTagCommit}, but the frozen plan binds tagCommit ${postPublish.tagCommit}`,
-        { tag: postPublish.tag, frozenTagCommit: postPublish.tagCommit, observedTagCommit },
-      ));
     }
 
-    await evidence.append({ phase: 'safety-gate', gate: 'tag-identity', status: 'passed', tagCommit: observedTagCommit });
+    await evidence.append({
+      phase: 'safety-gate',
+      gate: 'tag-identity',
+      status: 'passed',
+      tagCommit: tagAuthority.commit,
+      observedRemoteTag: tagAuthority.observedRemoteTag,
+      localTagPresent: tagAuthority.localTagPresent,
+    });
 
     // =======================================================================
-    // Gate 5 (optional): the main line must have moved ahead of the tag.
-    // Interpreted as commit descent: tagCommit is an ancestor of HEAD and
-    // HEAD is not the tag commit itself.
+    // Gate 5 (optional): the public main line must have moved ahead of the
+    // tag (observed from the public remote, not the live workspace).
     // =======================================================================
     if (postPublish.assertMainVersionAhead === true) {
       await evidence.append({ phase: 'safety-gate', gate: 'main-version-ahead', status: 'started' });
-      let branchName;
       try {
-        const { stdout } = await exec('git', ['-C', root, 'symbolic-ref', '--short', 'HEAD']);
-        branchName = `${stdout}`.trim();
-      } catch {
-        await failBlocked(new ReleaseError(
+        await assertMainLineAhead({
+          tagCommit: tagAuthority.commit,
+          branchCommit: tagAuthority.branchCommit,
+          branch: tagAuthority.branch,
+          gitDir: tagAuthority.gitDir,
+          remoteUrl: tagAuthority.remoteUrl,
+          exec,
+        });
+      } catch (err) {
+        await evidence.append({
+          phase: 'safety-gate',
+          gate: 'main-version-ahead',
+          status: 'failed',
+          error: asError('MAIN_VERSION_AHEAD_FAILED', boundedOutputTail(err?.message ?? String(err))),
+        });
+        await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
           GATE_FAILED,
-          'assertMainVersionAhead requires a checked-out branch, but HEAD is detached',
+          `assertMainVersionAhead failed: ${err?.message ?? err}`,
         ));
       }
-      try {
-        await exec('git', ['-C', root, 'merge-base', '--is-ancestor', postPublish.tagCommit, 'HEAD']);
-      } catch {
-        await failBlocked(new ReleaseError(
-          GATE_FAILED,
-          `assertMainVersionAhead failed: tagCommit ${postPublish.tagCommit} is not an ancestor of HEAD on branch "${branchName}"`,
-          { branch: branchName, tagCommit: postPublish.tagCommit },
-        ));
-      }
-      const { stdout: headOut } = await exec('git', ['-C', root, 'rev-parse', 'HEAD']);
-      if (`${headOut}`.trim() === postPublish.tagCommit) {
-        await failBlocked(new ReleaseError(
-          GATE_FAILED,
-          `assertMainVersionAhead failed: HEAD on branch "${branchName}" is still the tag commit; the main line has not moved ahead`,
-          { branch: branchName, tagCommit: postPublish.tagCommit },
-        ));
-      }
-      await evidence.append({ phase: 'safety-gate', gate: 'main-version-ahead', status: 'passed', branch: branchName });
+      // failBlocked always throws, so this line runs only when the check passed.
+      await evidence.append({
+        phase: 'safety-gate',
+        gate: 'main-version-ahead',
+        status: 'passed',
+        branch: tagAuthority.branch,
+        branchCommit: tagAuthority.branchCommit,
+      });
     }
 
     // =======================================================================
@@ -792,7 +844,7 @@ export async function distributeRelease(options) {
           phase: 'safety-gate',
           gate: `probe-${target.id}`,
           status: 'failed',
-          error: probeResult.error,
+          error: asError('PROBE_FAILED', probeResult.error),
           details: { code },
         });
         await recordBlocked();
@@ -814,19 +866,25 @@ export async function distributeRelease(options) {
 
     // =======================================================================
     // R1 timing contract: detached worktree at the frozen tagCommit. The
-    // payload may never come from the live workspace.
+    // payload may never come from the live workspace. R-01: the worktree is
+    // materialized from a COPY of the frozen bare repo (never registered in
+    // the source repo's worktree metadata, never touching its refs).
     // =======================================================================
-    await evidence.append({ phase: 'worktree', status: 'started', tagCommit: postPublish.tagCommit });
+    await evidence.append({ phase: 'worktree', status: 'started', tagCommit: tagAuthority.commit });
     try {
       tmpBase = await mkdtemp(join(tmpdir(), 'release-skill-distribute-'));
-      worktreePath = join(tmpBase, 'worktree');
-      await exec('git', ['-C', root, 'worktree', 'add', '--detach', worktreePath, postPublish.tagCommit]);
+      ({ worktreePath } = await createFrozenTagWorktree({
+        gitDir: tagAuthority.gitDir,
+        commit: tagAuthority.commit,
+        tmpBase,
+        exec,
+      }));
     } catch (err) {
-      await evidence.append({ phase: 'worktree', status: 'failed', error: boundedOutputTail(err?.stderr ?? err?.message) });
+      await evidence.append({ phase: 'worktree', status: 'failed', error: asError('WORKTREE_FAILED', boundedOutputTail(err?.stderr ?? err?.message)) });
       await failBlocked(new ReleaseError(
         GATE_FAILED,
-        `cannot create the detached tag worktree at ${postPublish.tagCommit}: ${err?.message ?? err}`,
-        { tagCommit: postPublish.tagCommit },
+        `cannot create the detached tag worktree at ${tagAuthority.commit}: ${err?.message ?? err}`,
+        { tagCommit: tagAuthority.commit },
       ));
     }
     await evidence.append({ phase: 'worktree', status: 'passed' });
@@ -872,7 +930,7 @@ export async function distributeRelease(options) {
         phase: 'worktree',
         gate: 'execution-bundle',
         status: 'failed',
-        error: boundedOutputTail(err?.message ?? String(err)),
+        error: asError('EXECUTION_BUNDLE_FAILED', boundedOutputTail(err?.message ?? String(err))),
       });
       await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
         GATE_FAILED,
@@ -1030,7 +1088,7 @@ export async function distributeRelease(options) {
           phase: 'materialize',
           status: 'failed',
           mechanism: PROJECTION_MECHANISM,
-          error: boundedOutputTail(err?.message ?? String(err)),
+          error: asError('MATERIALIZE_FAILED', boundedOutputTail(err?.message ?? String(err))),
         });
         await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
           POST_PUBLISH_VERIFY_FAILED,
@@ -1158,7 +1216,7 @@ export async function distributeRelease(options) {
           phase: 'checkpoint',
           actionId: target.id,
           status: 'pre-observe-unobservable',
-          error: err?.message ?? String(err),
+          error: asError('PRE_OBSERVE_FAILED', err?.message ?? String(err)),
         });
       }
       if (preObserved.tagOid && preObserved.branchTip === preObserved.tagOid) {
@@ -1241,7 +1299,7 @@ export async function distributeRelease(options) {
           phase: 'checkpoint',
           actionId: target.id,
           status: 'failed',
-          error: executeResult.error,
+          error: asError('EXECUTE_FAILED', executeResult.error),
           details: { code },
         });
         await snapshot(PARTIAL);
@@ -1310,7 +1368,7 @@ export async function distributeRelease(options) {
           phase: 'checkpoint',
           actionId: target.id,
           status: 'verify-failed',
-          error: verifyResult.error ?? null,
+          error: asError('POST_PUBLISH_VERIFY_FAILED', verifyResult.error ?? null),
         });
         await snapshot(PARTIAL);
         continue;
@@ -1339,7 +1397,7 @@ export async function distributeRelease(options) {
     // the independent postVerify run (R3) and are evidenced as deferred.
     // =======================================================================
     if (deferredPostVerifyHooks > 0) {
-      await evidence.append({ phase: 'postpublish-hooks', deferredPostVerifyHooks });
+      await evidence.append({ phase: 'postpublish-hooks', status: 'deferred', deferredPostVerifyHooks });
     }
 
     let hooksStopped = stopped;
@@ -1431,7 +1489,7 @@ export async function distributeRelease(options) {
             phase: 'postpublish-hook',
             hookId: hook.id,
             status: 'failed',
-            error: err?.message ?? String(err),
+            error: asError('POSTPUBLISH_HOOK_FAILED', err?.message ?? String(err)),
             details: { code },
           });
           await snapshot(PARTIAL);
@@ -1540,7 +1598,7 @@ export async function distributeRelease(options) {
           phase: 'postpublish-hook',
           hookId: hook.id,
           status: 'failed',
-          error: err?.message ?? String(err),
+          error: asError('POSTPUBLISH_HOOK_FAILED', err?.message ?? String(err)),
         });
         await snapshot(PARTIAL);
         continue;
@@ -1598,6 +1656,7 @@ export async function distributeRelease(options) {
     await writeRunAtomic(runPath, buildPersistedState(overallStatus, finishedAt));
     finalRecordWritten = true;
 
+    const { recoveryActionCode } = await readRunRecovery(runPath, { planPath, clock: clockFn, postpublishApprovalPaths });
     await evidence.append({
       phase: 'distribute',
       status: 'completed',
@@ -1606,12 +1665,13 @@ export async function distributeRelease(options) {
     });
     await evidence.finish({
       status: overallStatus,
+      recoveryActionCode,
       planPath,
       runPath,
       finishedAt: clockFn(),
     });
 
-    return { planPath, runPath, status: overallStatus, checkpoints };
+    return { planPath, runPath, status: overallStatus, checkpoints, recoveryActionCode };
   } catch (err) {
     // The happy path returns before this catch, so `evidence.finish` can never
     // double-run here: it must ALWAYS close the evidence stream and seal the
@@ -1626,9 +1686,15 @@ export async function distributeRelease(options) {
     } catch {
       // Persistence must never mask the primary failure.
     }
+    const { recoveryActionCode } = await readRunRecovery(finalRecordWritten ? runPath : null, {
+      planPath, clock: clockFn, command: 'distribute', error: err, postpublishApprovalPaths,
+    });
+    err.details = { ...err.details, recoveryActionCode };
     await evidence.finish({
       status: lineageKnown ? BLOCKED : 'FAILED',
-      error: { code: err.code, message: err.message },
+      recoveryActionCode,
+      error: { code: err.code, message: err.message, details: err.details },
+      details: { recoveryActionCode },
       failedAt: clockFn(),
     }).catch(() => {});
     throw err;

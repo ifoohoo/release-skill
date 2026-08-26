@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.7.8 -->
+<!-- release-skill:release-version: 0.8.0 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,27 +14,34 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.7.8** (2026-08-24)
+**0.8.0** (2026-08-26)
 
-v0.7.8 lets a fresh publish safely accept an npm version that already contains the exact frozen tarball, without executing npm publish again.
+The local 0.8.0 candidate completed independent acceptance on 2026-08-26. This summary records version scope and verification boundaries; it is not a publication record or a consumer upgrade instruction. Local acceptance does not establish remote publication or consumer-installation verification. Release availability must be established from the corresponding release records and post-publish verification results.
 
-**Security**
+**Changed**
 
-- **Fail-closed integrity check**: a different, missing, blank, or unparseable observed integrity stops the run before any adapter execute. The existing classifier, approval model, and forward-recovery state machine remain unchanged.
-- **Checkpoint evidence**: a matching skipped npm checkpoint records only the observed integrity in `remoteRef.integrity`; package, version, registry, expected integrity, and tarball SHA-256 remain authoritative in the frozen plan.
+- Pin all three Foundation dependencies to released 0.12.0 packages. Packaging uses the existing generators for runtime resources, native files, and legal materials. The generated outputs were included in local independent acceptance, limited to the accepted inputs and environment.
+- Reuse existing Foundation APIs for ship state writes, baseline configuration replacement, temporary workspaces, and README result reads and digests. This removes duplicated mechanisms; Harness source is unchanged between 0.11.0 and 0.12.0. Candidate host verification does not replace production gates or the three-role README acceptance.
+- Evidence v2 closes the top level and stores phase extensions in typed details. Evidence v1 remains read-only. Summaries, producer versions, and recovery suggestions are diagnostic, never publication authority.
 
 **Fixed**
 
-- **Existing npm version recovery**: when npm preflight finds the target version already published, publish compares the registry observation with the immutable plan. An exact match becomes `SKIPPED`, the npm execute count stays zero, and the remaining release actions continue.
+- Config branch A keeps zero external actions and no sourceAuthority, even with a configured public source receipt. Production branch B and docs production freeze plan.sourceAuthority and retain remote consistency checks. Marketplace delegation is unchanged.
+- Fixes cover installed host surfaces, release-run lineage, Git hooks in frozen checkouts, pure configuration checks before long hooks, and adoption assessment. These fixes were included in local independent acceptance, limited to the accepted inputs and environment. Focused self-tests do not establish candidate acceptance.
+- FAILED summaries, compatibility details, and returned errors now project the same domain recovery result when current-run evidence is available. Existing fallbacks, unknown without evidence, and successful verify null suggestions remain unchanged. These fixes were included in local independent acceptance, limited to the accepted inputs and environment.
 
 **Upgrade Notes**
 
-No configuration or migration is required. Existing release-run files remain valid because `remoteRef.integrity` is optional.
+Old production plans missing sourceAuthority and checker v4 plans must not be silently upgraded; when no external writes occurred, prepare again and approve the new digest. Do not migrate old approvals or evidence. Preserve existing PARTIAL checkpoints and use matching-version recovery. Hook cache v1 is unchanged; old full-test evidence is not imported. R-02 safe full-tree inventory, R-05 Hook cache v2, R-10 implementation, real Kimi/WorkBuddy production gates, and the Audit public offline release-record verifier are excluded.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.7.8 is the current source candidate; v0.7.7 remains
-> the latest published release. v0.4.1 was an earlier published milestone;
+> **Current boundary:** v0.8.0 is the current source candidate. It completed independent
+> local acceptance on 2026-08-26, limited to the accepted inputs and environment. Local acceptance
+> does not establish remote publication or consumer-installation verification.
+> Release availability must be established from the corresponding release records
+> and post-publish verification results.
+> v0.4.1 was an earlier published milestone;
 > v0.2.2 previously held published status before the platform verification
 > convergence fix was added.
 > v0.1.1 completed a real production release to GitHub and npm — the first
@@ -53,13 +60,48 @@ No configuration or migration is required. Existing release-run files remain val
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.7.8 is the current
-> source candidate and v0.7.7 is the latest published release.** The npm-installed CLI is the supported user entry. Source checkout
+> **Production path verified since the v0.1.1 milestone; v0.8.0 is the current
+> source candidate. Its local acceptance does not establish remote publication
+> or consumer-installation verification.**
+> The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
 > **Start here:**
 > - npm install: `npm install -g release-skill` → `release-skill help`
 > - source checkout: `node "$RELEASE_SKILL_HOME/packages/release-skill/bin/release-skill.mjs" help`
+
+### 0.8.0 scope and verification boundaries
+
+For `prepare --workflow config`, public-byte comparison selects the branch:
+
+- Branch A (`no-publish-needed`) has no external actions and no `sourceAuthority`,
+  even with a configured public source receipt. It ends without approve/publish/verify.
+- Branch B (`publish-needed`) must freeze `plan.sourceAuthority` in production.
+  Docs production has the same requirement; publish/reconcile/verify retain
+  frozen-source and remote consistency checks.
+
+Marketplace delegation to the target workspace is unchanged.
+
+Old production plans missing `sourceAuthority` are rejected before external writes.
+Plans with no external writes must be prepared again and receive approval for the
+new digest; do not patch old plans or migrate approvals. Existing `PARTIAL`
+checkpoints remain intact and use matching-version recovery. Evidence v1 stays
+read-only; v2 uses a closed top level with phase extensions in `details`.
+Summaries and recovery suggestions are diagnostic, never publication authority.
+
+This version excludes R-02 safe full-tree inventory, R-05 Hook cache v2,
+R-10 historical-release verification implementation, real Kimi/WorkBuddy
+production gates, and an Audit public offline release-record verifier.
+Foundation dependencies are pinned to the three released 0.12.0 packages.
+State writes, baseline replacement, temporary workspaces, and README result
+reads and digests reuse existing Foundation APIs. Harness source is unchanged
+between 0.11.0 and 0.12.0; candidate host verification does not replace
+production gates or three-role README acceptance.
+Foundation's candidate `runHostVerification` and `verifyHostVerificationBindings`
+APIs do not decide domain PASS/FAIL, isolate authentication, freeze model identity,
+or disable host tools. The executable digest is only a pre-launch observation;
+member snapshots cover only declared members at the two observation times.
+This scope summary is not a remote publication record or a consumer upgrade instruction.
 
 <!-- release-skill:maturity:distribute-v1 -->
 <!-- release-skill:capability:distribute -->
@@ -136,6 +178,8 @@ No configuration or migration is required. Existing release-run files remain val
 
 ## Quick start
 
+A release unit is a release object with independently configured version, public files, and distribution targets.
+
 ### Install
 
 - Node.js 22+, Git 2.30+, a target Git repository with at least one commit.
@@ -180,6 +224,8 @@ paths and resumes safely, so a normal run needs at most one human gate: the
 frozen plan approval. `ship` runs configured hooks and verification gates
 automatically. Kimi/CodeBuddy installations are non-blocking post-release
 manual tasks; the system does not verify their completion.
+
+A release plan is a record for review before approval, linking target versions, frozen artifacts, and proposed external actions; see the [human review and approval steps](#release-plan-review).
 
 ```bash
 release-skill ship --root "$PROJECT" --target-version 1.2.3 --json
@@ -262,6 +308,13 @@ ACTOR=your-name
    foundation profile is one proposal input among several and never
    auto-applies.
    See [INSTALL.md](INSTALL.md#first-use-setup) for the full multi-step flow.
+   **Adoption assessment (read-only):** for an already-configured project,
+   `setup --assess-adoption` reports satisfied items, mandatory gaps, optional
+   suggestions, and not-applicable items without writing anything; a
+   not-yet-configured project returns `NOT_CONFIGURED` with a pointer to
+   first-time setup. Hook-duration suggestions are derived only from events
+   produced by the current version; the tool never guesses or writes
+   `cacheInputs` for a project.
 3. **assess** — read-only readiness:
    ```bash
    "${CLI[@]}" assess --root "$PROJECT" --offline --json
@@ -270,7 +323,7 @@ ACTOR=your-name
    ```bash
    "${CLI[@]}" prepare --root "$PROJECT" --offline --json
    ```
-5. **Human review:** inspect `planPath`, `externalActions`, `targetVersion`, and `planDigest`.
+5. <a id="release-plan-review"></a>**Human review:** inspect `planPath`, `externalActions`, `targetVersion`, and `planDigest`.
 6. **prepare --production** — freeze the production plan:
    ```bash
    PLAN_JSON=$("${CLI[@]}" prepare --root "$PROJECT" --online --production --json)
@@ -283,6 +336,14 @@ ACTOR=your-name
      --actor "$ACTOR" --json)
    APPROVAL_PATH=$(printf '%s\n' "$APPROVAL_JSON" | jq -r '.approvalPath')
    ```
+   Approval binds the plan digest (`planDigest`), each release unit's target version,
+   and the approved action set. Changes to these bindings require a new approval.
+
+   `planVersion: 2` binds the frozen artifacts, configuration, and actions through the digest.
+   Workspace baseline drift is record-layer audit data and does not by itself invalidate
+   approval; frozen artifacts must still be reverified before publishing.
+   `planVersion: 1` retains the legacy binding, including the workspace baseline.
+
    `--actor` is an unauthenticated local audit string. It is not identity
    verification, a signature, or proof that a particular human approved the plan;
    use an external authenticated approval system when that assurance is required.
@@ -467,13 +528,36 @@ releaseUnits:
       - from: packages/plugin/package.json
         to: package.json
         mode: preserve
-    requiredPublicFiles: [package.json]
+      - from: packages/plugin/.claude-plugin/marketplace.json
+        to: .claude-plugin/marketplace.json
+        mode: preserve
+      - from: packages/plugin/.claude-plugin/plugin.json
+        to: .claude-plugin/plugin.json
+        mode: preserve
+      - from: packages/plugin/skills/my-plugin-help/SKILL.md
+        to: skills/my-plugin-help/SKILL.md
+        mode: preserve
+    requiredPublicFiles:
+      - package.json
+      - .claude-plugin/marketplace.json
+      - .claude-plugin/plugin.json
+      - skills/my-plugin-help/SKILL.md
     previousPublicBaseline:
       mode: none
     production:
       branchTemplate: release/{tag}
       branchStrategy: create-release-branch
 ```
+
+This example places the plugin at the snapshot root. Create the four mapped source files
+under `packages/plugin` before preparing:
+
+- In `.claude-plugin/marketplace.json`, name the marketplace `my-plugin` and set its `my-plugin` entry's `source` to `"./"`.
+- In `.claude-plugin/plugin.json`, set `name` to `my-plugin`, match `version` to `package.json`, and set `skills` to `"./skills/"`.
+- The entry file is `skills/my-plugin-help/SKILL.md`, with frontmatter `name: my-plugin-help`.
+
+This minimal Skill references no other files; map any
+required resources explicitly if references are added.
 
 Add a gate to the extracted `recommendedAnswers` by editing `verificationGates`
 and binding the same id in `selectedGateIds`:
@@ -605,7 +689,7 @@ append-only incremental flow is described in the setup step above and in
 ## Skills
 
 - `release-help`: environment check and next-step guidance.
-- `release-setup`: read-only discovery, human calibration, and create-once configuration.
+- `release-setup`: read-only discovery, human calibration, create-once configuration, and read-only adoption assessment (`setup --assess-adoption`).
 - `release-assess`: read-only release readiness report.
 - `release-prepare`: local snapshot and reviewable release plan.
 - `release-publish`: approved frozen GitHub+npm publishing; the internal digest is checked automatically.
@@ -648,6 +732,7 @@ the first minimal semantic boundary, so the static gate fails closed until the
 declaration is narrowed to concrete targets.
 
 <!-- release-skill:capability:unsupported-scope -->
+- **not in the current version:** Hook cache v2 (executor-identity receipts, R-05) — the current version keeps the v1 content-bound hook cache and never imports old run evidence; full consumer install-tree scanning (R-02) — only declared files are verified byte-for-byte; and a real-host (Kimi/WorkBuddy) verification gate — host verification stays a design and can never produce `PASS`/`VERIFIED` in this version;
 - no automatic README generation or source-file overwrite;
 - no automatic conflict merge or rollback workflow;
 - no claim that a real production canary has run for marketplace verification;

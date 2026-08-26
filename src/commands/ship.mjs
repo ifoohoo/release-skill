@@ -1,5 +1,6 @@
-import { readFile, lstat, mkdir, rename, rm, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { readFile, lstat, mkdir } from 'node:fs/promises';
+import { basename, dirname, resolve } from 'node:path';
+import { publishFileOrReplace } from 'skill-family-harness-node';
 
 import { canonicalJson, sha256Hex } from '../core/digest.mjs';
 import { effectiveHookRequiresApproval } from '../core/postpublish.mjs';
@@ -12,23 +13,14 @@ import {
 
 async function writeJsonAtomic(path, value) {
   await mkdir(dirname(path), { recursive: true });
-  const temp = `${path}.${process.pid}.${Date.now()}.tmp`;
   const { stateDigest: _oldDigest, ...body } = value;
   const sealed = {
     ...body,
     stateDigest: sha256Hex(canonicalJson(body)),
   };
-  try {
-    await writeFile(temp, `${JSON.stringify(sealed, null, 2)}\n`, {
-      encoding: 'utf8',
-      mode: 0o600,
-      flag: 'wx',
-    });
-    await rename(temp, path);
-  } catch (error) {
-    await rm(temp, { force: true }).catch(() => {});
-    throw error;
-  }
+  await publishFileOrReplace(dirname(path), basename(path), `${JSON.stringify(sealed, null, 2)}\n`, {
+    mode: 0o600,
+  });
 }
 
 async function readState(path) {

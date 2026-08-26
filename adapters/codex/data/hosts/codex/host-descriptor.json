@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.host-descriptor",
+  "hostId": "codex",
+  "displayName": "Codex",
+  "support": "supported",
+  "maturity": "stable",
+  "sourceAliases": [
+    "openai-codex"
+  ],
+  "driverId": "codex-version-v1",
+  "adapterFormat": "skill-directory-v1",
+  "verification": {
+    "driverId": "codex-exec-v1",
+    "authStrategy": "existing-user-state",
+    "credentialMutation": "host-managed"
+  },
+  "pathCategories": [
+    {
+      "id": "codex-user-skills",
+      "role": "skill-root",
+      "scope": "user",
+      "anchor": "user-home",
+      "relPath": ".agents/skills"
+    },
+    {
+      "id": "codex-project-skills",
+      "role": "skill-root",
+      "scope": "project",
+      "anchor": "project-root",
+      "relPath": ".agents/skills"
+    }
+  ],
+  "probeCapabilities": [
+    "cli",
+    "version",
+    "payload",
+    "registry",
+    "discover",
+    "enabled",
+    "reload",
+    "smoke",
+    "uninstall"
+  ]
+}

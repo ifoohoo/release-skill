@@ -1,6 +1,7 @@
-import { lstat, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { lstat, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import YAML from 'yaml';
+import { replaceFileAtomic } from 'skill-family-harness-node';
 
 import { ReleaseError, CONFIG_INVALID, GATE_FAILED } from './errors.mjs';
 
@@ -89,17 +90,12 @@ export async function updatePreviousPublicBaselines(options = {}) {
   if (nextRaw === configRaw) {
     return { status: 'UNCHANGED', configPath, units: updates };
   }
-  const tempPath = `${configPath}.${process.pid}.${Date.now()}.tmp`;
   try {
-    await writeFile(tempPath, nextRaw, {
-      encoding: 'utf8',
+    await replaceFileAtomic(root, '.release-skill/project.yaml', nextRaw, {
       mode: configStat.mode & 0o777,
-      flag: 'wx',
     });
-    await rename(tempPath, configPath);
   } catch (error) {
-    await rm(tempPath, { force: true }).catch(() => {});
-    throw new ReleaseError(CONFIG_INVALID, `cannot update project release metadata: ${error.message}`);
+    throw new ReleaseError(CONFIG_INVALID, `cannot update project release metadata: ${error.message}`, error.details);
   }
   return { status: 'UPDATED', configPath, units: updates };
 }

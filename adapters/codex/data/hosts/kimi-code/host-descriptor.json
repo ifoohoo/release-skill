@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.host-descriptor",
+  "hostId": "kimi-code",
+  "displayName": "Kimi Code",
+  "support": "manual",
+  "maturity": "manual",
+  "verification": {
+    "driverId": "kimi-code-print-v1",
+    "authStrategy": "existing-user-state",
+    "credentialMutation": "host-managed"
+  },
+  "sourceAliases": [
+    "kimi"
+  ],
+  "pathCategories": [
+    {
+      "id": "plugin-adapter-skill-root",
+      "role": "skill-root",
+      "scope": "project",
+      "anchor": "project-root",
+      "relPath": "skills"
+    }
+  ],
+  "probeCapabilities": [
+    "cli",
+    "version",
+    "payload",
+    "registry",
+    "discover",
+    "enabled",
+    "reload",
+    "smoke",
+    "uninstall"
+  ]
+}

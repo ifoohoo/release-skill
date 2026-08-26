@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/project-manifest.json",
+  "title": "ProjectManifest",
+  "description": "Declares one Skill Family project adopting the contracts: stable identity, the contracts version and profile it uses, and the managed files owned by generators.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "project", "contracts"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.project-manifest"
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Stable kebab-case project identifier."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable project name."
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "profile"],
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "Contracts version the project adopts."
+        },
+        "profile": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Identifier of the profile the project uses."
+        }
+      }
+    },
+    "managedFiles": {
+      "type": "array",
+      "description": "Relative POSIX paths of managed files owned by generators. Path containment beyond shape (escape, traversal) is a mechanism concern owned by the harness.",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+      }
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 date-time of the last manifest update; format enforcement is part of the contracts dialect support."
+    }
+  }
+}

@@ -1,0 +1,211 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.licensing-profile-registry",
+  "profiles": [
+    {
+      "schemaVersion": 1,
+      "kind": "skill-family.licensing-profile",
+      "profile": {
+        "id": "open-source",
+        "name": "Open Source",
+        "variant": "default"
+      },
+      "licensing": {
+        "spdx": "Apache-2.0",
+        "noticeRequired": true,
+        "copyrightStrategy": "company",
+        "copyrightYear": 2026
+      },
+      "identity": {
+        "authors": [
+          {
+            "id": "guangzhou-fenghe",
+            "displayName": "广州市风荷科技有限公司",
+            "role": "author"
+          }
+        ],
+        "displayValue": "广州市风荷科技有限公司",
+        "ownerSeparation": {
+          "required": true,
+          "deriveOwnerFromAuthor": false
+        }
+      },
+      "preservation": {
+        "notice": "preserve",
+        "thirdPartyLicenses": "preserve",
+        "historicalCopyright": "preserve",
+        "unresolvedHistoricalAction": "report-only"
+      },
+      "commercial": {
+        "enabled": false,
+        "triggerCondition": "explicit-decision-only"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "skill-family.licensing-profile",
+      "profile": {
+        "id": "marketplace",
+        "name": "Marketplace",
+        "variant": "default"
+      },
+      "licensing": {
+        "spdx": "MIT",
+        "noticeRequired": false,
+        "copyrightStrategy": "company",
+        "copyrightYear": 2026
+      },
+      "identity": {
+        "authors": [
+          {
+            "id": "guangzhou-fenghe",
+            "displayName": "广州市风荷科技有限公司",
+            "role": "author"
+          }
+        ],
+        "displayValue": "广州市风荷科技有限公司",
+        "ownerSeparation": {
+          "required": true,
+          "deriveOwnerFromAuthor": false
+        }
+      },
+      "preservation": {
+        "notice": "preserve",
+        "thirdPartyLicenses": "preserve",
+        "historicalCopyright": "preserve",
+        "unresolvedHistoricalAction": "report-only"
+      },
+      "commercial": {
+        "enabled": false,
+        "triggerCondition": "explicit-decision-only"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "skill-family.licensing-profile",
+      "profile": {
+        "id": "fictional-collective",
+        "name": "Fictional Collective (Community)",
+        "variant": "community"
+      },
+      "licensing": {
+        "spdx": "Apache-2.0",
+        "noticeRequired": true,
+        "copyrightStrategy": "company-and-contributors",
+        "copyrightYear": 2026
+      },
+      "identity": {
+        "authors": [
+          {
+            "id": "fictional-author-alpha",
+            "displayName": "Fictional Author Alpha",
+            "role": "author"
+          },
+          {
+            "id": "fictional-author-beta",
+            "displayName": "Fictional Author Beta",
+            "role": "author"
+          }
+        ],
+        "displayValue": "Fictional Author Alpha and Fictional Author Beta",
+        "ownerSeparation": {
+          "required": true,
+          "deriveOwnerFromAuthor": false
+        }
+      },
+      "preservation": {
+        "notice": "preserve",
+        "thirdPartyLicenses": "preserve",
+        "historicalCopyright": "preserve",
+        "unresolvedHistoricalAction": "report-only"
+      },
+      "commercial": {
+        "enabled": false,
+        "triggerCondition": "explicit-decision-only"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "skill-family.licensing-profile",
+      "profile": {
+        "id": "fictional-collective",
+        "name": "Fictional Collective (Marketplace)",
+        "variant": "marketplace"
+      },
+      "licensing": {
+        "spdx": "MIT",
+        "noticeRequired": false,
+        "copyrightStrategy": "company-and-contributors",
+        "copyrightYear": 2026
+      },
+      "identity": {
+        "authors": [
+          {
+            "id": "fictional-author-alpha",
+            "displayName": "Fictional Author Alpha",
+            "role": "author"
+          },
+          {
+            "id": "fictional-author-beta",
+            "displayName": "Fictional Author Beta",
+            "role": "author"
+          }
+        ],
+        "displayValue": "Fictional Author Alpha and Fictional Author Beta",
+        "ownerSeparation": {
+          "required": true,
+          "deriveOwnerFromAuthor": false
+        }
+      },
+      "preservation": {
+        "notice": "preserve",
+        "thirdPartyLicenses": "preserve",
+        "historicalCopyright": "preserve",
+        "unresolvedHistoricalAction": "report-only"
+      },
+      "commercial": {
+        "enabled": false,
+        "triggerCondition": "explicit-decision-only"
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "kind": "skill-family.licensing-profile",
+      "profile": {
+        "id": "open-core-commercial",
+        "name": "Open Core Commercial",
+        "variant": "default"
+      },
+      "licensing": {
+        "spdx": "MIT",
+        "noticeRequired": false,
+        "copyrightStrategy": "company",
+        "copyrightYear": 2026
+      },
+      "identity": {
+        "authors": [
+          {
+            "id": "guangzhou-fenghe",
+            "displayName": "广州市风荷科技有限公司",
+            "role": "author"
+          }
+        ],
+        "displayValue": "广州市风荷科技有限公司",
+        "ownerSeparation": {
+          "required": true,
+          "deriveOwnerFromAuthor": false
+        }
+      },
+      "preservation": {
+        "notice": "preserve",
+        "thirdPartyLicenses": "preserve",
+        "historicalCopyright": "preserve",
+        "unresolvedHistoricalAction": "report-only"
+      },
+      "commercial": {
+        "enabled": false,
+        "triggerCondition": "explicit-first-commercial-feature-decision"
+      }
+    }
+  ]
+}

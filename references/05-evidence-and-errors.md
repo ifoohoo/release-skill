@@ -46,44 +46,56 @@
 
 ## 2. JSON/JSONL 事件格式
 
-### 2.1 事件结构
+每次执行产生 JSONL 格式的事件流（`evidence.jsonl`），每个事件为一行 JSON 对象。0.8.0 起所有新事件使用 **evidence v2**（`schemas/evidence-event-v2.schema.json`）；v1 schema（`evidence-event.schema.json`）只按 legacy 读取，不用于新写入，也不改写历史文件。
 
-每次执行产生 JSONL 格式的事件流，每个事件为一行 JSON 对象。
+### 2.1 事件结构（v2）
+
+v2 的顶层结构封闭（`additionalProperties: false`），只接受 Schema 声明的信封、阶段、错误、耗时和 `details` 字段。`phase`、`status`、`error.code` 保留开放字符串词汇；`command` 使用 Schema 的命令枚举，不能任意扩展。
+
+阶段扩展信息放在 `details` 中。writer（证据写入器）把调用方传入的未知顶层扩展键归入 `details`，再统一校验和脱敏；直接写入磁盘的事件不能含未知顶层字段。
+
+`details` 允许扩展键，但已声明字段仍受类型约束：定位字段为字符串，`cached` 为布尔值，`exitCode` 为整数，`durationMs` 为非负整数或 `null`。结构非法时拒绝写入，不能用开放词汇绕过类型检查。
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "runId": "<uuid>",
   "sequence": 1,
   "timestamp": "2026-07-15T12:00:00.000Z",
   "command": "prepare",
+  "producer": { "name": "release-skill", "version": "0.8.0" },
   "phase": "baseline",
   "status": "started",
   "error": null
 }
 ```
 
-### 2.2 必填字段
+### 2.2 必填字段（v2 信封）
+
+信封字段由 writer 拥有，调用方不得覆盖；试图伪造信封字段的事件在写入前失败关闭。
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `schemaVersion` | 整数 | 事件格式版本，当前为 1 |
-| `runId` | 字符串 | 本次执行的唯一标识（UUID） |
-| `sequence` | 整数 | 事件在本次执行中的序号，从 1 开始递增 |
+| `schemaVersion` | 整数 | 事件格式版本，当前为 2 |
+| `runId` | 字符串 | 本次执行的唯一标识（运行目录名，UUID） |
+| `sequence` | 整数 | 事件在本次执行中的真实序号，从 1 开始递增；`append()` 返回实际分配的序号 |
 | `timestamp` | 字符串 | ISO 8601 格式的 UTC 时间 |
-| `command` | 字符串 | 触发命令名（assess、prepare、publish、reconcile、verify） |
-| `phase` | 字符串 | 当前执行阶段标识 |
-| `status` | 字符串 | 状态值：`started`、`succeeded`、`failed`、`skipped` |
+| `command` | 字符串 | 触发命令名（assess、prepare、publish、reconcile、verify、distribute、postverify 等） |
+| `phase` | 字符串 | 当前执行阶段标识（开放词汇） |
+| `status` | 字符串 | 状态值：`started`、`succeeded`、`failed`、`skipped`（开放词汇） |
+| `producer` | 对象 | `{ name, version }`，只用于归因；不参与批准、发布真实性或防篡改判断 |
 
 ### 2.3 可选字段
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `error` | 对象或 null | 失败时包含错误详情：`{ "code": "<ERROR_CODE>", "message": "<中文摘要>" }` |
-| `duration` | 整数 | 阶段耗时（毫秒） |
-| `details` | 对象 | 阶段特定的补充信息 |
+| `error` | 对象或 null | 失败诊断，只允许 `code`、`message`；写入前规范化，数字退出码如 Git 128 记为 `EXIT_128`，保留原始原因 |
+| `duration` | 非负整数 | 阶段耗时（毫秒） |
+| `details` | 对象 | 阶段补充信息；扩展键开放，已声明字段受类型约束 |
 
 ### 2.4 摘要输出
+
+`summary.json` 只是 evidence 的有界诊断投影：它必须可由 `evidence.jsonl` 重建，**不参与发布事实判断**。`route` 等发布判断只消费经过 Schema、摘要与血缘校验的 `release-run.json`；summary 丢失、损坏或被改写不能改变发布状态。
 
 每次执行结束时产生一个面向用户的中文摘要，包含：
 
@@ -91,6 +103,36 @@
 - 每个阶段的执行结果。
 - 失败的错误码和建议恢复方式。
 - 关键产物路径（发布计划、证据目录、批准记录）。
+
+失败摘要（`status: FAILED`）额外写入有上限的定位字段：
+
+| 字段 | 说明 |
+|---|---|
+| `stablePhase` | 第一个 failed 状态事件的实际阶段；无事件时回退为最后阶段或 `unknown` |
+| `evidencePath` | 证据流相对位置（`evidence.jsonl`），诊断指针 |
+| `failedUnitId` / `failedHook` / `failedAction` | 首个失败事件中的单元、Hook 或动作定位；无法确定时为 `unknown` |
+| `evidenceSequence` | 对应事件的真实序号；没有失败事件时为 `null` |
+| `producer` | 生产者名称和版本，只用于归因 |
+| `recoveryActionCode` | 恢复建议码（见下），只供展示；不持久化可执行 shell 命令字符串 |
+
+恢复建议以本次 `readRunRecovery` 对运行、计划、血缘、检查点和批准的校验结果为准，不能只按成功检查点数量判断阶段。冲突、认证未知或批准问题优先诊断；没有证据或旧生产者输入返回 `unknown`。
+
+0.8.0 候选已接齐恢复建议输出，仍待独立验收，尚未发布。有本次证据且 FAILED 摘要收到明确的领域建议时，顶层采用同一次计算结果。兼容 `details` 和返回错误如保留建议，只镜像同一结果。未提供领域建议时保留原通用回退，无证据时仍为 `unknown`，成功 verify 的 `null` 不得改成重试建议。不得从磁盘摘要或历史 `details` 反向读取授权事实。
+
+恢复动作码值域：
+
+| 动作码 | 含义 |
+|---|---|
+| `RECONCILE` | 已校验的 publish/reconcile 部分完成且可安全恢复；核对远端状态，跳过已成功步骤 |
+| `DISTRIBUTE` | 已发布但缺必要分发，或已校验的分发运行可恢复 |
+| `VERIFY` | 分发要求已满足，或验证失败但发布源仍合法；继续发布后验证 |
+| `DIAGNOSE` | 冲突、认证未知、批准问题或权威不足，先人工诊断 |
+| `FIX_CONFIG` | 修正配置后重试同一阶段 |
+| `FIX_HOOK` | 修正声明的 hook 后重试 |
+| `FIX_AUTH` | 通用回退中的凭据修复分类；领域冲突、认证或批准问题仍优先 `DIAGNOSE` |
+| `RESOLVE_LOCK` | 锁冲突：显示 owner 与精确人工恢复参数（`artifacts break-lock --owner ... --reason ...`）；系统不推断进程生死，也不自动删除锁 |
+| `RETRY_COMMAND` | 修复原因后重试同阶段（无外部写入时） |
+| `unknown` | 无法归因的失败 |
 
 ---
 
@@ -105,10 +147,9 @@
 | `startedAt` | 开始时间（ISO 8601） |
 | `finishedAt` | 结束时间（ISO 8601） |
 | `exitCode` | 退出码 |
-| `stdout` | 标准输出引用（脱敏后存储，见第 4 节） |
-| `stderr` | 标准错误引用（脱敏后存储，见第 4 节） |
+| `stdoutTail` / `stderrTail` | Hook 输出的有界尾部（脱敏后存储，见第 4 节） |
 
-验证 gate 不保存原始 stdout/stderr；证据仅记录命令数组、相对 cwd、时间、exit code、字节数、SHA-256 摘要和结构化裁决，避免把项目命令输出中的凭证复制进证据。
+验证 gate 不保存原始 stdout/stderr；证据仅记录命令数组、相对 cwd、时间、exit code、字节数、SHA-256 摘要和结构化裁决，避免把项目命令输出中的凭证复制进证据。Hook 输出沿用有界尾部（`stdoutTail`、`stderrTail`），不创建第二份输出文件。
 
 ---
 
@@ -129,11 +170,15 @@
 | 模式 | 脱敏方式 |
 |---|---|
 | 键名匹配 `/token\|secret\|password\|authorization\|cookie/i` | 值替换为 `<REDACTED>` |
-| 值以 `ghp_` 开头 | 替换为 `<REDACTED_GITHUB_TOKEN>` |
-| 值以 `github_pat_` 开头 | 替换为 `<REDACTED_GITHUB_PAT>` |
-| 值以 `npm_` 开头 | 替换为 `<REDACTED_NPM_TOKEN>` |
-| 值以 `AKIA` 开头 | 替换为 `<REDACTED_AWS_KEY>` |
+| 字符串中匹配 `ghp_` 凭据形状 | 每处匹配均脱敏，包括消息中部和同一字符串的多处凭据 |
+| 字符串中匹配 `github_pat_` 凭据形状 | 每处匹配均脱敏 |
+| 字符串中匹配 `npm_` 凭据形状 | 每处匹配均脱敏；普通 `npm_config_*` 配置名不按凭据处理 |
+| 字符串中匹配 `AKIA` 凭据形状 | 每处匹配均脱敏 |
 | 匹配私钥头尾标记 | 整段替换为 `<REDACTED_PRIVATE_KEY>` |
+| 内嵌 URL userinfo（`https://user:pass@host/...`） | 在字符串处理前剥离凭据段 |
+| 绝对文件系统路径（本机路径，含用户主目录） | 替换为 `<redacted-path>`；发布身份数据保持相对形式 |
+
+脱敏在写入点统一组合（证据流与摘要同一套规则），不存在第三套 sanitizer。证据、summary 与诊断数组中的本机绝对路径和凭据均不得外泄。
 
 ### 4.3 错误信息脱敏
 
@@ -143,64 +188,50 @@
 
 ## 5. 证据目录结构
 
-每次执行产生一个证据目录，位于 `.release-skill/runs/<runId>/`。
+每次执行产生一个证据目录，位于 `.release-skill/runs/<runId>/`。目录结构按命令类型略有差异：
 
 ```text
-.runs/<runId>/
-├── events.jsonl              # JSONL 事件流
-├── summary.json              # 执行摘要
-├── commands/                 # 命令执行记录
-│   ├── 001-build.json
-│   ├── 002-test.json
-│   └── ...
-├── plan/                     # 发布计划相关
-│   ├── release-plan.json     # 冻结的发布计划
-│   └── plan-digest.txt       # 计划摘要
-├── baseline/                 # 基线快照
-│   ├── baseline.json         # Git HEAD、tree hash、dirty 文件
-│   └── snapshot-manifest.json
-├── approval/                 # 批准记录（存在时）
-│   └── approval-record.json
-└── verify/                   # 验证结果（存在时）
-    └── verify-report.json
+.release-skill/runs/<runId>/
+├── evidence.jsonl            # JSONL 事件流（v2 信封，追加写入）
+├── summary.json              # 有界诊断投影（可重建，非事实源）
+├── release-run.json          # 经 Schema、摘要与血缘校验的运行记录（发布判断事实源；publish/reconcile/distribute/postverify 产生）
+├── states/                   # 外部检查点状态台账（不可变写集，stateSequence 递增）
+├── git/                      # prepare：冻结 Git 对象（拆分公开仓与 postverify 共用）
+├── snapshots/                # prepare：公开文件隔离快照
+├── tarballs/                 # prepare：npm 载荷 tarball
+├── consumers/                # verify：消费者安装验证结果
+└── evidence/                 # verify：消费者验证证据
 ```
+
+冻结计划存放在 `.release-skill/plans/<planDigest>.json`；批准记录存放在 `.release-skill/approvals/<planDigest>/<approvalDigest>.json`，均不在运行目录内。
 
 ### 5.1 文件保留
 
 - 证据目录在执行完成后不得被自动删除。
-- `events.jsonl` 为追加写入，不得在执行过程中被截断。
-- `summary.json` 在执行结束时原子写入。
-- 命令记录在每个命令完成后立即写入。
+- `evidence.jsonl` 为追加写入，不得在执行过程中被截断。
+- `summary.json` 在执行结束时原子写入（writer 单次封口：`finish()` 只能成功一次，封口后 append/finish 均为 no-op；正常命令的成功与失败路径都必须封口）。
+- `states/` 台账为不可变写集：外部检查点成功后立即记账，失败时保留 `PARTIAL` 状态，reconcile 据此跳过已成功步骤。
 
 ### 5.2 引用与存储
 
-- 大型输出（如 stdout/stderr 完整内容）存储在 `commands/` 下的独立文件中。
-- 事件和摘要中通过相对路径引用命令记录文件。
+- Hook 输出只保留脱敏后的有界尾部（`stdoutTail`、`stderrTail`），完整输出不进入证据。
+- 事件和摘要中通过相对路径引用证据文件。
 - 存储的输出内容经过第 4 节脱敏规则处理。
 
-### 5.3 分发证据
+### 5.3 外部检查点证据
 
-postPublish 阶段的 distribute action 产生独立的证据目录：
-
-```text
-.runs/<runId>/
-└── distribute/
-    ├── <actionId>-preflight.json   # preflight 验证结果
-    ├── <actionId>-execute.json     # execute 观察结果
-    ├── <actionId>-observe.json     # observe 状态确认
-    └── <actionId>-verify.json      # verify 最终验证
-```
-
-每个 JSON 文件包含：
+publish/reconcile/distribute/postverify 的外部写入步骤在 `states/` 中逐个记账，每个状态记录包含：
 
 | 字段 | 类型 | 说明 |
 |---|---|---|
-| `actionId` | 字符串 | 动作唯一标识 |
-| `actionType` | 字符串 | "distribute-mirror" / "distribute-marketplace-index" |
-| `status` | 字符串 | NO_CHANGE / PENDING / DISTRIBUTING / DISTRIBUTED / VERIFIED / EXECUTE_FAILED |
-| `observation` | 对象 | 阶段特定观察数据（pushedCommit, tagOid, payloadFileCount 等） |
-| `details.code` | 字符串 | 失败时包含错误码（REMOTE_CONFLICT, AUTH_MISSING 等） |
-| `timestamp` | 字符串 | ISO 8601 UTC 时间戳 |
+| `runId` | 字符串 | 本次执行运行目录名 |
+| `command` | 字符串 | 触发命令名 |
+| `status` | 字符串 | NO_CHANGE / PENDING / DISTRIBUTING / DISTRIBUTED / VERIFIED / EXECUTE_FAILED 等 |
+| `planDigest` | 字符串 | 绑定计划的摘要 |
+| `sourceRunId` | 字符串 | 来源 publish 运行的 `release-run.json`（血缘） |
+| `stateSequence` | 整数 | 状态台账递增序号 |
+| `checkpoints` | 数组 | 外部检查点执行结果（actionId、状态、远端观察等） |
+| `runDigest` | 字符串 | 状态记录自身摘要 |
 
 checkpoint 状态语义：
 
@@ -210,7 +241,7 @@ checkpoint 状态语义：
 
 计划变更后的恢复流程：
 
-- PARTIAL 状态下 reconcile 读取已有的 distribute/*.json 文件重建状态。
+- PARTIAL 状态下 reconcile 读取 `states/` 台账与 `release-run.json` 重建状态。
 - 对于已成功的 checkpoint (DISTRIBUTED)，跳过该步骤；仅重试未完成或未达标的检查点。
 - remote state 冲突（如 tag move）必须人工决策，不得自动修复。
 

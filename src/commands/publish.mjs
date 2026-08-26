@@ -27,6 +27,8 @@
 
 import { readFile, mkdir } from 'node:fs/promises';
 import { isAbsolute, join, relative } from 'node:path';
+import { PLATFORMS } from '../platforms/registry.mjs';
+import { deriveSurfaceHostBinding, pluginRootFromManifestRelativePath } from '../core/surface-host-bindings.mjs';
 
 import { assertImmutablePlanAuthority, computePlanDigest, validatePlan, validatePlanActionCompleteness } from '../core/plan.mjs';
 import {
@@ -40,7 +42,7 @@ import {
   assertPreviousPublicBaselineTarget,
   reObservePreviousPublicBaseline,
 } from '../core/previous-public-baseline.mjs';
-import { createEvidenceWriter } from '../core/evidence.mjs';
+import { asError, createEvidenceWriter } from '../core/evidence.mjs';
 import {
   CHECKER_VERSION as SKILL_RESOURCE_CHECKER_VERSION,
   assertSkillResourceClosureReceipt,
@@ -56,6 +58,7 @@ import {
   isMarketplaceAction,
 } from '../core/checkpoints.mjs';
 import { appendRunState, createProductionRunDir, writeRunAtomic, resolveDefaultRunDir } from '../core/run.mjs';
+import { readRunRecovery } from '../core/recovery.mjs';
 import {
   ReleaseError,
   GATE_FAILED,
@@ -386,7 +389,7 @@ async function executeCheckpoint(action, adapterRegistry, context) {
         missing: info.missing,
         delayMs: info.delayMs,
         status: info.missing ? 'propagating' : 'resolved',
-        error: info.error ?? null,
+        error: asError('OBSERVE_ERROR', info.error),
       }),
     });
     observeResult = retryOutcome.result;
@@ -505,6 +508,7 @@ export async function publishRelease(options) {
   }
 
   const evidence = createEvidenceWriter({ runDir, command: 'publish', clock: clockFn });
+  let recoveryRunPath = null;
 
   try {
     // =======================================================================
@@ -647,9 +651,31 @@ export async function publishRelease(options) {
         if (!expected) {
           throw new ReleaseError(GATE_FAILED, `skill resource closure receipt missing for unit "${unitId}"`);
         }
+        // R-13: re-derive the host surface bindings from the frozen plan's
+        // installation contracts (manifest skills path + manifest relative
+        // path) so the recheck marks surface hosts identically to prepare.
+        // P1: the same derivation rule verifies the manifest-declared skills
+        // directory against the verified frozen snapshot.
+        const surfaceHostBindings = [];
+        const frozenUnit = (plan.units ?? []).find((u) => u.id === unitId);
+        for (const dist of frozenUnit?.distributions ?? []) {
+          const platform = PLATFORMS.find((p) => p.distributionType === dist.type);
+          if (!platform) continue;
+          const contract = dist.installationContract;
+          if (!contract?.normalizedManifest) continue;
+          const pluginRoot = pluginRootFromManifestRelativePath(contract.manifestRelativePath);
+          const binding = await deriveSurfaceHostBinding({
+            manifest: contract.normalizedManifest,
+            pluginRoot,
+            platform,
+            snapshotDir,
+          });
+          if (binding) surfaceHostBindings.push(binding);
+        }
         const closureResult = await checkSkillResourceClosure({
           snapshotDir,
           host: 'root',
+          surfaceHostBindings,
         });
         if (closureResult.findings.length > 0) {
           await evidence.append({
@@ -873,7 +899,7 @@ export async function publishRelease(options) {
               gate: "previous-public-baseline",
               unitId: unit.id,
               status: "failed",
-              error: "missing previousPublicBaseline on unit",
+              error: asError('MISSING_PREVIOUS_PUBLIC_BASELINE', "missing previousPublicBaseline on unit"),
             });
             throw new ReleaseError(
               GATE_FAILED,
@@ -911,7 +937,7 @@ export async function publishRelease(options) {
             unitId: unit.id,
             status: "failed",
             unitStatus: unitPpb.status,
-            error: `unit "${unit.id}" previous public baseline status is "${unitPpb.status}", expected "consistent"`,
+            error: asError('PPB_STATUS_UNEXPECTED', `unit "${unit.id}" previous public baseline status is "${unitPpb.status}", expected "consistent"`),
           });
           throw new ReleaseError(
             GATE_FAILED,
@@ -940,7 +966,7 @@ export async function publishRelease(options) {
             gate: "previous-public-baseline",
             unitId: unit.id,
             status: "failed",
-            error: reObserveResult.error,
+            error: asError('PPB_REOBSERVE_FAILED', reObserveResult.error),
           });
           throw new ReleaseError(
             GATE_FAILED,
@@ -991,7 +1017,14 @@ export async function publishRelease(options) {
           phase: 'safety-gate',
           gate: 'source-authority',
           status: 'failed',
-          error: remoteResult.error,
+          // v2 evidence schema: error carries exactly {code, message}; the
+          // mismatch paths stay in details (diagnostic, never authority).
+          error: remoteResult.error
+            ? { code: remoteResult.error.code, message: remoteResult.error.message }
+            : null,
+          ...(remoteResult.error?.paths
+            ? { details: { mismatchPaths: remoteResult.error.paths } }
+            : {}),
         });
         throw new ReleaseError(
           errorCode,
@@ -1183,6 +1216,7 @@ export async function publishRelease(options) {
     });
     let stateSequence = 0;
     let latestState = await appendRunState(runDir, stateSequence, buildPersistedState());
+    recoveryRunPath = latestState.statePath;
 
     await evidence.append({
       phase: 'publish',
@@ -1230,12 +1264,13 @@ export async function publishRelease(options) {
           actionId: action.id,
           actionType: action.type,
           status: 'failed',
-          error: checkpoint.error,
+          error: asError('CHECKPOINT_FAILED', checkpoint.error),
         });
       }
       stopped = true;
       stateSequence += 1;
       latestState = await appendRunState(runDir, stateSequence, buildPersistedState(PARTIAL));
+      recoveryRunPath = latestState.statePath;
     }
 
     for (let tierIndex = 0; tierIndex < tiers.length && !stopped; tierIndex += 1) {
@@ -1260,6 +1295,7 @@ export async function publishRelease(options) {
       }
       stateSequence += 1;
       latestState = await appendRunState(runDir, stateSequence, buildPersistedState(PARTIAL));
+      recoveryRunPath = latestState.statePath;
 
       // --- Tier execute: concurrent, allSettled semantics (no fail-fast).
       const results = await Promise.all(tierActions.map(async (action) => {
@@ -1315,7 +1351,7 @@ export async function publishRelease(options) {
           actionId: action.id,
           actionType: action.type,
           status: result.status === 'SUCCEEDED' || result.status === 'SKIPPED' ? 'completed' : 'failed',
-          error: result.error,
+          error: asError('CHECKPOINT_FAILED', result.error),
           details: { tier: tierIndex, ...(result.status === 'SKIPPED' ? { skipped: true } : {}) },
         });
         // SKIPPED is a success (the remote was already consistent); it must not
@@ -1328,6 +1364,7 @@ export async function publishRelease(options) {
       // --- Tier end: one snapshot carrying the whole tier's results.
       stateSequence += 1;
       latestState = await appendRunState(runDir, stateSequence, buildPersistedState(PARTIAL));
+      recoveryRunPath = latestState.statePath;
 
       if (tierFailed) {
         stopped = true;
@@ -1378,7 +1415,7 @@ export async function publishRelease(options) {
               gate: 'final-branch-consistency',
               status: 'failed',
               actionId: action.id,
-              error: checkpoints[index].error,
+              error: asError('CHECKPOINT_FAILED', checkpoints[index].error),
             });
             break;
           }
@@ -1437,9 +1474,12 @@ export async function publishRelease(options) {
       runPath,
       buildPersistedState(overallStatus, finishedAt),
     );
+    recoveryRunPath = runPath;
+    const { recoveryActionCode } = await readRunRecovery(runPath, { planPath, clock: clockFn });
 
     await evidence.finish({
       status: overallStatus,
+      recoveryActionCode,
       planPath,
       runPath,
       finalRunDigest: finalRunState.runDigest,
@@ -1448,20 +1488,33 @@ export async function publishRelease(options) {
       finishedAt: clockFn(),
     });
 
-    return { planPath, runPath, status: overallStatus, checkpoints };
+    return { planPath, runPath, status: overallStatus, checkpoints, recoveryActionCode };
   } catch (err) {
-    await evidence.append({
-      phase: 'publish',
-      status: 'failed',
-      error: { code: err.code, message: err.message },
+    const { recoveryActionCode } = await readRunRecovery(recoveryRunPath, {
+      planPath, approvalPath, clock: clockFn, command: 'publish', error: err,
+      beforeCheckpoints: recoveryRunPath === null,
     });
-
-    await evidence.finish({
-      status: 'FAILED',
-      error: { code: err.code, message: err.message },
-      failedAt: clockFn(),
-    });
-
+    err.details = { ...err.details, recoveryActionCode };
+    // M1/M2: record the failure best-effort and always seal the stream; the
+    // original error must win. The writer normalizes the diagnostic fields
+    // (a numeric Git 128 stays EXIT_128 and is never replaced by a schema
+    // error), and the single-shot seal makes a second finish a no-op.
+    try {
+      await evidence.append({ phase: 'publish', status: 'failed', error: err, details: { recoveryActionCode } });
+    } catch {
+      // Failure evidence is best-effort; the seal below must never be skipped.
+    }
+    try {
+      await evidence.finish({
+        status: 'FAILED',
+        recoveryActionCode,
+        error: err,
+        details: { recoveryActionCode },
+        failedAt: clockFn(),
+      });
+    } catch {
+      // Failure summary is best-effort; never mask the primary failure.
+    }
     throw err;
   }
 }

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.host-descriptor",
+  "hostId": "codebuddy",
+  "displayName": "CodeBuddy",
+  "support": "manual",
+  "maturity": "manual",
+  "sourceAliases": [],
+  "pathCategories": [],
+  "probeCapabilities": [
+    "cli",
+    "version",
+    "payload",
+    "registry",
+    "discover",
+    "enabled",
+    "reload",
+    "smoke",
+    "uninstall"
+  ]
+}

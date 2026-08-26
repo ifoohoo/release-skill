@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.host-descriptor",
+  "hostId": "qoder",
+  "displayName": "Qoder",
+  "support": "manual",
+  "maturity": "manual",
+  "sourceAliases": [],
+  "verification": {
+    "driverId": "qodercli-print-v1",
+    "authStrategy": "existing-user-state",
+    "credentialMutation": "host-managed"
+  },
+  "pathCategories": [],
+  "probeCapabilities": [
+    "cli",
+    "version",
+    "payload",
+    "registry",
+    "discover",
+    "enabled",
+    "reload",
+    "smoke",
+    "uninstall"
+  ]
+}

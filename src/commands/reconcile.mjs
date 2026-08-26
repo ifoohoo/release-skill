@@ -38,7 +38,8 @@ import {
   assertPreviousPublicBaselineTarget,
   reObservePreviousPublicBaseline,
 } from '../core/previous-public-baseline.mjs';
-import { createEvidenceWriter } from '../core/evidence.mjs';
+import { asError, createEvidenceWriter } from '../core/evidence.mjs';
+import { readRunRecovery } from '../core/recovery.mjs';
 import { CHECKPOINT_ORDER, ADAPTER_ACTION_TYPE_MAP, isRemoteWriteAction, isMarketplaceAction } from '../core/checkpoints.mjs';
 import {
   loadRun,
@@ -159,6 +160,7 @@ export async function reconcileRelease(options) {
   }
 
   const evidence = createEvidenceWriter({ runDir, command: 'reconcile', clock: clockFn });
+  let recoveryRunPath = sourceRunPath;
 
   try {
     // =======================================================================
@@ -641,7 +643,7 @@ export async function reconcileRelease(options) {
         if (actual === successor) {
           actionResults.set(action.id, sourceCp.status === 'succeeded' ? 'succeeded' : 'skipped');
           await evidence.append({
-            phase: 'reconcile-observe',
+            phase: 'reconcile-observe', status: 'observed',
             actionId: action.id,
             actionType: action.type,
             decision: 'advance-already-at-planned-successor',
@@ -652,7 +654,7 @@ export async function reconcileRelease(options) {
         if (actual === predecessor && sourceCp.status !== 'succeeded') {
           actionsToRetry.push(action);
           await evidence.append({
-            phase: 'reconcile-observe',
+            phase: 'reconcile-observe', status: 'observed',
             actionId: action.id,
             actionType: action.type,
             decision: 'retry-advance-from-frozen-predecessor',
@@ -691,11 +693,11 @@ export async function reconcileRelease(options) {
             // state is uncertain — we cannot confirm consistency, so we
             // cannot proceed. Requires human intervention.
             await evidence.append({
-              phase: 'reconcile-observe',
+              phase: 'reconcile-observe', status: 'observed',
               actionId: action.id,
               actionType: action.type,
               decision: 'succeeded-observe-failed-fail-closed',
-              error: observeResult.error,
+              error: asError('OBSERVE_FAILED', observeResult.error),
             });
 
             throw new ReleaseError(
@@ -712,7 +714,7 @@ export async function reconcileRelease(options) {
 
           if (!matches) {
             await evidence.append({
-              phase: 'reconcile-observe',
+              phase: 'reconcile-observe', status: 'observed',
               actionId: action.id,
               actionType: action.type,
               decision: 'remote-conflict',
@@ -729,7 +731,7 @@ export async function reconcileRelease(options) {
 
         actionResults.set(action.id, 'succeeded');
         await evidence.append({
-          phase: 'reconcile-observe',
+          phase: 'reconcile-observe', status: 'observed',
           actionId: action.id,
           actionType: action.type,
           decision: 'skip-succeeded-verified',
@@ -757,7 +759,7 @@ export async function reconcileRelease(options) {
           missing: info.missing,
           delayMs: info.delayMs,
           status: info.missing ? 'propagating' : 'resolved',
-          error: info.error ?? null,
+          error: asError('OBSERVE_FAILED', info.error ?? null),
         }),
       });
       const observeResult = observeRetry.result;
@@ -767,11 +769,11 @@ export async function reconcileRelease(options) {
         (observeResult.error && Object.keys(observeResult.observation).length === 0)
       ) {
         await evidence.append({
-          phase: 'reconcile-observe',
+          phase: 'reconcile-observe', status: 'observed',
           actionId: action.id,
           actionType: action.type,
           decision: 'uncertain-observation-fail-closed',
-          error: observeResult.error ?? null,
+          error: asError('OBSERVE_FAILED', observeResult.error ?? null),
         });
         throw new ReleaseError(
           REMOTE_CONFLICT,
@@ -785,7 +787,7 @@ export async function reconcileRelease(options) {
         const observedNewBranchCommit = observeResult.observation.newBranchCommit;
         if (observedNewBranchCommit !== action.parameters.expectedNewBranchCommit) {
           await evidence.append({
-            phase: 'reconcile-observe',
+            phase: 'reconcile-observe', status: 'observed',
             actionId: action.id,
             actionType: action.type,
             decision: 'remote-conflict',
@@ -806,7 +808,7 @@ export async function reconcileRelease(options) {
         if (current === action.parameters.newBranch) {
           actionResults.set(action.id, 'skipped');
           await evidence.append({
-            phase: 'reconcile-observe',
+            phase: 'reconcile-observe', status: 'observed',
             actionId: action.id,
             actionType: action.type,
             decision: 'skip-remote-consistent',
@@ -816,7 +818,7 @@ export async function reconcileRelease(options) {
         if (current === action.parameters.oldBranch) {
           actionsToRetry.push(action);
           await evidence.append({
-            phase: 'reconcile-observe',
+            phase: 'reconcile-observe', status: 'observed',
             actionId: action.id,
             actionType: action.type,
             decision: 'retry-default-branch-still-old',
@@ -838,7 +840,7 @@ export async function reconcileRelease(options) {
       if (explicitlyMissing) {
         actionsToRetry.push(action);
         await evidence.append({
-          phase: 'reconcile-observe',
+          phase: 'reconcile-observe', status: 'observed',
           actionId: action.id,
           actionType: action.type,
           decision: 'retry-explicitly-missing',
@@ -856,7 +858,7 @@ export async function reconcileRelease(options) {
         if (matches) {
           actionResults.set(action.id, 'skipped');
           await evidence.append({
-            phase: 'reconcile-observe',
+            phase: 'reconcile-observe', status: 'observed',
             actionId: action.id,
             actionType: action.type,
             decision: 'skip-remote-consistent',
@@ -866,7 +868,7 @@ export async function reconcileRelease(options) {
 
         // Remote state exists but doesn't match: REMOTE_CONFLICT
         await evidence.append({
-          phase: 'reconcile-observe',
+          phase: 'reconcile-observe', status: 'observed',
           actionId: action.id,
           actionType: action.type,
           decision: 'remote-conflict',
@@ -883,7 +885,7 @@ export async function reconcileRelease(options) {
       // No expected observation or no remote state: needs retry
       actionsToRetry.push(action);
       await evidence.append({
-        phase: 'reconcile-observe',
+        phase: 'reconcile-observe', status: 'observed',
         actionId: action.id,
         actionType: action.type,
         decision: 'retry',
@@ -944,7 +946,7 @@ export async function reconcileRelease(options) {
             phase: 'reconcile-preflight',
             status: 'failed',
             actionId: action.id,
-            error: preflightResult.error,
+            error: asError('PREFLIGHT_FAILED', preflightResult.error),
           });
           break;
         }
@@ -1002,6 +1004,7 @@ export async function reconcileRelease(options) {
         retryStateSequence,
         buildReconcileState(status, finishedAt),
       );
+      recoveryRunPath = latestRetryState.statePath;
       return latestRetryState;
     };
     if (!remoteWriteRetryFailed && actionsToRetry.length > 0) {
@@ -1075,7 +1078,7 @@ export async function reconcileRelease(options) {
                 missing: info.missing,
                 delayMs: info.delayMs,
                 status: info.missing ? 'propagating' : 'resolved',
-                error: info.error ?? null,
+                error: asError('OBSERVE_FAILED', info.error ?? null),
               }),
             });
             const observation = observeRetry.result?.observation ?? null;
@@ -1088,7 +1091,7 @@ export async function reconcileRelease(options) {
                 actionId: action.id,
                 actionType: action.type,
                 status: 'observe-failed',
-                error: observeError ?? 'empty observation after retry execute',
+                error: asError('OBSERVE_FAILED', observeError ?? 'empty observation after retry execute'),
               });
               await persistRetryState(PARTIAL);
               break;
@@ -1105,7 +1108,7 @@ export async function reconcileRelease(options) {
                   actionId: action.id,
                   actionType: action.type,
                   status: 'observe-mismatch',
-                  error: 'observation does not match expected after retry execute',
+                  error: asError('OBSERVE_MISMATCH', 'observation does not match expected after retry execute'),
                 });
                 await persistRetryState(PARTIAL);
                 break;
@@ -1118,7 +1121,7 @@ export async function reconcileRelease(options) {
                 actionId: action.id,
                 actionType: action.type,
                 status: 'observe-mismatch',
-                  error: 'observation indicates mismatch after retry execute',
+                  error: asError('OBSERVE_MISMATCH', 'observation indicates mismatch after retry execute'),
                 });
                 await persistRetryState(PARTIAL);
                 break;
@@ -1174,7 +1177,7 @@ export async function reconcileRelease(options) {
             actionId: action.id,
             actionType: action.type,
             status: actionResults.get(action.id),
-            error: executeResult.error,
+            error: asError('EXECUTE_FAILED', executeResult.error),
           });
           await persistRetryState(PARTIAL);
           break;
@@ -1238,7 +1241,7 @@ export async function reconcileRelease(options) {
             gate: 'final-branch-consistency',
             status: 'failed',
             actionId: action.id,
-            error: observable ? comparison.mismatches.join('; ') : observed?.error ?? 'empty observation',
+            error: asError('OBSERVE_MISMATCH', observable ? comparison.mismatches.join('; ') : observed?.error ?? 'empty observation'),
           });
           break;
         }
@@ -1349,9 +1352,12 @@ export async function reconcileRelease(options) {
       await persistRetryState(overallStatus, runState.finishedAt);
     }
     const persistedRun = await writeRunAtomic(runPath, runState);
+    recoveryRunPath = runPath;
+    const { recoveryActionCode } = await readRunRecovery(runPath, { planPath, clock: clockFn });
 
     await evidence.finish({
       status: overallStatus,
+      recoveryActionCode,
       planPath,
       runPath,
       sourceRunId: sourceRun.runId,
@@ -1362,20 +1368,32 @@ export async function reconcileRelease(options) {
       completedAt: clockFn(),
     });
 
-    return { planPath, runPath, status: overallStatus, checkpoints: resultCheckpoints };
+    return { planPath, runPath, status: overallStatus, checkpoints: resultCheckpoints, recoveryActionCode };
   } catch (err) {
-    await evidence.append({
-      phase: 'reconcile',
-      status: 'failed',
-      error: { code: err.code, message: err.message },
+    const { recoveryActionCode } = await readRunRecovery(recoveryRunPath, {
+      planPath, approvalPath, clock: clockFn, command: 'reconcile', error: err,
     });
-
-    await evidence.finish({
-      status: 'FAILED',
-      error: { code: err.code, message: err.message },
-      failedAt: clockFn(),
-    });
-
+    err.details = { ...err.details, recoveryActionCode };
+    // M1/M2: record the failure best-effort and always seal the stream; the
+    // original error must win. The writer normalizes the diagnostic fields
+    // (a numeric Git 128 stays EXIT_128 and is never replaced by a schema
+    // error), and the single-shot seal makes a second finish a no-op.
+    try {
+      await evidence.append({ phase: 'reconcile', status: 'failed', error: err, details: { recoveryActionCode } });
+    } catch {
+      // Failure evidence is best-effort; the seal below must never be skipped.
+    }
+    try {
+      await evidence.finish({
+        status: 'FAILED',
+        recoveryActionCode,
+        error: err,
+        details: { recoveryActionCode },
+        failedAt: clockFn(),
+      });
+    } catch {
+      // Failure summary is best-effort; never mask the primary failure.
+    }
     throw err;
   }
 }

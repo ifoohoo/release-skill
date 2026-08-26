@@ -22,9 +22,9 @@ import { readdir, mkdir, lstat, realpath, open, rm } from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
 import { join, dirname, relative, isAbsolute, sep, resolve, posix as pathPosix } from 'node:path';
 
-import { canonicalJson, sha256Hex } from '../core/digest.mjs';
+import { sha256Hex } from '../core/digest.mjs';
 import { digestDocument } from 'skill-family-contracts';
-import { digestBytes } from 'skill-family-harness-node';
+import { digestBytes, readFileStrict } from 'skill-family-harness-node';
 import { PLATFORMS as PLATFORM_REGISTRY } from '../platforms/registry.mjs';
 
 /**
@@ -501,29 +501,81 @@ async function generateAdapterFiles(platform, skills, templateJson, root, market
     });
   }
 
-  // Copy bin/ entry point and bundle (text files). The self-contained
-  // bundle ships runtime sidecars next to it (JSON resources read via
-  // new URL(<rel>, import.meta.url) by inlined Foundation modules, e.g.
-  // error-codes.json; since F-06/T6 the inlined Engineering Kit also
-  // carries license-text sidecars under bin/license-texts/); enumerate
-  // the directory recursively so every sidecar is replicated
-  // deterministically. The source CLI (release-skill-cli.mjs) is never
-  // shipped into adapters. The wrapper and the bundle are required
-  // entries: a missing one fails closed before any write.
+  // Copy bin/ entry point and bundle (text files). The binding record
+  // (bin/foundation-resource-binding.json) is the single source of truth for
+  // the Foundation runtime closure: every bin/ member is either a host file
+  // (wrapper, bundle, source CLI, record) or a recorded closure resource.
+  // An unrecorded bin member — e.g. a stray fixture — fails closed before
+  // any write (ruling 10 / B2-B4: no bin/ skip, no second member table).
+
+  // Read the binding record with a strict no-follow bound read first.
+  let recordReceipt;
+  try {
+    recordReceipt = await readFileStrict(root, 'bin/foundation-resource-binding.json', { encoding: 'utf8' });
+  } catch (cause) {
+    throw new Error(`SECURITY: binding record cannot be strictly read: ${cause?.message ?? cause}`);
+  }
+  const recordLstat = await lstat(join(root, 'bin', 'foundation-resource-binding.json'));
+  if (recordLstat.nlink !== 1) {
+    throw new Error('SECURITY: binding record has an unexpected hard-link count');
+  }
+  const bindingRecord = JSON.parse(recordReceipt.content);
+  const recorded = new Map((bindingRecord.resources ?? []).map((entry) => [entry.path, entry]));
+  if (recorded.size === 0) {
+    throw new Error('SECURITY: binding record declares an empty Foundation closure');
+  }
+
+  const HOST_BIN_FILES = new Set([
+    'release-skill.mjs',
+    'release-skill.bundle.mjs',
+    'release-skill-cli.mjs',
+    'foundation-resource-binding.json',
+  ]);
+  const recordedBinRels = new Set(
+    [...recorded.keys()].filter((path) => path.startsWith('bin/')).map((path) => path.slice('bin/'.length)),
+  );
+
   const binFileEntries = await collectBinaryFiles(join(root, 'bin'), root);
   const binRelPaths = binFileEntries.map(({ relPath }) => relPath);
-  for (const required of ['release-skill.mjs', 'release-skill.bundle.mjs']) {
+  for (const required of ['release-skill.mjs', 'release-skill.bundle.mjs', 'foundation-resource-binding.json']) {
     if (!binRelPaths.includes(required)) {
       throw new Error(`SECURITY: required bundle entry is missing: bin/${required}`);
     }
   }
   for (const { relPath: rel, sourcePath } of binFileEntries) {
-    if (rel === 'release-skill-cli.mjs') continue;
+    if (rel === 'release-skill-cli.mjs') continue; // source CLI never ships into adapters
+    if (recordedBinRels.has(rel)) continue; // recorded closure member; copied from the record below
+    if (!HOST_BIN_FILES.has(rel)) {
+      throw new Error(`SECURITY: bin member not covered by the binding record: bin/${rel}`);
+    }
     const content = await readTrustedFile(sourcePath, root, `bin/${rel}`);
+    files.push({ relPath: join('bin', rel), content, isBinary: false });
+  }
+
+  // Copy the Foundation runtime closure recorded by build:bundle — every
+  // entry, bin/-adjacent or bundle-relative, with a digest-bound strict read
+  // (sha256 + size re-verification before copying). data/hosts + data/licensing
+  // land at the adapter root (the bundle inside bin/ resolves ../data/... from
+  // its own location), src/schemas likewise (../src/...).
+  for (const [rel, entry] of recorded) {
+    let receipt;
+    try {
+      receipt = await readFileStrict(root, rel, { expectedSha256: entry.sha256 });
+    } catch (cause) {
+      throw new Error(`SECURITY: recorded member cannot be strictly read: ${rel} (${cause?.message ?? cause})`);
+    }
+    if (receipt.bytes !== entry.size) {
+      throw new Error(`SECURITY: recorded member size drift: ${rel} (recorded ${entry.size}, live ${receipt.bytes})`);
+    }
+    const memberLstat = await lstat(join(root, rel));
+    if (memberLstat.nlink !== 1) {
+      throw new Error(`SECURITY: recorded member has an unexpected hard-link count: ${rel}`);
+    }
     files.push({
-      relPath: join('bin', rel),
-      content,
+      relPath: rel,
+      content: receipt.content,
       isBinary: false,
+      ...(entry.path.endsWith('.node') ? { mode: 0o644 } : {}),
     });
   }
 
@@ -738,7 +790,7 @@ export async function produceBuildAdapters({ inputs, output, outputRoots, platfo
           | fsConstants.O_WRONLY
           | fsConstants.O_EXCL
           | (fsConstants.O_NOFOLLOW ?? 0);
-        const handle = await open(dstPath, createFlags, 0o600);
+        const handle = await open(dstPath, createFlags, file.mode ?? 0o600);
         try {
           await handle.writeFile(file.content);
           const writtenStat = await handle.stat();

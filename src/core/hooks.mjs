@@ -44,12 +44,33 @@ const ENV_KEY_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
 // ---------------------------------------------------------------------------
 
 /**
+ * A release plan binds at most one postPublish declaration. Both prepare
+ * and adoption assessment consume this pure rule and retain their own
+ * error codes and presentation. Declaration contents are validated by
+ * the existing postPublish validator, not by this cross-unit check.
+ *
+ * @param {Array<Object>} units - config.releaseUnits.
+ * @returns {null|{unitIds: string[]}} Sorted conflicting unit IDs, or null.
+ */
+export function findPostPublishUnitConflict(units) {
+  const declaring = (units ?? [])
+    .filter((unit) => unit && typeof unit === 'object' && unit.postPublish !== undefined);
+  if (declaring.length <= 1) return null;
+  return { unitIds: declaring.map((unit) => unit.id).sort() };
+}
+
+/**
  * Validate the shape of a hook descriptor against the project contract.
+ *
+ * Exported as the single pure validation authority (裁决 20): the adoption
+ * assessment and prepare reuse this exact validator instead of a second
+ * copy. Never performs process execution — static shape/contract checks
+ * only.
  *
  * @param {unknown} hook
  * @throws {ReleaseError} INVALID_HOOK on any contract violation.
  */
-function validateHook(hook) {
+export function validateHook(hook) {
   if (!hook || typeof hook !== 'object' || Array.isArray(hook)) {
     throw new ReleaseError('INVALID_HOOK', 'hook must be a non-null object');
   }

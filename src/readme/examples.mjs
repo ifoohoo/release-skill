@@ -11,10 +11,9 @@
 
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readFile, cp, mkdtemp, rm } from 'node:fs/promises';
+import { readFile, cp } from 'node:fs/promises';
 import path from 'node:path';
-import os from 'node:os';
-import { ReleaseError } from '../core/errors.mjs';
+import { withTemporaryWorkspace } from 'skill-family-harness-node';
 
 const execFileAsync = promisify(execFileCb);
 
@@ -187,12 +186,9 @@ export async function extractExecutableCommands({
   }
 
   // 2. Create a parent temp directory for all fixture copies
-  const parentTmp = await mkdtemp(path.join(os.tmpdir(), 'release-skill-examples-'));
-
-  /** @type {ExecResult[]} */
-  const results = [];
-
-  try {
+  return withTemporaryWorkspace(async ({ root: parentTmp }) => {
+    /** @type {ExecResult[]} */
+    const results = [];
     for (const [fixtureId, block] of blocksByFixture) {
       const srcDir = path.join(fixturesDir, fixtureId);
 
@@ -279,10 +275,6 @@ export async function extractExecutableCommands({
         results.push(result);
       }
     }
-  } finally {
-    // Clean up the temporary directory tree
-    await rm(parentTmp, { recursive: true, force: true });
-  }
-
-  return results;
+    return results;
+  }, { prefix: 'release-skill-examples-' });
 }

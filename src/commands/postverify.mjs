@@ -44,9 +44,15 @@ import {
   loadRun,
   resolveDefaultRunDir,
   validateRunPlanDigest,
+  validateRunLineage,
+  validateRunCheckpointMapping,
   writeRunAtomic,
 } from '../core/run.mjs';
-import { createEvidenceWriter } from '../core/evidence.mjs';
+import { asError, createEvidenceWriter } from '../core/evidence.mjs';
+import {
+  resolveFrozenTagAuthority,
+  createFrozenTagWorktree,
+} from '../core/tag-authority.mjs';
 import { runHook } from '../core/hooks.mjs';
 import { boundedOutputTail } from '../core/bounded-output.mjs';
 import {
@@ -144,6 +150,8 @@ export async function postVerifyRelease(options) {
     execFn,
     runHookFn,
     postpublishApprovalPaths,
+    observeTagFn,
+    observeBranchFn,
   } = options ?? {};
 
   const clockFn = typeof clockOpt === 'function' ? clockOpt : defaultClock;
@@ -244,6 +252,30 @@ export async function postVerifyRelease(options) {
       { sourceRunPath, publishRunPath: verifyRun.sourceRunPath },
     );
   }
+  // T04 (裁决 14): the parent of the VERIFIED verify run must itself be a
+  // legitimate publish authority — a same-plan PUBLISHED publish/reconcile
+  // run. The tag proof below comes from THIS parent run; a verify receipt can
+  // never substitute for the publish proof. Every invalid parent fails
+  // closed before any write or hook.
+  if (!['publish', 'reconcile'].includes(publishRun.command)) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `postVerify parent run must be a publish or reconcile run, got command "${publishRun.command}"`,
+      { publishRunPath: verifyRun.sourceRunPath, command: publishRun.command },
+    );
+  }
+  if (publishRun.status !== 'PUBLISHED') {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `postVerify parent run must be PUBLISHED, got "${publishRun.status}"; the tag proof must come from a published run`,
+      { publishRunPath: verifyRun.sourceRunPath, status: publishRun.status },
+    );
+  }
+  validateRunPlanDigest(publishRun, plan, { planPath });
+  await validateRunLineage(verifyRun, {
+    plan, planPath, runPath: sourceRunPath, production: Boolean(plan.production),
+  });
+  validateRunCheckpointMapping(publishRun, plan.externalActions ?? []);
 
   // =========================================================================
   // Declaration re-validation + postVerify-phase hook selection.
@@ -303,8 +335,11 @@ export async function postVerifyRelease(options) {
   }
 
   // =========================================================================
-  // Gate 5: tag identity — the live tag must still point at the frozen
-  // tagCommit (read-only observation; still before any write).
+  // Gate 5: tag identity via the frozen authority chain (R-01). The frozen
+  // plan binding + the same-lineage PUBLISHED parent-run create-tag
+  // checkpoint + frozen git objects + PUBLIC remote observation are the
+  // authority; the live local tag is diagnostic only. Read-only observation,
+  // still before any write.
   // =========================================================================
   if (postPublish.payloadSource !== PAYLOAD_SOURCE_TAG_WORKTREE) {
     throw new ReleaseError(
@@ -320,22 +355,35 @@ export async function postVerifyRelease(options) {
       { tagCommit: postPublish.tagCommit ?? null },
     );
   }
-  let observedTagCommit;
+  let tagAuthority;
   try {
-    const { stdout } = await exec('git', ['-C', root, 'rev-parse', '--verify', `${postPublish.tag}^{commit}`]);
-    observedTagCommit = `${stdout}`.trim();
+    tagAuthority = await resolveFrozenTagAuthority({
+      plan,
+      unitId: postPublish.unitId,
+      // T04 (裁决 14): the tag proof is taken from the legitimate PUBLISHED
+      // parent run — never from the verify receipt.
+      sourceRun: publishRun,
+      root,
+      exec,
+      observeTagFn,
+      observeBranchFn,
+    });
   } catch (err) {
-    throw new ReleaseError(
+    throw err instanceof ReleaseError ? err : new ReleaseError(
       GATE_FAILED,
-      `tag "${postPublish.tag}" does not resolve to a commit in the source repository; postVerify fails closed`,
-      { tag: postPublish.tag, stderrTail: boundedOutputTail(err?.stderr ?? err?.message) },
+      `tag identity cannot be verified: ${err?.message ?? err}`,
     );
   }
-  if (observedTagCommit !== postPublish.tagCommit) {
+  if (tagAuthority.tag !== postPublish.tag || tagAuthority.commit !== postPublish.tagCommit) {
     throw new ReleaseError(
       GATE_FAILED,
-      `tag "${postPublish.tag}" points at ${observedTagCommit}, but the frozen plan binds tagCommit ${postPublish.tagCommit}`,
-      { tag: postPublish.tag, frozenTagCommit: postPublish.tagCommit, observedTagCommit },
+      'frozen postPublish tag identity conflicts with the frozen create-tag binding',
+      {
+        postPublishTag: postPublish.tag,
+        postPublishTagCommit: postPublish.tagCommit,
+        bindingTag: tagAuthority.tag,
+        bindingCommit: tagAuthority.commit,
+      },
     );
   }
 
@@ -414,16 +462,16 @@ export async function postVerifyRelease(options) {
   };
 
   // Worktree cleanup: registered exactly once, idempotent, failure-tolerant.
+  // R-01: the worktree comes from a COPY of the frozen bare repo and is never
+  // registered in the source repo's worktree metadata, so removing the
+  // scratch base is the complete cleanup.
   let worktreePath = null;
   let tmpBase = null;
   const cleanupWorktree = async () => {
-    if (worktreePath) {
-      await exec('git', ['-C', root, 'worktree', 'remove', '--force', worktreePath]).catch(() => {});
-      worktreePath = null;
-    }
     if (tmpBase) {
       await rm(tmpBase, { recursive: true, force: true }).catch(() => {});
       tmpBase = null;
+      worktreePath = null;
     }
   };
 
@@ -463,18 +511,24 @@ export async function postVerifyRelease(options) {
     }
 
     // R1 timing contract carries over: hooks run inside a detached worktree
-    // at the frozen tagCommit, never in the live workspace. Dry-run executes
+    // at the frozen tagCommit, never in the live workspace. R-01: the
+    // worktree is materialized from a COPY of the frozen bare repo (never
+    // registered in the source repo's worktree metadata). Dry-run executes
     // nothing, so no worktree is allocated for a rehearsal.
     if (dryRun !== true) {
       try {
         tmpBase = await mkdtemp(join(tmpdir(), 'release-skill-postverify-'));
-        worktreePath = join(tmpBase, 'worktree');
-        await exec('git', ['-C', root, 'worktree', 'add', '--detach', worktreePath, postPublish.tagCommit]);
+        ({ worktreePath } = await createFrozenTagWorktree({
+          gitDir: tagAuthority.gitDir,
+          commit: tagAuthority.commit,
+          tmpBase,
+          exec,
+        }));
       } catch (err) {
         await evidence.append({
           phase: 'worktree',
           status: 'failed',
-          error: boundedOutputTail(err?.stderr ?? err?.message),
+          error: asError('WORKTREE_FAILED', boundedOutputTail(err?.stderr ?? err?.message)),
         });
         await recordBlocked();
         throw new ReleaseError(
@@ -505,7 +559,7 @@ export async function postVerifyRelease(options) {
           phase: 'worktree',
           gate: 'execution-bundle',
           status: 'failed',
-          error: boundedOutputTail(err?.message ?? String(err)),
+          error: asError('EXECUTION_BUNDLE_FAILED', boundedOutputTail(err?.message ?? String(err))),
         });
         await recordBlocked();
         throw err instanceof ReleaseError ? err : new ReleaseError(
@@ -623,7 +677,7 @@ export async function postVerifyRelease(options) {
             phase: 'postpublish-hook',
             hookId: hook.id,
             status: 'failed',
-            error: err?.message ?? String(err),
+            error: asError('POSTPUBLISH_HOOK_FAILED', err?.message ?? String(err)),
             details: { code },
           });
           await snapshot(PARTIAL);
@@ -714,7 +768,7 @@ export async function postVerifyRelease(options) {
           phase: 'postpublish-hook',
           hookId: hook.id,
           status: 'failed',
-          error: err?.message ?? String(err),
+          error: asError('POSTPUBLISH_HOOK_FAILED', err?.message ?? String(err)),
         });
         await snapshot(PARTIAL);
         continue;

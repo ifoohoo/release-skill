@@ -86,7 +86,7 @@ async function fileExists(filePath) {
  * @param {string} [params.file] - Optional file path related to the gap.
  * @returns {Object}
  */
-function createGap({ scope, category, severity, code, message, file }) {
+export function createGap({ scope, category, severity, code, message, file }) {
   const gap = { scope, category, severity, code, message };
   if (file !== undefined) {
     gap.file = file;
@@ -157,7 +157,7 @@ function describeNpmError(error) {
  * @param {Object} config - The validated project config.
  * @returns {{ type: string, releaseUnits: string[], distributions: string[] }}
  */
-function identifyTopology(config) {
+export function identifyTopology(config) {
   const units = config.releaseUnits ?? [];
   const unitIds = units.map((u) => u.id);
 
@@ -257,7 +257,7 @@ async function checkConfig(root) {
  * @param {Object} config - The validated project config.
  * @returns {Promise<Object[]>} Array of gap entries.
  */
-async function checkCommonDocs(root, config) {
+export async function checkCommonDocs(root, config) {
   const gaps = [];
   const units = config.releaseUnits ?? [];
 
@@ -322,7 +322,7 @@ async function checkCommonDocs(root, config) {
  * @param {Object} config - The validated project config.
  * @returns {Promise<Object[]>} Array of gap entries.
  */
-async function checkPluginManifests(root, config) {
+export async function checkPluginManifests(root, config) {
   const gaps = [];
   const units = config.releaseUnits ?? [];
 
@@ -534,7 +534,7 @@ async function checkPluginManifests(root, config) {
  * @param {Object} config - The validated project config.
  * @returns {Promise<Object[]>} Array of gap entries.
  */
-async function checkPackageMetadata(root, config) {
+export async function checkPackageMetadata(root, config) {
   const gaps = [];
   const units = config.releaseUnits ?? [];
 
@@ -881,7 +881,7 @@ async function checkReleaseTagSequence(root, config) {
  * @param {Object} config - The validated project config.
  * @returns {Promise<Object[]>} Array of gap entries.
  */
-async function checkReadmeStructure(root, config) {
+export async function checkReadmeStructure(root, config) {
   const gaps = [];
   const units = config.releaseUnits ?? [];
 

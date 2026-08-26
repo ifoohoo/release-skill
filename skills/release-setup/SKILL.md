@@ -91,6 +91,20 @@ node -e 'const fs=require("node:fs");const [c,p,a]=process.argv.slice(1).map(x=>
 node -e 'require("node:fs").rmSync(process.argv[1],{recursive:true,force:false})' "$SETUP_SESSION"
 ```
 
+## 接入评估（只读）
+
+对已配置项目运行接入评估，报告已满足、必选缺口、可选建议和不适用项；对未配置项目返回 `NOT_CONFIGURED` 并指向首次 setup：
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" setup --assess-adoption --root "$PROJECT" --json
+```
+
+- 完全只读：评估后仓库不新增任何文件，不修改配置，不执行 hook。
+- 报告四态：`NOT_CONFIGURED`、`PARTIALLY_ADOPTED`、`ADOPTED`、`ADOPTED_WITH_SUGGESTIONS`。
+- findings 分四类：`mandatory-gap`（必选缺口，阻断接入）、`satisfied`（已满足）、`optional-suggestion`（可选建议）、`not-applicable`（不适用）；每条带 `code`、`fieldPath`、`evidence` 与 `action`。
+- 建议边界：hook 缓存候选只提示 `cacheInputs` 必须由项目自己声明并证明完整，评估不代猜、不代写；hook 耗时只从描述匹配且生产者可信的 started/completed 事件对推导，`timeoutMs` 不是实际成本；任何建议都不改变接入状态。
+- 必选缺口存在时先修复并重跑 `setup --assess-adoption`，再进入发布流程。
+
 ## publisher 字段与个人片段泄漏策略
 
 setup 生成的 `.release-skill/project.yaml` 中 `publisher` 是**已批准的公开发布身份**：它是人工确认的对外发布署名，属于公开面的一部分，而非需要隐藏的私有信息。

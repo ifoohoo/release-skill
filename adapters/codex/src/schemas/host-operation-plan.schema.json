@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/host-operation-plan.json",
+  "title": "Skill Family host operation plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "hostId", "status", "probeFacts", "actions", "writeSet", "digest"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.host-operation-plan" },
+    "hostId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+    "status": { "enum": ["planned", "manual", "unsupported"] },
+    "operation": { "enum": ["install", "update", "uninstall"] },
+    "unsupportedReason": { "type": "string", "minLength": 1 },
+    "pathCategory": { "$ref": "#/$defs/category" },
+    "probeFacts": { "type": "array", "items": { "$ref": "https://contracts.skill-family.example/v1/host-capability-fact.json" } },
+    "actions": { "type": "array", "items": { "$ref": "#/$defs/action" } },
+    "writeSet": { "type": "array", "items": { "$ref": "#/$defs/write" } },
+    "digest": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "relativePath": { "type": "string", "minLength": 1, "maxLength": 240, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)(?!.*\\u0000)[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$" },
+    "category": {
+      "type": "object", "additionalProperties": false, "required": ["id", "scope", "anchor", "relPath"],
+      "properties": { "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" }, "scope": { "enum": ["user", "project"] }, "anchor": { "enum": ["user-home", "project-root"] }, "relPath": { "$ref": "#/$defs/relativePath" } }
+    },
+    "action": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sequence", "kind", "categoryId", "scope", "anchor", "target", "expect", "sourceSha256"],
+      "properties": {
+        "sequence": { "type": "integer", "minimum": 1 }, "kind": { "const": "install-file" },
+        "categoryId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" }, "scope": { "enum": ["user", "project"] }, "anchor": { "enum": ["user-home", "project-root"] },
+        "target": { "$ref": "#/$defs/relativePath" }, "expect": { "enum": ["absent", "matching"] }, "sourceSha256": { "$ref": "#/$defs/sha256" }, "expectedSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "write": {
+      "type": "object", "additionalProperties": false, "required": ["categoryId", "scope", "anchor", "target", "sourceSha256"],
+      "properties": { "categoryId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" }, "scope": { "enum": ["user", "project"] }, "anchor": { "enum": ["user-home", "project-root"] }, "target": { "$ref": "#/$defs/relativePath" }, "sourceSha256": { "$ref": "#/$defs/sha256" }, "expectedSha256": { "$ref": "#/$defs/sha256" } }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "planned" } }, "required": ["status"] },
+      "then": { "required": ["pathCategory"], "properties": { "pathCategory": true, "unsupportedReason": false, "probeFacts": { "type": "array", "minItems": 9, "maxItems": 9 }, "actions": { "type": "array", "minItems": 1 }, "writeSet": { "type": "array", "minItems": 1 } } },
+      "else": { "required": ["unsupportedReason"], "properties": { "unsupportedReason": true, "pathCategory": false, "probeFacts": { "type": "array", "maxItems": 0 }, "actions": { "type": "array", "maxItems": 0 }, "writeSet": { "type": "array", "maxItems": 0 } } }
+    },
+    {
+      "if": { "properties": { "status": { "const": "manual" } }, "required": ["status"] },
+      "then": { "properties": { "operation": { "enum": ["install", "update", "uninstall"] } } }
+    },
+    {
+      "if": { "properties": { "operation": { "enum": ["update", "uninstall"] } }, "required": ["operation"] },
+      "then": { "properties": { "actions": { "type": "array", "items": { "type": "object", "properties": { "expectedSha256": { "$ref": "#/$defs/sha256" } }, "required": ["expectedSha256"] } }, "writeSet": { "type": "array", "items": { "type": "object", "properties": { "expectedSha256": { "$ref": "#/$defs/sha256" } }, "required": ["expectedSha256"] } } } }
+    }
+  ]
+}

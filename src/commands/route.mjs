@@ -10,7 +10,7 @@
  *     run state.
  *
  * Decision table (fail-closed):
- *   1. hasPartialRun → reconcile
+ *   1. validated unfinished lineage → phase-specific recovery or diagnosis
  *   2. A empty && no targetVersion → help (report no change)
  *      (判据说明：决策表 §4.3 字面为「B=none 且无 targetVersion → help」，
  *      实现用「输入 A 空」判定——A 空但相对上一版本存在已提交未发布改动
@@ -38,6 +38,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { ReleaseError } from '../core/errors.mjs';
 import { listReleaseTags } from './lineage.mjs';
+import { readRunRecovery, renderRecoveryCommand } from '../core/recovery.mjs';
 
 const WORKFLOW_KINDS = Object.freeze([
   'full-happy-end',
@@ -47,6 +48,8 @@ const WORKFLOW_KINDS = Object.freeze([
   'marketplace-docs',
   'marketplace-config',
   'reconcile',
+  'distribute',
+  'verify',
   'help',
 ]);
 
@@ -333,33 +336,83 @@ export async function classifyBaselineSurface(root, prevCommit) {
 }
 
 /**
- * Detect a PARTIAL run needing reconciliation (decision table rule 1).
+ * Resolve unfinished release work from validated run authorities (rule 1).
  *
- * Reads the real run structure `runs/<phase>-<ts>/summary.json` (the actual
- * shape produced by prepare/publish/verify; `run.json` does not exist).
+ * R-06A: `summary.json` is downgraded to a rebuildable diagnostic projection;
+ * the route decision reads the sealed run record
+ * `runs/<phase>-<ts>/release-run.json` instead. Plan/action mappings and source
+ * lineage determine which stage remains unfinished. Summary files are not
+ * read. Invalid authority is diagnostic, never permission for a new release.
  *
  * @param {string} root - project root directory
- * @returns {Promise<boolean>}
+ * @returns {Promise<{hasPartialRun: boolean, recoveryActionCode: string|null, runs: object[]}>}
  */
-export async function hasPartialRun(root) {
+export async function readRunRouting(root, options = {}) {
   const cwd = resolve(root);
   const runsDir = resolve(cwd, '.release-skill', 'runs');
   let runDirs;
   try {
     runDirs = await readdir(runsDir);
-  } catch {
-    return false;
+  } catch (error) {
+    if (error.code === 'ENOENT') return { hasPartialRun: false, recoveryActionCode: null, runs: [] };
+    return { hasPartialRun: false, recoveryActionCode: 'DIAGNOSE', runs: [], diagnostic: { code: error.code, message: error.message } };
   }
+  const records = [];
   for (const runDir of runDirs) {
-    const summaryPath = resolve(runsDir, runDir, 'summary.json');
+    let runPath = resolve(runsDir, runDir, 'release-run.json');
     try {
-      const summary = JSON.parse(await readFile(summaryPath, 'utf8'));
-      if (summary?.status === 'PARTIAL') return true;
-    } catch {
-      // unreadable summary files are skipped; they cannot prove PARTIAL
+      await readFile(runPath);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        // Prepare/assess have evidence directories but no release-run contract.
+        if (/^(prepare|assess|hooks-validate)-/.test(runDir)) continue;
+        // An append-only sequence is ordered by its bound slot, never by time.
+        // readRunRecovery reuses validateRunLineage to check its predecessors.
+        const states = await readdir(resolve(runsDir, runDir, 'states')).catch(() => []);
+        const slots = states.filter((name) => /^\d{6}\.json$/.test(name)).sort();
+        if (slots.length > 0) runPath = resolve(runsDir, runDir, 'states', slots.at(-1));
+      }
     }
+    records.push(await readRunRecovery(runPath, options));
   }
-  return false;
+  const identity = (run) => `${run.planDigest}:${run.runId}:${run.runDigest}`;
+  const consumed = new Set(records.filter((r) => r.run).flatMap((r) => r.lineage.map((edge) => identity(edge.run))));
+  const samePublication = (a, b) => a.planDigest === b.planDigest
+    && a.sourceRunId === b.sourceRunId && a.sourceRunDigest === b.sourceRunDigest;
+  const unresolved = records.filter((record) => {
+    if (!record.run) return true; // invalid/unknown never disappears as "no PARTIAL"
+    if (consumed.has(identity(record.run))) return false;
+    // Distribute retries point to the same publication, not to each other.
+    // Only a validated completed distribution can retire its failed sibling.
+    if (record.run.command === 'distribute' && record.run.status !== 'DISTRIBUTED'
+      && records.some((other) => other.run?.command === 'distribute'
+        && other.run.status === 'DISTRIBUTED' && other.recoveryActionCode === 'VERIFY'
+        && samePublication(record.run, other.run))) return false;
+    if (record.run.command === 'distribute' && record.recoveryActionCode === 'VERIFY'
+      && records.some((other) => other.run?.command === 'verify' && other.run.status === 'VERIFIED'
+        && other.recoveryActionCode === null && samePublication(record.run, other.run))) return false;
+    return true;
+  });
+  const priority = ['DIAGNOSE', 'RECONCILE', 'DISTRIBUTE', 'VERIFY', 'RETRY_COMMAND'];
+  const recoveryActionCode = priority.find((code) => unresolved.some((r) => r.recoveryActionCode === code)) ?? null;
+  const runs = unresolved.filter((r) => r.recoveryActionCode).map((r) => ({
+    runPath: r.runPath,
+    planPath: r.run?.planPath,
+    command: r.run?.command,
+    status: r.run?.status,
+    recoveryActionCode: r.recoveryActionCode,
+    recoveryRunPath: r.recoveryRunPath,
+    ...(r.diagnostic ? { diagnostic: r.diagnostic } : {}),
+  })).sort((a, b) => a.runPath.localeCompare(b.runPath));
+  return { hasPartialRun: unresolved.some((r) => r.run?.status === 'PARTIAL'), recoveryActionCode, runs };
+}
+
+export async function hasPartialRun(root) {
+  const result = await readRunRouting(root);
+  if (result.recoveryActionCode === 'DIAGNOSE') {
+    throw new ReleaseError('GATE_FAILED', '历史运行需要诊断 (diagnosis)，不能据此开始新发布', { recovery: result });
+  }
+  return result.hasPartialRun;
 }
 
 /**
@@ -379,6 +432,22 @@ export async function hasPartialRun(root) {
 export function recommendWorkflow(diffClassification, baselineSurface, targetVersion, hasPartialRun, options = {}) {
   const { publishAuthorized = false } = options;
   const { code, docs, config, marketplace, mixed } = diffClassification;
+
+  const recovery = options.recovery;
+  if (recovery?.recoveryActionCode) {
+    const action = recovery.recoveryActionCode;
+    const selected = recovery.runs.find((run) => run.recoveryActionCode === action);
+    const recoveryRunPath = selected?.recoveryRunPath ?? selected?.runPath;
+    const workflowKind = ['RECONCILE', 'DISTRIBUTE', 'VERIFY'].includes(action) ? action.toLowerCase() : 'help';
+    return {
+      workflowKind,
+      reason: action === 'DIAGNOSE' ? '运行权威、冲突或批准尚需诊断；保留既有记录，不开始新发布'
+        : action === 'RETRY_COMMAND' ? '已校验为零写入阻断；修复原因后重试原命令'
+          : '根据已校验的计划、运行和血缘继续未完成阶段',
+      firstCommand: renderRecoveryCommand(action, { planPath: selected?.planPath, runPath: recoveryRunPath }) ?? 'release-skill help',
+      routing: { rule: 1, hasPartialRun, recoveryActionCode: action, runs: recovery.runs },
+    };
+  }
 
   // Rule 1: PARTIAL run → reconcile first (highest priority).
   if (hasPartialRun) {
@@ -631,13 +700,14 @@ export default async function main(args = [], options = {}) {
     } else {
       baselineSurface = { status: 'indeterminable', kind: null, categories: {}, paths: [] };
     }
-    const partial = await hasPartialRun(root);
+    const recovery = await readRunRouting(root);
+    const partial = recovery.hasPartialRun;
     const recommendation = recommendWorkflow(
       classification,
       baselineSurface,
       targetVersion,
       partial,
-      { publishAuthorized },
+      { publishAuthorized, recovery },
     );
 
     if (json) {

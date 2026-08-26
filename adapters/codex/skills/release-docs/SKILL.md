@@ -18,7 +18,11 @@ description: "Docs-only workflow profile: route confirms docs-only diff, style-g
 
 ## 当前状态
 
-`release-docs` 是工作流配置文件 (§4) 定义的独立工作流之一，专门处理仅文档变更的场景。它遵循标准发布生命周期，但跳过代码类检查门（声明式 hooks、snapshot-verify gates、source-authority closure、skill-resource-closure），专注于文档质量 gate。
+`release-docs` 是工作流配置文件 (§4) 定义的独立工作流之一，专门处理仅文档变更的场景。它遵循标准发布生命周期，裁剪代码类检查（声明式 hooks、snapshot-verify gates、skill-resource-closure），保留文档质量检查。
+
+docs production 仍由 release-skill 执行发布，因此 prepare 必须通过现有来源权威检查，并冻结 `plan.sourceAuthority`（源码来源权威）。publish、reconcile、verify 继续校验冻结绑定和远端一致性，不能把来源权威当作代码类检查裁掉。config 场景 B 适用同一要求；场景 A 无发布动作、不生成该字段。marketplace 委托目标工作区发布的边界不变。
+
+旧 production 计划缺少 `sourceAuthority` 时，仍在外部写入前拒绝。未发生外部写入的旧计划必须重新 prepare 并批准新摘要，不补字段、不迁移旧批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。
 
 **机械实现**: `prepare --workflow docs` 在 prepare 内确定性地裁剪代码类门禁（H5），
 plan 记录 `workflowKind: 'docs'` 与 `workflowDecision`（绑定进 plan digest）。
@@ -35,7 +39,7 @@ plan 记录 `workflowKind: 'docs'` 与 `workflowDecision`（绑定进 plan diges
 
 **授权边界**: 命令调用本身即授权执行配置的 hooks/gates。本地文档写入授权只覆盖声明的本地文档目标，不是 Git commit/push/publish 或安装的授权。
 
-**阶段通过规则**: `status === 'VERIFIED'` 且 CLI exit code 为 0。`PARTIAL` 状态允许安全重试已完成的 checkpoint。
+**阶段通过规则**: `status === 'VERIFIED'` 且 CLI exit code 为 0。`PARTIAL` 状态保留并跳过已成功的检查点，只安全重试未完成的步骤。
 
 ## 正向执行路径
 
