@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.8.1 -->
+<!-- release-skill:release-version: 0.9.0 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,33 +14,37 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.8.1** (2026-08-27)
+**0.9.0** (2026-08-28)
 
-0.8.1 is a local source candidate. This note records its intended scope and verification boundaries; it is not evidence of publication, consumer-installation verification, or independent acceptance. Release availability must be established from the corresponding release records and post-publish verification results. The fresh 0.8.1 coordinate avoids overwriting the different public bytes already published as v0.8.0.
+0.9.0 is a local source candidate for multi-unit postPublish plans and optional post-release local finishing. This note records the intended scope and verification boundaries; it is not evidence of publication, consumer-installation verification, or independent acceptance. Release availability must be established from the corresponding release records and post-publish verification results.
 
 **Security**
 
-- The occupied v0.8.0 tag and npm coordinate are not overwritten or reused. v0.8.1 receives a newly frozen plan, approval, tag, package, release, and post-publish verification lineage.
+- release-finish requires a plan-digest confirmation and a VERIFIED run from the same release lineage before any host command. Host updates use a restricted environment; Claude/Codex exact results are bound to the real installed payload, and every host fails closed when the identity evidence its protocol can provide is insufficient.
+
+**Added**
+
+- Plan version 3 freezes postPublish declarations per release unit as an ordered array. Each declaration carries its own targets, hooks, approval binding, execution bundle, checkpoints, and postVerify continuation while explicit plan versions 1 and 2 retain their established single-declaration behavior.
+- A new release-finish workflow derives a read-only local checklist from the frozen plan and VERIFIED run. After explicit user confirmation it can update Claude and Codex, drive the Kimi TUI and verify the resulting installation, or confirm that CodeBuddy/WorkBuddy already matches the frozen identity; CodeBuddy/WorkBuddy updates that cannot pin the frozen ref remain manual. None of these local actions changes the published release terminal state.
 
 **Changed**
 
-- Pin all three Foundation dependencies to released 0.13.0 packages. Packaging uses the existing generators for runtime resources, native files, legal materials, host profiles, and plugin-verification contracts.
-- Reuse Foundation runPluginVerification for complete local payload observation of frozen Kimi and CodeBuddy bundled-family plugins. CodeBuddy maps to Foundation's compatible workbuddy host. Marketplace installation and host invocation remain explicit manual follow-ups; Foundation observations do not replace release-domain gates or three-role README acceptance.
-- Evidence v2 closes the top level and stores phase extensions in typed details. Evidence v1 remains read-only. Summaries, producer versions, and recovery suggestions are diagnostic, never publication authority.
+- The distribute and postVerify phases preflight every declaration before the first external write, then re-observe mutable remote proposal state during execution. Checkpoint identifiers are namespaced by release unit, and an earlier hook failure skips all later-unit work.
+- PostPublish hook identifiers are unique across the complete plan. Prepare, setup, approval, distribute, and postVerify consume the same validation rule before side effects.
 
 **Fixed**
 
-- Config branch A keeps zero external actions and no sourceAuthority, even with a configured public source receipt. Production branch B and docs production freeze plan.sourceAuthority and retain remote consistency checks. Marketplace delegation is unchanged.
-- Fixes cover installed host surfaces, release-run lineage, Git hooks in frozen checkouts, pure configuration checks before long hooks, and adoption assessment. Focused self-tests verify their stated cases but do not establish publication, consumer installation, or independent candidate acceptance.
-- FAILED summaries, compatibility details, and returned errors now project the same domain recovery result when current-run evidence is available. Existing fallbacks, unknown without evidence, and successful verify null suggestions remain unchanged.
+- Prevent a later unit's missing bundle or deterministic proposal conflict from being discovered only after an earlier unit has already written remotely.
+- Preserve PARTIAL when a checkpoint has succeeded before a later failure, and preserve BLOCKED when no external checkpoint succeeded.
+- Prevent duplicate target names and duplicate hook identifiers from collapsing evidence or approval identity across release units.
 
 **Upgrade Notes**
 
-Old production plans missing sourceAuthority and checker v4 plans must not be silently upgraded; when no external writes occurred, prepare again and approve the new digest. Do not migrate old approvals or evidence. Preserve existing PARTIAL checkpoints and use matching-version recovery. Hook cache v1 is unchanged; old full-test evidence is not imported. R-02 safe full-tree inventory, R-05 Hook cache v2, R-10 implementation, real Kimi/WorkBuddy public-marketplace installation and invocation gates, and the Audit public offline release-record verifier are excluded.
+Prepare a new 0.9.0 plan to use plan version 3; do not edit or upgrade frozen older plans. Plan versions 1 and 2 remain readable only through their explicit compatibility path. release-finish is optional local follow-up, not publication evidence: branch merges, Kimi trust prompts, and local host changes still require explicit user consent, and unsupported exact-ref updates remain manual. Hook cache v2, safe full-tree inventory, the Audit offline release-record verifier, and mandatory public-marketplace host invocation gates remain outside this version.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.8.1 is the current source candidate. This README
+> **Current boundary:** v0.9.0 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -64,7 +68,7 @@ Old production plans missing sourceAuthority and checker v4 plans must not be si
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.8.1 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.0 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -724,6 +728,13 @@ verification is automated. Kimi Code and CodeBuddy/WorkBuddy are returned as
 `manualFollowUps` with `verifiedBySystem: false`; their completion is not a
 condition for the automated release to reach `VERIFIED`.
 
+After `VERIFIED`, the optional `release-finish` workflow can update Claude and
+Codex from the frozen marketplace identity, drive Kimi's TUI and re-check its
+managed installation, or confirm an already exact CodeBuddy/WorkBuddy entry.
+It requires explicit user confirmation, does not change release status, and
+leaves CodeBuddy/WorkBuddy mismatches for manual handling because that CLI
+cannot pin the frozen ref.
+
 A `codebuddy-plugin` distribution may optionally declare `marketplace` (and
 `marketplaceSource`, the URL consumers use to add the marketplace) to override
 the default unified marketplace `artifact-skill-set`; undeclared distributions
@@ -749,9 +760,10 @@ declaration is narrowed to concrete targets.
 - no overwrite of branches/tags/releases or npm unpublish; create-only refs use
   `--force-with-lease=<ref>:` solely as an atomic compare-and-set assertion that
   the ref is absent, while existing branches use an ordinary non-force push;
-- no automated Kimi or CodeBuddy/WorkBuddy marketplace install checkpoint —
-  these installations remain explicit post-release team tasks and the system
-  does not verify their completion;
+- no Kimi or CodeBuddy/WorkBuddy marketplace install checkpoint in the release
+  state machine — optional release-finish can drive and re-check Kimi locally,
+  or confirm an already exact CodeBuddy/WorkBuddy entry, but those results do
+  not become publication evidence;
 - no promise of Windows or broad multi-platform native write support;
 - no hidden commit, push, tag, release, or package publication.
 

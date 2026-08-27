@@ -12,7 +12,8 @@
  * - approvedAt is not in the future (beyond 5-minute clock skew tolerance)
  *
  * The planVersion fork (design: t1-2-digest-decoupling.md §4.3) is
- * centralized here: for planVersion 2 plans the baseline is record-layer
+ * centralized here: for planVersion 2/3 plans (v3 inherits the v2 approval
+ * boundary per 多发布单元 postPublish v3 §4.2) the baseline is record-layer
  * data -- gitTreeHash/workspaceDigest equality and the production workspace
  * digest algorithm double-check are NOT invalidation conditions (artifact
  * integrity is sealed by the frozen-artifact re-verification at publish).
@@ -186,11 +187,13 @@ export function validateApproval(plan, approval, options = {}) {
     );
   }
 
-  // planVersion fork (centralized here; see module header): v2 plans treat
-  // the baseline as optional record-layer data.
-  const planV2 = plan?.planVersion === 2;
+  // planVersion fork (centralized here; see module header): planVersion 2/3
+  // plans treat the baseline as optional record-layer data (v3 inherits the
+  // v2 approval boundary per 多发布单元 postPublish v3 §4.2). Versions beyond
+  // {2,3} stay on the legacy v1 path and are never silently admitted.
+  const recordLayerBaseline = plan?.planVersion === 2 || plan?.planVersion === 3;
 
-  if (planV2) {
+  if (recordLayerBaseline) {
     if (!approval.planDigest || !approval.expiresAt) {
       throw new ReleaseError(
         GATE_FAILED,
@@ -206,7 +209,7 @@ export function validateApproval(plan, approval, options = {}) {
     );
   }
 
-  if (!planV2) {
+  if (!recordLayerBaseline) {
     if (plan.production?.mode === 'github-npm-v1') {
       if (plan.baseline?.workspaceDigestAlgorithm !== WORKSPACE_DIGEST_ALGORITHM) {
         throw new ReleaseError(
@@ -249,9 +252,9 @@ export function validateApproval(plan, approval, options = {}) {
   }
 
   // --- baseline equality checks (v1 plans only) ---
-  // For planVersion 2 plans the baseline is record-layer data: it stays in
+  // For planVersion 2/3 plans the baseline is record-layer data: it stays in
   // the plan/approval files for audit but is not an invalidation condition.
-  if (!planV2) {
+  if (!recordLayerBaseline) {
     // --- baseline.gitTreeHash match ---
     if (approval.baseline.gitTreeHash !== plan.baseline?.gitTreeHash) {
       throw new ReleaseError(

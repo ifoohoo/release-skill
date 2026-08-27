@@ -22,12 +22,17 @@
  * @module core/preset-executor
  */
 
+import { rm } from 'node:fs/promises';
+
 import { ReleaseError, POST_PUBLISH_VERIFY_FAILED } from './errors.mjs';
 import { resolveProposalInboxTransport } from './presets.mjs';
 import { executeNotifyHandoffHook } from './notify-handoff.mjs';
 import {
+  buildProposalDocument,
   executeProposalInboxGitPushHook,
   executeProposalInboxLocalFileHook,
+  observeProposalInboxGitPush,
+  proposalFileName,
 } from './proposal-inbox.mjs';
 import { executeMarketplaceRegistryEntryHook } from './marketplace-registry-entry.mjs';
 import { executeDocsRefreshHook } from './docs-refresh-preset.mjs';
@@ -172,4 +177,52 @@ export async function executePresetHook(params) {
       );
     }
   }
+}
+
+/**
+ * Narrow READ-ONLY preset preflight (rework R-01): deterministic conflicts a
+ * preset can already recognize from its existing observe-before-write
+ * observation, evaluated BEFORE the first external write of the phase. This
+ * is NOT a second dispatch table and NOT a lock — it only covers the presets
+ * whose observation implementation already exists (proposal-inbox git-push:
+ * the proposal path exists with different bytes -> the shared observation
+ * throws REMOTE_CONFLICT), and every preset hook is re-observed at execution
+ * time regardless.
+ *
+ * Returns `null` for presets/transports without a read-only deterministic
+ * conflict observation (proposal-inbox local-file, notify-handoff, ...) —
+ * their execution-phase observe-before-write stays the only gate.
+ *
+ * @param {object} params
+ * @param {object} params.hook - Declared preset hook entry.
+ * @param {object} params.contextProjection - The deterministic §2.3 context
+ *   projection of the current run (the same bytes the execution-phase
+ *   delivery serializes; lineage-stable runId).
+ * @param {Function} [params.exec] - Injectable git exec (tests).
+ * @returns {Promise<{verdict: string, proposalPath: string}|null>}
+ * @throws {ReleaseError} REMOTE_CONFLICT/REMOTE_UNAVAILABLE from the shared
+ *   observation implementation.
+ */
+export async function preflightPresetHook(params) {
+  const { hook, contextProjection, exec } = params ?? {};
+  if (!hook || typeof hook.preset !== 'string') return null;
+  if (hook.preset !== 'proposal-inbox') return null;
+  const target = hook.config?.target;
+  if (!target) return null; // targetOptional degradation: nothing remote to observe.
+  const transport = resolveProposalInboxTransport(hook.config);
+  if (transport !== 'git-push') return null; // local-file: no deterministic remote conflict observation.
+
+  // The same observation implementation the execution-phase delivery uses:
+  // build the byte-deterministic proposal and observe-before-write.
+  const document = buildProposalDocument(contextProjection);
+  const proposalPath = proposalFileName(contextProjection.unitId, contextProjection.version);
+  const { cloneDir, verdict } = await observeProposalInboxGitPush({
+    remoteUrl: target.remoteUrl,
+    branch: target.branch,
+    proposalPath,
+    proposalDocument: document,
+    ...(exec !== undefined ? { exec } : {}),
+  });
+  await rm(cloneDir, { recursive: true, force: true }).catch(() => {});
+  return { verdict, proposalPath };
 }

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { readFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -36,7 +37,7 @@ registerPathRedactor(redactSensitivePaths);
 
 const execFile = promisify(execFileCb);
 
-const COMMANDS = new Set(['help', 'setup', 'assess', 'prepare', 'approve', 'publish', 'reconcile', 'verify', 'ship', 'attest', 'hooks', 'artifacts', 'docs', 'distribute', 'route', 'lineage']);
+const COMMANDS = new Set(['help', 'setup', 'assess', 'prepare', 'approve', 'publish', 'reconcile', 'verify', 'ship', 'post-release', 'attest', 'hooks', 'artifacts', 'docs', 'distribute', 'route', 'lineage']);
 
 /**
  * Wait until writes already queued on a process output stream have reached
@@ -308,6 +309,8 @@ Commands:
   verify     Fresh remote and consumer verification; only this reaches VERIFIED
   ship       Resume one durable prepare -> approve -> publish -> verify flow; completes a parked
              postVerify hook once its checkpoint approval is provided (--hook-approval)
+  post-release Inspect optional local finishing work after VERIFIED; update installed host plugins
+             only after exact plan confirmation
   attest     Legacy only: record a Kimi/CodeBuddy result for an old frozen plan
   hooks      Run declared development hooks and populate reusable receipts
   artifacts  Artifact status, inspect, update/apply, resolution, and diagnostics
@@ -360,6 +363,9 @@ Options:
   --approve         Approve the ship plan (boolean; plan digest is auto-resolved)
   --hook-approval <path> Checkpoint approval for a requiresApproval postPublish hook (ship/distribute; repeatable)
   --state <path>    Override the durable ship state file
+  --update-local-hosts Update installed plugins for selected local hosts after VERIFIED
+  --hosts <ids>     Comma-separated local hosts for post-release update (default: all declared)
+  --confirm-plan <digest> Confirm the exact VERIFIED plan before local host mutation
   --no-hook-cache  Force every prepare hook to run in full; neither read nor write the hook cache
   --json           Output results as JSON
   --version        Show version and exit
@@ -377,6 +383,7 @@ Safety:
   - To ensure zero remote writes, disable hooks or audit them separately
   - docs refresh --write rewrites only declared README managed regions and the current CHANGELOG entry after exact refreshDigest confirmation; it never commits, pushes, tags, publishes, or installs.
   - publish requires explicit approval; plan digest is auto-read from the plan file
+  - post-release local host updates are optional local mutations and never change VERIFIED
   - publish consumes frozen Git/npm artifacts, never the live workspace
   - existing remote objects and uncertain checks stop for human intervention
   - production-equivalent protocol sandbox is verified; a real remote canary is not
@@ -815,6 +822,19 @@ if (command === 'ship') {
           console.log('then re-run: release-skill ship --root <root> --hook-approval <approval-record>');
         }
       }
+      if (result.status === 'VERIFIED' && result.postRelease) {
+        if (result.postRelease.status === 'UNAVAILABLE') {
+          console.warn(`Post-release checklist unavailable: ${result.postRelease.diagnostic?.message ?? 'unknown error'}`);
+        } else if (result.postRelease.merge.promptRequired) {
+          console.log('Post-release: ask whether to merge the remaining release branch.');
+        } else {
+          console.log('Post-release: branch advancement was already included; skip the merge question.');
+        }
+        if (result.postRelease.localHostUpdate?.promptRequired) {
+          console.log(`Post-release: ask whether to update local host plugins (${result.postRelease.localHostUpdate.hosts.join(', ')}).`);
+          console.log(`Post-release command: release-skill post-release --plan ${result.planPath} --run ${result.verifyRunPath}`);
+        }
+      }
       for (const followUp of result.manualFollowUps ?? []) {
         console.log(`Manual follow-up [${followUp.platform}] ${followUp.plugin}: not verified by system`);
       }
@@ -1178,6 +1198,91 @@ if (command === 'reconcile') {
   }
 }
 
+// --- Optional local finishing after VERIFIED ---
+if (command === 'post-release') {
+  const value = (flag) => {
+    const idx = args.indexOf(flag);
+    return idx !== -1 && args[idx + 1] ? args[idx + 1] : undefined;
+  };
+  const planPath = value('--plan') ? resolve(value('--plan')) : undefined;
+  const runPath = value('--run') ? resolve(value('--run')) : undefined;
+  if (!planPath || !runPath) {
+    const message = 'post-release requires --plan <path> and --run <verified-run-path>';
+    if (hasJson) console.log(JSON.stringify({ error: 'MISSING_PARAMETERS', message, exitCode: 1 }));
+    else console.error(`Error: ${message}`);
+    await exitAfterFlush(1);
+  }
+  try {
+    const {
+      assertVerifiedReleaseRun,
+      derivePostReleaseChecklist,
+      updateLocalHostPlugins,
+    } = await import('../src/commands/post-release-local.mjs');
+    const { validatePlan } = await import('../src/core/plan.mjs');
+    const {
+      loadRun,
+      resolveRunPath,
+      validateRunLineage,
+    } = await import('../src/core/run.mjs');
+    const plan = JSON.parse(await readFile(planPath, 'utf8'));
+    validatePlan(plan);
+    const resolvedRunPath = await resolveRunPath(runPath);
+    const runRecord = await loadRun(resolvedRunPath, {
+      requireDigest: true,
+      authorityPlanPath: planPath,
+    });
+    await validateRunLineage(runRecord, {
+      plan,
+      planPath,
+      runPath: resolvedRunPath,
+      production: Boolean(plan.production),
+    });
+    assertVerifiedReleaseRun(plan, runRecord);
+
+    const updateRequested = args.includes('--update-local-hosts');
+    const selectedHosts = value('--hosts')
+      ?.split(',')
+      .map((host) => host.trim())
+      .filter(Boolean);
+    const result = updateRequested
+      ? await updateLocalHostPlugins({
+        plan,
+        root: resolve(value('--root') ?? process.cwd()),
+        confirmPlanDigest: value('--confirm-plan'),
+        selectedHosts,
+      })
+      : derivePostReleaseChecklist(plan);
+
+    if (hasJson) {
+      console.log(JSON.stringify(result, null, 2));
+    } else if (!updateRequested) {
+      console.log(`Post-release status: ${result.status}`);
+      if (result.merge.promptRequired) console.log('Ask whether the user wants to merge the remaining branch.');
+      else console.log('Branch advancement was already included in the release workflow; skip the merge question.');
+      if (result.localHostUpdate.promptRequired) {
+        console.log(`Ask whether to update local host plugins: ${result.localHostUpdate.hosts.join(', ')}`);
+      }
+    } else {
+      console.log(`Local host update: ${result.status}`);
+      for (const entry of result.results) {
+        console.log(`  ${entry.host}/${entry.unitId}: ${entry.status}${entry.version ? ` (${entry.version})` : ''}`);
+      }
+      console.log('The release remains VERIFIED; restart updated hosts before using the new plugin bytes.');
+    }
+    const success = !updateRequested || ['UPDATED', 'ALREADY_CURRENT', 'NO_APPLICABLE_HOSTS'].includes(result.status);
+    await exitAfterFlush(success ? 0 : 1);
+  } catch (err) {
+    if (hasJson) {
+      console.log(JSON.stringify({
+        error: err.code ?? 'POST_RELEASE_FAILED',
+        message: err.message,
+        exitCode: err.exitCode ?? 1,
+      }));
+    } else console.error(`Error: ${err.message}`);
+    await exitAfterFlush(err.exitCode ?? 1);
+  }
+}
+
 // --- Verify command routing ---
 if (command === 'verify') {
 
@@ -1221,6 +1326,18 @@ if (command === 'verify') {
       root,
       verificationGatesAuthorized,
     });
+    if (result.status === 'VERIFIED') {
+      const {
+        derivePostReleaseChecklist,
+        unavailablePostReleaseChecklist,
+      } = await import('../src/commands/post-release-local.mjs');
+      const plan = JSON.parse(await readFile(planPath, 'utf8'));
+      try {
+        result.postRelease = derivePostReleaseChecklist(plan);
+      } catch (error) {
+        result.postRelease = unavailablePostReleaseChecklist(plan, error);
+      }
+    }
 
     if (hasJson) {
       console.log(JSON.stringify(result, null, 2));
@@ -1236,6 +1353,14 @@ if (command === 'verify') {
         } else {
           console.log(`Baseline advance: ${result.baselineAdvance.committed ? 'advanced and committed' : 'advanced (uncommitted — commit .release-skill/project.yaml manually)'}`);
         }
+      }
+      if (result.postRelease?.status === 'UNAVAILABLE') {
+        console.warn(`Post-release checklist unavailable: ${result.postRelease.diagnostic?.message ?? 'unknown error'}`);
+      } else if (result.postRelease?.merge.promptRequired) {
+        console.log('Post-release: ask whether to merge the remaining branch.');
+      }
+      if (result.postRelease?.localHostUpdate.promptRequired) {
+        console.log(`Post-release: ask whether to update local host plugins (${result.postRelease.localHostUpdate.hosts.join(', ')}).`);
       }
     }
 

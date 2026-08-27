@@ -371,9 +371,17 @@ function renderSkillForPlatform(content, platformName) {
     const hostLabel = platformName === 'codex' ? 'Codex' : 'Kimi';
     const preamble = platformName === 'codex' ? CODEX_PREAMBLE : KIMI_PREAMBLE;
     let rendered = content.replaceAll(
+      '${CLAUDE_PLUGIN_ROOT}/bin/release-skill-local-finish.mjs',
+      '$RELEASE_SKILL_LOCAL_FINISH_ENTRY',
+    ).replaceAll(
       '${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs',
       '$RELEASE_SKILL_ENTRY',
     );
+    const renderedPreamble = rendered.includes('$RELEASE_SKILL_LOCAL_FINISH_ENTRY')
+      ? preamble
+        .replaceAll('RELEASE_SKILL_ENTRY', 'RELEASE_SKILL_LOCAL_FINISH_ENTRY')
+        .replaceAll('release-skill.mjs', 'release-skill-local-finish.mjs')
+      : preamble;
     // A remaining bare host-root reference has no safe path-derived equivalent.
     if (rendered.includes('${CLAUDE_PLUGIN_ROOT}')) {
       throw new Error(`${hostLabel} rendering found an unsupported bare CLAUDE_PLUGIN_ROOT reference`);
@@ -385,7 +393,7 @@ function renderSkillForPlatform(content, platformName) {
       throw new Error(`${hostLabel} rendering requires a valid leading YAML frontmatter block`);
     }
     const insertionPoint = frontmatterEnd + '\n---\n'.length;
-    return `${rendered.slice(0, insertionPoint)}\n${preamble}${rendered.slice(insertionPoint)}`;
+    return `${rendered.slice(0, insertionPoint)}\n${renderedPreamble}${rendered.slice(insertionPoint)}`;
   }
 
   return content;
@@ -527,6 +535,7 @@ async function generateAdapterFiles(platform, skills, templateJson, root, market
 
   const HOST_BIN_FILES = new Set([
     'release-skill.mjs',
+    'release-skill-local-finish.mjs',
     'release-skill.bundle.mjs',
     'release-skill-cli.mjs',
     'foundation-resource-binding.json',

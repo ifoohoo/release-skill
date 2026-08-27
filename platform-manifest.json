@@ -2,11 +2,11 @@
   "schemaVersion": "1.0.0",
   "platformId": "release-skill",
   "platformName": "release-skill Plugin Platform",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "logicalRoot": "skills-src/",
-  "logicalRootDigest": "3142e4454f192de6bb3de09141dfb7798a16acd3b8de820a70a2bf185f82fd38",
-  "projectionDigest": "43e29d004faac5800912a95abc013690e72f5cfd3b42e33cbc28fef39a39bfa3",
-  "projectionId": "release-skill:platform:0.8.1",
+  "logicalRootDigest": "36f27cb08efabac14f45d92d669f2e38ff19577440d3ab9c0fe79e7ee92e8b7f",
+  "projectionDigest": "d5454a1a0319eb4adee316b5c4b736f37ef64e7844f194d7b704ae0e7397bf4f",
+  "projectionId": "release-skill:platform:0.9.0",
   "manifestRequired": true,
   "projectionSources": {
     "skills-src-root": {
@@ -18,6 +18,7 @@
         "skills-src/release-assess/SKILL.md",
         "skills-src/release-config/SKILL.md",
         "skills-src/release-docs/SKILL.md",
+        "skills-src/release-finish/SKILL.md",
         "skills-src/release-help/SKILL.md",
         "skills-src/release-marketplace/SKILL.md",
         "skills-src/release-prepare/SKILL.md",
@@ -41,6 +42,7 @@
         "skills/release-assess/SKILL.md",
         "skills/release-config/SKILL.md",
         "skills/release-docs/SKILL.md",
+        "skills/release-finish/SKILL.md",
         "skills/release-help/SKILL.md",
         "skills/release-marketplace/SKILL.md",
         "skills/release-prepare/SKILL.md",
@@ -62,6 +64,7 @@
         "adapters/claude/skills/release-assess/SKILL.md",
         "adapters/claude/skills/release-config/SKILL.md",
         "adapters/claude/skills/release-docs/SKILL.md",
+        "adapters/claude/skills/release-finish/SKILL.md",
         "adapters/claude/skills/release-help/SKILL.md",
         "adapters/claude/skills/release-marketplace/SKILL.md",
         "adapters/claude/skills/release-prepare/SKILL.md",
@@ -83,6 +86,7 @@
         "adapters/codex/skills/release-assess/SKILL.md",
         "adapters/codex/skills/release-config/SKILL.md",
         "adapters/codex/skills/release-docs/SKILL.md",
+        "adapters/codex/skills/release-finish/SKILL.md",
         "adapters/codex/skills/release-help/SKILL.md",
         "adapters/codex/skills/release-marketplace/SKILL.md",
         "adapters/codex/skills/release-prepare/SKILL.md",
@@ -104,6 +108,7 @@
         "adapters/kimi/skills/release-assess/SKILL.md",
         "adapters/kimi/skills/release-config/SKILL.md",
         "adapters/kimi/skills/release-docs/SKILL.md",
+        "adapters/kimi/skills/release-finish/SKILL.md",
         "adapters/kimi/skills/release-help/SKILL.md",
         "adapters/kimi/skills/release-marketplace/SKILL.md",
         "adapters/kimi/skills/release-prepare/SKILL.md",
@@ -125,6 +130,7 @@
         "adapters/workbuddy/skills/release-assess/SKILL.md",
         "adapters/workbuddy/skills/release-config/SKILL.md",
         "adapters/workbuddy/skills/release-docs/SKILL.md",
+        "adapters/workbuddy/skills/release-finish/SKILL.md",
         "adapters/workbuddy/skills/release-help/SKILL.md",
         "adapters/workbuddy/skills/release-marketplace/SKILL.md",
         "adapters/workbuddy/skills/release-prepare/SKILL.md",
@@ -195,6 +201,26 @@
     {
       "logicalName": "release-docs",
       "path": "skills/release-docs/SKILL.md"
+    },
+    {
+      "logicalName": "release-finish",
+      "path": "adapters/claude/skills/release-finish/SKILL.md"
+    },
+    {
+      "logicalName": "release-finish",
+      "path": "adapters/codex/skills/release-finish/SKILL.md"
+    },
+    {
+      "logicalName": "release-finish",
+      "path": "adapters/kimi/skills/release-finish/SKILL.md"
+    },
+    {
+      "logicalName": "release-finish",
+      "path": "adapters/workbuddy/skills/release-finish/SKILL.md"
+    },
+    {
+      "logicalName": "release-finish",
+      "path": "skills/release-finish/SKILL.md"
     },
     {
       "logicalName": "release-help",

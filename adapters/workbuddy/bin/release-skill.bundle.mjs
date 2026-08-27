@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.8.1"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.0"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "649246c52671943bb3b6855d545c5aa1651ae3b0fb245534dee44e76ae8806b1";
+const __bundleSourceDigest = "3571e5552ea543b85e75c4739d8e50f8e48c5a829cc3b33e6903ad16f1cafc66";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -4304,49 +4304,49 @@ var require_fast_uri = __commonJS({
       return serialize(resolved, schemelessOptions);
     }
     __name(resolve41, "resolve");
-    function resolveComponent(base, relative30, options, skipNormalization) {
+    function resolveComponent(base, relative31, options, skipNormalization) {
       const target = {};
       if (!skipNormalization) {
         base = parse2(serialize(base, options), options);
-        relative30 = parse2(serialize(relative30, options), options);
+        relative31 = parse2(serialize(relative31, options), options);
       }
       options = options || {};
-      if (!options.tolerant && relative30.scheme) {
-        target.scheme = relative30.scheme;
-        target.userinfo = relative30.userinfo;
-        target.host = relative30.host;
-        target.port = relative30.port;
-        target.path = removeDotSegments(relative30.path || "");
-        target.query = relative30.query;
+      if (!options.tolerant && relative31.scheme) {
+        target.scheme = relative31.scheme;
+        target.userinfo = relative31.userinfo;
+        target.host = relative31.host;
+        target.port = relative31.port;
+        target.path = removeDotSegments(relative31.path || "");
+        target.query = relative31.query;
       } else {
-        if (relative30.userinfo !== void 0 || relative30.host !== void 0 || relative30.port !== void 0) {
-          target.userinfo = relative30.userinfo;
-          target.host = relative30.host;
-          target.port = relative30.port;
-          target.path = removeDotSegments(relative30.path || "");
-          target.query = relative30.query;
+        if (relative31.userinfo !== void 0 || relative31.host !== void 0 || relative31.port !== void 0) {
+          target.userinfo = relative31.userinfo;
+          target.host = relative31.host;
+          target.port = relative31.port;
+          target.path = removeDotSegments(relative31.path || "");
+          target.query = relative31.query;
         } else {
-          if (!relative30.path) {
+          if (!relative31.path) {
             target.path = base.path;
-            if (relative30.query !== void 0) {
-              target.query = relative30.query;
+            if (relative31.query !== void 0) {
+              target.query = relative31.query;
             } else {
               target.query = base.query;
             }
           } else {
-            if (relative30.path[0] === "/") {
-              target.path = removeDotSegments(relative30.path);
+            if (relative31.path[0] === "/") {
+              target.path = removeDotSegments(relative31.path);
             } else {
               if ((base.userinfo !== void 0 || base.host !== void 0 || base.port !== void 0) && !base.path) {
-                target.path = "/" + relative30.path;
+                target.path = "/" + relative31.path;
               } else if (!base.path) {
-                target.path = relative30.path;
+                target.path = relative31.path;
               } else {
-                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative30.path;
+                target.path = base.path.slice(0, base.path.lastIndexOf("/") + 1) + relative31.path;
               }
               target.path = removeDotSegments(target.path);
             }
-            target.query = relative30.query;
+            target.query = relative31.query;
           }
           target.userinfo = base.userinfo;
           target.host = base.host;
@@ -4354,7 +4354,7 @@ var require_fast_uri = __commonJS({
         }
         target.scheme = base.scheme;
       }
-      target.fragment = relative30.fragment;
+      target.fragment = relative31.fragment;
       return target;
     }
     __name(resolveComponent, "resolveComponent");
@@ -9737,8 +9737,8 @@ async function createParentDirectory(cursor, relPath) {
 async function strictTarget(root, relPath, { target = "optional", createParents = false } = {}) {
   const lexical = await resolveContained(root, relPath);
   const rootReal = await realpath4(root);
-  const relative30 = path6.relative(rootReal, lexical);
-  const segments = relative30.split(path6.sep);
+  const relative31 = path6.relative(rootReal, lexical);
+  const segments = relative31.split(path6.sep);
   let cursor = rootReal;
   for (let index = 0; index < segments.length - 1; index += 1) {
     cursor = path6.join(cursor, segments[index]);
@@ -10158,9 +10158,9 @@ function assertOwner(owner) {
 async function targetPath(root, relPath) {
   const target = await resolveContained(root, relPath);
   const rootReal = await realpath5(root);
-  const relative30 = path7.relative(rootReal, target);
+  const relative31 = path7.relative(rootReal, target);
   let cursor = rootReal;
-  for (const segment of relative30.split(path7.sep).slice(0, -1)) {
+  for (const segment of relative31.split(path7.sep).slice(0, -1)) {
     cursor = path7.join(cursor, segment);
     const stats = await lstat6(cursor);
     if (stats.isSymbolicLink() || !stats.isDirectory()) {
@@ -10344,7 +10344,7 @@ ${fileDigest}
 }
 async function collectTree(rootDir) {
   const entries = [];
-  async function walk(relative30, absolute2) {
+  async function walk(relative31, absolute2) {
     let stats;
     try {
       stats = await lstat7(absolute2);
@@ -10352,14 +10352,14 @@ async function collectTree(rootDir) {
       throw mechanismError(
         HARNESS_ERROR_KINDS.BASELINE_MISMATCH,
         "baseline entry cannot be inspected",
-        { path: relative30, code: cause && cause.code ? cause.code : "unknown" }
+        { path: relative31, code: cause && cause.code ? cause.code : "unknown" }
       );
     }
     if (stats.isSymbolicLink()) {
       throw mechanismError(
         HARNESS_ERROR_KINDS.INVALID_ROOT,
         "baseline must be a real directory tree without symbolic links",
-        { path: relative30 }
+        { path: relative31 }
       );
     }
     if (stats.isDirectory()) {
@@ -10370,12 +10370,12 @@ async function collectTree(rootDir) {
         throw mechanismError(
           HARNESS_ERROR_KINDS.BASELINE_MISMATCH,
           "baseline directory cannot be listed",
-          { path: relative30, code: cause && cause.code ? cause.code : "unknown" }
+          { path: relative31, code: cause && cause.code ? cause.code : "unknown" }
         );
       }
       names.sort();
       for (const name of names) {
-        await walk(relative30 === "" ? name : `${relative30}/${name}`, path8.join(absolute2, name));
+        await walk(relative31 === "" ? name : `${relative31}/${name}`, path8.join(absolute2, name));
       }
       return;
     }
@@ -10387,16 +10387,16 @@ async function collectTree(rootDir) {
         throw mechanismError(
           HARNESS_ERROR_KINDS.BASELINE_MISMATCH,
           "baseline file cannot be read",
-          { path: relative30, code: cause && cause.code ? cause.code : "unknown" }
+          { path: relative31, code: cause && cause.code ? cause.code : "unknown" }
         );
       }
-      entries.push({ rel: relative30, bytes });
+      entries.push({ rel: relative31, bytes });
       return;
     }
     throw mechanismError(
       HARNESS_ERROR_KINDS.INVALID_ROOT,
       "baseline entry is neither a regular file nor a directory",
-      { path: relative30 }
+      { path: relative31 }
     );
   }
   __name(walk, "walk");
@@ -19280,8 +19280,8 @@ var require_graceful_fs = __commonJS({
       fs2.createReadStream = createReadStream2;
       fs2.createWriteStream = createWriteStream;
       var fs$readFile = fs2.readFile;
-      fs2.readFile = readFile54;
-      function readFile54(path36, options, cb) {
+      fs2.readFile = readFile55;
+      function readFile55(path36, options, cb) {
         if (typeof options === "function")
           cb = options, options = null;
         return go$readFile(path36, options, cb);
@@ -19297,7 +19297,7 @@ var require_graceful_fs = __commonJS({
         }
         __name(go$readFile, "go$readFile");
       }
-      __name(readFile54, "readFile");
+      __name(readFile55, "readFile");
       var fs$writeFile = fs2.writeFile;
       fs2.writeFile = writeFile17;
       function writeFile17(path36, data, options, cb) {
@@ -41241,7 +41241,7 @@ function stripRecordLayerV2(plan) {
   };
 }
 function computePlanDigest(plan) {
-  if (plan.planVersion === 2) {
+  if (plan.planVersion === 2 || plan.planVersion === 3) {
     return sha256Hex(canonicalJson2(stripRecordLayerV2(plan)));
   }
   const { digest: _digest, ...rest } = plan;
@@ -41279,7 +41279,7 @@ async function writePlanImmutable(planPath, plan) {
     if (cause?.details?.kind === HARNESS_ERROR_KINDS.EXCLUSIVE_PUBLISH_CONFLICT) {
       const existing = await readFile15(planPath, "utf8").catch(() => null);
       if (existing === json) return { planPath, planDigest };
-      if (plan.planVersion === 2 && existing !== null) {
+      if ((plan.planVersion === 2 || plan.planVersion === 3) && existing !== null) {
         let existingPlan = null;
         try {
           existingPlan = JSON.parse(existing);
@@ -41424,7 +41424,7 @@ function validatePlanActionCompleteness(plan, options = {}) {
       }
       if (!frozen.commitTimestamp || typeof frozen.commitTimestamp !== "string") {
         failures.push(`unit "${unitId}" frozenSnapshot.commitTimestamp is missing; legacy production plans without a freeze timestamp are rejected, never silently backfilled`);
-      } else if (plan.planVersion === 2) {
+      } else if (plan.planVersion === 2 || plan.planVersion === 3) {
         if (!CANONICAL_COMMIT_TIMESTAMP_RE.test(frozen.commitTimestamp)) {
           failures.push(`unit "${unitId}" frozenSnapshot.commitTimestamp is not a canonical normalized timestamp (expected YYYY-MM-DDTHH:MM:SS+00:00)`);
         }
@@ -42155,6 +42155,22 @@ var init_plan = __esm({
 });
 
 // src/core/run.mjs
+var run_exports = {};
+__export(run_exports, {
+  appendRunState: () => appendRunState,
+  assertImmutableRunAuthority: () => assertImmutableRunAuthority,
+  computeRunDigest: () => computeRunDigest,
+  createProductionPrepareRunDir: () => createProductionPrepareRunDir,
+  createProductionRunDir: () => createProductionRunDir,
+  loadRun: () => loadRun,
+  resolveDefaultRunDir: () => resolveDefaultRunDir,
+  resolveRunPath: () => resolveRunPath,
+  validateRun: () => validateRun,
+  validateRunCheckpointMapping: () => validateRunCheckpointMapping,
+  validateRunLineage: () => validateRunLineage,
+  validateRunPlanDigest: () => validateRunPlanDigest,
+  writeRunAtomic: () => writeRunAtomic
+});
 import { lstat as lstat23, mkdir as mkdir8, readFile as readFile16, stat as stat8 } from "node:fs/promises";
 import { realpathSync as realpathSync3 } from "node:fs";
 import { dirname as dirname4, join as join7, resolve as resolve8, basename as basename4, relative as relative7, isAbsolute as isAbsolute5 } from "node:path";
@@ -43027,8 +43043,8 @@ function validateApproval(plan, approval, options = {}) {
       {}
     );
   }
-  const planV2 = plan?.planVersion === 2;
-  if (planV2) {
+  const recordLayerBaseline = plan?.planVersion === 2 || plan?.planVersion === 3;
+  if (recordLayerBaseline) {
     if (!approval.planDigest || !approval.expiresAt) {
       throw new ReleaseError(
         GATE_FAILED,
@@ -43043,7 +43059,7 @@ function validateApproval(plan, approval, options = {}) {
       { approval }
     );
   }
-  if (!planV2) {
+  if (!recordLayerBaseline) {
     if (plan.production?.mode === "github-npm-v1") {
       if (plan.baseline?.workspaceDigestAlgorithm !== WORKSPACE_DIGEST_ALGORITHM) {
         throw new ReleaseError(
@@ -43079,7 +43095,7 @@ function validateApproval(plan, approval, options = {}) {
       { approvalDigest: approval.planDigest, planDigest: actualDigest }
     );
   }
-  if (!planV2) {
+  if (!recordLayerBaseline) {
     if (approval.baseline.gitTreeHash !== plan.baseline?.gitTreeHash) {
       throw new ReleaseError(
         GATE_FAILED,
@@ -44220,6 +44236,62 @@ function validatePostPublishDeclaration(postPublish, options = {}) {
   }
   return postPublish;
 }
+function normalizePostPublishView(plan) {
+  const version = plan?.planVersion;
+  const postPublish = plan?.postPublish;
+  if (version === 1 || version === 2) {
+    if (postPublish === void 0) return [];
+    if (Array.isArray(postPublish)) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `planVersion ${version} plans must not carry a postPublish array; only planVersion 3 accepts the array shape`,
+        { planVersion: version, postPublishKind: "array" }
+      );
+    }
+    if (postPublish === null || typeof postPublish !== "object") {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `planVersion ${version} plans must carry a single postPublish object or none; found ${postPublish === null ? "null" : typeof postPublish}`,
+        { planVersion: version }
+      );
+    }
+    return [postPublish];
+  }
+  if (version === 3) {
+    if (!Array.isArray(postPublish)) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `planVersion 3 plans must carry a postPublish array (possibly empty); found ${postPublish === void 0 ? "no postPublish field" : postPublish === null ? "null" : "a single object"}`,
+        { planVersion: 3, postPublishKind: postPublish === void 0 ? "absent" : postPublish === null ? "null" : "object" }
+      );
+    }
+    return postPublish;
+  }
+  throw new ReleaseError(
+    GATE_FAILED,
+    `cannot normalize postPublish shape: unknown planVersion ${String(version)}`,
+    { planVersion: version }
+  );
+}
+function validatePostPublishHookIdUniqueness(declarations) {
+  const explicitHookIdOwner = /* @__PURE__ */ new Map();
+  for (const declaration of declarations ?? []) {
+    for (const hook of declaration?.hooks ?? []) {
+      const owner = explicitHookIdOwner.get(hook.id);
+      if (owner !== void 0 && owner !== declaration.unitId) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `postPublish hook id "${hook.id}" is declared by units "${owner}" and "${declaration.unitId}"; explicit hooks[].id must be unique across the whole project (target and probe local ids may repeat across units)`,
+          { hookId: hook.id, unitIds: [owner, declaration.unitId] }
+        );
+      }
+      explicitHookIdOwner.set(hook.id, declaration.unitId);
+    }
+  }
+}
+function postPublishActionId({ planVersion, unitId, localId }) {
+  return planVersion === 3 ? `${unitId}/${localId}` : localId;
+}
 function orderTargetsByDependency(targets) {
   const byId = new Map(targets.map((target) => [target.id, target]));
   const ordered = [];
@@ -44267,17 +44339,24 @@ function effectiveHookRequiresApproval(hook) {
   if (hook.preset !== void 0) return resolvePresetRequiresApproval(hook.preset, hook.config) === true;
   return false;
 }
-function buildPostPublishContext({ plan, runId, sourceRun, payloadDir, phase, verifyEvidence }) {
-  const postPublish = plan.postPublish ?? {};
-  const unit = (plan.units ?? []).find((entry) => entry.id === postPublish.unitId);
+function buildPostPublishContext({ plan, postPublish, runId, sourceRun, payloadDir, phase, verifyEvidence }) {
+  const declaration = postPublish;
+  if (!declaration || typeof declaration !== "object" || Array.isArray(declaration)) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `buildPostPublishContext requires the current postPublish declaration; found ${declaration === void 0 ? "no declaration" : Array.isArray(declaration) ? "a declaration array" : typeof declaration}`,
+      { planVersion: plan?.planVersion, unitId: declaration?.unitId ?? null }
+    );
+  }
+  const unit = (plan.units ?? []).find((entry) => entry.id === declaration.unitId);
   const frozenSnapshot = unit?.frozenSnapshot ?? {};
   return {
     planDigest: plan.digest,
     runId,
-    unitId: postPublish.unitId,
+    unitId: declaration.unitId,
     version: unit?.targetVersion,
-    tag: postPublish.tag,
-    commit: postPublish.tagCommit,
+    tag: declaration.tag,
+    commit: declaration.tagCommit,
     ...frozenSnapshot.tree !== void 0 ? { tree: frozenSnapshot.tree } : {},
     ...frozenSnapshot.manifestDigest !== void 0 ? { manifestDigest: frozenSnapshot.manifestDigest } : {},
     publishedAt: sourceRun?.finishedAt,
@@ -44360,6 +44439,9 @@ var init_postpublish = __esm({
     __name(validateCommandFields, "validateCommandFields");
     __name(validatePostPublishHookEntry, "validatePostPublishHookEntry");
     __name(validatePostPublishDeclaration, "validatePostPublishDeclaration");
+    __name(normalizePostPublishView, "normalizePostPublishView");
+    __name(validatePostPublishHookIdUniqueness, "validatePostPublishHookIdUniqueness");
+    __name(postPublishActionId, "postPublishActionId");
     __name(orderTargetsByDependency, "orderTargetsByDependency");
     POSTPUBLISH_CONTEXT_ENV = "RELEASE_SKILL_POSTPUBLISH_CONTEXT";
     __name(normalizePostPublishHook, "normalizePostPublishHook");
@@ -44396,7 +44478,9 @@ function validatePostPublishApproval(plan, approval, options = {}) {
       { approvalPlanDigest: approval.planDigest, planDigest: actualDigest }
     );
   }
-  const hooks = plan.postPublish?.hooks ?? [];
+  const declarations = normalizePostPublishView(plan);
+  validatePostPublishHookIdUniqueness(declarations);
+  const hooks = declarations.flatMap((declaration) => declaration.hooks ?? []);
   const hook = hooks.find((entry) => entry.id === approval.hookId);
   if (!hook) {
     throw new ReleaseError(
@@ -44473,6 +44557,7 @@ var init_postpublish_approval = __esm({
     await init_plan();
     await init_approval();
     init_presets();
+    init_postpublish();
     init_trusted_resource();
     postpublishApprovalSchema = JSON.parse((await readTrustedPackageResource(
       "schemas/postpublish-approval-record.schema.json"
@@ -54282,7 +54367,7 @@ var require_npa = __commonJS({
     var isWindows = process.platform === "win32";
     var { URL: URL2 } = __require("node:url");
     var path36 = isWindows ? __require("node:path/win32") : __require("node:path");
-    var { homedir } = __require("node:os");
+    var { homedir: homedir2 } = __require("node:os");
     var HostedGit = require_lib23();
     var semver = require_semver2();
     var validatePackageName2 = require_lib24();
@@ -54568,7 +54653,7 @@ var require_npa = __commonJS({
       }
       if (/^\/~(\/|$)/.test(specPath)) {
         res.saveSpec = `file:${specPath.substr(1)}`;
-        resolvedPath = path36.resolve(homedir(), specPath.substr(3));
+        resolvedPath = path36.resolve(homedir2(), specPath.substr(3));
       } else if (!path36.isAbsolute(rawSpec.slice(5))) {
         res.saveSpec = `file:${path36.relative(where, resolvedPath)}`;
       } else {
@@ -57696,7 +57781,7 @@ var require_polyfill = __commonJS({
     var {
       dirname: dirname24,
       isAbsolute: isAbsolute27,
-      join: join46,
+      join: join47,
       parse: parse2,
       resolve: resolve41,
       sep: sep10,
@@ -57977,8 +58062,8 @@ var require_polyfill = __commonJS({
       const dir = await readdir31(src);
       for (let i = 0; i < dir.length; i++) {
         const item = dir[i];
-        const srcItem = join46(src, item);
-        const destItem = join46(dest, item);
+        const srcItem = join47(src, item);
+        const destItem = join47(dest, item);
         const { destStat } = await checkPaths(srcItem, destItem, opts);
         await startCopy(destStat, srcItem, destItem, opts);
       }
@@ -58054,15 +58139,15 @@ var require_cp = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+fs@5.0.0/node_modules/@npmcli/fs/lib/with-temp-dir.js
 var require_with_temp_dir = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@5.0.0/node_modules/@npmcli/fs/lib/with-temp-dir.js"(exports, module) {
-    var { join: join46, sep: sep10 } = __require("path");
+    var { join: join47, sep: sep10 } = __require("path");
     var getOptions = require_get_options();
-    var { mkdir: mkdir34, mkdtemp: mkdtemp15, rm: rm19 } = __require("fs/promises");
+    var { mkdir: mkdir34, mkdtemp: mkdtemp15, rm: rm20 } = __require("fs/promises");
     var withTempDir = /* @__PURE__ */ __name(async (root, fn, opts) => {
       const options = getOptions(opts, {
         copy: ["tmpPrefix"]
       });
       await mkdir34(root, { recursive: true });
-      const target = await mkdtemp15(join46(`${root}${sep10}`, options.tmpPrefix || ""));
+      const target = await mkdtemp15(join47(`${root}${sep10}`, options.tmpPrefix || ""));
       let err;
       let result2;
       try {
@@ -58071,7 +58156,7 @@ var require_with_temp_dir = __commonJS({
         err = _err;
       }
       try {
-        await rm19(target, { force: true, recursive: true });
+        await rm20(target, { force: true, recursive: true });
       } catch {
       }
       if (err) {
@@ -58087,13 +58172,13 @@ var require_with_temp_dir = __commonJS({
 var require_readdir_scoped = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@5.0.0/node_modules/@npmcli/fs/lib/readdir-scoped.js"(exports, module) {
     var { readdir: readdir31 } = __require("fs/promises");
-    var { join: join46 } = __require("path");
+    var { join: join47 } = __require("path");
     var readdirScoped = /* @__PURE__ */ __name(async (dir) => {
       const results = [];
       for (const item of await readdir31(dir)) {
         if (item.startsWith("@")) {
-          for (const scopedItem of await readdir31(join46(dir, item))) {
-            results.push(join46(item, scopedItem));
+          for (const scopedItem of await readdir31(join47(dir, item))) {
+            results.push(join47(item, scopedItem));
           }
         } else {
           results.push(item);
@@ -58108,7 +58193,7 @@ var require_readdir_scoped = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+fs@5.0.0/node_modules/@npmcli/fs/lib/move-file.js
 var require_move_file = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@5.0.0/node_modules/@npmcli/fs/lib/move-file.js"(exports, module) {
-    var { dirname: dirname24, join: join46, resolve: resolve41, relative: relative30, isAbsolute: isAbsolute27 } = __require("path");
+    var { dirname: dirname24, join: join47, resolve: resolve41, relative: relative31, isAbsolute: isAbsolute27 } = __require("path");
     var fs = __require("fs/promises");
     var pathExists2 = /* @__PURE__ */ __name(async (path36) => {
       try {
@@ -58138,7 +58223,7 @@ var require_move_file = __commonJS({
           if (sourceStat.isDirectory()) {
             const files = await fs.readdir(source);
             await Promise.all(files.map(
-              (file) => moveFile(join46(source, file), join46(destination, file), options, false, symlinks)
+              (file) => moveFile(join47(source, file), join47(destination, file), options, false, symlinks)
             ));
           } else if (sourceStat.isSymbolicLink()) {
             symlinks.push({ source, destination });
@@ -58153,7 +58238,7 @@ var require_move_file = __commonJS({
         await Promise.all(symlinks.map(async ({ source: symSource, destination: symDestination }) => {
           let target = await fs.readlink(symSource);
           if (isAbsolute27(target)) {
-            target = resolve41(symDestination, relative30(symSource, target));
+            target = resolve41(symDestination, relative31(symSource, target));
           }
           let targetStat = "file";
           try {
@@ -58570,9 +58655,9 @@ var require_entry_index = __commonJS({
     var {
       appendFile,
       mkdir: mkdir34,
-      readFile: readFile54,
+      readFile: readFile55,
       readdir: readdir31,
-      rm: rm19,
+      rm: rm20,
       writeFile: writeFile17
     } = __require("fs/promises");
     var { Minipass } = require_commonjs();
@@ -58624,7 +58709,7 @@ var require_entry_index = __commonJS({
       }, "setup");
       const teardown = /* @__PURE__ */ __name(async (tmp2) => {
         if (!tmp2.moved) {
-          return rm19(tmp2.target, { recursive: true, force: true });
+          return rm20(tmp2.target, { recursive: true, force: true });
         }
       }, "teardown");
       const write = /* @__PURE__ */ __name(async (tmp2) => {
@@ -58694,7 +58779,7 @@ ${hashEntry(stringified)}	${stringified}`);
         return insert(cache, key, null, opts);
       }
       const bucket = bucketPath(cache, key);
-      return rm19(bucket, { recursive: true, force: true });
+      return rm20(bucket, { recursive: true, force: true });
     }
     __name(del, "del");
     module.exports.lsStream = lsStream;
@@ -58762,7 +58847,7 @@ ${hashEntry(stringified)}	${stringified}`);
     __name(ls, "ls");
     module.exports.bucketEntries = bucketEntries;
     async function bucketEntries(bucket, filter) {
-      const data = await readFile54(bucket, "utf8");
+      const data = await readFile55(bucket, "utf8");
       return _bucketEntries(data, filter);
     }
     __name(bucketEntries, "bucketEntries");
@@ -63019,8 +63104,8 @@ var require_rm = __commonJS({
     var fs = __require("fs/promises");
     var contentPath = require_path();
     var { hasContent } = require_read2();
-    module.exports = rm19;
-    async function rm19(cache, integrity) {
+    module.exports = rm20;
+    async function rm20(cache, integrity) {
       const content = await hasContent(cache, integrity);
       if (content && content.sri) {
         await fs.rm(contentPath(cache, content.sri), { recursive: true, force: true });
@@ -63029,7 +63114,7 @@ var require_rm = __commonJS({
         return false;
       }
     }
-    __name(rm19, "rm");
+    __name(rm20, "rm");
   }
 });
 
@@ -63037,7 +63122,7 @@ var require_rm = __commonJS({
 var require_rm2 = __commonJS({
   "../../node_modules/.pnpm/cacache@20.0.4/node_modules/cacache/lib/rm.js"(exports, module) {
     "use strict";
-    var { rm: rm19 } = __require("fs/promises");
+    var { rm: rm20 } = __require("fs/promises");
     var glob = require_glob();
     var index = require_entry_index();
     var memo = require_memoization();
@@ -63060,7 +63145,7 @@ var require_rm2 = __commonJS({
     async function all(cache) {
       memo.clearMemoized();
       const paths = await glob(path36.join(cache, "*(content-*|index-*)"), { silent: true, nosort: true });
-      return Promise.all(paths.map((p) => rm19(p, { recursive: true, force: true })));
+      return Promise.all(paths.map((p) => rm20(p, { recursive: true, force: true })));
     }
     __name(all, "all");
   }
@@ -63072,8 +63157,8 @@ var require_verify = __commonJS({
     "use strict";
     var {
       mkdir: mkdir34,
-      readFile: readFile54,
-      rm: rm19,
+      readFile: readFile55,
+      rm: rm20,
       stat: stat19,
       truncate,
       writeFile: writeFile17
@@ -63195,7 +63280,7 @@ var require_verify = __commonJS({
           } else {
             stats.reclaimedCount++;
             const s = await stat19(f);
-            await rm19(f, { recursive: true, force: true });
+            await rm20(f, { recursive: true, force: true });
             stats.reclaimedSize += s.size;
           }
           return stats;
@@ -63219,7 +63304,7 @@ var require_verify = __commonJS({
         if (err.code !== "EINTEGRITY") {
           throw err;
         }
-        await rm19(filepath, { recursive: true, force: true });
+        await rm20(filepath, { recursive: true, force: true });
         contentInfo.valid = false;
       }
       return contentInfo;
@@ -63288,7 +63373,7 @@ var require_verify = __commonJS({
     __name(rebuildBucket, "rebuildBucket");
     function cleanTmp(cache, opts) {
       opts.log.silly("verify", "cleaning tmp directory");
-      return rm19(path36.join(cache, "tmp"), { recursive: true, force: true });
+      return rm20(path36.join(cache, "tmp"), { recursive: true, force: true });
     }
     __name(cleanTmp, "cleanTmp");
     async function writeVerifile(cache, opts) {
@@ -63299,7 +63384,7 @@ var require_verify = __commonJS({
     __name(writeVerifile, "writeVerifile");
     module.exports.lastRun = lastRun;
     async function lastRun(cache) {
-      const data = await readFile54(path36.join(cache, "_lastverified"), { encoding: "utf8" });
+      const data = await readFile55(path36.join(cache, "_lastverified"), { encoding: "utf8" });
       return /* @__PURE__ */ new Date(+data);
     }
     __name(lastRun, "lastRun");
@@ -63312,7 +63397,7 @@ var require_lib28 = __commonJS({
     "use strict";
     var get = require_get();
     var put = require_put();
-    var rm19 = require_rm2();
+    var rm20 = require_rm2();
     var verify = require_verify();
     var { clearMemoized } = require_memoization();
     var tmp = require_tmp();
@@ -63332,10 +63417,10 @@ var require_lib28 = __commonJS({
     module.exports.get.hasContent = get.hasContent;
     module.exports.put = put;
     module.exports.put.stream = put.stream;
-    module.exports.rm = rm19.entry;
-    module.exports.rm.all = rm19.all;
+    module.exports.rm = rm20.entry;
+    module.exports.rm.all = rm20.all;
     module.exports.rm.entry = module.exports.rm;
-    module.exports.rm.content = rm19.content;
+    module.exports.rm.content = rm20.content;
     module.exports.clearMemoized = clearMemoized;
     module.exports.tmp = {};
     module.exports.tmp.mkdir = tmp.mkdir;
@@ -71576,7 +71661,7 @@ var require_lib33 = __commonJS({
         return this.constructor.name;
       }
     };
-    var parseJson2 = /* @__PURE__ */ __name((txt, reviver) => {
+    var parseJson3 = /* @__PURE__ */ __name((txt, reviver) => {
       const result2 = JSON.parse(txt, reviver);
       if (result2 && typeof result2 === "object") {
         const match = txt.match(EMPTY) || txt.match(FORMAT) || [null, "", ""];
@@ -71588,7 +71673,7 @@ var require_lib33 = __commonJS({
     var parseJsonError = /* @__PURE__ */ __name((raw, reviver, context) => {
       const txt = stripBOM(raw);
       try {
-        return parseJson2(txt, reviver);
+        return parseJson3(txt, reviver);
       } catch (e) {
         if (typeof raw !== "string" && !Buffer.isBuffer(raw)) {
           const msg = Array.isArray(raw) && raw.length === 0 ? "an empty array" : String(raw);
@@ -71604,7 +71689,7 @@ var require_lib33 = __commonJS({
     parseJsonError.JSONParseError = JSONParseError;
     parseJsonError.noExceptions = (raw, reviver) => {
       try {
-        return parseJson2(stripBOM(raw), reviver);
+        return parseJson3(stripBOM(raw), reviver);
       } catch {
       }
     };
@@ -73176,7 +73261,7 @@ var require_index_min3 = __commonJS({
 var require_lib34 = __commonJS({
   "../../node_modules/.pnpm/which@6.0.1/node_modules/which/lib/index.js"(exports, module) {
     var { isexe, sync: isexeSync } = require_index_min3();
-    var { join: join46, delimiter, sep: sep10, posix: posix3 } = __require("path");
+    var { join: join47, delimiter, sep: sep10, posix: posix3 } = __require("path");
     var isWindows = process.platform === "win32";
     var rSlash = new RegExp(`[${posix3.sep}${sep10 === posix3.sep ? "" : sep10}]`.replace(/(\\)/g, "\\$1"));
     var rRel = new RegExp(`^\\.${rSlash.source}`);
@@ -73205,7 +73290,7 @@ var require_lib34 = __commonJS({
     var getPathPart = /* @__PURE__ */ __name((raw, cmd) => {
       const pathPart = /^".*"$/.test(raw) ? raw.slice(1, -1) : raw;
       const prefix = !pathPart && rRel.test(cmd) ? cmd.slice(0, 2) : "";
-      return prefix + join46(pathPart, cmd);
+      return prefix + join47(pathPart, cmd);
     }, "getPathPart");
     var which = /* @__PURE__ */ __name(async (cmd, opt = {}) => {
       const { pathEnv, pathExt, pathExtExe } = getPathInfo(cmd, opt);
@@ -74344,7 +74429,7 @@ var require_lib36 = __commonJS({
 // ../../node_modules/.pnpm/npm-normalize-package-bin@5.0.0/node_modules/npm-normalize-package-bin/lib/index.js
 var require_lib37 = __commonJS({
   "../../node_modules/.pnpm/npm-normalize-package-bin@5.0.0/node_modules/npm-normalize-package-bin/lib/index.js"(exports, module) {
-    var { join: join46, basename: basename17 } = __require("path");
+    var { join: join47, basename: basename17 } = __require("path");
     var normalize5 = /* @__PURE__ */ __name((pkg) => !pkg.bin ? removeBin(pkg) : typeof pkg.bin === "string" ? normalizeString(pkg) : Array.isArray(pkg.bin) ? normalizeArray(pkg) : typeof pkg.bin === "object" ? normalizeObject(pkg) : removeBin(pkg), "normalize");
     var normalizeString = /* @__PURE__ */ __name((pkg) => {
       if (!pkg.name) {
@@ -74369,11 +74454,11 @@ var require_lib37 = __commonJS({
       const clean = {};
       let hasBins = false;
       Object.keys(orig).forEach((binKey) => {
-        const base = join46("/", basename17(binKey.replace(/\\|:/g, "/"))).slice(1);
+        const base = join47("/", basename17(binKey.replace(/\\|:/g, "/"))).slice(1);
         if (typeof orig[binKey] !== "string" || !base) {
           return;
         }
-        const binTarget = join46("/", orig[binKey].replace(/\\/g, "/")).replace(/\\/g, "/").slice(1);
+        const binTarget = join47("/", orig[binKey].replace(/\\/g, "/")).replace(/\\/g, "/").slice(1);
         if (!binTarget) {
           return;
         }
@@ -75221,11 +75306,11 @@ var require_normalize = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+package-json@7.0.5/node_modules/@npmcli/package-json/lib/read-package.js
 var require_read_package = __commonJS({
   "../../node_modules/.pnpm/@npmcli+package-json@7.0.5/node_modules/@npmcli/package-json/lib/read-package.js"(exports, module) {
-    var { readFile: readFile54 } = __require("fs/promises");
+    var { readFile: readFile55 } = __require("fs/promises");
     var parseJSON = require_lib33();
     async function read(filename) {
       try {
-        const data = await readFile54(filename, "utf8");
+        const data = await readFile55(filename, "utf8");
         return data;
       } catch (err) {
         err.message = `Could not read package.json: ${err}`;
@@ -75358,7 +75443,7 @@ var require_sort2 = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+package-json@7.0.5/node_modules/@npmcli/package-json/lib/index.js
 var require_lib40 = __commonJS({
   "../../node_modules/.pnpm/@npmcli+package-json@7.0.5/node_modules/@npmcli/package-json/lib/index.js"(exports, module) {
-    var { readFile: readFile54, writeFile: writeFile17 } = __require("node:fs/promises");
+    var { readFile: readFile55, writeFile: writeFile17 } = __require("node:fs/promises");
     var { resolve: resolve41 } = __require("node:path");
     var parseJSON = require_lib33();
     var updateDeps = require_update_dependencies();
@@ -75484,7 +75569,7 @@ var require_lib40 = __commonJS({
           const indexFile = resolve41(this.path, "index.js");
           let indexFileContent;
           try {
-            indexFileContent = await readFile54(indexFile, "utf8");
+            indexFileContent = await readFile55(indexFile, "utf8");
           } catch (err) {
             throw parseErr;
           }
@@ -81251,21 +81336,21 @@ var require_appdata = __commonJS({
     var os_1 = __importDefault(__require("os"));
     var path_1 = __importDefault(__require("path"));
     function appDataPath(name) {
-      const homedir = os_1.default.homedir();
+      const homedir2 = os_1.default.homedir();
       switch (process.platform) {
         /* istanbul ignore next */
         case "darwin": {
-          const appSupport = path_1.default.join(homedir, "Library", "Application Support");
+          const appSupport = path_1.default.join(homedir2, "Library", "Application Support");
           return path_1.default.join(appSupport, name);
         }
         /* istanbul ignore next */
         case "win32": {
-          const localAppData = process.env.LOCALAPPDATA || path_1.default.join(homedir, "AppData", "Local");
+          const localAppData = process.env.LOCALAPPDATA || path_1.default.join(homedir2, "AppData", "Local");
           return path_1.default.join(localAppData, name, "Data");
         }
         /* istanbul ignore next */
         default: {
-          const localData = process.env.XDG_DATA_HOME || path_1.default.join(homedir, ".local", "share");
+          const localData = process.env.XDG_DATA_HOME || path_1.default.join(homedir2, ".local", "share");
           return path_1.default.join(localData, name);
         }
       }
@@ -85442,12 +85527,12 @@ var require_url = __commonJS({
   "../../node_modules/.pnpm/tuf-js@4.1.0/node_modules/tuf-js/dist/utils/url.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.join = join46;
+    exports.join = join47;
     var url_1 = __require("url");
-    function join46(base, path36) {
+    function join47(base, path36) {
       return new url_1.URL(ensureTrailingSlash(base) + removeLeadingSlash(path36)).toString();
     }
-    __name(join46, "join");
+    __name(join47, "join");
     function ensureTrailingSlash(path36) {
       return path36.endsWith("/") ? path36 : path36 + "/";
     }
@@ -87785,7 +87870,7 @@ var require_dist16 = __commonJS({
 var require_provenance = __commonJS({
   "../../node_modules/.pnpm/libnpmpublish@11.2.0/node_modules/libnpmpublish/lib/provenance.js"(exports, module) {
     var sigstore = require_dist16();
-    var { readFile: readFile54 } = __require("node:fs/promises");
+    var { readFile: readFile55 } = __require("node:fs/promises");
     var ci = require_ci_info();
     var { env } = process;
     var INTOTO_PAYLOAD_TYPE = "application/vnd.in-toto+json";
@@ -87977,7 +88062,7 @@ var require_provenance = __commonJS({
     var verifyProvenance = /* @__PURE__ */ __name(async (subject, provenancePath) => {
       let provenanceBundle;
       try {
-        provenanceBundle = JSON.parse(await readFile54(provenancePath));
+        provenanceBundle = JSON.parse(await readFile55(provenancePath));
       } catch (err) {
         err.message = `Invalid provenance provided: ${err.message}`;
         throw err;
@@ -88098,14 +88183,14 @@ Remove the 'private' field from the package.json to publish it.`),
       return manifest;
     }, "patchManifest");
     var buildMetadata = /* @__PURE__ */ __name(async (registry, manifest, tarballData, spec, opts) => {
-      const { access: access3, defaultTag, algorithms, provenance, provenanceFile, command: command2 = "publish" } = opts;
+      const { access: access4, defaultTag, algorithms, provenance, provenanceFile, command: command2 = "publish" } = opts;
       const root = {
         _id: manifest.name,
         name: manifest.name,
         description: manifest.description,
         "dist-tags": {},
         versions: {},
-        access: access3
+        access: access4
       };
       root.versions[manifest.version] = manifest;
       const tag = manifest.tag || defaultTag;
@@ -95940,7 +96025,7 @@ var require_npa2 = __commonJS({
     var isWindows = process.platform === "win32";
     var { URL: URL2 } = __require("node:url");
     var path36 = isWindows ? __require("node:path/win32") : __require("node:path");
-    var { homedir } = __require("node:os");
+    var { homedir: homedir2 } = __require("node:os");
     var HostedGit = require_lib47();
     var semver = require_semver2();
     var validatePackageName2 = require_lib48();
@@ -96226,7 +96311,7 @@ var require_npa2 = __commonJS({
       }
       if (/^\/~(\/|$)/.test(specPath)) {
         res.saveSpec = `file:${specPath.substr(1)}`;
-        resolvedPath = path36.resolve(homedir(), specPath.substr(3));
+        resolvedPath = path36.resolve(homedir2(), specPath.substr(3));
       } else if (!path36.isAbsolute(rawSpec.slice(5))) {
         res.saveSpec = `file:${path36.relative(where, resolvedPath)}`;
       } else {
@@ -97557,7 +97642,7 @@ var require_polyfill2 = __commonJS({
     var {
       dirname: dirname24,
       isAbsolute: isAbsolute27,
-      join: join46,
+      join: join47,
       parse: parse2,
       resolve: resolve41,
       sep: sep10,
@@ -97838,8 +97923,8 @@ var require_polyfill2 = __commonJS({
       const dir = await readdir31(src);
       for (let i = 0; i < dir.length; i++) {
         const item = dir[i];
-        const srcItem = join46(src, item);
-        const destItem = join46(dest, item);
+        const srcItem = join47(src, item);
+        const destItem = join47(dest, item);
         const { destStat } = await checkPaths(srcItem, destItem, opts);
         await startCopy(destStat, srcItem, destItem, opts);
       }
@@ -97915,15 +98000,15 @@ var require_cp2 = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/with-temp-dir.js
 var require_with_temp_dir2 = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/with-temp-dir.js"(exports, module) {
-    var { join: join46, sep: sep10 } = __require("path");
+    var { join: join47, sep: sep10 } = __require("path");
     var getOptions = require_get_options2();
-    var { mkdir: mkdir34, mkdtemp: mkdtemp15, rm: rm19 } = __require("fs/promises");
+    var { mkdir: mkdir34, mkdtemp: mkdtemp15, rm: rm20 } = __require("fs/promises");
     var withTempDir = /* @__PURE__ */ __name(async (root, fn, opts) => {
       const options = getOptions(opts, {
         copy: ["tmpPrefix"]
       });
       await mkdir34(root, { recursive: true });
-      const target = await mkdtemp15(join46(`${root}${sep10}`, options.tmpPrefix || ""));
+      const target = await mkdtemp15(join47(`${root}${sep10}`, options.tmpPrefix || ""));
       let err;
       let result2;
       try {
@@ -97932,7 +98017,7 @@ var require_with_temp_dir2 = __commonJS({
         err = _err;
       }
       try {
-        await rm19(target, { force: true, recursive: true });
+        await rm20(target, { force: true, recursive: true });
       } catch {
       }
       if (err) {
@@ -97948,13 +98033,13 @@ var require_with_temp_dir2 = __commonJS({
 var require_readdir_scoped2 = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/readdir-scoped.js"(exports, module) {
     var { readdir: readdir31 } = __require("fs/promises");
-    var { join: join46 } = __require("path");
+    var { join: join47 } = __require("path");
     var readdirScoped = /* @__PURE__ */ __name(async (dir) => {
       const results = [];
       for (const item of await readdir31(dir)) {
         if (item.startsWith("@")) {
-          for (const scopedItem of await readdir31(join46(dir, item))) {
-            results.push(join46(item, scopedItem));
+          for (const scopedItem of await readdir31(join47(dir, item))) {
+            results.push(join47(item, scopedItem));
           }
         } else {
           results.push(item);
@@ -97969,7 +98054,7 @@ var require_readdir_scoped2 = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/move-file.js
 var require_move_file2 = __commonJS({
   "../../node_modules/.pnpm/@npmcli+fs@4.0.0/node_modules/@npmcli/fs/lib/move-file.js"(exports, module) {
-    var { dirname: dirname24, join: join46, resolve: resolve41, relative: relative30, isAbsolute: isAbsolute27 } = __require("path");
+    var { dirname: dirname24, join: join47, resolve: resolve41, relative: relative31, isAbsolute: isAbsolute27 } = __require("path");
     var fs = __require("fs/promises");
     var pathExists2 = /* @__PURE__ */ __name(async (path36) => {
       try {
@@ -97999,7 +98084,7 @@ var require_move_file2 = __commonJS({
           if (sourceStat.isDirectory()) {
             const files = await fs.readdir(source);
             await Promise.all(files.map(
-              (file) => moveFile(join46(source, file), join46(destination, file), options, false, symlinks)
+              (file) => moveFile(join47(source, file), join47(destination, file), options, false, symlinks)
             ));
           } else if (sourceStat.isSymbolicLink()) {
             symlinks.push({ source, destination });
@@ -98014,7 +98099,7 @@ var require_move_file2 = __commonJS({
         await Promise.all(symlinks.map(async ({ source: symSource, destination: symDestination }) => {
           let target = await fs.readlink(symSource);
           if (isAbsolute27(target)) {
-            target = resolve41(symDestination, relative30(symSource, target));
+            target = resolve41(symDestination, relative31(symSource, target));
           }
           let targetStat = "file";
           try {
@@ -98062,9 +98147,9 @@ var require_entry_index2 = __commonJS({
     var {
       appendFile,
       mkdir: mkdir34,
-      readFile: readFile54,
+      readFile: readFile55,
       readdir: readdir31,
-      rm: rm19,
+      rm: rm20,
       writeFile: writeFile17
     } = __require("fs/promises");
     var { Minipass } = require_commonjs();
@@ -98116,7 +98201,7 @@ var require_entry_index2 = __commonJS({
       }, "setup");
       const teardown = /* @__PURE__ */ __name(async (tmp2) => {
         if (!tmp2.moved) {
-          return rm19(tmp2.target, { recursive: true, force: true });
+          return rm20(tmp2.target, { recursive: true, force: true });
         }
       }, "teardown");
       const write = /* @__PURE__ */ __name(async (tmp2) => {
@@ -98186,7 +98271,7 @@ ${hashEntry(stringified)}	${stringified}`);
         return insert(cache, key, null, opts);
       }
       const bucket = bucketPath(cache, key);
-      return rm19(bucket, { recursive: true, force: true });
+      return rm20(bucket, { recursive: true, force: true });
     }
     __name(del, "del");
     module.exports.lsStream = lsStream;
@@ -98254,7 +98339,7 @@ ${hashEntry(stringified)}	${stringified}`);
     __name(ls, "ls");
     module.exports.bucketEntries = bucketEntries;
     async function bucketEntries(bucket, filter) {
-      const data = await readFile54(bucket, "utf8");
+      const data = await readFile55(bucket, "utf8");
       return _bucketEntries(data, filter);
     }
     __name(bucketEntries, "bucketEntries");
@@ -102923,10 +103008,10 @@ var require_ignore = __commonJS({
       ignored(p) {
         const fullpath = p.fullpath();
         const fullpaths = `${fullpath}/`;
-        const relative30 = p.relative() || ".";
-        const relatives = `${relative30}/`;
+        const relative31 = p.relative() || ".";
+        const relatives = `${relative31}/`;
         for (const m of this.relative) {
-          if (m.match(relative30) || m.match(relatives))
+          if (m.match(relative31) || m.match(relatives))
             return true;
         }
         for (const m of this.absolute) {
@@ -102937,9 +103022,9 @@ var require_ignore = __commonJS({
       }
       childrenIgnored(p) {
         const fullpath = p.fullpath() + "/";
-        const relative30 = (p.relative() || ".") + "/";
+        const relative31 = (p.relative() || ".") + "/";
         for (const m of this.relativeChildren) {
-          if (m.match(relative30))
+          if (m.match(relative31))
             return true;
         }
         for (const m of this.absoluteChildren) {
@@ -103890,8 +103975,8 @@ var require_rm3 = __commonJS({
     var fs = __require("fs/promises");
     var contentPath = require_path2();
     var { hasContent } = require_read3();
-    module.exports = rm19;
-    async function rm19(cache, integrity) {
+    module.exports = rm20;
+    async function rm20(cache, integrity) {
       const content = await hasContent(cache, integrity);
       if (content && content.sri) {
         await fs.rm(contentPath(cache, content.sri), { recursive: true, force: true });
@@ -103900,7 +103985,7 @@ var require_rm3 = __commonJS({
         return false;
       }
     }
-    __name(rm19, "rm");
+    __name(rm20, "rm");
   }
 });
 
@@ -103908,7 +103993,7 @@ var require_rm3 = __commonJS({
 var require_rm4 = __commonJS({
   "../../node_modules/.pnpm/cacache@19.0.1/node_modules/cacache/lib/rm.js"(exports, module) {
     "use strict";
-    var { rm: rm19 } = __require("fs/promises");
+    var { rm: rm20 } = __require("fs/promises");
     var glob = require_glob3();
     var index = require_entry_index2();
     var memo = require_memoization2();
@@ -103931,7 +104016,7 @@ var require_rm4 = __commonJS({
     async function all(cache) {
       memo.clearMemoized();
       const paths = await glob(path36.join(cache, "*(content-*|index-*)"), { silent: true, nosort: true });
-      return Promise.all(paths.map((p) => rm19(p, { recursive: true, force: true })));
+      return Promise.all(paths.map((p) => rm20(p, { recursive: true, force: true })));
     }
     __name(all, "all");
   }
@@ -103943,8 +104028,8 @@ var require_verify3 = __commonJS({
     "use strict";
     var {
       mkdir: mkdir34,
-      readFile: readFile54,
-      rm: rm19,
+      readFile: readFile55,
+      rm: rm20,
       stat: stat19,
       truncate,
       writeFile: writeFile17
@@ -104066,7 +104151,7 @@ var require_verify3 = __commonJS({
           } else {
             stats.reclaimedCount++;
             const s = await stat19(f);
-            await rm19(f, { recursive: true, force: true });
+            await rm20(f, { recursive: true, force: true });
             stats.reclaimedSize += s.size;
           }
           return stats;
@@ -104090,7 +104175,7 @@ var require_verify3 = __commonJS({
         if (err.code !== "EINTEGRITY") {
           throw err;
         }
-        await rm19(filepath, { recursive: true, force: true });
+        await rm20(filepath, { recursive: true, force: true });
         contentInfo.valid = false;
       }
       return contentInfo;
@@ -104159,7 +104244,7 @@ var require_verify3 = __commonJS({
     __name(rebuildBucket, "rebuildBucket");
     function cleanTmp(cache, opts) {
       opts.log.silly("verify", "cleaning tmp directory");
-      return rm19(path36.join(cache, "tmp"), { recursive: true, force: true });
+      return rm20(path36.join(cache, "tmp"), { recursive: true, force: true });
     }
     __name(cleanTmp, "cleanTmp");
     async function writeVerifile(cache, opts) {
@@ -104170,7 +104255,7 @@ var require_verify3 = __commonJS({
     __name(writeVerifile, "writeVerifile");
     module.exports.lastRun = lastRun;
     async function lastRun(cache) {
-      const data = await readFile54(path36.join(cache, "_lastverified"), { encoding: "utf8" });
+      const data = await readFile55(path36.join(cache, "_lastverified"), { encoding: "utf8" });
       return /* @__PURE__ */ new Date(+data);
     }
     __name(lastRun, "lastRun");
@@ -104211,7 +104296,7 @@ var require_lib53 = __commonJS({
     "use strict";
     var get = require_get2();
     var put = require_put2();
-    var rm19 = require_rm4();
+    var rm20 = require_rm4();
     var verify = require_verify3();
     var { clearMemoized } = require_memoization2();
     var tmp = require_tmp2();
@@ -104231,10 +104316,10 @@ var require_lib53 = __commonJS({
     module.exports.get.hasContent = get.hasContent;
     module.exports.put = put;
     module.exports.put.stream = put.stream;
-    module.exports.rm = rm19.entry;
-    module.exports.rm.all = rm19.all;
+    module.exports.rm = rm20.entry;
+    module.exports.rm.all = rm20.all;
     module.exports.rm.entry = module.exports.rm;
-    module.exports.rm.content = rm19.content;
+    module.exports.rm.content = rm20.content;
     module.exports.clearMemoized = clearMemoized;
     module.exports.tmp = {};
     module.exports.tmp.mkdir = tmp.mkdir;
@@ -106741,8 +106826,8 @@ function createNpmAdapter(deps = {}) {
           if (!action.registry) throw new Error("npm-publish requires explicit registry");
           const normalizedRegistry = normalizeRegistry(action.registry);
           if (!action.publisher) throw new Error("npm-publish requires explicit publisher");
-          const access3 = action.access ?? (action.tarballPath ? null : "public");
-          if (!["public", "restricted"].includes(access3)) {
+          const access4 = action.access ?? (action.tarballPath ? null : "public");
+          if (!["public", "restricted"].includes(access4)) {
             throw new Error("npm-publish requires explicit access: public or restricted");
           }
           const cwd = resolvePackageCwd(action.cwd, context.root);
@@ -106798,8 +106883,8 @@ function createNpmAdapter(deps = {}) {
         const normalizedRegistry = normalizeRegistry(action.registry);
         if (!action.publisher) throw new Error("npm-publish requires explicit publisher");
         const cwd = resolvePackageCwd(action.cwd, context.root);
-        const access3 = action.access ?? (action.tarballPath ? null : "public");
-        if (!["public", "restricted"].includes(access3)) {
+        const access4 = action.access ?? (action.tarballPath ? null : "public");
+        if (!["public", "restricted"].includes(access4)) {
           throw new Error("npm-publish requires explicit access: public or restricted");
         }
         if (action.tarballPath) {
@@ -106828,7 +106913,7 @@ function createNpmAdapter(deps = {}) {
               opts: {
                 registry: normalizedRegistry,
                 token,
-                access: access3,
+                access: access4,
                 tag: action.tag ?? void 0,
                 provenance: action.provenance === true || void 0
               }
@@ -111473,11 +111558,14 @@ function evaluateDistributeGateRun(run6, plan) {
   if (!run6 || typeof run6 !== "object") return { pass: false, warned: false, exemptions: [] };
   if (run6.status === "DISTRIBUTED") return { pass: true, warned: false, exemptions: [] };
   if (run6.status !== "PARTIAL") return { pass: false, warned: false, exemptions: [] };
-  const hooksById = new Map((plan?.postPublish?.hooks ?? []).map((hook) => [hook.id, hook]));
+  const hooksByActionId = new Map((plan ? normalizePostPublishView(plan) : []).flatMap((declaration) => (declaration.hooks ?? []).map((hook) => [
+    postPublishActionId({ planVersion: plan?.planVersion, unitId: declaration.unitId, localId: hook.id }),
+    hook
+  ])));
   const exemptions = [];
   for (const checkpoint of run6.checkpoints ?? []) {
     if (checkpoint.status === "succeeded" || checkpoint.status === "skipped") continue;
-    const hook = checkpoint.actionType === "postpublish-hook" ? hooksById.get(checkpoint.actionId) : void 0;
+    const hook = checkpoint.actionType === "postpublish-hook" ? hooksByActionId.get(checkpoint.actionId) : void 0;
     if (hook && checkpoint.status === "failed" && hook.blocksVerified === false) {
       exemptions.push({ actionId: checkpoint.actionId, status: checkpoint.status });
       continue;
@@ -111574,9 +111662,9 @@ async function verifyRelease(options) {
         { sourceRunStatus: sourceRun.status }
       );
     }
-    const declaredPostPublishTargets = plan.postPublish?.targets ?? [];
-    const declaredPostPublishHooks = plan.postPublish?.hooks ?? [];
-    if (plan.postPublish && (declaredPostPublishTargets.length > 0 || declaredPostPublishHooks.length > 0)) {
+    const postPublishDeclarations = normalizePostPublishView(plan);
+    const requiresDistribution = postPublishDeclarations.some((declaration) => (declaration.targets?.length ?? 0) > 0 || (declaration.hooks?.length ?? 0) > 0);
+    if (requiresDistribution) {
       await evidence.append({ phase: "verify", step: "distribute-run-discovery", status: "started" });
       const distributeCandidates = await discoverDistributeRuns({ planPath, plan }) ?? [];
       let gateRun = distributeCandidates.find((c) => c.status === "DISTRIBUTED") ?? null;
@@ -112425,6 +112513,7 @@ async function verifyRelease(options) {
     });
     return {
       planPath,
+      runPath: verifyRunPath,
       status: VERIFIED,
       adapterChecks,
       recoveryActionCode: null,
@@ -112463,6 +112552,7 @@ var init_verify = __esm({
   async "src/commands/verify.mjs"() {
     init_src2();
     await init_plan();
+    init_postpublish();
     await init_evidence();
     await init_recovery();
     await init_run();
@@ -112653,10 +112743,13 @@ async function readRunRecovery(runPath, options = {}) {
       if (publication.runId !== run6.sourceRunId || publication.runDigest !== run6.sourceRunDigest || !["publish", "reconcile"].includes(publication.command) || publication.status !== "PUBLISHED") {
         throw new ReleaseError(GATE_FAILED, "distribute recovery requires its same-lineage PUBLISHED publication");
       }
-      const actions = (plan.postPublish?.targets ?? []).flatMap((target) => [
-        { id: `probe-${target.id}`, type: "distribute-probe" },
-        { id: target.id, type: "distribute-mirror" }
-      ]).concat((plan.postPublish?.hooks ?? []).filter((hook) => hook.phase !== "postVerify").map((hook) => ({ id: hook.id, type: "postpublish-hook" })));
+      const actions = normalizePostPublishView(plan).flatMap((declaration) => [
+        ...(declaration.targets ?? []).flatMap((target) => [
+          { id: postPublishActionId({ planVersion: plan.planVersion, unitId: declaration.unitId, localId: `probe-${target.id}` }), type: "distribute-probe" },
+          { id: postPublishActionId({ planVersion: plan.planVersion, unitId: declaration.unitId, localId: target.id }), type: "distribute-mirror" }
+        ]),
+        ...(declaration.hooks ?? []).filter((hook) => hook.phase !== "postVerify").map((hook) => ({ id: postPublishActionId({ planVersion: plan.planVersion, unitId: declaration.unitId, localId: hook.id }), type: "postpublish-hook" }))
+      ]);
       if (!(run6.status === "BLOCKED" && run6.checkpoints.length === 0)) {
         validateRunCheckpointMapping(run6, actions);
       }
@@ -112717,7 +112810,7 @@ async function readRunRecovery(runPath, options = {}) {
       }
     } else if (["publish", "reconcile"].includes(command2)) {
       if (run6.status === "PUBLISHED") {
-        const needsDistribution = (plan.postPublish?.targets?.length ?? 0) > 0 || (plan.postPublish?.hooks?.length ?? 0) > 0;
+        const needsDistribution = normalizePostPublishView(plan).some((declaration) => (declaration.targets?.length ?? 0) > 0 || (declaration.hooks?.length ?? 0) > 0);
         code = needsDistribution ? "DISTRIBUTE" : "VERIFY";
       } else if (run6.status === "PARTIAL") {
         code = "RECONCILE";
@@ -112726,7 +112819,7 @@ async function readRunRecovery(runPath, options = {}) {
       } else code = "DIAGNOSE";
     } else code = "DIAGNOSE";
     if (code === "DISTRIBUTE") {
-      const pendingApprovals = (plan.postPublish?.hooks ?? []).filter((hook) => hook.phase !== "postVerify" && effectiveHookRequiresApproval(hook) && !(run6.command === "distribute" && run6.checkpoints.some((cp4) => cp4.actionId === hook.id && completed(cp4))));
+      const pendingApprovals = normalizePostPublishView(plan).flatMap((declaration) => (declaration.hooks ?? []).filter((hook) => hook.phase !== "postVerify" && effectiveHookRequiresApproval(hook)).filter((hook) => !(run6.command === "distribute" && run6.checkpoints.some((cp4) => cp4.actionId === postPublishActionId({ planVersion: plan.planVersion, unitId: declaration.unitId, localId: hook.id }) && completed(cp4)))));
       if (pendingApprovals.length > 0) {
         try {
           const approved = /* @__PURE__ */ new Set();
@@ -113400,7 +113493,6 @@ var init_project_lock = __esm({
 // src/core/hooks.mjs
 var hooks_exports = {};
 __export(hooks_exports, {
-  findPostPublishUnitConflict: () => findPostPublishUnitConflict,
   runHook: () => runHook,
   validateHook: () => validateHook
 });
@@ -113408,11 +113500,6 @@ import { execFile as execFileCb8 } from "node:child_process";
 import { promisify as promisify8 } from "node:util";
 import { resolve as resolve23, relative as relative18, isAbsolute as isAbsolute17 } from "node:path";
 import { realpath as realpath22 } from "node:fs/promises";
-function findPostPublishUnitConflict(units) {
-  const declaring = (units ?? []).filter((unit) => unit && typeof unit === "object" && unit.postPublish !== void 0);
-  if (declaring.length <= 1) return null;
-  return { unitIds: declaring.map((unit) => unit.id).sort() };
-}
 function validateHook(hook) {
   if (!hook || typeof hook !== "object" || Array.isArray(hook)) {
     throw new ReleaseError("INVALID_HOOK", "hook must be a non-null object");
@@ -113586,7 +113673,6 @@ var init_hooks = __esm({
       return new Set(process.platform === "win32" ? win323 : posix3);
     })();
     ENV_KEY_PATTERN3 = /^[A-Z_][A-Z0-9_]*$/;
-    __name(findPostPublishUnitConflict, "findPostPublishUnitConflict");
     __name(validateHook, "validateHook");
     __name(buildFilteredEnv, "buildFilteredEnv");
     __name(runHook, "runHook");
@@ -113924,7 +114010,6 @@ var init_adoption_assessment = __esm({
   async "src/core/adoption-assessment.mjs"() {
     init_digest();
     await init_evidence();
-    init_hooks();
     ASSESSMENT_STATUS = Object.freeze({
       NOT_CONFIGURED: "NOT_CONFIGURED",
       PARTIALLY_ADOPTED: "PARTIALLY_ADOPTED",
@@ -117798,17 +117883,23 @@ async function assessAdoption({ root } = {}) {
     message: "\u914D\u7F6E\u5B58\u5728\u5E76\u901A\u8FC7 Schema \u6821\u9A8C\u3002",
     evidence: { configDigest }
   }));
-  const postPublishConflict = findPostPublishUnitConflict(declaredUnits);
-  if (postPublishConflict) {
-    findings.push(createFinding({
-      category: FINDING_CATEGORY.MANDATORY_GAP,
-      code: "POSTPUBLISH_MULTI_UNIT_CONFLICT",
-      fieldPath: "releaseUnits[].postPublish",
-      message: `\u591A\u4E2A\u53D1\u5E03\u5355\u5143\u58F0\u660E postPublish\uFF08${postPublishConflict.unitIds.join(", ")}\uFF09\uFF1B\u4E00\u6B21\u53D1\u5E03\u8BA1\u5212\u53EA\u7ED1\u5B9A\u4E00\u4E2A postPublish \u58F0\u660E\u3002`,
-      evidence: { unitIds: postPublishConflict.unitIds },
-      action: "\u53EA\u4FDD\u7559\u4E00\u4E2A\u53D1\u5E03\u5355\u5143\u7684 postPublish \u58F0\u660E\uFF08\u6216\u5C06\u5206\u53D1\u76EE\u6807\u5408\u5E76\u8FDB\u540C\u4E00\u5355\u5143\uFF09\u540E\u91CD\u65B0\u8BC4\u4F30\u3002",
-      severity: "blocking"
-    }));
+  const declaredPostPublishBlocks = declaredUnits.filter((unit) => unit.postPublish !== void 0).map((unit) => ({ ...unit.postPublish, unitId: unit.id }));
+  try {
+    validatePostPublishHookIdUniqueness(declaredPostPublishBlocks);
+  } catch (error) {
+    if (error?.details?.hookId !== void 0 && Array.isArray(error?.details?.unitIds)) {
+      const [owner, unitId] = error.details.unitIds;
+      findings.push(createFinding({
+        category: FINDING_CATEGORY.MANDATORY_GAP,
+        code: "POSTPUBLISH_HOOK_ID_DUPLICATE",
+        unitId,
+        fieldPath: "releaseUnits[].postPublish.hooks[].id",
+        message: `postPublish \u663E\u5F0F hook id "${error.details.hookId}" \u540C\u65F6\u7531\u53D1\u5E03\u5355\u5143 "${owner}" \u4E0E "${unitId}" \u58F0\u660E\uFF1B\u6574\u4EFD\u8BA1\u5212\u7684\u663E\u5F0F hooks[].id \u5FC5\u987B\u552F\u4E00\uFF08target \u4E0E\u5185\u90E8 probe \u7684\u672C\u5730 ID \u53EF\u8DE8\u5355\u5143\u91CD\u590D\uFF09\u3002`,
+        evidence: { hookId: error.details.hookId, unitIds: error.details.unitIds },
+        action: "\u4E3A\u91CD\u590D\u7684\u663E\u5F0F hook id \u6539\u540D\uFF08\u6216\u5408\u5E76\u58F0\u660E\uFF09\u540E\u91CD\u65B0\u8BC4\u4F30\u3002",
+        severity: "blocking"
+      }));
+    }
   }
   if (config.hooks !== void 0) {
     const invalidHooks = [];
@@ -120267,9 +120358,16 @@ function sameClosureResources(actual, expected) {
   }
   return true;
 }
-async function verifyAndInstallExecutionBundle({ plan, planPath, worktreePath } = {}) {
-  const bundle = plan?.postPublish?.executionBundle;
-  if (!bundle) return { installed: [] };
+async function verifyExecutionBundle({ planPath, postPublish } = {}) {
+  const declaration = postPublish;
+  if (!declaration || typeof declaration !== "object") {
+    fail6("verifyExecutionBundle requires the current postPublish declaration; pass the normalized single item or the v3 loop item explicitly");
+  }
+  if (Array.isArray(declaration)) {
+    fail6("verifyExecutionBundle requires the current postPublish declaration, never the declaration array");
+  }
+  const bundle = declaration.executionBundle;
+  if (!bundle) return { verified: false, bytesByPath: /* @__PURE__ */ new Map() };
   const closure = bundle.closure;
   if (!closure || !Array.isArray(closure.resources) || typeof closure.digest !== "string") {
     fail6("plan carries a malformed executionBundle closure");
@@ -120317,8 +120415,14 @@ async function verifyAndInstallExecutionBundle({ plan, planPath, worktreePath } 
     if (cause instanceof ReleaseError) throw cause;
     fail6(`bundle closure recomputation failed: ${cause?.message ?? cause}`, { kind: cause?.details?.kind });
   }
+  return { verified: true, bytesByPath };
+}
+async function verifyAndInstallExecutionBundle({ planPath, worktreePath, postPublish } = {}) {
+  const { bytesByPath } = await verifyExecutionBundle({ planPath, postPublish });
+  const declaration = postPublish;
+  const closure = declaration?.executionBundle?.closure;
   const installed = [];
-  for (const resource of closure.resources) {
+  for (const resource of closure?.resources ?? []) {
     try {
       await publishFileExclusive(worktreePath, resource.path, bytesByPath.get(resource.path), {
         mode: EXECUTION_BUNDLE_FILE_MODE,
@@ -120351,6 +120455,7 @@ var init_postpublish_bundle = __esm({
     __name(deriveBundleRoot, "deriveBundleRoot");
     __name(freezeExecutionBundle, "freezeExecutionBundle");
     __name(sameClosureResources, "sameClosureResources");
+    __name(verifyExecutionBundle, "verifyExecutionBundle");
     __name(verifyAndInstallExecutionBundle, "verifyAndInstallExecutionBundle");
   }
 });
@@ -127716,20 +127821,10 @@ async function prepareRelease(options) {
       });
     }
     const postPublishDeclarations = configUnits.map((unit, index) => ({ unit, index })).filter(({ unit }) => unit.postPublish !== void 0);
-    if (findPostPublishUnitConflict(configUnits)) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `multiple units declare postPublish (${postPublishDeclarations.map(({ unit }) => unit.id).join(", ")}); a release plan binds exactly one postPublish declaration`,
-        { unitIds: postPublishDeclarations.map(({ unit }) => unit.id) }
-      );
-    }
-    let postPublishDeclaration = null;
-    if (postPublishDeclarations.length === 1) {
-      const { unit, index } = postPublishDeclarations[0];
+    for (const { unit } of postPublishDeclarations) {
       validatePostPublishDeclaration(unit.postPublish, { unitId: unit.id });
       const normalizedDeclaration = normalizePostPublishDeclaration(unit.postPublish);
       const orderedNormalizedHooks = orderNormalizedHooks(normalizedDeclaration.hooks);
-      postPublishDeclaration = { unit, index };
       await evidence.append({
         phase: "postpublish-declaration",
         status: "validated",
@@ -127740,6 +127835,9 @@ async function prepareRelease(options) {
         preGates: normalizedDeclaration.preGates.map((gate) => gate.gate)
       });
     }
+    validatePostPublishHookIdUniqueness(
+      postPublishDeclarations.map(({ unit }) => ({ ...unit.postPublish, unitId: unit.id }))
+    );
     const declaredHooks = Object.entries(config.hooks ?? {}).filter(([, hook]) => hook && hook.command).map(([name, hook]) => ({
       name,
       executable: hook.command[0],
@@ -128586,9 +128684,8 @@ async function prepareRelease(options) {
       (a) => a.type === "kimi-marketplace-install" || a.type === "codebuddy-marketplace-install"
     );
     const humanConsumersStrategy = humanConsumerActions.length === 0 ? null : humanConsumerActions.some((action) => isFoundationPluginVerificationEligible({ action, units })) ? "foundationPayloadThenManualFollowUps" : "manualFollowUps";
-    let frozenPostPublish = null;
-    if (postPublishDeclaration) {
-      const { unit, index } = postPublishDeclaration;
+    const frozenPostPublish = [];
+    for (const { unit, index } of postPublishDeclarations) {
       const { tag } = resolveProductionBranch(unit, resolvedVersions[index]);
       const declaredExecutionFiles = unit.postPublish.executionFiles ?? [];
       const frozenTagPaths = productionAssets ? await enumerateFrozenTagPaths(realRoot, productionAssets[index]) : null;
@@ -128613,17 +128710,21 @@ async function prepareRelease(options) {
         bundleRoot: relative25(realRoot, bundleRootForAuthorityDir(releaseDir))
       });
       const { executionFiles: _executionFiles, ...declarationWithoutManifest } = structuredClone(unit.postPublish);
-      frozenPostPublish = {
+      frozenPostPublish.push({
         ...declarationWithoutManifest,
         tag,
         ...productionAssets ? { tagCommit: productionAssets[index].commit } : {},
         unitId: unit.id,
         payloadSource: PAYLOAD_SOURCE_TAG_WORKTREE,
         executionBundle
-      };
+      });
     }
     const plan = {
-      planVersion: 2,
+      // New prepares emit planVersion 3 (multi-release-unit postPublish v3):
+      // postPublish is the declaration ARRAY (possibly empty). v3 inherits
+      // the v2 record-layer digest and approval semantics; only the
+      // postPublish shape changes.
+      planVersion: 3,
       status: "PREPARED",
       // Workflow profile (H5): 'full' for the complete gate set;
       // 'docs'/'config'/'marketplace' for trimmed code-class gates. Both
@@ -128662,7 +128763,7 @@ async function prepareRelease(options) {
       units,
       externalActions,
       ...publicSourceAuthorityReceipt ? { publicSourceAuthorityReceipt } : {},
-      ...frozenPostPublish ? { postPublish: frozenPostPublish } : {},
+      postPublish: frozenPostPublish,
       ...sourceAuthority ? { sourceAuthority } : {},
       createdAt: production ? createdAtTimestamp : clock ? clock() : (/* @__PURE__ */ new Date()).toISOString()
     };
@@ -128891,6 +128992,610 @@ var init_hooks2 = __esm({
   }
 });
 
+// src/commands/post-release-local.mjs
+var post_release_local_exports = {};
+__export(post_release_local_exports, {
+  assertVerifiedReleaseRun: () => assertVerifiedReleaseRun,
+  derivePostReleaseChecklist: () => derivePostReleaseChecklist,
+  unavailablePostReleaseChecklist: () => unavailablePostReleaseChecklist,
+  updateLocalHostPlugins: () => updateLocalHostPlugins
+});
+import { access as access2 } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join as join27, relative as relative26 } from "node:path";
+function actionTarget(plan, action, host) {
+  const parameters = action.parameters ?? {};
+  const sourceDescriptor = parameters.sourceDescriptor ?? {};
+  const unit = (plan.units ?? []).find((candidate) => candidate.id === action.unitId);
+  if (!unit) throw new Error(`post-release action ${action.id} references an unknown unit`);
+  const distributionType = DISTRIBUTION_BY_ACTION[action.type];
+  const distribution = (unit.distributions ?? []).find((candidate) => candidate.type === distributionType && candidate.plugin === parameters.plugin);
+  if (!distribution) {
+    throw new Error(`post-release action ${action.id} is not backed by its unit distribution`);
+  }
+  if (unit.targetVersion !== parameters.version) {
+    throw new Error(`post-release action ${action.id} disagrees with its frozen unit identity`);
+  }
+  const pluginRepo = sourceDescriptor.form === "standalone-index" ? sourceDescriptor.pluginRepo : sourceDescriptor.repo;
+  const marketplaceRepo = sourceDescriptor.form === "standalone-index" ? sourceDescriptor.marketplaceRepo : sourceDescriptor.repo;
+  const pluginCommit = parameters.sourceCommit;
+  const marketplaceCommit = sourceDescriptor.form === "standalone-index" ? parameters.marketplaceCommitSha : pluginCommit;
+  const tagAction = (plan.externalActions ?? []).find((candidate) => candidate.type === "create-tag" && candidate.unitId === action.unitId);
+  const pluginTag = tagAction?.parameters?.tag;
+  if (pluginRepo !== unit.publicRepo || marketplaceRepo !== parameters.repo || sourceDescriptor.marketplaceEntry !== parameters.plugin || tagAction?.parameters?.repo !== pluginRepo || tagAction?.parameters?.commit !== pluginCommit || tagAction?.parameters?.version !== parameters.version) {
+    throw new Error(`post-release action ${action.id} disagrees with its frozen source identities`);
+  }
+  if (sourceDescriptor.form === "standalone-index") {
+    if (sourceDescriptor.marketplaceCommitSha !== marketplaceCommit || sourceDescriptor.ref !== parameters.ref) {
+      throw new Error(`post-release action ${action.id} disagrees with its standalone marketplace identity`);
+    }
+  } else if (sourceDescriptor.form !== "bundled-family" || sourceDescriptor.commit !== pluginCommit) {
+    throw new Error(`post-release action ${action.id} has no single frozen source commit`);
+  }
+  return {
+    host,
+    actionId: action.id,
+    actionType: action.type,
+    unitId: action.unitId,
+    plugin: parameters.plugin,
+    marketplace: host === "codebuddy" || host === "workbuddy" ? resolveCodeBuddyMarketplace(parameters) : parameters.marketplace ?? sourceDescriptor.marketplaceEntry ?? parameters.plugin,
+    version: parameters.version,
+    pluginRepo,
+    pluginTag,
+    pluginCommit,
+    marketplaceRepo,
+    marketplaceRef: parameters.ref,
+    marketplaceCommit,
+    timeoutMs: parameters.timeoutMs ?? 3e5
+  };
+}
+function pluginTargets(plan) {
+  const targets = [];
+  for (const action of plan.externalActions ?? []) {
+    const hosts = HOSTS_BY_ACTION[action.type];
+    if (!hosts) continue;
+    for (const host of hosts) targets.push(actionTarget(plan, action, host));
+  }
+  return targets.sort((left, right) => left.host.localeCompare(right.host) || left.unitId.localeCompare(right.unitId));
+}
+function assertExecutableTarget(target) {
+  for (const field of [
+    "actionId",
+    "unitId",
+    "plugin",
+    "version",
+    "pluginRepo",
+    "pluginTag",
+    "pluginCommit",
+    "marketplaceRepo",
+    "marketplaceRef",
+    "marketplaceCommit"
+  ]) {
+    if (typeof target[field] !== "string" || target[field].length === 0) {
+      throw new Error(`local host update target is missing ${field}`);
+    }
+  }
+  if (!/^[a-f0-9]{40}$/u.test(target.pluginCommit) || !/^[a-f0-9]{40}$/u.test(target.marketplaceCommit)) {
+    throw new Error(`local host update requires the frozen public commit for unit ${target.unitId}`);
+  }
+}
+function derivePostReleaseChecklist(plan) {
+  if (!plan || typeof plan !== "object" || typeof plan.digest !== "string") {
+    throw new Error("a frozen release plan with digest is required");
+  }
+  const units = plan.units ?? [];
+  const uncovered = units.filter((unit) => !BRANCH_ACTION_INCLUDED.has(unit.productionConfig?.branchStrategy));
+  const targets = pluginTargets(plan);
+  return {
+    command: "post-release",
+    status: "AWAITING_USER_DECISION",
+    planDigest: plan.digest,
+    merge: {
+      promptRequired: uncovered.length > 0,
+      alreadyHandledByRelease: uncovered.length === 0,
+      executionIncluded: false,
+      units: uncovered.map((unit) => ({
+        unitId: unit.id,
+        branchStrategy: unit.productionConfig?.branchStrategy ?? null,
+        publishedBranch: unit.frozenSnapshot?.branch ?? null
+      }))
+    },
+    localHostUpdate: {
+      promptRequired: targets.length > 0,
+      available: targets.length > 0,
+      hosts: [...new Set(targets.map((target) => target.host))].sort(),
+      targets
+    }
+  };
+}
+function unavailablePostReleaseChecklist(plan, error) {
+  return {
+    command: "post-release",
+    status: "UNAVAILABLE",
+    planDigest: plan?.digest ?? null,
+    releaseStatusChanged: false,
+    diagnostic: {
+      code: "POST_RELEASE_CHECKLIST_UNAVAILABLE",
+      message: error?.message ?? String(error)
+    }
+  };
+}
+function assertVerifiedReleaseRun(plan, runRecord) {
+  if (runRecord?.command !== "verify" || runRecord?.status !== "VERIFIED" || runRecord?.planDigest !== plan?.digest) {
+    throw new Error("post-release local work requires a VERIFIED run bound to the frozen plan");
+  }
+}
+function hostEnvironment(host, { kimiHome } = {}) {
+  const env = {};
+  for (const key of SAFE_ENV_KEYS) {
+    if (process.env[key] !== void 0) env[key] = process.env[key];
+  }
+  env.HOME ??= homedir();
+  env.PATH ??= "/usr/bin:/bin";
+  env.GIT_TERMINAL_PROMPT = "0";
+  if (host === "workbuddy") env.CODEBUDDY_CONFIG_DIR = join27(env.HOME, ".workbuddy");
+  if (host === "kimi" && kimiHome) env.KIMI_CONFIG_DIR = kimiHome;
+  return env;
+}
+async function defaultRun(command2, args2, options = {}) {
+  return withTemporaryWorkspace(async (workspace) => {
+    const stdoutFile = "stdout.log";
+    const stderrFile = "stderr.log";
+    const envelope = await superviseProcess({
+      command: command2,
+      args: args2,
+      cwd: options.cwd ?? process.cwd(),
+      env: options.env ?? hostEnvironment("generic"),
+      timeoutPolicy: {
+        maxSeconds: Math.max(1, Math.ceil((options.timeout ?? 12e4) / 1e3)),
+        killGraceSeconds: 5
+      },
+      rawSink: { root: workspace.root, stdoutFile, stderrFile },
+      outputByteLimits: { stdout: 8 * 1024 * 1024, stderr: 8 * 1024 * 1024 }
+    });
+    const [stdout, stderr] = await Promise.all([
+      workspace.readFile(stdoutFile, { encoding: "utf8" }),
+      workspace.readFile(stderrFile, { encoding: "utf8" })
+    ]);
+    if (!envelope.ok) {
+      const error = new Error(
+        `${command2} exited ${envelope.exitStatus}${stderr.trim() ? `: ${stderr.trim()}` : ""}`
+      );
+      error.exitStatus = envelope.exitStatus;
+      throw error;
+    }
+    return { stdout, stderr };
+  }, { prefix: "release-skill-host-command-" });
+}
+async function commandAvailable(command2, host, run6) {
+  try {
+    await run6(command2, ["--version"], { timeout: 1e4, env: hostEnvironment(host) });
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function defaultDetect(host, run6 = defaultRun) {
+  if (host === "codebuddy" || host === "workbuddy") {
+    for (const command2 of ["codebuddy", "cbc", CODEBUDDY_MACOS_PATH]) {
+      if (await commandAvailable(command2, host, run6)) return { available: true, command: command2 };
+    }
+    return { available: false, reason: "CodeBuddy/WorkBuddy CLI not found" };
+  }
+  if (host === "kimi") {
+    if (!await commandAvailable("kimi", host, run6)) return { available: false, reason: "kimi CLI not found" };
+    try {
+      await access2("/usr/bin/expect");
+    } catch {
+      return { available: false, reason: "/usr/bin/expect not found" };
+    }
+    return { available: true, command: "kimi", expectCommand: "/usr/bin/expect" };
+  }
+  if (!await commandAvailable(host, host, run6)) return { available: false, reason: `${host} CLI not found` };
+  return { available: true, command: host };
+}
+function parseJson2(stdout, label) {
+  try {
+    return JSON.parse(stdout);
+  } catch {
+    throw new Error(`${label} did not return JSON`);
+  }
+}
+function exactPluginObservation(target, stdout) {
+  const selector = `${target.plugin}@${target.marketplace}`;
+  const parsed = parseJson2(stdout, `${target.host} plugin list`);
+  if (target.host === "claude" || target.host === "codex") {
+    const platform = getPlatform(target.host);
+    const observed = platform.strategy.parseListOutput(parsed, selector);
+    if (!observed.ok) {
+      if (observed.error.includes("not found")) return { installed: false };
+      throw new Error(observed.error);
+    }
+    const identity2 = platform.strategy.extractListIdentity(observed.found);
+    if (identity2.plugin !== target.plugin || identity2.marketplace !== target.marketplace || identity2.version !== target.version) {
+      return { installed: true, exact: false, found: observed.found };
+    }
+    if (platform.strategy.crossValidateListEntry) {
+      const cross = platform.strategy.crossValidateListEntry(observed.found, target);
+      if (!cross.ok) return { installed: true, exact: false, found: observed.found };
+    }
+    return {
+      installed: true,
+      exact: true,
+      found: observed.found,
+      ...observed.installPath ? { installPath: observed.installPath } : {}
+    };
+  }
+  if (!Array.isArray(parsed)) throw new Error(`${target.host} plugin list did not return an array`);
+  const found = parsed.find((entry) => entry?.id === selector);
+  if (!found) return { installed: false };
+  return {
+    installed: true,
+    exact: found.version === target.version && found.gitCommitSha === target.pluginCommit,
+    found
+  };
+}
+function normalizeGitSource(source) {
+  return String(source ?? "").replace(/^git\+/, "").replace(/^https:\/\/github\.com\//, "").replace(/^git@github\.com:/, "").replace(/\.git$/u, "").replace(/\/$/u, "");
+}
+async function observeMarketplace(target, command2, env, run6) {
+  const listed = await run6(command2, ["plugin", "marketplace", "list", "--json"], { env });
+  const parsed = parseJson2(listed.stdout, `${target.host} marketplace list`);
+  const entries = target.host === "claude" ? parsed : parsed?.marketplaces;
+  if (!Array.isArray(entries)) throw new Error(`${target.host} marketplace list has an invalid shape`);
+  const found = entries.find((entry) => entry?.name === target.marketplace);
+  if (!found) return { installed: false };
+  const source = target.host === "claude" ? found.repo : found.marketplaceSource?.source;
+  if (normalizeGitSource(source) !== normalizeGitSource(target.marketplaceRepo)) {
+    throw new Error(`${target.host} marketplace ${target.marketplace} does not point to ${target.marketplaceRepo}`);
+  }
+  const root = target.host === "claude" ? found.installLocation : found.root;
+  if (typeof root !== "string" || root.length === 0) {
+    throw new Error(`${target.host} marketplace ${target.marketplace} has no observable checkout root`);
+  }
+  const head = await run6("git", ["-C", root, "rev-parse", "HEAD"], { env, timeout: 3e4 });
+  return { installed: true, exact: head.stdout.trim() === target.marketplaceCommit, root, found };
+}
+async function observeStructuredTarget(target, command2, env, run6) {
+  const listed = await run6(command2, getPlatform(target.host).cli.list(), { env });
+  const plugin = exactPluginObservation(target, listed.stdout);
+  const marketplace = await observeMarketplace(target, command2, env, run6);
+  if (plugin.installed && !marketplace.installed) {
+    throw new Error(`${target.host} reports the plugin but not its frozen marketplace`);
+  }
+  return { plugin, marketplace, exact: plugin.exact === true && marketplace.exact === true };
+}
+async function bindStructuredMarketplace(target, command2, env, run6, observed) {
+  if (observed.marketplace.installed && observed.marketplace.exact) return;
+  if (observed.marketplace.installed) {
+    await run6(command2, [
+      "plugin",
+      "marketplace",
+      "remove",
+      target.marketplace,
+      ...target.host === "codex" ? ["--json"] : []
+    ], { env });
+  }
+  const platform = getPlatform(target.host);
+  const frozenRef = target.host === "codex" ? target.marketplaceCommit : target.marketplaceRef;
+  await run6(command2, platform.cli.marketplaceAdd(target.marketplaceRepo, frozenRef), { env });
+  const rebound = await observeMarketplace(target, command2, env, run6);
+  if (!rebound.installed || !rebound.exact) {
+    throw new Error(`${target.host} marketplace did not bind to frozen commit ${target.marketplaceCommit}`);
+  }
+}
+function actionParametersForTarget(plan, target) {
+  const action = (plan.externalActions ?? []).find((candidate) => candidate.id === target.actionId);
+  if (!action || action.type !== target.actionType || action.unitId !== target.unitId) {
+    throw new Error(`local host update target ${target.actionId} has no matching frozen action`);
+  }
+  return action.parameters;
+}
+async function verifyStructuredInstalledPayload({
+  plan,
+  root,
+  target,
+  installPath,
+  verifyInstalledPayload
+}) {
+  if (typeof installPath !== "string" || installPath.length === 0) {
+    throw new Error(`${target.host} did not provide an authoritative installed plugin root`);
+  }
+  await verifyInstalledPayload(
+    actionParametersForTarget(plan, target),
+    { root },
+    installPath,
+    target.host
+  );
+}
+async function runStructuredUpdate(target, detected, run6, {
+  plan,
+  root,
+  verifyInstalledPayload
+}) {
+  if (target.host === "codebuddy" || target.host === "workbuddy") {
+    const env2 = hostEnvironment(target.host);
+    const listed = await run6(detected.command, ["plugin", "list", "--json"], { env: env2 });
+    const observed = exactPluginObservation(target, listed.stdout);
+    if (observed.exact) return { status: "ALREADY_CURRENT", version: target.version };
+    return {
+      status: "MANUAL_REQUIRED",
+      reason: `${target.host} CLI cannot pin an install to frozen ref ${target.pluginTag}; no local mutation was performed`
+    };
+  }
+  const command2 = detected.command;
+  const env = hostEnvironment(target.host);
+  const before = await observeStructuredTarget(target, command2, env, run6);
+  if (before.exact && before.plugin.installPath) {
+    await verifyStructuredInstalledPayload({
+      plan,
+      root,
+      target,
+      installPath: before.plugin.installPath,
+      verifyInstalledPayload
+    });
+    return { status: "ALREADY_CURRENT", version: target.version };
+  }
+  await bindStructuredMarketplace(target, command2, env, run6, before);
+  const platform = getPlatform(target.host);
+  const selector = `${target.plugin}@${target.marketplace}`;
+  let installPath;
+  if (target.host === "claude") {
+    const installArgs = before.plugin.installed ? ["plugin", "update", selector, "--scope", "user", "--yes"] : platform.cli.install(target.plugin, target.marketplace);
+    await run6(command2, installArgs, { env });
+  } else {
+    if (before.plugin.installed) {
+      await run6(command2, ["plugin", "remove", selector, "--json"], { env });
+    }
+    const installed = await run6(command2, platform.cli.install(target.plugin, target.marketplace), { env });
+    const installOutput = parseJson2(installed.stdout, `${target.host} plugin install`);
+    const extracted = platform.strategy.extractInstallPath({ execEvidence: { installOutput } });
+    if (!extracted.ok) throw new Error(extracted.error);
+    installPath = extracted.installPath;
+  }
+  const after = await observeStructuredTarget(target, command2, env, run6);
+  if (!after.exact) throw new Error(`${target.host} did not install the frozen plugin identity`);
+  await verifyStructuredInstalledPayload({
+    plan,
+    root,
+    target,
+    installPath: installPath ?? after.plugin.installPath,
+    verifyInstalledPayload
+  });
+  return { status: "UPDATED", version: target.version, restartRequired: true };
+}
+function kimiExpectProgram(kimiCommand, installUrl) {
+  const quotedCommand = JSON.stringify(kimiCommand);
+  const quotedUrl = JSON.stringify(installUrl);
+  return `set timeout 180
+spawn -- ${quotedCommand}
+expect -re {> $}
+send -- "/plugins install ${quotedUrl}\\r"
+expect {
+  -re {Trust and install} { send -- "\\033\\[B\\r" }
+  timeout { exit 91 }
+  eof { exit 92 }
+}
+expect -re {> $}
+send -- "/reload\\r"
+expect -re {> $}
+send -- "/exit\\r"
+expect eof
+`;
+}
+async function observeKimiTarget(target, kimiHome, run6) {
+  const pluginsRoot = join27(kimiHome, "plugins");
+  let installed;
+  try {
+    installed = parseJson2(
+      await readFileContained(pluginsRoot, "installed.json", { encoding: "utf8" }),
+      "Kimi installed plugin registry"
+    );
+  } catch (error) {
+    if (error?.code === "ENOENT" || error?.details?.causeCode === "ENOENT" || error?.details?.kind === "missing-resource") return { installed: false };
+    throw error;
+  }
+  const entry = installed?.plugins?.find((candidate) => candidate?.id === target.plugin);
+  if (!entry) return { installed: false };
+  const managedRoot = join27(pluginsRoot, "managed");
+  const pluginRoot = await resolveContained(managedRoot, target.plugin);
+  const declaredRoot = await resolveContained(managedRoot, relative26(managedRoot, entry.root));
+  if (declaredRoot !== pluginRoot) throw new Error("Kimi installed plugin root does not match its managed root");
+  const packageJson = parseJson2(
+    await readFileContained(pluginRoot, "package.json", { encoding: "utf8" }),
+    "Kimi installed package manifest"
+  );
+  let refName;
+  let revision;
+  if (entry.github) {
+    refName = entry.github.ref?.kind === "tag" ? entry.github.ref.value : void 0;
+    revision = entry.github.installedSha;
+  } else {
+    const metadata = parseJson2(
+      await readFileContained(pluginRoot, ".codex-marketplace-install.json", { encoding: "utf8" }),
+      "Kimi installed source binding"
+    );
+    refName = metadata.ref_name;
+    revision = metadata.revision;
+  }
+  const head = await run6("git", ["-C", pluginRoot, "rev-parse", "HEAD"], {
+    env: hostEnvironment("kimi"),
+    timeout: 3e4
+  });
+  const exact = packageJson.name === target.plugin && packageJson.version === target.version && refName === target.pluginTag && revision === target.pluginCommit && head.stdout.trim() === target.pluginCommit;
+  return { installed: true, exact, entry, packageJson, refName, revision, pluginRoot };
+}
+async function runKimiUpdate(target, detected, run6, kimiHome) {
+  const env = hostEnvironment("kimi", { kimiHome });
+  const before = await observeKimiTarget(target, kimiHome, run6);
+  if (before.exact) return { status: "ALREADY_CURRENT", version: target.version };
+  await withTemporaryWorkspace(async (workspace) => {
+    const checkout = join27(workspace.root, "plugin");
+    await run6("git", [
+      "clone",
+      "--depth",
+      "1",
+      "--branch",
+      target.pluginTag,
+      "--single-branch",
+      `https://github.com/${target.pluginRepo}.git`,
+      checkout
+    ], { timeout: 18e4, env });
+    const observed = await run6("git", ["-C", checkout, "rev-parse", "HEAD"], {
+      env,
+      timeout: 3e4
+    });
+    if (observed.stdout.trim() !== target.pluginCommit) {
+      throw new Error(`Kimi checkout commit does not match frozen release commit ${target.pluginCommit}`);
+    }
+    const installUrl = `https://github.com/${target.pluginRepo}/releases/tag/${target.pluginTag}`;
+    await run6(detected.expectCommand, ["-c", kimiExpectProgram(detected.command, installUrl)], {
+      timeout: 24e4,
+      env
+    });
+  }, { prefix: "release-skill-kimi-update-" });
+  const after = await observeKimiTarget(target, kimiHome, run6);
+  if (!after.exact) throw new Error("Kimi did not report the frozen plugin identity after TUI installation");
+  return { status: "UPDATED", version: target.version, restartRequired: true };
+}
+function aggregateStatus(results) {
+  const statuses = new Set(results.map((entry) => entry.status));
+  const completed2 = results.some((entry) => ["UPDATED", "ALREADY_CURRENT"].includes(entry.status));
+  const incomplete = results.some((entry) => ["FAILED", "MANUAL_REQUIRED"].includes(entry.status));
+  if (completed2 && incomplete) return "PARTIAL";
+  if (statuses.has("FAILED")) return "FAILED";
+  if (statuses.has("MANUAL_REQUIRED")) return "MANUAL_REQUIRED";
+  if (statuses.has("UPDATED")) return "UPDATED";
+  if (statuses.has("ALREADY_CURRENT")) return "ALREADY_CURRENT";
+  return "NO_APPLICABLE_HOSTS";
+}
+async function updateLocalHostPlugins({
+  plan,
+  root = process.cwd(),
+  confirmPlanDigest,
+  selectedHosts,
+  detect = /* @__PURE__ */ __name((host) => defaultDetect(host, defaultRun), "detect"),
+  run: run6 = defaultRun,
+  kimiHome,
+  verifyInstalledPayload = verifyInstalledMarketplacePayload
+} = {}) {
+  const effectiveKimiHome = kimiHome ?? process.env.KIMI_CONFIG_DIR ?? join27(homedir(), ".kimi-code");
+  const checklist = derivePostReleaseChecklist(plan);
+  if (confirmPlanDigest !== plan.digest) {
+    throw new Error("plan digest confirmation does not match the frozen release plan");
+  }
+  const selected = selectedHosts?.length > 0 ? new Set(selectedHosts) : new Set(checklist.localHostUpdate.hosts);
+  const unknown = [...selected].filter((host) => !checklist.localHostUpdate.hosts.includes(host));
+  if (unknown.length > 0) throw new Error(`selected hosts are not declared by the plan: ${unknown.join(", ")}`);
+  const targets = checklist.localHostUpdate.targets.filter((item) => selected.has(item.host));
+  for (const target of targets) assertExecutableTarget(target);
+  const results = [];
+  for (const target of targets) {
+    const detected = await detect(target.host);
+    if (!detected?.available) {
+      results.push({
+        host: target.host,
+        unitId: target.unitId,
+        status: "SKIPPED_NOT_INSTALLED",
+        reason: detected?.reason ?? "host unavailable"
+      });
+      continue;
+    }
+    try {
+      const outcome = target.host === "kimi" ? await runKimiUpdate(target, detected, run6, effectiveKimiHome) : await runStructuredUpdate(target, detected, run6, {
+        plan,
+        root,
+        verifyInstalledPayload
+      });
+      results.push({ host: target.host, unitId: target.unitId, ...outcome });
+    } catch (error) {
+      results.push({
+        host: target.host,
+        unitId: target.unitId,
+        status: "FAILED",
+        error: error?.message ?? String(error)
+      });
+    }
+  }
+  return {
+    command: "post-release",
+    operation: "update-local-hosts",
+    status: aggregateStatus(results),
+    planDigest: plan.digest,
+    results,
+    releaseStatusChanged: false
+  };
+}
+var HOSTS_BY_ACTION, DISTRIBUTION_BY_ACTION, BRANCH_ACTION_INCLUDED, CODEBUDDY_MACOS_PATH, SAFE_ENV_KEYS;
+var init_post_release_local = __esm({
+  async "src/commands/post-release-local.mjs"() {
+    init_src2();
+    await init_registry2();
+    init_codebuddy();
+    await init_plugin_marketplace();
+    HOSTS_BY_ACTION = Object.freeze({
+      "claude-marketplace-install": ["claude"],
+      "codex-marketplace-install": ["codex"],
+      "kimi-marketplace-install": ["kimi"],
+      "codebuddy-marketplace-install": ["codebuddy", "workbuddy"]
+    });
+    DISTRIBUTION_BY_ACTION = Object.freeze({
+      "claude-marketplace-install": "claude-plugin",
+      "codex-marketplace-install": "codex-plugin",
+      "kimi-marketplace-install": "kimi-plugin",
+      "codebuddy-marketplace-install": "codebuddy-plugin"
+    });
+    BRANCH_ACTION_INCLUDED = /* @__PURE__ */ new Set(["advance-existing-branch", "initialize-default-branch"]);
+    CODEBUDDY_MACOS_PATH = "/Applications/WorkBuddy.app/Contents/Resources/app.asar.unpacked/cli/bin/codebuddy";
+    SAFE_ENV_KEYS = Object.freeze([
+      "PATH",
+      "HOME",
+      "USER",
+      "LANG",
+      "LC_ALL",
+      "LC_CTYPE",
+      "TERM",
+      "TMPDIR",
+      "HTTP_PROXY",
+      "HTTPS_PROXY",
+      "NO_PROXY",
+      "http_proxy",
+      "https_proxy",
+      "no_proxy",
+      "SSL_CERT_FILE",
+      "SSL_CERT_DIR",
+      "NODE_EXTRA_CA_CERTS",
+      "CLAUDE_CONFIG_DIR",
+      "CODEX_HOME",
+      "KIMI_CONFIG_DIR"
+    ]);
+    __name(actionTarget, "actionTarget");
+    __name(pluginTargets, "pluginTargets");
+    __name(assertExecutableTarget, "assertExecutableTarget");
+    __name(derivePostReleaseChecklist, "derivePostReleaseChecklist");
+    __name(unavailablePostReleaseChecklist, "unavailablePostReleaseChecklist");
+    __name(assertVerifiedReleaseRun, "assertVerifiedReleaseRun");
+    __name(hostEnvironment, "hostEnvironment");
+    __name(defaultRun, "defaultRun");
+    __name(commandAvailable, "commandAvailable");
+    __name(defaultDetect, "defaultDetect");
+    __name(parseJson2, "parseJson");
+    __name(exactPluginObservation, "exactPluginObservation");
+    __name(normalizeGitSource, "normalizeGitSource");
+    __name(observeMarketplace, "observeMarketplace");
+    __name(observeStructuredTarget, "observeStructuredTarget");
+    __name(bindStructuredMarketplace, "bindStructuredMarketplace");
+    __name(actionParametersForTarget, "actionParametersForTarget");
+    __name(verifyStructuredInstalledPayload, "verifyStructuredInstalledPayload");
+    __name(runStructuredUpdate, "runStructuredUpdate");
+    __name(kimiExpectProgram, "kimiExpectProgram");
+    __name(observeKimiTarget, "observeKimiTarget");
+    __name(runKimiUpdate, "runKimiUpdate");
+    __name(aggregateStatus, "aggregateStatus");
+    __name(updateLocalHostPlugins, "updateLocalHostPlugins");
+  }
+});
+
 // src/commands/approve.mjs
 var approve_exports = {};
 __export(approve_exports, {
@@ -129113,7 +129818,9 @@ async function approvePostPublishHook(options) {
   const actualDigest = computePlanDigest(plan);
   assertImmutablePlanAuthority(planPath, plan);
   validatePlan(plan);
-  const hooks = plan.postPublish?.hooks ?? [];
+  const declarations = normalizePostPublishView(plan);
+  validatePostPublishHookIdUniqueness(declarations);
+  const hooks = declarations.flatMap((declaration) => declaration.hooks ?? []);
   const hook = hooks.find((entry) => entry.id === hookId);
   if (!hook) {
     throw new ReleaseError(
@@ -129310,9 +130017,9 @@ __export(publish_exports, {
   publishRelease: () => publishRelease
 });
 import { readFile as readFile36, mkdir as mkdir21 } from "node:fs/promises";
-import { isAbsolute as isAbsolute22, join as join27, relative as relative26 } from "node:path";
+import { isAbsolute as isAbsolute22, join as join28, relative as relative27 } from "node:path";
 function assertInsideAssetRoot(assetRoot, candidate, label) {
-  const rel = relative26(assetRoot, candidate);
+  const rel = relative27(assetRoot, candidate);
   if (rel === "" || isAbsolute22(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
     throw new ReleaseError(GATE_FAILED, `${label} must be a child of the production asset root`);
   }
@@ -129781,15 +130488,15 @@ async function publishRelease(options) {
       );
     }
     const currentBaseline = await captureBaselineActual(root);
-    const planV2 = plan.planVersion === 2;
+    const recordLayerBaseline = plan.planVersion === 2 || plan.planVersion === 3;
     if (currentBaseline.gitTreeHash !== plan.baseline.gitTreeHash) {
-      if (planV2) {
+      if (recordLayerBaseline) {
         await evidence.append({
           phase: "safety-gate",
           gate: "baseline-check",
           status: "warning",
           severity: "warning",
-          reason: "planVersion 2: baseline drift is record-layer audit data; frozen-artifact re-verification remains the integrity authority",
+          reason: "planVersion 2/3: baseline drift is record-layer audit data; frozen-artifact re-verification remains the integrity authority",
           planTreeHash: plan.baseline.gitTreeHash,
           currentTreeHash: currentBaseline.gitTreeHash
         });
@@ -129809,13 +130516,13 @@ async function publishRelease(options) {
       }
     }
     if (plan.baseline.workspaceDigest && currentBaseline.workspaceDigest !== plan.baseline.workspaceDigest) {
-      if (planV2) {
+      if (recordLayerBaseline) {
         await evidence.append({
           phase: "safety-gate",
           gate: "baseline-check",
           status: "warning",
           severity: "warning",
-          reason: "planVersion 2: workspace digest drift is record-layer audit data; frozen-artifact re-verification remains the integrity authority",
+          reason: "planVersion 2/3: workspace digest drift is record-layer audit data; frozen-artifact re-verification remains the integrity authority",
           planWorkspaceDigest: plan.baseline.workspaceDigest,
           currentWorkspaceDigest: currentBaseline.workspaceDigest
         });
@@ -130069,7 +130776,7 @@ async function publishRelease(options) {
       }
     }
     await evidence.append({ phase: "safety-gate", gate: "global-preflight", status: "passed" });
-    const runPath = join27(runDir, "release-run.json");
+    const runPath = join28(runDir, "release-run.json");
     const checkpoints = orderedActions.map((action) => {
       if (isMarketplaceAction(action.type)) {
         return {
@@ -130371,7 +131078,7 @@ __export(reconcile_exports, {
   reconcileRelease: () => reconcileRelease
 });
 import { readFile as readFile37, mkdir as mkdir22 } from "node:fs/promises";
-import { join as join28 } from "node:path";
+import { join as join29 } from "node:path";
 function defaultClock5() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
@@ -130570,15 +131277,15 @@ async function reconcileRelease(options) {
       );
     }
     const currentBaseline = await captureBaselineActual(root);
-    const planV2 = plan.planVersion === 2;
+    const recordLayerBaseline = plan.planVersion === 2 || plan.planVersion === 3;
     if (currentBaseline.gitTreeHash !== plan.baseline.gitTreeHash) {
-      if (planV2) {
+      if (recordLayerBaseline) {
         await evidence.append({
           phase: "safety-gate",
           gate: "baseline-check",
           status: "warning",
           severity: "warning",
-          reason: "planVersion 2: baseline drift is record-layer audit data; frozen-artifact re-verification remains the integrity authority",
+          reason: "planVersion 2/3: baseline drift is record-layer audit data; frozen-artifact re-verification remains the integrity authority",
           planTreeHash: plan.baseline.gitTreeHash,
           currentTreeHash: currentBaseline.gitTreeHash
         });
@@ -130598,13 +131305,13 @@ async function reconcileRelease(options) {
       }
     }
     if (plan.baseline.workspaceDigest && currentBaseline.workspaceDigest !== plan.baseline.workspaceDigest) {
-      if (planV2) {
+      if (recordLayerBaseline) {
         await evidence.append({
           phase: "safety-gate",
           gate: "baseline-check",
           status: "warning",
           severity: "warning",
-          reason: "planVersion 2: workspace digest drift is record-layer audit data; frozen-artifact re-verification remains the integrity authority",
+          reason: "planVersion 2/3: workspace digest drift is record-layer audit data; frozen-artifact re-verification remains the integrity authority",
           planWorkspaceDigest: plan.baseline.workspaceDigest,
           currentWorkspaceDigest: currentBaseline.workspaceDigest
         });
@@ -131311,7 +132018,7 @@ async function reconcileRelease(options) {
         ...normalized === "deferred" ? { reason: CONSUMER_VERIFICATION_DEFERRED, phase: "post-publish-verification" } : {}
       };
     });
-    const runPath = join28(runDir, "release-run.json");
+    const runPath = join29(runDir, "release-run.json");
     const sourceRunDigest = sourceAuthorityDigest;
     const runState = {
       runId,
@@ -131686,7 +132393,7 @@ var init_push_snapshot = __esm({
 // src/core/tag-authority.mjs
 import { cp as cp2, mkdir as mkdir23, mkdtemp as mkdtemp8, rm as rm12, writeFile as writeFile10 } from "node:fs/promises";
 import { tmpdir as tmpdir5 } from "node:os";
-import { join as join29 } from "node:path";
+import { join as join30 } from "node:path";
 function authorityError(code, message, reason, details = {}) {
   return new ReleaseError(code, message, { ...details, reason });
 }
@@ -131856,8 +132563,8 @@ async function defaultObserveBranchFn(branch, { remoteUrl }) {
 async function createFrozenTagWorktree({ gitDir, commit, tmpBase, exec }) {
   await mkdir23(tmpBase, { recursive: true });
   const stamp = Date.now();
-  const gitCopyPath = join29(tmpBase, `frozen-${stamp}-copy.git`);
-  const worktreePath = join29(tmpBase, `frozen-${stamp}-wt`);
+  const gitCopyPath = join30(tmpBase, `frozen-${stamp}-copy.git`);
+  const worktreePath = join30(tmpBase, `frozen-${stamp}-wt`);
   await cp2(gitDir, gitCopyPath, { recursive: true });
   await mkdir23(worktreePath, { recursive: true });
   await exec(
@@ -131865,7 +132572,7 @@ async function createFrozenTagWorktree({ gitDir, commit, tmpBase, exec }) {
     ["--git-dir", gitCopyPath, "config", "core.bare", "false"],
     { shell: false, encoding: "utf8" }
   );
-  await writeFile10(join29(worktreePath, ".git"), `gitdir: ${gitCopyPath}
+  await writeFile10(join30(worktreePath, ".git"), `gitdir: ${gitCopyPath}
 `, "utf8");
   await exec(
     "git",
@@ -131920,8 +132627,8 @@ async function assertMainLineAhead({
   }
   let scratchBase = null;
   try {
-    scratchBase = await mkdtemp8(join29(tmpdir5(), "release-skill-mainline-"));
-    const scratchGitDir = join29(scratchBase, "objects.git");
+    scratchBase = await mkdtemp8(join30(tmpdir5(), "release-skill-mainline-"));
+    const scratchGitDir = join30(scratchBase, "objects.git");
     await cp2(gitDir, scratchGitDir, { recursive: true });
     await exec(
       "git",
@@ -131981,7 +132688,7 @@ var init_tag_authority = __esm({
 
 // src/core/postpublish-projection.mjs
 import { chmod as chmod5, lstat as lstat38, mkdir as mkdir24, realpath as realpath28, writeFile as writeFile11 } from "node:fs/promises";
-import { dirname as dirname17, join as join30 } from "node:path";
+import { dirname as dirname17, join as join31 } from "node:path";
 function fail7(message, details = {}) {
   throw new ReleaseError(POST_PUBLISH_VERIFY_FAILED, `public payload projection: ${message}`, details);
 }
@@ -132004,7 +132711,7 @@ async function projectPublicPayload({ executionWorktreeRoot, candidateRoot, publ
   if (!worktreeReal) {
     fail7("the execution worktree does not resolve to an existing directory", { executionWorktreeRoot });
   }
-  const payloadPath = join30(worktreeReal, PUBLIC_PAYLOAD_DIRNAME);
+  const payloadPath = join31(worktreeReal, PUBLIC_PAYLOAD_DIRNAME);
   const preExisting = await lstat38(payloadPath).catch(() => null);
   if (preExisting) {
     fail7(`the payload root already exists in the tag worktree (${preExisting.isSymbolicLink() ? "symbolic link" : "pre-existing entry"})`, {
@@ -132022,7 +132729,7 @@ async function projectPublicPayload({ executionWorktreeRoot, candidateRoot, publ
         kind: cause?.details?.kind
       });
     }
-    const stagePath = join30(candidateRoot, entry.to);
+    const stagePath = join31(candidateRoot, entry.to);
     await mkdir24(dirname17(stagePath), { recursive: true });
     await writeFile11(stagePath, receipt.content);
     await chmod5(stagePath, receipt.mode);
@@ -132152,7 +132859,7 @@ import { execFile as execFileCb14 } from "node:child_process";
 import { promisify as promisify14 } from "node:util";
 import { mkdir as mkdir25, mkdtemp as mkdtemp9, readFile as readFile38, rm as rm13, writeFile as writeFile12 } from "node:fs/promises";
 import { tmpdir as tmpdir6 } from "node:os";
-import { dirname as dirname18, join as join31 } from "node:path";
+import { dirname as dirname18, join as join32 } from "node:path";
 function defaultExec2(command2, args2, options = {}) {
   return execFileAsync3(command2, args2, { shell: false, encoding: "utf8", timeout: GIT_TIMEOUT_MS, ...options });
 }
@@ -132280,26 +132987,24 @@ async function crossCheckPushedCommit(exec, remoteUrl, branch, pushedCommit) {
   }
   return observed;
 }
-async function deliverProposalGitPush(params) {
+async function observeProposalInboxGitPush(params) {
   const {
     remoteUrl,
     branch,
     proposalPath,
     proposalDocument,
-    commitIdentity,
     exec: execOpt
   } = params ?? {};
   assertSafeRemoteUrl(remoteUrl);
   assertSafeBranch(branch);
   assertSafeProposalPath(proposalPath);
-  assertCommitIdentity(commitIdentity);
   if (!proposalDocument || typeof proposalDocument !== "object" || Array.isArray(proposalDocument)) {
     throw new ReleaseError(GATE_FAILED, "proposal-inbox requires a proposal document");
   }
   const exec = typeof execOpt === "function" ? execOpt : defaultExec2;
   const serialized = `${JSON.stringify(proposalDocument, null, 2)}
 `;
-  const cloneDir = await mkdtemp9(join31(tmpdir6(), TMP_PREFIX));
+  const cloneDir = await mkdtemp9(join32(tmpdir6(), TMP_PREFIX));
   try {
     try {
       await exec("git", ["clone", "--quiet", remoteUrl, cloneDir], {
@@ -132329,26 +133034,59 @@ async function deliverProposalGitPush(params) {
     } else {
       await git3(["checkout", "--quiet", "--orphan", branch]);
     }
-    const targetPath2 = join31(cloneDir, proposalPath);
+    const targetPath2 = join32(cloneDir, proposalPath);
     let existing = null;
     try {
       existing = await readFile38(targetPath2, "utf8");
     } catch {
       existing = null;
     }
-    if (existing !== null) {
-      if (existing === serialized) {
-        return {
-          status: "NO_CHANGE",
-          observation: { mode: "no-change", previousHead, branchTip: previousHead }
-        };
-      }
-      throw new ReleaseError(
-        REMOTE_CONFLICT,
-        `proposal ${proposalPath} already exists in ${redactUrlCredentialsIfPresent(remoteUrl)} with different content; overwriting a downstream proposal requires a human decision`,
-        { remoteUrl: redactUrlCredentialsIfPresent(remoteUrl), proposalPath }
-      );
+    if (existing === null) {
+      return { cloneDir, previousHead, verdict: "ABSENT" };
     }
+    if (existing === serialized) {
+      return { cloneDir, previousHead, verdict: "IDENTICAL" };
+    }
+    throw new ReleaseError(
+      REMOTE_CONFLICT,
+      `proposal ${proposalPath} already exists in ${redactUrlCredentialsIfPresent(remoteUrl)} with different content; overwriting a downstream proposal requires a human decision`,
+      { remoteUrl: redactUrlCredentialsIfPresent(remoteUrl), proposalPath }
+    );
+  } catch (cause) {
+    await rm13(cloneDir, { recursive: true, force: true }).catch(() => {
+    });
+    throw cause;
+  }
+}
+async function deliverProposalGitPush(params) {
+  const {
+    remoteUrl,
+    branch,
+    proposalPath,
+    proposalDocument,
+    commitIdentity,
+    exec: execOpt
+  } = params ?? {};
+  assertCommitIdentity(commitIdentity);
+  const exec = typeof execOpt === "function" ? execOpt : defaultExec2;
+  const serialized = `${JSON.stringify(proposalDocument, null, 2)}
+`;
+  const { cloneDir, previousHead, verdict } = await observeProposalInboxGitPush({
+    remoteUrl,
+    branch,
+    proposalPath,
+    proposalDocument,
+    ...execOpt !== void 0 ? { exec: execOpt } : {}
+  });
+  try {
+    if (verdict === "IDENTICAL") {
+      return {
+        status: "NO_CHANGE",
+        observation: { mode: "no-change", previousHead, branchTip: previousHead }
+      };
+    }
+    const git3 = /* @__PURE__ */ __name((args2, options = {}) => exec("git", args2, { cwd: cloneDir, shell: false, timeout: GIT_TIMEOUT_MS, ...options }), "git");
+    const targetPath2 = join32(cloneDir, proposalPath);
     await mkdir25(dirname18(targetPath2), { recursive: true });
     await writeFile12(targetPath2, serialized);
     await git3(["add", "-A"]);
@@ -132457,7 +133195,7 @@ async function deliverProposalLocalFile(params) {
   }
   const serialized = `${JSON.stringify(proposalDocument, null, 2)}
 `;
-  const targetPath2 = join31(workspaceRealpath, proposalPath);
+  const targetPath2 = join32(workspaceRealpath, proposalPath);
   let existing = null;
   try {
     existing = await readFile38(targetPath2, "utf8");
@@ -132586,6 +133324,7 @@ var init_proposal_inbox = __esm({
     __name(buildProposalDocument, "buildProposalDocument");
     __name(buildManualSyncPrompt, "buildManualSyncPrompt");
     __name(crossCheckPushedCommit, "crossCheckPushedCommit");
+    __name(observeProposalInboxGitPush, "observeProposalInboxGitPush");
     __name(deliverProposalGitPush, "deliverProposalGitPush");
     __name(executeProposalInboxGitPushHook, "executeProposalInboxGitPushHook");
     __name(buildLocalFileSyncPrompt, "buildLocalFileSyncPrompt");
@@ -132599,7 +133338,7 @@ import { execFile as execFileCb15 } from "node:child_process";
 import { promisify as promisify15 } from "node:util";
 import { mkdtemp as mkdtemp10, rm as rm14 } from "node:fs/promises";
 import { tmpdir as tmpdir7 } from "node:os";
-import { join as join32 } from "node:path";
+import { join as join33 } from "node:path";
 function defaultExec3(command2, args2, options = {}) {
   return execFileAsync4(command2, args2, { shell: false, encoding: "utf8", timeout: GIT_TIMEOUT_MS2, ...options });
 }
@@ -132719,7 +133458,7 @@ async function applyDownstreamGitChange(params) {
   let workspaceRealpath = null;
   if (hasRemoteUrl) {
     assertSafeRemoteUrl2(target.remoteUrl);
-    worktree = await mkdtemp10(join32(tmpdir7(), TMP_PREFIX2));
+    worktree = await mkdtemp10(join33(tmpdir7(), TMP_PREFIX2));
     isClone = true;
     try {
       await exec("git", ["clone", "--quiet", target.remoteUrl, worktree], {
@@ -132957,7 +133696,7 @@ var init_preset_gitwrite = __esm({
 
 // src/core/marketplace-registry-entry.mjs
 import { readFile as readFile39 } from "node:fs/promises";
-import { join as join33 } from "node:path";
+import { join as join34 } from "node:path";
 function updateRegistryEntry(registry, params) {
   const { entryKey, fieldsFromPlan, contextProjection } = params ?? {};
   if (!registry || typeof registry !== "object" || Array.isArray(registry)) {
@@ -133019,7 +133758,7 @@ async function executeMarketplaceRegistryEntryHook(params) {
   const version = contextProjection?.version ?? "unknown";
   let currentText = null;
   const mutate = /* @__PURE__ */ __name(async (worktree) => {
-    const absoluteRegistry = join33(worktree, registryPath);
+    const absoluteRegistry = join34(worktree, registryPath);
     let raw;
     try {
       raw = await readFile39(absoluteRegistry, "utf8");
@@ -133075,10 +133814,10 @@ var init_marketplace_registry_entry = __esm({
 
 // src/core/docs-refresh-preset.mjs
 import { mkdir as mkdir26, readFile as readFile40, writeFile as writeFile13 } from "node:fs/promises";
-import { dirname as dirname19, isAbsolute as isAbsolute23, join as join34, relative as relative27, resolve as resolve33 } from "node:path";
+import { dirname as dirname19, isAbsolute as isAbsolute23, join as join35, relative as relative28, resolve as resolve33 } from "node:path";
 function resolvePayloadSource(payloadDir, from) {
   const sourcePath = resolve33(payloadDir, from);
-  const rel = relative27(payloadDir, sourcePath);
+  const rel = relative28(payloadDir, sourcePath);
   if (rel === "" || isAbsolute23(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
     throw new ReleaseError(
       GATE_FAILED,
@@ -133124,7 +133863,7 @@ async function executeDocsRefreshHook(params) {
         const text = content.toString("utf8");
         content = Buffer.from(text.split(mapping.versionMarker).join(version), "utf8");
       }
-      const destination = join34(worktree, mapping.to);
+      const destination = join35(worktree, mapping.to);
       await mkdir26(dirname19(destination), { recursive: true });
       await writeFile13(destination, content);
     }
@@ -133192,6 +133931,7 @@ var init_docs_refresh_preset = __esm({
 });
 
 // src/core/preset-executor.mjs
+import { rm as rm15 } from "node:fs/promises";
 async function executePresetHook(params) {
   const {
     hook,
@@ -133285,6 +134025,27 @@ async function executePresetHook(params) {
     }
   }
 }
+async function preflightPresetHook(params) {
+  const { hook, contextProjection, exec } = params ?? {};
+  if (!hook || typeof hook.preset !== "string") return null;
+  if (hook.preset !== "proposal-inbox") return null;
+  const target = hook.config?.target;
+  if (!target) return null;
+  const transport = resolveProposalInboxTransport(hook.config);
+  if (transport !== "git-push") return null;
+  const document2 = buildProposalDocument(contextProjection);
+  const proposalPath = proposalFileName(contextProjection.unitId, contextProjection.version);
+  const { cloneDir, verdict } = await observeProposalInboxGitPush({
+    remoteUrl: target.remoteUrl,
+    branch: target.branch,
+    proposalPath,
+    proposalDocument: document2,
+    ...exec !== void 0 ? { exec } : {}
+  });
+  await rm15(cloneDir, { recursive: true, force: true }).catch(() => {
+  });
+  return { verdict, proposalPath };
+}
 var init_preset_executor = __esm({
   "src/core/preset-executor.mjs"() {
     init_errors3();
@@ -133294,6 +134055,7 @@ var init_preset_executor = __esm({
     init_marketplace_registry_entry();
     init_docs_refresh_preset();
     __name(executePresetHook, "executePresetHook");
+    __name(preflightPresetHook, "preflightPresetHook");
   }
 });
 
@@ -133306,10 +134068,10 @@ __export(distribute_exports, {
 });
 import { execFile as execFileCb16 } from "node:child_process";
 import { promisify as promisify16 } from "node:util";
-import { realpath as realpath29, lstat as lstat39, mkdir as mkdir27, readFile as readFile41, rm as rm15 } from "node:fs/promises";
+import { realpath as realpath29, lstat as lstat39, mkdir as mkdir27, readFile as readFile41, rm as rm16 } from "node:fs/promises";
 import { mkdtemp as mkdtemp11 } from "node:fs/promises";
 import { tmpdir as tmpdir8 } from "node:os";
-import { isAbsolute as isAbsolute24, join as join35, relative as relative28, resolve as resolve34 } from "node:path";
+import { isAbsolute as isAbsolute24, join as join36, relative as relative29, resolve as resolve34 } from "node:path";
 function defaultClock6() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
@@ -133353,7 +134115,7 @@ async function assertContainedDirectory(container, candidate, label) {
     );
   }
   const containerReal = await realpath29(container);
-  const rel = relative28(containerReal, real);
+  const rel = relative29(containerReal, real);
   if (rel === "" || isAbsolute24(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
     throw new ReleaseError(
       POST_PUBLISH_VERIFY_FAILED,
@@ -133425,7 +134187,9 @@ async function distributeRelease(options) {
       { expected: plan.digest, actual: actualDigest }
     );
   }
-  if (!plan.postPublish) {
+  const declarations = normalizePostPublishView(plan);
+  validatePostPublishHookIdUniqueness(declarations);
+  if (declarations.length === 0 && plan.planVersion !== 3) {
     throw new ReleaseError(
       GATE_FAILED,
       "release plan has no postPublish declaration; nothing to distribute",
@@ -133439,12 +134203,18 @@ async function distributeRelease(options) {
   } else {
     await mkdir27(runDir, { recursive: true });
   }
-  const runPath = join35(runDir, "release-run.json");
+  const runPath = join36(runDir, "release-run.json");
   const evidence = createEvidenceWriter({ runDir, command: "distribute", clock: clockFn });
   let lineageKnown = false;
   let sourceRunId = null;
   let sourceRunDigest = null;
   let finalRecordWritten = false;
+  let stopped = false;
+  let stopReason = null;
+  let failures = 0;
+  let pushedWrites = 0;
+  let awaitingApproval = 0;
+  let hookSuccesses = 0;
   const startedAt = clockFn();
   let checkpoints = [];
   let stateSequence = -1;
@@ -133487,20 +134257,22 @@ async function distributeRelease(options) {
     stateSequence += 1;
     return appendRunState(runDir, stateSequence, buildPersistedState(status));
   }, "snapshot");
-  const recordBlocked = /* @__PURE__ */ __name(async () => {
+  const recordFailure = /* @__PURE__ */ __name(async () => {
     if (finalRecordWritten || !lineageKnown) return;
+    const externalCheckpointSuccesses = pushedWrites + hookSuccesses;
+    const status = externalCheckpointSuccesses > 0 ? PARTIAL2 : BLOCKED2;
     try {
-      await writeRunAtomic(runPath, buildPersistedState(BLOCKED2, clockFn()));
+      await writeRunAtomic(runPath, buildPersistedState(status, clockFn()));
       finalRecordWritten = true;
     } catch {
     }
-  }, "recordBlocked");
+  }, "recordFailure");
   let approvalDigestValue = null;
   let worktreePath = null;
   let tmpBase = null;
   const cleanupWorktree = /* @__PURE__ */ __name(async () => {
     if (tmpBase) {
-      await rm15(tmpBase, { recursive: true, force: true }).catch(() => {
+      await rm16(tmpBase, { recursive: true, force: true }).catch(() => {
       });
       tmpBase = null;
       worktreePath = null;
@@ -133558,25 +134330,58 @@ async function distributeRelease(options) {
       sourceRunId,
       sourceRunStatus: sourceRun.status
     });
-    const postPublish = plan.postPublish;
-    validatePostPublishDeclaration(postPublish, { unitId: postPublish.unitId });
-    const orderedTargets = orderTargetsByDependency(postPublish.targets ?? []);
-    const normalizedDeclaration = normalizePostPublishDeclaration(postPublish);
-    const orderedNormalizedHooks = orderNormalizedHooks(normalizedDeclaration.hooks);
-    await evidence.append({
-      phase: "postpublish-normalization",
-      status: "passed",
-      preGates: normalizedDeclaration.preGates.map((gate) => gate.gate),
-      hookCount: orderedNormalizedHooks.length,
-      hookIds: orderedNormalizedHooks.map((hook) => hook.id)
-    });
-    const declaredHooks = postPublish.hooks ?? [];
-    const distributeHooks = declaredHooks.filter((hook) => (hook.phase ?? "distribute") === "distribute");
-    const deferredPostVerifyHooks = declaredHooks.length - distributeHooks.length;
+    if (declarations.length === 0) {
+      await evidence.append({
+        phase: "postpublish",
+        status: "skipped",
+        reason: "ZERO_DECLARATIONS",
+        planVersion: plan.planVersion
+      });
+      await snapshot(DISTRIBUTED);
+      await writeRunAtomic(runPath, buildPersistedState(DISTRIBUTED, clockFn()));
+      finalRecordWritten = true;
+      await evidence.append({
+        phase: "distribute",
+        status: "completed",
+        overallStatus: DISTRIBUTED,
+        checkpointStatuses: []
+      });
+      await evidence.finish({ status: DISTRIBUTED, planPath, runPath, finishedAt: clockFn() });
+      return { planPath, runPath, status: DISTRIBUTED, checkpoints: [], recoveryActionCode: null };
+    }
+    const v3 = plan.planVersion === 3;
+    const unitActionId = /* @__PURE__ */ __name((unitId, localId) => postPublishActionId({ planVersion: plan.planVersion, unitId, localId }), "unitActionId");
     const failBlocked = /* @__PURE__ */ __name(async (error) => {
-      await recordBlocked();
+      await recordFailure();
       throw error;
     }, "failBlocked");
+    const prepared = [];
+    for (const declaration of declarations) {
+      validatePostPublishDeclaration(declaration, { unitId: declaration.unitId });
+      await verifyExecutionBundle({ planPath, postPublish: declaration });
+      const orderedTargets = orderTargetsByDependency(declaration.targets ?? []);
+      const normalizedDeclaration = normalizePostPublishDeclaration(declaration);
+      const orderedNormalizedHooks = orderNormalizedHooks(normalizedDeclaration.hooks);
+      const declaredHooks = declaration.hooks ?? [];
+      const distributeHooks = declaredHooks.filter((hook) => (hook.phase ?? "distribute") === "distribute");
+      const deferredPostVerifyHooks = declaredHooks.length - distributeHooks.length;
+      await evidence.append({
+        phase: "postpublish-normalization",
+        status: "passed",
+        unitId: declaration.unitId,
+        preGates: normalizedDeclaration.preGates.map((gate) => gate.gate),
+        hookCount: orderedNormalizedHooks.length,
+        hookIds: orderedNormalizedHooks.map((hook) => hook.id)
+      });
+      prepared.push({
+        declaration,
+        orderedTargets,
+        normalizedDeclaration,
+        orderedNormalizedHooks,
+        distributeHooks,
+        deferredPostVerifyHooks
+      });
+    }
     const approvedHookIds = /* @__PURE__ */ new Set();
     const hookApprovalPaths = postpublishApprovalPaths ?? [];
     if (hookApprovalPaths.length > 0) {
@@ -133633,148 +134438,170 @@ async function distributeRelease(options) {
         approvedHookIds: [...approvedHookIds]
       });
     }
-    const pendingHookApprovals = distributeHooks.filter(
+    const pendingHookApprovals = prepared.flatMap((prep) => prep.distributeHooks.filter(
       (hook) => effectiveHookRequiresApproval(hook) && !approvedHookIds.has(hook.id)
-    );
+    ));
     checkpoints = [];
-    for (const target of orderedTargets) {
-      checkpoints.push({
-        actionId: `probe-${target.id}`,
-        actionType: ActionType.DISTRIBUTE_PROBE,
-        status: "PENDING",
-        remoteUrl: target.remoteUrl,
-        branch: target.branch,
-        tag: postPublish.tag,
-        executor: EXECUTOR
-      });
-    }
-    for (const target of orderedTargets) {
-      checkpoints.push({
-        actionId: target.id,
-        actionType: ActionType.DISTRIBUTE_MIRROR,
-        status: "PENDING",
-        remoteUrl: target.remoteUrl,
-        branch: target.branch,
-        tag: postPublish.tag,
-        tagCommit: SHA_RE4.test(postPublish.tagCommit ?? "") ? postPublish.tagCommit : void 0,
-        executor: EXECUTOR
-      });
-    }
-    for (const hook of distributeHooks) {
-      checkpoints.push({
-        actionId: hook.id,
-        actionType: "postpublish-hook",
-        status: "PENDING",
-        executor: EXECUTOR
-      });
+    for (const prep of prepared) {
+      const { declaration, orderedTargets, distributeHooks } = prep;
+      for (const target of orderedTargets) {
+        checkpoints.push({
+          actionId: unitActionId(declaration.unitId, `probe-${target.id}`),
+          actionType: ActionType.DISTRIBUTE_PROBE,
+          status: "PENDING",
+          remoteUrl: target.remoteUrl,
+          branch: target.branch,
+          tag: declaration.tag,
+          executor: EXECUTOR
+        });
+      }
+      for (const target of orderedTargets) {
+        checkpoints.push({
+          actionId: unitActionId(declaration.unitId, target.id),
+          actionType: ActionType.DISTRIBUTE_MIRROR,
+          status: "PENDING",
+          remoteUrl: target.remoteUrl,
+          branch: target.branch,
+          tag: declaration.tag,
+          tagCommit: SHA_RE4.test(declaration.tagCommit ?? "") ? declaration.tagCommit : void 0,
+          executor: EXECUTOR
+        });
+      }
+      for (const hook of distributeHooks) {
+        checkpoints.push({
+          actionId: unitActionId(declaration.unitId, hook.id),
+          actionType: "postpublish-hook",
+          status: "PENDING",
+          executor: EXECUTOR
+        });
+      }
     }
     const checkpointById = new Map(checkpoints.map((cp4) => [cp4.actionId, cp4]));
     await snapshot(DISTRIBUTING);
-    await evidence.append({ phase: "safety-gate", gate: "tag-identity", status: "started" });
-    if (postPublish.payloadSource !== PAYLOAD_SOURCE_TAG_WORKTREE) {
-      await failBlocked(new ReleaseError(
-        GATE_FAILED,
-        `postPublish.payloadSource must be "${PAYLOAD_SOURCE_TAG_WORKTREE}"`,
-        { payloadSource: postPublish.payloadSource }
-      ));
-    }
-    if (typeof postPublish.tagCommit !== "string" || !SHA_RE4.test(postPublish.tagCommit)) {
-      await failBlocked(new ReleaseError(
-        GATE_FAILED,
-        "postPublish is missing a frozen tagCommit binding; distribute fails closed",
-        { tagCommit: postPublish.tagCommit ?? null }
-      ));
-    }
-    let tagAuthority;
-    try {
-      tagAuthority = await resolveFrozenTagAuthority({
-        plan,
-        unitId: postPublish.unitId,
-        sourceRun,
-        root,
-        exec,
-        observeTagFn,
-        observeBranchFn,
-        // 裁决 15: the public main line is observed only for the explicit
-        // optional gate; with it off, no branch observation happens at all.
-        observeMainLine: postPublish.assertMainVersionAhead === true
-      });
-    } catch (err) {
+    for (const prep of prepared) {
+      const { declaration } = prep;
       await evidence.append({
         phase: "safety-gate",
         gate: "tag-identity",
-        status: "failed",
-        error: asError("TAG_IDENTITY_GATE_FAILED", boundedOutputTail(err?.message ?? String(err))),
-        details: {
-          code: err?.code ?? GATE_FAILED,
-          reason: err?.details?.reason ?? null
-        }
+        status: "started",
+        unitId: declaration.unitId
       });
-      await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
-        GATE_FAILED,
-        `tag identity cannot be verified: ${err?.message ?? err}`
-      ));
-    }
-    if (tagAuthority.tag !== postPublish.tag || tagAuthority.commit !== postPublish.tagCommit) {
-      await failBlocked(new ReleaseError(
-        GATE_FAILED,
-        "frozen postPublish tag identity conflicts with the frozen create-tag binding",
-        {
-          postPublishTag: postPublish.tag,
-          postPublishTagCommit: postPublish.tagCommit,
-          bindingTag: tagAuthority.tag,
-          bindingCommit: tagAuthority.commit
-        }
-      ));
-    }
-    if (tagAuthority.localTagDrifted) {
-      await evidence.append({
-        phase: "safety-gate",
-        gate: "tag-identity",
-        status: "warning",
-        detail: "local tag drifted from the frozen commit; public remote stays authoritative",
-        localTagCommit: tagAuthority.localTagCommit,
-        frozenTagCommit: tagAuthority.commit
-      });
-    }
-    await evidence.append({
-      phase: "safety-gate",
-      gate: "tag-identity",
-      status: "passed",
-      tagCommit: tagAuthority.commit,
-      observedRemoteTag: tagAuthority.observedRemoteTag,
-      localTagPresent: tagAuthority.localTagPresent
-    });
-    if (postPublish.assertMainVersionAhead === true) {
-      await evidence.append({ phase: "safety-gate", gate: "main-version-ahead", status: "started" });
+      if (declaration.payloadSource !== PAYLOAD_SOURCE_TAG_WORKTREE) {
+        await failBlocked(new ReleaseError(
+          GATE_FAILED,
+          `postPublish.payloadSource must be "${PAYLOAD_SOURCE_TAG_WORKTREE}"`,
+          { payloadSource: declaration.payloadSource, unitId: declaration.unitId }
+        ));
+      }
+      if (typeof declaration.tagCommit !== "string" || !SHA_RE4.test(declaration.tagCommit)) {
+        await failBlocked(new ReleaseError(
+          GATE_FAILED,
+          "postPublish is missing a frozen tagCommit binding; distribute fails closed",
+          { tagCommit: declaration.tagCommit ?? null, unitId: declaration.unitId }
+        ));
+      }
+      let tagAuthority;
       try {
-        await assertMainLineAhead({
-          tagCommit: tagAuthority.commit,
-          branchCommit: tagAuthority.branchCommit,
-          branch: tagAuthority.branch,
-          gitDir: tagAuthority.gitDir,
-          remoteUrl: tagAuthority.remoteUrl,
-          exec
+        tagAuthority = await resolveFrozenTagAuthority({
+          plan,
+          unitId: declaration.unitId,
+          sourceRun,
+          root,
+          exec,
+          observeTagFn,
+          observeBranchFn,
+          // 裁决 15: the public main line is observed only for the explicit
+          // optional gate; with it off, no branch observation happens at all.
+          observeMainLine: declaration.assertMainVersionAhead === true
         });
       } catch (err) {
         await evidence.append({
           phase: "safety-gate",
-          gate: "main-version-ahead",
+          gate: "tag-identity",
           status: "failed",
-          error: asError("MAIN_VERSION_AHEAD_FAILED", boundedOutputTail(err?.message ?? String(err)))
+          error: asError("TAG_IDENTITY_GATE_FAILED", boundedOutputTail(err?.message ?? String(err))),
+          details: {
+            code: err?.code ?? GATE_FAILED,
+            reason: err?.details?.reason ?? null,
+            unitId: declaration.unitId
+          }
         });
         await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
           GATE_FAILED,
-          `assertMainVersionAhead failed: ${err?.message ?? err}`
+          `tag identity cannot be verified: ${err?.message ?? err}`
         ));
+      }
+      if (tagAuthority.tag !== declaration.tag || tagAuthority.commit !== declaration.tagCommit) {
+        await failBlocked(new ReleaseError(
+          GATE_FAILED,
+          "frozen postPublish tag identity conflicts with the frozen create-tag binding",
+          {
+            postPublishTag: declaration.tag,
+            postPublishTagCommit: declaration.tagCommit,
+            bindingTag: tagAuthority.tag,
+            bindingCommit: tagAuthority.commit,
+            unitId: declaration.unitId
+          }
+        ));
+      }
+      if (tagAuthority.localTagDrifted) {
+        await evidence.append({
+          phase: "safety-gate",
+          gate: "tag-identity",
+          status: "warning",
+          detail: "local tag drifted from the frozen commit; public remote stays authoritative",
+          localTagCommit: tagAuthority.localTagCommit,
+          frozenTagCommit: tagAuthority.commit,
+          unitId: declaration.unitId
+        });
       }
       await evidence.append({
         phase: "safety-gate",
-        gate: "main-version-ahead",
+        gate: "tag-identity",
         status: "passed",
-        branch: tagAuthority.branch,
-        branchCommit: tagAuthority.branchCommit
+        tagCommit: tagAuthority.commit,
+        observedRemoteTag: tagAuthority.observedRemoteTag,
+        localTagPresent: tagAuthority.localTagPresent,
+        unitId: declaration.unitId
       });
+      if (declaration.assertMainVersionAhead === true) {
+        await evidence.append({
+          phase: "safety-gate",
+          gate: "main-version-ahead",
+          status: "started",
+          unitId: declaration.unitId
+        });
+        try {
+          await assertMainLineAhead({
+            tagCommit: tagAuthority.commit,
+            branchCommit: tagAuthority.branchCommit,
+            branch: tagAuthority.branch,
+            gitDir: tagAuthority.gitDir,
+            remoteUrl: tagAuthority.remoteUrl,
+            exec
+          });
+        } catch (err) {
+          await evidence.append({
+            phase: "safety-gate",
+            gate: "main-version-ahead",
+            status: "failed",
+            error: asError("MAIN_VERSION_AHEAD_FAILED", boundedOutputTail(err?.message ?? String(err)))
+          });
+          await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
+            GATE_FAILED,
+            `assertMainVersionAhead failed: ${err?.message ?? err}`
+          ));
+        }
+        await evidence.append({
+          phase: "safety-gate",
+          gate: "main-version-ahead",
+          status: "passed",
+          branch: tagAuthority.branch,
+          branchCommit: tagAuthority.branchCommit,
+          unitId: declaration.unitId
+        });
+      }
+      prep.tagAuthority = tagAuthority;
     }
     let probeAdapter;
     let mirrorAdapter;
@@ -133787,79 +134614,95 @@ async function distributeRelease(options) {
         `no distribute adapter registered: ${err.message}`
       ));
     }
-    const probeObservations = /* @__PURE__ */ new Map();
-    for (const target of orderedTargets) {
-      const probeCheckpoint = checkpointById.get(`probe-${target.id}`);
-      probeCheckpoint.startedAt = clockFn();
-      await evidence.append({
-        phase: "safety-gate",
-        gate: `probe-${target.id}`,
-        status: "started",
-        remoteUrl: target.remoteUrl
-      });
-      const probeAction = {
-        actionType: ActionType.DISTRIBUTE_PROBE,
-        targetId: target.id,
-        remoteUrl: target.remoteUrl,
-        tag: postPublish.tag
-      };
-      let probeResult;
-      try {
-        probeResult = await probeAdapter.preflight(probeAction, {
-          externalWritesAuthorized: false,
-          plan,
-          root,
-          runDir
-        });
-      } catch (err) {
-        probeResult = { status: "PREFLIGHT_FAILED", error: err?.message ?? String(err), details: null };
-      }
-      probeCheckpoint.finishedAt = clockFn();
-      if (probeResult.status !== "PREFLIGHT_PASSED") {
-        const code = [REMOTE_UNAVAILABLE, REMOTE_CONFLICT].includes(probeResult.details?.code) ? probeResult.details.code : GATE_FAILED;
-        probeCheckpoint.status = "FAILED";
-        probeCheckpoint.error = { code, message: probeResult.error ?? "distribute probe failed" };
+    for (const prep of prepared) {
+      const { declaration, orderedTargets } = prep;
+      const probeObservations = /* @__PURE__ */ new Map();
+      for (const target of orderedTargets) {
+        const probeCheckpoint = checkpointById.get(unitActionId(declaration.unitId, `probe-${target.id}`));
+        probeCheckpoint.startedAt = clockFn();
         await evidence.append({
           phase: "safety-gate",
           gate: `probe-${target.id}`,
-          status: "failed",
-          error: asError("PROBE_FAILED", probeResult.error),
-          details: { code }
+          status: "started",
+          remoteUrl: target.remoteUrl,
+          unitId: declaration.unitId
         });
-        await recordBlocked();
-        throw new ReleaseError(
-          code,
-          `distribute probe failed for target "${target.id}": ${probeResult.error ?? "remote unreachable"}`,
-          { targetId: target.id, remoteUrl: target.remoteUrl }
-        );
+        const probeAction = {
+          actionType: ActionType.DISTRIBUTE_PROBE,
+          targetId: target.id,
+          remoteUrl: target.remoteUrl,
+          tag: declaration.tag
+        };
+        let probeResult;
+        try {
+          probeResult = await probeAdapter.preflight(probeAction, {
+            externalWritesAuthorized: false,
+            plan,
+            root,
+            runDir
+          });
+        } catch (err) {
+          probeResult = { status: "PREFLIGHT_FAILED", error: err?.message ?? String(err), details: null };
+        }
+        probeCheckpoint.finishedAt = clockFn();
+        if (probeResult.status !== "PREFLIGHT_PASSED") {
+          const code = [REMOTE_UNAVAILABLE, REMOTE_CONFLICT].includes(probeResult.details?.code) ? probeResult.details.code : GATE_FAILED;
+          probeCheckpoint.status = "FAILED";
+          probeCheckpoint.error = { code, message: probeResult.error ?? "distribute probe failed" };
+          await evidence.append({
+            phase: "safety-gate",
+            gate: `probe-${target.id}`,
+            status: "failed",
+            error: asError("PROBE_FAILED", probeResult.error),
+            details: { code }
+          });
+          await recordFailure();
+          throw new ReleaseError(
+            code,
+            `distribute probe failed for target "${target.id}": ${probeResult.error ?? "remote unreachable"}`,
+            { targetId: target.id, remoteUrl: target.remoteUrl }
+          );
+        }
+        probeCheckpoint.status = "SUCCEEDED";
+        probeObservations.set(target.id, probeResult.observation ?? {});
+        await evidence.append({
+          phase: "safety-gate",
+          gate: `probe-${target.id}`,
+          status: "passed",
+          tagExists: probeResult.observation?.tagExists ?? false,
+          unitId: declaration.unitId
+        });
       }
-      probeCheckpoint.status = "SUCCEEDED";
-      probeObservations.set(target.id, probeResult.observation ?? {});
-      await evidence.append({
-        phase: "safety-gate",
-        gate: `probe-${target.id}`,
-        status: "passed",
-        tagExists: probeResult.observation?.tagExists ?? false
-      });
+      prep.probeObservations = probeObservations;
     }
-    await evidence.append({ phase: "worktree", status: "started", tagCommit: tagAuthority.commit });
-    try {
-      tmpBase = await mkdtemp11(join35(tmpdir8(), "release-skill-distribute-"));
-      ({ worktreePath } = await createFrozenTagWorktree({
-        gitDir: tagAuthority.gitDir,
-        commit: tagAuthority.commit,
-        tmpBase,
-        exec
-      }));
-    } catch (err) {
-      await evidence.append({ phase: "worktree", status: "failed", error: asError("WORKTREE_FAILED", boundedOutputTail(err?.stderr ?? err?.message)) });
-      await failBlocked(new ReleaseError(
-        GATE_FAILED,
-        `cannot create the detached tag worktree at ${tagAuthority.commit}: ${err?.message ?? err}`,
-        { tagCommit: tagAuthority.commit }
-      ));
+    for (const prep of prepared) {
+      for (const hook of prep.distributeHooks) {
+        if (effectiveHookRequiresApproval(hook) && !approvedHookIds.has(hook.id)) continue;
+        const proposalProjection = buildPostPublishContext({
+          plan,
+          postPublish: prep.declaration,
+          runId: `distribute-${sourceRunId}`,
+          sourceRun,
+          payloadDir: void 0,
+          phase: "distribute"
+        });
+        const observation = await preflightPresetHook({
+          hook,
+          contextProjection: proposalProjection,
+          exec
+        });
+        if (observation !== null) {
+          await evidence.append({
+            phase: "safety-gate",
+            gate: "preset-preflight",
+            status: "passed",
+            hookId: hook.id,
+            unitId: prep.declaration.unitId,
+            verdict: observation.verdict
+          });
+        }
+      }
     }
-    await evidence.append({ phase: "worktree", status: "passed" });
     let releaseWorkspaceRoot;
     try {
       releaseWorkspaceRoot = await realpath29(root);
@@ -133870,220 +134713,6 @@ async function distributeRelease(options) {
         { root, cause: err.code }
       ));
     }
-    let installedBundlePaths = [];
-    try {
-      ({ installed: installedBundlePaths } = await verifyAndInstallExecutionBundle({
-        plan,
-        planPath,
-        worktreePath
-      }));
-    } catch (err) {
-      await evidence.append({
-        phase: "worktree",
-        gate: "execution-bundle",
-        status: "failed",
-        error: asError("EXECUTION_BUNDLE_FAILED", boundedOutputTail(err?.message ?? String(err)))
-      });
-      await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
-        GATE_FAILED,
-        `cannot verify the frozen execution bundle: ${err?.message ?? err}`
-      ));
-    }
-    await evidence.append({
-      phase: "worktree",
-      gate: "execution-bundle",
-      status: "passed",
-      installed: installedBundlePaths
-    });
-    let payloadReal;
-    const materialize = postPublish.materialize;
-    if (materialize !== void 0) {
-      await evidence.append({ phase: "materialize", status: "started" });
-      const hookResult = await hookRunner(
-        {
-          command: materialize.command,
-          ...materialize.cwd ? { cwd: materialize.cwd } : {},
-          ...materialize.timeoutMs !== void 0 ? { timeoutMs: materialize.timeoutMs } : {},
-          ...materialize.envAllowlist ? { envAllowlist: materialize.envAllowlist } : {}
-        },
-        {
-          // F-04: materialize runs in the execution worktree, never in the
-          // release workspace. Private workspace-side inputs reach the hook
-          // exclusively through the frozen execution bundle installed above —
-          // no live workspace root is announced anymore (F-01 / T1).
-          root: worktreePath,
-          env: process.env
-        }
-      );
-      if (hookResult.exitCode !== 0) {
-        await evidence.append({
-          phase: "materialize",
-          status: "failed",
-          exitCode: hookResult.exitCode,
-          stdoutTail: boundedOutputTail(hookResult.stdout),
-          stderrTail: boundedOutputTail(hookResult.stderr)
-        });
-        await failBlocked(new ReleaseError(
-          POST_PUBLISH_VERIFY_FAILED,
-          `materialize hook exited with code ${hookResult.exitCode}; payload cannot be trusted`,
-          { exitCode: hookResult.exitCode, stdoutTail: boundedOutputTail(hookResult.stdout), stderrTail: boundedOutputTail(hookResult.stderr) }
-        ));
-      }
-      if (materialize.requireReport) {
-        const report = parseFirstJsonObject(hookResult.stdout);
-        if (!report) {
-          await evidence.append({
-            phase: "materialize",
-            status: "failed",
-            reason: "report-missing",
-            stdoutTail: boundedOutputTail(hookResult.stdout)
-          });
-          await failBlocked(new ReleaseError(
-            POST_PUBLISH_VERIFY_FAILED,
-            "materialize report missing: no JSON object found on stdout (requireReport.parse = stdout-first-json)",
-            { stdoutTail: boundedOutputTail(hookResult.stdout) }
-          ));
-        }
-        const equals = materialize.requireReport.equals ?? {};
-        for (const [key, expectedValue] of Object.entries(equals)) {
-          if (JSON.stringify(report[key]) !== JSON.stringify(expectedValue)) {
-            await evidence.append({
-              phase: "materialize",
-              status: "failed",
-              reason: "report-mismatch",
-              mismatchedKeys: Object.keys(equals).filter(
-                (k) => JSON.stringify(report[k]) !== JSON.stringify(equals[k])
-              )
-            });
-            await failBlocked(new ReleaseError(
-              POST_PUBLISH_VERIFY_FAILED,
-              `materialize report mismatch: "${key}" did not meet the frozen requireReport contract`,
-              { mismatchedKey: key }
-            ));
-          }
-        }
-      }
-      const announced = parseOutputMarker(hookResult.stdout, materialize.outputMarker);
-      if (!announced) {
-        await evidence.append({
-          phase: "materialize",
-          status: "failed",
-          reason: "marker-missing",
-          stdoutTail: boundedOutputTail(hookResult.stdout)
-        });
-        await failBlocked(new ReleaseError(
-          POST_PUBLISH_VERIFY_FAILED,
-          `materialize output marker "${materialize.outputMarker}" not found on stdout; payload directory unbound`,
-          { stdoutTail: boundedOutputTail(hookResult.stdout) }
-        ));
-      }
-      payloadReal = await assertContainedDirectory(
-        worktreePath,
-        resolve34(worktreePath, announced),
-        "materialized payload directory"
-      );
-      await evidence.append({ phase: "materialize", status: "passed", payloadDirAnnounced: announced });
-    } else {
-      await evidence.append({ phase: "materialize", status: "started", mechanism: PROJECTION_MECHANISM });
-      const publicFiles = postPublish.executionBundle?.publicFiles;
-      if (!Array.isArray(publicFiles) || publicFiles.length === 0) {
-        await evidence.append({
-          phase: "materialize",
-          status: "failed",
-          mechanism: PROJECTION_MECHANISM,
-          reason: "public-files-missing"
-        });
-        await failBlocked(new ReleaseError(
-          POST_PUBLISH_VERIFY_FAILED,
-          "public payload projection: the frozen plan declares no materialize hook and carries no non-empty executionBundle.publicFiles mapping; the payload cannot be staged"
-        ));
-      }
-      const candidateRoot = join35(tmpBase, "projection-candidate");
-      try {
-        await mkdir27(candidateRoot, { recursive: true });
-        const projected = await projectPublicPayload({
-          executionWorktreeRoot: worktreePath,
-          candidateRoot,
-          publicFiles
-        });
-        payloadReal = projected.payloadRoot;
-      } catch (err) {
-        await evidence.append({
-          phase: "materialize",
-          status: "failed",
-          mechanism: PROJECTION_MECHANISM,
-          error: asError("MATERIALIZE_FAILED", boundedOutputTail(err?.message ?? String(err)))
-        });
-        await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
-          POST_PUBLISH_VERIFY_FAILED,
-          `public payload projection failed: ${err?.message ?? err}`
-        ));
-      }
-      await evidence.append({
-        phase: "materialize",
-        status: "passed",
-        mechanism: PROJECTION_MECHANISM,
-        payloadDir: PUBLIC_PAYLOAD_DIRNAME,
-        fileCount: publicFiles.length
-      });
-    }
-    for (const step of postPublish.steps ?? []) {
-      if (dryRun === true) {
-        await evidence.append({ phase: "postpublish-step", step: step.name, status: "skipped", reason: "DRY_RUN" });
-        continue;
-      }
-      if (pendingHookApprovals.length > 0) {
-        await evidence.append({
-          phase: "postpublish-step",
-          step: step.name,
-          status: "skipped",
-          reason: "AWAITING_CHECKPOINT_APPROVAL",
-          pendingHookApprovals: pendingHookApprovals.map((hook) => hook.id)
-        });
-        continue;
-      }
-      await evidence.append({ phase: "postpublish-step", step: step.name, status: "started" });
-      const stepResult = await hookRunner(
-        {
-          command: step.command,
-          ...step.cwd ? { cwd: step.cwd } : {},
-          ...step.timeoutMs !== void 0 ? { timeoutMs: step.timeoutMs } : {},
-          ...step.envAllowlist ? { envAllowlist: step.envAllowlist } : {}
-        },
-        {
-          // F-04: steps run in the execution worktree (see materialize).
-          // Private inputs arrive via the frozen execution bundle only.
-          root: worktreePath,
-          env: process.env
-        }
-      );
-      if (stepResult.exitCode !== 0) {
-        await evidence.append({
-          phase: "postpublish-step",
-          step: step.name,
-          status: "failed",
-          exitCode: stepResult.exitCode,
-          stdoutTail: boundedOutputTail(stepResult.stdout),
-          stderrTail: boundedOutputTail(stepResult.stderr)
-        });
-        await failBlocked(new ReleaseError(
-          GATE_FAILED,
-          `postPublish step "${step.name}" exited with code ${stepResult.exitCode}`,
-          { step: step.name, exitCode: stepResult.exitCode }
-        ));
-      }
-      await evidence.append({ phase: "postpublish-step", step: step.name, status: "passed" });
-    }
-    await evidence.append({
-      phase: "distribute",
-      status: "started",
-      targetCount: orderedTargets.length,
-      dryRun: dryRun === true
-    });
-    const mirrorResults = /* @__PURE__ */ new Map();
-    let stopped = false;
-    let failures = 0;
-    let pushedWrites = 0;
     const adapterContext = {
       externalWritesAuthorized: true,
       // dry-run side effects are adapter-guaranteed zero
@@ -134091,390 +134720,668 @@ async function distributeRelease(options) {
       root,
       runDir
     };
-    for (const target of orderedTargets) {
-      const cp4 = checkpointById.get(target.id);
-      cp4.startedAt = clockFn();
+    const skipReason = /* @__PURE__ */ __name(() => stopReason === "HOOK" ? "EARLIER_HOOK_FAILED" : "EARLIER_TARGET_FAILED", "skipReason");
+    for (const prep of prepared) {
+      const {
+        declaration,
+        orderedTargets,
+        distributeHooks,
+        deferredPostVerifyHooks,
+        probeObservations,
+        tagAuthority
+      } = prep;
       if (stopped) {
-        cp4.status = "SKIPPED";
-        cp4.reason = "EARLIER_TARGET_FAILED";
-        cp4.finishedAt = clockFn();
-        await evidence.append({ phase: "checkpoint", actionId: target.id, status: "skipped", reason: "EARLIER_TARGET_FAILED" });
-        continue;
-      }
-      await evidence.append({ phase: "checkpoint", actionId: target.id, status: "pre-observe" });
-      let preObserved = {};
-      try {
-        const observeResult = await mirrorAdapter.observe(
-          {
-            actionType: ActionType.DISTRIBUTE_MIRROR,
-            targetId: target.id,
-            remoteUrl: target.remoteUrl,
-            branch: target.branch,
-            tag: postPublish.tag
-          },
-          adapterContext
-        );
-        preObserved = observeResult?.observation ?? {};
-      } catch (err) {
-        preObserved = {};
-        await evidence.append({
-          phase: "checkpoint",
-          actionId: target.id,
-          status: "pre-observe-unobservable",
-          error: asError("PRE_OBSERVE_FAILED", err?.message ?? String(err))
-        });
-      }
-      if (preObserved.tagOid && preObserved.branchTip === preObserved.tagOid) {
-        cp4.status = "SKIPPED";
-        cp4.preObserve = "CONSISTENT";
-        cp4.finishedAt = clockFn();
-        mirrorResults.set(target.id, { sha: preObserved.tagOid });
-        await evidence.append({
-          phase: "checkpoint",
-          actionId: target.id,
-          status: "skipped",
-          details: { preObserve: "CONSISTENT", sha: preObserved.tagOid }
-        });
-        continue;
-      }
-      cp4.status = "UNCERTAIN";
-      await snapshot(DISTRIBUTING);
-      const action = {
-        actionType: ActionType.DISTRIBUTE_MIRROR,
-        targetId: target.id,
-        kind: target.kind,
-        remoteUrl: target.remoteUrl,
-        branch: target.branch,
-        tag: postPublish.tag,
-        commitIdentity: postPublish.commitIdentity,
-        dryRun: dryRun === true
-      };
-      if (target.kind === "payload-mirror") {
-        action.payloadDir = payloadReal;
-      } else {
-        action.marketplace = target.marketplace;
-        action.pluginName = resolvePluginName(plan, postPublish.unitId);
-        const dependencyTarget = orderedTargets.find((entry) => entry.id === target.dependsOn);
-        action.dependency = {
-          remoteUrl: dependencyTarget.remoteUrl,
-          sha: mirrorResults.get(target.dependsOn)?.sha ?? null
-        };
-      }
-      action.staticFiles = (target.staticFiles ?? []).map((file) => {
-        const sourcePath = resolve34(payloadReal, file.from);
-        const rel = relative28(payloadReal, sourcePath);
-        if (rel === "" || isAbsolute24(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
-          throw new ReleaseError(
-            GATE_FAILED,
-            `target "${target.id}" staticFiles entry escapes the payload directory`,
-            { targetId: target.id, from: file.from }
-          );
+        for (const target of orderedTargets) {
+          const cp4 = checkpointById.get(unitActionId(declaration.unitId, target.id));
+          cp4.status = "SKIPPED";
+          cp4.reason = skipReason();
+          cp4.finishedAt = clockFn();
         }
-        return { sourcePath, to: file.to };
-      });
-      await evidence.append({ phase: "checkpoint", actionId: target.id, status: "started" });
-      let executeResult;
-      try {
-        executeResult = await mirrorAdapter.execute(action, adapterContext);
-      } catch (err) {
-        executeResult = {
-          status: "EXECUTE_FAILED",
-          error: err?.message ?? String(err),
-          details: { code: err?.code ?? GATE_FAILED }
-        };
-      }
-      const observation = executeResult.observation ?? {};
-      if (executeResult.status === "EXECUTE_FAILED") {
-        const code = mapToSchemaCode(executeResult.details?.code);
-        cp4.status = "FAILED";
-        cp4.error = { code, message: executeResult.error ?? "mirror execute failed" };
-        cp4.finishedAt = clockFn();
-        failures += 1;
-        stopped = true;
+        for (const hook of distributeHooks) {
+          const cp4 = checkpointById.get(unitActionId(declaration.unitId, hook.id));
+          cp4.status = "SKIPPED";
+          cp4.reason = skipReason();
+          cp4.finishedAt = clockFn();
+        }
         await evidence.append({
-          phase: "checkpoint",
-          actionId: target.id,
-          status: "failed",
-          error: asError("EXECUTE_FAILED", executeResult.error),
-          details: { code }
-        });
-        await snapshot(PARTIAL2);
-        continue;
-      }
-      if (executeResult.status === "NO_CHANGE") {
-        cp4.status = "NO_CHANGE";
-        cp4.mode = "no-change";
-        cp4.previousHead = observation.previousHead ?? null;
-        cp4.payloadFileCount = observation.payloadFileCount;
-        cp4.finishedAt = clockFn();
-        const sha = probeObservations.get(target.id)?.tagOid ?? observation.branchTip ?? observation.previousHead ?? null;
-        mirrorResults.set(target.id, { sha });
-        await evidence.append({ phase: "checkpoint", actionId: target.id, status: "no-change" });
-        await snapshot(PARTIAL2);
-        continue;
-      }
-      cp4.mode = observation.mode;
-      cp4.previousHead = observation.previousHead ?? void 0;
-      cp4.payloadFileCount = observation.payloadFileCount;
-      const pushed = observation.mode === "pushed";
-      if (pushed) {
-        pushedWrites += 1;
-        cp4.pushedCommit = observation.pushedCommit;
-        mirrorResults.set(target.id, { sha: observation.pushedCommit });
-      } else {
-        mirrorResults.set(target.id, { sha: null });
-      }
-      let verifyResult;
-      try {
-        verifyResult = await mirrorAdapter.verify(
-          {
-            actionType: ActionType.DISTRIBUTE_MIRROR,
-            targetId: target.id,
-            remoteUrl: target.remoteUrl,
-            branch: target.branch,
-            tag: postPublish.tag,
-            ...pushed ? { pushedCommit: observation.pushedCommit } : {}
-          },
-          adapterContext
-        );
-      } catch (err) {
-        verifyResult = { status: "VERIFY_FAILED", error: err?.message ?? String(err) };
-      }
-      if (verifyResult.status !== "VERIFIED") {
-        cp4.status = "FAILED";
-        cp4.postObserve = "CONFLICTING";
-        cp4.error = {
-          code: POST_PUBLISH_VERIFY_FAILED,
-          message: verifyResult.error ?? "post-execute verification failed"
-        };
-        cp4.finishedAt = clockFn();
-        failures += 1;
-        stopped = true;
-        await evidence.append({
-          phase: "checkpoint",
-          actionId: target.id,
-          status: "verify-failed",
-          error: asError("POST_PUBLISH_VERIFY_FAILED", verifyResult.error ?? null)
-        });
-        await snapshot(PARTIAL2);
-        continue;
-      }
-      cp4.status = "SUCCEEDED";
-      cp4.postObserve = pushed ? "CONSISTENT" : cp4.postObserve;
-      cp4.finishedAt = clockFn();
-      await evidence.append({
-        phase: "checkpoint",
-        actionId: target.id,
-        status: "completed",
-        mode: observation.mode,
-        pushedCommit: pushed ? observation.pushedCommit : null
-      });
-      await snapshot(PARTIAL2);
-    }
-    if (deferredPostVerifyHooks > 0) {
-      await evidence.append({ phase: "postpublish-hooks", status: "deferred", deferredPostVerifyHooks });
-    }
-    let hooksStopped = stopped;
-    let awaitingApproval = 0;
-    let hookSuccesses = 0;
-    const hookContextProjection = buildPostPublishContext({
-      plan,
-      runId,
-      sourceRun,
-      payloadDir: payloadReal,
-      phase: "distribute"
-    });
-    const proposalContextProjection = {
-      ...hookContextProjection,
-      runId: `distribute-${sourceRunId}`
-    };
-    for (const hook of distributeHooks) {
-      const cp4 = checkpointById.get(hook.id);
-      cp4.startedAt = clockFn();
-      if (hooksStopped) {
-        cp4.status = "SKIPPED";
-        cp4.reason = "EARLIER_TARGET_FAILED";
-        cp4.finishedAt = clockFn();
-        await evidence.append({
-          phase: "postpublish-hook",
-          hookId: hook.id,
+          phase: "postpublish-declaration",
           status: "skipped",
-          reason: "EARLIER_TARGET_FAILED"
+          reason: skipReason(),
+          unitId: declaration.unitId
         });
         continue;
       }
-      if (dryRun === true) {
-        cp4.status = "SKIPPED";
-        cp4.reason = "DRY_RUN";
-        cp4.finishedAt = clockFn();
-        await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "skipped", reason: "DRY_RUN" });
-        continue;
+      await evidence.append({
+        phase: "worktree",
+        status: "started",
+        tagCommit: tagAuthority.commit,
+        unitId: declaration.unitId
+      });
+      try {
+        tmpBase = await mkdtemp11(join36(tmpdir8(), "release-skill-distribute-"));
+        ({ worktreePath } = await createFrozenTagWorktree({
+          gitDir: tagAuthority.gitDir,
+          commit: tagAuthority.commit,
+          tmpBase,
+          exec
+        }));
+      } catch (err) {
+        await evidence.append({ phase: "worktree", status: "failed", error: asError("WORKTREE_FAILED", boundedOutputTail(err?.stderr ?? err?.message)) });
+        await failBlocked(new ReleaseError(
+          GATE_FAILED,
+          `cannot create the detached tag worktree at ${tagAuthority.commit}: ${err?.message ?? err}`,
+          { tagCommit: tagAuthority.commit }
+        ));
       }
-      if (effectiveHookRequiresApproval(hook) && !approvedHookIds.has(hook.id)) {
-        cp4.status = "AWAITING_APPROVAL";
-        cp4.finishedAt = clockFn();
-        awaitingApproval += 1;
-        await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "awaiting-approval" });
-        continue;
+      await evidence.append({ phase: "worktree", status: "passed" });
+      let installedBundlePaths = [];
+      try {
+        ({ installed: installedBundlePaths } = await verifyAndInstallExecutionBundle({
+          planPath,
+          worktreePath,
+          postPublish: declaration
+        }));
+      } catch (err) {
+        await evidence.append({
+          phase: "worktree",
+          gate: "execution-bundle",
+          status: "failed",
+          error: asError("EXECUTION_BUNDLE_FAILED", boundedOutputTail(err?.message ?? String(err)))
+        });
+        await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
+          GATE_FAILED,
+          `cannot verify the frozen execution bundle: ${err?.message ?? err}`
+        ));
       }
-      if (hook.preset !== void 0) {
-        await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "started" });
-        let delivery;
-        try {
-          delivery = await executePresetHook({
-            hook,
-            contextProjection: hookContextProjection,
-            proposalContextProjection,
-            commitIdentity: postPublish.commitIdentity,
-            // F-04: presets receive the RELEASE workspace root (target.workspace
-            // resolution + release-workspace write exclusion). The detached
-            // worktree is the execution worktree and never impersonates it.
-            releaseWorkspaceRoot,
-            evidencePath: join35(runDir, "evidence.jsonl"),
-            payloadDir: hookContextProjection.payloadDir,
-            exec,
-            hookRunner
+      await evidence.append({
+        phase: "worktree",
+        gate: "execution-bundle",
+        status: "passed",
+        installed: installedBundlePaths
+      });
+      let payloadReal;
+      const materialize = declaration.materialize;
+      if (materialize !== void 0) {
+        await evidence.append({ phase: "materialize", status: "started" });
+        const hookResult = await hookRunner(
+          {
+            command: materialize.command,
+            ...materialize.cwd ? { cwd: materialize.cwd } : {},
+            ...materialize.timeoutMs !== void 0 ? { timeoutMs: materialize.timeoutMs } : {},
+            ...materialize.envAllowlist ? { envAllowlist: materialize.envAllowlist } : {}
+          },
+          {
+            // F-04: materialize runs in the execution worktree, never in the
+            // release workspace. Private workspace-side inputs reach the hook
+            // exclusively through the frozen execution bundle installed above —
+            // no live workspace root is announced anymore (F-01 / T1).
+            root: worktreePath,
+            env: process.env
+          }
+        );
+        if (hookResult.exitCode !== 0) {
+          await evidence.append({
+            phase: "materialize",
+            status: "failed",
+            exitCode: hookResult.exitCode,
+            stdoutTail: boundedOutputTail(hookResult.stdout),
+            stderrTail: boundedOutputTail(hookResult.stderr)
           });
+          await failBlocked(new ReleaseError(
+            POST_PUBLISH_VERIFY_FAILED,
+            `materialize hook exited with code ${hookResult.exitCode}; payload cannot be trusted`,
+            { exitCode: hookResult.exitCode, stdoutTail: boundedOutputTail(hookResult.stdout), stderrTail: boundedOutputTail(hookResult.stderr) }
+          ));
+        }
+        if (materialize.requireReport) {
+          const report = parseFirstJsonObject(hookResult.stdout);
+          if (!report) {
+            await evidence.append({
+              phase: "materialize",
+              status: "failed",
+              reason: "report-missing",
+              stdoutTail: boundedOutputTail(hookResult.stdout)
+            });
+            await failBlocked(new ReleaseError(
+              POST_PUBLISH_VERIFY_FAILED,
+              "materialize report missing: no JSON object found on stdout (requireReport.parse = stdout-first-json)",
+              { stdoutTail: boundedOutputTail(hookResult.stdout) }
+            ));
+          }
+          const equals = materialize.requireReport.equals ?? {};
+          for (const [key, expectedValue] of Object.entries(equals)) {
+            if (JSON.stringify(report[key]) !== JSON.stringify(expectedValue)) {
+              await evidence.append({
+                phase: "materialize",
+                status: "failed",
+                reason: "report-mismatch",
+                mismatchedKeys: Object.keys(equals).filter(
+                  (k) => JSON.stringify(report[k]) !== JSON.stringify(equals[k])
+                )
+              });
+              await failBlocked(new ReleaseError(
+                POST_PUBLISH_VERIFY_FAILED,
+                `materialize report mismatch: "${key}" did not meet the frozen requireReport contract`,
+                { mismatchedKey: key }
+              ));
+            }
+          }
+        }
+        const announced = parseOutputMarker(hookResult.stdout, materialize.outputMarker);
+        if (!announced) {
+          await evidence.append({
+            phase: "materialize",
+            status: "failed",
+            reason: "marker-missing",
+            stdoutTail: boundedOutputTail(hookResult.stdout)
+          });
+          await failBlocked(new ReleaseError(
+            POST_PUBLISH_VERIFY_FAILED,
+            `materialize output marker "${materialize.outputMarker}" not found on stdout; payload directory unbound`,
+            { stdoutTail: boundedOutputTail(hookResult.stdout) }
+          ));
+        }
+        payloadReal = await assertContainedDirectory(
+          worktreePath,
+          resolve34(worktreePath, announced),
+          "materialized payload directory"
+        );
+        await evidence.append({ phase: "materialize", status: "passed", payloadDirAnnounced: announced });
+      } else {
+        await evidence.append({ phase: "materialize", status: "started", mechanism: PROJECTION_MECHANISM });
+        const publicFiles = declaration.executionBundle?.publicFiles;
+        if (!Array.isArray(publicFiles) || publicFiles.length === 0) {
+          await evidence.append({
+            phase: "materialize",
+            status: "failed",
+            mechanism: PROJECTION_MECHANISM,
+            reason: "public-files-missing"
+          });
+          await failBlocked(new ReleaseError(
+            POST_PUBLISH_VERIFY_FAILED,
+            "public payload projection: the frozen plan declares no materialize hook and carries no non-empty executionBundle.publicFiles mapping; the payload cannot be staged"
+          ));
+        }
+        const candidateRoot = join36(tmpBase, "projection-candidate");
+        try {
+          await mkdir27(candidateRoot, { recursive: true });
+          const projected = await projectPublicPayload({
+            executionWorktreeRoot: worktreePath,
+            candidateRoot,
+            publicFiles
+          });
+          payloadReal = projected.payloadRoot;
         } catch (err) {
-          const code = mapToSchemaCode(err?.code);
+          await evidence.append({
+            phase: "materialize",
+            status: "failed",
+            mechanism: PROJECTION_MECHANISM,
+            error: asError("MATERIALIZE_FAILED", boundedOutputTail(err?.message ?? String(err)))
+          });
+          await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
+            POST_PUBLISH_VERIFY_FAILED,
+            `public payload projection failed: ${err?.message ?? err}`
+          ));
+        }
+        await evidence.append({
+          phase: "materialize",
+          status: "passed",
+          mechanism: PROJECTION_MECHANISM,
+          payloadDir: PUBLIC_PAYLOAD_DIRNAME,
+          fileCount: publicFiles.length
+        });
+      }
+      for (const step of declaration.steps ?? []) {
+        if (dryRun === true) {
+          await evidence.append({ phase: "postpublish-step", step: step.name, status: "skipped", reason: "DRY_RUN" });
+          continue;
+        }
+        if (pendingHookApprovals.length > 0) {
+          await evidence.append({
+            phase: "postpublish-step",
+            step: step.name,
+            status: "skipped",
+            reason: "AWAITING_CHECKPOINT_APPROVAL",
+            pendingHookApprovals: pendingHookApprovals.map((hook) => hook.id)
+          });
+          continue;
+        }
+        await evidence.append({ phase: "postpublish-step", step: step.name, status: "started" });
+        const stepResult = await hookRunner(
+          {
+            command: step.command,
+            ...step.cwd ? { cwd: step.cwd } : {},
+            ...step.timeoutMs !== void 0 ? { timeoutMs: step.timeoutMs } : {},
+            ...step.envAllowlist ? { envAllowlist: step.envAllowlist } : {}
+          },
+          {
+            // F-04: steps run in the execution worktree (see materialize).
+            // Private inputs arrive via the frozen execution bundle only.
+            root: worktreePath,
+            env: process.env
+          }
+        );
+        if (stepResult.exitCode !== 0) {
+          await evidence.append({
+            phase: "postpublish-step",
+            step: step.name,
+            status: "failed",
+            exitCode: stepResult.exitCode,
+            stdoutTail: boundedOutputTail(stepResult.stdout),
+            stderrTail: boundedOutputTail(stepResult.stderr)
+          });
+          await failBlocked(new ReleaseError(
+            GATE_FAILED,
+            `postPublish step "${step.name}" exited with code ${stepResult.exitCode}`,
+            { step: step.name, exitCode: stepResult.exitCode }
+          ));
+        }
+        await evidence.append({ phase: "postpublish-step", step: step.name, status: "passed" });
+      }
+      await evidence.append({
+        phase: "distribute",
+        status: "started",
+        unitId: declaration.unitId,
+        targetCount: orderedTargets.length,
+        dryRun: dryRun === true
+      });
+      const mirrorResults = /* @__PURE__ */ new Map();
+      for (const target of orderedTargets) {
+        const cp4 = checkpointById.get(unitActionId(declaration.unitId, target.id));
+        cp4.startedAt = clockFn();
+        if (stopped) {
+          cp4.status = "SKIPPED";
+          cp4.reason = "EARLIER_TARGET_FAILED";
+          cp4.finishedAt = clockFn();
+          await evidence.append({ phase: "checkpoint", actionId: unitActionId(declaration.unitId, target.id), status: "skipped", reason: "EARLIER_TARGET_FAILED" });
+          continue;
+        }
+        await evidence.append({ phase: "checkpoint", actionId: unitActionId(declaration.unitId, target.id), status: "pre-observe" });
+        let preObserved = {};
+        try {
+          const observeResult = await mirrorAdapter.observe(
+            {
+              actionType: ActionType.DISTRIBUTE_MIRROR,
+              targetId: target.id,
+              remoteUrl: target.remoteUrl,
+              branch: target.branch,
+              tag: declaration.tag
+            },
+            adapterContext
+          );
+          preObserved = observeResult?.observation ?? {};
+        } catch (err) {
+          preObserved = {};
+          await evidence.append({
+            phase: "checkpoint",
+            actionId: unitActionId(declaration.unitId, target.id),
+            status: "pre-observe-unobservable",
+            error: asError("PRE_OBSERVE_FAILED", err?.message ?? String(err))
+          });
+        }
+        if (preObserved.tagOid && preObserved.branchTip === preObserved.tagOid) {
+          cp4.status = "SKIPPED";
+          cp4.preObserve = "CONSISTENT";
+          cp4.finishedAt = clockFn();
+          mirrorResults.set(target.id, { sha: preObserved.tagOid });
+          await evidence.append({
+            phase: "checkpoint",
+            actionId: unitActionId(declaration.unitId, target.id),
+            status: "skipped",
+            details: { preObserve: "CONSISTENT", sha: preObserved.tagOid }
+          });
+          continue;
+        }
+        cp4.status = "UNCERTAIN";
+        await snapshot(DISTRIBUTING);
+        const action = {
+          actionType: ActionType.DISTRIBUTE_MIRROR,
+          targetId: target.id,
+          kind: target.kind,
+          remoteUrl: target.remoteUrl,
+          branch: target.branch,
+          tag: declaration.tag,
+          commitIdentity: declaration.commitIdentity,
+          dryRun: dryRun === true
+        };
+        if (target.kind === "payload-mirror") {
+          action.payloadDir = payloadReal;
+        } else {
+          action.marketplace = target.marketplace;
+          action.pluginName = resolvePluginName(plan, declaration.unitId);
+          const dependencyTarget = orderedTargets.find((entry) => entry.id === target.dependsOn);
+          action.dependency = {
+            remoteUrl: dependencyTarget.remoteUrl,
+            sha: mirrorResults.get(target.dependsOn)?.sha ?? null
+          };
+        }
+        action.staticFiles = (target.staticFiles ?? []).map((file) => {
+          const sourcePath = resolve34(payloadReal, file.from);
+          const rel = relative29(payloadReal, sourcePath);
+          if (rel === "" || isAbsolute24(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+            throw new ReleaseError(
+              GATE_FAILED,
+              `target "${target.id}" staticFiles entry escapes the payload directory`,
+              { targetId: target.id, from: file.from }
+            );
+          }
+          return { sourcePath, to: file.to };
+        });
+        await evidence.append({ phase: "checkpoint", actionId: unitActionId(declaration.unitId, target.id), status: "started" });
+        let executeResult;
+        try {
+          executeResult = await mirrorAdapter.execute(action, adapterContext);
+        } catch (err) {
+          executeResult = {
+            status: "EXECUTE_FAILED",
+            error: err?.message ?? String(err),
+            details: { code: err?.code ?? GATE_FAILED }
+          };
+        }
+        const observation = executeResult.observation ?? {};
+        if (executeResult.status === "EXECUTE_FAILED") {
+          const code = mapToSchemaCode(executeResult.details?.code);
           cp4.status = "FAILED";
-          cp4.error = { code, message: err?.message ?? String(err) };
+          cp4.error = { code, message: executeResult.error ?? "mirror execute failed" };
           cp4.finishedAt = clockFn();
           failures += 1;
-          hooksStopped = true;
+          stopped = true;
+          stopReason = "TARGET";
           await evidence.append({
-            phase: "postpublish-hook",
-            hookId: hook.id,
+            phase: "checkpoint",
+            actionId: unitActionId(declaration.unitId, target.id),
             status: "failed",
-            error: asError("POSTPUBLISH_HOOK_FAILED", err?.message ?? String(err)),
+            error: asError("EXECUTE_FAILED", executeResult.error),
             details: { code }
           });
           await snapshot(PARTIAL2);
           continue;
         }
-        if (delivery.status === "NO_CHANGE") {
+        if (executeResult.status === "NO_CHANGE") {
           cp4.status = "NO_CHANGE";
           cp4.mode = "no-change";
+          cp4.previousHead = observation.previousHead ?? null;
+          cp4.payloadFileCount = observation.payloadFileCount;
           cp4.finishedAt = clockFn();
-          hookSuccesses += 1;
+          const sha = probeObservations.get(target.id)?.tagOid ?? observation.branchTip ?? observation.previousHead ?? null;
+          mirrorResults.set(target.id, { sha });
+          await evidence.append({ phase: "checkpoint", actionId: unitActionId(declaration.unitId, target.id), status: "no-change" });
+          await snapshot(PARTIAL2);
+          continue;
+        }
+        cp4.mode = observation.mode;
+        cp4.previousHead = observation.previousHead ?? void 0;
+        cp4.payloadFileCount = observation.payloadFileCount;
+        const pushed = observation.mode === "pushed";
+        if (pushed) {
+          pushedWrites += 1;
+          cp4.pushedCommit = observation.pushedCommit;
+          mirrorResults.set(target.id, { sha: observation.pushedCommit });
+        } else {
+          mirrorResults.set(target.id, { sha: null });
+        }
+        let verifyResult;
+        try {
+          verifyResult = await mirrorAdapter.verify(
+            {
+              actionType: ActionType.DISTRIBUTE_MIRROR,
+              targetId: target.id,
+              remoteUrl: target.remoteUrl,
+              branch: target.branch,
+              tag: declaration.tag,
+              ...pushed ? { pushedCommit: observation.pushedCommit } : {}
+            },
+            adapterContext
+          );
+        } catch (err) {
+          verifyResult = { status: "VERIFY_FAILED", error: err?.message ?? String(err) };
+        }
+        if (verifyResult.status !== "VERIFIED") {
+          cp4.status = "FAILED";
+          cp4.postObserve = "CONFLICTING";
+          cp4.error = {
+            code: POST_PUBLISH_VERIFY_FAILED,
+            message: verifyResult.error ?? "post-execute verification failed"
+          };
+          cp4.finishedAt = clockFn();
+          failures += 1;
+          stopped = true;
+          stopReason = "TARGET";
           await evidence.append({
-            phase: "postpublish-hook",
-            hookId: hook.id,
-            status: "no-change",
-            ...delivery.manualSyncPrompt ? { manualSyncPrompt: delivery.manualSyncPrompt } : {},
-            // §2.6 execution realpath evidence (R4 review m-2).
-            ...delivery.observation?.workspaceRealpath ? { workspaceRealpath: delivery.observation.workspaceRealpath } : {},
-            ...delivery.workspaceRealpath ? { workspaceRealpath: delivery.workspaceRealpath } : {}
+            phase: "checkpoint",
+            actionId: unitActionId(declaration.unitId, target.id),
+            status: "verify-failed",
+            error: asError("POST_PUBLISH_VERIFY_FAILED", verifyResult.error ?? null)
           });
           await snapshot(PARTIAL2);
           continue;
         }
         cp4.status = "SUCCEEDED";
-        if (delivery.observation?.mode === "pushed" && delivery.observation?.pushedCommit) {
-          cp4.mode = "pushed";
-          cp4.pushedCommit = delivery.observation.pushedCommit;
+        cp4.postObserve = pushed ? "CONSISTENT" : cp4.postObserve;
+        cp4.finishedAt = clockFn();
+        await evidence.append({
+          phase: "checkpoint",
+          actionId: unitActionId(declaration.unitId, target.id),
+          status: "completed",
+          mode: observation.mode,
+          pushedCommit: pushed ? observation.pushedCommit : null
+        });
+        await snapshot(PARTIAL2);
+      }
+      if (deferredPostVerifyHooks > 0) {
+        await evidence.append({
+          phase: "postpublish-hooks",
+          status: "deferred",
+          deferredPostVerifyHooks,
+          unitId: declaration.unitId
+        });
+      }
+      const hookContextProjection = buildPostPublishContext({
+        plan,
+        postPublish: declaration,
+        runId,
+        sourceRun,
+        payloadDir: payloadReal,
+        phase: "distribute"
+      });
+      const proposalContextProjection = {
+        ...hookContextProjection,
+        runId: `distribute-${sourceRunId}`
+      };
+      for (const hook of distributeHooks) {
+        const cp4 = checkpointById.get(unitActionId(declaration.unitId, hook.id));
+        cp4.startedAt = clockFn();
+        if (stopped) {
+          cp4.status = "SKIPPED";
+          cp4.reason = skipReason();
+          cp4.finishedAt = clockFn();
+          await evidence.append({
+            phase: "postpublish-hook",
+            hookId: hook.id,
+            status: "skipped",
+            reason: skipReason()
+          });
+          continue;
         }
+        if (dryRun === true) {
+          cp4.status = "SKIPPED";
+          cp4.reason = "DRY_RUN";
+          cp4.finishedAt = clockFn();
+          await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "skipped", reason: "DRY_RUN" });
+          continue;
+        }
+        if (effectiveHookRequiresApproval(hook) && !approvedHookIds.has(hook.id)) {
+          cp4.status = "AWAITING_APPROVAL";
+          cp4.finishedAt = clockFn();
+          awaitingApproval += 1;
+          await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "awaiting-approval" });
+          continue;
+        }
+        if (hook.preset !== void 0) {
+          await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "started" });
+          let delivery;
+          try {
+            delivery = await executePresetHook({
+              hook,
+              contextProjection: hookContextProjection,
+              proposalContextProjection,
+              commitIdentity: declaration.commitIdentity,
+              // F-04: presets receive the RELEASE workspace root (target.workspace
+              // resolution + release-workspace write exclusion). The detached
+              // worktree is the execution worktree and never impersonates it.
+              releaseWorkspaceRoot,
+              evidencePath: join36(runDir, "evidence.jsonl"),
+              payloadDir: hookContextProjection.payloadDir,
+              exec,
+              hookRunner
+            });
+          } catch (err) {
+            const code = mapToSchemaCode(err?.code);
+            cp4.status = "FAILED";
+            cp4.error = { code, message: err?.message ?? String(err) };
+            cp4.finishedAt = clockFn();
+            failures += 1;
+            stopped = true;
+            stopReason = "HOOK";
+            await evidence.append({
+              phase: "postpublish-hook",
+              hookId: hook.id,
+              status: "failed",
+              error: asError("POSTPUBLISH_HOOK_FAILED", err?.message ?? String(err)),
+              details: { code }
+            });
+            await snapshot(PARTIAL2);
+            continue;
+          }
+          if (delivery.status === "NO_CHANGE") {
+            cp4.status = "NO_CHANGE";
+            cp4.mode = "no-change";
+            cp4.finishedAt = clockFn();
+            hookSuccesses += 1;
+            await evidence.append({
+              phase: "postpublish-hook",
+              hookId: hook.id,
+              status: "no-change",
+              ...delivery.manualSyncPrompt ? { manualSyncPrompt: delivery.manualSyncPrompt } : {},
+              // §2.6 execution realpath evidence (R4 review m-2).
+              ...delivery.observation?.workspaceRealpath ? { workspaceRealpath: delivery.observation.workspaceRealpath } : {},
+              ...delivery.workspaceRealpath ? { workspaceRealpath: delivery.workspaceRealpath } : {}
+            });
+            await snapshot(PARTIAL2);
+            continue;
+          }
+          cp4.status = "SUCCEEDED";
+          if (delivery.observation?.mode === "pushed" && delivery.observation?.pushedCommit) {
+            cp4.mode = "pushed";
+            cp4.pushedCommit = delivery.observation.pushedCommit;
+          }
+          cp4.finishedAt = clockFn();
+          hookSuccesses += 1;
+          await evidence.append({
+            phase: "postpublish-hook",
+            hookId: hook.id,
+            status: "succeeded",
+            preset: hook.preset,
+            mode: delivery.mode ?? delivery.observation?.mode,
+            ...delivery.observation?.pushedCommit ? { pushedCommit: delivery.observation.pushedCommit } : {},
+            ...delivery.manualSyncPrompt ? { manualSyncPrompt: delivery.manualSyncPrompt } : {},
+            ...delivery.checklist ? { checklist: delivery.checklist } : {},
+            ...delivery.degradedToNotifyHandoff === true ? { degradedToNotifyHandoff: true } : {},
+            ...Array.isArray(delivery.observations) ? { targets: delivery.observations } : {},
+            // §2.6 execution realpath evidence (R4 review m-2) + explicit
+            // cross-check skip note (R4 review m-4).
+            ...delivery.observation?.workspaceRealpath ? { workspaceRealpath: delivery.observation.workspaceRealpath } : {},
+            ...delivery.workspaceRealpath ? { workspaceRealpath: delivery.workspaceRealpath } : {},
+            ...delivery.observation?.crossCheck ? { crossCheck: delivery.observation.crossCheck } : {}
+          });
+          await snapshot(PARTIAL2);
+          continue;
+        }
+        if (!Array.isArray(hook.command)) {
+          cp4.status = "FAILED";
+          cp4.error = {
+            code: POST_PUBLISH_VERIFY_FAILED,
+            message: `hook "${hook.id}" has no executable command`
+          };
+          cp4.finishedAt = clockFn();
+          failures += 1;
+          stopped = true;
+          stopReason = "HOOK";
+          await evidence.append({
+            phase: "postpublish-hook",
+            hookId: hook.id,
+            status: "failed",
+            reason: "no-command"
+          });
+          await snapshot(PARTIAL2);
+          continue;
+        }
+        await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "started" });
+        let hookExecution;
+        try {
+          hookExecution = await hookRunner(
+            {
+              id: hook.id,
+              command: hook.command,
+              ...hook.cwd ? { cwd: hook.cwd } : {},
+              ...hook.timeoutMs !== void 0 ? { timeoutMs: hook.timeoutMs } : {},
+              ...hook.envAllowlist ? { envAllowlist: hook.envAllowlist } : {}
+            },
+            {
+              // F-04: custom command hooks keep running in the execution
+              // worktree; the runner's cwd containment binds them there.
+              root: worktreePath,
+              env: process.env,
+              injectEnv: {
+                [POSTPUBLISH_CONTEXT_ENV]: JSON.stringify(hookContextProjection)
+              }
+            }
+          );
+        } catch (err) {
+          const code = err?.code === "HOOK_TIMEOUT" ? "HOOK_TIMEOUT" : POST_PUBLISH_VERIFY_FAILED;
+          cp4.status = "FAILED";
+          cp4.error = { code, message: err?.message ?? String(err) };
+          cp4.finishedAt = clockFn();
+          failures += 1;
+          stopped = true;
+          stopReason = "HOOK";
+          await evidence.append({
+            phase: "postpublish-hook",
+            hookId: hook.id,
+            status: "failed",
+            error: asError("POSTPUBLISH_HOOK_FAILED", err?.message ?? String(err))
+          });
+          await snapshot(PARTIAL2);
+          continue;
+        }
+        if (hookExecution.exitCode !== 0) {
+          cp4.status = "FAILED";
+          cp4.error = {
+            code: POST_PUBLISH_VERIFY_FAILED,
+            message: `postPublish hook "${hook.id}" exited with code ${hookExecution.exitCode}`
+          };
+          cp4.finishedAt = clockFn();
+          failures += 1;
+          stopped = true;
+          stopReason = "HOOK";
+          await evidence.append({
+            phase: "postpublish-hook",
+            hookId: hook.id,
+            status: "failed",
+            exitCode: hookExecution.exitCode,
+            stdoutTail: boundedOutputTail(hookExecution.stdout),
+            stderrTail: boundedOutputTail(hookExecution.stderr)
+          });
+          await snapshot(PARTIAL2);
+          continue;
+        }
+        cp4.status = "SUCCEEDED";
         cp4.finishedAt = clockFn();
         hookSuccesses += 1;
-        await evidence.append({
-          phase: "postpublish-hook",
-          hookId: hook.id,
-          status: "succeeded",
-          preset: hook.preset,
-          mode: delivery.mode ?? delivery.observation?.mode,
-          ...delivery.observation?.pushedCommit ? { pushedCommit: delivery.observation.pushedCommit } : {},
-          ...delivery.manualSyncPrompt ? { manualSyncPrompt: delivery.manualSyncPrompt } : {},
-          ...delivery.checklist ? { checklist: delivery.checklist } : {},
-          ...delivery.degradedToNotifyHandoff === true ? { degradedToNotifyHandoff: true } : {},
-          ...Array.isArray(delivery.observations) ? { targets: delivery.observations } : {},
-          // §2.6 execution realpath evidence (R4 review m-2) + explicit
-          // cross-check skip note (R4 review m-4).
-          ...delivery.observation?.workspaceRealpath ? { workspaceRealpath: delivery.observation.workspaceRealpath } : {},
-          ...delivery.workspaceRealpath ? { workspaceRealpath: delivery.workspaceRealpath } : {},
-          ...delivery.observation?.crossCheck ? { crossCheck: delivery.observation.crossCheck } : {}
-        });
+        await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "succeeded" });
         await snapshot(PARTIAL2);
-        continue;
       }
-      if (!Array.isArray(hook.command)) {
-        cp4.status = "FAILED";
-        cp4.error = {
-          code: POST_PUBLISH_VERIFY_FAILED,
-          message: `hook "${hook.id}" has no executable command`
-        };
-        cp4.finishedAt = clockFn();
-        failures += 1;
-        hooksStopped = true;
-        await evidence.append({
-          phase: "postpublish-hook",
-          hookId: hook.id,
-          status: "failed",
-          reason: "no-command"
-        });
-        await snapshot(PARTIAL2);
-        continue;
-      }
-      await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "started" });
-      let hookExecution;
-      try {
-        hookExecution = await hookRunner(
-          {
-            command: hook.command,
-            ...hook.cwd ? { cwd: hook.cwd } : {},
-            ...hook.timeoutMs !== void 0 ? { timeoutMs: hook.timeoutMs } : {},
-            ...hook.envAllowlist ? { envAllowlist: hook.envAllowlist } : {}
-          },
-          {
-            // F-04: custom command hooks keep running in the execution
-            // worktree; the runner's cwd containment binds them there.
-            root: worktreePath,
-            env: process.env,
-            injectEnv: {
-              [POSTPUBLISH_CONTEXT_ENV]: JSON.stringify(hookContextProjection)
-            }
-          }
-        );
-      } catch (err) {
-        const code = err?.code === "HOOK_TIMEOUT" ? "HOOK_TIMEOUT" : POST_PUBLISH_VERIFY_FAILED;
-        cp4.status = "FAILED";
-        cp4.error = { code, message: err?.message ?? String(err) };
-        cp4.finishedAt = clockFn();
-        failures += 1;
-        hooksStopped = true;
-        await evidence.append({
-          phase: "postpublish-hook",
-          hookId: hook.id,
-          status: "failed",
-          error: asError("POSTPUBLISH_HOOK_FAILED", err?.message ?? String(err))
-        });
-        await snapshot(PARTIAL2);
-        continue;
-      }
-      if (hookExecution.exitCode !== 0) {
-        cp4.status = "FAILED";
-        cp4.error = {
-          code: POST_PUBLISH_VERIFY_FAILED,
-          message: `postPublish hook "${hook.id}" exited with code ${hookExecution.exitCode}`
-        };
-        cp4.finishedAt = clockFn();
-        failures += 1;
-        hooksStopped = true;
-        await evidence.append({
-          phase: "postpublish-hook",
-          hookId: hook.id,
-          status: "failed",
-          exitCode: hookExecution.exitCode,
-          stdoutTail: boundedOutputTail(hookExecution.stdout),
-          stderrTail: boundedOutputTail(hookExecution.stderr)
-        });
-        await snapshot(PARTIAL2);
-        continue;
-      }
-      cp4.status = "SUCCEEDED";
-      cp4.finishedAt = clockFn();
-      hookSuccesses += 1;
-      await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "succeeded" });
-      await snapshot(PARTIAL2);
+      await cleanupWorktree();
     }
     const externalCheckpointSuccesses = pushedWrites + hookSuccesses;
     let overallStatus;
@@ -134505,13 +135412,14 @@ async function distributeRelease(options) {
     });
     return { planPath, runPath, status: overallStatus, checkpoints, recoveryActionCode: recoveryActionCode2 };
   } catch (err) {
+    const catchStatus = !lineageKnown ? "FAILED" : pushedWrites + hookSuccesses > 0 ? PARTIAL2 : BLOCKED2;
     try {
       await evidence.append({
         phase: "distribute",
         status: "failed",
         error: { code: err.code, message: err.message }
       });
-      if (lineageKnown && !finalRecordWritten) await recordBlocked();
+      if (lineageKnown && !finalRecordWritten) await recordFailure();
     } catch {
     }
     const { recoveryActionCode: recoveryActionCode2 } = await readRunRecovery(finalRecordWritten ? runPath : null, {
@@ -134523,7 +135431,7 @@ async function distributeRelease(options) {
     });
     err.details = { ...err.details, recoveryActionCode: recoveryActionCode2 };
     await evidence.finish({
-      status: lineageKnown ? BLOCKED2 : "FAILED",
+      status: catchStatus,
       recoveryActionCode: recoveryActionCode2,
       error: { code: err.code, message: err.message, details: err.details },
       details: { recoveryActionCode: recoveryActionCode2 },
@@ -134591,10 +135499,10 @@ __export(postverify_exports, {
 });
 import { execFile as execFileCb17 } from "node:child_process";
 import { promisify as promisify17 } from "node:util";
-import { mkdir as mkdir28, readFile as readFile42, realpath as realpath30, rm as rm16 } from "node:fs/promises";
+import { mkdir as mkdir28, readFile as readFile42, realpath as realpath30, rm as rm17 } from "node:fs/promises";
 import { mkdtemp as mkdtemp12 } from "node:fs/promises";
 import { tmpdir as tmpdir9 } from "node:os";
-import { join as join36 } from "node:path";
+import { join as join37 } from "node:path";
 function defaultClock7() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
@@ -134644,12 +135552,17 @@ async function postVerifyRelease(options) {
       { expected: plan.digest, actual: actualDigest }
     );
   }
-  if (!plan.postPublish) {
+  const declarations = normalizePostPublishView(plan);
+  validatePostPublishHookIdUniqueness(declarations);
+  if (declarations.length === 0 && plan.planVersion !== 3) {
     throw new ReleaseError(
       GATE_FAILED,
       "release plan has no postPublish declaration; nothing to postVerify",
       { planPath }
     );
+  }
+  if (declarations.length === 0) {
+    return { planPath, runPath: null, status: DISTRIBUTED2, checkpoints: [] };
   }
   let approvalRaw;
   try {
@@ -134719,10 +135632,17 @@ async function postVerifyRelease(options) {
     production: Boolean(plan.production)
   });
   validateRunCheckpointMapping(publishRun, plan.externalActions ?? []);
-  const postPublish = plan.postPublish;
-  validatePostPublishDeclaration(postPublish, { unitId: postPublish.unitId });
-  const declaredHooks = postPublish.hooks ?? [];
-  const postVerifyHooks = declaredHooks.filter((hook) => (hook.phase ?? "distribute") === "postVerify");
+  const v3 = plan.planVersion === 3;
+  const unitActionId = /* @__PURE__ */ __name((unitId, localId) => postPublishActionId({ planVersion: plan.planVersion, unitId, localId }), "unitActionId");
+  const prepared = [];
+  for (const declaration of declarations) {
+    validatePostPublishDeclaration(declaration, { unitId: declaration.unitId });
+    await verifyExecutionBundle({ planPath, postPublish: declaration });
+    const declaredHooks = declaration.hooks ?? [];
+    const postVerifyHooks2 = declaredHooks.filter((hook) => (hook.phase ?? "distribute") === "postVerify");
+    prepared.push({ declaration, postVerifyHooks: postVerifyHooks2 });
+  }
+  const postVerifyHooks = prepared.flatMap((prep) => prep.postVerifyHooks);
   const approvedHookIds = /* @__PURE__ */ new Set();
   const hookApprovalPaths = postpublishApprovalPaths ?? [];
   for (const hookApprovalPath of hookApprovalPaths) {
@@ -134757,50 +135677,55 @@ async function postVerifyRelease(options) {
     }
     approvedHookIds.add(hookApproval.hookId);
   }
-  if (postPublish.payloadSource !== PAYLOAD_SOURCE_TAG_WORKTREE) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `postPublish.payloadSource must be "${PAYLOAD_SOURCE_TAG_WORKTREE}"`,
-      { payloadSource: postPublish.payloadSource }
-    );
-  }
-  if (typeof postPublish.tagCommit !== "string" || !SHA_RE5.test(postPublish.tagCommit)) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      "postPublish is missing a frozen tagCommit binding; postVerify fails closed",
-      { tagCommit: postPublish.tagCommit ?? null }
-    );
-  }
-  let tagAuthority;
-  try {
-    tagAuthority = await resolveFrozenTagAuthority({
-      plan,
-      unitId: postPublish.unitId,
-      // T04 (裁决 14): the tag proof is taken from the legitimate PUBLISHED
-      // parent run — never from the verify receipt.
-      sourceRun: publishRun,
-      root,
-      exec,
-      observeTagFn,
-      observeBranchFn
-    });
-  } catch (err) {
-    throw err instanceof ReleaseError ? err : new ReleaseError(
-      GATE_FAILED,
-      `tag identity cannot be verified: ${err?.message ?? err}`
-    );
-  }
-  if (tagAuthority.tag !== postPublish.tag || tagAuthority.commit !== postPublish.tagCommit) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      "frozen postPublish tag identity conflicts with the frozen create-tag binding",
-      {
-        postPublishTag: postPublish.tag,
-        postPublishTagCommit: postPublish.tagCommit,
-        bindingTag: tagAuthority.tag,
-        bindingCommit: tagAuthority.commit
-      }
-    );
+  for (const prep of prepared) {
+    const { declaration } = prep;
+    if (declaration.payloadSource !== PAYLOAD_SOURCE_TAG_WORKTREE) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `postPublish.payloadSource must be "${PAYLOAD_SOURCE_TAG_WORKTREE}"`,
+        { payloadSource: declaration.payloadSource, unitId: declaration.unitId }
+      );
+    }
+    if (typeof declaration.tagCommit !== "string" || !SHA_RE5.test(declaration.tagCommit)) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        "postPublish is missing a frozen tagCommit binding; postVerify fails closed",
+        { tagCommit: declaration.tagCommit ?? null, unitId: declaration.unitId }
+      );
+    }
+    let tagAuthority;
+    try {
+      tagAuthority = await resolveFrozenTagAuthority({
+        plan,
+        unitId: declaration.unitId,
+        // T04 (裁决 14): the tag proof is taken from the legitimate PUBLISHED
+        // parent run — never from the verify receipt.
+        sourceRun: publishRun,
+        root,
+        exec,
+        observeTagFn,
+        observeBranchFn
+      });
+    } catch (err) {
+      throw err instanceof ReleaseError ? err : new ReleaseError(
+        GATE_FAILED,
+        `tag identity cannot be verified: ${err?.message ?? err}`
+      );
+    }
+    if (tagAuthority.tag !== declaration.tag || tagAuthority.commit !== declaration.tagCommit) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        "frozen postPublish tag identity conflicts with the frozen create-tag binding",
+        {
+          postPublishTag: declaration.tag,
+          postPublishTagCommit: declaration.tagCommit,
+          bindingTag: tagAuthority.tag,
+          bindingCommit: tagAuthority.commit,
+          unitId: declaration.unitId
+        }
+      );
+    }
+    prep.tagAuthority = tagAuthority;
   }
   const runId = `postverify-${Date.now()}`;
   let runDir = runDirOpt ?? resolveDefaultRunDir(planPath, "postverify", runId);
@@ -134809,17 +135734,17 @@ async function postVerifyRelease(options) {
   } else {
     await mkdir28(runDir, { recursive: true });
   }
-  const runPath = join36(runDir, "release-run.json");
+  const runPath = join37(runDir, "release-run.json");
   const evidence = createEvidenceWriter({ runDir, command: "postverify", clock: clockFn });
   let finalRecordWritten = false;
   const startedAt = clockFn();
   let stateSequence = -1;
-  const checkpoints = postVerifyHooks.map((hook) => ({
-    actionId: hook.id,
+  const checkpoints = prepared.flatMap((prep) => prep.postVerifyHooks.map((hook) => ({
+    actionId: unitActionId(prep.declaration.unitId, hook.id),
     actionType: "postpublish-hook",
     status: "PENDING",
     executor: EXECUTOR2
-  }));
+  })));
   const checkpointById = new Map(checkpoints.map((cp4) => [cp4.actionId, cp4]));
   const buildPersistedState = /* @__PURE__ */ __name((status, finishedAt) => ({
     runId,
@@ -134852,19 +135777,21 @@ async function postVerifyRelease(options) {
     stateSequence += 1;
     return appendRunState(runDir, stateSequence, buildPersistedState(status));
   }, "snapshot");
-  const recordBlocked = /* @__PURE__ */ __name(async () => {
+  let externalSuccesses = 0;
+  const recordFailure = /* @__PURE__ */ __name(async () => {
     if (finalRecordWritten) return;
+    const status = externalSuccesses > 0 ? PARTIAL3 : BLOCKED3;
     try {
-      await writeRunAtomic(runPath, buildPersistedState(BLOCKED3, clockFn()));
+      await writeRunAtomic(runPath, buildPersistedState(status, clockFn()));
       finalRecordWritten = true;
     } catch {
     }
-  }, "recordBlocked");
+  }, "recordFailure");
   let worktreePath = null;
   let tmpBase = null;
   const cleanupWorktree = /* @__PURE__ */ __name(async () => {
     if (tmpBase) {
-      await rm16(tmpBase, { recursive: true, force: true }).catch(() => {
+      await rm17(tmpBase, { recursive: true, force: true }).catch(() => {
       });
       tmpBase = null;
       worktreePath = null;
@@ -134880,136 +135807,253 @@ async function postVerifyRelease(options) {
       dryRun: dryRun === true
     });
     await snapshot(DISTRIBUTING2);
+    for (const prep of prepared) {
+      const { declaration, postVerifyHooks: preflightHooks } = prep;
+      for (const hook of preflightHooks) {
+        if (effectiveHookRequiresApproval(hook) && !approvedHookIds.has(hook.id)) continue;
+        const proposalProjection = buildPostPublishContext({
+          plan,
+          postPublish: declaration,
+          runId: `postverify-${verifyRun.runId}`,
+          sourceRun: publishRun,
+          payloadDir: void 0,
+          phase: "postVerify",
+          verifyEvidence: {
+            runId: verifyRun.runId,
+            status: verifyRun.status,
+            finishedAt: verifyRun.finishedAt
+          }
+        });
+        const observation = await preflightPresetHook({
+          hook,
+          contextProjection: proposalProjection,
+          exec
+        });
+        if (observation !== null) {
+          await evidence.append({
+            phase: "safety-gate",
+            gate: "preset-preflight",
+            status: "passed",
+            hookId: hook.id,
+            unitId: declaration.unitId,
+            verdict: observation.verdict
+          });
+        }
+      }
+    }
     let releaseWorkspaceRoot;
     try {
       releaseWorkspaceRoot = await realpath30(root);
     } catch (err) {
-      await recordBlocked();
+      await recordFailure();
       throw new ReleaseError(
         GATE_FAILED,
         `release workspace root does not resolve to an existing directory: ${err.message}`,
         { root, cause: err.code }
       );
     }
-    if (dryRun !== true) {
-      try {
-        tmpBase = await mkdtemp12(join36(tmpdir9(), "release-skill-postverify-"));
-        ({ worktreePath } = await createFrozenTagWorktree({
-          gitDir: tagAuthority.gitDir,
-          commit: tagAuthority.commit,
-          tmpBase,
-          exec
-        }));
-      } catch (err) {
-        await evidence.append({
-          phase: "worktree",
-          status: "failed",
-          error: asError("WORKTREE_FAILED", boundedOutputTail(err?.stderr ?? err?.message))
-        });
-        await recordBlocked();
-        throw new ReleaseError(
-          GATE_FAILED,
-          `cannot create the detached tag worktree at ${postPublish.tagCommit}: ${err?.message ?? err}`,
-          { tagCommit: postPublish.tagCommit }
-        );
-      }
-      await evidence.append({ phase: "worktree", status: "passed" });
-      let installedBundlePaths = [];
-      try {
-        ({ installed: installedBundlePaths } = await verifyAndInstallExecutionBundle({
-          plan,
-          planPath,
-          worktreePath
-        }));
-      } catch (err) {
-        await evidence.append({
-          phase: "worktree",
-          gate: "execution-bundle",
-          status: "failed",
-          error: asError("EXECUTION_BUNDLE_FAILED", boundedOutputTail(err?.message ?? String(err)))
-        });
-        await recordBlocked();
-        throw err instanceof ReleaseError ? err : new ReleaseError(
-          GATE_FAILED,
-          `cannot verify the frozen execution bundle: ${err?.message ?? err}`
-        );
-      }
-      await evidence.append({
-        phase: "worktree",
-        gate: "execution-bundle",
-        status: "passed",
-        installed: installedBundlePaths
-      });
-    }
-    const verifyEvidence = {
-      runId: verifyRun.runId,
-      status: verifyRun.status,
-      finishedAt: verifyRun.finishedAt
-    };
-    const hookContextProjection = buildPostPublishContext({
-      plan,
-      runId,
-      sourceRun: publishRun,
-      payloadDir: void 0,
-      phase: "postVerify",
-      verifyEvidence
-    });
-    const proposalContextProjection = {
-      ...hookContextProjection,
-      runId: `postverify-${verifyRun.runId}`
-    };
     let hooksStopped = false;
     let failures = 0;
     let awaitingApproval = 0;
-    let externalSuccesses = 0;
-    for (const hook of postVerifyHooks) {
-      const cp4 = checkpointById.get(hook.id);
-      cp4.startedAt = clockFn();
-      if (hooksStopped) {
-        cp4.status = "SKIPPED";
-        cp4.reason = "EARLIER_HOOK_FAILED";
-        cp4.finishedAt = clockFn();
-        await evidence.append({
-          phase: "postpublish-hook",
-          hookId: hook.id,
-          status: "skipped",
-          reason: "EARLIER_HOOK_FAILED"
-        });
-        continue;
-      }
-      if (dryRun === true) {
-        cp4.status = "SKIPPED";
-        cp4.reason = "DRY_RUN";
-        cp4.finishedAt = clockFn();
-        await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "skipped", reason: "DRY_RUN" });
-        continue;
-      }
-      if (effectiveHookRequiresApproval(hook) && !approvedHookIds.has(hook.id)) {
-        cp4.status = "AWAITING_APPROVAL";
-        cp4.finishedAt = clockFn();
-        awaitingApproval += 1;
-        await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "awaiting-approval" });
-        continue;
-      }
-      if (hook.preset !== void 0) {
-        await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "started" });
-        let delivery;
+    for (const prep of prepared) {
+      const { declaration, postVerifyHooks: declarationHooks } = prep;
+      const tagAuthority = prep.tagAuthority;
+      if (dryRun !== true) {
         try {
-          delivery = await executePresetHook({
-            hook,
-            contextProjection: hookContextProjection,
-            proposalContextProjection,
-            commitIdentity: postPublish.commitIdentity,
-            // F-04: presets receive the RELEASE workspace root (target.workspace
-            // resolution + release-workspace write exclusion). The detached
-            // worktree is the execution worktree and never impersonates it.
-            releaseWorkspaceRoot,
-            evidencePath: join36(runDir, "evidence.jsonl"),
-            exec,
-            hookRunner
-          });
+          tmpBase = await mkdtemp12(join37(tmpdir9(), "release-skill-postverify-"));
+          ({ worktreePath } = await createFrozenTagWorktree({
+            gitDir: tagAuthority.gitDir,
+            commit: tagAuthority.commit,
+            tmpBase,
+            exec
+          }));
         } catch (err) {
-          const code = mapToSchemaCode2(err?.code);
+          await evidence.append({
+            phase: "worktree",
+            status: "failed",
+            error: asError("WORKTREE_FAILED", boundedOutputTail(err?.stderr ?? err?.message))
+          });
+          await recordFailure();
+          throw new ReleaseError(
+            GATE_FAILED,
+            `cannot create the detached tag worktree at ${declaration.tagCommit}: ${err?.message ?? err}`,
+            { tagCommit: declaration.tagCommit }
+          );
+        }
+        await evidence.append({ phase: "worktree", status: "passed" });
+        let installedBundlePaths = [];
+        try {
+          ({ installed: installedBundlePaths } = await verifyAndInstallExecutionBundle({
+            planPath,
+            worktreePath,
+            postPublish: declaration
+          }));
+        } catch (err) {
+          await evidence.append({
+            phase: "worktree",
+            gate: "execution-bundle",
+            status: "failed",
+            error: asError("EXECUTION_BUNDLE_FAILED", boundedOutputTail(err?.message ?? String(err)))
+          });
+          await recordFailure();
+          throw err instanceof ReleaseError ? err : new ReleaseError(
+            GATE_FAILED,
+            `cannot verify the frozen execution bundle: ${err?.message ?? err}`
+          );
+        }
+        await evidence.append({
+          phase: "worktree",
+          gate: "execution-bundle",
+          status: "passed",
+          installed: installedBundlePaths
+        });
+      }
+      const verifyEvidence = {
+        runId: verifyRun.runId,
+        status: verifyRun.status,
+        finishedAt: verifyRun.finishedAt
+      };
+      const hookContextProjection = buildPostPublishContext({
+        plan,
+        postPublish: declaration,
+        runId,
+        sourceRun: publishRun,
+        payloadDir: void 0,
+        phase: "postVerify",
+        verifyEvidence
+      });
+      const proposalContextProjection = {
+        ...hookContextProjection,
+        runId: `postverify-${verifyRun.runId}`
+      };
+      for (const hook of declarationHooks) {
+        const cp4 = checkpointById.get(unitActionId(declaration.unitId, hook.id));
+        cp4.startedAt = clockFn();
+        if (hooksStopped) {
+          cp4.status = "SKIPPED";
+          cp4.reason = "EARLIER_HOOK_FAILED";
+          cp4.finishedAt = clockFn();
+          await evidence.append({
+            phase: "postpublish-hook",
+            hookId: hook.id,
+            status: "skipped",
+            reason: "EARLIER_HOOK_FAILED"
+          });
+          continue;
+        }
+        if (dryRun === true) {
+          cp4.status = "SKIPPED";
+          cp4.reason = "DRY_RUN";
+          cp4.finishedAt = clockFn();
+          await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "skipped", reason: "DRY_RUN" });
+          continue;
+        }
+        if (effectiveHookRequiresApproval(hook) && !approvedHookIds.has(hook.id)) {
+          cp4.status = "AWAITING_APPROVAL";
+          cp4.finishedAt = clockFn();
+          awaitingApproval += 1;
+          await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "awaiting-approval" });
+          continue;
+        }
+        if (hook.preset !== void 0) {
+          await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "started" });
+          let delivery;
+          try {
+            delivery = await executePresetHook({
+              hook,
+              contextProjection: hookContextProjection,
+              proposalContextProjection,
+              commitIdentity: declaration.commitIdentity,
+              // F-04: presets receive the RELEASE workspace root (target.workspace
+              // resolution + release-workspace write exclusion). The detached
+              // worktree is the execution worktree and never impersonates it.
+              releaseWorkspaceRoot,
+              evidencePath: join37(runDir, "evidence.jsonl"),
+              exec,
+              hookRunner
+            });
+          } catch (err) {
+            const code = mapToSchemaCode2(err?.code);
+            cp4.status = "FAILED";
+            cp4.error = { code, message: err?.message ?? String(err) };
+            cp4.finishedAt = clockFn();
+            failures += 1;
+            hooksStopped = true;
+            await evidence.append({
+              phase: "postpublish-hook",
+              hookId: hook.id,
+              status: "failed",
+              error: asError("POSTPUBLISH_HOOK_FAILED", err?.message ?? String(err)),
+              details: { code }
+            });
+            await snapshot(PARTIAL3);
+            continue;
+          }
+          if (delivery.status === "NO_CHANGE") {
+            cp4.status = "NO_CHANGE";
+            cp4.mode = "no-change";
+            cp4.finishedAt = clockFn();
+            externalSuccesses += 1;
+            await evidence.append({
+              phase: "postpublish-hook",
+              hookId: hook.id,
+              status: "no-change",
+              ...delivery.manualSyncPrompt ? { manualSyncPrompt: delivery.manualSyncPrompt } : {},
+              // §2.6 execution realpath evidence (R4 review m-2).
+              ...delivery.observation?.workspaceRealpath ? { workspaceRealpath: delivery.observation.workspaceRealpath } : {},
+              ...delivery.workspaceRealpath ? { workspaceRealpath: delivery.workspaceRealpath } : {}
+            });
+            await snapshot(PARTIAL3);
+            continue;
+          }
+          cp4.status = "SUCCEEDED";
+          if (delivery.observation?.mode === "pushed" && delivery.observation?.pushedCommit) {
+            cp4.mode = "pushed";
+            cp4.pushedCommit = delivery.observation.pushedCommit;
+          }
+          cp4.finishedAt = clockFn();
+          externalSuccesses += 1;
+          await evidence.append({
+            phase: "postpublish-hook",
+            hookId: hook.id,
+            status: "succeeded",
+            preset: hook.preset,
+            mode: delivery.mode ?? delivery.observation?.mode,
+            ...delivery.observation?.pushedCommit ? { pushedCommit: delivery.observation.pushedCommit } : {},
+            ...delivery.manualSyncPrompt ? { manualSyncPrompt: delivery.manualSyncPrompt } : {},
+            ...delivery.checklist ? { checklist: delivery.checklist } : {},
+            ...delivery.degradedToNotifyHandoff === true ? { degradedToNotifyHandoff: true } : {},
+            ...Array.isArray(delivery.observations) ? { targets: delivery.observations } : {},
+            // §2.6 execution realpath evidence (R4 review m-2) + explicit
+            // cross-check skip note (R4 review m-4).
+            ...delivery.observation?.workspaceRealpath ? { workspaceRealpath: delivery.observation.workspaceRealpath } : {},
+            ...delivery.workspaceRealpath ? { workspaceRealpath: delivery.workspaceRealpath } : {},
+            ...delivery.observation?.crossCheck ? { crossCheck: delivery.observation.crossCheck } : {}
+          });
+          await snapshot(PARTIAL3);
+          continue;
+        }
+        await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "started" });
+        let hookExecution;
+        try {
+          hookExecution = await hookRunner(
+            {
+              id: hook.id,
+              command: hook.command,
+              ...hook.cwd ? { cwd: hook.cwd } : {},
+              ...hook.timeoutMs !== void 0 ? { timeoutMs: hook.timeoutMs } : {},
+              ...hook.envAllowlist ? { envAllowlist: hook.envAllowlist } : {}
+            },
+            {
+              // F-04: custom command hooks keep running in the execution
+              // worktree; the runner's cwd containment binds them there.
+              root: worktreePath,
+              env: process.env,
+              injectEnv: { [POSTPUBLISH_CONTEXT_ENV]: JSON.stringify(hookContextProjection) }
+            }
+          );
+        } catch (err) {
+          const code = err?.code === "HOOK_TIMEOUT" ? "HOOK_TIMEOUT" : POST_PUBLISH_VERIFY_FAILED;
           cp4.status = "FAILED";
           cp4.error = { code, message: err?.message ?? String(err) };
           cp4.finishedAt = clockFn();
@@ -135019,115 +136063,38 @@ async function postVerifyRelease(options) {
             phase: "postpublish-hook",
             hookId: hook.id,
             status: "failed",
-            error: asError("POSTPUBLISH_HOOK_FAILED", err?.message ?? String(err)),
-            details: { code }
+            error: asError("POSTPUBLISH_HOOK_FAILED", err?.message ?? String(err))
           });
           await snapshot(PARTIAL3);
           continue;
         }
-        if (delivery.status === "NO_CHANGE") {
-          cp4.status = "NO_CHANGE";
-          cp4.mode = "no-change";
+        if (hookExecution.exitCode !== 0) {
+          cp4.status = "FAILED";
+          cp4.error = {
+            code: POST_PUBLISH_VERIFY_FAILED,
+            message: `postVerify hook "${hook.id}" exited with code ${hookExecution.exitCode}`
+          };
           cp4.finishedAt = clockFn();
-          externalSuccesses += 1;
+          failures += 1;
+          hooksStopped = true;
           await evidence.append({
             phase: "postpublish-hook",
             hookId: hook.id,
-            status: "no-change",
-            ...delivery.manualSyncPrompt ? { manualSyncPrompt: delivery.manualSyncPrompt } : {},
-            // §2.6 execution realpath evidence (R4 review m-2).
-            ...delivery.observation?.workspaceRealpath ? { workspaceRealpath: delivery.observation.workspaceRealpath } : {},
-            ...delivery.workspaceRealpath ? { workspaceRealpath: delivery.workspaceRealpath } : {}
+            status: "failed",
+            exitCode: hookExecution.exitCode,
+            stdoutTail: boundedOutputTail(hookExecution.stdout),
+            stderrTail: boundedOutputTail(hookExecution.stderr)
           });
           await snapshot(PARTIAL3);
           continue;
         }
         cp4.status = "SUCCEEDED";
-        if (delivery.observation?.mode === "pushed" && delivery.observation?.pushedCommit) {
-          cp4.mode = "pushed";
-          cp4.pushedCommit = delivery.observation.pushedCommit;
-        }
         cp4.finishedAt = clockFn();
         externalSuccesses += 1;
-        await evidence.append({
-          phase: "postpublish-hook",
-          hookId: hook.id,
-          status: "succeeded",
-          preset: hook.preset,
-          mode: delivery.mode ?? delivery.observation?.mode,
-          ...delivery.observation?.pushedCommit ? { pushedCommit: delivery.observation.pushedCommit } : {},
-          ...delivery.manualSyncPrompt ? { manualSyncPrompt: delivery.manualSyncPrompt } : {},
-          ...delivery.checklist ? { checklist: delivery.checklist } : {},
-          ...delivery.degradedToNotifyHandoff === true ? { degradedToNotifyHandoff: true } : {},
-          ...Array.isArray(delivery.observations) ? { targets: delivery.observations } : {},
-          // §2.6 execution realpath evidence (R4 review m-2) + explicit
-          // cross-check skip note (R4 review m-4).
-          ...delivery.observation?.workspaceRealpath ? { workspaceRealpath: delivery.observation.workspaceRealpath } : {},
-          ...delivery.workspaceRealpath ? { workspaceRealpath: delivery.workspaceRealpath } : {},
-          ...delivery.observation?.crossCheck ? { crossCheck: delivery.observation.crossCheck } : {}
-        });
+        await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "succeeded" });
         await snapshot(PARTIAL3);
-        continue;
       }
-      await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "started" });
-      let hookExecution;
-      try {
-        hookExecution = await hookRunner(
-          {
-            command: hook.command,
-            ...hook.cwd ? { cwd: hook.cwd } : {},
-            ...hook.timeoutMs !== void 0 ? { timeoutMs: hook.timeoutMs } : {},
-            ...hook.envAllowlist ? { envAllowlist: hook.envAllowlist } : {}
-          },
-          {
-            // F-04: custom command hooks keep running in the execution
-            // worktree; the runner's cwd containment binds them there.
-            root: worktreePath,
-            env: process.env,
-            injectEnv: { [POSTPUBLISH_CONTEXT_ENV]: JSON.stringify(hookContextProjection) }
-          }
-        );
-      } catch (err) {
-        const code = err?.code === "HOOK_TIMEOUT" ? "HOOK_TIMEOUT" : POST_PUBLISH_VERIFY_FAILED;
-        cp4.status = "FAILED";
-        cp4.error = { code, message: err?.message ?? String(err) };
-        cp4.finishedAt = clockFn();
-        failures += 1;
-        hooksStopped = true;
-        await evidence.append({
-          phase: "postpublish-hook",
-          hookId: hook.id,
-          status: "failed",
-          error: asError("POSTPUBLISH_HOOK_FAILED", err?.message ?? String(err))
-        });
-        await snapshot(PARTIAL3);
-        continue;
-      }
-      if (hookExecution.exitCode !== 0) {
-        cp4.status = "FAILED";
-        cp4.error = {
-          code: POST_PUBLISH_VERIFY_FAILED,
-          message: `postVerify hook "${hook.id}" exited with code ${hookExecution.exitCode}`
-        };
-        cp4.finishedAt = clockFn();
-        failures += 1;
-        hooksStopped = true;
-        await evidence.append({
-          phase: "postpublish-hook",
-          hookId: hook.id,
-          status: "failed",
-          exitCode: hookExecution.exitCode,
-          stdoutTail: boundedOutputTail(hookExecution.stdout),
-          stderrTail: boundedOutputTail(hookExecution.stderr)
-        });
-        await snapshot(PARTIAL3);
-        continue;
-      }
-      cp4.status = "SUCCEEDED";
-      cp4.finishedAt = clockFn();
-      externalSuccesses += 1;
-      await evidence.append({ phase: "postpublish-hook", hookId: hook.id, status: "succeeded" });
-      await snapshot(PARTIAL3);
+      await cleanupWorktree();
     }
     let overallStatus;
     if (failures === 0 && awaitingApproval === 0) {
@@ -135161,11 +136128,11 @@ async function postVerifyRelease(options) {
         status: "failed",
         error: { code: err.code, message: err.message }
       });
-      if (!finalRecordWritten) await recordBlocked();
+      if (!finalRecordWritten) await recordFailure();
     } catch {
     }
     await evidence.finish({
-      status: BLOCKED3,
+      status: externalSuccesses > 0 ? PARTIAL3 : BLOCKED3,
       error: { code: err.code, message: err.message },
       failedAt: clockFn()
     }).catch(() => {
@@ -135504,11 +136471,13 @@ function publicState2(state) {
     ...state.approvalSummary ? { approvalSummary: state.approvalSummary } : {},
     ...state.approvalPath ? { approvalPath: state.approvalPath } : {},
     ...state.sourceRunPath ? { sourceRunPath: state.sourceRunPath } : {},
+    ...state.verifyRunPath ? { verifyRunPath: state.verifyRunPath } : {},
     ...state.distributeRunPath ? { distributeRunPath: state.distributeRunPath } : {},
     ...state.postVerify ? { postVerify: state.postVerify } : {},
     ...state.requirements ? { requirements: state.requirements } : {},
     ...state.manualFollowUps ? { manualFollowUps: state.manualFollowUps } : {},
     ...state.metadataUpdate ? { metadataUpdate: state.metadataUpdate } : {},
+    ...state.postRelease ? { postRelease: state.postRelease } : {},
     verificationGateAuthorizationIncludedInPlanApproval: true,
     postVerifyMetadataUpdateIncludedInPlanApproval: true
   };
@@ -135530,7 +136499,7 @@ async function buildApprovalSummary(planPath) {
     return { units: [], actions: [] };
   }
 }
-async function allUnclosedPostVerifyHooksUngated(state, postVerifyHooks) {
+async function allUnclosedPostVerifyHooksUngated(state, postVerifyHooks, planVersion) {
   if (!Array.isArray(postVerifyHooks) || postVerifyHooks.length === 0) return false;
   let candidates = postVerifyHooks;
   if (state.postVerify?.runPath) {
@@ -135540,13 +136509,13 @@ async function allUnclosedPostVerifyHooksUngated(state, postVerifyHooks) {
       const closedIds = new Set(
         checkpoints.filter((cp4) => cp4?.actionType === "postpublish-hook" && (cp4.status === "succeeded" || cp4.status === "NO_CHANGE")).map((cp4) => cp4.actionId)
       );
-      candidates = postVerifyHooks.filter((hook) => !closedIds.has(hook.id));
+      candidates = postVerifyHooks.filter(({ hook, unitId }) => !closedIds.has(postPublishActionId({ planVersion, unitId, localId: hook.id })));
     } catch {
       candidates = postVerifyHooks;
     }
   }
   if (candidates.length === 0) return false;
-  return candidates.every((hook) => effectiveHookRequiresApproval(hook) === false);
+  return candidates.every(({ hook }) => effectiveHookRequiresApproval(hook) === false);
 }
 async function advanceShip(options = {}, injected = {}) {
   const root = resolve36(options.root ?? process.cwd());
@@ -135689,8 +136658,8 @@ async function advanceShip(options = {}, injected = {}) {
   let postVerifyRanThisCall = false;
   if (state.status === "PUBLISHED" || state.status === "NEEDS_MANUAL_ATTESTATIONS") {
     const plan = JSON.parse(await readFile44(state.planPath, "utf8"));
-    const hasDistributeWork = (plan.postPublish?.targets?.length ?? 0) > 0 || (plan.postPublish?.hooks?.length ?? 0) > 0;
-    const needsDistribution = Boolean(plan.postPublish) && hasDistributeWork;
+    const hasDistributeWork = normalizePostPublishView(plan).some((declaration) => (declaration.targets?.length ?? 0) > 0 || (declaration.hooks?.length ?? 0) > 0);
+    const needsDistribution = hasDistributeWork;
     if (needsDistribution && deps.distributeRelease) {
       state.status = "DISTRIBUTING";
       await writeJsonAtomic(statePath, state);
@@ -135739,9 +136708,19 @@ async function advanceShip(options = {}, injected = {}) {
         requirements: void 0,
         manualFollowUps: verified.manualFollowUps ?? void 0,
         baselineAdvance: verified.baselineAdvance ?? void 0,
+        postRelease: void 0,
         updatedAt: (/* @__PURE__ */ new Date()).toISOString()
       };
       await writeJsonAtomic(statePath, state);
+      if (verified.status === "VERIFIED") {
+        try {
+          state.postRelease = derivePostReleaseChecklist(plan);
+        } catch (error) {
+          state.postRelease = unavailablePostReleaseChecklist(plan, error);
+        }
+        state.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+        await writeJsonAtomic(statePath, state);
+      }
     } catch (error) {
       if (error?.code !== CONSUMER_VERIFICATION_DEFERRED) throw error;
       state = {
@@ -135752,7 +136731,7 @@ async function advanceShip(options = {}, injected = {}) {
       };
       await writeJsonAtomic(statePath, state);
     }
-    const postVerifyHooks = (plan.postPublish?.hooks ?? []).filter((hook) => hook.phase === "postVerify");
+    const postVerifyHooks = normalizePostPublishView(plan).flatMap((declaration) => declaration.hooks ?? []).filter((hook) => hook.phase === "postVerify");
     if (state.status === "VERIFIED" && postVerifyHooks.length > 0 && deps.postVerifyRelease) {
       postVerifyRanThisCall = true;
       let postVerifyOutcome;
@@ -135788,8 +136767,8 @@ async function advanceShip(options = {}, injected = {}) {
   const reentryApprovalPaths = options.postpublishApprovalPaths ?? [];
   if (state.status === "VERIFIED" && deps.postVerifyRelease && !postVerifyRanThisCall && (!state.postVerify || state.postVerify.status !== "DISTRIBUTED")) {
     const reentryPlan = JSON.parse(await readFile44(state.planPath, "utf8"));
-    const reentryPostVerifyHooks = (reentryPlan.postPublish?.hooks ?? []).filter((hook) => hook.phase === "postVerify");
-    const approvallessRetryAllowed = reentryApprovalPaths.length === 0 && await allUnclosedPostVerifyHooksUngated(state, reentryPostVerifyHooks);
+    const reentryPostVerifyHooks = normalizePostPublishView(reentryPlan).flatMap((declaration) => (declaration.hooks ?? []).map((hook) => ({ hook, unitId: declaration.unitId }))).filter(({ hook }) => hook.phase === "postVerify");
+    const approvallessRetryAllowed = reentryApprovalPaths.length === 0 && await allUnclosedPostVerifyHooksUngated(state, reentryPostVerifyHooks, reentryPlan.planVersion);
     if (reentryPostVerifyHooks.length > 0 && (reentryApprovalPaths.length > 0 || approvallessRetryAllowed)) {
       let postVerifyOutcome;
       try {
@@ -135824,10 +136803,11 @@ async function advanceShip(options = {}, injected = {}) {
   return publicState2(state);
 }
 var init_ship = __esm({
-  "src/commands/ship.mjs"() {
+  async "src/commands/ship.mjs"() {
     init_src2();
     init_digest();
     init_postpublish();
+    await init_post_release_local();
     init_errors3();
     __name(writeJsonAtomic, "writeJsonAtomic");
     __name(readState, "readState");
@@ -136261,9 +137241,9 @@ __export(distribute_git_exports, {
 });
 import { execFile as execFileCb20 } from "node:child_process";
 import { promisify as promisify20 } from "node:util";
-import { cp as cp3, copyFile, mkdir as mkdir30, mkdtemp as mkdtemp13, readdir as readdir26, rm as rm17, stat as stat15, writeFile as writeFile14 } from "node:fs/promises";
+import { cp as cp3, copyFile, mkdir as mkdir30, mkdtemp as mkdtemp13, readdir as readdir26, rm as rm18, stat as stat15, writeFile as writeFile14 } from "node:fs/promises";
 import { tmpdir as tmpdir10 } from "node:os";
-import { dirname as dirname21, isAbsolute as isAbsolute25, join as join37 } from "node:path";
+import { dirname as dirname21, isAbsolute as isAbsolute25, join as join38 } from "node:path";
 function classifyProbeFailure(text) {
   const output = typeof text === "string" ? text : "";
   if (AUTH_FAILURE_PATTERNS3.some((pattern) => pattern.test(output))) return "auth";
@@ -136384,7 +137364,7 @@ async function countFiles(dir) {
   const entries = await readdir26(dir, { withFileTypes: true });
   for (const entry of entries) {
     if (entry.name === ".git") continue;
-    const fullPath = join37(dir, entry.name);
+    const fullPath = join38(dir, entry.name);
     if (entry.isDirectory()) {
       total += await countFiles(fullPath);
     } else if (entry.isFile() || entry.isSymbolicLink()) {
@@ -136396,7 +137376,7 @@ async function countFiles(dir) {
 function createDistributeGitAdapter(deps = {}) {
   const exec = deps.exec ?? run5;
   const mkdtempFn = deps.mkdtempFn ?? (async (prefix) => mkdtemp13(prefix));
-  const rmFn = deps.rmFn ?? (async (path36, options) => rm17(path36, options));
+  const rmFn = deps.rmFn ?? (async (path36, options) => rm18(path36, options));
   const tmpRoot = deps.tmpRoot ?? tmpdir10();
   const netEnv3 = /* @__PURE__ */ __name(() => ({ ...process.env, ...NEVER_PROMPT_ENV3 }), "netEnv");
   async function lsRemoteRefs(remoteUrl, refs) {
@@ -136496,7 +137476,7 @@ function createDistributeGitAdapter(deps = {}) {
   __name(assertMirrorActionShape, "assertMirrorActionShape");
   async function mirror(action) {
     assertMirrorActionShape(action);
-    const cloneDir = await mkdtempFn(join37(tmpRoot, TMP_PREFIX3));
+    const cloneDir = await mkdtempFn(join38(tmpRoot, TMP_PREFIX3));
     const git3 = /* @__PURE__ */ __name((args2, options = {}) => exec("git", args2, { cwd: cloneDir, shell: false, timeout: GIT_TIMEOUT_MS3, ...options }), "git");
     try {
       await exec("git", ["clone", "--quiet", action.remoteUrl, cloneDir], {
@@ -136518,7 +137498,7 @@ function createDistributeGitAdapter(deps = {}) {
       }
       for (const entry of await readdir26(cloneDir)) {
         if (entry === ".git") continue;
-        await rm17(join37(cloneDir, entry), { recursive: true, force: true });
+        await rm18(join38(cloneDir, entry), { recursive: true, force: true });
       }
       if (action.kind === "payload-mirror") {
         const payloadStat = await stat15(action.payloadDir).catch(() => null);
@@ -136533,13 +137513,13 @@ function createDistributeGitAdapter(deps = {}) {
           sha: action.dependency.sha ?? null,
           dependencyUrl: action.dependency.remoteUrl
         });
-        await mkdir30(join37(cloneDir, ".claude-plugin"), { recursive: true });
-        await writeFile14(join37(cloneDir, ".claude-plugin", "marketplace.json"), `${JSON.stringify(index, null, 2)}
+        await mkdir30(join38(cloneDir, ".claude-plugin"), { recursive: true });
+        await writeFile14(join38(cloneDir, ".claude-plugin", "marketplace.json"), `${JSON.stringify(index, null, 2)}
 `);
       }
       for (const file of action.staticFiles ?? []) {
-        await mkdir30(dirname21(join37(cloneDir, file.to)), { recursive: true });
-        await copyFile(file.sourcePath, join37(cloneDir, file.to));
+        await mkdir30(dirname21(join38(cloneDir, file.to)), { recursive: true });
+        await copyFile(file.sourcePath, join38(cloneDir, file.to));
       }
       const payloadFileCount = await countFiles(cloneDir);
       await git3(["add", "-A"]);
@@ -136769,7 +137749,7 @@ __export(attest_exports, {
   recordManualAttestation: () => recordManualAttestation
 });
 import { readFile as readFile45 } from "node:fs/promises";
-import { resolve as resolve37, join as join38 } from "node:path";
+import { resolve as resolve37, join as join39 } from "node:path";
 async function validateInstalledConsumerClosure({
   root,
   platform,
@@ -136857,7 +137837,7 @@ async function recordManualAttestation(options = {}, injected = {}) {
     throw new ReleaseError(MISSING_PARAMETERS, "attest requires --result <passed|failed>");
   }
   const authorityDir = resolve37(root, ".release-skill", descriptor.directory, plugin);
-  const requirementPath = join38(authorityDir, descriptor.requirementFile);
+  const requirementPath = join39(authorityDir, descriptor.requirementFile);
   let requirement;
   try {
     requirement = JSON.parse(await readFile45(requirementPath, "utf8"));
@@ -136910,7 +137890,7 @@ async function recordManualAttestation(options = {}, injected = {}) {
       extraInstalledPaths: installBinding.extraInstalledPaths
     } : {}
   };
-  const attestationPath = join38(authorityDir, requirement.attestationFile);
+  const attestationPath = join39(authorityDir, requirement.attestationFile);
   await writeEvidenceAtomic(attestationPath, receipt);
   return {
     command: "attest",
@@ -136945,7 +137925,7 @@ var init_attest = __esm({
 
 // src/artifacts/policy.mjs
 import { readFile as readFile46 } from "node:fs/promises";
-import { join as join39 } from "node:path";
+import { join as join40 } from "node:path";
 import { createHash as createHash19 } from "node:crypto";
 function validateArtifactPolicy(policy) {
   const ok = _validate(policy);
@@ -137041,7 +138021,7 @@ async function parseSafeYamlWithinRoot(root, policyPath) {
     }
     throw err;
   }
-  const fullPath = join39(root, policyPath);
+  const fullPath = join40(root, policyPath);
   let content;
   try {
     content = await readFile46(fullPath, "utf8");
@@ -137156,7 +138136,7 @@ var init_policy = __esm({
 
 // src/artifacts/entry.mjs
 import { lstat as lstat42, readdir as readdir27, readFile as readFile47 } from "node:fs/promises";
-import { join as join40 } from "node:path";
+import { join as join41 } from "node:path";
 import { promisify as promisify21 } from "node:util";
 import { execFile as execFile14 } from "node:child_process";
 function statToGitMode(stat19) {
@@ -137179,7 +138159,7 @@ async function enumerateTreeEntries(root, dirPath, relBase) {
   const items = await readdir27(dirPath, { withFileTypes: true });
   for (const item of items) {
     if (SKIP_DIRS2.has(item.name)) continue;
-    const absPath = join40(dirPath, item.name);
+    const absPath = join41(dirPath, item.name);
     const relPath = relBase ? `${relBase}/${item.name}` : item.name;
     const st = await lstat42(absPath);
     if (st.isSymbolicLink()) {
@@ -137230,7 +138210,7 @@ async function readEntry({ root, path: path36, source = "worktree" } = {}) {
   if (source !== "worktree") {
     throw new ReleaseError(PATH_UNSAFE, `unsupported readEntry source: ${source}`, { source });
   }
-  const absPath = join40(root, path36);
+  const absPath = join41(root, path36);
   let st;
   try {
     st = await lstat42(absPath);
@@ -137293,7 +138273,7 @@ var init_entry = __esm({
 // src/artifacts/inventory.mjs
 import { promisify as promisify22 } from "node:util";
 import { execFile as execFile15 } from "node:child_process";
-import { access as access2 } from "node:fs/promises";
+import { access as access3 } from "node:fs/promises";
 function isReservedPath(relPath) {
   if (relPath === ".git" || relPath === "transactions" || relPath === "objects") {
     return true;
@@ -137310,7 +138290,7 @@ async function gitLsFilesRaw(cwd, args2) {
 }
 async function pathExists(absPath) {
   try {
-    await access2(absPath);
+    await access3(absPath);
     return true;
   } catch {
     return false;
@@ -137527,8 +138507,8 @@ var init_graph = __esm({
 });
 
 // src/artifacts/producer-registry.mjs
-import { readFile as readFile48, readdir as readdir28, stat as stat16, mkdir as mkdir31, writeFile as writeFile15, rm as rm18 } from "node:fs/promises";
-import { join as join41 } from "node:path";
+import { readFile as readFile48, readdir as readdir28, stat as stat16, mkdir as mkdir31, writeFile as writeFile15, rm as rm19 } from "node:fs/promises";
+import { join as join42 } from "node:path";
 import { mkdtemp as mkdtemp14 } from "node:fs/promises";
 import { tmpdir as tmpdir11 } from "node:os";
 import { readFileSync as readFileSync15 } from "node:fs";
@@ -137548,7 +138528,7 @@ function collectStaticImports(filePath, visited = /* @__PURE__ */ new Set()) {
   const dir = abs.replace(/\/[^/]*$/, "");
   while ((match = importRe.exec(source)) !== null) {
     const spec = match[1];
-    let resolved = join41(dir, spec);
+    let resolved = join42(dir, spec);
     if (!resolved.endsWith(".mjs")) resolved += ".mjs";
     results.push(...collectStaticImports(resolved, visited));
   }
@@ -137556,7 +138536,7 @@ function collectStaticImports(filePath, visited = /* @__PURE__ */ new Set()) {
 }
 async function createBuiltInProducerRegistry() {
   const producers = /* @__PURE__ */ new Map();
-  const lockfilePath = join41(new URL("../../..", import.meta.url).pathname, "pnpm-lock.yaml");
+  const lockfilePath = join42(new URL("../../..", import.meta.url).pathname, "pnpm-lock.yaml");
   let lockfileBytes;
   try {
     lockfileBytes = await readFile48(lockfilePath);
@@ -137596,7 +138576,7 @@ async function readDirEntries(dirPath, relBase = "") {
   const items = await readdir28(dirPath, { withFileTypes: true });
   for (const item of items) {
     if (item.name === ".git") continue;
-    const absPath = join41(dirPath, item.name);
+    const absPath = join42(dirPath, item.name);
     const relPath = relBase ? `${relBase}/${item.name}` : item.name;
     const st = await stat16(absPath);
     if (st.isDirectory()) {
@@ -137619,11 +138599,11 @@ async function readDirEntries(dirPath, relBase = "") {
 async function materializeEntries(entries, dirPath) {
   for (const entry of entries) {
     if (!entry.path) continue;
-    const targetPath2 = join41(dirPath, entry.path);
+    const targetPath2 = join42(dirPath, entry.path);
     if (entry.type === "tree" || entry.kind === "tree") {
       await mkdir31(targetPath2, { recursive: true });
     } else {
-      await mkdir31(join41(targetPath2, ".."), { recursive: true });
+      await mkdir31(join42(targetPath2, ".."), { recursive: true });
       if (entry.content) {
         await writeFile15(targetPath2, entry.content);
       }
@@ -137644,7 +138624,7 @@ async function verifyDeterminism(produce, runOptions, dir1, dir2) {
       { digest1, digest2: digest22 }
     );
   }
-  await rm18(dir1, { recursive: true, force: true }).catch(() => {
+  await rm19(dir1, { recursive: true, force: true }).catch(() => {
   });
   return { entries: entries2, outputDir: dir2 };
 }
@@ -137667,7 +138647,7 @@ async function runProducerClosure({
   graph,
   inputSnapshot,
   artifactIds,
-  tempRootFactory = /* @__PURE__ */ __name(async () => mkdtemp14(join41(tmpdir11(), "producer-")), "tempRootFactory")
+  tempRootFactory = /* @__PURE__ */ __name(async () => mkdtemp14(join42(tmpdir11(), "producer-")), "tempRootFactory")
 } = {}) {
   const generatedSet = new Set(graph.topologicalOrder);
   for (const id of artifactIds) {
@@ -137704,7 +138684,7 @@ async function runProducerClosure({
         if (inputEntries) {
           const first = inputEntries[0];
           if (first && first.path) {
-            const absPath = first.path.startsWith("/") ? first.path : join41(process.cwd(), first.path);
+            const absPath = first.path.startsWith("/") ? first.path : join42(process.cwd(), first.path);
             try {
               const st = await stat16(absPath);
               if (st.isDirectory()) {
@@ -138819,7 +139799,7 @@ var init_adoption = __esm({
 import { promisify as promisify24 } from "node:util";
 import { execFile as execFile17 } from "node:child_process";
 import { readdir as readdir29, stat as stat17, readFile as readFile50 } from "node:fs/promises";
-import { join as join42 } from "node:path";
+import { join as join43 } from "node:path";
 async function hasNestedGitRoots(root) {
   try {
     const { stdout } = await execFileAsync10(
@@ -138829,9 +139809,9 @@ async function hasNestedGitRoots(root) {
     );
     const dirs = stdout.split("\n").filter((s) => s.length > 0);
     for (const dir of dirs) {
-      const absDir = join42(root, dir);
+      const absDir = join43(root, dir);
       try {
-        const nestedGit = join42(absDir, ".git");
+        const nestedGit = join43(absDir, ".git");
         await stat17(nestedGit);
         return true;
       } catch {
@@ -139091,7 +140071,7 @@ var init_inspect = __esm({
 
 // src/artifacts/resolution.mjs
 import { mkdir as mkdir33, open as open15, readFile as readFile51, stat as stat18, lstat as lstat43, chmod as chmod6 } from "node:fs/promises";
-import { join as join43, resolve as resolve38, relative as relative29, isAbsolute as isAbsolute26, basename as basename15 } from "node:path";
+import { join as join44, resolve as resolve38, relative as relative30, isAbsolute as isAbsolute26, basename as basename15 } from "node:path";
 function decodeBuffer(value, label) {
   if (value == null) return null;
   if (Buffer.isBuffer(value)) return value;
@@ -139193,9 +140173,9 @@ function assertSafeArtifactId(id) {
 }
 async function assertNoSymlinksInPath(root, artifactId) {
   const levels = [
-    join43(root, ".release-skill"),
-    join43(root, ".release-skill", "resolution"),
-    join43(root, ".release-skill", "resolution", artifactId)
+    join44(root, ".release-skill"),
+    join44(root, ".release-skill", "resolution"),
+    join44(root, ".release-skill", "resolution", artifactId)
   ];
   for (const dir of levels) {
     try {
@@ -139214,7 +140194,7 @@ async function assertSafeResolvedPath(root, artifactId, resolvedPath) {
   const resolutionDir = resolve38(root, ".release-skill", "resolution", artifactId);
   const resolved = resolve38(resolvedPath);
   await assertNoSymlinksInPath(root, artifactId);
-  const rel = relative29(resolutionDir, resolved);
+  const rel = relative30(resolutionDir, resolved);
   if (rel.startsWith("..") || isAbsolute26(rel)) {
     throw new ReleaseError(
       PATH_UNSAFE,
@@ -139374,13 +140354,13 @@ async function materializeResolution({
   const template = buildConflictTemplate(artifact.conflict ?? {}, decodedBuffers);
   const templateDigest = sha256Hex(template);
   await assertNoSymlinksInPath(root, artifactId);
-  const resolutionDir = join43(root, ".release-skill", "resolution", artifactId);
+  const resolutionDir = join44(root, ".release-skill", "resolution", artifactId);
   await mkdir33(resolutionDir, { recursive: true, mode: 448 });
   const dirStat = await stat18(resolutionDir);
   if ((dirStat.mode & 511) !== 448) {
     await chmod6(resolutionDir, 448);
   }
-  const resolvedPath = join43(resolutionDir, `${artifactId}.resolved`);
+  const resolvedPath = join44(resolutionDir, `${artifactId}.resolved`);
   const fh = await open15(resolvedPath, "wx", 384);
   try {
     await fh.write(template, 0, template.length);
@@ -139591,7 +140571,7 @@ __export(artifacts_exports, {
   runArtifactsCommand: () => runArtifactsCommand
 });
 import { readFile as readFile52 } from "node:fs/promises";
-import { join as join44 } from "node:path";
+import { join as join45 } from "node:path";
 async function runArtifactsCommand({ subcommand, args: args2, root } = {}) {
   if (!VALID_SUBCOMMANDS.has(subcommand)) {
     throw new ReleaseError(
@@ -139734,7 +140714,7 @@ async function handleAdopt({ args: args2, root }) {
     if (artifact.path) {
       const entry = await readEntry({ root, path: artifact.path, source: "worktree" });
       if (entry.kind === "regular") {
-        const bytes = await readFile52(join44(root, artifact.path));
+        const bytes = await readFile52(join45(root, artifact.path));
         currentEntries.set(artifact.id, Object.freeze({ ...entry, bytes, content: bytes }));
       } else {
         currentEntries.set(artifact.id, entry);
@@ -139811,7 +140791,7 @@ async function handleBootstrap({ args: args2, root }) {
     if (entry.kind !== "regular") {
       throw new ReleaseError("PLAN_STALE", `artifact is no longer a regular file: ${id}`, { id });
     }
-    const bytes = await readFile52(join44(root, artifactPath));
+    const bytes = await readFile52(join45(root, artifactPath));
     currentEntries.set(id, Object.freeze({ ...entry, bytes, content: bytes }));
   }
   let replacementBytes;
@@ -141189,7 +142169,8 @@ Workflow Profiles:
 });
 
 // bin/release-skill-cli.mjs
-import { basename as basename16, dirname as dirname23, join as join45, resolve as resolve40 } from "node:path";
+import { readFile as readFile54 } from "node:fs/promises";
+import { basename as basename16, dirname as dirname23, join as join46, resolve as resolve40 } from "node:path";
 import { execFile as execFileCb22 } from "node:child_process";
 import { promisify as promisify26 } from "node:util";
 
@@ -141240,7 +142221,7 @@ guardOutputStream(process.stdout);
 guardOutputStream(process.stderr);
 registerPathRedactor(redactSensitivePaths);
 var execFile19 = promisify26(execFileCb22);
-var COMMANDS = /* @__PURE__ */ new Set(["help", "setup", "assess", "prepare", "approve", "publish", "reconcile", "verify", "ship", "attest", "hooks", "artifacts", "docs", "distribute", "route", "lineage"]);
+var COMMANDS = /* @__PURE__ */ new Set(["help", "setup", "assess", "prepare", "approve", "publish", "reconcile", "verify", "ship", "post-release", "attest", "hooks", "artifacts", "docs", "distribute", "route", "lineage"]);
 function flushOutputStream(stream) {
   if (!stream?.writable || stream.destroyed || stream.writableEnded || outputStreamStates.get(stream)?.failed) {
     return Promise.resolve();
@@ -141445,6 +142426,8 @@ Commands:
   verify     Fresh remote and consumer verification; only this reaches VERIFIED
   ship       Resume one durable prepare -> approve -> publish -> verify flow; completes a parked
              postVerify hook once its checkpoint approval is provided (--hook-approval)
+  post-release Inspect optional local finishing work after VERIFIED; update installed host plugins
+             only after exact plan confirmation
   attest     Legacy only: record a Kimi/CodeBuddy result for an old frozen plan
   hooks      Run declared development hooks and populate reusable receipts
   artifacts  Artifact status, inspect, update/apply, resolution, and diagnostics
@@ -141497,6 +142480,9 @@ Options:
   --approve         Approve the ship plan (boolean; plan digest is auto-resolved)
   --hook-approval <path> Checkpoint approval for a requiresApproval postPublish hook (ship/distribute; repeatable)
   --state <path>    Override the durable ship state file
+  --update-local-hosts Update installed plugins for selected local hosts after VERIFIED
+  --hosts <ids>     Comma-separated local hosts for post-release update (default: all declared)
+  --confirm-plan <digest> Confirm the exact VERIFIED plan before local host mutation
   --no-hook-cache  Force every prepare hook to run in full; neither read nor write the hook cache
   --json           Output results as JSON
   --version        Show version and exit
@@ -141514,6 +142500,7 @@ Safety:
   - To ensure zero remote writes, disable hooks or audit them separately
   - docs refresh --write rewrites only declared README managed regions and the current CHANGELOG entry after exact refreshDigest confirmation; it never commits, pushes, tags, publishes, or installs.
   - publish requires explicit approval; plan digest is auto-read from the plan file
+  - post-release local host updates are optional local mutations and never change VERIFIED
   - publish consumes frozen Git/npm artifacts, never the live workspace
   - existing remote objects and uncertain checks stop for human intervention
   - production-equivalent protocol sandbox is verified; a real remote canary is not
@@ -141535,7 +142522,7 @@ if (!command && (args.includes("--version") || args.includes("-v"))) {
   } else {
     const { readFileSync: readFileSync16 } = await import("node:fs");
     const { fileURLToPath: fileURLToPath6 } = await import("node:url");
-    const pkgPath = join45(dirname23(fileURLToPath6(import.meta.url)), "..", "package.json");
+    const pkgPath = join46(dirname23(fileURLToPath6(import.meta.url)), "..", "package.json");
     pkg = JSON.parse(readFileSync16(pkgPath, "utf8"));
   }
   if (hasJson) {
@@ -141852,7 +142839,7 @@ if (command === "ship") {
       { createDistributeGitAdapter: createDistributeGitAdapter2 },
       { createAdapterRegistry: createAdapterRegistry2 }
     ] = await Promise.all([
-      Promise.resolve().then(() => (init_ship(), ship_exports)),
+      init_ship().then(() => ship_exports),
       Promise.resolve().then(() => (init_git_github(), git_github_exports)),
       Promise.resolve().then(() => (init_npm(), npm_exports)),
       init_plugin_marketplace().then(() => plugin_marketplace_exports),
@@ -141894,6 +142881,19 @@ if (command === "ship") {
           console.log("PostVerify incomplete: re-run release-skill ship to retry non-gated hooks (no approval needed for them).");
           console.log("For requiresApproval hooks, mint a checkpoint approval (release-skill approve --plan <plan> --hook <hookId> --actor <person>)");
           console.log("then re-run: release-skill ship --root <root> --hook-approval <approval-record>");
+        }
+      }
+      if (result2.status === "VERIFIED" && result2.postRelease) {
+        if (result2.postRelease.status === "UNAVAILABLE") {
+          console.warn(`Post-release checklist unavailable: ${result2.postRelease.diagnostic?.message ?? "unknown error"}`);
+        } else if (result2.postRelease.merge.promptRequired) {
+          console.log("Post-release: ask whether to merge the remaining release branch.");
+        } else {
+          console.log("Post-release: branch advancement was already included; skip the merge question.");
+        }
+        if (result2.postRelease.localHostUpdate?.promptRequired) {
+          console.log(`Post-release: ask whether to update local host plugins (${result2.postRelease.localHostUpdate.hosts.join(", ")}).`);
+          console.log(`Post-release command: release-skill post-release --plan ${result2.planPath} --run ${result2.verifyRunPath}`);
         }
       }
       for (const followUp of result2.manualFollowUps ?? []) {
@@ -142130,7 +143130,7 @@ if (command === "approve") {
     const resolvedPlanPath = resolve40(planPath);
     const planDir = dirname23(resolvedPlanPath);
     const releaseDir = basename16(planDir) === "plans" && basename16(resolvedPlanPath) === `${resolvedDigest}.json` ? dirname23(planDir) : planDir;
-    const approvalPath = outputPath ?? join45(releaseDir, "approval-record.json");
+    const approvalPath = outputPath ?? join46(releaseDir, "approval-record.json");
     const record = await approvePlan2({ planPath, expectedDigest: resolvedDigest, actor, outputPath: approvalPath });
     if (hasJson) {
       console.log(JSON.stringify(record, null, 2));
@@ -142216,6 +143216,82 @@ if (command === "reconcile") {
     await exitAfterFlush(err.exitCode ?? 1);
   }
 }
+if (command === "post-release") {
+  const value = /* @__PURE__ */ __name((flag) => {
+    const idx = args.indexOf(flag);
+    return idx !== -1 && args[idx + 1] ? args[idx + 1] : void 0;
+  }, "value");
+  const planPath = value("--plan") ? resolve40(value("--plan")) : void 0;
+  const runPath = value("--run") ? resolve40(value("--run")) : void 0;
+  if (!planPath || !runPath) {
+    const message = "post-release requires --plan <path> and --run <verified-run-path>";
+    if (hasJson) console.log(JSON.stringify({ error: "MISSING_PARAMETERS", message, exitCode: 1 }));
+    else console.error(`Error: ${message}`);
+    await exitAfterFlush(1);
+  }
+  try {
+    const {
+      assertVerifiedReleaseRun: assertVerifiedReleaseRun2,
+      derivePostReleaseChecklist: derivePostReleaseChecklist2,
+      updateLocalHostPlugins: updateLocalHostPlugins2
+    } = await init_post_release_local().then(() => post_release_local_exports);
+    const { validatePlan: validatePlan2 } = await init_plan().then(() => plan_exports);
+    const {
+      loadRun: loadRun2,
+      resolveRunPath: resolveRunPath2,
+      validateRunLineage: validateRunLineage2
+    } = await init_run().then(() => run_exports);
+    const plan = JSON.parse(await readFile54(planPath, "utf8"));
+    validatePlan2(plan);
+    const resolvedRunPath = await resolveRunPath2(runPath);
+    const runRecord = await loadRun2(resolvedRunPath, {
+      requireDigest: true,
+      authorityPlanPath: planPath
+    });
+    await validateRunLineage2(runRecord, {
+      plan,
+      planPath,
+      runPath: resolvedRunPath,
+      production: Boolean(plan.production)
+    });
+    assertVerifiedReleaseRun2(plan, runRecord);
+    const updateRequested = args.includes("--update-local-hosts");
+    const selectedHosts = value("--hosts")?.split(",").map((host) => host.trim()).filter(Boolean);
+    const result2 = updateRequested ? await updateLocalHostPlugins2({
+      plan,
+      root: resolve40(value("--root") ?? process.cwd()),
+      confirmPlanDigest: value("--confirm-plan"),
+      selectedHosts
+    }) : derivePostReleaseChecklist2(plan);
+    if (hasJson) {
+      console.log(JSON.stringify(result2, null, 2));
+    } else if (!updateRequested) {
+      console.log(`Post-release status: ${result2.status}`);
+      if (result2.merge.promptRequired) console.log("Ask whether the user wants to merge the remaining branch.");
+      else console.log("Branch advancement was already included in the release workflow; skip the merge question.");
+      if (result2.localHostUpdate.promptRequired) {
+        console.log(`Ask whether to update local host plugins: ${result2.localHostUpdate.hosts.join(", ")}`);
+      }
+    } else {
+      console.log(`Local host update: ${result2.status}`);
+      for (const entry of result2.results) {
+        console.log(`  ${entry.host}/${entry.unitId}: ${entry.status}${entry.version ? ` (${entry.version})` : ""}`);
+      }
+      console.log("The release remains VERIFIED; restart updated hosts before using the new plugin bytes.");
+    }
+    const success = !updateRequested || ["UPDATED", "ALREADY_CURRENT", "NO_APPLICABLE_HOSTS"].includes(result2.status);
+    await exitAfterFlush(success ? 0 : 1);
+  } catch (err) {
+    if (hasJson) {
+      console.log(JSON.stringify({
+        error: err.code ?? "POST_RELEASE_FAILED",
+        message: err.message,
+        exitCode: err.exitCode ?? 1
+      }));
+    } else console.error(`Error: ${err.message}`);
+    await exitAfterFlush(err.exitCode ?? 1);
+  }
+}
 if (command === "verify") {
   const rootIdx = args.indexOf("--root");
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
@@ -142254,6 +143330,18 @@ if (command === "verify") {
       root,
       verificationGatesAuthorized
     });
+    if (result2.status === "VERIFIED") {
+      const {
+        derivePostReleaseChecklist: derivePostReleaseChecklist2,
+        unavailablePostReleaseChecklist: unavailablePostReleaseChecklist2
+      } = await init_post_release_local().then(() => post_release_local_exports);
+      const plan = JSON.parse(await readFile54(planPath, "utf8"));
+      try {
+        result2.postRelease = derivePostReleaseChecklist2(plan);
+      } catch (error) {
+        result2.postRelease = unavailablePostReleaseChecklist2(plan, error);
+      }
+    }
     if (hasJson) {
       console.log(JSON.stringify(result2, null, 2));
     } else {
@@ -142268,6 +143356,14 @@ if (command === "verify") {
         } else {
           console.log(`Baseline advance: ${result2.baselineAdvance.committed ? "advanced and committed" : "advanced (uncommitted \u2014 commit .release-skill/project.yaml manually)"}`);
         }
+      }
+      if (result2.postRelease?.status === "UNAVAILABLE") {
+        console.warn(`Post-release checklist unavailable: ${result2.postRelease.diagnostic?.message ?? "unknown error"}`);
+      } else if (result2.postRelease?.merge.promptRequired) {
+        console.log("Post-release: ask whether to merge the remaining branch.");
+      }
+      if (result2.postRelease?.localHostUpdate.promptRequired) {
+        console.log(`Post-release: ask whether to update local host plugins (${result2.postRelease.localHostUpdate.hosts.join(", ")}).`);
       }
     }
     await exitAfterFlush(result2.status === "VERIFIED" ? 0 : 1);

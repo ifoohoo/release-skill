@@ -23,6 +23,7 @@ import { resolveContained } from 'skill-family-harness-node';
 const execFile = promisify(execFileCb);
 
 import { validatePlan, computePlanDigest, validatePlanActionCompleteness } from '../core/plan.mjs';
+import { normalizePostPublishView, postPublishActionId } from '../core/postpublish.mjs';
 import { createEvidenceWriter } from '../core/evidence.mjs';
 import { readRunRecovery } from '../core/recovery.mjs';
 import {
@@ -888,7 +889,7 @@ async function discoverDistributeRuns({ planPath, plan }) {
  *   governance rule that NEEDS_INPUT/BLOCKED cannot silently become VERIFIED.
  *
  * @param {Object} run - A distribute run record (checkpoints + status).
- * @param {Object} plan - The frozen release plan (postPublish.hooks source).
+ * @param {Object} plan - The frozen release plan (normalized postPublish declaration source).
  * @returns {{ pass: boolean, warned: boolean, exemptions: Object[] }}
  */
 export function evaluateDistributeGateRun(run, plan) {
@@ -896,12 +897,19 @@ export function evaluateDistributeGateRun(run, plan) {
   if (run.status === 'DISTRIBUTED') return { pass: true, warned: false, exemptions: [] };
   if (run.status !== 'PARTIAL') return { pass: false, warned: false, exemptions: [] };
 
-  const hooksById = new Map(((plan?.postPublish?.hooks ?? [])).map((hook) => [hook.id, hook]));
+  // §4.3 unified normalization: hooks resolve across all declarations and
+  // are keyed by the SAME action-id derivation the distribute run used, so
+  // v3 namespaced checkpoint ids (unitId/hookId) map back to their hook.
+  const hooksByActionId = new Map((plan ? normalizePostPublishView(plan) : [])
+    .flatMap((declaration) => (declaration.hooks ?? []).map((hook) => [
+      postPublishActionId({ planVersion: plan?.planVersion, unitId: declaration.unitId, localId: hook.id }),
+      hook,
+    ])));
   const exemptions = [];
   for (const checkpoint of run.checkpoints ?? []) {
     if (checkpoint.status === 'succeeded' || checkpoint.status === 'skipped') continue;
     const hook = checkpoint.actionType === 'postpublish-hook'
-      ? hooksById.get(checkpoint.actionId)
+      ? hooksByActionId.get(checkpoint.actionId)
       : undefined;
     if (hook && checkpoint.status === 'failed' && hook.blocksVerified === false) {
       exemptions.push({ actionId: checkpoint.actionId, status: checkpoint.status });
@@ -929,7 +937,7 @@ export function evaluateDistributeGateRun(run, plan) {
  * @param {() => string} [options.clock] - Clock function returning ISO-8601 strings.
  * @param {Object} [options.previousVerifyRun] - 上一次验证成功的 verify run 记录，用于安装契约摘要免验。
  *
- * @returns {Promise<{ planPath: string, status: string, adapterChecks: Object[], smokeTest: Object }>}
+ * @returns {Promise<{ planPath: string, runPath: string, status: string, adapterChecks: Object[], smokeTest: Object }>}
  *
  * @throws {ReleaseError} GATE_FAILED on safety gate failures.
  * @throws {ReleaseError} POST_PUBLISH_VERIFY_FAILED if any verification fails.
@@ -1068,10 +1076,12 @@ export async function verifyRelease(options) {
     // PARTIAL distribute run passes only through the blocksVerified:false
     // exemption path (evaluateDistributeGateRun) — warned, never silent.
     // =======================================================================
-    const declaredPostPublishTargets = plan.postPublish?.targets ?? [];
-    const declaredPostPublishHooks = plan.postPublish?.hooks ?? [];
-    if (plan.postPublish
-      && (declaredPostPublishTargets.length > 0 || declaredPostPublishHooks.length > 0)) {
+    // §4.3 unified normalization: v3 empty arrays mean no distribution
+    // requirement; legacy absent postPublish resolves to the same empty view.
+    const postPublishDeclarations = normalizePostPublishView(plan);
+    const requiresDistribution = postPublishDeclarations.some((declaration) =>
+      (declaration.targets?.length ?? 0) > 0 || (declaration.hooks?.length ?? 0) > 0);
+    if (requiresDistribution) {
       await evidence.append({ phase: 'verify', step: 'distribute-run-discovery', status: 'started' });
 
       const distributeCandidates = await discoverDistributeRuns({ planPath, plan }) ?? [];
@@ -2176,6 +2186,7 @@ export async function verifyRelease(options) {
 
     return {
       planPath,
+      runPath: verifyRunPath,
       status: VERIFIED,
       adapterChecks,
       recoveryActionCode: null,

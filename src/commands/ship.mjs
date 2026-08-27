@@ -3,7 +3,15 @@ import { basename, dirname, resolve } from 'node:path';
 import { publishFileOrReplace } from 'skill-family-harness-node';
 
 import { canonicalJson, sha256Hex } from '../core/digest.mjs';
-import { effectiveHookRequiresApproval } from '../core/postpublish.mjs';
+import {
+  effectiveHookRequiresApproval,
+  normalizePostPublishView,
+  postPublishActionId,
+} from '../core/postpublish.mjs';
+import {
+  derivePostReleaseChecklist,
+  unavailablePostReleaseChecklist,
+} from './post-release-local.mjs';
 import {
   ReleaseError,
   GATE_FAILED,
@@ -101,11 +109,13 @@ function publicState(state) {
     ...(state.approvalSummary ? { approvalSummary: state.approvalSummary } : {}),
     ...(state.approvalPath ? { approvalPath: state.approvalPath } : {}),
     ...(state.sourceRunPath ? { sourceRunPath: state.sourceRunPath } : {}),
+    ...(state.verifyRunPath ? { verifyRunPath: state.verifyRunPath } : {}),
     ...(state.distributeRunPath ? { distributeRunPath: state.distributeRunPath } : {}),
     ...(state.postVerify ? { postVerify: state.postVerify } : {}),
     ...(state.requirements ? { requirements: state.requirements } : {}),
     ...(state.manualFollowUps ? { manualFollowUps: state.manualFollowUps } : {}),
     ...(state.metadataUpdate ? { metadataUpdate: state.metadataUpdate } : {}),
+    ...(state.postRelease ? { postRelease: state.postRelease } : {}),
     verificationGateAuthorizationIncludedInPlanApproval: true,
     postVerifyMetadataUpdateIncludedInPlanApproval: true,
   };
@@ -146,11 +156,19 @@ async function buildApprovalSummary(planPath) {
  * or missing record falls back to ALL declared hooks — fail-safe, because a
  * gated hook in doubt keeps the gate shut.
  *
+ * Checkpoint action ids are unit-scoped for planVersion 3
+ * (`unitId/localId`, postPublishActionId) and bare local ids for legacy
+ * plans, so the closed-set comparison must derive the id from the owning
+ * declaration instead of comparing the bare hook id — otherwise every v3
+ * hook looks unclosed and a closed gated hook keeps the gate shut.
+ *
  * @param {object} state - Ship state (postVerify.runPath inspected).
- * @param {object[]} postVerifyHooks - Declared phase:postVerify hooks.
+ * @param {Array<{hook: object, unitId: string}>} postVerifyHooks - Declared
+ *   phase:postVerify hooks bound to their owning declaration's unitId.
+ * @param {number} planVersion - Frozen plan's planVersion (action-id rule).
  * @returns {Promise<boolean>}
  */
-async function allUnclosedPostVerifyHooksUngated(state, postVerifyHooks) {
+async function allUnclosedPostVerifyHooksUngated(state, postVerifyHooks, planVersion) {
   if (!Array.isArray(postVerifyHooks) || postVerifyHooks.length === 0) return false;
   let candidates = postVerifyHooks;
   if (state.postVerify?.runPath) {
@@ -163,13 +181,14 @@ async function allUnclosedPostVerifyHooksUngated(state, postVerifyHooks) {
             && (cp.status === 'succeeded' || cp.status === 'NO_CHANGE'))
           .map((cp) => cp.actionId),
       );
-      candidates = postVerifyHooks.filter((hook) => !closedIds.has(hook.id));
+      candidates = postVerifyHooks.filter(({ hook, unitId }) =>
+        !closedIds.has(postPublishActionId({ planVersion, unitId, localId: hook.id })));
     } catch {
       candidates = postVerifyHooks; // unreadable record: fail safe
     }
   }
   if (candidates.length === 0) return false;
-  return candidates.every((hook) => effectiveHookRequiresApproval(hook) === false);
+  return candidates.every(({ hook }) => effectiveHookRequiresApproval(hook) === false);
 }
 
 /**
@@ -344,10 +363,12 @@ export async function advanceShip(options = {}, injected = {}) {
   if (state.status === 'PUBLISHED' || state.status === 'NEEDS_MANUAL_ATTESTATIONS') {
     // Step 1: Check if postPublish requires distribution.
     // Hooks-only declarations (no targets) still route through distribute.
+    // §4.3 unified normalization: v3 empty arrays carry no distribute work;
+    // legacy absent postPublish resolves to the same empty view.
     const plan = JSON.parse(await readFile(state.planPath, 'utf8'));
-    const hasDistributeWork = (plan.postPublish?.targets?.length ?? 0) > 0
-      || (plan.postPublish?.hooks?.length ?? 0) > 0;
-    const needsDistribution = Boolean(plan.postPublish) && hasDistributeWork;
+    const hasDistributeWork = normalizePostPublishView(plan).some((declaration) =>
+      (declaration.targets?.length ?? 0) > 0 || (declaration.hooks?.length ?? 0) > 0);
+    const needsDistribution = hasDistributeWork;
     if (needsDistribution && deps.distributeRelease) {
       state.status = 'DISTRIBUTING';
       await writeJsonAtomic(statePath, state);
@@ -404,9 +425,19 @@ export async function advanceShip(options = {}, injected = {}) {
         requirements: undefined,
         manualFollowUps: verified.manualFollowUps ?? undefined,
         baselineAdvance: verified.baselineAdvance ?? undefined,
+        postRelease: undefined,
         updatedAt: new Date().toISOString(),
       };
       await writeJsonAtomic(statePath, state);
+      if (verified.status === 'VERIFIED') {
+        try {
+          state.postRelease = derivePostReleaseChecklist(plan);
+        } catch (error) {
+          state.postRelease = unavailablePostReleaseChecklist(plan, error);
+        }
+        state.updatedAt = new Date().toISOString();
+        await writeJsonAtomic(statePath, state);
+      }
     } catch (error) {
       if (error?.code !== CONSUMER_VERIFICATION_DEFERRED) throw error;
       state = {
@@ -422,7 +453,8 @@ export async function advanceShip(options = {}, injected = {}) {
     // independent run after the main run is VERIFIED, with the verify run as
     // lineage source. A PARTIAL postVerify run or a postVerify gate failure
     // NEVER demotes VERIFIED — the outcome is recorded on the ship state.
-    const postVerifyHooks = (plan.postPublish?.hooks ?? [])
+    const postVerifyHooks = normalizePostPublishView(plan)
+      .flatMap((declaration) => declaration.hooks ?? [])
       .filter((hook) => hook.phase === 'postVerify');
     if (state.status === 'VERIFIED' && postVerifyHooks.length > 0 && deps.postVerifyRelease) {
       postVerifyRanThisCall = true;
@@ -476,10 +508,11 @@ export async function advanceShip(options = {}, injected = {}) {
     && (!state.postVerify || state.postVerify.status !== 'DISTRIBUTED')
   ) {
     const reentryPlan = JSON.parse(await readFile(state.planPath, 'utf8'));
-    const reentryPostVerifyHooks = (reentryPlan.postPublish?.hooks ?? [])
-      .filter((hook) => hook.phase === 'postVerify');
+    const reentryPostVerifyHooks = normalizePostPublishView(reentryPlan)
+      .flatMap((declaration) => (declaration.hooks ?? []).map((hook) => ({ hook, unitId: declaration.unitId })))
+      .filter(({ hook }) => hook.phase === 'postVerify');
     const approvallessRetryAllowed = reentryApprovalPaths.length === 0
-      && await allUnclosedPostVerifyHooksUngated(state, reentryPostVerifyHooks);
+      && await allUnclosedPostVerifyHooksUngated(state, reentryPostVerifyHooks, reentryPlan.planVersion);
     if (reentryPostVerifyHooks.length > 0
       && (reentryApprovalPaths.length > 0 || approvallessRetryAllowed)) {
       let postVerifyOutcome;

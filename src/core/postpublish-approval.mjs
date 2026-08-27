@@ -47,6 +47,7 @@ import { ReleaseError, GATE_FAILED } from './errors.mjs';
 import { computePlanDigest } from './plan.mjs';
 import { computeApprovalDigest, validateApprovalTimeWindow } from './approval.mjs';
 import { resolvePresetRequiresApproval } from './presets.mjs';
+import { normalizePostPublishView, validatePostPublishHookIdUniqueness } from './postpublish.mjs';
 import { readTrustedPackageResource } from './trusted-resource.mjs';
 
 const postpublishApprovalSchema = JSON.parse((await readTrustedPackageResource(
@@ -79,7 +80,8 @@ export function validatePostPublishApprovalRecordSchema(approval) {
  * - record shape (postpublish-approval-record schema; additionalProperties
  *   is false, so plan-level fields like approvedActions are rejected);
  * - planDigest equals the computed plan digest;
- * - hookId names a hook declared in the frozen plan's postPublish.hooks;
+ * - hookId names a hook declared in the frozen plan's postPublish
+ *   declarations (unified normalized view, globally unique across units);
  * - that hook actually declares requiresApproval: true;
  * - the shared approval time window (24h max, 5-minute skew, unexpired).
  *
@@ -103,7 +105,15 @@ export function validatePostPublishApproval(plan, approval, options = {}) {
     );
   }
 
-  const hooks = plan.postPublish?.hooks ?? [];
+  // §4.3 unified normalization (rework R-02): the frozen plan's postPublish
+  // may be the legacy single declaration (planVersion 1/2) or the v3
+  // declaration array; every consumer resolves declared hooks through the
+  // SAME normalized view, and the SAME array-level uniqueness authority
+  // re-asserts that hookId is globally unique across declarations — one
+  // (planDigest, hookId) approval must never authorize two units.
+  const declarations = normalizePostPublishView(plan);
+  validatePostPublishHookIdUniqueness(declarations);
+  const hooks = declarations.flatMap((declaration) => declaration.hooks ?? []);
   const hook = hooks.find((entry) => entry.id === approval.hookId);
   if (!hook) {
     throw new ReleaseError(

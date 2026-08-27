@@ -99,16 +99,19 @@ import {
   validatePostPublishDeclaration,
   buildPostPublishContext,
   normalizePostPublishDeclaration,
+  normalizePostPublishView,
   orderNormalizedHooks,
   effectiveHookRequiresApproval,
+  postPublishActionId,
+  validatePostPublishHookIdUniqueness,
   POSTPUBLISH_CONTEXT_ENV,
   PAYLOAD_SOURCE_TAG_WORKTREE,
 } from '../core/postpublish.mjs';
-import { verifyAndInstallExecutionBundle } from '../core/postpublish-bundle.mjs';
+import { verifyAndInstallExecutionBundle, verifyExecutionBundle } from '../core/postpublish-bundle.mjs';
 import { projectPublicPayload, PROJECTION_MECHANISM, PUBLIC_PAYLOAD_DIRNAME } from '../core/postpublish-projection.mjs';
 import { assertPostPublishApprovalAuthority, validatePostPublishApproval } from '../core/postpublish-approval.mjs';
 import { readRunRecovery } from '../core/recovery.mjs';
-import { executePresetHook } from '../core/preset-executor.mjs';
+import { executePresetHook, preflightPresetHook } from '../core/preset-executor.mjs';
 import {
   ReleaseError,
   GATE_FAILED,
@@ -325,7 +328,19 @@ export async function distributeRelease(options) {
       { expected: plan.digest, actual: actualDigest },
     );
   }
-  if (!plan.postPublish) {
+  // v3 contract (§4.3): postPublish is a frozen declaration ARRAY. Every
+  // downstream read goes through the single read-only normalization entry
+  // normalizePostPublishView — never a direct single-object read. Legacy
+  // (planVersion 1/2) absent stays fail-closed exactly as before; a v3 empty
+  // array is legal and means "no post-release execution" (handled right after
+  // the run authority is allocated, below).
+  const declarations = normalizePostPublishView(plan);
+  // Rework R-02: the single array-level explicit-hook-id uniqueness authority
+  // (core/postpublish.mjs) re-asserts the frozen view here — a digest-correct,
+  // schema-valid plan with duplicate hook ids across units must fail before
+  // any run authority, approval consumption, or side effect.
+  validatePostPublishHookIdUniqueness(declarations);
+  if (declarations.length === 0 && plan.planVersion !== 3) {
     throw new ReleaseError(
       GATE_FAILED,
       'release plan has no postPublish declaration; nothing to distribute',
@@ -351,6 +366,17 @@ export async function distributeRelease(options) {
   let sourceRunId = null;
   let sourceRunDigest = null;
   let finalRecordWritten = false;
+
+  // Saga-level chain state (single run authority; §6 matrix classification).
+  // Declared up here so every failBlocked/catch path can classify PARTIAL vs
+  // BLOCKED from the external-success facts (rework R-01): an exception after
+  // a successful external checkpoint must never be recorded BLOCKED.
+  let stopped = false;
+  let stopReason = null; // 'TARGET' | 'HOOK' — which failure stopped the saga (rework R-03).
+  let failures = 0;
+  let pushedWrites = 0;
+  let awaitingApproval = 0;
+  let hookSuccesses = 0;
 
   const startedAt = clockFn();
   let checkpoints = [];
@@ -401,11 +427,18 @@ export async function distributeRelease(options) {
     return appendRunState(runDir, stateSequence, buildPersistedState(status));
   };
 
-  /** Persist the BLOCKED run record once lineage is known (idempotent). */
-  const recordBlocked = async () => {
+  /**
+   * Persist the failure run record once lineage is known (idempotent).
+   * Rework R-01: an exception after a successful external checkpoint enters
+   * PARTIAL (the success checkpoint is retained — never rolled back); a
+   * failure with zero external successes stays BLOCKED.
+   */
+  const recordFailure = async () => {
     if (finalRecordWritten || !lineageKnown) return;
+    const externalCheckpointSuccesses = pushedWrites + hookSuccesses;
+    const status = externalCheckpointSuccesses > 0 ? PARTIAL : BLOCKED;
     try {
-      await writeRunAtomic(runPath, buildPersistedState(BLOCKED, clockFn()));
+      await writeRunAtomic(runPath, buildPersistedState(status, clockFn()));
       finalRecordWritten = true;
     } catch {
       // Persistence must never mask the primary failure.
@@ -503,46 +536,104 @@ export async function distributeRelease(options) {
       sourceRunStatus: sourceRun.status,
     });
 
+    if (declarations.length === 0) {
+      // v3 zero declarations (§6 matrix row 0): the post-release phase is
+      // skipped — no adapter call, no hook, no external write. The run keeps
+      // the full safety-gate chain (plan, approval, source-run lineage) and
+      // records an honest DISTRIBUTED skip bound to the source run.
+      await evidence.append({
+        phase: 'postpublish',
+        status: 'skipped',
+        reason: 'ZERO_DECLARATIONS',
+        planVersion: plan.planVersion,
+      });
+      await snapshot(DISTRIBUTED);
+      await writeRunAtomic(runPath, buildPersistedState(DISTRIBUTED, clockFn()));
+      finalRecordWritten = true;
+      await evidence.append({
+        phase: 'distribute',
+        status: 'completed',
+        overallStatus: DISTRIBUTED,
+        checkpointStatuses: [],
+      });
+      await evidence.finish({ status: DISTRIBUTED, planPath, runPath, finishedAt: clockFn() });
+      return { planPath, runPath, status: DISTRIBUTED, checkpoints: [], recoveryActionCode: null };
+    }
+
     // =======================================================================
-    // Declaration re-validation + deterministic target ordering.
-    // R2: preset references resolve against the built-in preset registry
-    // (core/presets.mjs); per-preset config validation (dual addressing,
-    // marketplace/staticFiles shapes, secret scan) fails closed here.
+    // Phase A — full read-only preflight across ALL declarations (v3 contract
+    // §4.3): structure, identity, remote pre-facts and provided approvals are
+    // computed for every declaration BEFORE the first external write. A later
+    // declaration failing preflight means NO declaration may have produced an
+    // external write. Legacy plans present exactly one declaration (via
+    // normalizePostPublishView) and keep their exact behavior.
     // =======================================================================
-    const postPublish = plan.postPublish;
-    validatePostPublishDeclaration(postPublish, { unitId: postPublish.unitId });
-    const orderedTargets = orderTargetsByDependency(postPublish.targets ?? []);
+    const v3 = plan.planVersion === 3;
+    // Checkpoint action ids are namespaced by the frozen unitId on v3 so a
+    // checkpoint stays addressable across units; legacy ids are unchanged
+    // (existing runs, tests and approvals pin the bare local ids). The
+    // derivation is shared core/postpublish.mjs `postPublishActionId` so
+    // recovery/verify mappings can never drift from the executed records.
+    const unitActionId = (unitId, localId) => postPublishActionId({ planVersion: plan.planVersion, unitId, localId });
 
-    // Normalized hook table (design §2.2): every targets[] entry maps onto a
-    // preset hook (payload-mirror -> git-mirror, marketplace-index ->
-    // marketplace-index-render); the table is a deterministic projection of
-    // the digest-bound declaration, ordered by dependency topology +
-    // declaration order. Target execution below keeps the exact legacy
-    // semantics; hooks[] preset execution dispatches in the hook loop
-    // (proposal-inbox git-push is wired; other presets fail closed until
-    // their behavior ships).
-    const normalizedDeclaration = normalizePostPublishDeclaration(postPublish);
-    const orderedNormalizedHooks = orderNormalizedHooks(normalizedDeclaration.hooks);
-    await evidence.append({
-      phase: 'postpublish-normalization',
-      status: 'passed',
-      preGates: normalizedDeclaration.preGates.map((gate) => gate.gate),
-      hookCount: orderedNormalizedHooks.length,
-      hookIds: orderedNormalizedHooks.map((hook) => hook.id),
-    });
-
-    // postPublish hooks (v0.6.3 R1): distribute-phase hooks run in this saga;
-    // postVerify-phase hooks belong to the independent postVerify run (R3)
-    // and are only evidenced here — never executed, never silent.
-    const declaredHooks = postPublish.hooks ?? [];
-    const distributeHooks = declaredHooks.filter((hook) => (hook.phase ?? 'distribute') === 'distribute');
-    const deferredPostVerifyHooks = declaredHooks.length - distributeHooks.length;
-
-    /** Gate failure after lineage is known: persist BLOCKED, then rethrow. */
+    /** Gate failure after lineage is known: persist the failure record
+     * (BLOCKED at zero external successes, PARTIAL once one exists — rework
+     * R-01), then rethrow. */
     const failBlocked = async (error) => {
-      await recordBlocked();
+      await recordFailure();
       throw error;
     };
+
+    // --- Phase A1: declaration structure validation + normalization ---
+    // R2: preset references resolve against the built-in preset registry
+    // (core/presets.mjs); per-preset config validation (dual addressing,
+    // marketplace/staticFiles shapes, secret scan) fails closed here — for
+    // EVERY declaration, before any adapter call or external write.
+    // R-01 (rework): the frozen execution bundle closure is re-verified for
+    // EVERY declaration here too (store re-read + Foundation closure
+    // recomputation, the exact implementation the Phase B install reuses) —
+    // a later declaration's missing/drifted bundle must fail the whole saga
+    // BEFORE unit A writes anything.
+    const prepared = [];
+    for (const declaration of declarations) {
+      validatePostPublishDeclaration(declaration, { unitId: declaration.unitId });
+      await verifyExecutionBundle({ planPath, postPublish: declaration });
+      const orderedTargets = orderTargetsByDependency(declaration.targets ?? []);
+
+      // Normalized hook table (design §2.2): every targets[] entry maps onto
+      // a preset hook (payload-mirror -> git-mirror, marketplace-index ->
+      // marketplace-index-render); the table is a deterministic projection of
+      // the digest-bound declaration, ordered by dependency topology +
+      // declaration order. Target execution below keeps the exact legacy
+      // semantics; hooks[] preset execution dispatches in the hook loop
+      // (proposal-inbox git-push is wired; other presets fail closed until
+      // their behavior ships).
+      const normalizedDeclaration = normalizePostPublishDeclaration(declaration);
+      const orderedNormalizedHooks = orderNormalizedHooks(normalizedDeclaration.hooks);
+
+      // postPublish hooks (v0.6.3 R1): distribute-phase hooks run in this
+      // saga; postVerify-phase hooks belong to the independent postVerify run
+      // (R3) and are only evidenced here — never executed, never silent.
+      const declaredHooks = declaration.hooks ?? [];
+      const distributeHooks = declaredHooks.filter((hook) => (hook.phase ?? 'distribute') === 'distribute');
+      const deferredPostVerifyHooks = declaredHooks.length - distributeHooks.length;
+      await evidence.append({
+        phase: 'postpublish-normalization',
+        status: 'passed',
+        unitId: declaration.unitId,
+        preGates: normalizedDeclaration.preGates.map((gate) => gate.gate),
+        hookCount: orderedNormalizedHooks.length,
+        hookIds: orderedNormalizedHooks.map((hook) => hook.id),
+      });
+      prepared.push({
+        declaration,
+        orderedTargets,
+        normalizedDeclaration,
+        orderedNormalizedHooks,
+        distributeHooks,
+        deferredPostVerifyHooks,
+      });
+    }
 
     // =======================================================================
     // Gate: checkpoint approvals for requiresApproval hooks. Every provided
@@ -615,48 +706,53 @@ export async function distributeRelease(options) {
       });
     }
 
-    // Hooks whose checkpoint approval is still missing. While any exist, the
+    // Hooks whose checkpoint approval is still missing (across ALL
+    // declarations; hook ids are globally unique). While any exist, the
     // declared postPublish steps (unaudited project code) must not execute:
     // the run parks at NEEDS_INPUT/PARTIAL and the approved reconcile rerun
     // re-executes them. Targets remain plan-approval-authorized idempotent
     // remote-state convergence and are unaffected.
-    const pendingHookApprovals = distributeHooks.filter(
+    const pendingHookApprovals = prepared.flatMap((prep) => prep.distributeHooks.filter(
       (hook) => effectiveHookRequiresApproval(hook) && !approvedHookIds.has(hook.id),
-    );
+    ));
 
-    // Checkpoint registry: one probe + one mirror per target, declared order,
-    // then one postpublish-hook checkpoint per distribute-phase hook.
+    // Checkpoint registry: per declaration, one probe + one mirror per target
+    // (declared order), then one postpublish-hook checkpoint per distribute-
+    // phase hook. Action ids are unit-namespaced on v3 (unitActionId).
     checkpoints = [];
-    for (const target of orderedTargets) {
-      checkpoints.push({
-        actionId: `probe-${target.id}`,
-        actionType: ActionType.DISTRIBUTE_PROBE,
-        status: 'PENDING',
-        remoteUrl: target.remoteUrl,
-        branch: target.branch,
-        tag: postPublish.tag,
-        executor: EXECUTOR,
-      });
-    }
-    for (const target of orderedTargets) {
-      checkpoints.push({
-        actionId: target.id,
-        actionType: ActionType.DISTRIBUTE_MIRROR,
-        status: 'PENDING',
-        remoteUrl: target.remoteUrl,
-        branch: target.branch,
-        tag: postPublish.tag,
-        tagCommit: SHA_RE.test(postPublish.tagCommit ?? '') ? postPublish.tagCommit : undefined,
-        executor: EXECUTOR,
-      });
-    }
-    for (const hook of distributeHooks) {
-      checkpoints.push({
-        actionId: hook.id,
-        actionType: 'postpublish-hook',
-        status: 'PENDING',
-        executor: EXECUTOR,
-      });
+    for (const prep of prepared) {
+      const { declaration, orderedTargets, distributeHooks } = prep;
+      for (const target of orderedTargets) {
+        checkpoints.push({
+          actionId: unitActionId(declaration.unitId, `probe-${target.id}`),
+          actionType: ActionType.DISTRIBUTE_PROBE,
+          status: 'PENDING',
+          remoteUrl: target.remoteUrl,
+          branch: target.branch,
+          tag: declaration.tag,
+          executor: EXECUTOR,
+        });
+      }
+      for (const target of orderedTargets) {
+        checkpoints.push({
+          actionId: unitActionId(declaration.unitId, target.id),
+          actionType: ActionType.DISTRIBUTE_MIRROR,
+          status: 'PENDING',
+          remoteUrl: target.remoteUrl,
+          branch: target.branch,
+          tag: declaration.tag,
+          tagCommit: SHA_RE.test(declaration.tagCommit ?? '') ? declaration.tagCommit : undefined,
+          executor: EXECUTOR,
+        });
+      }
+      for (const hook of distributeHooks) {
+        checkpoints.push({
+          actionId: unitActionId(declaration.unitId, hook.id),
+          actionType: 'postpublish-hook',
+          status: 'PENDING',
+          executor: EXECUTOR,
+        });
+      }
     }
     const checkpointById = new Map(checkpoints.map((cp) => [cp.actionId, cp]));
 
@@ -670,129 +766,150 @@ export async function distributeRelease(options) {
     // local tag is diagnostic only (a fresh split source repo legitimately
     // has no local tag). Missing binding/objects/lineage fails closed as
     // GATE_FAILED; remote tag missing/drifted is a REMOTE_CONFLICT requiring
-    // human decision.
+    // human decision. Runs per declaration, in frozen order, all read-only.
     // =======================================================================
-    await evidence.append({ phase: 'safety-gate', gate: 'tag-identity', status: 'started' });
-
-    if (postPublish.payloadSource !== PAYLOAD_SOURCE_TAG_WORKTREE) {
-      await failBlocked(new ReleaseError(
-        GATE_FAILED,
-        `postPublish.payloadSource must be "${PAYLOAD_SOURCE_TAG_WORKTREE}"`,
-        { payloadSource: postPublish.payloadSource },
-      ));
-    }
-    if (typeof postPublish.tagCommit !== 'string' || !SHA_RE.test(postPublish.tagCommit)) {
-      await failBlocked(new ReleaseError(
-        GATE_FAILED,
-        'postPublish is missing a frozen tagCommit binding; distribute fails closed',
-        { tagCommit: postPublish.tagCommit ?? null },
-      ));
-    }
-
-    let tagAuthority;
-    try {
-      tagAuthority = await resolveFrozenTagAuthority({
-        plan,
-        unitId: postPublish.unitId,
-        sourceRun,
-        root,
-        exec,
-        observeTagFn,
-        observeBranchFn,
-        // 裁决 15: the public main line is observed only for the explicit
-        // optional gate; with it off, no branch observation happens at all.
-        observeMainLine: postPublish.assertMainVersionAhead === true,
-      });
-    } catch (err) {
+    for (const prep of prepared) {
+      const { declaration } = prep;
       await evidence.append({
         phase: 'safety-gate',
         gate: 'tag-identity',
-        status: 'failed',
-        error: asError('TAG_IDENTITY_GATE_FAILED', boundedOutputTail(err?.message ?? String(err))),
-        details: {
-          code: err?.code ?? GATE_FAILED,
-          reason: err?.details?.reason ?? null,
-        },
+        status: 'started',
+        unitId: declaration.unitId,
       });
-      await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
-        GATE_FAILED,
-        `tag identity cannot be verified: ${err?.message ?? err}`,
-      ));
-    }
-    // Cross-section consistency: the postPublish block and the create-tag
-    // external action must agree on the frozen tag identity.
-    if (tagAuthority.tag !== postPublish.tag || tagAuthority.commit !== postPublish.tagCommit) {
-      await failBlocked(new ReleaseError(
-        GATE_FAILED,
-        'frozen postPublish tag identity conflicts with the frozen create-tag binding',
-        {
-          postPublishTag: postPublish.tag,
-          postPublishTagCommit: postPublish.tagCommit,
-          bindingTag: tagAuthority.tag,
-          bindingCommit: tagAuthority.commit,
-        },
-      ));
-    }
-    if (tagAuthority.localTagDrifted) {
-      // R-01: the local tag is a diagnostic only — never a failure.
-      await evidence.append({
-        phase: 'safety-gate',
-        gate: 'tag-identity',
-        status: 'warning',
-        detail: 'local tag drifted from the frozen commit; public remote stays authoritative',
-        localTagCommit: tagAuthority.localTagCommit,
-        frozenTagCommit: tagAuthority.commit,
-      });
-    }
 
-    await evidence.append({
-      phase: 'safety-gate',
-      gate: 'tag-identity',
-      status: 'passed',
-      tagCommit: tagAuthority.commit,
-      observedRemoteTag: tagAuthority.observedRemoteTag,
-      localTagPresent: tagAuthority.localTagPresent,
-    });
+      if (declaration.payloadSource !== PAYLOAD_SOURCE_TAG_WORKTREE) {
+        await failBlocked(new ReleaseError(
+          GATE_FAILED,
+          `postPublish.payloadSource must be "${PAYLOAD_SOURCE_TAG_WORKTREE}"`,
+          { payloadSource: declaration.payloadSource, unitId: declaration.unitId },
+        ));
+      }
+      if (typeof declaration.tagCommit !== 'string' || !SHA_RE.test(declaration.tagCommit)) {
+        await failBlocked(new ReleaseError(
+          GATE_FAILED,
+          'postPublish is missing a frozen tagCommit binding; distribute fails closed',
+          { tagCommit: declaration.tagCommit ?? null, unitId: declaration.unitId },
+        ));
+      }
 
-    // =======================================================================
-    // Gate 5 (optional): the public main line must have moved ahead of the
-    // tag (observed from the public remote, not the live workspace).
-    // =======================================================================
-    if (postPublish.assertMainVersionAhead === true) {
-      await evidence.append({ phase: 'safety-gate', gate: 'main-version-ahead', status: 'started' });
+      let tagAuthority;
       try {
-        await assertMainLineAhead({
-          tagCommit: tagAuthority.commit,
-          branchCommit: tagAuthority.branchCommit,
-          branch: tagAuthority.branch,
-          gitDir: tagAuthority.gitDir,
-          remoteUrl: tagAuthority.remoteUrl,
+        tagAuthority = await resolveFrozenTagAuthority({
+          plan,
+          unitId: declaration.unitId,
+          sourceRun,
+          root,
           exec,
+          observeTagFn,
+          observeBranchFn,
+          // 裁决 15: the public main line is observed only for the explicit
+          // optional gate; with it off, no branch observation happens at all.
+          observeMainLine: declaration.assertMainVersionAhead === true,
         });
       } catch (err) {
         await evidence.append({
           phase: 'safety-gate',
-          gate: 'main-version-ahead',
+          gate: 'tag-identity',
           status: 'failed',
-          error: asError('MAIN_VERSION_AHEAD_FAILED', boundedOutputTail(err?.message ?? String(err))),
+          error: asError('TAG_IDENTITY_GATE_FAILED', boundedOutputTail(err?.message ?? String(err))),
+          details: {
+            code: err?.code ?? GATE_FAILED,
+            reason: err?.details?.reason ?? null,
+            unitId: declaration.unitId,
+          },
         });
         await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
           GATE_FAILED,
-          `assertMainVersionAhead failed: ${err?.message ?? err}`,
+          `tag identity cannot be verified: ${err?.message ?? err}`,
         ));
       }
-      // failBlocked always throws, so this line runs only when the check passed.
+      // Cross-section consistency: the declaration and the create-tag
+      // external action must agree on the frozen tag identity.
+      if (tagAuthority.tag !== declaration.tag || tagAuthority.commit !== declaration.tagCommit) {
+        await failBlocked(new ReleaseError(
+          GATE_FAILED,
+          'frozen postPublish tag identity conflicts with the frozen create-tag binding',
+          {
+            postPublishTag: declaration.tag,
+            postPublishTagCommit: declaration.tagCommit,
+            bindingTag: tagAuthority.tag,
+            bindingCommit: tagAuthority.commit,
+            unitId: declaration.unitId,
+          },
+        ));
+      }
+      if (tagAuthority.localTagDrifted) {
+        // R-01: the local tag is a diagnostic only — never a failure.
+        await evidence.append({
+          phase: 'safety-gate',
+          gate: 'tag-identity',
+          status: 'warning',
+          detail: 'local tag drifted from the frozen commit; public remote stays authoritative',
+          localTagCommit: tagAuthority.localTagCommit,
+          frozenTagCommit: tagAuthority.commit,
+          unitId: declaration.unitId,
+        });
+      }
+
       await evidence.append({
         phase: 'safety-gate',
-        gate: 'main-version-ahead',
+        gate: 'tag-identity',
         status: 'passed',
-        branch: tagAuthority.branch,
-        branchCommit: tagAuthority.branchCommit,
+        tagCommit: tagAuthority.commit,
+        observedRemoteTag: tagAuthority.observedRemoteTag,
+        localTagPresent: tagAuthority.localTagPresent,
+        unitId: declaration.unitId,
       });
+
+      // ===================================================================
+      // Gate 5 (optional): the public main line must have moved ahead of the
+      // tag (observed from the public remote, not the live workspace).
+      // ===================================================================
+      if (declaration.assertMainVersionAhead === true) {
+        await evidence.append({
+          phase: 'safety-gate',
+          gate: 'main-version-ahead',
+          status: 'started',
+          unitId: declaration.unitId,
+        });
+        try {
+          await assertMainLineAhead({
+            tagCommit: tagAuthority.commit,
+            branchCommit: tagAuthority.branchCommit,
+            branch: tagAuthority.branch,
+            gitDir: tagAuthority.gitDir,
+            remoteUrl: tagAuthority.remoteUrl,
+            exec,
+          });
+        } catch (err) {
+          await evidence.append({
+            phase: 'safety-gate',
+            gate: 'main-version-ahead',
+            status: 'failed',
+            error: asError('MAIN_VERSION_AHEAD_FAILED', boundedOutputTail(err?.message ?? String(err))),
+          });
+          await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
+            GATE_FAILED,
+            `assertMainVersionAhead failed: ${err?.message ?? err}`,
+          ));
+        }
+        // failBlocked always throws, so this line runs only when the check passed.
+        await evidence.append({
+          phase: 'safety-gate',
+          gate: 'main-version-ahead',
+          status: 'passed',
+          branch: tagAuthority.branch,
+          branchCommit: tagAuthority.branchCommit,
+          unitId: declaration.unitId,
+        });
+      }
+
+      prep.tagAuthority = tagAuthority;
     }
 
     // =======================================================================
-    // Gate 6: adapter availability + per-target reachability preflight.
+    // Gate 6: adapter availability (once, saga-level) + per-target reachability
+    // preflight (read-only) for EVERY declaration before any write.
     // =======================================================================
     let probeAdapter;
     let mirrorAdapter;
@@ -806,99 +923,123 @@ export async function distributeRelease(options) {
       ));
     }
 
-    const probeObservations = new Map();
-    for (const target of orderedTargets) {
-      const probeCheckpoint = checkpointById.get(`probe-${target.id}`);
-      probeCheckpoint.startedAt = clockFn();
-      await evidence.append({
-        phase: 'safety-gate',
-        gate: `probe-${target.id}`,
-        status: 'started',
-        remoteUrl: target.remoteUrl,
-      });
-      const probeAction = {
-        actionType: ActionType.DISTRIBUTE_PROBE,
-        targetId: target.id,
-        remoteUrl: target.remoteUrl,
-        tag: postPublish.tag,
-      };
-      let probeResult;
-      try {
-        probeResult = await probeAdapter.preflight(probeAction, {
-          externalWritesAuthorized: false,
-          plan,
-          root,
-          runDir,
-        });
-      } catch (err) {
-        probeResult = { status: 'PREFLIGHT_FAILED', error: err?.message ?? String(err), details: null };
-      }
-      probeCheckpoint.finishedAt = clockFn();
-      if (probeResult.status !== 'PREFLIGHT_PASSED') {
-        const code = [REMOTE_UNAVAILABLE, REMOTE_CONFLICT].includes(probeResult.details?.code)
-          ? probeResult.details.code
-          : GATE_FAILED;
-        probeCheckpoint.status = 'FAILED';
-        probeCheckpoint.error = { code, message: probeResult.error ?? 'distribute probe failed' };
+    for (const prep of prepared) {
+      const { declaration, orderedTargets } = prep;
+      const probeObservations = new Map();
+      for (const target of orderedTargets) {
+        const probeCheckpoint = checkpointById.get(unitActionId(declaration.unitId, `probe-${target.id}`));
+        probeCheckpoint.startedAt = clockFn();
         await evidence.append({
           phase: 'safety-gate',
           gate: `probe-${target.id}`,
-          status: 'failed',
-          error: asError('PROBE_FAILED', probeResult.error),
-          details: { code },
+          status: 'started',
+          remoteUrl: target.remoteUrl,
+          unitId: declaration.unitId,
         });
-        await recordBlocked();
-        throw new ReleaseError(
-          code,
-          `distribute probe failed for target "${target.id}": ${probeResult.error ?? 'remote unreachable'}`,
-          { targetId: target.id, remoteUrl: target.remoteUrl },
-        );
+        const probeAction = {
+          actionType: ActionType.DISTRIBUTE_PROBE,
+          targetId: target.id,
+          remoteUrl: target.remoteUrl,
+          tag: declaration.tag,
+        };
+        let probeResult;
+        try {
+          probeResult = await probeAdapter.preflight(probeAction, {
+            externalWritesAuthorized: false,
+            plan,
+            root,
+            runDir,
+          });
+        } catch (err) {
+          probeResult = { status: 'PREFLIGHT_FAILED', error: err?.message ?? String(err), details: null };
+        }
+        probeCheckpoint.finishedAt = clockFn();
+        if (probeResult.status !== 'PREFLIGHT_PASSED') {
+          const code = [REMOTE_UNAVAILABLE, REMOTE_CONFLICT].includes(probeResult.details?.code)
+            ? probeResult.details.code
+            : GATE_FAILED;
+          probeCheckpoint.status = 'FAILED';
+          probeCheckpoint.error = { code, message: probeResult.error ?? 'distribute probe failed' };
+          await evidence.append({
+            phase: 'safety-gate',
+            gate: `probe-${target.id}`,
+            status: 'failed',
+            error: asError('PROBE_FAILED', probeResult.error),
+            details: { code },
+          });
+          await recordFailure();
+          throw new ReleaseError(
+            code,
+            `distribute probe failed for target "${target.id}": ${probeResult.error ?? 'remote unreachable'}`,
+            { targetId: target.id, remoteUrl: target.remoteUrl },
+          );
+        }
+        probeCheckpoint.status = 'SUCCEEDED';
+        probeObservations.set(target.id, probeResult.observation ?? {});
+        await evidence.append({
+          phase: 'safety-gate',
+          gate: `probe-${target.id}`,
+          status: 'passed',
+          tagExists: probeResult.observation?.tagExists ?? false,
+          unitId: declaration.unitId,
+        });
       }
-      probeCheckpoint.status = 'SUCCEEDED';
-      probeObservations.set(target.id, probeResult.observation ?? {});
-      await evidence.append({
-        phase: 'safety-gate',
-        gate: `probe-${target.id}`,
-        status: 'passed',
-        tagExists: probeResult.observation?.tagExists ?? false,
-      });
+      prep.probeObservations = probeObservations;
     }
 
     // =======================================================================
-    // R1 timing contract: detached worktree at the frozen tagCommit. The
-    // payload may never come from the live workspace. R-01: the worktree is
-    // materialized from a COPY of the frozen bare repo (never registered in
-    // the source repo's worktree metadata, never touching its refs).
+    // R-01 (rework): preset deterministic-conflict preflight — the narrow
+    // READ-ONLY entry (core/preset-executor.mjs preflightPresetHook) calls the
+    // SAME observation implementation the execution-phase delivery uses, for
+    // every preset hook that will actually execute this run. A deterministic
+    // conflict (e.g. the proposal path already exists with different bytes)
+    // fails the whole saga here, BEFORE the first external write. This is not
+    // a lock: the execution phase re-observes every remote regardless. Hooks
+    // parked at AWAITING_APPROVAL are not observed here — the approved
+    // reconcile rerun observes them at execution time.
     // =======================================================================
-    await evidence.append({ phase: 'worktree', status: 'started', tagCommit: tagAuthority.commit });
-    try {
-      tmpBase = await mkdtemp(join(tmpdir(), 'release-skill-distribute-'));
-      ({ worktreePath } = await createFrozenTagWorktree({
-        gitDir: tagAuthority.gitDir,
-        commit: tagAuthority.commit,
-        tmpBase,
-        exec,
-      }));
-    } catch (err) {
-      await evidence.append({ phase: 'worktree', status: 'failed', error: asError('WORKTREE_FAILED', boundedOutputTail(err?.stderr ?? err?.message)) });
-      await failBlocked(new ReleaseError(
-        GATE_FAILED,
-        `cannot create the detached tag worktree at ${tagAuthority.commit}: ${err?.message ?? err}`,
-        { tagCommit: tagAuthority.commit },
-      ));
+    for (const prep of prepared) {
+      for (const hook of prep.distributeHooks) {
+        if (effectiveHookRequiresApproval(hook) && !approvedHookIds.has(hook.id)) continue;
+        // Lineage-stable proposal identity: the SAME deterministic projection
+        // the execution phase serializes (never the per-attempt runId).
+        const proposalProjection = buildPostPublishContext({
+          plan,
+          postPublish: prep.declaration,
+          runId: `distribute-${sourceRunId}`,
+          sourceRun,
+          payloadDir: undefined,
+          phase: 'distribute',
+        });
+        const observation = await preflightPresetHook({
+          hook,
+          contextProjection: proposalProjection,
+          exec,
+        });
+        if (observation !== null) {
+          await evidence.append({
+            phase: 'safety-gate',
+            gate: 'preset-preflight',
+            status: 'passed',
+            hookId: hook.id,
+            unitId: prep.declaration.unitId,
+            verdict: observation.verdict,
+          });
+        }
+      }
     }
-    await evidence.append({ phase: 'worktree', status: 'passed' });
 
     // =======================================================================
-    // Private execution bundle (F-01 / T1): consumer-declared commands may
-    // reference scripts that exist only in the parent workspace (tooling
-    // never leaks into the frozen public surface). prepare froze those bytes
-    // digest-addressed under the plan's .release-skill; re-verify them
-    // through Foundation and install ONLY the verified bytes into the tag
-    // worktree before any hook runs. Any mismatch fails closed here —
-    // before any hook and before any external write.
+    // Phase B — serial execution in frozen declaration order. Each declaration
+    // gets its own detached tag worktree, execution-bundle install, payload
+    // staging, steps, target writes and distribute-phase hooks. The saga keeps
+    // ONE run chain: a failure stops all later checkpoints (targets and hooks
+    // of later declarations), and the first external success followed by a
+    // failure enters PARTIAL (success checkpoints are retained — never rolled
+    // back). Legacy plans iterate exactly one declaration (normalize view)
+    // with byte-identical behavior.
     // =======================================================================
-    // =======================================================================
+
     // F-04 root split: the saga holds TWO distinct roots from here on —
     // - releaseWorkspaceRoot: the real project root the user releases from;
     //   only used to resolve preset target.workspace, compare the release-
@@ -907,7 +1048,6 @@ export async function distributeRelease(options) {
     //   frozen tagCommit; only used as the hook runner context.root for
     //   materialize, steps and custom command hooks.
     // The two roots never fall back onto each other through defaults.
-    // =======================================================================
     let releaseWorkspaceRoot;
     try {
       releaseWorkspaceRoot = await realpath(root);
@@ -918,31 +1058,115 @@ export async function distributeRelease(options) {
         { root, cause: err.code },
       ));
     }
-    let installedBundlePaths = [];
-    try {
-      ({ installed: installedBundlePaths } = await verifyAndInstallExecutionBundle({
-        plan,
-        planPath,
-        worktreePath,
-      }));
-    } catch (err) {
+
+    const adapterContext = {
+      externalWritesAuthorized: true, // dry-run side effects are adapter-guaranteed zero
+      plan,
+      root,
+      runDir,
+    };
+
+    // Rework R-03: a stop propagates to the SAGA level — when a previous
+    // declaration's distribute-phase preset or custom hook failed (timeout,
+    // non-zero exit, execution failure), the remaining declaration's
+    // materialize, steps, targets, presets and custom hooks must NOT execute;
+    // its planned checkpoints are recorded SKIPPED.
+    const skipReason = () => (stopReason === 'HOOK' ? 'EARLIER_HOOK_FAILED' : 'EARLIER_TARGET_FAILED');
+
+    for (const prep of prepared) {
+      const {
+        declaration,
+        orderedTargets,
+        distributeHooks,
+        deferredPostVerifyHooks,
+        probeObservations,
+        tagAuthority,
+      } = prep;
+
+      if (stopped) {
+        for (const target of orderedTargets) {
+          const cp = checkpointById.get(unitActionId(declaration.unitId, target.id));
+          cp.status = 'SKIPPED';
+          cp.reason = skipReason();
+          cp.finishedAt = clockFn();
+        }
+        for (const hook of distributeHooks) {
+          const cp = checkpointById.get(unitActionId(declaration.unitId, hook.id));
+          cp.status = 'SKIPPED';
+          cp.reason = skipReason();
+          cp.finishedAt = clockFn();
+        }
+        await evidence.append({
+          phase: 'postpublish-declaration',
+          status: 'skipped',
+          reason: skipReason(),
+          unitId: declaration.unitId,
+        });
+        continue;
+      }
+
+      // R1 timing contract: detached worktree at the frozen tagCommit. The
+      // payload may never come from the live workspace. R-01: the worktree is
+      // materialized from a COPY of the frozen bare repo (never registered in
+      // the source repo's worktree metadata, never touching its refs).
+      await evidence.append({
+        phase: 'worktree',
+        status: 'started',
+        tagCommit: tagAuthority.commit,
+        unitId: declaration.unitId,
+      });
+      try {
+        tmpBase = await mkdtemp(join(tmpdir(), 'release-skill-distribute-'));
+        ({ worktreePath } = await createFrozenTagWorktree({
+          gitDir: tagAuthority.gitDir,
+          commit: tagAuthority.commit,
+          tmpBase,
+          exec,
+        }));
+      } catch (err) {
+        await evidence.append({ phase: 'worktree', status: 'failed', error: asError('WORKTREE_FAILED', boundedOutputTail(err?.stderr ?? err?.message)) });
+        await failBlocked(new ReleaseError(
+          GATE_FAILED,
+          `cannot create the detached tag worktree at ${tagAuthority.commit}: ${err?.message ?? err}`,
+          { tagCommit: tagAuthority.commit },
+        ));
+      }
+      await evidence.append({ phase: 'worktree', status: 'passed' });
+
+      // =====================================================================
+      // Private execution bundle (F-01 / T1): consumer-declared commands may
+      // reference scripts that exist only in the parent workspace (tooling
+      // never leaks into the frozen public surface). prepare froze those bytes
+      // digest-addressed under the plan's .release-skill; re-verify them
+      // through Foundation and install ONLY the verified bytes into the tag
+      // worktree before any hook runs. Any mismatch fails closed here —
+      // before any hook and before any external write.
+      // =====================================================================
+      let installedBundlePaths = [];
+      try {
+        ({ installed: installedBundlePaths } = await verifyAndInstallExecutionBundle({
+          planPath,
+          worktreePath,
+          postPublish: declaration,
+        }));
+      } catch (err) {
+        await evidence.append({
+          phase: 'worktree',
+          gate: 'execution-bundle',
+          status: 'failed',
+          error: asError('EXECUTION_BUNDLE_FAILED', boundedOutputTail(err?.message ?? String(err))),
+        });
+        await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
+          GATE_FAILED,
+          `cannot verify the frozen execution bundle: ${err?.message ?? err}`,
+        ));
+      }
       await evidence.append({
         phase: 'worktree',
         gate: 'execution-bundle',
-        status: 'failed',
-        error: asError('EXECUTION_BUNDLE_FAILED', boundedOutputTail(err?.message ?? String(err))),
+        status: 'passed',
+        installed: installedBundlePaths,
       });
-      await failBlocked(err instanceof ReleaseError ? err : new ReleaseError(
-        GATE_FAILED,
-        `cannot verify the frozen execution bundle: ${err?.message ?? err}`,
-      ));
-    }
-    await evidence.append({
-      phase: 'worktree',
-      gate: 'execution-bundle',
-      status: 'passed',
-      installed: installedBundlePaths,
-    });
 
     // =======================================================================
     // Payload staging (fail-closed). The frozen plan selects exactly one
@@ -959,7 +1183,7 @@ export async function distributeRelease(options) {
     //   rollback belongs to Foundation and is never reimplemented here.
     // =======================================================================
     let payloadReal;
-    const materialize = postPublish.materialize;
+    const materialize = declaration.materialize;
 
     if (materialize !== undefined) {
       await evidence.append({ phase: 'materialize', status: 'started' });
@@ -1058,7 +1282,7 @@ export async function distributeRelease(options) {
 
       // Release-domain parameter selection ONLY: the frozen mapping rides the
       // plan digest; live project configuration is never read here.
-      const publicFiles = postPublish.executionBundle?.publicFiles;
+      const publicFiles = declaration.executionBundle?.publicFiles;
       if (!Array.isArray(publicFiles) || publicFiles.length === 0) {
         await evidence.append({
           phase: 'materialize',
@@ -1107,7 +1331,7 @@ export async function distributeRelease(options) {
     // =======================================================================
     // Declared postPublish steps, in order (fail-closed).
     // =======================================================================
-    for (const step of postPublish.steps ?? []) {
+    for (const step of declaration.steps ?? []) {
       if (dryRun === true) {
         // R1 dry-run contract: steps are arbitrary project code with
         // potentially remote side effects; they never execute in a rehearsal.
@@ -1161,42 +1385,33 @@ export async function distributeRelease(options) {
     }
 
     // =======================================================================
-    // Target distribution: sequential, dependency-ordered, observe-before-
-    // write (reconcile equivalence — never force).
+    // Target distribution (per declaration): sequential, dependency-ordered,
+    // observe-before-write (reconcile equivalence — never force).
     // =======================================================================
     await evidence.append({
       phase: 'distribute',
       status: 'started',
+      unitId: declaration.unitId,
       targetCount: orderedTargets.length,
       dryRun: dryRun === true,
     });
 
-    const mirrorResults = new Map(); // targetId -> { sha } for dependents
-    let stopped = false;
-    let failures = 0;
-    let pushedWrites = 0;
-
-    const adapterContext = {
-      externalWritesAuthorized: true, // dry-run side effects are adapter-guaranteed zero
-      plan,
-      root,
-      runDir,
-    };
+    const mirrorResults = new Map(); // targetId -> { sha } for dependents (declaration-local)
 
     for (const target of orderedTargets) {
-      const cp = checkpointById.get(target.id);
+      const cp = checkpointById.get(unitActionId(declaration.unitId, target.id));
       cp.startedAt = clockFn();
 
       if (stopped) {
         cp.status = 'SKIPPED';
         cp.reason = 'EARLIER_TARGET_FAILED';
         cp.finishedAt = clockFn();
-        await evidence.append({ phase: 'checkpoint', actionId: target.id, status: 'skipped', reason: 'EARLIER_TARGET_FAILED' });
+        await evidence.append({ phase: 'checkpoint', actionId: unitActionId(declaration.unitId, target.id), status: 'skipped', reason: 'EARLIER_TARGET_FAILED' });
         continue;
       }
 
       // --- Pre-observe: a remote already at the frozen tag is SKIPPED. ---
-      await evidence.append({ phase: 'checkpoint', actionId: target.id, status: 'pre-observe' });
+      await evidence.append({ phase: 'checkpoint', actionId: unitActionId(declaration.unitId, target.id), status: 'pre-observe' });
       let preObserved = {};
       try {
         const observeResult = await mirrorAdapter.observe(
@@ -1205,7 +1420,7 @@ export async function distributeRelease(options) {
             targetId: target.id,
             remoteUrl: target.remoteUrl,
             branch: target.branch,
-            tag: postPublish.tag,
+            tag: declaration.tag,
           },
           adapterContext,
         );
@@ -1214,7 +1429,7 @@ export async function distributeRelease(options) {
         preObserved = {};
         await evidence.append({
           phase: 'checkpoint',
-          actionId: target.id,
+          actionId: unitActionId(declaration.unitId, target.id),
           status: 'pre-observe-unobservable',
           error: asError('PRE_OBSERVE_FAILED', err?.message ?? String(err)),
         });
@@ -1226,7 +1441,7 @@ export async function distributeRelease(options) {
         mirrorResults.set(target.id, { sha: preObserved.tagOid });
         await evidence.append({
           phase: 'checkpoint',
-          actionId: target.id,
+          actionId: unitActionId(declaration.unitId, target.id),
           status: 'skipped',
           details: { preObserve: 'CONSISTENT', sha: preObserved.tagOid },
         });
@@ -1244,15 +1459,15 @@ export async function distributeRelease(options) {
         kind: target.kind,
         remoteUrl: target.remoteUrl,
         branch: target.branch,
-        tag: postPublish.tag,
-        commitIdentity: postPublish.commitIdentity,
+        tag: declaration.tag,
+        commitIdentity: declaration.commitIdentity,
         dryRun: dryRun === true,
       };
       if (target.kind === 'payload-mirror') {
         action.payloadDir = payloadReal;
       } else {
         action.marketplace = target.marketplace;
-        action.pluginName = resolvePluginName(plan, postPublish.unitId);
+        action.pluginName = resolvePluginName(plan, declaration.unitId);
         const dependencyTarget = orderedTargets.find((entry) => entry.id === target.dependsOn);
         action.dependency = {
           remoteUrl: dependencyTarget.remoteUrl,
@@ -1274,7 +1489,7 @@ export async function distributeRelease(options) {
       });
 
       // --- Execute (the adapter never throws; it returns EXECUTE_FAILED). ---
-      await evidence.append({ phase: 'checkpoint', actionId: target.id, status: 'started' });
+      await evidence.append({ phase: 'checkpoint', actionId: unitActionId(declaration.unitId, target.id), status: 'started' });
       let executeResult;
       try {
         executeResult = await mirrorAdapter.execute(action, adapterContext);
@@ -1295,9 +1510,10 @@ export async function distributeRelease(options) {
         cp.finishedAt = clockFn();
         failures += 1;
         stopped = true;
+        stopReason = 'TARGET';
         await evidence.append({
           phase: 'checkpoint',
-          actionId: target.id,
+          actionId: unitActionId(declaration.unitId, target.id),
           status: 'failed',
           error: asError('EXECUTE_FAILED', executeResult.error),
           details: { code },
@@ -1317,7 +1533,7 @@ export async function distributeRelease(options) {
           ?? observation.previousHead
           ?? null;
         mirrorResults.set(target.id, { sha });
-        await evidence.append({ phase: 'checkpoint', actionId: target.id, status: 'no-change' });
+        await evidence.append({ phase: 'checkpoint', actionId: unitActionId(declaration.unitId, target.id), status: 'no-change' });
         await snapshot(PARTIAL);
         continue;
       }
@@ -1345,7 +1561,7 @@ export async function distributeRelease(options) {
             targetId: target.id,
             remoteUrl: target.remoteUrl,
             branch: target.branch,
-            tag: postPublish.tag,
+            tag: declaration.tag,
             ...(pushed ? { pushedCommit: observation.pushedCommit } : {}),
           },
           adapterContext,
@@ -1364,9 +1580,10 @@ export async function distributeRelease(options) {
         cp.finishedAt = clockFn();
         failures += 1;
         stopped = true;
+        stopReason = 'TARGET';
         await evidence.append({
           phase: 'checkpoint',
-          actionId: target.id,
+          actionId: unitActionId(declaration.unitId, target.id),
           status: 'verify-failed',
           error: asError('POST_PUBLISH_VERIFY_FAILED', verifyResult.error ?? null),
         });
@@ -1379,7 +1596,7 @@ export async function distributeRelease(options) {
       cp.finishedAt = clockFn();
       await evidence.append({
         phase: 'checkpoint',
-        actionId: target.id,
+        actionId: unitActionId(declaration.unitId, target.id),
         status: 'completed',
         mode: observation.mode,
         pushedCommit: pushed ? observation.pushedCommit : null,
@@ -1397,14 +1614,22 @@ export async function distributeRelease(options) {
     // the independent postVerify run (R3) and are evidenced as deferred.
     // =======================================================================
     if (deferredPostVerifyHooks > 0) {
-      await evidence.append({ phase: 'postpublish-hooks', status: 'deferred', deferredPostVerifyHooks });
+      await evidence.append({
+        phase: 'postpublish-hooks',
+        status: 'deferred',
+        deferredPostVerifyHooks,
+        unitId: declaration.unitId,
+      });
     }
 
-    let hooksStopped = stopped;
-    let awaitingApproval = 0;
-    let hookSuccesses = 0;
+    // Per-declaration hook chain: a failure inside this declaration stops the
+    // SAGA (rework R-03) — the remaining hooks of this declaration and every
+    // later declaration's materialize, steps, targets, presets and custom
+    // hooks are SKIPPED. `stopped`/`stopReason` are the single saga-level
+    // chain state.
     const hookContextProjection = buildPostPublishContext({
       plan,
+      postPublish: declaration,
       runId,
       sourceRun,
       payloadDir: payloadReal,
@@ -1421,18 +1646,18 @@ export async function distributeRelease(options) {
     };
 
     for (const hook of distributeHooks) {
-      const cp = checkpointById.get(hook.id);
+      const cp = checkpointById.get(unitActionId(declaration.unitId, hook.id));
       cp.startedAt = clockFn();
 
-      if (hooksStopped) {
+      if (stopped) {
         cp.status = 'SKIPPED';
-        cp.reason = 'EARLIER_TARGET_FAILED';
+        cp.reason = skipReason();
         cp.finishedAt = clockFn();
         await evidence.append({
           phase: 'postpublish-hook',
           hookId: hook.id,
           status: 'skipped',
-          reason: 'EARLIER_TARGET_FAILED',
+          reason: skipReason(),
         });
         continue;
       }
@@ -1468,7 +1693,7 @@ export async function distributeRelease(options) {
             hook,
             contextProjection: hookContextProjection,
             proposalContextProjection,
-            commitIdentity: postPublish.commitIdentity,
+            commitIdentity: declaration.commitIdentity,
             // F-04: presets receive the RELEASE workspace root (target.workspace
             // resolution + release-workspace write exclusion). The detached
             // worktree is the execution worktree and never impersonates it.
@@ -1484,7 +1709,8 @@ export async function distributeRelease(options) {
           cp.error = { code, message: err?.message ?? String(err) };
           cp.finishedAt = clockFn();
           failures += 1;
-          hooksStopped = true;
+          stopped = true;
+          stopReason = 'HOOK';
           await evidence.append({
             phase: 'postpublish-hook',
             hookId: hook.id,
@@ -1555,7 +1781,8 @@ export async function distributeRelease(options) {
         };
         cp.finishedAt = clockFn();
         failures += 1;
-        hooksStopped = true;
+        stopped = true;
+        stopReason = 'HOOK';
         await evidence.append({
           phase: 'postpublish-hook',
           hookId: hook.id,
@@ -1571,6 +1798,7 @@ export async function distributeRelease(options) {
       try {
         hookExecution = await hookRunner(
           {
+            id: hook.id,
             command: hook.command,
             ...(hook.cwd ? { cwd: hook.cwd } : {}),
             ...(hook.timeoutMs !== undefined ? { timeoutMs: hook.timeoutMs } : {}),
@@ -1593,7 +1821,8 @@ export async function distributeRelease(options) {
         cp.error = { code, message: err?.message ?? String(err) };
         cp.finishedAt = clockFn();
         failures += 1;
-        hooksStopped = true;
+        stopped = true;
+        stopReason = 'HOOK';
         await evidence.append({
           phase: 'postpublish-hook',
           hookId: hook.id,
@@ -1612,7 +1841,8 @@ export async function distributeRelease(options) {
         };
         cp.finishedAt = clockFn();
         failures += 1;
-        hooksStopped = true;
+        stopped = true;
+        stopReason = 'HOOK';
         await evidence.append({
           phase: 'postpublish-hook',
           hookId: hook.id,
@@ -1630,6 +1860,11 @@ export async function distributeRelease(options) {
       hookSuccesses += 1;
       await evidence.append({ phase: 'postpublish-hook', hookId: hook.id, status: 'succeeded' });
       await snapshot(PARTIAL);
+    }
+
+      // This declaration's scratch worktree is consumed; release it. The
+      // outer finally keeps the safety net for a mid-declaration throw.
+      await cleanupWorktree();
     }
 
     // =======================================================================
@@ -1675,14 +1910,20 @@ export async function distributeRelease(options) {
   } catch (err) {
     // The happy path returns before this catch, so `evidence.finish` can never
     // double-run here: it must ALWAYS close the evidence stream and seal the
-    // summary, even when failBlocked already persisted the BLOCKED record.
+    // summary, even when failBlocked already persisted the failure record.
+    // Rework R-01: the persisted status and the summary reflect the existing
+    // success checkpoints — PARTIAL once one external checkpoint succeeded,
+    // BLOCKED at zero external side effects.
+    const catchStatus = !lineageKnown
+      ? 'FAILED'
+      : (pushedWrites + hookSuccesses) > 0 ? PARTIAL : BLOCKED;
     try {
       await evidence.append({
         phase: 'distribute',
         status: 'failed',
         error: { code: err.code, message: err.message },
       });
-      if (lineageKnown && !finalRecordWritten) await recordBlocked();
+      if (lineageKnown && !finalRecordWritten) await recordFailure();
     } catch {
       // Persistence must never mask the primary failure.
     }
@@ -1691,7 +1932,7 @@ export async function distributeRelease(options) {
     });
     err.details = { ...err.details, recoveryActionCode };
     await evidence.finish({
-      status: lineageKnown ? BLOCKED : 'FAILED',
+      status: catchStatus,
       recoveryActionCode,
       error: { code: err.code, message: err.message, details: err.details },
       details: { recoveryActionCode },

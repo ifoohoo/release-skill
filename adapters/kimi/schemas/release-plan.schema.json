@@ -17,9 +17,10 @@
       "type": "integer",
       "enum": [
         1,
-        2
+        2,
+        3
       ],
-      "description": "Plan format and digest-scoping version. 1: legacy (every field except the top-level digest binds; commitTimestamp must equal createdAt). 2: T1.2 digest layering (record-layer fields status/createdAt/baseline/per-action status are excluded from the plan digest; commitTimestamp is derived from the HEAD commit committer date)."
+      "description": "Plan format and digest-scoping version. 1: legacy (every field except the top-level digest binds; commitTimestamp must equal createdAt). 2: T1.2 digest layering (record-layer fields status/createdAt/baseline/per-action status are excluded from the plan digest; commitTimestamp is derived from the HEAD commit committer date). 3: multi-release-unit postPublish v3 (postPublish is a declaration ARRAY, one entry per declaring unit in plan.units order, possibly empty; v3 inherits the v2 record-layer semantics and only changes the postPublish shape)."
     },
     "status": {
       "type": "string",
@@ -1121,7 +1122,11 @@
       }
     },
     "postPublish": {
-      "$ref": "#/definitions/planPostPublish"
+      "type": [
+        "object",
+        "array"
+      ],
+      "description": "Frozen post-release distribution block. planVersion 1/2: a single declaration object, or absent (normalized to the empty array view at runtime). planVersion 3: a declaration ARRAY, one entry per declaring unit in plan.units order, possibly empty — never a single object, never absent. The exact allowed shape is enforced conditionally on planVersion (root allOf); readers must never guess the shape from the field value."
     },
     "digest": {
       "type": "string",
@@ -1844,6 +1849,38 @@
     }
   },
   "allOf": [
+    {
+      "if": {
+        "properties": {
+          "planVersion": {
+            "const": 3
+          }
+        },
+        "required": [
+          "planVersion"
+        ]
+      },
+      "then": {
+        "properties": {
+          "postPublish": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/planPostPublish"
+            }
+          }
+        },
+        "required": [
+          "postPublish"
+        ]
+      },
+      "else": {
+        "properties": {
+          "postPublish": {
+            "$ref": "#/definitions/planPostPublish"
+          }
+        }
+      }
+    },
     {
       "if": {
         "properties": {

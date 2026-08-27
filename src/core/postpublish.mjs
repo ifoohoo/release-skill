@@ -482,6 +482,131 @@ export function validatePostPublishDeclaration(postPublish, options = {}) {
 }
 
 /**
+ * Version-aware read-only normalization of the frozen plan's postPublish
+ * field (multi-release-unit postPublish v3, design §4.2 归一表).
+ *
+ * This is the SINGLE normalization seam every reader (approve, distribute,
+ * postVerify, ship, verify, recovery, publish, reconcile, approval) must use
+ * to obtain the declaration array view. The accepted shape is derived from
+ * `plan.planVersion` ONLY — readers must never guess the shape from the
+ * field value (no shape sniffing), and no second normalizer or compatibility
+ * schema may exist. Pure and strictly read-only: never mutates the plan and
+ * never rewrites legacy plans, summaries, or evidence.
+ *
+ * | planVersion | input shape   | result           |
+ * |-------------|---------------|------------------|
+ * | 1/2         | absent        | []               |
+ * | 1/2         | single object | [declaration]    |
+ * | 1/2         | array         | rejected         |
+ * | 3           | array         | the array itself |
+ * | 3           | object/absent | rejected         |
+ *
+ * Values outside the table (null, primitives, unknown planVersion) fail
+ * closed with GATE_FAILED: a schema-valid plan can never produce them, and a
+ * reader must never paper over a shape it does not understand.
+ *
+ * @param {object} plan - Frozen plan (schema-valid by the caller's contract).
+ * @returns {object[]} The declaration array view (empty for legacy absent).
+ * @throws {ReleaseError} GATE_FAILED on any shape/version mismatch.
+ */
+export function normalizePostPublishView(plan) {
+  const version = plan?.planVersion;
+  const postPublish = plan?.postPublish;
+  if (version === 1 || version === 2) {
+    if (postPublish === undefined) return [];
+    if (Array.isArray(postPublish)) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `planVersion ${version} plans must not carry a postPublish array; only planVersion 3 accepts the array shape`,
+        { planVersion: version, postPublishKind: 'array' },
+      );
+    }
+    if (postPublish === null || typeof postPublish !== 'object') {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `planVersion ${version} plans must carry a single postPublish object or none; found ${postPublish === null ? 'null' : typeof postPublish}`,
+        { planVersion: version },
+      );
+    }
+    return [postPublish];
+  }
+  if (version === 3) {
+    if (!Array.isArray(postPublish)) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `planVersion 3 plans must carry a postPublish array (possibly empty); found ${postPublish === undefined ? 'no postPublish field' : postPublish === null ? 'null' : 'a single object'}`,
+        { planVersion: 3, postPublishKind: postPublish === undefined ? 'absent' : postPublish === null ? 'null' : 'object' },
+      );
+    }
+    return postPublish;
+  }
+  throw new ReleaseError(
+    GATE_FAILED,
+    `cannot normalize postPublish shape: unknown planVersion ${String(version)}`,
+    { planVersion: version },
+  );
+}
+
+/**
+ * Array-level domain validation: every EXPLICIT hooks[].id must be unique
+ * across the whole declaration array (multi-release-unit postPublish v3,
+ * design §9.2 rule 3; rework R-02). The (planDigest, hookId) approval
+ * contract binds each explicit hook id plan-wide, so a duplicate across
+ * units must fail before any approval is minted or consumed and before any
+ * side effect — JSON Schema cannot express cross-array business uniqueness,
+ * so this function is the SINGLE runtime authority for it.
+ *
+ * Every entry only normalizes its input to the declaration array view and
+ * calls this function: prepare, setup/adoption assessment, approve, the
+ * postpublish approval validator, distribute, and postVerify. Target and
+ * internal probe local ids may repeat across units (checkpoints are
+ * unit-namespaced); explicit hook ids may not.
+ *
+ * @param {object[]} declarations - The declaration array view
+ *   (`normalizePostPublishView()` output, or the per-unit postPublish blocks
+ *   collected by prepare/setup).
+ * @throws {ReleaseError} GATE_FAILED with details { hookId, unitIds } on the
+ *   first cross-unit duplicate.
+ */
+export function validatePostPublishHookIdUniqueness(declarations) {
+  const explicitHookIdOwner = new Map();
+  for (const declaration of declarations ?? []) {
+    for (const hook of declaration?.hooks ?? []) {
+      const owner = explicitHookIdOwner.get(hook.id);
+      if (owner !== undefined && owner !== declaration.unitId) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `postPublish hook id "${hook.id}" is declared by units "${owner}" and "${declaration.unitId}"; explicit hooks[].id must be unique across the whole project (target and probe local ids may repeat across units)`,
+          { hookId: hook.id, unitIds: [owner, declaration.unitId] },
+        );
+      }
+      explicitHookIdOwner.set(hook.id, declaration.unitId);
+    }
+  }
+}
+
+/**
+ * Deterministically derive the checkpoint action id for one postPublish
+ * local action (target probe/mirror or hook) inside one release unit
+ * (§4.3 checkpoint binding). planVersion 3 namespaces every action id under
+ * the owning declaration's unitId (`unitId/localId`); legacy plans keep the
+ * bare local id so pre-existing checkpoint records and approvals stay valid.
+ * This is the SINGLE derivation used by every consumer (distribute,
+ * postVerify, recovery, verify), so a checkpoint id can never drift between
+ * the run records, the recovery mapping, and the approval binding.
+ *
+ * @param {object} params
+ * @param {number} params.planVersion - Frozen plan's planVersion.
+ * @param {string} params.unitId - Owning declaration's unitId.
+ * @param {string} params.localId - Local action id (`probe-<target.id>`,
+ *   `<target.id>`, or the hook id).
+ * @returns {string} The checkpoint action id.
+ */
+export function postPublishActionId({ planVersion, unitId, localId }) {
+  return planVersion === 3 ? `${unitId}/${localId}` : localId;
+}
+
+/**
  * Order targets so every target comes after its dependsOn target.
  *
  * Deterministic: among ready targets the declaration order is preserved.
@@ -595,24 +720,39 @@ export function effectiveHookRequiresApproval(hook) {
  *
  * @param {object} args
  * @param {object} args.plan - Frozen plan (digest + units + postPublish).
+ * @param {object} args.postPublish - THE current declaration the caller is
+ *   executing. REQUIRED (rework R-06): callers must pass the declaration
+ *   explicitly — the unit identity is never derived from a global
+ *   single-object read (contract §4.3). v1/v2 callers pass the single item
+ *   obtained from normalizePostPublishView(); v3 callers pass their loop
+ *   item. Omitting it fails closed with GATE_FAILED; a declaration ARRAY
+ *   (or anything non-object) fails closed too.
  * @param {string} args.runId - Current distribute run id.
  * @param {object} args.sourceRun - Sealed source run (finishedAt = publishedAt).
  * @param {string} args.payloadDir - Materialized payload directory.
  * @param {'distribute'|'postVerify'} args.phase
  * @param {object} [args.verifyEvidence] - Verify evidence (postVerify phase).
  * @returns {object} The context projection.
+ * @throws {ReleaseError} GATE_FAILED when no single declaration is in scope.
  */
-export function buildPostPublishContext({ plan, runId, sourceRun, payloadDir, phase, verifyEvidence }) {
-  const postPublish = plan.postPublish ?? {};
-  const unit = (plan.units ?? []).find((entry) => entry.id === postPublish.unitId);
+export function buildPostPublishContext({ plan, postPublish, runId, sourceRun, payloadDir, phase, verifyEvidence }) {
+  const declaration = postPublish;
+  if (!declaration || typeof declaration !== 'object' || Array.isArray(declaration)) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `buildPostPublishContext requires the current postPublish declaration; found ${declaration === undefined ? 'no declaration' : Array.isArray(declaration) ? 'a declaration array' : typeof declaration}`,
+      { planVersion: plan?.planVersion, unitId: declaration?.unitId ?? null },
+    );
+  }
+  const unit = (plan.units ?? []).find((entry) => entry.id === declaration.unitId);
   const frozenSnapshot = unit?.frozenSnapshot ?? {};
   return {
     planDigest: plan.digest,
     runId,
-    unitId: postPublish.unitId,
+    unitId: declaration.unitId,
     version: unit?.targetVersion,
-    tag: postPublish.tag,
-    commit: postPublish.tagCommit,
+    tag: declaration.tag,
+    commit: declaration.tagCommit,
     ...(frozenSnapshot.tree !== undefined ? { tree: frozenSnapshot.tree } : {}),
     ...(frozenSnapshot.manifestDigest !== undefined ? { manifestDigest: frozenSnapshot.manifestDigest } : {}),
     publishedAt: sourceRun?.finishedAt,

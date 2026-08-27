@@ -34,7 +34,7 @@ import {
 } from '../core/errors.mjs';
 import { readTrustedPackageResource } from '../core/trusted-resource.mjs';
 import { validatePresetHook } from '../core/presets.mjs';
-import { validatePostPublishDeclaration } from '../core/postpublish.mjs';
+import { validatePostPublishDeclaration, validatePostPublishHookIdUniqueness } from '../core/postpublish.mjs';
 import { loadProjectConfig } from '../core/config.mjs';
 import { resolveProducerVersion } from '../core/evidence.mjs';
 import { validateHook } from '../core/hooks.mjs';
@@ -46,7 +46,6 @@ import {
   deriveGateSuggestions,
   deriveHookDurations,
   deriveLongHookSuggestions,
-  findPostPublishUnitConflict,
   scanGateDeclarationFindings,
   FINDING_CATEGORY,
   ASSESSMENT_STATUS,
@@ -3101,17 +3100,31 @@ export async function assessAdoption({ root } = {}) {
     evidence: { configDigest },
   }));
 
-  // 裁决 20: 跨单元 postPublish 规则（一次发布计划只绑定一个声明）。
-  const postPublishConflict = findPostPublishUnitConflict(declaredUnits);
-  if (postPublishConflict) {
-    findings.push(createFinding({
-      category: FINDING_CATEGORY.MANDATORY_GAP, code: 'POSTPUBLISH_MULTI_UNIT_CONFLICT',
-      fieldPath: 'releaseUnits[].postPublish',
-      message: `多个发布单元声明 postPublish（${postPublishConflict.unitIds.join(', ')}）；一次发布计划只绑定一个 postPublish 声明。`,
-      evidence: { unitIds: postPublishConflict.unitIds },
-      action: '只保留一个发布单元的 postPublish 声明（或将分发目标合并进同一单元）后重新评估。',
-      severity: 'blocking',
-    }));
+  // 多发布单元 postPublish v3（设计 §9.2/§9.7；返工 R-02）：多个发布单元
+  // 各自声明 postPublish 本身不再构成缺口——每个声明的字段级校验已在上面
+  // 逐项完成。仍失败关闭的只有：声明内容无效（POSTPUBLISH_INVALID，逐项
+  // 报告）与整份计划显式 hooks[].id 跨单元重复（(planDigest, hookId) 批准
+  // 合同要求全局唯一；target 与内部 probe 的本地 ID 可跨单元重复，检查点
+  // 以 unitId 区分）。唯一校验真源是 core/postpublish.mjs 的
+  // validatePostPublishHookIdUniqueness——本入口只做输入归一（收集各单元的
+  // 声明块）并调用同一函数，再把领域事实转成评估 finding。
+  const declaredPostPublishBlocks = declaredUnits
+    .filter((unit) => unit.postPublish !== undefined)
+    .map((unit) => ({ ...unit.postPublish, unitId: unit.id }));
+  try {
+    validatePostPublishHookIdUniqueness(declaredPostPublishBlocks);
+  } catch (error) {
+    if (error?.details?.hookId !== undefined && Array.isArray(error?.details?.unitIds)) {
+      const [owner, unitId] = error.details.unitIds;
+      findings.push(createFinding({
+        category: FINDING_CATEGORY.MANDATORY_GAP, code: 'POSTPUBLISH_HOOK_ID_DUPLICATE',
+        unitId, fieldPath: 'releaseUnits[].postPublish.hooks[].id',
+        message: `postPublish 显式 hook id "${error.details.hookId}" 同时由发布单元 "${owner}" 与 "${unitId}" 声明；整份计划的显式 hooks[].id 必须唯一（target 与内部 probe 的本地 ID 可跨单元重复）。`,
+        evidence: { hookId: error.details.hookId, unitIds: error.details.unitIds },
+        action: '为重复的显式 hook id 改名（或合并声明）后重新评估。',
+        severity: 'blocking',
+      }));
+    }
   }
 
   // 裁决 20: 评估复用实际 Hook 校验（core/hooks.mjs 的纯校验函数，不调用

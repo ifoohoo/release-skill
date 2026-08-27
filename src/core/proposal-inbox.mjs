@@ -288,40 +288,42 @@ export async function crossCheckPushedCommit(exec, remoteUrl, branch, pushedComm
 }
 
 /**
- * Deliver one proposal document through the git-push transport:
- * clone -> write (absent only) -> commit (frozen identity) -> push.
+ * Observe-before-write for the git-push transport (rework R-01): clone the
+ * downstream into a fresh disposable checkout and compare any existing
+ * proposal bytes with the serialized document. This is the SINGLE observation
+ * implementation shared by the execution-phase delivery (observe-before-write)
+ * and the full-declaration preflight (deterministic conflict detection BEFORE
+ * the first external write) — no second observe algorithm or dispatch table.
  *
- * - identical existing content -> NO_CHANGE, nothing written;
- * - different existing content -> REMOTE_CONFLICT (human decision);
- * - NEVER --force.
+ * - existing identical content -> verdict 'IDENTICAL';
+ * - different existing content -> REMOTE_CONFLICT (human decision), thrown
+ *   from here so preflight and delivery can never drift apart;
+ * - absent -> verdict 'ABSENT'.
  *
- * No preset-level dry-run (R4 review m-3): the command-level DRY_RUN skip
- * contract skips preset hooks wholesale (SKIPPED/DRY_RUN checkpoints in
- * distribute/postVerify) before this delivery is ever invoked, so a dryRun
- * parameter here would be unreachable dead surface.
+ * On success the CALLER owns `cloneDir` and must remove it (the delivery
+ * continues writing/committing/pushing from that checkout; the preflight
+ * discards it immediately). On any thrown failure the clone dir is already
+ * removed.
  *
  * @param {object} params
  * @param {string} params.remoteUrl - Downstream repository URL.
  * @param {string} params.branch - Downstream branch.
  * @param {string} params.proposalPath - Repository-relative proposal path.
  * @param {object} params.proposalDocument - The proposal document.
- * @param {object} params.commitIdentity - Frozen { name, email }.
  * @param {Function} [params.exec] - Injectable git exec (tests).
- * @returns {Promise<{ status: 'EXECUTED'|'NO_CHANGE', observation: object }>}
+ * @returns {Promise<{cloneDir: string, previousHead: string|null, verdict: 'ABSENT'|'IDENTICAL'}>}
  */
-export async function deliverProposalGitPush(params) {
+export async function observeProposalInboxGitPush(params) {
   const {
     remoteUrl,
     branch,
     proposalPath,
     proposalDocument,
-    commitIdentity,
     exec: execOpt,
   } = params ?? {};
   assertSafeRemoteUrl(remoteUrl);
   assertSafeBranch(branch);
   assertSafeProposalPath(proposalPath);
-  assertCommitIdentity(commitIdentity);
   if (!proposalDocument || typeof proposalDocument !== 'object' || Array.isArray(proposalDocument)) {
     throw new ReleaseError(GATE_FAILED, 'proposal-inbox requires a proposal document');
   }
@@ -365,7 +367,7 @@ export async function deliverProposalGitPush(params) {
       await git(['checkout', '--quiet', '--orphan', branch]);
     }
 
-    // Observe-before-write: an existing proposal decides the outcome.
+    // Observe: an existing proposal decides the outcome.
     const targetPath = join(cloneDir, proposalPath);
     let existing = null;
     try {
@@ -373,20 +375,82 @@ export async function deliverProposalGitPush(params) {
     } catch {
       existing = null;
     }
-    if (existing !== null) {
-      if (existing === serialized) {
-        return {
-          status: 'NO_CHANGE',
-          observation: { mode: 'no-change', previousHead, branchTip: previousHead },
-        };
-      }
-      throw new ReleaseError(
-        REMOTE_CONFLICT,
-        `proposal ${proposalPath} already exists in ${redactUrlCredentialsIfPresent(remoteUrl)} with different content; overwriting a downstream proposal requires a human decision`,
-        { remoteUrl: redactUrlCredentialsIfPresent(remoteUrl), proposalPath },
-      );
+    if (existing === null) {
+      return { cloneDir, previousHead, verdict: 'ABSENT' };
+    }
+    if (existing === serialized) {
+      return { cloneDir, previousHead, verdict: 'IDENTICAL' };
+    }
+    throw new ReleaseError(
+      REMOTE_CONFLICT,
+      `proposal ${proposalPath} already exists in ${redactUrlCredentialsIfPresent(remoteUrl)} with different content; overwriting a downstream proposal requires a human decision`,
+      { remoteUrl: redactUrlCredentialsIfPresent(remoteUrl), proposalPath },
+    );
+  } catch (cause) {
+    await rm(cloneDir, { recursive: true, force: true }).catch(() => {});
+    throw cause;
+  }
+}
+
+/**
+ * Deliver one proposal document through the git-push transport:
+ * observe -> write (absent only) -> commit (frozen identity) -> push.
+ *
+ * - identical existing content -> NO_CHANGE, nothing written;
+ * - different existing content -> REMOTE_CONFLICT (human decision);
+ * - NEVER --force.
+ *
+ * The observe-before-write step calls the SAME shared observation
+ * implementation the full-declaration preflight uses, so the execution phase
+ * always re-observes the remote (the preflight is never a lock).
+ *
+ * No preset-level dry-run (R4 review m-3): the command-level DRY_RUN skip
+ * contract skips preset hooks wholesale (SKIPPED/DRY_RUN checkpoints in
+ * distribute/postVerify) before this delivery is ever invoked, so a dryRun
+ * parameter here would be unreachable dead surface.
+ *
+ * @param {object} params
+ * @param {string} params.remoteUrl - Downstream repository URL.
+ * @param {string} params.branch - Downstream branch.
+ * @param {string} params.proposalPath - Repository-relative proposal path.
+ * @param {object} params.proposalDocument - The proposal document.
+ * @param {object} params.commitIdentity - Frozen { name, email }.
+ * @param {Function} [params.exec] - Injectable git exec (tests).
+ * @returns {Promise<{ status: 'EXECUTED'|'NO_CHANGE', observation: object }>}
+ */
+export async function deliverProposalGitPush(params) {
+  const {
+    remoteUrl,
+    branch,
+    proposalPath,
+    proposalDocument,
+    commitIdentity,
+    exec: execOpt,
+  } = params ?? {};
+  assertCommitIdentity(commitIdentity);
+  const exec = typeof execOpt === 'function' ? execOpt : defaultExec;
+  const serialized = `${JSON.stringify(proposalDocument, null, 2)}\n`;
+
+  // Shared observe-before-write: identical -> NO_CHANGE; different -> the
+  // shared observation throws REMOTE_CONFLICT (human decision).
+  const { cloneDir, previousHead, verdict } = await observeProposalInboxGitPush({
+    remoteUrl,
+    branch,
+    proposalPath,
+    proposalDocument,
+    ...(execOpt !== undefined ? { exec: execOpt } : {}),
+  });
+
+  try {
+    if (verdict === 'IDENTICAL') {
+      return {
+        status: 'NO_CHANGE',
+        observation: { mode: 'no-change', previousHead, branchTip: previousHead },
+      };
     }
 
+    const git = (args, options = {}) => exec('git', args, { cwd: cloneDir, shell: false, timeout: GIT_TIMEOUT_MS, ...options });
+    const targetPath = join(cloneDir, proposalPath);
     await mkdir(dirname(targetPath), { recursive: true });
     await writeFile(targetPath, serialized);
     await git(['add', '-A']);

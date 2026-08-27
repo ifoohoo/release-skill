@@ -2,39 +2,43 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.8.1 -->
+<!-- release-skill:release-version: 0.9.0 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.8.1** (2026-08-27)
+**0.9.0** (2026-08-28)
 
-0.8.1 当前只是本地源码候选。本说明记录预期范围与验证边界，不代表已经发布、完成消费者安装验证或通过独立验收。版本是否可用，须以对应发布记录及发布后验证结果为准。使用新的 0.8.1 坐标，是为了避免覆盖已经以 v0.8.0 发布的另一份公开制品。
+0.9.0 是多发布单元 postPublish 计划和可选发布后本机收尾能力的本地源码候选。本说明记录预期范围与验证边界，不代表已经发布、完成消费者安装验证或通过独立验收。版本是否可用，须以对应的生产发布记录和发布后验证结果为准。
 
 **安全**
 
-- 不会覆盖或复用已被占用的 v0.8.0 标签和 npm 坐标。v0.8.1 将重新冻结计划，并建立新的批准、标签、软件包、GitHub Release 与发布后验证血缘。
+- release-finish 在执行宿主命令前，要求确认计划摘要，并核对同一发布血缘的 VERIFIED run。宿主更新只传入受限环境；Claude/Codex 的精确结果绑定真实安装载荷，各宿主在自身协议能够提供的身份依据不足时都会失败关闭。
+
+**新增**
+
+- 计划版本 3 按发布单元冻结有序的 postPublish 声明数组。每项声明分别绑定目标、Hook、批准、执行包、检查点和 postVerify 后续动作；显式的计划版本 1、2 继续保持既有单声明语义。
+- 新增 release-finish 工作流。它从冻结计划和同一血缘的 VERIFIED run 派生只读本机收尾清单；用户明确同意后，可更新 Claude 和 Codex、驱动 Kimi TUI 并复验安装结果，或确认 CodeBuddy/WorkBuddy 已经精确匹配冻结身份。CodeBuddy/WorkBuddy 无法钉死冻结 ref 时仍转人工处理；这些本机动作都不改变已经完成的发布终态。
 
 **变更**
 
-- Foundation 三包精确依赖已发布的 0.13.0。打包继续通过既有生成器携带运行资源、原生文件、法律材料、宿主 Profile 和插件验证合同。
-- Kimi、CodeBuddy 的同仓冻结插件载荷改用 Foundation runPluginVerification 做完整本地安装观察。CodeBuddy 映射到 Foundation 中兼容的 workbuddy 宿主。真实市场安装和宿主调用仍作为人工后续任务；Foundation 观察不能替代发布领域门禁或 README 三角色验收。
-- evidence v2 顶层封闭，阶段扩展进入受类型约束的 details；evidence v1 保持只读。摘要、生产者版本和恢复建议只作诊断，不构成发布权威。
+- distribute 和 postVerify 在首次外部写入前预检全部声明，执行时重新观察可能变化的远端 proposal 状态。检查点 ID 按发布单元区分；前一项 Hook 失败后，后续单元全部跳过。
+- 整份计划中的 postPublish Hook ID 必须唯一。prepare、setup、批准、distribute 和 postVerify 在副作用发生前复用同一条校验规则。
 
 **修复**
 
-- config 场景 A 保持零外部动作、不生成 sourceAuthority，即使配置了公开来源收据也不例外。production 场景 B 与 docs production 冻结 plan.sourceAuthority，保留远端一致性检查。marketplace 委托发布的边界不变。
-- 修复覆盖实际安装宿主表面、发布运行血缘、冻结副本中的 Git Hook、长 Hook 前纯配置检查和接入评估。聚焦自测只证明对应场景，不代表已经发布、完成消费者安装验证或通过独立验收。
-- 有本次证据时，FAILED 摘要、兼容 details 与返回错误已接齐同一次领域恢复计算结果。既有回退、无证据时的 unknown 和成功 verify 的 null 建议保持不变。
+- 修复后续单元缺执行包或存在确定性 proposal 冲突时，前序单元已经写入远端的问题。
+- 任一检查点成功后发生后续失败时保留 PARTIAL；没有外部检查点成功时保持 BLOCKED。
+- 避免不同发布单元使用同名 target 或重复 Hook ID 时，证据与批准身份发生碰撞。
 
 **升级说明**
 
-缺 sourceAuthority 的旧 production 计划和 checker v4 计划不得静默升级；未发生外部写入时须重新 prepare 并批准新摘要，不迁移旧批准或证据。已有 PARTIAL 保留检查点，走匹配版本的恢复路径。Hook cache v1 不变，不导入旧 full-test 证据。本版不包含 R-02 安全整树盘点、R-05 Hook cache v2、R-10 产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录验证器。
+使用计划版本 3 时须重新生成 0.9.0 计划，禁止修改或升级已经冻结的旧计划。计划版本 1、2 只通过显式兼容路径读取。release-finish 是可选的本机后续动作，不构成发布证据：分支合并、Kimi 信任提示和本机宿主修改仍须用户明确同意；宿主不支持精确 ref 更新时继续转人工处理。本版不包含 Hook cache v2、安全整树盘点、Audit 离线发布记录验证器或强制的公开市场宿主调用门禁。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.8.1 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.0 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -50,7 +54,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.8.1 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.0 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -616,6 +620,11 @@ release-skill ship --root "$PROJECT" --hook-approval "$HOOK_APPROVAL_PATH" --jso
 
 每个适配器闭包都自带 CLI、skills 和 schemas 副本，安装后无需外部依赖即可运行。Claude/Codex 验证是自动化的；Kimi Code 和 CodeBuddy/WorkBuddy 以 `manualFollowUps` 返回并标记 `verifiedBySystem: false`，其完成情况不阻塞自动发布进入 `VERIFIED`。
 
+发布达到 `VERIFIED` 后，可选的 `release-finish` 工作流可以按冻结市场身份更新 Claude
+和 Codex、驱动 Kimi TUI 并复查受管安装，或确认 CodeBuddy/WorkBuddy 已经精确匹配。
+它要求用户明确同意，不改变发布状态；由于 CodeBuddy/WorkBuddy CLI 无法钉死冻结
+ref，不匹配时仍转人工处理。
+
 `codebuddy-plugin` 分发可以可选地声明 `marketplace`（以及 `marketplaceSource`，即消费者添加市场所用的 URL）来覆盖默认统一市场 `artifact-skill-set`；未声明的分发保持默认值，冻结计划字节不变。
 
 每个 npm 分发在 `prepare` 时都会针对精确封装的 tarball 静态校验
@@ -632,7 +641,7 @@ release-skill ship --root "$PROJECT" --hook-approval "$HOOK_APPROVAL_PATH" --jso
 - 不声称已经替项目完成真实生产 canary，不声称已完成真实插件市场验证；
 - `prepare --online` 只观察 bound 前序基线；目标唯一性由 publish 全局预检完成；
 - 不覆盖已有 branch/tag/Release，不 unpublish npm；
-- 不提供 Kimi 或 CodeBuddy/WorkBuddy marketplace 自动安装检查点——这些安装是发布后明确的团队待办，系统不核验其完成结果；
+- 发布状态机不提供 Kimi 或 CodeBuddy/WorkBuddy marketplace 安装检查点——可选的 release-finish 可以在本机驱动并复查 Kimi，或确认 CodeBuddy/WorkBuddy 已经精确匹配，但这些结果不构成发布证据；
 - 不承诺 Windows 或广泛的跨平台原生写入；
 - 不会隐藏地 commit、push、打 tag、创建 Release 或发布包。
 

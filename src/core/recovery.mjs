@@ -33,7 +33,7 @@ import { validatePlan, computePlanDigest, assertImmutablePlanAuthority } from '.
 import { validateApproval, validateApprovalRecordSchema, assertImmutableApprovalAuthority, computeApprovalDigest } from './approval.mjs';
 import { isMarketplaceAction } from './checkpoints.mjs';
 import { ReleaseError, GATE_FAILED } from './errors.mjs';
-import { effectiveHookRequiresApproval } from './postpublish.mjs';
+import { effectiveHookRequiresApproval, normalizePostPublishView, postPublishActionId } from './postpublish.mjs';
 import { assertPostPublishApprovalAuthority, validatePostPublishApproval } from './postpublish-approval.mjs';
 
 /** Remote errors alone are insufficient to select a safe recovery phase. */
@@ -194,12 +194,18 @@ export async function readRunRecovery(runPath, options = {}) {
         throw new ReleaseError(GATE_FAILED, 'distribute recovery requires its same-lineage PUBLISHED publication');
       }
       // Mapping only: the common 1:1 checkpoint validator remains authoritative.
-      const actions = (plan.postPublish?.targets ?? []).flatMap((target) => [
-        { id: `probe-${target.id}`, type: 'distribute-probe' },
-        { id: target.id, type: 'distribute-mirror' },
-      ]).concat((plan.postPublish?.hooks ?? [])
-        .filter((hook) => hook.phase !== 'postVerify')
-        .map((hook) => ({ id: hook.id, type: 'postpublish-hook' })));
+      // §4.3 unified normalization: per-declaration mapping through the shared
+      // action-id derivation so v3 checkpoint ids (unitId/localId) match the
+      // executed records exactly; legacy plans resolve to the same bare ids.
+      const actions = normalizePostPublishView(plan).flatMap((declaration) => [
+        ...(declaration.targets ?? []).flatMap((target) => [
+          { id: postPublishActionId({ planVersion: plan.planVersion, unitId: declaration.unitId, localId: `probe-${target.id}` }), type: 'distribute-probe' },
+          { id: postPublishActionId({ planVersion: plan.planVersion, unitId: declaration.unitId, localId: target.id }), type: 'distribute-mirror' },
+        ]),
+        ...(declaration.hooks ?? [])
+          .filter((hook) => hook.phase !== 'postVerify')
+          .map((hook) => ({ id: postPublishActionId({ planVersion: plan.planVersion, unitId: declaration.unitId, localId: hook.id }), type: 'postpublish-hook' })),
+      ]);
       // A preflight BLOCKED record may precede checkpoint initialization.
       if (!(run.status === 'BLOCKED' && run.checkpoints.length === 0)) {
         validateRunCheckpointMapping(run, actions);
@@ -268,8 +274,11 @@ export async function readRunRecovery(runPath, options = {}) {
       }
     } else if (['publish', 'reconcile'].includes(command)) {
       if (run.status === 'PUBLISHED') {
-        const needsDistribution = (plan.postPublish?.targets?.length ?? 0) > 0
-          || (plan.postPublish?.hooks?.length ?? 0) > 0;
+        // §4.3 unified normalization: v3 empty arrays mean no distribute work
+        // at all; only declarations carrying targets or hooks require the
+        // distribution phase.
+        const needsDistribution = normalizePostPublishView(plan).some((declaration) =>
+          (declaration.targets?.length ?? 0) > 0 || (declaration.hooks?.length ?? 0) > 0);
         code = needsDistribution ? 'DISTRIBUTE' : 'VERIFY';
       } else if (run.status === 'PARTIAL') {
         code = 'RECONCILE';
@@ -280,9 +289,15 @@ export async function readRunRecovery(runPath, options = {}) {
     } else code = 'DIAGNOSE';
 
     if (code === 'DISTRIBUTE') {
-      const pendingApprovals = (plan.postPublish?.hooks ?? []).filter((hook) => hook.phase !== 'postVerify'
-        && effectiveHookRequiresApproval(hook)
-        && !(run.command === 'distribute' && run.checkpoints.some((cp) => cp.actionId === hook.id && completed(cp))));
+      // §4.3 unified normalization: approval gating resolves declared hooks
+      // across all declarations; checkpoint match uses the shared action-id
+      // derivation so a v3 record (unitId/hookId) counts as completed.
+      const pendingApprovals = normalizePostPublishView(plan).flatMap((declaration) =>
+        (declaration.hooks ?? [])
+          .filter((hook) => hook.phase !== 'postVerify' && effectiveHookRequiresApproval(hook))
+          .filter((hook) => !(run.command === 'distribute' && run.checkpoints.some((cp) =>
+            cp.actionId === postPublishActionId({ planVersion: plan.planVersion, unitId: declaration.unitId, localId: hook.id })
+            && completed(cp)))));
       if (pendingApprovals.length > 0) {
         try {
           const approved = new Set();

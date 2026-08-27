@@ -28,7 +28,7 @@ const execFile = promisify(execFileCb);
 import { classifyPathInput, writeFileAtomic } from 'skill-family-harness-node';
 import { loadProjectConfig } from '../core/config.mjs';
 import { captureBaseline } from '../core/baseline.mjs';
-import { findPostPublishUnitConflict, runHook } from '../core/hooks.mjs';
+import { runHook } from '../core/hooks.mjs';
 import { computeHookCacheKey, readHookCache, writeHookCache } from '../core/hook-cache.mjs';
 import {
   assertExpectedPublicSurface,
@@ -81,6 +81,7 @@ import {
   validatePostPublishDeclaration,
   normalizePostPublishDeclaration,
   orderNormalizedHooks,
+  validatePostPublishHookIdUniqueness,
   PAYLOAD_SOURCE_TAG_WORKTREE,
 } from '../core/postpublish.mjs';
 import { freezeExecutionBundle, bundleRootForAuthorityDir } from '../core/postpublish-bundle.mjs';
@@ -3092,38 +3093,31 @@ export async function prepareRelease(options) {
 
     // --- Step 1c: postPublish distribution declaration gate (R1/R2) ---
     // The per-unit postPublish block drives the post-publish distribute
-    // command. Validate it here, before any hook, baseline, snapshot, remote
-    // check, or plan write, so an unsafe declaration fails closed with zero
-    // side effects. This is the runtime re-check on top of the config JSON
-    // schema: plans frozen by older schema versions must not be able to
-    // smuggle shell strings, option-like executables, or secret-ish env
-    // keys through. R2: preset references resolve against the built-in
-    // preset registry (per-preset config validation + requiresApproval
-    // grading), and targets normalize onto preset hooks — the normalized
-    // table is a deterministic projection of the digest-bound declaration,
-    // so any list change changes the plan digest and voids approvals. A
-    // plan binds exactly one declaration; multiple units declaring
-    // postPublish is a hard gate failure.
+    // command. Validate every declaration here, before any hook, baseline,
+    // snapshot, remote check, or plan write, so an unsafe declaration fails
+    // closed with zero side effects. This is the runtime re-check on top of
+    // the config JSON schema: plans frozen by older schema versions must not
+    // be able to smuggle shell strings, option-like executables, or
+    // secret-ish env keys through. R2: preset references resolve against the
+    // built-in preset registry (per-preset config validation +
+    // requiresApproval grading), and targets normalize onto preset hooks —
+    // the normalized table is a deterministic projection of the digest-bound
+    // declaration, so any list change changes the plan digest and voids
+    // approvals. Multiple units may each declare postPublish (multi-release-
+    // unit v3): every declaration is validated individually, in plan.units
+    // order, and the whole project's EXPLICIT hooks[].id must be unique
+    // across units (target and internal probe local ids may repeat; the
+    // (planDigest, hookId) approval contract needs globally unique hook ids).
     const postPublishDeclarations = configUnits
       .map((unit, index) => ({ unit, index }))
       .filter(({ unit }) => unit.postPublish !== undefined);
-    if (findPostPublishUnitConflict(configUnits)) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `multiple units declare postPublish (${postPublishDeclarations.map(({ unit }) => unit.id).join(', ')}); a release plan binds exactly one postPublish declaration`,
-        { unitIds: postPublishDeclarations.map(({ unit }) => unit.id) },
-      );
-    }
-    let postPublishDeclaration = null;
-    if (postPublishDeclarations.length === 1) {
-      const { unit, index } = postPublishDeclarations[0];
+    for (const { unit } of postPublishDeclarations) {
       validatePostPublishDeclaration(unit.postPublish, { unitId: unit.id });
       // Normalized hook table (design §2.2): validate the dependency
       // topology at freeze time too, so a cyclic/dangling declaration can
       // never be frozen for distribute to trip over.
       const normalizedDeclaration = normalizePostPublishDeclaration(unit.postPublish);
       const orderedNormalizedHooks = orderNormalizedHooks(normalizedDeclaration.hooks);
-      postPublishDeclaration = { unit, index };
       await evidence.append({
         phase: 'postpublish-declaration',
         status: 'validated',
@@ -3134,6 +3128,19 @@ export async function prepareRelease(options) {
         preGates: normalizedDeclaration.preGates.map((gate) => gate.gate),
       });
     }
+    // Whole-project explicit hooks[].id uniqueness (design §9.2 rule 3;
+    // rework R-02): the (planDigest, hookId) approval contract binds every
+    // explicit hook id plan-wide, so a duplicate across units must fail
+    // before any plan write and before any project hook runs. The single
+    // array-level authority lives in core/postpublish.mjs
+    // validatePostPublishHookIdUniqueness — this entry only normalizes its
+    // input to the declaration array view (config blocks carry no unitId;
+    // the owning unit id is bound here, exactly as the frozen plan does) and
+    // calls it. Per-declaration duplicates are already rejected by
+    // validatePostPublishDeclaration.
+    validatePostPublishHookIdUniqueness(
+      postPublishDeclarations.map(({ unit }) => ({ ...unit.postPublish, unitId: unit.id })),
+    );
 
     // --- Step 2: Hook authorization gate ---
     // Hooks are user-configured arbitrary local processes without filesystem
@@ -3841,20 +3848,21 @@ export async function prepareRelease(options) {
       });
     }
 
-    // New prepares emit planVersion 2 (design: t1-2-digest-decoupling.md
-    // §4.2/§7). Production freeze timestamps are derived deterministically
-    // from the baseline headCommit's committer date, before the first frozen
-    // Git object exists. This single canonical value becomes
-    // GIT_AUTHOR_DATE/GIT_COMMITTER_DATE for every unit's frozen commit and
-    // every unit's frozenSnapshot.commitTimestamp; identical sources freeze
-    // byte-identical Git objects on every re-prepare. The wall-clock sample
-    // is still validated here (fail closed before any Git write) and becomes
-    // plan.createdAt -- record-layer real clock behind the 24h approval
-    // window, no longer equal to the freeze timestamp for v2 plans. The v1
-    // legacy path used this same sample as the freeze timestamp itself
-    // (commitTimestamp == createdAt). publish, retry, and reconcile consume
-    // the frozen value from the plan and never re-read the wall clock or
-    // re-derive it.
+    // New prepares emit planVersion 3 (multi-release-unit postPublish v3;
+    // v3 inherits the v2 record-layer freeze-timestamp semantics from
+    // t1-2-digest-decoupling.md §4.2/§7). Production freeze timestamps are
+    // derived deterministically from the baseline headCommit's committer
+    // date, before the first frozen Git object exists. This single canonical
+    // value becomes GIT_AUTHOR_DATE/GIT_COMMITTER_DATE for every unit's
+    // frozen commit and every unit's frozenSnapshot.commitTimestamp;
+    // identical sources freeze byte-identical Git objects on every
+    // re-prepare. The wall-clock sample is still validated here (fail closed
+    // before any Git write) and becomes plan.createdAt -- record-layer real
+    // clock behind the 24h approval window, no longer equal to the freeze
+    // timestamp for v2/v3 plans. The v1 legacy path used this same sample as
+    // the freeze timestamp itself (commitTimestamp == createdAt). publish,
+    // retry, and reconcile consume the frozen value from the plan and never
+    // re-read the wall clock or re-derive it.
     const createdAtTimestamp = production
       ? normalizeGitTimestamp(clock ? clock() : new Date().toISOString(), 'plan createdAt timestamp')
       : null;
@@ -4252,16 +4260,20 @@ export async function prepareRelease(options) {
         ? 'foundationPayloadThenManualFollowUps'
         : 'manualFollowUps';
 
-    // --- Fold the validated postPublish declaration into the frozen plan ---
-    // Bindings: tag (tagTemplate rendered at the resolved target version —
-    // the same computation create-tag will use), tagCommit (the frozen
-    // production asset commit the tag will point at; only production
+    // --- Fold the validated postPublish declarations into the frozen plan ---
+    // Multi-release-unit v3 contract: the frozen field is ALWAYS an array,
+    // one entry per declaring unit in plan.units order (zero declarations
+    // freeze the empty array, which never enters post-release execution).
+    // Bindings per entry: tag (tagTemplate rendered at the resolved target
+    // version — the same computation create-tag will use), tagCommit (the
+    // frozen production asset commit the tag will point at; only production
     // prepares can freeze it — distribute fails closed when it is absent),
     // unitId (declaring unit), and payloadSource "tag-worktree" (R1 timing
     // contract: payload may only come from the detached worktree at
-    // tagCommit, never from workspace state). planVersion 2 record-layer
-    // stripping does not strip this block, so every declaration detail is
-    // bound into the plan digest.
+    // tagCommit, never from workspace state). The array and every entry
+    // participate in the plan digest through the existing digest mechanism
+    // (no per-entry summaries, maps, or second manifest), so declaration
+    // order and any bound field change change the plan digest.
     //
     // F-01 / T1 private execution bundle: parent-workspace files that the
     // post-publish commands need but the frozen tag does not contain are
@@ -4271,9 +4283,8 @@ export async function prepareRelease(options) {
     // plan is the bundle's only source of truth (no parallel manifest, no
     // second bundle digest): the raw executionFiles list folds into the
     // closure and is NOT duplicated into the frozen block.
-    let frozenPostPublish = null;
-    if (postPublishDeclaration) {
-      const { unit, index } = postPublishDeclaration;
+    const frozenPostPublish = [];
+    for (const { unit, index } of postPublishDeclarations) {
       const { tag } = resolveProductionBranch(unit, resolvedVersions[index]);
       const declaredExecutionFiles = unit.postPublish.executionFiles ?? [];
       const frozenTagPaths = productionAssets
@@ -4300,18 +4311,22 @@ export async function prepareRelease(options) {
         bundleRoot: relative(realRoot, bundleRootForAuthorityDir(releaseDir)),
       });
       const { executionFiles: _executionFiles, ...declarationWithoutManifest } = structuredClone(unit.postPublish);
-      frozenPostPublish = {
+      frozenPostPublish.push({
         ...declarationWithoutManifest,
         tag,
         ...(productionAssets ? { tagCommit: productionAssets[index].commit } : {}),
         unitId: unit.id,
         payloadSource: PAYLOAD_SOURCE_TAG_WORKTREE,
         executionBundle,
-      };
+      });
     }
 
     const plan = {
-      planVersion: 2,
+      // New prepares emit planVersion 3 (multi-release-unit postPublish v3):
+      // postPublish is the declaration ARRAY (possibly empty). v3 inherits
+      // the v2 record-layer digest and approval semantics; only the
+      // postPublish shape changes.
+      planVersion: 3,
       status: 'PREPARED',
       // Workflow profile (H5): 'full' for the complete gate set;
       // 'docs'/'config'/'marketplace' for trimmed code-class gates. Both
@@ -4352,7 +4367,7 @@ export async function prepareRelease(options) {
       units,
       externalActions,
       ...(publicSourceAuthorityReceipt ? { publicSourceAuthorityReceipt } : {}),
-      ...(frozenPostPublish ? { postPublish: frozenPostPublish } : {}),
+      postPublish: frozenPostPublish,
       ...(sourceAuthority ? { sourceAuthority } : {}),
       createdAt: production ? createdAtTimestamp : (clock ? clock() : new Date().toISOString()),
     };

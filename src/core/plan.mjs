@@ -202,7 +202,8 @@ export function validatePlan(plan) {
 }
 
 /**
- * planVersion 2 digest scope (design: t1-2-digest-decoupling.md §4.1).
+ * planVersion 2/3 digest scope (design: t1-2-digest-decoupling.md §4.1;
+ * v3 inherits the v2 scope per 多发布单元 postPublish v3 §4.2).
  *
  * The record layer -- top-level `digest`, lifecycle `status`, `createdAt`,
  * the whole `baseline` object, and each action's runtime `status` -- is
@@ -210,8 +211,10 @@ export function validatePlan(plan) {
  * but is excluded from the digest. Everything else (planVersion, units with
  * every frozenSnapshot artifact identity field, externalActions identity,
  * production, configDigest, verificationGates, snapshotDigest) binds.
+ * For v3 the frozen `postPublish` array and every item binding field stay in
+ * the binding layer: any order or binding change moves the digest.
  *
- * This is the ONLY place the v2 record layer is defined.
+ * This is the ONLY place the v2/v3 record layer is defined.
  *
  * @param {object} plan - A plan object.
  * @returns {object} The binding-layer projection of the plan.
@@ -242,9 +245,12 @@ function stripRecordLayerV2(plan) {
  *
  * Digest scope forks on `plan.planVersion` (centralized here, never spread
  * elsewhere):
- * - planVersion 2: record-layer fields (status/createdAt/baseline/action
+ * - planVersion 2/3: record-layer fields (status/createdAt/baseline/action
  *   status/digest) are stripped before hashing, so re-preparing over the
- *   same sources yields the same digest. See `stripRecordLayerV2`.
+ *   same sources yields the same digest. See `stripRecordLayerV2`. v3
+ *   inherits the v2 scope exactly (multi-release-unit postPublish v3 §4.2);
+ *   versions beyond {2,3} are NOT admitted and stay fail-closed on the
+ *   legacy v1 path rather than being silently bound to v2 semantics.
  * - planVersion 1 or absent (legacy): only the top-level `digest` field is
  *   stripped. Byte-for-byte legacy semantics -- this path must never change.
  *
@@ -258,7 +264,7 @@ export function computePlanDigest(plan) {
   // 而是经 digest.mjs 的宽松输入域包装（contracts 权威序列化 + 本地归一化）
   // 后由 Foundation digestBytes 摘要 —— 对纯 JSON 计划与 digestDocument 字节
   // 完全一致，对含 undefined 的计划保持迁移前字节语义。
-  if (plan.planVersion === 2) {
+  if (plan.planVersion === 2 || plan.planVersion === 3) {
     return sha256Hex(canonicalJson(stripRecordLayerV2(plan)));
   }
   // Strip the digest field if present so the hash is self-consistent.
@@ -341,14 +347,15 @@ export async function writePlanImmutable(planPath, plan) {
       // EEXIST 直接抛冲突，无幂等分支；wrapper 补齐，fail-closed 无双路径）。
       const existing = await readFile(planPath, 'utf8').catch(() => null);
       if (existing === json) return { planPath, planDigest };
-      // planVersion 2 (design: t1-2-digest-decoupling.md §4.1): record-layer
-      // fields (status/createdAt/baseline) are excluded from the digest, so
+      // planVersion 2/3 (design: t1-2-digest-decoupling.md §4.1; v3 inherits
+      // the scope per 多发布单元 postPublish v3 §4.2): record-layer fields
+      // (status/createdAt/baseline) are excluded from the digest, so
       // re-preparing over identical binding content yields the SAME digest
       // with legitimately different bytes. Reuse the existing authority IFF
       // it is genuinely self-consistent (its embedded digest and recomputed
       // digest both equal this digest) -- the authority is never replaced.
       // Any other divergence (tampering, malformed file) still fails closed.
-      if (plan.planVersion === 2 && existing !== null) {
+      if ((plan.planVersion === 2 || plan.planVersion === 3) && existing !== null) {
         let existingPlan = null;
         try {
           existingPlan = JSON.parse(existing);
@@ -386,7 +393,7 @@ export async function writePlanImmutable(planPath, plan) {
 /**
  * Canonical normalized freeze timestamp shape (`YYYY-MM-DDTHH:MM:SS+00:00`).
  * Mirrors the frozenSnapshot.commitTimestamp pattern in the release-plan
- * schema; used by the planVersion 2 completeness gate, which requires a
+ * schema; used by the planVersion 2/3 completeness gate, which requires a
  * canonical normalized timestamp without re-binding it to plan.createdAt.
  */
 const CANONICAL_COMMIT_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00$/;
@@ -568,8 +575,9 @@ export function validatePlanActionCompleteness(plan, options = {}) {
       }
       if (!frozen.commitTimestamp || typeof frozen.commitTimestamp !== 'string') {
         failures.push(`unit "${unitId}" frozenSnapshot.commitTimestamp is missing; legacy production plans without a freeze timestamp are rejected, never silently backfilled`);
-      } else if (plan.planVersion === 2) {
-        // planVersion 2 (design: t1-2-digest-decoupling.md §4.2): the freeze
+      } else if (plan.planVersion === 2 || plan.planVersion === 3) {
+        // planVersion 2/3 (design: t1-2-digest-decoupling.md §4.2; v3 inherits
+        // the semantics per 多发布单元 postPublish v3 §4.2): the freeze
         // timestamp is derived from the headCommit committer date, so it no
         // longer equals plan.createdAt (record-layer real clock). It must
         // still be a canonical normalized timestamp -- the same pattern the

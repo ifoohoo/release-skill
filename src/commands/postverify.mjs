@@ -58,13 +58,16 @@ import { boundedOutputTail } from '../core/bounded-output.mjs';
 import {
   buildPostPublishContext,
   validatePostPublishDeclaration,
+  normalizePostPublishView,
+  postPublishActionId,
   effectiveHookRequiresApproval,
+  validatePostPublishHookIdUniqueness,
   POSTPUBLISH_CONTEXT_ENV,
   PAYLOAD_SOURCE_TAG_WORKTREE,
 } from '../core/postpublish.mjs';
-import { verifyAndInstallExecutionBundle } from '../core/postpublish-bundle.mjs';
+import { verifyAndInstallExecutionBundle, verifyExecutionBundle } from '../core/postpublish-bundle.mjs';
 import { assertPostPublishApprovalAuthority, validatePostPublishApproval } from '../core/postpublish-approval.mjs';
-import { executePresetHook } from '../core/preset-executor.mjs';
+import { executePresetHook, preflightPresetHook } from '../core/preset-executor.mjs';
 import {
   ReleaseError,
   GATE_FAILED,
@@ -185,12 +188,27 @@ export async function postVerifyRelease(options) {
       { expected: plan.digest, actual: actualDigest },
     );
   }
-  if (!plan.postPublish) {
+  // v3 contract (§4.3): postPublish is a frozen declaration ARRAY. All reads
+  // go through the single read-only normalization entry normalizePostPublishView.
+  // Legacy (planVersion 1/2) absent stays fail-closed; a v3 empty array means
+  // "no post-release execution" and completes directly with zero hooks.
+  const declarations = normalizePostPublishView(plan);
+  // Rework R-02: the single array-level explicit-hook-id uniqueness authority
+  // (core/postpublish.mjs) re-asserts the frozen view here — a digest-correct,
+  // schema-valid plan with duplicate hook ids across units must fail before
+  // any approval consumption or hook execution.
+  validatePostPublishHookIdUniqueness(declarations);
+  if (declarations.length === 0 && plan.planVersion !== 3) {
     throw new ReleaseError(
       GATE_FAILED,
       'release plan has no postPublish declaration; nothing to postVerify',
       { planPath },
     );
+  }
+  if (declarations.length === 0) {
+    // v3 zero declarations (§6 matrix row 0): the post-release phase is
+    // skipped — no hook, no external write.
+    return { planPath, runPath: null, status: DISTRIBUTED, checkpoints: [] };
   }
 
   // =========================================================================
@@ -278,12 +296,29 @@ export async function postVerifyRelease(options) {
   validateRunCheckpointMapping(publishRun, plan.externalActions ?? []);
 
   // =========================================================================
-  // Declaration re-validation + postVerify-phase hook selection.
+  // Declaration re-validation + postVerify-phase hook selection (v3 contract
+  // §4.3): EVERY declaration is validated before any write. Legacy plans
+  // present exactly one declaration (normalizePostPublishView) and keep their
+  // exact behavior.
   // =========================================================================
-  const postPublish = plan.postPublish;
-  validatePostPublishDeclaration(postPublish, { unitId: postPublish.unitId });
-  const declaredHooks = postPublish.hooks ?? [];
-  const postVerifyHooks = declaredHooks.filter((hook) => (hook.phase ?? 'distribute') === 'postVerify');
+  const v3 = plan.planVersion === 3;
+  // Checkpoint action ids are unit-namespaced on v3; legacy ids are unchanged
+  // (existing runs, tests and approvals pin the bare local ids). Shared
+  // derivation core/postpublish.mjs `postPublishActionId`.
+  const unitActionId = (unitId, localId) => postPublishActionId({ planVersion: plan.planVersion, unitId, localId });
+
+  const prepared = [];
+  for (const declaration of declarations) {
+    validatePostPublishDeclaration(declaration, { unitId: declaration.unitId });
+    // R-01 (rework): the frozen execution bundle closure is re-verified for
+    // EVERY declaration BEFORE any hook runs — a later declaration's
+    // missing/drifted bundle must fail the whole run before unit A executes.
+    await verifyExecutionBundle({ planPath, postPublish: declaration });
+    const declaredHooks = declaration.hooks ?? [];
+    const postVerifyHooks = declaredHooks.filter((hook) => (hook.phase ?? 'distribute') === 'postVerify');
+    prepared.push({ declaration, postVerifyHooks });
+  }
+  const postVerifyHooks = prepared.flatMap((prep) => prep.postVerifyHooks);
 
   // =========================================================================
   // Gate 4: checkpoint approvals for requiresApproval hooks. Every provided
@@ -341,50 +376,55 @@ export async function postVerifyRelease(options) {
   // authority; the live local tag is diagnostic only. Read-only observation,
   // still before any write.
   // =========================================================================
-  if (postPublish.payloadSource !== PAYLOAD_SOURCE_TAG_WORKTREE) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `postPublish.payloadSource must be "${PAYLOAD_SOURCE_TAG_WORKTREE}"`,
-      { payloadSource: postPublish.payloadSource },
-    );
-  }
-  if (typeof postPublish.tagCommit !== 'string' || !SHA_RE.test(postPublish.tagCommit)) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      'postPublish is missing a frozen tagCommit binding; postVerify fails closed',
-      { tagCommit: postPublish.tagCommit ?? null },
-    );
-  }
-  let tagAuthority;
-  try {
-    tagAuthority = await resolveFrozenTagAuthority({
-      plan,
-      unitId: postPublish.unitId,
-      // T04 (裁决 14): the tag proof is taken from the legitimate PUBLISHED
-      // parent run — never from the verify receipt.
-      sourceRun: publishRun,
-      root,
-      exec,
-      observeTagFn,
-      observeBranchFn,
-    });
-  } catch (err) {
-    throw err instanceof ReleaseError ? err : new ReleaseError(
-      GATE_FAILED,
-      `tag identity cannot be verified: ${err?.message ?? err}`,
-    );
-  }
-  if (tagAuthority.tag !== postPublish.tag || tagAuthority.commit !== postPublish.tagCommit) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      'frozen postPublish tag identity conflicts with the frozen create-tag binding',
-      {
-        postPublishTag: postPublish.tag,
-        postPublishTagCommit: postPublish.tagCommit,
-        bindingTag: tagAuthority.tag,
-        bindingCommit: tagAuthority.commit,
-      },
-    );
+  for (const prep of prepared) {
+    const { declaration } = prep;
+    if (declaration.payloadSource !== PAYLOAD_SOURCE_TAG_WORKTREE) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `postPublish.payloadSource must be "${PAYLOAD_SOURCE_TAG_WORKTREE}"`,
+        { payloadSource: declaration.payloadSource, unitId: declaration.unitId },
+      );
+    }
+    if (typeof declaration.tagCommit !== 'string' || !SHA_RE.test(declaration.tagCommit)) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        'postPublish is missing a frozen tagCommit binding; postVerify fails closed',
+        { tagCommit: declaration.tagCommit ?? null, unitId: declaration.unitId },
+      );
+    }
+    let tagAuthority;
+    try {
+      tagAuthority = await resolveFrozenTagAuthority({
+        plan,
+        unitId: declaration.unitId,
+        // T04 (裁决 14): the tag proof is taken from the legitimate PUBLISHED
+        // parent run — never from the verify receipt.
+        sourceRun: publishRun,
+        root,
+        exec,
+        observeTagFn,
+        observeBranchFn,
+      });
+    } catch (err) {
+      throw err instanceof ReleaseError ? err : new ReleaseError(
+        GATE_FAILED,
+        `tag identity cannot be verified: ${err?.message ?? err}`,
+      );
+    }
+    if (tagAuthority.tag !== declaration.tag || tagAuthority.commit !== declaration.tagCommit) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        'frozen postPublish tag identity conflicts with the frozen create-tag binding',
+        {
+          postPublishTag: declaration.tag,
+          postPublishTagCommit: declaration.tagCommit,
+          bindingTag: tagAuthority.tag,
+          bindingCommit: tagAuthority.commit,
+          unitId: declaration.unitId,
+        },
+      );
+    }
+    prep.tagAuthority = tagAuthority;
   }
 
   // =========================================================================
@@ -405,12 +445,12 @@ export async function postVerifyRelease(options) {
   const startedAt = clockFn();
   let stateSequence = -1;
 
-  const checkpoints = postVerifyHooks.map((hook) => ({
-    actionId: hook.id,
+  const checkpoints = prepared.flatMap((prep) => prep.postVerifyHooks.map((hook) => ({
+    actionId: unitActionId(prep.declaration.unitId, hook.id),
     actionType: 'postpublish-hook',
     status: 'PENDING',
     executor: EXECUTOR,
-  }));
+  })));
   const checkpointById = new Map(checkpoints.map((cp) => [cp.actionId, cp]));
 
   const buildPersistedState = (status, finishedAt) => ({
@@ -450,11 +490,20 @@ export async function postVerifyRelease(options) {
     return appendRunState(runDir, stateSequence, buildPersistedState(status));
   };
 
-  /** Persist the BLOCKED run record (idempotent) once the run exists. */
-  const recordBlocked = async () => {
+  // External-success facts (declared before recordFailure: an exception after
+  // a succeeded hook must persist PARTIAL, never BLOCKED — rework R-01).
+  let externalSuccesses = 0;
+
+  /**
+   * Persist the failure run record (idempotent) once the run exists.
+   * Rework R-01: PARTIAL when an external checkpoint already succeeded (the
+   * success checkpoint is retained), BLOCKED at zero side effects.
+   */
+  const recordFailure = async () => {
     if (finalRecordWritten) return;
+    const status = externalSuccesses > 0 ? PARTIAL : BLOCKED;
     try {
-      await writeRunAtomic(runPath, buildPersistedState(BLOCKED, clockFn()));
+      await writeRunAtomic(runPath, buildPersistedState(status, clockFn()));
       finalRecordWritten = true;
     } catch {
       // Persistence must never mask the primary failure.
@@ -489,6 +538,52 @@ export async function postVerifyRelease(options) {
     await snapshot(DISTRIBUTING);
 
     // =======================================================================
+    // R-01 (rework): preset deterministic-conflict preflight — the narrow
+    // READ-ONLY entry (core/preset-executor.mjs preflightPresetHook) calls
+    // the SAME observation implementation the execution-phase delivery uses,
+    // for every postVerify hook that will actually execute this run. A
+    // deterministic conflict (e.g. the proposal path already exists with
+    // different bytes) fails the whole run here, BEFORE the first hook. This
+    // is not a lock: the execution phase re-observes every remote regardless.
+    // Hooks parked at AWAITING_APPROVAL are not observed here — the approved
+    // rerun observes them at execution time.
+    // =======================================================================
+    for (const prep of prepared) {
+      const { declaration, postVerifyHooks: preflightHooks } = prep;
+      for (const hook of preflightHooks) {
+        if (effectiveHookRequiresApproval(hook) && !approvedHookIds.has(hook.id)) continue;
+        const proposalProjection = buildPostPublishContext({
+          plan,
+          postPublish: declaration,
+          runId: `postverify-${verifyRun.runId}`,
+          sourceRun: publishRun,
+          payloadDir: undefined,
+          phase: 'postVerify',
+          verifyEvidence: {
+            runId: verifyRun.runId,
+            status: verifyRun.status,
+            finishedAt: verifyRun.finishedAt,
+          },
+        });
+        const observation = await preflightPresetHook({
+          hook,
+          contextProjection: proposalProjection,
+          exec,
+        });
+        if (observation !== null) {
+          await evidence.append({
+            phase: 'safety-gate',
+            gate: 'preset-preflight',
+            status: 'passed',
+            hookId: hook.id,
+            unitId: declaration.unitId,
+            verdict: observation.verdict,
+          });
+        }
+      }
+    }
+
+    // =======================================================================
     // F-04 root split: postVerify holds TWO distinct roots —
     // - releaseWorkspaceRoot: the real project root the user releases from;
     //   only used to resolve preset target.workspace, compare the release-
@@ -502,7 +597,7 @@ export async function postVerifyRelease(options) {
     try {
       releaseWorkspaceRoot = await realpath(root);
     } catch (err) {
-      await recordBlocked();
+      await recordFailure();
       throw new ReleaseError(
         GATE_FAILED,
         `release workspace root does not resolve to an existing directory: ${err.message}`,
@@ -510,107 +605,113 @@ export async function postVerifyRelease(options) {
       );
     }
 
-    // R1 timing contract carries over: hooks run inside a detached worktree
-    // at the frozen tagCommit, never in the live workspace. R-01: the
-    // worktree is materialized from a COPY of the frozen bare repo (never
-    // registered in the source repo's worktree metadata). Dry-run executes
-    // nothing, so no worktree is allocated for a rehearsal.
-    if (dryRun !== true) {
-      try {
-        tmpBase = await mkdtemp(join(tmpdir(), 'release-skill-postverify-'));
-        ({ worktreePath } = await createFrozenTagWorktree({
-          gitDir: tagAuthority.gitDir,
-          commit: tagAuthority.commit,
-          tmpBase,
-          exec,
-        }));
-      } catch (err) {
-        await evidence.append({
-          phase: 'worktree',
-          status: 'failed',
-          error: asError('WORKTREE_FAILED', boundedOutputTail(err?.stderr ?? err?.message)),
-        });
-        await recordBlocked();
-        throw new ReleaseError(
-          GATE_FAILED,
-          `cannot create the detached tag worktree at ${postPublish.tagCommit}: ${err?.message ?? err}`,
-          { tagCommit: postPublish.tagCommit },
-        );
-      }
-      await evidence.append({ phase: 'worktree', status: 'passed' });
-
-      // =====================================================================
-      // Private execution bundle (F-01 / T1): postVerify re-entry consumes
-      // the SAME frozen bundle bytes — never the live workspace copies.
-      // Strictly re-read the digest-addressed bytes, recompute the closure
-      // through Foundation, and install ONLY the verified bytes into the
-      // fresh tag worktree before any hook runs; any mismatch fails closed
-      // before a hook or an external write.
-      // =====================================================================
-      let installedBundlePaths = [];
-      try {
-        ({ installed: installedBundlePaths } = await verifyAndInstallExecutionBundle({
-          plan,
-          planPath,
-          worktreePath,
-        }));
-      } catch (err) {
-        await evidence.append({
-          phase: 'worktree',
-          gate: 'execution-bundle',
-          status: 'failed',
-          error: asError('EXECUTION_BUNDLE_FAILED', boundedOutputTail(err?.message ?? String(err))),
-        });
-        await recordBlocked();
-        throw err instanceof ReleaseError ? err : new ReleaseError(
-          GATE_FAILED,
-          `cannot verify the frozen execution bundle: ${err?.message ?? err}`,
-        );
-      }
-      await evidence.append({
-        phase: 'worktree',
-        gate: 'execution-bundle',
-        status: 'passed',
-        installed: installedBundlePaths,
-      });
-    }
-
-    // §2.3 context projection: verifyEvidence PRESENT (postVerify phase);
-    // publishedAt from the sealed publish run; payloadDir never travels.
-    const verifyEvidence = {
-      runId: verifyRun.runId,
-      status: verifyRun.status,
-      finishedAt: verifyRun.finishedAt,
-    };
-    const hookContextProjection = buildPostPublishContext({
-      plan,
-      runId,
-      sourceRun: publishRun,
-      payloadDir: undefined,
-      phase: 'postVerify',
-      verifyEvidence,
-    });
-
-    // Proposal documents must stay byte-deterministic across redeliveries of
-    // the SAME release event (NO_CHANGE idempotence): they travel with the
-    // stable lineage-derived event identity, not the per-attempt runId.
-    const proposalContextProjection = {
-      ...hookContextProjection,
-      runId: `postverify-${verifyRun.runId}`,
-    };
-
-    // =========================================================================
-    // postVerify hooks, declared order. A failure stops the chain; a
-    // requiresApproval hook without a checkpoint approval parks at
-    // AWAITING_APPROVAL and never executes; dry-run executes nothing.
-    // =========================================================================
+    // Saga-level chain state (single run authority; the source VERIFIED
+    // verify run is never touched — a partial postVerify never downgrades it).
     let hooksStopped = false;
     let failures = 0;
     let awaitingApproval = 0;
-    let externalSuccesses = 0;
 
-    for (const hook of postVerifyHooks) {
-      const cp = checkpointById.get(hook.id);
+    // =========================================================================
+    // postVerify hooks, per declaration in frozen order. A failure stops the
+    // chain; a requiresApproval hook without a checkpoint approval parks at
+    // AWAITING_APPROVAL and never executes; dry-run executes nothing.
+    // =========================================================================
+    for (const prep of prepared) {
+      const { declaration, postVerifyHooks: declarationHooks } = prep;
+      const tagAuthority = prep.tagAuthority;
+
+      // R1 timing contract carries over: hooks run inside a detached worktree
+      // at the frozen tagCommit, never in the live workspace. R-01: the
+      // worktree is materialized from a COPY of the frozen bare repo (never
+      // registered in the source repo's worktree metadata). Dry-run executes
+      // nothing, so no worktree is allocated for a rehearsal.
+      if (dryRun !== true) {
+        try {
+          tmpBase = await mkdtemp(join(tmpdir(), 'release-skill-postverify-'));
+          ({ worktreePath } = await createFrozenTagWorktree({
+            gitDir: tagAuthority.gitDir,
+            commit: tagAuthority.commit,
+            tmpBase,
+            exec,
+          }));
+        } catch (err) {
+          await evidence.append({
+            phase: 'worktree',
+            status: 'failed',
+            error: asError('WORKTREE_FAILED', boundedOutputTail(err?.stderr ?? err?.message)),
+          });
+          await recordFailure();
+          throw new ReleaseError(
+            GATE_FAILED,
+            `cannot create the detached tag worktree at ${declaration.tagCommit}: ${err?.message ?? err}`,
+            { tagCommit: declaration.tagCommit },
+          );
+        }
+        await evidence.append({ phase: 'worktree', status: 'passed' });
+
+        // ===================================================================
+        // Private execution bundle (F-01 / T1): postVerify re-entry consumes
+        // the SAME frozen bundle bytes — never the live workspace copies.
+        // Strictly re-read the digest-addressed bytes, recompute the closure
+        // through Foundation, and install ONLY the verified bytes into the
+        // fresh tag worktree before any hook runs; any mismatch fails closed
+        // before a hook or an external write.
+        // ===================================================================
+        let installedBundlePaths = [];
+        try {
+          ({ installed: installedBundlePaths } = await verifyAndInstallExecutionBundle({
+            planPath,
+            worktreePath,
+            postPublish: declaration,
+          }));
+        } catch (err) {
+          await evidence.append({
+            phase: 'worktree',
+            gate: 'execution-bundle',
+            status: 'failed',
+            error: asError('EXECUTION_BUNDLE_FAILED', boundedOutputTail(err?.message ?? String(err))),
+          });
+          await recordFailure();
+          throw err instanceof ReleaseError ? err : new ReleaseError(
+            GATE_FAILED,
+            `cannot verify the frozen execution bundle: ${err?.message ?? err}`,
+          );
+        }
+        await evidence.append({
+          phase: 'worktree',
+          gate: 'execution-bundle',
+          status: 'passed',
+          installed: installedBundlePaths,
+        });
+      }
+
+      // §2.3 context projection: verifyEvidence PRESENT (postVerify phase);
+      // publishedAt from the sealed publish run; payloadDir never travels.
+      const verifyEvidence = {
+        runId: verifyRun.runId,
+        status: verifyRun.status,
+        finishedAt: verifyRun.finishedAt,
+      };
+      const hookContextProjection = buildPostPublishContext({
+        plan,
+        postPublish: declaration,
+        runId,
+        sourceRun: publishRun,
+        payloadDir: undefined,
+        phase: 'postVerify',
+        verifyEvidence,
+      });
+
+      // Proposal documents must stay byte-deterministic across redeliveries of
+      // the SAME release event (NO_CHANGE idempotence): they travel with the
+      // stable lineage-derived event identity, not the per-attempt runId.
+      const proposalContextProjection = {
+        ...hookContextProjection,
+        runId: `postverify-${verifyRun.runId}`,
+      };
+
+      for (const hook of declarationHooks) {
+        const cp = checkpointById.get(unitActionId(declaration.unitId, hook.id));
       cp.startedAt = clockFn();
 
       if (hooksStopped) {
@@ -657,7 +758,7 @@ export async function postVerifyRelease(options) {
             hook,
             contextProjection: hookContextProjection,
             proposalContextProjection,
-            commitIdentity: postPublish.commitIdentity,
+            commitIdentity: declaration.commitIdentity,
             // F-04: presets receive the RELEASE workspace root (target.workspace
             // resolution + release-workspace write exclusion). The detached
             // worktree is the execution worktree and never impersonates it.
@@ -743,6 +844,7 @@ export async function postVerifyRelease(options) {
       try {
         hookExecution = await hookRunner(
           {
+            id: hook.id,
             command: hook.command,
             ...(hook.cwd ? { cwd: hook.cwd } : {}),
             ...(hook.timeoutMs !== undefined ? { timeoutMs: hook.timeoutMs } : {}),
@@ -802,6 +904,11 @@ export async function postVerifyRelease(options) {
       await snapshot(PARTIAL);
     }
 
+      // This declaration's scratch worktree is consumed; release it. The
+      // outer finally keeps the safety net for a mid-declaration throw.
+      await cleanupWorktree();
+    }
+
     // =========================================================================
     // Classification (returned, not thrown) — distribute saga family:
     // - DISTRIBUTED: no failures and no awaiting-approval hooks;
@@ -846,12 +953,12 @@ export async function postVerifyRelease(options) {
         status: 'failed',
         error: { code: err.code, message: err.message },
       });
-      if (!finalRecordWritten) await recordBlocked();
+      if (!finalRecordWritten) await recordFailure();
     } catch {
       // Persistence must never mask the primary failure.
     }
     await evidence.finish({
-      status: BLOCKED,
+      status: externalSuccesses > 0 ? PARTIAL : BLOCKED,
       error: { code: err.code, message: err.message },
       failedAt: clockFn(),
     }).catch(() => {});

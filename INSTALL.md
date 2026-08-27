@@ -2,7 +2,7 @@
 
 [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.8.1 -->
+<!-- release-skill:release-version: 0.9.0 -->
 ## Prerequisites
 
 - Node.js 22.0.0 or later
@@ -114,9 +114,15 @@ tag pinned to the exact version (never the bare repository URL, which installs
 the latest release or default branch), confirm the trust prompt, then reload:
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.8.1
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.0
    /plugins reload
    ```
+
+After the release has reached `VERIFIED`, the optional `release-finish` workflow
+can perform the same TUI interaction only after explicit user confirmation. It
+then re-reads Kimi's managed installation root and requires the version, tag,
+revision, and Git commit to match the frozen plan. This local check is not part
+of `verify` and does not alter the `VERIFIED` release state.
 
 No receipt or attestation is required. The `attest` command remains available
 only for frozen plans created by older versions that lack the
@@ -144,6 +150,12 @@ returns it in `manualFollowUps`; `verify` does not inspect the installation and
 reports `verifiedBySystem: false`. Install from the bundled-family marketplace
 `ifoohoo/release-skill` after publishing. No receipt or attestation is required
 for new plans; `attest` exists only for old frozen-plan compatibility.
+
+The optional `release-finish` workflow can inspect the CodeBuddy/WorkBuddy list
+after explicit confirmation. It reports `ALREADY_CURRENT` only when the listed
+marketplace, version, and frozen commit all match. Because the CLI cannot pin a
+ref, a mismatch remains `MANUAL_REQUIRED`; release-finish does not update to an
+unbound latest version.
 
 For a single session from a source checkout you can also point CodeBuddy at the
 generated plugin directory with `--plugin-dir <path>/adapters/workbuddy`; the

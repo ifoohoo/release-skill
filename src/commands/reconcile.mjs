@@ -357,21 +357,22 @@ export async function reconcileRelease(options) {
 
     const currentBaseline = await captureBaselineActual(root);
 
-    // planVersion fork (design: t1-2-digest-decoupling.md §4.3): for v2
-    // plans the baseline is record-layer audit data. Drift is recorded as a
-    // warning and execution continues -- artifact integrity is sealed by the
-    // frozen-artifact re-verification, never by workspace equality. v1 plans
-    // keep the BASELINE_CHANGED hard failure, byte for byte.
-    const planV2 = plan.planVersion === 2;
+    // planVersion fork (design: t1-2-digest-decoupling.md §4.3): for
+    // planVersion 2/3 plans (v3 inherits the v2 semantics per 多发布单元
+    // postPublish v3 §4.2) the baseline is record-layer audit data. Drift is
+    // recorded as a warning and execution continues -- artifact integrity is
+    // sealed by the frozen-artifact re-verification, never by workspace
+    // equality. v1 plans keep the BASELINE_CHANGED hard failure, byte for byte.
+    const recordLayerBaseline = plan.planVersion === 2 || plan.planVersion === 3;
 
     if (currentBaseline.gitTreeHash !== plan.baseline.gitTreeHash) {
-      if (planV2) {
+      if (recordLayerBaseline) {
         await evidence.append({
           phase: 'safety-gate',
           gate: 'baseline-check',
           status: 'warning',
           severity: 'warning',
-          reason: 'planVersion 2: baseline drift is record-layer audit data; frozen-artifact re-verification remains the integrity authority',
+          reason: 'planVersion 2/3: baseline drift is record-layer audit data; frozen-artifact re-verification remains the integrity authority',
           planTreeHash: plan.baseline.gitTreeHash,
           currentTreeHash: currentBaseline.gitTreeHash,
         });
@@ -396,13 +397,13 @@ export async function reconcileRelease(options) {
       plan.baseline.workspaceDigest &&
       currentBaseline.workspaceDigest !== plan.baseline.workspaceDigest
     ) {
-      if (planV2) {
+      if (recordLayerBaseline) {
         await evidence.append({
           phase: 'safety-gate',
           gate: 'baseline-check',
           status: 'warning',
           severity: 'warning',
-          reason: 'planVersion 2: workspace digest drift is record-layer audit data; frozen-artifact re-verification remains the integrity authority',
+          reason: 'planVersion 2/3: workspace digest drift is record-layer audit data; frozen-artifact re-verification remains the integrity authority',
           planWorkspaceDigest: plan.baseline.workspaceDigest,
           currentWorkspaceDigest: currentBaseline.workspaceDigest,
         });

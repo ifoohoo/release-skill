@@ -40,9 +40,6 @@
 import { canonicalJson, sha256Hex } from './digest.mjs';
 import { resolveProducerVersion } from './evidence.mjs';
 
-// Keep the assessment entry point compatible without duplicating the rule.
-export { findPostPublishUnitConflict } from './hooks.mjs';
-
 /** Four adoption statuses; never reuses ASSESSED (design §3.2). */
 export const ASSESSMENT_STATUS = Object.freeze({
   NOT_CONFIGURED: 'NOT_CONFIGURED',

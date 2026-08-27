@@ -244,28 +244,38 @@ function sameClosureResources(actual, expected) {
 }
 
 /**
- * Re-verify the frozen execution bundle and install ONLY the verified bytes
- * into the detached tag worktree. Runs BEFORE any hook or external write.
+ * Verify the frozen execution bundle closure WITHOUT installing anything
+ * (rework R-01: the full-declaration preflight reuses this exact
+ * implementation before the first external write — a later declaration's
+ * missing/drifted bundle must fail the whole saga with zero writes).
  *
- * Steps:
+ * Steps (the first half of verifyAndInstallExecutionBundle, shared verbatim):
  * 1. Strictly read every frozen resource from the digest-addressed store
  *    (`readFileStrict` with the frozen sha256 content guard); the file mode
  *    must still equal the publication mode — any deviation is tamper;
  * 2. recompute the closure through Foundation in a disposable workspace and
- *    compare it (digest + resources) with the plan's frozen closure;
- * 3. exclusively publish the verified bytes into the worktree — an occupied
- *    target means the bundle would shadow a frozen tag file and fails closed.
+ *    compare it (digest + resources) with the plan's frozen closure.
  *
  * @param {object} params
- * @param {object} params.plan - Frozen plan (postPublish.executionBundle).
+ * @param {object} params.postPublish - The CURRENT declaration being
+ *   verified (REQUIRED, rework R-06: the v1/v2 normalized single item or the
+ *   v3 loop item; an array fails closed).
  * @param {string} params.planPath - Absolute plan authority path (mechanical
  *   bundle-root anchor).
- * @param {string} params.worktreePath - Detached tag worktree root.
- * @returns {Promise<{installed: string[]}>} Installed relative paths.
+ * @returns {Promise<{verified: boolean, bytesByPath: Map<string, Buffer>}>}
+ *   `verified: false` with an empty map when the declaration carries no
+ *   executionBundle (a legal no-bundle declaration).
  */
-export async function verifyAndInstallExecutionBundle({ plan, planPath, worktreePath } = {}) {
-  const bundle = plan?.postPublish?.executionBundle;
-  if (!bundle) return { installed: [] };
+export async function verifyExecutionBundle({ planPath, postPublish } = {}) {
+  const declaration = postPublish;
+  if (!declaration || typeof declaration !== 'object') {
+    fail('verifyExecutionBundle requires the current postPublish declaration; pass the normalized single item or the v3 loop item explicitly');
+  }
+  if (Array.isArray(declaration)) {
+    fail('verifyExecutionBundle requires the current postPublish declaration, never the declaration array');
+  }
+  const bundle = declaration.executionBundle;
+  if (!bundle) return { verified: false, bytesByPath: new Map() };
   const closure = bundle.closure;
   if (!closure || !Array.isArray(closure.resources) || typeof closure.digest !== 'string') {
     fail('plan carries a malformed executionBundle closure');
@@ -318,10 +328,38 @@ export async function verifyAndInstallExecutionBundle({ plan, planPath, worktree
     fail(`bundle closure recomputation failed: ${cause?.message ?? cause}`, { kind: cause?.details?.kind });
   }
 
+  return { verified: true, bytesByPath };
+}
+
+/**
+ * Re-verify the frozen execution bundle (the SAME closure verification the
+ * full-declaration preflight runs) and install ONLY the verified bytes into
+ * the detached tag worktree. Runs BEFORE any hook or external write.
+ *
+ * Install step: exclusively publish the verified bytes into the worktree —
+ * an occupied target means the bundle would shadow a frozen tag file and
+ * fails closed.
+ *
+ * @param {object} params
+ * @param {object} params.postPublish - The CURRENT declaration being
+ *   executed (v3 multi-unit contract §4.3). REQUIRED (rework R-06): callers
+ *   must pass the declaration explicitly — v1/v2 callers pass the single item
+ *   obtained from normalizePostPublishView(), v3 callers pass their loop
+ *   item. Omitting it fails closed; an array never matches (fail-closed).
+ * @param {string} params.planPath - Absolute plan authority path (mechanical
+ *   bundle-root anchor).
+ * @param {string} params.worktreePath - Detached tag worktree root.
+ * @returns {Promise<{installed: string[]}>} Installed relative paths.
+ */
+export async function verifyAndInstallExecutionBundle({ planPath, worktreePath, postPublish } = {}) {
+  const { bytesByPath } = await verifyExecutionBundle({ planPath, postPublish });
+  const declaration = postPublish;
+  const closure = declaration?.executionBundle?.closure;
+
   // Install verified bytes into the tag worktree — exclusively: the bundle
   // must never overwrite (shadow) a file that already belongs to the tag.
   const installed = [];
-  for (const resource of closure.resources) {
+  for (const resource of closure?.resources ?? []) {
     try {
       await publishFileExclusive(worktreePath, resource.path, bytesByPath.get(resource.path), {
         mode: EXECUTION_BUNDLE_FILE_MODE,

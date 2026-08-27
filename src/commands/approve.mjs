@@ -31,7 +31,12 @@ import {
   MAX_APPROVAL_MS,
 } from '../core/approval.mjs';
 import { validatePostPublishApproval, derivePostPublishApprovalAuthorityPath } from '../core/postpublish-approval.mjs';
-import { normalizePostPublishHook, effectiveHookRequiresApproval } from '../core/postpublish.mjs';
+import {
+  normalizePostPublishHook,
+  effectiveHookRequiresApproval,
+  normalizePostPublishView,
+  validatePostPublishHookIdUniqueness,
+} from '../core/postpublish.mjs';
 import { WORKSPACE_DIGEST_ALGORITHM } from '../core/baseline.mjs';
 
 // ---------------------------------------------------------------------------
@@ -361,7 +366,14 @@ export async function approvePostPublishHook(options) {
   validatePlan(plan);
 
   // --- Locate the declared hook (fail-closed) ---
-  const hooks = plan.postPublish?.hooks ?? [];
+  // §4.3 unified normalization (rework R-02): hookId is globally unique
+  // across the v3 declaration array; minting resolves the same normalized
+  // view the runtime gating uses AND re-asserts the single array-level
+  // uniqueness authority — a duplicate hook id must never mint an approval
+  // that would authorize two units.
+  const declarations = normalizePostPublishView(plan);
+  validatePostPublishHookIdUniqueness(declarations);
+  const hooks = declarations.flatMap((declaration) => declaration.hooks ?? []);
   const hook = hooks.find((entry) => entry.id === hookId);
   if (!hook) {
     throw new ReleaseError(
