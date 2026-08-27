@@ -1,0 +1,799 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/plugin-verification-result.json",
+  "title": "Plugin verification result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "operation",
+    "status",
+    "requestDigest",
+    "goal",
+    "source",
+    "host",
+    "facts",
+    "reason",
+    "requiredActions"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.plugin-verification-result"
+    },
+    "operation": {
+      "const": "plugin-verification"
+    },
+    "status": {
+      "enum": [
+        "observed",
+        "rejected",
+        "failed",
+        "indeterminate"
+      ]
+    },
+    "requestDigest": {
+      "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256"
+    },
+    "goal": {
+      "$ref": "https://contracts.skill-family.example/v1/plugin-verification-request.json#/properties/goal"
+    },
+    "source": {
+      "$ref": "https://contracts.skill-family.example/v1/plugin-verification-request.json#/properties/source"
+    },
+    "host": {
+      "$ref": "https://contracts.skill-family.example/v1/plugin-verification-request.json#/properties/host"
+    },
+    "facts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "input",
+        "install",
+        "discovery",
+        "invocation"
+      ],
+      "properties": {
+        "input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sourceClosureDigest",
+            "membersDigest",
+            "runtimeIdentities",
+            "probe"
+          ],
+          "properties": {
+            "sourceClosureDigest": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "membersDigest": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "runtimeIdentities": {
+              "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/properties/runtimeIdentities"
+            },
+            "probe": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/commandObservation"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "install": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "installedClosureDigest",
+            "payloadMatches",
+            "observationDigest",
+            "sourceMode",
+            "commands",
+            "retained"
+          ],
+          "properties": {
+            "installedClosureDigest": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "payloadMatches": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "observationDigest": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "sourceMode": {
+              "$ref": "https://contracts.skill-family.example/v1/plugin-verification-request.json#/properties/source/properties/type"
+            },
+            "commands": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "$ref": "#/$defs/commandObservation"
+              }
+            },
+            "retained": {
+              "const": true
+            }
+          }
+        },
+        "discovery": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "basis",
+            "pluginId"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "observed",
+                "absent",
+                "unknown",
+                "not-performed"
+              ]
+            },
+            "basis": {
+              "enum": [
+                "native-plugin-list",
+                "native-init-event",
+                "none"
+              ]
+            },
+            "pluginId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "unknown",
+                      "not-performed"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "basis": {
+                    "const": "none"
+                  },
+                  "pluginId": {
+                    "const": null
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "observed"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "basis": {
+                    "enum": [
+                      "native-plugin-list",
+                      "native-init-event"
+                    ]
+                  },
+                  "pluginId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "absent"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "basis": {
+                    "enum": [
+                      "native-plugin-list",
+                      "native-init-event"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "invocation": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "execution",
+            "streams",
+            "snapshots",
+            "snapshotsMatch"
+          ],
+          "properties": {
+            "execution": {
+              "$ref": "#/$defs/execution"
+            },
+            "streams": {
+              "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/properties/streams"
+            },
+            "snapshots": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "required": [
+                "installedPlugin",
+                "fixture",
+                "protectedWorkspace"
+              ],
+              "properties": {
+                "installedPlugin": {
+                  "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/$defs/snapshot"
+                },
+                "fixture": {
+                  "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/$defs/snapshot"
+                },
+                "protectedWorkspace": {
+                  "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/$defs/snapshot"
+                }
+              }
+            },
+            "snapshotsMatch": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "reason": {
+      "enum": [
+        null,
+        "preflight-rejected",
+        "executable-observation-mismatch",
+        "execution-failed",
+        "snapshot-mismatch",
+        "private-evidence-publication-failed",
+        "boundary-state-indeterminate",
+        "source-invalid",
+        "members-drift",
+        "tree-violation",
+        "channel-source-invalid",
+        "restriction-unsupported",
+        "install-write-failed",
+        "payload-mismatch"
+      ]
+    },
+    "requiredActions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "manual-temporary-root-inspection-required"
+        ]
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "observed"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "const": null
+          },
+          "requiredActions": {
+            "type": "array",
+            "maxItems": 0
+          },
+          "facts": {
+            "properties": {
+              "install": {
+                "type": "object",
+                "properties": {
+                  "installedClosureDigest": {
+                    "type": "string"
+                  },
+                  "observationDigest": {
+                    "type": "string"
+                  }
+                }
+              },
+              "input": {
+                "properties": {
+                  "sourceClosureDigest": {
+                    "type": "string"
+                  },
+                  "membersDigest": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object",
+        "allOf": [
+          {
+            "if": {
+              "type": "object",
+              "properties": {
+                "goal": {
+                  "const": "install-only"
+                }
+              },
+              "required": [
+                "goal"
+              ]
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "facts": {
+                  "type": "object",
+                  "properties": {
+                    "invocation": {
+                      "const": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "type": "object",
+              "properties": {
+                "goal": {
+                  "const": "install-and-invoke"
+                }
+              },
+              "required": [
+                "goal"
+              ]
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "facts": {
+                  "type": "object",
+                  "properties": {
+                    "install": {
+                      "type": "object",
+                      "properties": {
+                        "payloadMatches": {
+                          "const": true
+                        }
+                      }
+                    },
+                    "invocation": {
+                      "type": "object",
+                      "properties": {
+                        "execution": {
+                          "type": "object",
+                          "properties": {
+                            "spawned": {
+                              "const": true
+                            },
+                            "exitStatus": {
+                              "const": 0
+                            },
+                            "processStatus": {
+                              "const": "EXITED"
+                            },
+                            "terminationReason": {
+                              "const": null
+                            },
+                            "watchdogReason": {
+                              "const": null
+                            },
+                            "runnerModelOverrideAbsent": {
+                              "const": true
+                            }
+                          }
+                        },
+                        "streams": {
+                          "type": "object"
+                        },
+                        "snapshots": {
+                          "type": "object"
+                        },
+                        "snapshotsMatch": {
+                          "const": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "rejected"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "enum": [
+              "preflight-rejected",
+              "source-invalid",
+              "members-drift",
+              "tree-violation",
+              "channel-source-invalid",
+              "restriction-unsupported",
+              "executable-observation-mismatch"
+            ]
+          },
+          "requiredActions": {
+            "type": "array",
+            "maxItems": 0
+          },
+          "facts": {
+            "properties": {
+              "install": {
+                "const": null
+              },
+              "invocation": {
+                "const": null
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "failed"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "enum": [
+              "install-write-failed",
+              "tree-violation",
+              "channel-source-invalid",
+              "execution-failed",
+              "snapshot-mismatch",
+              "private-evidence-publication-failed",
+              "executable-observation-mismatch",
+              "payload-mismatch"
+            ]
+          },
+          "requiredActions": {
+            "type": "array",
+            "maxItems": 0
+          }
+        },
+        "anyOf": [
+          {
+            "properties": {
+              "facts": {
+                "properties": {
+                  "install": {
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "install"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "facts"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "facts": {
+                "properties": {
+                  "invocation": {
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "invocation"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "facts"
+            ],
+            "type": "object"
+          }
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "indeterminate"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "const": "boundary-state-indeterminate"
+          },
+          "requiredActions": {
+            "type": "array",
+            "const": [
+              "manual-temporary-root-inspection-required"
+            ]
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "reason": {
+            "const": "payload-mismatch"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "facts": {
+            "properties": {
+              "invocation": {
+                "const": null
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      }
+    }
+  ],
+  "$defs": {
+    "commandObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step",
+        "execution",
+        "streams",
+        "outputByteLimits",
+        "outputLimitExceeded"
+      ],
+      "properties": {
+        "step": {
+          "enum": [
+            "version-probe",
+            "marketplace-add",
+            "plugin-install",
+            "plugin-list"
+          ]
+        },
+        "execution": {
+          "$ref": "#/$defs/execution"
+        },
+        "streams": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/properties/streams"
+        },
+        "outputByteLimits": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.skill-family.example/v1/watchdog-termination-envelope.json#/$defs/outputByteLimits"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "outputLimitExceeded": {
+          "enum": [
+            "stdout",
+            "stderr",
+            null
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "step": {
+                "const": "version-probe"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "outputByteLimits": {
+                "const": null
+              },
+              "outputLimitExceeded": {
+                "const": null
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outputByteLimits": {
+                "const": null
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "outputLimitExceeded": {
+                "const": null
+              }
+            }
+          }
+        }
+      ]
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "spawned",
+        "exitStatus",
+        "processStatus",
+        "terminationReason",
+        "watchdogReason",
+        "runnerModelOverrideAbsent"
+      ],
+      "properties": {
+        "spawned": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/properties/execution/properties/spawned"
+        },
+        "exitStatus": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/properties/execution/properties/exitStatus"
+        },
+        "processStatus": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/properties/execution/properties/processStatus"
+        },
+        "terminationReason": {
+          "$ref": "https://contracts.skill-family.example/v1/watchdog-termination-envelope.json#/properties/terminationReason"
+        },
+        "watchdogReason": {
+          "$ref": "https://contracts.skill-family.example/v1/watchdog-termination-envelope.json#/properties/watchdogReason"
+        },
+        "runnerModelOverrideAbsent": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/properties/execution/properties/runnerModelOverrideAbsent"
+        }
+      }
+    },
+    "installObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requestDigest",
+        "installedRoot",
+        "observation"
+      ],
+      "properties": {
+        "requestDigest": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256"
+        },
+        "installedRoot": {
+          "type": "string",
+          "pattern": "^/(?:[^/\\\\\\u0000]+(?:/[^/\\\\\\u0000]+)*)?$",
+          "not": {
+            "pattern": "(?:^|/)\\.{1,2}(?:/|$)"
+          }
+        },
+        "observation": {
+          "$ref": "https://contracts.skill-family.example/v1/filesystem-tree-observation.json"
+        }
+      }
+    }
+  }
+}

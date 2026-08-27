@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.8.0 -->
+<!-- release-skill:release-version: 0.8.1 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,31 +14,35 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.8.0** (2026-08-26)
+**0.8.1** (2026-08-27)
 
-The local 0.8.0 candidate completed independent acceptance on 2026-08-26. This summary records version scope and verification boundaries; it is not a publication record or a consumer upgrade instruction. Local acceptance does not establish remote publication or consumer-installation verification. Release availability must be established from the corresponding release records and post-publish verification results.
+0.8.1 is a local source candidate. This note records its intended scope and verification boundaries; it is not evidence of publication, consumer-installation verification, or independent acceptance. Release availability must be established from the corresponding release records and post-publish verification results. The fresh 0.8.1 coordinate avoids overwriting the different public bytes already published as v0.8.0.
+
+**Security**
+
+- The occupied v0.8.0 tag and npm coordinate are not overwritten or reused. v0.8.1 receives a newly frozen plan, approval, tag, package, release, and post-publish verification lineage.
 
 **Changed**
 
-- Pin all three Foundation dependencies to released 0.12.0 packages. Packaging uses the existing generators for runtime resources, native files, and legal materials. The generated outputs were included in local independent acceptance, limited to the accepted inputs and environment.
-- Reuse existing Foundation APIs for ship state writes, baseline configuration replacement, temporary workspaces, and README result reads and digests. This removes duplicated mechanisms; Harness source is unchanged between 0.11.0 and 0.12.0. Candidate host verification does not replace production gates or the three-role README acceptance.
+- Pin all three Foundation dependencies to released 0.13.0 packages. Packaging uses the existing generators for runtime resources, native files, legal materials, host profiles, and plugin-verification contracts.
+- Reuse Foundation runPluginVerification for complete local payload observation of frozen Kimi and CodeBuddy bundled-family plugins. CodeBuddy maps to Foundation's compatible workbuddy host. Marketplace installation and host invocation remain explicit manual follow-ups; Foundation observations do not replace release-domain gates or three-role README acceptance.
 - Evidence v2 closes the top level and stores phase extensions in typed details. Evidence v1 remains read-only. Summaries, producer versions, and recovery suggestions are diagnostic, never publication authority.
 
 **Fixed**
 
 - Config branch A keeps zero external actions and no sourceAuthority, even with a configured public source receipt. Production branch B and docs production freeze plan.sourceAuthority and retain remote consistency checks. Marketplace delegation is unchanged.
-- Fixes cover installed host surfaces, release-run lineage, Git hooks in frozen checkouts, pure configuration checks before long hooks, and adoption assessment. These fixes were included in local independent acceptance, limited to the accepted inputs and environment. Focused self-tests do not establish candidate acceptance.
-- FAILED summaries, compatibility details, and returned errors now project the same domain recovery result when current-run evidence is available. Existing fallbacks, unknown without evidence, and successful verify null suggestions remain unchanged. These fixes were included in local independent acceptance, limited to the accepted inputs and environment.
+- Fixes cover installed host surfaces, release-run lineage, Git hooks in frozen checkouts, pure configuration checks before long hooks, and adoption assessment. Focused self-tests verify their stated cases but do not establish publication, consumer installation, or independent candidate acceptance.
+- FAILED summaries, compatibility details, and returned errors now project the same domain recovery result when current-run evidence is available. Existing fallbacks, unknown without evidence, and successful verify null suggestions remain unchanged.
 
 **Upgrade Notes**
 
-Old production plans missing sourceAuthority and checker v4 plans must not be silently upgraded; when no external writes occurred, prepare again and approve the new digest. Do not migrate old approvals or evidence. Preserve existing PARTIAL checkpoints and use matching-version recovery. Hook cache v1 is unchanged; old full-test evidence is not imported. R-02 safe full-tree inventory, R-05 Hook cache v2, R-10 implementation, real Kimi/WorkBuddy production gates, and the Audit public offline release-record verifier are excluded.
+Old production plans missing sourceAuthority and checker v4 plans must not be silently upgraded; when no external writes occurred, prepare again and approve the new digest. Do not migrate old approvals or evidence. Preserve existing PARTIAL checkpoints and use matching-version recovery. Hook cache v1 is unchanged; old full-test evidence is not imported. R-02 safe full-tree inventory, R-05 Hook cache v2, R-10 implementation, real Kimi/WorkBuddy public-marketplace installation and invocation gates, and the Audit public offline release-record verifier are excluded.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.8.0 is the current source candidate. It completed independent
-> local acceptance on 2026-08-26, limited to the accepted inputs and environment. Local acceptance
-> does not establish remote publication or consumer-installation verification.
+> **Current boundary:** v0.8.1 is the current source candidate. This README
+> records intended scope and verification boundaries; it is not evidence of
+> publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
 > and post-publish verification results.
 > v0.4.1 was an earlier published milestone;
@@ -60,9 +64,9 @@ Old production plans missing sourceAuthority and checker v4 plans must not be si
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.8.0 is the current
-> source candidate. Its local acceptance does not establish remote publication
-> or consumer-installation verification.**
+> **Production path verified since the v0.1.1 milestone; v0.8.1 is the current
+> source candidate. Its README does not establish publication,
+> consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
@@ -91,16 +95,16 @@ Summaries and recovery suggestions are diagnostic, never publication authority.
 
 This version excludes R-02 safe full-tree inventory, R-05 Hook cache v2,
 R-10 historical-release verification implementation, real Kimi/WorkBuddy
-production gates, and an Audit public offline release-record verifier.
-Foundation dependencies are pinned to the three released 0.12.0 packages.
-State writes, baseline replacement, temporary workspaces, and README result
-reads and digests reuse existing Foundation APIs. Harness source is unchanged
-between 0.11.0 and 0.12.0; candidate host verification does not replace
-production gates or three-role README acceptance.
-Foundation's candidate `runHostVerification` and `verifyHostVerificationBindings`
-APIs do not decide domain PASS/FAIL, isolate authentication, freeze model identity,
-or disable host tools. The executable digest is only a pre-launch observation;
-member snapshots cover only declared members at the two observation times.
+public-marketplace installation and invocation gates, and an Audit public
+offline release-record verifier.
+Foundation dependencies are pinned to the three released 0.13.0 packages.
+For new bundled-family Kimi/CodeBuddy plans, verify calls the released
+`runPluginVerification` entry with the complete frozen payload and records a
+minimal `install-only` observation receipt. Kimi maps to `kimi-code`; CodeBuddy
+maps to the compatible `workbuddy` host. `observed` and `payloadMatches` are
+mechanism facts, not remote publication or release-domain VERIFIED facts.
+Standalone marketplace sources, real marketplace installation, and host
+invocation remain manual follow-ups.
 This scope summary is not a remote publication record or a consumer upgrade instruction.
 
 <!-- release-skill:maturity:distribute-v1 -->
@@ -165,7 +169,9 @@ This scope summary is not a remote publication record or a consumer upgrade inst
 > audited and explicitly acknowledged. Production publishing uses
 > `ship --target-version <ver> → ship --approve --actor <name>`.
 > The `ship` command runs hooks and gates automatically; the only human gate is plan approval.
-> Kimi/CodeBuddy installations are non-blocking manual follow-up tasks (not verified by system).
+> For bundled-family Kimi/CodeBuddy releases, Foundation first observes the
+> complete frozen payload in a fresh local installation. Real marketplace
+> installation and host invocation remain non-blocking manual follow-up tasks.
 
 ## Table of contents
 
@@ -222,7 +228,9 @@ See [INSTALL.md](INSTALL.md) for CodeBuddy, Codex, and Kimi Code commands.
 For routine releases, use the durable fast path. It persists authoritative
 paths and resumes safely, so a normal run needs at most one human gate: the
 frozen plan approval. `ship` runs configured hooks and verification gates
-automatically. Kimi/CodeBuddy installations are non-blocking post-release
+automatically. For bundled-family Kimi/CodeBuddy releases, Foundation first
+observes the complete frozen payload in a fresh local installation. Real
+marketplace installation and host invocation remain non-blocking post-release
 manual tasks; the system does not verify their completion.
 
 A release plan is a record for review before approval, linking target versions, frozen artifacts, and proposed external actions; see the [human review and approval steps](#release-plan-review).

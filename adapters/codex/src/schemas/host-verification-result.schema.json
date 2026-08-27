@@ -103,8 +103,8 @@
         "spawned": { "type": "boolean" },
         "exitStatus": { "type": ["integer", "null"], "minimum": 0 },
         "processStatus": { "type": ["string", "null"], "enum": ["PLANNED", "STARTING", "RUNNING", "EXITED", "FAILED_TO_START", "TIMED_OUT", "TERMINATED", null] },
-        "terminationReason": { "$ref": "https://contracts.skill-family.example/v1/watchdog-termination-envelope.json#/properties/terminationReason" },
-        "watchdogReason": { "$ref": "https://contracts.skill-family.example/v1/watchdog-termination-envelope.json#/properties/watchdogReason" },
+        "terminationReason": { "$ref": "https://contracts.skill-family.example/v1/watchdog-termination-envelope.json#/properties/terminationReason", "not": { "const": "output_limit_exceeded" } },
+        "watchdogReason": { "$ref": "https://contracts.skill-family.example/v1/watchdog-termination-envelope.json#/properties/watchdogReason", "not": { "const": "output_limit_exceeded" } },
         "runnerModelOverrideAbsent": { "type": "boolean" }
       }
     },

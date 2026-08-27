@@ -58,6 +58,7 @@ import {
 import { ReleaseError, GATE_FAILED, CONFIG_INVALID, CONFIG_MISSING, FORBIDDEN_CONTENT_DETECTED, RELEASE_DOCS_STALE, DIRTY_SOURCE_INPUT, BUNDLE_STALE } from '../core/errors.mjs';
 import { assertBundleFreshness } from '../core/bundle-freshness.mjs';
 import { assertAdapterFreshness, assertSelfBootstrapFacts } from '../core/derived-artifact-gates.mjs';
+import { isFoundationPluginVerificationEligible } from '../core/foundation-plugin-verification.mjs';
 import { PKG_ROOT } from '../core/pkg-root.mjs';
 import { writeFrozenMarker, FROZEN_MARKER_FILENAME } from '../core/frozen-marker.mjs';
 import {
@@ -4235,11 +4236,21 @@ export async function prepareRelease(options) {
       });
     }
 
-    // Detect human consumer platforms (Kimi/CodeBuddy) in the plan.
-    // When present, new plans mark them as non-blocking manual follow-up tasks.
-    const hasHumanConsumerActions = externalActions.some(
+    // Detect human consumer platforms (Kimi/CodeBuddy) in the plan. Foundation
+    // 0.13 can observe their complete local payload only when production has
+    // frozen a bundled-family source. Standalone marketplace sources remain on
+    // the legacy manual-follow-up path because Foundation exposes no public
+    // Kimi/WorkBuddy public-channel driver in this release.
+    const humanConsumerActions = externalActions.filter(
       (a) => a.type === 'kimi-marketplace-install' || a.type === 'codebuddy-marketplace-install',
     );
+    const humanConsumersStrategy = humanConsumerActions.length === 0
+      ? null
+      : humanConsumerActions.some((action) => (
+          isFoundationPluginVerificationEligible({ action, units })
+        ))
+        ? 'foundationPayloadThenManualFollowUps'
+        : 'manualFollowUps';
 
     // --- Fold the validated postPublish declaration into the frozen plan ---
     // Bindings: tag (tagTemplate rendered at the resolved target version —
@@ -4331,7 +4342,7 @@ export async function prepareRelease(options) {
         : {}),
       verificationGates: config.verificationGates ?? [],
       snapshotDigest: overallSnapshotDigest,
-      ...(hasHumanConsumerActions ? { humanConsumersStrategy: 'manualFollowUps' } : {}),
+      ...(humanConsumersStrategy ? { humanConsumersStrategy } : {}),
       ...(production ? {
         production: {
           mode: 'github-npm-v1',

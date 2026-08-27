@@ -1051,9 +1051,10 @@
     "humanConsumersStrategy": {
       "type": "string",
       "enum": [
-        "manualFollowUps"
+        "manualFollowUps",
+        "foundationPayloadThenManualFollowUps"
       ],
-      "description": "Human consumer strategy marker. 'manualFollowUps': Kimi/CodeBuddy installations are non-blocking post-release manual tasks; verify returns VERIFIED with manualFollowUps list and does not block on attestation. Absent: legacy attestation closed loop (backward compatibility)."
+      "description": "Human consumer strategy marker. 'foundationPayloadThenManualFollowUps': verify first observes the complete frozen plugin through Foundation, then preserves non-blocking Kimi/CodeBuddy marketplace/invocation follow-ups. 'manualFollowUps': legacy 0.8 behavior without the Foundation payload observation. Absent: legacy attestation closed loop."
     },
     "workflowKind": {
       "type": "string",

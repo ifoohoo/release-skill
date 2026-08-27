@@ -376,10 +376,14 @@ export function evaluateConsumerSkillResourceClosureReceipts(plan, receipts) {
     'kimi-plugin',
     'codebuddy-plugin',
   ]);
-  // When plan declares humanConsumersStrategy: 'manualFollowUps', Kimi/CodeBuddy
-  // are non-blocking manual follow-up tasks and are not verified by the system.
-  // Exclude them from the expected receipt set.
-  const humanConsumerTypes = plan.humanConsumersStrategy === 'manualFollowUps'
+  // Kimi/CodeBuddy remain non-blocking manual marketplace/invocation tasks in
+  // both strategy generations. The newer strategy adds a Foundation frozen
+  // payload observation but still does not establish an installed host
+  // surface, so these distributions stay outside this receipt set.
+  const humanConsumerTypes = [
+    'manualFollowUps',
+    'foundationPayloadThenManualFollowUps',
+  ].includes(plan.humanConsumersStrategy)
     ? new Set(['kimi-plugin', 'codebuddy-plugin'])
     : new Set();
   const expectedKeys = [];

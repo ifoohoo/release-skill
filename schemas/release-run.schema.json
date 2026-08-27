@@ -530,7 +530,7 @@
     },
     "manualFollowUps": {
       "type": "array",
-      "description": "Non-blocking manual follow-up tasks for human consumer platforms (Kimi/CodeBuddy) when plan declares humanConsumersStrategy: 'manualFollowUps'",
+      "description": "Non-blocking marketplace installation and invocation follow-ups for Kimi/CodeBuddy. Under foundationPayloadThenManualFollowUps, the frozen payload was observed first but these real-host tasks remain unverified.",
       "items": {
         "type": "object",
         "required": [
@@ -568,6 +568,40 @@
           "reason": {
             "type": "string"
           }
+        }
+      }
+    },
+    "foundationPluginVerificationReceipts": {
+      "type": "array",
+      "description": "Foundation complete-plugin local payload observations bound to verify actions. These receipts do not prove marketplace installation or host invocation.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "planDigest",
+          "actionId",
+          "unitId",
+          "requestDigest",
+          "hostId",
+          "goal",
+          "sourceType",
+          "foundationStatus",
+          "payloadMatches",
+          "observationDigest",
+          "observedAt"
+        ],
+        "properties": {
+          "planDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "actionId": { "type": "string", "minLength": 1 },
+          "unitId": { "type": "string", "minLength": 1 },
+          "requestDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "hostId": { "enum": ["kimi-code", "workbuddy"] },
+          "goal": { "const": "install-only" },
+          "sourceType": { "const": "local-staged" },
+          "foundationStatus": { "const": "observed" },
+          "payloadMatches": { "const": true },
+          "observationDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "observedAt": { "type": "string", "format": "date-time" }
         }
       }
     },

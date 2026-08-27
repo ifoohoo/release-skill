@@ -62,6 +62,10 @@ import {
 import { loadProjectConfig } from '../core/config.mjs';
 import { assertTransition, PUBLISHED, VERIFIED } from '../core/state-machine.mjs';
 import { clearFrozenMarker } from '../core/frozen-marker.mjs';
+import {
+  isFoundationPluginVerificationEligible,
+  verifyFrozenPluginWithFoundation,
+} from '../core/foundation-plugin-verification.mjs';
 import { resolveUnitScopedPath } from '../snapshot/public-path.mjs';
 import {
   normalizeRegistry,
@@ -944,6 +948,7 @@ export async function verifyRelease(options) {
     previousVerifyRun,
     execFn,
     configPath: configPathOpt,
+    runPluginVerificationFn,
   } = options ?? {};
 
   const clockFn = typeof clockOpt === 'function' ? clockOpt : defaultClock;
@@ -1351,10 +1356,15 @@ export async function verifyRelease(options) {
       }
     }
 
-    // When the plan declares humanConsumersStrategy: 'manualFollowUps',
-    // Kimi/CodeBuddy installations are non-blocking post-release manual tasks.
-    // Skip attestation collection and blocking for these platforms.
-    const isHumanConsumerFollowUp = plan.humanConsumersStrategy === 'manualFollowUps';
+    // Kimi/CodeBuddy remain non-blocking post-release manual tasks. New plans
+    // additionally require a Foundation observation of the complete frozen
+    // payload before the manual marketplace/invocation follow-up is emitted.
+    const isHumanConsumerFollowUp = [
+      'manualFollowUps',
+      'foundationPayloadThenManualFollowUps',
+    ].includes(plan.humanConsumersStrategy);
+    const requiresFoundationPayloadObservation = plan.humanConsumersStrategy
+      === 'foundationPayloadThenManualFollowUps';
 
     const missingManualAttestations = isHumanConsumerFollowUp
       ? []
@@ -1382,6 +1392,7 @@ export async function verifyRelease(options) {
 
     // Collect non-blocking manual follow-up tasks for human consumer platforms
     const manualFollowUps = [];
+    const foundationPluginVerificationReceipts = [];
 
     // Every action is identity-bound and adapters receive read-only or
     // per-action isolated consumer paths. Run independent checks concurrently;
@@ -1414,13 +1425,40 @@ export async function verifyRelease(options) {
       }
 
       if (isMarketplaceAction(action.type)) {
-        // When humanConsumersStrategy is 'manualFollowUps', Kimi/CodeBuddy
-        // installations are non-blocking manual follow-up tasks. Skip adapter
-        // processing and collect them as manualFollowUps.
+        // Both human-consumer strategies keep marketplace installation and
+        // invocation as non-blocking manual follow-ups. The new strategy first
+        // requires Foundation to observe the identity-bound frozen payload.
         const isHumanConsumerPlatform = action.type === 'kimi-marketplace-install'
           || action.type === 'codebuddy-marketplace-install';
         if (isHumanConsumerFollowUp && isHumanConsumerPlatform) {
           const platform = action.type === 'kimi-marketplace-install' ? 'kimi' : 'codebuddy';
+          const observesFoundationPayload = requiresFoundationPayloadObservation
+            && isFoundationPluginVerificationEligible({ action, units: plan.units });
+          if (observesFoundationPayload) {
+            const actionRunDir = join(runDir, 'foundation-plugin-verification', action.id);
+            await mkdir(join(actionRunDir, 'install'), { recursive: true, mode: 0o700 });
+            await mkdir(join(actionRunDir, 'temporary'), { recursive: true, mode: 0o700 });
+            await mkdir(join(actionRunDir, 'evidence'), { recursive: true, mode: 0o700 });
+            const receipt = await verifyFrozenPluginWithFoundation({
+              plan,
+              action,
+              root,
+              runDir: actionRunDir,
+              ...(runPluginVerificationFn ? { runPluginVerificationFn } : {}),
+              clock: clockFn,
+            });
+            foundationPluginVerificationReceipts.push(receipt);
+            await evidence.append({
+              phase: 'verify-marketplace',
+              actionId: action.id,
+              actionType: action.type,
+              status: 'FOUNDATION_PAYLOAD_OBSERVED',
+              requestDigest: receipt.requestDigest,
+              hostId: receipt.hostId,
+              payloadMatches: receipt.payloadMatches,
+              observationDigest: receipt.observationDigest,
+            });
+          }
           manualFollowUps.push({
             actionId: action.id,
             platform,
@@ -1428,20 +1466,26 @@ export async function verifyRelease(options) {
             version: action.parameters?.version,
             unitId: action.unitId,
             verifiedBySystem: false,
-            reason: 'human consumer platform — installation is a manual post-release task; not verified by system',
+            reason: observesFoundationPayload
+              ? 'complete frozen payload observed by Foundation; marketplace installation and host invocation remain manual'
+              : 'human consumer platform — installation is a manual post-release task; not verified by system',
           });
           adapterChecks.push({
             actionId: action.id,
             actionType: action.type,
             status: 'SKIPPED',
-            reason: 'manual-follow-up',
+            reason: observesFoundationPayload
+              ? 'foundation-payload-observed-manual-follow-up'
+              : 'manual-follow-up',
           });
           await evidence.append({
             phase: 'verify-marketplace',
             actionId: action.id,
             actionType: action.type,
             status: 'SKIPPED',
-            reason: 'manual-follow-up',
+            reason: observesFoundationPayload
+              ? 'foundation-payload-observed-manual-follow-up'
+              : 'manual-follow-up',
           });
           return;
         }
@@ -1727,6 +1771,8 @@ export async function verifyRelease(options) {
     }));
     adapterChecks.sort((a, b) => a.actionId.localeCompare(b.actionId));
     consumerVerificationReceipts.sort((a, b) => a.actionId.localeCompare(b.actionId));
+    foundationPluginVerificationReceipts.sort((a, b) => a.actionId.localeCompare(b.actionId));
+    manualFollowUps.sort((a, b) => a.actionId.localeCompare(b.actionId));
     consumerGateResults.sort((a, b) => a.id.localeCompare(b.id));
     const rejectedAction = actionResults.find((result) => result.status === 'rejected');
     if (rejectedAction) throw rejectedAction.reason;
@@ -2034,6 +2080,9 @@ export async function verifyRelease(options) {
       gateResults: consumerGateResults,
       consumerVerificationReceipts,
       skillResourceClosureReceipts,
+      ...(foundationPluginVerificationReceipts.length > 0
+        ? { foundationPluginVerificationReceipts }
+        : {}),
       ...(manualFollowUps.length > 0 ? { manualFollowUps } : {}),
       startedAt: clockFn(),
       finishedAt: clockFn(),
@@ -2132,6 +2181,9 @@ export async function verifyRelease(options) {
       recoveryActionCode: null,
       smokeTest,
       gateResults: consumerGateResults,
+      ...(foundationPluginVerificationReceipts.length > 0
+        ? { foundationPluginVerificationReceipts }
+        : {}),
       ...(manualFollowUps.length > 0 ? { manualFollowUps } : {}),
       ...(baselineAdvance ? { baselineAdvance } : {}),
     };

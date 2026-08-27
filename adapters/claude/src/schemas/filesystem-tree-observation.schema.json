@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/filesystem-tree-observation.json",
+  "title": "Filesystem tree observation",
+  "description": "A complete same-pass fact observation of a bound filesystem tree (FND-DES-014 section 6.1). Private data only: it is returned by the public read-only harness entry, but never enters a public plugin verification result. The record keeps the original root binding so consumers re-verify the same bound root and never re-bind a replacement. Members are canonical relative paths sorted by Unicode code point; directories carry identity/type/permission facts only; file bytes come from the same native descriptor that supplies statMode.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "rootBinding", "members", "membersDigest"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.filesystem-tree-observation" },
+    "rootBinding": { "$ref": "https://contracts.skill-family.example/v1/filesystem-root-binding.json" },
+    "members": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/member" }
+    },
+    "membersDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "$defs": {
+    "statMode": { "type": "integer", "minimum": 0, "maximum": 65535 },
+    "member": {
+      "oneOf": [
+        { "$ref": "#/$defs/fileMember" },
+        { "$ref": "#/$defs/directoryMember" }
+      ]
+    },
+    "fileMember": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "type", "sha256", "bytes", "statMode", "contentBase64"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "type": { "const": "file" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "statMode": { "$ref": "#/$defs/statMode" },
+        "contentBase64": { "type": "string" }
+      }
+    },
+    "directoryMember": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "type", "statMode"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "type": { "const": "directory" },
+        "statMode": { "$ref": "#/$defs/statMode" }
+      }
+    }
+  }
+}

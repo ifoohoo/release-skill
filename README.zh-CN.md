@@ -2,36 +2,40 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.8.0 -->
+<!-- release-skill:release-version: 0.8.1 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.8.0** (2026-08-26)
+**0.8.1** (2026-08-27)
 
-0.8.0 的本地候选于 2026-08-26 完成独立验收。本说明记录版本范围与验证边界，不构成远端发布记录或消费者升级指引。本地验收不证明对应版本已完成远端发布或消费者安装验证；版本可用性以对应发布记录及发布后验证结果为准。
+0.8.1 当前只是本地源码候选。本说明记录预期范围与验证边界，不代表已经发布、完成消费者安装验证或通过独立验收。版本是否可用，须以对应发布记录及发布后验证结果为准。使用新的 0.8.1 坐标，是为了避免覆盖已经以 v0.8.0 发布的另一份公开制品。
+
+**安全**
+
+- 不会覆盖或复用已被占用的 v0.8.0 标签和 npm 坐标。v0.8.1 将重新冻结计划，并建立新的批准、标签、软件包、GitHub Release 与发布后验证血缘。
 
 **变更**
 
-- Foundation 三包精确依赖已发布的 0.12.0。打包通过既有生成器携带运行资源、原生文件和法律材料。生成物已纳入本地独立验收，结论限于已验收的输入与环境。
-- ship 状态写入、基线配置替换、临时工作区及 README 结果读取和摘要计算改用 Foundation 既有 API，删除重复机制。Harness 的 0.11.0 与 0.12.0 源码相同。候选宿主验证不能替代生产门禁或 README 三角色验收。
+- Foundation 三包精确依赖已发布的 0.13.0。打包继续通过既有生成器携带运行资源、原生文件、法律材料、宿主 Profile 和插件验证合同。
+- Kimi、CodeBuddy 的同仓冻结插件载荷改用 Foundation runPluginVerification 做完整本地安装观察。CodeBuddy 映射到 Foundation 中兼容的 workbuddy 宿主。真实市场安装和宿主调用仍作为人工后续任务；Foundation 观察不能替代发布领域门禁或 README 三角色验收。
 - evidence v2 顶层封闭，阶段扩展进入受类型约束的 details；evidence v1 保持只读。摘要、生产者版本和恢复建议只作诊断，不构成发布权威。
 
 **修复**
 
 - config 场景 A 保持零外部动作、不生成 sourceAuthority，即使配置了公开来源收据也不例外。production 场景 B 与 docs production 冻结 plan.sourceAuthority，保留远端一致性检查。marketplace 委托发布的边界不变。
-- 修复覆盖实际安装宿主表面、发布运行血缘、冻结副本中的 Git Hook、长 Hook 前纯配置检查和接入评估。这些修复已纳入本地独立验收，结论限于已验收的输入与环境。聚焦自测不代表候选验收通过。
-- 有本次证据时，FAILED 摘要、兼容 details 与返回错误已接齐同一次领域恢复计算结果。既有回退、无证据时的 unknown 和成功 verify 的 null 建议保持不变。这些修复已纳入本地独立验收，结论限于已验收的输入与环境。
+- 修复覆盖实际安装宿主表面、发布运行血缘、冻结副本中的 Git Hook、长 Hook 前纯配置检查和接入评估。聚焦自测只证明对应场景，不代表已经发布、完成消费者安装验证或通过独立验收。
+- 有本次证据时，FAILED 摘要、兼容 details 与返回错误已接齐同一次领域恢复计算结果。既有回退、无证据时的 unknown 和成功 verify 的 null 建议保持不变。
 
 **升级说明**
 
-缺 sourceAuthority 的旧 production 计划和 checker v4 计划不得静默升级；未发生外部写入时须重新 prepare 并批准新摘要，不迁移旧批准或证据。已有 PARTIAL 保留检查点，走匹配版本的恢复路径。Hook cache v1 不变，不导入旧 full-test 证据。本版不包含 R-02 安全整树盘点、R-05 Hook cache v2、R-10 产品实现、真实 Kimi/WorkBuddy production 门禁或 Audit 公开离线发布记录验证器。
+缺 sourceAuthority 的旧 production 计划和 checker v4 计划不得静默升级；未发生外部写入时须重新 prepare 并批准新摘要，不迁移旧批准或证据。已有 PARTIAL 保留检查点，走匹配版本的恢复路径。Hook cache v1 不变，不导入旧 full-test 证据。本版不包含 R-02 安全整树盘点、R-05 Hook cache v2、R-10 产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录验证器。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.8.0 是当前源码候选，已于 2026-08-26 完成本地独立验收。
-> 结论限于已验收的输入与环境；本地验收不证明对应版本已完成远端发布或消费者安装验证。
+> **当前边界：** v0.8.1 只是当前源码候选。本 README 记录预期范围与验证边界，
+> 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的
@@ -46,7 +50,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.8.0 是当前源码候选，本地验收不证明对应版本已完成远端发布或消费者安装验证。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.8.1 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -64,11 +68,9 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-本版不包含 R-02 安全整树盘点、R-05 Hook cache v2、R-10 历史发布验证的产品实现、真实 Kimi/WorkBuddy production 门禁或 Audit 公开离线发布记录验证器。本范围说明不构成远端发布记录或消费者升级指引。
+本版不包含 R-02 安全整树盘点、R-05 Hook cache v2、R-10 历史发布验证的产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录验证器。本范围说明不构成远端发布记录或消费者升级指引。
 
-Foundation 三包精确依赖已发布的 0.12.0。状态写入、基线替换、临时工作区及 README 结果读取和摘要计算复用 Foundation 既有 API。Harness 的 0.11.0 与 0.12.0 源码相同；候选宿主验证不能替代生产门禁或 README 三角色验收。
-
-Foundation 的候选接口 `runHostVerification` 和 `verifyHostVerificationBindings` 不决定领域 PASS/FAIL，也不隔离认证、冻结模型身份或禁用宿主工具。可执行文件摘要只记录启动前的观察；成员快照只覆盖两次观察时声明的成员。
+Foundation 三包精确依赖已发布的 0.13.0。新生成的 Kimi/CodeBuddy 同仓计划在 verify 阶段调用正式 `runPluginVerification`，把完整冻结载荷交给 Foundation，并记录最小的 `install-only` 观察收据。Kimi 映射为 `kimi-code`，CodeBuddy 映射为兼容的 `workbuddy`。`observed` 与 `payloadMatches` 只表示机制观察结果，不代表远端已发布或 release-skill 已完成领域验证。独立市场来源、真实市场安装和宿主调用仍是人工后续任务。
 
 <!-- release-skill:maturity:distribute-v1 -->
 <!-- release-skill:capability:distribute -->
@@ -123,7 +125,8 @@ Foundation 的候选接口 `runHostVerification` 和 `verifyHostVerificationBind
 > 显式确认其副作用时，才可以把 `prepare` 视为”仅本地”。生产发布使用
 > `ship --target-version <ver> → ship --approve --actor <name>`。
 > `ship` 自动执行 hooks 和门禁，唯一的人工门禁是计划批准。
-> Kimi/CodeBuddy 安装是非阻塞的人工后续任务（系统不核验）。
+> Kimi/CodeBuddy 的同仓发布先由 Foundation 在新鲜本地目录观察完整冻结载荷。
+> 真实市场安装和宿主调用仍是非阻塞的人工后续任务。
 
 ## 目录
 
@@ -179,7 +182,8 @@ CodeBuddy、Codex 和 Kimi Code 的完整命令见 [INSTALL.zh-CN.md](INSTALL.zh
 
 日常发布优先使用可恢复的快速路径。它会持久化所有权威文件路径，正常流程只需
 一次可读的冻结计划批准。`ship` 自动执行配置中的 hooks 和验证门禁，不进入
-hook 授权等待态。Kimi/CodeBuddy 安装是发布完成后的非阻塞人工后续任务，
+hook 授权等待态。Kimi/CodeBuddy 的同仓发布先由 Foundation 在新鲜本地目录
+观察完整冻结载荷。真实市场安装和宿主调用仍是发布完成后的非阻塞人工后续任务，
 系统不核验其完成结果。
 
 发布计划是供批准前审阅的记录，将目标版本、冻结产物和拟执行的外部动作关联起来；详见[人工审阅与批准步骤](#release-plan-review)。

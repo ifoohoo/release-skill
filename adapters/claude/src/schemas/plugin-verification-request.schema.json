@@ -1,0 +1,374 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/plugin-verification-request.json",
+  "title": "Plugin verification request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "operation",
+    "verificationSetId",
+    "goal",
+    "source",
+    "host",
+    "install"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.plugin-verification-request"
+    },
+    "operation": {
+      "const": "plugin-verification"
+    },
+    "verificationSetId": {
+      "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/opaque"
+    },
+    "goal": {
+      "enum": [
+        "install-only",
+        "install-and-invoke"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "candidateRef",
+        "sourceManifestSha256",
+        "membersDigest"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "local-staged",
+            "public-channel"
+          ]
+        },
+        "candidateRef": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/opaque"
+        },
+        "sourceManifestSha256": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256"
+        },
+        "membersDigest": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256"
+        },
+        "channel": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "marketplaceId",
+            "pluginId",
+            "version",
+            "sourceRef",
+            "locatorSha256"
+          ],
+          "properties": {
+            "marketplaceId": {
+              "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/opaque"
+            },
+            "pluginId": {
+              "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/opaque"
+            },
+            "version": {
+              "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/host/properties/driverVersion"
+            },
+            "sourceRef": {
+              "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/opaque"
+            },
+            "locatorSha256": {
+              "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256"
+            }
+          }
+        }
+      }
+    },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hostId",
+        "descriptorSha256",
+        "driverId",
+        "driverVersion"
+      ],
+      "properties": {
+        "hostId": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/host/properties/hostId"
+        },
+        "descriptorSha256": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256"
+        },
+        "driverId": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/host/properties/driverId"
+        },
+        "driverVersion": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/host/properties/driverVersion"
+        },
+        "cliVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "executableSha256": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256"
+        }
+      }
+    },
+    "install": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "const": "fresh-tree"
+        },
+        "timeoutPolicy": {
+          "$ref": "https://contracts.skill-family.example/v1/timeout-policy.json"
+        },
+        "outputByteLimits": {
+          "$ref": "https://contracts.skill-family.example/v1/watchdog-termination-envelope.json#/$defs/outputByteLimits"
+        }
+      }
+    },
+    "auth": {
+      "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/properties/auth"
+    },
+    "invocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effectivePromptSha256",
+        "fixtureClosureDigest",
+        "protectedWorkspaceClosureDigest",
+        "timeoutPolicy",
+        "modelOverridePolicy",
+        "restrictions"
+      ],
+      "properties": {
+        "effectivePromptSha256": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256"
+        },
+        "fixtureClosureDigest": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256"
+        },
+        "protectedWorkspaceClosureDigest": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256"
+        },
+        "timeoutPolicy": {
+          "$ref": "https://contracts.skill-family.example/v1/timeout-policy.json"
+        },
+        "modelOverridePolicy": {
+          "const": "forbidden"
+        },
+        "restrictions": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "approvalPolicy": {
+              "const": "deny-unattended"
+            },
+            "tools": {
+              "const": "skill-only"
+            },
+            "mcp": {
+              "const": "disabled"
+            },
+            "settingsSources": {
+              "const": "empty"
+            },
+            "sessionPersistence": {
+              "const": "disabled"
+            },
+            "history": {
+              "const": "fresh"
+            },
+            "browserIntegration": {
+              "const": "disabled"
+            },
+            "maxTurns": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "maxBudgetUsd": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 100
+            }
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "type": "object",
+        "properties": {
+          "goal": {
+            "const": "install-and-invoke"
+          }
+        },
+        "required": [
+          "goal"
+        ]
+      },
+      "then": {
+        "type": "object",
+        "required": [
+          "invocation"
+        ],
+        "properties": {
+          "invocation": {}
+        }
+      },
+      "else": {
+        "type": "object",
+        "properties": {
+          "invocation": false
+        }
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "const": "public-channel"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        },
+        "required": [
+          "source"
+        ]
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "object",
+            "properties": {
+              "channel": {
+                "type": "object"
+              }
+            },
+            "required": [
+              "channel"
+            ]
+          },
+          "install": {
+            "type": "object",
+            "properties": {
+              "timeoutPolicy": {}
+            },
+            "required": [
+              "timeoutPolicy"
+            ]
+          }
+        }
+      },
+      "else": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "object",
+            "properties": {
+              "channel": false
+            }
+          },
+          "install": {
+            "type": "object",
+            "properties": {
+              "timeoutPolicy": false,
+              "outputByteLimits": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "goal": {
+                "const": "install-and-invoke"
+              }
+            },
+            "required": [
+              "goal"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "public-channel"
+                  }
+                },
+                "required": [
+                  "type"
+                ]
+              }
+            },
+            "required": [
+              "source"
+            ]
+          }
+        ]
+      },
+      "then": {
+        "type": "object",
+        "required": [
+          "auth"
+        ],
+        "properties": {
+          "auth": {},
+          "host": {
+            "type": "object",
+            "properties": {
+              "cliVersion": {},
+              "executableSha256": {}
+            },
+            "required": [
+              "cliVersion",
+              "executableSha256"
+            ]
+          }
+        }
+      },
+      "else": {
+        "type": "object",
+        "properties": {
+          "auth": false,
+          "host": {
+            "type": "object",
+            "properties": {
+              "cliVersion": false,
+              "executableSha256": false
+            }
+          }
+        }
+      }
+    }
+  ]
+}
