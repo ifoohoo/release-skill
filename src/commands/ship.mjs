@@ -2,6 +2,7 @@ import { readFile, lstat, mkdir } from 'node:fs/promises';
 import { basename, dirname, resolve } from 'node:path';
 import { publishFileOrReplace } from 'skill-family-harness-node';
 
+import { MAX_APPROVAL_MS } from '../core/approval.mjs';
 import { canonicalJson, sha256Hex } from '../core/digest.mjs';
 import {
   effectiveHookRequiresApproval,
@@ -88,6 +89,7 @@ async function defaultDependencies() {
     postVerifyRelease: postverifyModule.postVerifyRelease,
     preflightGitTransports: transportModule.preflightGitTransports,
     updatePreviousPublicBaselines: metadataModule.updatePreviousPublicBaselines,
+    readMaxApprovalMs: () => MAX_APPROVAL_MS,
   };
 }
 
@@ -116,34 +118,135 @@ function publicState(state) {
     ...(state.manualFollowUps ? { manualFollowUps: state.manualFollowUps } : {}),
     ...(state.metadataUpdate ? { metadataUpdate: state.metadataUpdate } : {}),
     ...(state.postRelease ? { postRelease: state.postRelease } : {}),
-    verificationGateAuthorizationIncludedInPlanApproval: true,
-    postVerifyMetadataUpdateIncludedInPlanApproval: true,
+    externalActionsIncludedInPlanApproval: true,
+    verificationGatesIncludedInPlanApproval: true,
+    postPublishCheckpointApprovalsIncludedInPlanApproval: false,
   };
+}
+
+const HOUR_MS = 60 * 60 * 1000;
+
+const ACTION_TARGET_FIELDS = Object.freeze({
+  'push-commit': Object.freeze(['remote', 'branch']),
+  'push-snapshot': Object.freeze(['repo', 'branch', 'branchStrategy', 'commit']),
+  'create-tag': Object.freeze(['repo', 'tag', 'commit']),
+  'npm-publish': Object.freeze(['package', 'version', 'registry', 'tag', 'access', 'provenance']),
+  'github-release': Object.freeze(['repo', 'tag', 'name', 'commit']),
+  'claude-marketplace-install': Object.freeze(['consumer', 'plugin', 'marketplace', 'repo', 'ref', 'version', 'entrySkill']),
+  'codex-marketplace-install': Object.freeze(['consumer', 'plugin', 'marketplace', 'repo', 'ref', 'version', 'entrySkill']),
+  'kimi-marketplace-install': Object.freeze(['consumer', 'plugin', 'repo', 'ref', 'version', 'entrySkill']),
+  'codebuddy-marketplace-install': Object.freeze(['consumer', 'plugin', 'repo', 'ref', 'version', 'entrySkill']),
+  'set-default-branch': Object.freeze(['repo', 'oldBranch', 'newBranch', 'expectedNewBranchCommit']),
+});
+
+function deriveApprovalWindowHours(maxApprovalMs) {
+  if (
+    !Number.isSafeInteger(maxApprovalMs)
+    || maxApprovalMs <= 0
+    || maxApprovalMs % HOUR_MS !== 0
+  ) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      'core approval window must be a positive whole number of hours',
+      { maxApprovalMs },
+    );
+  }
+  return maxApprovalMs / HOUR_MS;
+}
+
+function projectActionTarget(action) {
+  const parameters = action?.parameters ?? {};
+  return Object.fromEntries(
+    (ACTION_TARGET_FIELDS[action?.type] ?? [])
+      .filter((field) => parameters[field] !== undefined)
+      .map((field) => [field, parameters[field]]),
+  );
 }
 
 /**
  * Build a human-readable approval summary from the frozen plan.
- * Lists each unit's version and every external action's id/type/unitId.
- * Returns an empty summary when the plan file is not yet available (e.g., in tests).
+ * Lists every publish target and every checkpoint approval separately. All
+ * fields are mechanically projected from the frozen plan; unreadable plans
+ * fail closed instead of producing an empty or partial summary.
  *
  * @param {string} planPath - Path to the frozen release plan.
  * @returns {Promise<object>} The approval summary.
  */
-async function buildApprovalSummary(planPath) {
+async function buildApprovalSummary(planPath, maxApprovalMs = MAX_APPROVAL_MS) {
   try {
     const plan = JSON.parse(await readFile(planPath, 'utf8'));
-    const units = (plan.units ?? []).map((unit) => ({
-      id: unit.id,
-      targetVersion: unit.targetVersion ?? unit.version,
-    }));
+    const approvalWindowHours = deriveApprovalWindowHours(maxApprovalMs);
     const actions = (plan.externalActions ?? []).map((action) => ({
       id: action.id,
       type: action.type,
       unitId: action.unitId,
+      target: projectActionTarget(action),
     }));
-    return { units, actions };
-  } catch {
-    return { units: [], actions: [] };
+    const units = (plan.units ?? []).map((unit) => {
+      const targetVersion = unit.targetVersion ?? unit.version;
+      const githubRelease = (plan.externalActions ?? [])
+        .find((action) => action.unitId === unit.id && action.type === 'github-release');
+      return {
+        id: unit.id,
+        targetVersion,
+        publicRepo: unit.publicRepo,
+        branch: unit.frozenSnapshot?.branch
+          ?? unit.productionConfig?.branchTemplate
+            ?.replaceAll('{tag}', unit.tagTemplate?.replace('{version}', targetVersion) ?? '')
+            .replaceAll('{version}', targetVersion)
+            .replaceAll('{unit}', unit.id),
+        branchStrategy: unit.frozenSnapshot?.branchStrategy ?? unit.productionConfig?.branchStrategy,
+        tag: unit.tagTemplate?.replace('{version}', targetVersion),
+        npm: (unit.distributions ?? [])
+          .filter((distribution) => distribution.type === 'npm')
+          .map((distribution) => ({
+            package: distribution.package,
+            version: targetVersion,
+            registry: distribution.registry,
+            distTag: distribution.tag,
+            access: distribution.access,
+            provenance: distribution.provenance,
+          })),
+        ...(githubRelease ? {
+          githubRelease: {
+            repo: githubRelease.parameters?.repo ?? githubRelease.parameters?.publicRepo,
+            tag: githubRelease.parameters?.tag,
+            name: githubRelease.parameters?.name,
+          },
+        } : {}),
+      };
+    });
+    const postPublishCheckpointApprovals = normalizePostPublishView(plan)
+      .flatMap((declaration) => (declaration.hooks ?? [])
+        .filter((hook) => effectiveHookRequiresApproval(hook))
+        .map((hook) => ({
+          unitId: declaration.unitId,
+          hookId: hook.id,
+          actionId: postPublishActionId({
+            planVersion: plan.planVersion,
+            unitId: declaration.unitId,
+            localId: hook.id,
+          }),
+          phase: hook.phase ?? 'distribute',
+          ...(hook.preset !== undefined ? { preset: hook.preset } : {}),
+          ...(hook.config?.delivery !== undefined ? { delivery: hook.config.delivery } : {}),
+          requiresApproval: true,
+          includedInPlanApproval: false,
+          approvalWindowHours,
+          binding: { planDigest: plan.digest, hookId: hook.id },
+        })));
+    return {
+      units,
+      actions,
+      waivers: Array.isArray(plan.waivers) ? plan.waivers : [],
+      postPublishCheckpointApprovals,
+    };
+  } catch (error) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `cannot build ship approval summary from frozen plan: ${error.message}`,
+      { planPath },
+    );
   }
 }
 
@@ -197,9 +300,11 @@ async function allUnclosedPostVerifyHooksUngated(state, postVerifyHooks, planVer
  * resumes instead of reconstructing authority from terminal/chat output.
  *
  * New flow (v0.4+): ship directly runs configured hooks and verification gates
- * without a separate hook authorization step. The only human gate is plan
- * approval. Kimi/CodeBuddy installations are non-blocking manual follow-up
- * tasks when the plan declares humanConsumersStrategy: 'manualFollowUps'.
+ * without a separate hook authorization step. Plan approval is the only
+ * normal release-level gate. A postPublish hook whose effective
+ * requiresApproval is true still needs its independent checkpoint approval.
+ * Kimi/CodeBuddy installations are non-blocking manual follow-up tasks when
+ * the plan declares humanConsumersStrategy: 'manualFollowUps'.
  */
 export async function advanceShip(options = {}, injected = {}) {
   const root = resolve(options.root ?? process.cwd());
@@ -268,7 +373,10 @@ export async function advanceShip(options = {}, injected = {}) {
       transportPreflight = await deps.preflightGitTransports(frozenPlan);
       process.env.RELEASE_SKILL_GIT_TRANSPORT = transportPreflight.transport;
     }
-    const approvalSummary = await buildApprovalSummary(prepared.planPath);
+    const maxApprovalMs = typeof deps.readMaxApprovalMs === 'function'
+      ? await deps.readMaxApprovalMs()
+      : MAX_APPROVAL_MS;
+    const approvalSummary = await buildApprovalSummary(prepared.planPath, maxApprovalMs);
     state = {
       ...state,
       status: 'NEEDS_PLAN_APPROVAL',

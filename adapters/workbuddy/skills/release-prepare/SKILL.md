@@ -29,7 +29,7 @@ description: Freeze an immutable release plan with local configuration, document
 2. 配置含 `releaseDocuments` 时，先运行只读演练 `${CLI} docs refresh --unit <id> --json`；`status: "changes"` 时展示逐文件路径/语种/版本/`refreshDigest`，取得"本地发布文档写入"明确授权后才执行 `nextCommand.argv` 写入，审阅并提交刷新结果后再继续；`status: "clean"` 时直接进入 prepare
 3. 运行 `${CLI} prepare --root <path> --offline --json`
 4. 检查 exit code 0，读取 JSON 返回的 immutable `planPath=plans/<planDigest>.json`，再从该文件读取 `status`、`units`、`externalActions`
-5. 向用户展示可读的 `approvalSummary`（版本、仓库/包、branch/tag、外部动作和例外）；`planDigest` 仅作为内部绑定字段，不要求用户复制或确认。后续 approve/publish 只能使用该 immutable planPath，等待确认后再 approve
+5. 向用户展示可读的 `approvalSummary`：版本、公开仓库、分支策略、branch/tag、npm 与 GitHub Release 目标、全部外部动作、例外，以及需要独立 checkpoint 批准的 postPublish hook。`planDigest` 仅作为内部绑定字段，不要求用户复制或确认。后续 approve/publish 只能使用该 immutable planPath，等待确认后再 approve。计划批准不包含受限 postPublish hook 的 checkpoint 批准
 
 若用户明确要求 GitHub+npm 生产发布，加入 `--production`。该模式还会封存独立
 Git commit/tree 和 npm tarball，并把路径、SHA/integrity、branch/tag 写入计划。
@@ -89,4 +89,4 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" prepare --root <path> --on
 
 ## 后续引导
 
-计划冻结后，读取命令返回的 immutable `planPath` 和 `approvalSummary` 展示给用户，等待确认后再 approve。`planDigest` 由系统自动计算和绑定，不作为人工交互口令。`release-plan.json` 等 latest alias 只用于浏览，不得作为生产 authority 传递。
+计划冻结后，读取命令返回的 immutable `planPath` 和 `approvalSummary` 展示给用户，等待确认后再 approve。`planDigest` 由系统自动计算和绑定，不作为人工交互口令。`release-plan.json` 等 latest alias 只用于浏览，不得作为生产 authority 传递。冻结计划批准是正常发布级流程的唯一批准门；有效 `requiresApproval: true` 的 postPublish hook 仍须使用绑定 `(planDigest, hookId)` 且最长有效 24 小时的独立 checkpoint 批准。

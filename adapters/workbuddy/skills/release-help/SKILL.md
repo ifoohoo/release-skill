@@ -12,7 +12,7 @@ description: "Discoverable entry point for release-skill: dependency and environ
 ## 职责
 
 - 依赖和环境检查：Node.js >= 22、Git 决定本地准备就绪度；npm/gh 另行决定生产依赖就绪度
-- 能力说明：缺少配置时走 `help → setup → assess`；已有配置的安全默认路径是 `help → assess → prepare --offline`；日常生产发布优先使用可恢复的 `ship`，兼容的分阶段闭环仍是 `prepare --online --production → approve → publish → verify`
+- 能力说明：缺少配置时走 `help → setup → assess`；已有配置的安全默认路径是 `help → assess → prepare --offline`；日常生产发布优先使用可恢复的 `ship`，兼容的分阶段闭环仍是 `prepare --online --production → approve → publish → verify`。冻结计划批准是正常发布级流程的唯一批准门；声明 `requiresApproval: true` 的 postPublish hook 仍须等待独立 checkpoint 批准
 - 最小示例：展示从 release-help 到 release-assess 的最短路径
 - 只读诊断：运行 dry-run 检查，不修改任何文件
 - 故障引导：根据错误码指向对应的修复 Skill
@@ -35,7 +35,8 @@ description: "Discoverable entry point for release-skill: dependency and environ
 node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" help --json
 node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" setup --root <path> --json
 node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" assess --root <path> --offline --json
-# 日常发布快速路径：仅在发布前确认一次可读计划摘要，状态文件可恢复
+# 日常发布快速路径：发布前确认可读计划摘要，状态文件可恢复。
+# 受限 postPublish hook 的 checkpoint 批准与计划批准分开。
 node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" ship --root <path> --target-version <version> --json
 # 开发阶段执行声明 hooks 并生成 prepare 可复用的内容绑定收据
 # 配置时刻即授权（FM-16 处置 A）：hook 是任意本地进程、无隔离、触发前无确认点，

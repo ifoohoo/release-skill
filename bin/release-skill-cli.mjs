@@ -364,7 +364,7 @@ Options:
   --hook-approval <path> Checkpoint approval for a requiresApproval postPublish hook (ship/distribute; repeatable)
   --state <path>    Override the durable ship state file
   --update-local-hosts Update installed plugins for selected local hosts after VERIFIED
-  --hosts <ids>     Comma-separated local hosts for post-release update (default: all declared)
+  --hosts <ids>     Comma-separated local hosts for post-release update. No local host is updated unless --hosts contains at least one id
   --confirm-plan <digest> Confirm the exact VERIFIED plan before local host mutation
   --no-hook-cache  Force every prepare hook to run in full; neither read nor write the hook cache
   --json           Output results as JSON
@@ -374,7 +374,8 @@ Options:
 Safety:
   Safe default: help -> setup (when config is absent) -> assess -> prepare --offline -> human review.
   Production happy end: ship --target-version <ver> -> ship --approve --actor <name>.
-  The ship command runs configured hooks and gates automatically; the only human gate is plan approval.
+  The ship command runs configured hooks and gates automatically. Frozen plan approval is the only
+  normal release-level approval; requiresApproval postPublish hooks keep independent checkpoint approvals.
   Kimi/CodeBuddy installations are non-blocking manual follow-up tasks (not verified by system).
   prepare copies current public files into a local snapshot; it does not rewrite source files.
   - Default mode is offline (release-skill pipeline does no remote writes)
@@ -750,6 +751,34 @@ if (command === 'hooks') {
 }
 
 // --- Durable end-to-end ship routing ---
+function printShipApprovalSummary(result) {
+  const summary = result.approvalSummary;
+  if (!summary) return;
+  console.log('Approval summary:');
+  for (const unit of summary.units ?? []) {
+    console.log(`  Unit ${unit.id} ${unit.targetVersion}`);
+    console.log(`    Public repo: ${unit.publicRepo}`);
+    console.log(`    Branch: ${unit.branch} (${unit.branchStrategy})`);
+    console.log(`    Tag: ${unit.tag}`);
+    for (const npm of unit.npm ?? []) {
+      console.log(`    npm: ${npm.package}@${npm.version} registry=${npm.registry} dist-tag=${npm.distTag} access=${npm.access} provenance=${npm.provenance}`);
+    }
+    if (unit.githubRelease) {
+      console.log(`    GitHub Release: ${unit.githubRelease.repo} tag=${unit.githubRelease.tag} name=${unit.githubRelease.name}`);
+    }
+  }
+  for (const action of summary.actions ?? []) {
+    console.log(`  External action ${action.id} type=${action.type} unit=${action.unitId} target=${JSON.stringify(action.target)}`);
+  }
+  if ((summary.waivers ?? []).length === 0) console.log('  Waivers: none');
+  else for (const waiver of summary.waivers) console.log(`  Waiver: ${JSON.stringify(waiver)}`);
+  for (const checkpoint of summary.postPublishCheckpointApprovals ?? []) {
+    console.log(`  PostPublish checkpoint ${checkpoint.actionId}: unit=${checkpoint.unitId} hook=${checkpoint.hookId} phase=${checkpoint.phase} preset=${checkpoint.preset ?? 'command'} delivery=${checkpoint.delivery ?? 'command'} requiresApproval=${checkpoint.requiresApproval} includedInPlanApproval=${checkpoint.includedInPlanApproval}`);
+    console.log(`    Independent checkpoint approval: valid for at most ${checkpoint.approvalWindowHours} hours and bound to (planDigest=${checkpoint.binding.planDigest}, hookId=${checkpoint.binding.hookId}).`);
+  }
+  console.log(`  Plan approval coverage: externalActions=${result.externalActionsIncludedInPlanApproval}, verificationGates=${result.verificationGatesIncludedInPlanApproval}, postPublishCheckpointApprovals=${result.postPublishCheckpointApprovalsIncludedInPlanApproval}`);
+}
+
 if (command === 'ship') {
   const value = (flag) => {
     const idx = args.indexOf(flag);
@@ -812,6 +841,7 @@ if (command === 'ship') {
         console.log(`Warning [${warning.code}] ${warning.message}`);
       }
       if (result.planDigest && result.status === 'NEEDS_PLAN_APPROVAL') {
+        printShipApprovalSummary(result);
         console.log(`Approve plan: ship --approve --actor <person>`);
       }
       if (result.postVerify) {
@@ -1240,8 +1270,14 @@ if (command === 'post-release') {
     assertVerifiedReleaseRun(plan, runRecord);
 
     const updateRequested = args.includes('--update-local-hosts');
-    const selectedHosts = value('--hosts')
-      ?.split(',')
+    const hostsIndex = args.indexOf('--hosts');
+    const rawHosts = hostsIndex !== -1
+      && args[hostsIndex + 1]
+      && !args[hostsIndex + 1].startsWith('--')
+      ? args[hostsIndex + 1]
+      : '';
+    const selectedHosts = rawHosts
+      .split(',')
       .map((host) => host.trim())
       .filter(Boolean);
     const result = updateRequested

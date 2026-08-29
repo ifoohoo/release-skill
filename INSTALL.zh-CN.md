@@ -2,7 +2,7 @@
 
 [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.0 -->
+<!-- release-skill:release-version: 0.9.1 -->
 ## 前置条件
 
 - Node.js 22.0.0 或更高版本
@@ -104,14 +104,18 @@ Kimi Code 有交互式插件市场，但**没有可脚本化的非交互安装�
 （切勿使用裸仓库地址，它会安装最新 release 或默认分支），确认信任提示后重新加载：
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.0
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.1
    /plugins reload
    ```
 
 发布达到 `VERIFIED` 后，可选的 `release-finish` 工作流可以在用户明确同意后执行
-同一套 TUI 操作。随后它会重新读取 Kimi 的受管安装根，并要求版本、标签、修订号和
-Git 提交与冻结计划一致。这个本机检查不属于 `verify`，也不会改变已经完成的
-`VERIFIED` 发布状态。
+同一套 TUI 操作。包名、版本、发布标签、已安装修订号和受管安装根都必须与冻结计划
+一致。精确当前安装会在返回 `ALREADY_CURRENT` 前核对；发生安装或迁移时，只在操作
+完成后核对结果。`.git` 目录只提供附加诊断，不是通过条件。发生安装或迁移后，
+release-finish 会重新读取 Kimi 的受管安装根，不复用操作前的观察；随后核对最终身份与
+真实载荷。若现有条目来自旧的本地路径安装，release-finish 会在同一个 TUI 会话中先
+移除，再按发布标签安装、确认信任并重新加载。这个本机检查不属于 `verify`，也不会改变
+已经完成的 `VERIFIED` 发布状态。
 
 新计划无需收据或人工证明。`attest` 命令仅兼容缺少
 `humanConsumersStrategy: manualFollowUps` 标记的旧冻结计划。
@@ -135,9 +139,12 @@ codebuddy CLI 可以添加市场并安装插件，但 **`plugin marketplace add`
 `ifoohoo/release-skill` 安装即可。新计划无需收据或人工证明；`attest` 只兼容旧冻结计划。
 
 可选的 `release-finish` 工作流会在用户明确同意后读取 CodeBuddy/WorkBuddy 的安装
-列表。只有市场、版本和冻结提交全部一致时才报告 `ALREADY_CURRENT`。由于 CLI 无法
-钉死 ref，不匹配时仍返回 `MANUAL_REQUIRED`；release-finish 不会改装到一个未绑定的
-latest 版本。
+列表。只有唯一条目的市场、版本和冻结提交全部一致时，才报告 `ALREADY_CURRENT`。
+对于同一 bundled-family 插件和市场，release-finish 只在一次远端查询证明冻结标签与
+计划声明的可变市场分支都解析到同一冻结提交后，调用正式的市场更新和插件更新命令。
+更新完成后，它会重新读取列表，并精确核对唯一条目的市场、版本和修订号。目标未安装、
+使用 standalone 来源、远端引用不可访问或冲突、身份不一致时，均返回
+`MANUAL_REQUIRED`，不修改宿主。
 
 源码检出后也可以用 `--plugin-dir <path>/adapters/workbuddy` 把 CodeBuddy 指向
 生成的插件目录做单会话使用；适配器不引用自身目录之外的任何文件。

@@ -5,17 +5,20 @@
  * In the 0.6.1 cycle two prepares burned the full ~80s test hook before
  * surfacing drift that a sub-second check could have caught: adapter trees
  * out of sync with skills-src/, and self-bootstrap fact pins still bound to
- * the previous version. This module promotes those two exact checks to
- * prepare's earliest stage, alongside the bundle freshness gate:
+ * the previous version. This module promotes those checks and the platform
+ * manifest freshness check to prepare's earliest stage, alongside the bundle
+ * freshness gate:
  *
  * - adapter gate: runs `scripts/build-adapters.mjs --check` (drift list,
  *   exit 1 on drift — the same supported check the scripts surface offers);
+ * - platform manifest gate: runs
+ *   `scripts/generate-platform-manifest.mjs --check`;
  * - fact-pin gate: runs the version fact pins of
  *   `test/release-docs-self-bootstrap.test.mjs` — exactly its hermetic
  *   section 1 (`[self-bootstrap 1*]`: byte-level version assertions plus the
  *   in-process read-only planner), scoped via `--test-name-pattern`.
  *
- * Both promote the CANONICAL check logic — the gate and the full pipeline
+ * All three promote the CANONICAL check logic — the gates and the full pipeline
  * can never disagree about what "in sync" means. The facts gate is scoped to
  * the suite's hermetic fact-pin section deliberately: the suite's remaining
  * sections shell out to npm/git and drive fixture prepares, which would make
@@ -88,6 +91,15 @@ const GATES = Object.freeze({
       'Rebuild the existing adapters with: node scripts/build-adapters.mjs --apply ' +
       `(or run the one-click derived-artifact sync from the workspace root: ${DERIVED_SYNC_COMMAND}).`,
   }),
+  'platform-manifest': Object.freeze({
+    artifact: 'platform-manifest',
+    marker: join('scripts', 'generate-platform-manifest.mjs'),
+    argv: (pkgRoot) => [join(pkgRoot, 'scripts', 'generate-platform-manifest.mjs'), '--check'],
+    timeoutMs: 120000,
+    remediation:
+      'Regenerate the platform manifest with: node scripts/generate-platform-manifest.mjs ' +
+      `(or run the one-click derived-artifact sync from the workspace root: ${DERIVED_SYNC_COMMAND}).`,
+  }),
   'self-bootstrap-facts': Object.freeze({
     artifact: 'self-bootstrap-facts',
     marker: join('test', 'release-docs-self-bootstrap.test.mjs'),
@@ -118,7 +130,7 @@ async function isFile(path) {
 /**
  * Run one derived-artifact check (pure decision, never throws).
  *
- * @param {'adapters' | 'self-bootstrap-facts'} kind - Gate to run.
+ * @param {'adapters' | 'platform-manifest' | 'self-bootstrap-facts'} kind - Gate to run.
  * @param {string} pkgRoot - Absolute package root of the running checkout.
  * @param {object} [options]
  * @param {Function} [options.execFileFn] - execFile seam (tests).
@@ -202,6 +214,11 @@ export function checkAdapterFreshness(pkgRoot, options = {}) {
   return checkDerivedArtifactGate('adapters', pkgRoot, options);
 }
 
+/** Platform manifest freshness decision (generate-platform-manifest --check). */
+export function checkPlatformManifestFreshness(pkgRoot, options = {}) {
+  return checkDerivedArtifactGate('platform-manifest', pkgRoot, options);
+}
+
 /** Self-bootstrap fact-pin decision (single-file test). */
 export function checkSelfBootstrapFacts(pkgRoot, options = {}) {
   return checkDerivedArtifactGate('self-bootstrap-facts', pkgRoot, options);
@@ -215,7 +232,9 @@ async function assertGate(kind, pkgRoot, options = {}) {
   const gate = GATES[kind];
   const subject = kind === 'adapters'
     ? 'adapters/ is out of sync with its sources (build-adapters --check reported drift)'
-    : 'the release-docs-self-bootstrap fact pins are stale (the hermetic fact-pin check failed)';
+    : kind === 'platform-manifest'
+      ? 'platform-manifest.json is out of sync with the current package tree (generate-platform-manifest --check reported drift)'
+      : 'the release-docs-self-bootstrap fact pins are stale (the hermetic fact-pin check failed)';
   throw new ReleaseError(
     DERIVED_ARTIFACT_STALE,
     `${subject}. ${DERIVED_ARTIFACT_PREGATE_NOTE} ${gate.remediation}`,
@@ -241,6 +260,14 @@ async function assertGate(kind, pkgRoot, options = {}) {
  */
 export function assertAdapterFreshness(pkgRoot, options = {}) {
   return assertGate('adapters', pkgRoot, options);
+}
+
+/**
+ * Fail-closed platform manifest pre-gate used by prepare's earliest stage.
+ * Not-applicable layouts return quietly; drift throws DERIVED_ARTIFACT_STALE.
+ */
+export function assertPlatformManifestFreshness(pkgRoot, options = {}) {
+  return assertGate('platform-manifest', pkgRoot, options);
 }
 
 /**

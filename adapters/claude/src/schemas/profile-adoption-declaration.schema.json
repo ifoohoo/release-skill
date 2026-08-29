@@ -54,6 +54,14 @@
             "stability": { "enum": ["stable", "candidate-only"] }
           }
         },
+        "capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^foundation\\.[a-z0-9\\-]+(?:\\.[a-z0-9\\-]+)+$"
+          }
+        },
         "foundation_pin": {
           "type": "object",
           "additionalProperties": false,

@@ -64,6 +64,9 @@ function actionTarget(plan, action, host) {
   const tagAction = (plan.externalActions ?? []).find((candidate) => (
     candidate.type === 'create-tag' && candidate.unitId === action.unitId
   ));
+  const pushAction = (plan.externalActions ?? []).find((candidate) => (
+    candidate.type === 'push-snapshot' && candidate.unitId === action.unitId
+  ));
   const pluginTag = tagAction?.parameters?.tag;
   if (
     pluginRepo !== unit.publicRepo
@@ -85,6 +88,28 @@ function actionTarget(plan, action, host) {
   } else if (sourceDescriptor.form !== 'bundled-family' || sourceDescriptor.commit !== pluginCommit) {
     throw new Error(`post-release action ${action.id} has no single frozen source commit`);
   }
+  const codeBuddyFamily = host === 'codebuddy' || host === 'workbuddy';
+  if (
+    codeBuddyFamily
+    && sourceDescriptor.form === 'bundled-family'
+    && (
+      pushAction?.parameters?.repo !== pluginRepo
+      || pushAction?.parameters?.commit !== pluginCommit
+      || typeof pushAction?.parameters?.branch !== 'string'
+      || pushAction.parameters.branch.length === 0
+      || (
+        pushAction.parameters.branch.startsWith('refs/')
+        && !pushAction.parameters.branch.startsWith('refs/heads/')
+      )
+    )
+  ) {
+    throw new Error(`post-release action ${action.id} has no matching frozen mutable branch identity`);
+  }
+  const marketplaceRef = codeBuddyFamily && sourceDescriptor.form === 'bundled-family'
+    ? (pushAction.parameters.branch.startsWith('refs/heads/')
+      ? pushAction.parameters.branch
+      : `refs/heads/${pushAction.parameters.branch}`)
+    : parameters.ref;
   return {
     host,
     actionId: action.id,
@@ -96,11 +121,13 @@ function actionTarget(plan, action, host) {
       : parameters.marketplace ?? sourceDescriptor.marketplaceEntry ?? parameters.plugin,
     version: parameters.version,
     pluginRepo,
+    githubHost: tagAction?.parameters?.githubHost ?? pushAction?.parameters?.githubHost ?? 'github.com',
     pluginTag,
     pluginCommit,
     marketplaceRepo,
-    marketplaceRef: parameters.ref,
+    marketplaceRef,
     marketplaceCommit,
+    sourceForm: sourceDescriptor.form,
     timeoutMs: parameters.timeoutMs ?? 300_000,
   };
 }
@@ -225,6 +252,13 @@ async function defaultRun(command, args, options = {}) {
         `${command} exited ${envelope.exitStatus}${stderr.trim() ? `: ${stderr.trim()}` : ''}`,
       );
       error.exitStatus = envelope.exitStatus;
+      error.hostCommandUnavailable = envelope.processStatus === 'FAILED_TO_START';
+      error.details = {
+        processStatus: envelope.processStatus,
+        terminationReason: envelope.terminationReason,
+        watchdogReason: envelope.watchdogReason,
+        ...(envelope.evidence?.spawnError ? { spawnError: envelope.evidence.spawnError } : {}),
+      };
       throw error;
     }
     return { stdout, stderr };
@@ -235,8 +269,9 @@ async function commandAvailable(command, host, run) {
   try {
     await run(command, ['--version'], { timeout: 10_000, env: hostEnvironment(host) });
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    if (error?.hostCommandUnavailable === true) return false;
+    throw error;
   }
 }
 
@@ -298,8 +333,10 @@ function exactPluginObservation(target, stdout) {
     };
   }
   if (!Array.isArray(parsed)) throw new Error(`${target.host} plugin list did not return an array`);
-  const found = parsed.find((entry) => entry?.id === selector);
-  if (!found) return { installed: false };
+  const matches = parsed.filter((entry) => entry?.id === selector);
+  if (matches.length === 0) return { installed: false };
+  if (matches.length !== 1) throw new Error(`${target.host} plugin list returned conflicting entries for ${selector}`);
+  const [found] = matches;
   return {
     installed: true,
     exact: found.version === target.version && found.gitCommitSha === target.pluginCommit,
@@ -346,7 +383,7 @@ async function observeStructuredTarget(target, command, env, run) {
 }
 
 async function bindStructuredMarketplace(target, command, env, run, observed) {
-  if (observed.marketplace.installed && observed.marketplace.exact) return;
+  if (observed.marketplace.installed && observed.marketplace.exact) return false;
   if (observed.marketplace.installed) {
     await run(command, [
       'plugin', 'marketplace', 'remove', target.marketplace,
@@ -360,6 +397,7 @@ async function bindStructuredMarketplace(target, command, env, run, observed) {
   if (!rebound.installed || !rebound.exact) {
     throw new Error(`${target.host} marketplace did not bind to frozen commit ${target.marketplaceCommit}`);
   }
+  return true;
 }
 
 function actionParametersForTarget(plan, target) {
@@ -397,11 +435,50 @@ async function runStructuredUpdate(target, detected, run, {
     const env = hostEnvironment(target.host);
     const listed = await run(detected.command, ['plugin', 'list', '--json'], { env });
     const observed = exactPluginObservation(target, listed.stdout);
+    if (
+      target.sourceForm !== 'bundled-family'
+      || target.pluginRepo !== target.marketplaceRepo
+      || target.pluginCommit !== target.marketplaceCommit
+    ) {
+      return {
+        status: 'MANUAL_REQUIRED',
+        reason: `${target.host} source identity is not eligible for a frozen bundled-family update`,
+      };
+    }
     if (observed.exact) return { status: 'ALREADY_CURRENT', version: target.version };
-    return {
-      status: 'MANUAL_REQUIRED',
-      reason: `${target.host} CLI cannot pin an install to frozen ref ${target.pluginTag}; no local mutation was performed`,
-    };
+    if (!observed.installed) {
+      return {
+        status: 'MANUAL_REQUIRED',
+        reason: `${target.host} target plugin is not installed; no initial installation was performed`,
+      };
+    }
+    let remote;
+    try {
+      const remoteObservation = await run('git', [
+        'ls-remote', '--exit-code', `https://${target.githubHost}/${target.pluginRepo}.git`,
+        target.pluginTag, `${target.pluginTag}^{}`, target.marketplaceRef,
+      ], { env, timeout: 30_000 });
+      remote = parseCodeBuddyRemoteObservation(target, remoteObservation.stdout);
+    } catch (error) {
+      return {
+        status: 'MANUAL_REQUIRED',
+        reason: `${target.host} could not prove the frozen remote refs: ${error?.message ?? String(error)}`,
+      };
+    }
+    if (!remote.exact) {
+      return {
+        status: 'MANUAL_REQUIRED',
+        reason: `${target.host} frozen tag and mutable ref do not both resolve to ${target.pluginCommit}`,
+      };
+    }
+    await run(detected.command, ['plugin', 'marketplace', 'update', target.marketplace], { env });
+    await run(detected.command, [
+      'plugin', 'update', `${target.plugin}@${target.marketplace}`, '--scope', 'user',
+    ], { env });
+    const afterList = await run(detected.command, ['plugin', 'list', '--json'], { env });
+    const after = exactPluginObservation(target, afterList.stdout);
+    if (!after.exact) throw new Error(`${target.host} did not update to the frozen plugin identity`);
+    return { status: 'UPDATED', version: target.version, restartRequired: true };
   }
 
   const command = detected.command;
@@ -418,12 +495,15 @@ async function runStructuredUpdate(target, detected, run, {
     return { status: 'ALREADY_CURRENT', version: target.version };
   }
 
-  await bindStructuredMarketplace(target, command, env, run, before);
+  const marketplaceRebound = await bindStructuredMarketplace(target, command, env, run, before);
+  const current = target.host === 'claude' && marketplaceRebound
+    ? await observeStructuredTarget(target, command, env, run)
+    : before;
   const platform = getPlatform(target.host);
   const selector = `${target.plugin}@${target.marketplace}`;
   let installPath;
   if (target.host === 'claude') {
-    const installArgs = before.plugin.installed
+    const installArgs = current.plugin.installed
       ? ['plugin', 'update', selector, '--scope', 'user', '--yes']
       : platform.cli.install(target.plugin, target.marketplace);
     await run(command, installArgs, { env });
@@ -450,10 +530,77 @@ async function runStructuredUpdate(target, detected, run, {
   return { status: 'UPDATED', version: target.version, restartRequired: true };
 }
 
-function kimiExpectProgram(kimiCommand, installUrl) {
-  const quotedCommand = JSON.stringify(kimiCommand);
-  const quotedUrl = JSON.stringify(installUrl);
-  return `set timeout 180\nspawn -- ${quotedCommand}\nexpect -re {> $}\nsend -- "/plugins install ${quotedUrl}\\r"\nexpect {\n  -re {Trust and install} { send -- "\\033\\[B\\r" }\n  timeout { exit 91 }\n  eof { exit 92 }\n}\nexpect -re {> $}\nsend -- "/reload\\r"\nexpect -re {> $}\nsend -- "/exit\\r"\nexpect eof\n`;
+function parseCodeBuddyRemoteObservation(target, stdout) {
+  const refs = new Map();
+  const tagRef = target.pluginTag.startsWith('refs/')
+    ? target.pluginTag
+    : `refs/tags/${target.pluginTag}`;
+  const allowedRefs = new Set([tagRef, `${tagRef}^{}`, target.marketplaceRef]);
+  for (const line of String(stdout ?? '').split(/\r?\n/u)) {
+    if (line.length === 0) continue;
+    const match = /^([a-f0-9]{40})\t([^\s]+)$/u.exec(line);
+    if (!match) throw new Error('git ls-remote returned an invalid line');
+    const [, commit, ref] = match;
+    if (!allowedRefs.has(ref)) throw new Error(`git ls-remote returned an unexpected ref ${ref}`);
+    const existing = refs.get(ref);
+    if (existing && existing !== commit) throw new Error(`git ls-remote returned conflicting values for ${ref}`);
+    refs.set(ref, commit);
+  }
+  const peeledTag = refs.get(`${tagRef}^{}`);
+  const tagCommit = peeledTag ?? refs.get(tagRef);
+  const mutableCommit = refs.get(target.marketplaceRef);
+  return {
+    exact: tagCommit === target.pluginCommit && mutableCommit === target.pluginCommit,
+    tagCommit: tagCommit ?? null,
+    mutableCommit: mutableCommit ?? null,
+  };
+}
+
+function kimiExpectProgram({ removePlugin } = {}) {
+  const removeCommand = removePlugin
+    ? `send -- "/plugins remove $removePlugin\\r"
+expect {
+  -nocase -re {(remove|delete|uninstall).*(confirm|sure)|(confirm|sure).*(remove|delete|uninstall)} {
+    expect {
+      -ex $removePlugin { send -- "\\033\\[B\\r" }
+      timeout { exit 95 }
+      eof { exit 96 }
+    }
+    expect -re {> $}
+  }
+  -re {> $} {}
+  timeout { exit 93 }
+  eof { exit 94 }
+}
+`
+    : '';
+  return `set timeout 180
+foreach variable {RELEASE_SKILL_KIMI_COMMAND RELEASE_SKILL_KIMI_INSTALL_URL RELEASE_SKILL_KIMI_REMOVE_PLUGIN} {
+  if {![info exists env($variable)]} { exit 90 }
+}
+set kimiCommand $env(RELEASE_SKILL_KIMI_COMMAND)
+set installUrl $env(RELEASE_SKILL_KIMI_INSTALL_URL)
+set removePlugin $env(RELEASE_SKILL_KIMI_REMOVE_PLUGIN)
+spawn $kimiCommand
+expect -re {> $}
+${removeCommand}send -- "/plugins install $installUrl\\r"
+expect {
+  -nocase -re {trust and install} {
+    expect {
+      -ex $installUrl { send -- "\\033\\[B\\r" }
+      timeout { exit 97 }
+      eof { exit 98 }
+    }
+  }
+  timeout { exit 91 }
+  eof { exit 92 }
+}
+expect -re {> $}
+send -- "/reload\\r"
+expect -re {> $}
+send -- "/exit\\r"
+expect eof
+`;
 }
 
 async function observeKimiTarget(target, kimiHome, run) {
@@ -474,6 +621,7 @@ async function observeKimiTarget(target, kimiHome, run) {
   }
   const entry = installed?.plugins?.find((candidate) => candidate?.id === target.plugin);
   if (!entry) return { installed: false };
+  if (!entry.github) return { installed: true, exact: false, source: 'legacy', entry };
   const managedRoot = join(pluginsRoot, 'managed');
   const pluginRoot = await resolveContained(managedRoot, target.plugin);
   const declaredRoot = await resolveContained(managedRoot, relative(managedRoot, entry.root));
@@ -482,35 +630,53 @@ async function observeKimiTarget(target, kimiHome, run) {
     await readFileContained(pluginRoot, 'package.json', { encoding: 'utf8' }),
     'Kimi installed package manifest',
   );
-  let refName;
-  let revision;
-  if (entry.github) {
-    refName = entry.github.ref?.kind === 'tag' ? entry.github.ref.value : undefined;
-    revision = entry.github.installedSha;
-  } else {
-    const metadata = parseJson(
-      await readFileContained(pluginRoot, '.codex-marketplace-install.json', { encoding: 'utf8' }),
-      'Kimi installed source binding',
-    );
-    refName = metadata.ref_name;
-    revision = metadata.revision;
+  const refName = entry.github.ref?.kind === 'tag' ? entry.github.ref.value : undefined;
+  const revision = entry.github.installedSha;
+  let gitHeadExact = true;
+  try {
+    await access(join(pluginRoot, '.git'));
+    const head = await run('git', ['-C', pluginRoot, 'rev-parse', 'HEAD'], {
+      env: hostEnvironment('kimi', { kimiHome }),
+      timeout: 30_000,
+    });
+    gitHeadExact = head.stdout.trim() === target.pluginCommit;
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
   }
-  const head = await run('git', ['-C', pluginRoot, 'rev-parse', 'HEAD'], {
-    env: hostEnvironment('kimi'),
-    timeout: 30_000,
-  });
   const exact = packageJson.name === target.plugin
     && packageJson.version === target.version
     && refName === target.pluginTag
     && revision === target.pluginCommit
-    && head.stdout.trim() === target.pluginCommit;
-  return { installed: true, exact, entry, packageJson, refName, revision, pluginRoot };
+    && gitHeadExact;
+  return {
+    installed: true,
+    exact,
+    source: 'github',
+    entry,
+    packageJson,
+    refName,
+    revision,
+    pluginRoot,
+  };
 }
 
-async function runKimiUpdate(target, detected, run, kimiHome) {
+async function runKimiUpdate(target, detected, run, kimiHome, {
+  plan,
+  root,
+  verifyInstalledPayload,
+}) {
   const env = hostEnvironment('kimi', { kimiHome });
   const before = await observeKimiTarget(target, kimiHome, run);
-  if (before.exact) return { status: 'ALREADY_CURRENT', version: target.version };
+  if (before.exact) {
+    await verifyStructuredInstalledPayload({
+      plan,
+      root,
+      target,
+      installPath: before.pluginRoot,
+      verifyInstalledPayload,
+    });
+    return { status: 'ALREADY_CURRENT', version: target.version };
+  }
   await withTemporaryWorkspace(async (workspace) => {
     const checkout = join(workspace.root, 'plugin');
     await run('git', [
@@ -525,13 +691,28 @@ async function runKimiUpdate(target, detected, run, kimiHome) {
       throw new Error(`Kimi checkout commit does not match frozen release commit ${target.pluginCommit}`);
     }
     const installUrl = `https://github.com/${target.pluginRepo}/releases/tag/${target.pluginTag}`;
-    await run(detected.expectCommand, ['-c', kimiExpectProgram(detected.command, installUrl)], {
+    const removePlugin = before.source === 'legacy' ? target.plugin : '';
+    await run(detected.expectCommand, ['-c', kimiExpectProgram({
+      ...(removePlugin ? { removePlugin } : {}),
+    })], {
       timeout: 240_000,
-      env,
+      env: {
+        ...env,
+        RELEASE_SKILL_KIMI_COMMAND: detected.command,
+        RELEASE_SKILL_KIMI_INSTALL_URL: installUrl,
+        RELEASE_SKILL_KIMI_REMOVE_PLUGIN: removePlugin,
+      },
     });
   }, { prefix: 'release-skill-kimi-update-' });
   const after = await observeKimiTarget(target, kimiHome, run);
   if (!after.exact) throw new Error('Kimi did not report the frozen plugin identity after TUI installation');
+  await verifyStructuredInstalledPayload({
+    plan,
+    root,
+    target,
+    installPath: after.pluginRoot,
+    verifyInstalledPayload,
+  });
   return { status: 'UPDATED', version: target.version, restartRequired: true };
 }
 
@@ -545,6 +726,19 @@ function aggregateStatus(results) {
   if (statuses.has('UPDATED')) return 'UPDATED';
   if (statuses.has('ALREADY_CURRENT')) return 'ALREADY_CURRENT';
   return 'NO_APPLICABLE_HOSTS';
+}
+
+function failedHostResult(target, error) {
+  const message = error?.message ?? String(error);
+  return {
+    host: target.host,
+    unitId: target.unitId,
+    status: 'FAILED',
+    error: message,
+    reason: typeof error?.reason === 'string' ? error.reason : message,
+    ...(error?.code !== undefined ? { code: error.code } : {}),
+    ...(error?.details !== undefined ? { details: error.details } : {}),
+  };
 }
 
 export async function updateLocalHostPlugins({
@@ -562,9 +756,7 @@ export async function updateLocalHostPlugins({
   if (confirmPlanDigest !== plan.digest) {
     throw new Error('plan digest confirmation does not match the frozen release plan');
   }
-  const selected = selectedHosts?.length > 0
-    ? new Set(selectedHosts)
-    : new Set(checklist.localHostUpdate.hosts);
+  const selected = new Set(Array.isArray(selectedHosts) ? selectedHosts : []);
   const unknown = [...selected].filter((host) => !checklist.localHostUpdate.hosts.includes(host));
   if (unknown.length > 0) throw new Error(`selected hosts are not declared by the plan: ${unknown.join(', ')}`);
   const targets = checklist.localHostUpdate.targets.filter((item) => selected.has(item.host));
@@ -572,19 +764,23 @@ export async function updateLocalHostPlugins({
 
   const results = [];
   for (const target of targets) {
-    const detected = await detect(target.host);
-    if (!detected?.available) {
-      results.push({
-        host: target.host,
-        unitId: target.unitId,
-        status: 'SKIPPED_NOT_INSTALLED',
-        reason: detected?.reason ?? 'host unavailable',
-      });
-      continue;
-    }
     try {
+      const detected = await detect(target.host);
+      if (!detected?.available) {
+        results.push({
+          host: target.host,
+          unitId: target.unitId,
+          status: 'SKIPPED_NOT_INSTALLED',
+          reason: detected?.reason ?? 'host unavailable',
+        });
+        continue;
+      }
       const outcome = target.host === 'kimi'
-        ? await runKimiUpdate(target, detected, run, effectiveKimiHome)
+        ? await runKimiUpdate(target, detected, run, effectiveKimiHome, {
+          plan,
+          root,
+          verifyInstalledPayload,
+        })
         : await runStructuredUpdate(target, detected, run, {
           plan,
           root,
@@ -592,12 +788,7 @@ export async function updateLocalHostPlugins({
         });
       results.push({ host: target.host, unitId: target.unitId, ...outcome });
     } catch (error) {
-      results.push({
-        host: target.host,
-        unitId: target.unitId,
-        status: 'FAILED',
-        error: error?.message ?? String(error),
-      });
+      results.push(failedHostResult(target, error));
     }
   }
   return {

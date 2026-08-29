@@ -1,5 +1,37 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.1 locale=en baseline=sha256:71720f2bbde891ebccda25baf35ef03593d1f6aee1077aeccb3b4af4d2eddfc0 -->
+## [0.9.1] - 2026-08-28
+
+0.9.1 is a local source candidate for safer post-release host finishing. It now pins Foundation 0.14.0, whose public temporary-workspace and raw-output APIs pass the default Node.js 22 macOS consumer composition. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Real-host acceptance requires a qualified frozen release plan and a VERIFIED run from the same release lineage. The workflow confirms the exact plan digest and selected hosts before any host write. release-skill's optional local finishing never changes the terminal release state.
+
+### Changed
+
+- Pin skill-family-contracts, skill-family-harness-node, and skill-family-engineering-kit together at 0.14.0. A consumer test now combines the public withTemporaryWorkspace and superviseProcess.rawSink APIs under the default Node.js 22 macOS temporary directory.
+- Derive platform-manifest.json version ownership from package.json.version and check manifest freshness before prepare runs hooks, including docs-only and config-only workflows.
+- Expand ship's plan-approval summary from the frozen plan so reviewers can see public repositories, branch strategies, tags, npm targets, GitHub Releases, external action targets, waivers, and separately gated postPublish hooks.
+- Claude now re-observes the installed plugin after marketplace rebinding before deciding whether a plugin update is still required. Codex keeps the formal frozen-marketplace reinstall path.
+- Kimi accepts a managed installation without a .git directory when the package name, version, release tag, installed revision, managed root, and real payload all match. Legacy local-path entries are removed and reinstalled from the pinned release tag in one controlled TUI session.
+- CodeBuddy/WorkBuddy can update an existing bundled-family entry only when one remote query proves that the frozen tag and mutable marketplace branch both resolve to the frozen commit. The final installed list must contain exactly one entry with the expected marketplace, version, and revision.
+
+### Fixed
+
+- Prevent prepare from freezing a stale platform manifest into the public snapshot or npm tarball.
+- Remove the misleading claim that plan approval includes a requiresApproval postPublish checkpoint. Plan approval remains the single normal release-level approval; each gated postPublish hook needs its own approval record, bound to the plan digest and hook id for at most 24 hours.
+- Avoid a redundant Claude plugin update after marketplace rebinding has already removed or replaced the old installed entry.
+- Classify legacy Kimi local-path installations before managed-root checks so they can follow the explicit migration path.
+- Keep CodeBuddy/WorkBuddy host state unchanged when the target is absent, standalone, inaccessible, ambiguous, or inconsistent with the frozen release identity.
+
+### Upgrade Notes
+
+Real-host acceptance can begin only after 0.9.1 is officially published and VERIFIED; the official 0.9.1 entry must be installed or reloaded first. A source candidate, an older installed entry, or the mere existence of plan and run files cannot complete real-host acceptance. Each selected host must complete a first successful update and a second run that reports `ALREADY_CURRENT`.
+<!-- release-skill:changelog:end version=0.9.1 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.0 locale=en baseline=sha256:80f51046ce63386f75ed1a2b869cf3245732e9a1b040e11eb8942dba5f7c8fed -->
 ## [0.9.0] - 2026-08-28
 

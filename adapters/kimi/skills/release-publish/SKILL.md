@@ -51,9 +51,11 @@ description: "从已批准的生产计划发布冻结 Git branch/tag、npm tarba
 
 ## 授权门
 
-1. 展示可读的 `approvalSummary`：版本、仓库/包名、branch/tag、全部 actions 和例外。
+1. 展示可读的 `approvalSummary`：版本、公开仓库、分支策略、branch/tag、npm 与 GitHub Release 目标、全部 actions、例外，以及需要独立 checkpoint 批准的 postPublish hook。
 2. 必须存在未过期且由系统绑定同一内部 digest 的 approval record；批准后不再要求用户复制摘要做二次确认。
 3. 只有 CLI exit code 0 且结构化状态为 `PUBLISHED` 才算外写阶段通过；随后必须运行 verify，只有 `VERIFIED` 才是完整终态。
+
+冻结计划批准是正常发布级流程的唯一批准门。它包含计划内的外部动作和验证门禁，不包含有效 `requiresApproval: true` 的 postPublish checkpoint。这类 hook 仍须使用绑定 `(planDigest, hookId)` 且最长有效 24 小时的独立批准记录。
 
 ## 确定性执行
 

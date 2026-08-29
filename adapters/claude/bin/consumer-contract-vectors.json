@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.contracts.consumer-contract-vectors",
+  "foundationVersion": "0.14.0",
+  "sets": [
+    {
+      "capabilityId": "foundation.contracts.object-validation",
+      "vectorSetId": "foundation.contracts.object-validation.consumer-v1",
+      "contractId": "skill-family-contracts:validateDocument",
+      "strategy": "real-pure",
+      "vectors": [
+        {
+          "schemaVersion": 1,
+          "kind": "skill-family.consumer-contract-vector",
+          "vectorId": "foundation.contracts.object-validation.consumer-v1.indeterminate",
+          "vectorSetId": "foundation.contracts.object-validation.consumer-v1",
+          "capabilityId": "foundation.contracts.object-validation",
+          "foundationVersion": "0.14.0",
+          "contractId": "skill-family-contracts:validateDocument",
+          "caseClass": "indeterminate",
+          "strategy": "real-pure",
+          "request": {
+            "document": { "schemaVersion": 1, "kind": "skill-family.project-manifest" },
+            "options": { "schemaId": "https://contracts.skill-family.example/v1/project-manifest.json", "dialect": "2020-12", "policy": "strict" }
+          },
+          "expected": { "outcome": "indeterminate", "allowedStates": ["return", "throw"], "failClosed": true }
+        },
+        {
+          "schemaVersion": 1,
+          "kind": "skill-family.consumer-contract-vector",
+          "vectorId": "foundation.contracts.object-validation.consumer-v1.negative",
+          "vectorSetId": "foundation.contracts.object-validation.consumer-v1",
+          "capabilityId": "foundation.contracts.object-validation",
+          "foundationVersion": "0.14.0",
+          "contractId": "skill-family-contracts:validateDocument",
+          "caseClass": "negative",
+          "strategy": "real-pure",
+          "request": {
+            "document": { "schemaVersion": 1, "kind": "skill-family.project-manifest", "project": { "id": "demo-project", "name": "Demo Project" }, "contracts": { "version": "not-a-version", "profile": "generic" } },
+            "options": { "schemaId": "https://contracts.skill-family.example/v1/project-manifest.json", "dialect": "2020-12", "policy": "strict" }
+          },
+          "expected": { "outcome": "return", "value": { "valid": false, "errorCode": "SFC1001", "errors": [{ "keyword": "pattern", "instancePath": "/contracts/version", "schemaPath": "#/properties/contracts/properties/version/pattern", "message": "must match pattern \"^[0-9]+\\.[0-9]+\\.[0-9]+$\"", "params": { "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" } }], "data": { "schemaVersion": 1, "kind": "skill-family.project-manifest", "project": { "id": "demo-project", "name": "Demo Project" }, "contracts": { "version": "not-a-version", "profile": "generic" } } } }
+        },
+        {
+          "schemaVersion": 1,
+          "kind": "skill-family.consumer-contract-vector",
+          "vectorId": "foundation.contracts.object-validation.consumer-v1.positive",
+          "vectorSetId": "foundation.contracts.object-validation.consumer-v1",
+          "capabilityId": "foundation.contracts.object-validation",
+          "foundationVersion": "0.14.0",
+          "contractId": "skill-family-contracts:validateDocument",
+          "caseClass": "positive",
+          "strategy": "real-pure",
+          "request": {
+            "document": { "schemaVersion": 1, "kind": "skill-family.project-manifest", "project": { "id": "demo-project", "name": "Demo Project" }, "contracts": { "version": "1.0.0", "profile": "generic" } },
+            "options": { "schemaId": "https://contracts.skill-family.example/v1/project-manifest.json", "dialect": "2020-12", "policy": "strict" }
+          },
+          "expected": { "outcome": "return", "value": { "valid": true, "errorCode": null, "errors": [], "data": { "schemaVersion": 1, "kind": "skill-family.project-manifest", "project": { "id": "demo-project", "name": "Demo Project" }, "contracts": { "version": "1.0.0", "profile": "generic" } } } }
+        }
+      ]
+    },
+    {
+      "capabilityId": "foundation.harness.atomic-write",
+      "vectorSetId": "foundation.harness.atomic-write.consumer-v1",
+      "contractId": "skill-family-harness-node:writeFileAtomic",
+      "strategy": "official-fake",
+      "vectors": [
+        {
+          "schemaVersion": 1,
+          "kind": "skill-family.consumer-contract-vector",
+          "vectorId": "foundation.harness.atomic-write.consumer-v1.indeterminate",
+          "vectorSetId": "foundation.harness.atomic-write.consumer-v1",
+          "capabilityId": "foundation.harness.atomic-write",
+          "foundationVersion": "0.14.0",
+          "contractId": "skill-family-harness-node:writeFileAtomic",
+          "caseClass": "indeterminate",
+          "strategy": "official-fake",
+          "request": { "root": { "runtimeBinding": "atomic-write-canonical-root" }, "relPath": "records/item.json", "data": "fixture-data", "options": { "mode": 420 } },
+          "expected": { "outcome": "indeterminate", "allowedStates": ["return", "throw"], "failClosed": true }
+        },
+        {
+          "schemaVersion": 1,
+          "kind": "skill-family.consumer-contract-vector",
+          "vectorId": "foundation.harness.atomic-write.consumer-v1.negative",
+          "vectorSetId": "foundation.harness.atomic-write.consumer-v1",
+          "capabilityId": "foundation.harness.atomic-write",
+          "foundationVersion": "0.14.0",
+          "contractId": "skill-family-harness-node:writeFileAtomic",
+          "caseClass": "negative",
+          "strategy": "official-fake",
+          "request": { "root": { "runtimeBinding": "atomic-write-canonical-root" }, "relPath": "../outside.json", "data": "fixture-data", "options": { "mode": 420 } },
+          "expected": { "outcome": "throw", "errorCode": "SFC2004", "errorKind": "path-traversal" }
+        },
+        {
+          "schemaVersion": 1,
+          "kind": "skill-family.consumer-contract-vector",
+          "vectorId": "foundation.harness.atomic-write.consumer-v1.positive",
+          "vectorSetId": "foundation.harness.atomic-write.consumer-v1",
+          "capabilityId": "foundation.harness.atomic-write",
+          "foundationVersion": "0.14.0",
+          "contractId": "skill-family-harness-node:writeFileAtomic",
+          "caseClass": "positive",
+          "strategy": "official-fake",
+          "request": { "root": { "runtimeBinding": "atomic-write-canonical-root" }, "relPath": "records/item.json", "data": "fixture-data", "options": { "mode": 420 } },
+          "expected": { "outcome": "return", "valueRelation": "atomic-write-contained-absolute-target" }
+        }
+      ]
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.0 -->
+<!-- release-skill:release-version: 0.9.1 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,37 +14,38 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.0** (2026-08-28)
+**0.9.1** (2026-08-28)
 
-0.9.0 is a local source candidate for multi-unit postPublish plans and optional post-release local finishing. This note records the intended scope and verification boundaries; it is not evidence of publication, consumer-installation verification, or independent acceptance. Release availability must be established from the corresponding release records and post-publish verification results.
+0.9.1 is a local source candidate for safer post-release host finishing. It now pins Foundation 0.14.0, whose public temporary-workspace and raw-output APIs pass the default Node.js 22 macOS consumer composition. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- release-finish requires a plan-digest confirmation and a VERIFIED run from the same release lineage before any host command. Host updates use a restricted environment; Claude/Codex exact results are bound to the real installed payload, and every host fails closed when the identity evidence its protocol can provide is insufficient.
-
-**Added**
-
-- Plan version 3 freezes postPublish declarations per release unit as an ordered array. Each declaration carries its own targets, hooks, approval binding, execution bundle, checkpoints, and postVerify continuation while explicit plan versions 1 and 2 retain their established single-declaration behavior.
-- A new release-finish workflow derives a read-only local checklist from the frozen plan and VERIFIED run. After explicit user confirmation it can update Claude and Codex, drive the Kimi TUI and verify the resulting installation, or confirm that CodeBuddy/WorkBuddy already matches the frozen identity; CodeBuddy/WorkBuddy updates that cannot pin the frozen ref remain manual. None of these local actions changes the published release terminal state.
+- Real-host acceptance requires a qualified frozen release plan and a VERIFIED run from the same release lineage. The workflow confirms the exact plan digest and selected hosts before any host write. release-skill's optional local finishing never changes the terminal release state.
 
 **Changed**
 
-- The distribute and postVerify phases preflight every declaration before the first external write, then re-observe mutable remote proposal state during execution. Checkpoint identifiers are namespaced by release unit, and an earlier hook failure skips all later-unit work.
-- PostPublish hook identifiers are unique across the complete plan. Prepare, setup, approval, distribute, and postVerify consume the same validation rule before side effects.
+- Pin skill-family-contracts, skill-family-harness-node, and skill-family-engineering-kit together at 0.14.0. A consumer test now combines the public withTemporaryWorkspace and superviseProcess.rawSink APIs under the default Node.js 22 macOS temporary directory.
+- Derive platform-manifest.json version ownership from package.json.version and check manifest freshness before prepare runs hooks, including docs-only and config-only workflows.
+- Expand ship's plan-approval summary from the frozen plan so reviewers can see public repositories, branch strategies, tags, npm targets, GitHub Releases, external action targets, waivers, and separately gated postPublish hooks.
+- Claude now re-observes the installed plugin after marketplace rebinding before deciding whether a plugin update is still required. Codex keeps the formal frozen-marketplace reinstall path.
+- Kimi accepts a managed installation without a .git directory when the package name, version, release tag, installed revision, managed root, and real payload all match. Legacy local-path entries are removed and reinstalled from the pinned release tag in one controlled TUI session.
+- CodeBuddy/WorkBuddy can update an existing bundled-family entry only when one remote query proves that the frozen tag and mutable marketplace branch both resolve to the frozen commit. The final installed list must contain exactly one entry with the expected marketplace, version, and revision.
 
 **Fixed**
 
-- Prevent a later unit's missing bundle or deterministic proposal conflict from being discovered only after an earlier unit has already written remotely.
-- Preserve PARTIAL when a checkpoint has succeeded before a later failure, and preserve BLOCKED when no external checkpoint succeeded.
-- Prevent duplicate target names and duplicate hook identifiers from collapsing evidence or approval identity across release units.
+- Prevent prepare from freezing a stale platform manifest into the public snapshot or npm tarball.
+- Remove the misleading claim that plan approval includes a requiresApproval postPublish checkpoint. Plan approval remains the single normal release-level approval; each gated postPublish hook needs its own approval record, bound to the plan digest and hook id for at most 24 hours.
+- Avoid a redundant Claude plugin update after marketplace rebinding has already removed or replaced the old installed entry.
+- Classify legacy Kimi local-path installations before managed-root checks so they can follow the explicit migration path.
+- Keep CodeBuddy/WorkBuddy host state unchanged when the target is absent, standalone, inaccessible, ambiguous, or inconsistent with the frozen release identity.
 
 **Upgrade Notes**
 
-Prepare a new 0.9.0 plan to use plan version 3; do not edit or upgrade frozen older plans. Plan versions 1 and 2 remain readable only through their explicit compatibility path. release-finish is optional local follow-up, not publication evidence: branch merges, Kimi trust prompts, and local host changes still require explicit user consent, and unsupported exact-ref updates remain manual. Hook cache v2, safe full-tree inventory, the Audit offline release-record verifier, and mandatory public-marketplace host invocation gates remain outside this version.
+Real-host acceptance can begin only after 0.9.1 is officially published and VERIFIED; the official 0.9.1 entry must be installed or reloaded first. A source candidate, an older installed entry, or the mere existence of plan and run files cannot complete real-host acceptance. Each selected host must complete a first successful update and a second run that reports `ALREADY_CURRENT`.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.0 is the current source candidate. This README
+> **Current boundary:** v0.9.1 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -68,7 +69,7 @@ Prepare a new 0.9.0 plan to use plan version 3; do not edit or upgrade frozen ol
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.0 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.1 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -101,7 +102,7 @@ This version excludes R-02 safe full-tree inventory, R-05 Hook cache v2,
 R-10 historical-release verification implementation, real Kimi/WorkBuddy
 public-marketplace installation and invocation gates, and an Audit public
 offline release-record verifier.
-Foundation dependencies are pinned to the three released 0.13.0 packages.
+Foundation dependencies are pinned to the three released 0.14.0 packages.
 For new bundled-family Kimi/CodeBuddy plans, verify calls the released
 `runPluginVerification` entry with the complete frozen payload and records a
 minimal `install-only` observation receipt. Kimi maps to `kimi-code`; CodeBuddy
@@ -172,7 +173,10 @@ This scope summary is not a remote publication record or a consumer upgrade inst
 > Treat `prepare` as local-only only when those processes are absent or separately
 > audited and explicitly acknowledged. Production publishing uses
 > `ship --target-version <ver> → ship --approve --actor <name>`.
-> The `ship` command runs hooks and gates automatically; the only human gate is plan approval.
+> Frozen-plan approval is the only normal release-level human gate.
+> Here, “only human gate” means the only normal release-level approval. A postPublish hook whose effective
+> `requiresApproval` is true still needs a separate checkpoint approval bound
+> to the plan digest and hook id; that approval expires after at most 24 hours.
 > For bundled-family Kimi/CodeBuddy releases, Foundation first observes the
 > complete frozen payload in a fresh local installation. Real marketplace
 > installation and host invocation remain non-blocking manual follow-up tasks.
@@ -230,9 +234,10 @@ See [INSTALL.md](INSTALL.md) for CodeBuddy, Codex, and Kimi Code commands.
 ### Main workflow
 
 For routine releases, use the durable fast path. It persists authoritative
-paths and resumes safely, so a normal run needs at most one human gate: the
-frozen plan approval. `ship` runs configured hooks and verification gates
-automatically. For bundled-family Kimi/CodeBuddy releases, Foundation first
+paths and resumes safely. Frozen plan approval is the only normal
+release-level approval. `ship` runs configured hooks and verification gates
+automatically. A gated postPublish hook still needs its independent checkpoint
+approval; plan approval does not include it. For bundled-family Kimi/CodeBuddy releases, Foundation first
 observes the complete frozen payload in a fresh local installation. Real
 marketplace installation and host invocation remain non-blocking post-release
 manual tasks; the system does not verify their completion.
@@ -686,7 +691,8 @@ postPublish:
 
 A hook with `requiresApproval: true` parks at `AWAITING_APPROVAL` until a
 checkpoint approval is minted and consumed. The approval record is bound to
-the plan digest and the hook id, and expires after 24 hours:
+the plan digest and the hook id, and expires after 24 hours. Frozen plan
+approval never includes this checkpoint approval:
 
 ```bash
 release-skill approve --plan "$PLAN_PATH" --hook hub-entry-proposal --actor "$ACTOR" --json
@@ -729,11 +735,12 @@ verification is automated. Kimi Code and CodeBuddy/WorkBuddy are returned as
 condition for the automated release to reach `VERIFIED`.
 
 After `VERIFIED`, the optional `release-finish` workflow can update Claude and
-Codex from the frozen marketplace identity, drive Kimi's TUI and re-check its
-managed installation, or confirm an already exact CodeBuddy/WorkBuddy entry.
-It requires explicit user confirmation, does not change release status, and
-leaves CodeBuddy/WorkBuddy mismatches for manual handling because that CLI
-cannot pin the frozen ref.
+Codex from the frozen marketplace identity, migrate or update Kimi through one
+controlled TUI session and verify its real managed payload, or update an existing
+bundled-family CodeBuddy/WorkBuddy entry when the frozen tag and mutable branch
+both resolve to the frozen commit. It requires explicit user confirmation and
+does not change release status. Missing, standalone, inaccessible, or ambiguous
+CodeBuddy/WorkBuddy targets remain manual and receive no host mutation.
 
 A `codebuddy-plugin` distribution may optionally declare `marketplace` (and
 `marketplaceSource`, the URL consumers use to add the marketplace) to override
@@ -762,8 +769,8 @@ declaration is narrowed to concrete targets.
   the ref is absent, while existing branches use an ordinary non-force push;
 - no Kimi or CodeBuddy/WorkBuddy marketplace install checkpoint in the release
   state machine — optional release-finish can drive and re-check Kimi locally,
-  or confirm an already exact CodeBuddy/WorkBuddy entry, but those results do
-  not become publication evidence;
+  or update an existing CodeBuddy/WorkBuddy entry under strict frozen-identity
+  checks, but those results do not become publication evidence;
 - no promise of Windows or broad multi-platform native write support;
 - no hidden commit, push, tag, release, or package publication.
 

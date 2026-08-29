@@ -55,9 +55,9 @@ import { digestBytes, publishFileOrReplace, readFileStrict, withTemporaryWorkspa
 import { canonicalJson } from '../core/digest.mjs';
 
 export const FOUNDATION_PACKAGES = Object.freeze({
-  'skill-family-contracts': '0.13.0',
-  'skill-family-engineering-kit': '0.13.0',
-  'skill-family-harness-node': '0.13.0',
+  'skill-family-contracts': '0.14.0',
+  'skill-family-engineering-kit': '0.14.0',
+  'skill-family-harness-node': '0.14.0',
 });
 
 export const BINDING_RECORD_PATH = 'bin/foundation-resource-binding.json';
@@ -294,6 +294,19 @@ export async function computeFoundationProjection({ pkgRoot, bundleContent }) {
             scopeOf(targetPosix);
             continue;
           }
+        }
+        // Foundation 0.14 keeps this example behind a capability-selection
+        // branch that esbuild removes from the release-skill bundle. The
+        // source scanner still sees the directory URL in the marked module,
+        // so admit this one exact directory only when its path survives in
+        // the built bundle.
+        if (
+          pkg === 'skill-family-engineering-kit'
+          && toPosix(relative(packages[pkg].root, sourceDir)) === 'data/examples/minimal-plugin-payload'
+          && !bundleContent.includes('data/examples/minimal-plugin-payload')
+        ) {
+          scopeOf(targetPosix);
+          continue;
         }
         const files = await walkTree(sourceDir, `${pkg} directory read "${rel}"`);
         const members = [];

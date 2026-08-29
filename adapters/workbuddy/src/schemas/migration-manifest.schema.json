@@ -13,6 +13,138 @@
     "kind": {
       "const": "skill-family.migration-manifest"
     },
+    "capabilityUseContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "locale"],
+      "properties": {
+        "scope": {
+          "type": "string",
+          "enum": ["contracts", "harness", "engineering-kit", "profile", "all"]
+        },
+        "locale": {
+          "type": "string",
+          "enum": ["en", "zh-CN"]
+        }
+      }
+    },
+    "capabilityUses": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 200,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["useId", "problemStatement", "constraints", "retainedGuarantees"],
+        "properties": {
+          "useId": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+            "maxLength": 80
+          },
+          "problemStatement": {
+            "allOf": [
+              { "$ref": "#/$defs/trimmedCapabilityUseText" },
+              { "type": "string", "maxLength": 1000 }
+            ]
+          },
+          "constraints": {
+            "type": "array",
+            "maxItems": 20,
+            "uniqueItems": true,
+            "items": {
+              "allOf": [
+                { "$ref": "#/$defs/trimmedCapabilityUseText" },
+                { "type": "string", "maxLength": 500 }
+              ]
+            }
+          },
+          "retainedGuarantees": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "uniqueItems": true,
+            "items": {
+              "allOf": [
+                { "$ref": "#/$defs/trimmedCapabilityUseText" },
+                { "type": "string", "maxLength": 500 }
+              ]
+            }
+          },
+            "catalogFilters": {
+            "type": "array",
+            "maxItems": 20,
+            "uniqueItems": true,
+            "items": {
+              "allOf": [
+                { "$ref": "#/$defs/trimmedCapabilityUseText" },
+                { "type": "string", "maxLength": 200 }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "capabilityDecisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["useId", "disposition", "reason"],
+        "properties": {
+          "useId": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+            "maxLength": 80
+          },
+          "disposition": {
+            "type": "string",
+            "enum": ["direct-adoption", "compatibility-layer", "keep-business", "foundation-gap"]
+          },
+          "targetCapability": {
+            "type": "string",
+            "pattern": "^foundation\\.[a-z0-9\\-]+(\\.[a-z0-9\\-]+)+$"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": ["disposition"],
+              "properties": {
+                "disposition": {
+                  "enum": ["direct-adoption", "compatibility-layer"]
+                }
+              }
+            },
+            "then": {
+              "required": ["targetCapability"],
+              "properties": { "targetCapability": { "type": "string" } }
+            }
+          },
+          {
+            "if": {
+              "required": ["disposition"],
+              "properties": {
+                "disposition": {
+                  "enum": ["keep-business", "foundation-gap"]
+                }
+              }
+            },
+            "then": {
+              "not": {
+                "required": ["targetCapability"],
+                "properties": { "targetCapability": { "type": "string" } }
+              }
+            }
+          }
+        ]
+      }
+    },
     "manifestVersion": {
       "type": "integer",
       "minimum": 1,
@@ -31,11 +163,34 @@
             "description": "Relative POSIX path of one legacy implementation. Shape only: absolute paths, traversal, UNC/drive forms and symlink escapes are rejected by harness containment at assessment time, fail-closed."
           },
           "replacedBy": {
-            "type": "string",
-            "minLength": 1,
+            "oneOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "null" }
+            ],
             "description": "The replacement facility (tool/command/module) that supersedes this legacy entry. An empty replacement is never a valid exit claim."
+          },
+          "useId": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+            "maxLength": 80
+          },
+          "recoveryRef": {
+            "type": "string",
+            "minLength": 1
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": ["replacedBy"],
+              "properties": { "replacedBy": { "type": "null" } }
+            },
+            "then": {
+              "required": ["useId"],
+              "properties": { "useId": { "type": "string" } }
+            }
+          }
+        ]
       }
     },
     "legacyReferences": {
@@ -57,11 +212,30 @@
             "description": "Exact literal text that must be absent from the file. No regex; byte-exact UTF-8 match."
           },
           "replacedBy": {
-            "type": "string",
-            "minLength": 1,
+            "oneOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "null" }
+            ],
             "description": "The replacement facility that supersedes this old reference. Empty is never valid."
+          },
+          "useId": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$",
+            "maxLength": 80
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": ["replacedBy"],
+              "properties": { "replacedBy": { "type": "null" } }
+            },
+            "then": {
+              "required": ["useId"],
+              "properties": { "useId": { "type": "string" } }
+            }
+          }
+        ]
       }
     },
     "exceptions": {
@@ -144,5 +318,95 @@
         }
       }
     }
-  }
+  },
+  "$defs": {
+    "trimmedCapabilityUseText": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!\\s)(?![\\s\\S]*\\s$)(?![\\s\\S]*\\u0000)[\\s\\S]+$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": ["capabilityUses"],
+        "properties": { "capabilityUses": { "type": "array" } }
+      },
+      "then": {
+        "required": ["capabilityUseContext"],
+        "properties": { "capabilityUseContext": { "type": "object" } }
+      },
+      "else": {
+        "not": {
+          "anyOf": [
+            {
+              "required": ["capabilityUseContext"],
+              "properties": { "capabilityUseContext": { "type": "object" } }
+            },
+            {
+              "required": ["capabilityDecisions"],
+              "properties": { "capabilityDecisions": { "type": "array" } }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["capabilityDecisions"],
+        "properties": { "capabilityDecisions": { "type": "array" } }
+      },
+      "then": {
+        "required": ["capabilityUses", "capabilityUseContext"],
+        "properties": {
+          "capabilityUses": { "type": "array" },
+          "capabilityUseContext": { "type": "object" }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["legacyInfra"],
+        "properties": {
+          "legacyInfra": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "required": ["useId"],
+              "properties": { "useId": { "type": "string" } }
+            }
+          }
+        }
+      },
+      "then": {
+        "required": ["capabilityUses", "capabilityUseContext"],
+        "properties": {
+          "capabilityUses": { "type": "array" },
+          "capabilityUseContext": { "type": "object" }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["legacyReferences"],
+        "properties": {
+          "legacyReferences": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "required": ["useId"],
+              "properties": { "useId": { "type": "string" } }
+            }
+          }
+        }
+      },
+      "then": {
+        "required": ["capabilityUses", "capabilityUseContext"],
+        "properties": {
+          "capabilityUses": { "type": "array" },
+          "capabilityUseContext": { "type": "object" }
+        }
+      }
+    }
+  ]
 }

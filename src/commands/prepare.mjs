@@ -57,7 +57,11 @@ import {
 } from '../snapshot/frozen.mjs';
 import { ReleaseError, GATE_FAILED, CONFIG_INVALID, CONFIG_MISSING, FORBIDDEN_CONTENT_DETECTED, RELEASE_DOCS_STALE, DIRTY_SOURCE_INPUT, BUNDLE_STALE } from '../core/errors.mjs';
 import { assertBundleFreshness } from '../core/bundle-freshness.mjs';
-import { assertAdapterFreshness, assertSelfBootstrapFacts } from '../core/derived-artifact-gates.mjs';
+import {
+  assertAdapterFreshness,
+  assertPlatformManifestFreshness,
+  assertSelfBootstrapFacts,
+} from '../core/derived-artifact-gates.mjs';
 import { isFoundationPluginVerificationEligible } from '../core/foundation-plugin-verification.mjs';
 import { PKG_ROOT } from '../core/pkg-root.mjs';
 import { writeFrozenMarker, FROZEN_MARKER_FILENAME } from '../core/frozen-marker.mjs';
@@ -3025,8 +3029,9 @@ export async function prepareRelease(options) {
     // --- Step 1b-fast: version-sensitive derived-artifact fast pre-gates (O1) ---
     // 2026-08-18 investigation §3.2: adapter drift and stale self-bootstrap
     // fact pins used to surface only deep inside the ~80s full test hook.
-    // Promote the two exact canonical checks (build-adapters --check and the
-    // release-docs-self-bootstrap single-file test) to prepare's earliest
+    // Promote the three exact canonical checks (build-adapters --check,
+    // generate-platform-manifest --check, and the release-docs-self-bootstrap
+    // single-file test) to prepare's earliest
     // stage so the same drift fails closed in seconds, before any hook. Like
     // the bundle freshness gate this is artifact-integrity class: workflow
     // trimming never exempts it. Installed layouts record not-applicable.
@@ -3034,7 +3039,8 @@ export async function prepareRelease(options) {
     // the CLI, plain function calls, and the node:test harness — no
     // environment variable may exempt them (a test seam is never a
     // production switch). Tests that need lightweight fixtures inject the
-    // adapterFreshnessFn/selfBootstrapFactsFn seams explicitly in-process.
+    // adapterFreshnessFn/platformManifestFreshnessFn/selfBootstrapFactsFn
+    // seams explicitly in-process.
     await evidence.append({ phase: 'adapter-freshness', status: 'started' });
     const adapterFreshnessFn = options.adapterFreshnessFn ?? assertAdapterFreshness;
     let adapterFreshness;
@@ -3060,6 +3066,35 @@ export async function prepareRelease(options) {
         phase: 'adapter-freshness',
         status: 'completed',
         durationMs: adapterFreshness?.durationMs ?? null,
+      });
+    }
+
+    await evidence.append({ phase: 'platform-manifest-freshness', status: 'started' });
+    const platformManifestFreshnessFn = options.platformManifestFreshnessFn
+      ?? assertPlatformManifestFreshness;
+    let platformManifestFreshness;
+    try {
+      platformManifestFreshness = await platformManifestFreshnessFn(PKG_ROOT);
+    } catch (err) {
+      await evidence.append({
+        phase: 'platform-manifest-freshness',
+        status: 'blocking',
+        reason: err.details?.reason ?? null,
+        error: { code: err.code, message: err.message },
+      });
+      throw err;
+    }
+    if (platformManifestFreshness?.applicable === false) {
+      await evidence.append({
+        phase: 'platform-manifest-freshness',
+        status: 'not-applicable',
+        reason: platformManifestFreshness.reason,
+      });
+    } else {
+      await evidence.append({
+        phase: 'platform-manifest-freshness',
+        status: 'completed',
+        durationMs: platformManifestFreshness?.durationMs ?? null,
       });
     }
 

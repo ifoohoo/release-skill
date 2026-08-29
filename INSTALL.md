@@ -2,7 +2,7 @@
 
 [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.0 -->
+<!-- release-skill:release-version: 0.9.1 -->
 ## Prerequisites
 
 - Node.js 22.0.0 or later
@@ -114,15 +114,23 @@ tag pinned to the exact version (never the bare repository URL, which installs
 the latest release or default branch), confirm the trust prompt, then reload:
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.0
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.1
    /plugins reload
    ```
 
 After the release has reached `VERIFIED`, the optional `release-finish` workflow
 can perform the same TUI interaction only after explicit user confirmation. It
-then re-reads Kimi's managed installation root and requires the version, tag,
-revision, and Git commit to match the frozen plan. This local check is not part
-of `verify` and does not alter the `VERIFIED` release state.
+requires the package name, version, release tag, installed revision, and managed
+root to match the frozen plan. An exact current installation is checked before
+returning `ALREADY_CURRENT`. When an installation or migration occurs, the
+resulting managed installation is checked only after the operation. A `.git`
+directory is optional diagnostic evidence, not a success requirement. After an
+installation or migration, release-finish re-reads Kimi's managed installation root
+rather than reusing the pre-operation observation, then verifies the final identity
+and actual payload. If the existing entry is a legacy local-path
+install, release-finish removes it and installs the pinned release tag in the
+same TUI session before accepting the trust prompt and reloading. This local
+check is not part of `verify` and does not alter the `VERIFIED` release state.
 
 No receipt or attestation is required. The `attest` command remains available
 only for frozen plans created by older versions that lack the
@@ -152,10 +160,15 @@ reports `verifiedBySystem: false`. Install from the bundled-family marketplace
 for new plans; `attest` exists only for old frozen-plan compatibility.
 
 The optional `release-finish` workflow can inspect the CodeBuddy/WorkBuddy list
-after explicit confirmation. It reports `ALREADY_CURRENT` only when the listed
-marketplace, version, and frozen commit all match. Because the CLI cannot pin a
-ref, a mismatch remains `MANUAL_REQUIRED`; release-finish does not update to an
-unbound latest version.
+after explicit confirmation. It reports `ALREADY_CURRENT` only when one listed
+entry already matches the marketplace, version, and frozen commit. A matching
+bundled-family entry can be updated through the official marketplace and plugin
+update commands only after one remote query proves that both the frozen tag and
+the plan's mutable marketplace branch resolve to that same frozen commit. The
+final list must contain exactly one matching entry with the expected marketplace,
+version, and revision. Missing installations, standalone sources, inaccessible
+or conflicting refs, and any identity mismatch return `MANUAL_REQUIRED` without
+modifying the host.
 
 For a single session from a source checkout you can also point CodeBuddy at the
 generated plugin directory with `--plugin-dir <path>/adapters/workbuddy`; the

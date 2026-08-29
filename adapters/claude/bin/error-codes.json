@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "skill-family.contracts.error-codes",
-  "contractsVersion": "1.13.0",
+  "contractsVersion": "1.14.0",
   "policy": {
     "format": "^SFC[0-9]{4}$",
     "ranges": [
@@ -107,6 +107,13 @@
       "category": "contract",
       "stableSince": "1.0.0",
       "meaning": "A registered schema does not compile under its declared dialect (the schema document itself is invalid)."
+    },
+    {
+      "code": "SFC1013",
+      "name": "CONSUMER_CONTRACT_VERSION_MISMATCH",
+      "category": "contract",
+      "stableSince": "1.14.0",
+      "meaning": "A consumer contract vector, capability identity, vector set, or Foundation package version does not match the installed Contracts package."
     },
     {
       "code": "SFC2002",

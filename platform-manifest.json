@@ -2,11 +2,11 @@
   "schemaVersion": "1.0.0",
   "platformId": "release-skill",
   "platformName": "release-skill Plugin Platform",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "logicalRoot": "skills-src/",
-  "logicalRootDigest": "36f27cb08efabac14f45d92d669f2e38ff19577440d3ab9c0fe79e7ee92e8b7f",
-  "projectionDigest": "d5454a1a0319eb4adee316b5c4b736f37ef64e7844f194d7b704ae0e7397bf4f",
-  "projectionId": "release-skill:platform:0.9.0",
+  "logicalRootDigest": "428ed8875967a80e989d2712113cf0a0a2f6f8cd9ba510cbe07ba372298c430f",
+  "projectionDigest": "ee43d5a11aa41b122c3d03e67d3a7ad179425d0dcbd2bf7dfec544f184f3ed02",
+  "projectionId": "release-skill:platform:0.9.1",
   "manifestRequired": true,
   "projectionSources": {
     "skills-src-root": {
@@ -366,7 +366,7 @@
   "governanceNotes": {
     "duplicatePrevention": "This platform-manifest.json eliminates DUPLICATE_LOGICAL_SKILL_ID audit blocking by providing an authoritative claim of projection vs original. Each projected SKILL.md is listed in logicalMappings and is therefore excluded from the family_source logical-skill scan; only skills-src/ is scanned as logical source.",
     "auditCompliance": "The manifest declares skills-src/ as the unique logical root. All other skill locations (skills/, adapters/*/skills/) are projected artifacts derived via documented generators.",
-    "versionOwnership": "本文件 version 与 package.json 版本字段确定性对齐（生成时读取）。0.6.0 特性（route/lineage/workflow profiles/三新技能）当前在 version 0.5.1 下开发；版本边界归属待用户裁决后统一，不得擅自 bump。",
+    "versionOwnership": "本文件的 version 与 projectionId 由 package.json.version 确定性派生。版本变更必须经过权威版本同步流程；禁止手工修改本生成物。",
     "projectionInvariants": [
       "Skills defined in skills-src/ cannot be manually modified; modifications must occur in skills-src/ and propagate via generators",
       "Generator scripts are deterministic; --check mode verifies no drift between source and projection",
