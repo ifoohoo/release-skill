@@ -2917,6 +2917,142 @@ async function runPreHookPublicSurfaceGate({
   }
 }
 
+/**
+ * Resolve the operator's pre-freeze release-unit request against the complete
+ * validated project configuration. The returned units always follow config
+ * declaration order so plan ordering and digests never depend on argv order.
+ */
+function prepareRetryPathArg(path) {
+  return relative(process.cwd(), resolve(path)) || '.';
+}
+
+function buildPrepareRetryArgv(options, unitIds) {
+  const argv = [
+    'release-skill',
+    'prepare',
+    '--root',
+    prepareRetryPathArg(options.root),
+  ];
+  if (typeof options.version === 'string' && options.version.length > 0) {
+    argv.push('--target-version', options.version);
+  }
+  argv.push(options.offline ? '--offline' : '--online');
+  if (options.production) argv.push('--production');
+  argv.push('--workflow', options.workflow);
+  if (typeof options.testSelection === 'string') {
+    argv.push('--test-selection', options.testSelection);
+  }
+  if (typeof options.output === 'string') {
+    argv.push('--output', prepareRetryPathArg(options.output));
+  }
+  // A production --run-dir is single-use by contract and this failed attempt
+  // has already created it. Let the retry allocate a fresh evidence directory.
+  if (options.hookCache === false) argv.push('--no-hook-cache');
+  for (const unitId of unitIds) argv.push('--unit', unitId);
+  return argv;
+}
+
+/**
+ * Keep the deferred-unit evidence and operator guidance on one exact argv.
+ * The command points back to the caller's project root and carries the same
+ * prepare mode while selecting only the units that were deferred.
+ */
+function buildDeferredReleaseDiagnostics(options, deferredUnitIds) {
+  if (deferredUnitIds.length === 0) return null;
+  return {
+    deferredUnitIds: [...deferredUnitIds],
+    nextPrepareArgv: buildPrepareRetryArgv(options, deferredUnitIds),
+  };
+}
+
+function resolveRequestedReleaseUnits(config, requestedUnitIds, retryOptions) {
+  const availableUnits = config.releaseUnits ?? [];
+  const availableUnitIds = availableUnits.map((unit) => unit.id);
+  if (requestedUnitIds === undefined) {
+    return {
+      explicit: false,
+      selectedUnits: availableUnits,
+      selectedUnitIds: availableUnitIds,
+      deferredUnitIds: [],
+      receiptSelected: Boolean(config.publicSourceAuthorityReceipt),
+    };
+  }
+  if (!Array.isArray(requestedUnitIds) || requestedUnitIds.length === 0) {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      'explicit release-unit selection must contain at least one unit id',
+      { requestedUnitIds, availableUnitIds },
+    );
+  }
+
+  const invalidUnitIds = requestedUnitIds.filter(
+    (unitId) => typeof unitId !== 'string' || unitId.length === 0,
+  );
+  const seen = new Set();
+  const duplicateUnitIds = [];
+  for (const unitId of requestedUnitIds) {
+    if (seen.has(unitId) && !duplicateUnitIds.includes(unitId)) duplicateUnitIds.push(unitId);
+    seen.add(unitId);
+  }
+  const availableSet = new Set(availableUnitIds);
+  const unknownUnitIds = requestedUnitIds.filter(
+    (unitId) => typeof unitId === 'string' && unitId.length > 0 && !availableSet.has(unitId),
+  );
+  if (invalidUnitIds.length > 0 || duplicateUnitIds.length > 0 || unknownUnitIds.length > 0) {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      'release-unit selection contains empty, duplicate, or unknown unit ids',
+      {
+        requestedUnitIds,
+        availableUnitIds,
+        invalidUnitIds,
+        duplicateUnitIds,
+        unknownUnitIds,
+      },
+    );
+  }
+
+  const selectedSet = new Set(requestedUnitIds);
+  const selectedUnits = availableUnits.filter((unit) => selectedSet.has(unit.id));
+  const selectedUnitIds = selectedUnits.map((unit) => unit.id);
+  const deferredUnitIds = availableUnitIds.filter((unitId) => !selectedSet.has(unitId));
+  const deferredReleaseDiagnostics = buildDeferredReleaseDiagnostics(retryOptions, deferredUnitIds);
+  const receipt = config.publicSourceAuthorityReceipt;
+  let receiptSelected = false;
+  if (receipt) {
+    const receiptSet = new Set([receipt.coordinatorUnitId, ...receipt.subjectUnitIds]);
+    const dependencyUnitIds = availableUnitIds.filter((unitId) => receiptSet.has(unitId));
+    receiptSelected = dependencyUnitIds.some((unitId) => selectedSet.has(unitId));
+    if (receiptSelected) {
+      const missingUnitIds = dependencyUnitIds.filter((unitId) => !selectedSet.has(unitId));
+      if (missingUnitIds.length > 0) {
+        const retryUnitIds = availableUnitIds.filter(
+          (unitId) => selectedSet.has(unitId) || receiptSet.has(unitId),
+        );
+        throw new ReleaseError(
+          GATE_FAILED,
+          'release-unit selection does not include the complete public source-authority dependency closure',
+          {
+            selectedUnitIds,
+            missingUnitIds,
+            dependencyUnitIds,
+            retryArgv: buildPrepareRetryArgv(retryOptions, retryUnitIds),
+          },
+        );
+      }
+    }
+  }
+
+  return {
+    explicit: true,
+    selectedUnits,
+    selectedUnitIds,
+    deferredUnitIds,
+    deferredReleaseDiagnostics,
+    receiptSelected,
+  };
+}
+
 export async function prepareRelease(options) {
   const {
     root,
@@ -2931,6 +3067,7 @@ export async function prepareRelease(options) {
     workflow = 'full',
     observePreviousPublicBaselineFn,
     testSelection = 'full',
+    unitIds,
   } = options ?? {};
 
   // --- Workflow profile (H5) ---
@@ -3039,7 +3176,20 @@ export async function prepareRelease(options) {
     await evidence.append({ phase: 'config', status: 'started' });
 
     const { config, configPath, configDigest } = await loadProjectConfig({ root: realRoot });
-    const adoptionWarnings = collectExpectedPublicSurfaceAdoptionWarnings(config);
+    const releaseSelection = resolveRequestedReleaseUnits(config, unitIds, {
+      root,
+      version,
+      offline,
+      production,
+      workflow,
+      testSelection: typeof options?.testSelection === 'string' ? testSelection : undefined,
+      output,
+      hookCache: options?.hookCache,
+    });
+    const configUnits = releaseSelection.selectedUnits;
+    const selectedConfig = { ...config, releaseUnits: configUnits };
+    const selectedUnitIdSet = new Set(releaseSelection.selectedUnitIds);
+    const adoptionWarnings = collectExpectedPublicSurfaceAdoptionWarnings(selectedConfig);
     // Mutable operator-facing warning list: seeded from the adoption warnings,
     // appended by later gates (O5 origin-ahead). Returned as `warnings`.
     const runWarnings = [...adoptionWarnings];
@@ -3055,6 +3205,18 @@ export async function prepareRelease(options) {
         phase: 'public-surface-adoption',
         status: 'warning',
         ...warning,
+      });
+    }
+    if (releaseSelection.explicit) {
+      await evidence.append({
+        phase: 'release-scope',
+        status: 'selected',
+        mode: 'selected',
+        selectedUnitIds: releaseSelection.selectedUnitIds,
+        deferredUnitIds: releaseSelection.deferredUnitIds,
+        ...(releaseSelection.deferredReleaseDiagnostics
+          ? { nextPrepareArgv: releaseSelection.deferredReleaseDiagnostics.nextPrepareArgv }
+          : {}),
       });
     }
 
@@ -3132,7 +3294,6 @@ export async function prepareRelease(options) {
     // gate, baseline, snapshot, remote check, or plan write runs. Units
     // without releaseDocuments keep the exact legacy behaviour (the gate
     // appends no evidence and performs no check).
-    const configUnits = config.releaseUnits ?? [];
     const resolvedVersions = await resolveAllUnitVersions(
       configUnits,
       realRoot,
@@ -3330,7 +3491,8 @@ export async function prepareRelease(options) {
       });
     }
 
-    const declaredVerificationGates = config.verificationGates ?? [];
+    const declaredVerificationGates = (config.verificationGates ?? [])
+      .filter((gate) => selectedUnitIdSet.has(gate.scope.unit));
     if (declaredVerificationGates.length > 0) {
       await evidence.append({
         phase: 'verification-gate-authorization',
@@ -3435,7 +3597,7 @@ export async function prepareRelease(options) {
     // R93-01: optional ephemeral public-surface check immediately before the
     // first hook. Its staging and closure receipt never enter the plan.
     await runPreHookPublicSurfaceGate({
-      config,
+      config: selectedConfig,
       root: realRoot,
       resolvedVersions,
       evidence,
@@ -3894,7 +4056,7 @@ export async function prepareRelease(options) {
 
     // --- Step 5: Build snapshots, scan, and evaluate README ---
     const { unitResults, snapshotDigests } = await processSnapshots(
-      config, realRoot, evidence, runDir, production,
+      selectedConfig, realRoot, evidence, runDir, production,
     );
 
     // Snapshot gates always run on disposable writable copies. The public
@@ -4280,7 +4442,7 @@ export async function prepareRelease(options) {
     }
 
     let publicSourceAuthorityReceipt = null;
-    if (config.publicSourceAuthorityReceipt) {
+    if (config.publicSourceAuthorityReceipt && releaseSelection.receiptSelected) {
       // P3 (ruling 7): config scenario A (no-publish-needed) means the public
       // bytes are unchanged and nothing will be published — a configured
       // public source receipt must not require or generate a nonexistent
@@ -4524,7 +4686,7 @@ export async function prepareRelease(options) {
             },
           }
         : {}),
-      verificationGates: config.verificationGates ?? [],
+      verificationGates: declaredVerificationGates,
       snapshotDigest: overallSnapshotDigest,
       ...(humanConsumersStrategy ? { humanConsumersStrategy } : {}),
       ...(production ? {
@@ -4608,6 +4770,13 @@ export async function prepareRelease(options) {
     // carry no such warning. The prepare command's own defaults are unchanged —
     // this only enriches the result, never flips offline/production.
     const nextSteps = [];
+    if (releaseSelection.explicit && releaseSelection.deferredUnitIds.length > 0) {
+      nextSteps.push({
+        code: 'DEFERRED_RELEASE_UNITS',
+        message: `Prepare the deferred release units separately: ${releaseSelection.deferredUnitIds.join(', ')}`,
+        argv: releaseSelection.deferredReleaseDiagnostics.nextPrepareArgv,
+      });
+    }
     if (!production) {
       nextSteps.push({
         code: 'NON_PRODUCTION_PLAN_NOT_PUBLISHABLE',
@@ -4624,6 +4793,13 @@ export async function prepareRelease(options) {
       evidenceDir,
       warnings: runWarnings,
       nextSteps,
+      ...(releaseSelection.explicit ? {
+        releaseScope: {
+          mode: 'selected',
+          selectedUnitIds: releaseSelection.selectedUnitIds,
+          deferredUnitIds: releaseSelection.deferredUnitIds,
+        },
+      } : {}),
     };
   } catch (err) {
     // Record failure evidence (best effort). A broken clock can make the

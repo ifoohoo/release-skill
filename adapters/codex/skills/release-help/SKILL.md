@@ -24,11 +24,15 @@ description: "Discoverable entry point for release-skill: dependency and environ
 - 只读诊断：运行 dry-run 检查，不修改任何文件
 - 故障引导：根据错误码指向对应的修复 Skill
 
-## 0.9.3 候选边界
+## 0.9.4 候选边界
 
-当前源码候选已接入四项工作流保护、Hook cache v2 和稳定隔离安装树记录。三项 Foundation 依赖精确使用 0.15.0 的公开包根 API。Hook cache 只复用绝对路径或经真实 cwd 校验的 cwd-relative executable identity；裸 PATH、PATHEXT、Windows 和观察不可用时，Hook 仍冷执行，缓存复用失败关闭且不写入 v2 cache。缓存没有 TTL。
+当前源码候选允许多发布单元项目在计划冻结前显式选择本轮范围。`prepare` 和新建的 `ship` 状态支持重复传入 `--unit <id>`；未传时继续选择全部配置单元。成功选择会列出选中与延期单元。延期单元不进入本轮计划，也不获得发布状态。
 
-稳定隔离安装树记录只在宿主命令退出、目录已隔离且扫描期间没有并发写入时执行；宿主附加链接只记录、不跟随，声明载荷中的 symlink 失败关闭，legacy 全树语义保持不变。0.9.3 仍是源码候选，不能从本说明推断已批准、发布或验证。
+选择只影响按单元绑定的检查与动作。完整配置、生成物新鲜度和顶层 Hook 仍覆盖整个项目。`publicSourceAuthorityReceipt` 涉及的 coordinator 和 subjects 必须作为完整闭包共同选择，系统不会自动扩选。计划冻结后，`plan.units` 是唯一范围权威；publish、reconcile、verify 和 distribute 不接受 `--unit`。
+
+0.9.3 引入的四项工作流保护、Hook cache v2 和稳定隔离安装树记录在 0.9.4 继续保留。0.9.4 精确消费 Foundation 0.16.0 的公开包根 API。Hook cache 只复用绝对路径或经真实 cwd 校验的 cwd-relative executable identity；裸 PATH、PATHEXT、Windows 和观察不可用时，Hook 仍冷执行，缓存复用失败关闭且不写入 v2 cache。缓存没有 TTL。
+
+稳定隔离安装树记录只在宿主命令退出、目录已隔离且扫描期间没有并发写入时执行；宿主附加链接只记录、不跟随，声明载荷中的 symlink 失败关闭，legacy 全树语义保持不变。0.9.4 仍是源码候选，不能从本说明推断已批准、发布或验证。
 
 **阶段通过规则**: `status` 与 `readiness.localPreparation.status` 只判断本地 help/assess/prepare；其充要条件是 `READY` 且 exit code 为 0。`missingRequired` 列出缺失的 Node/Git。生产发布必须另外读取 `readiness.productionPublish`：缺少 npm/gh 时为 `NOT_READY`，依赖存在时仍是 `AUTH_CHECK_REQUIRED`，因为 help 不访问网络、不验证认证。Agent 无权把本地就绪解释为生产就绪。
 
@@ -51,6 +55,9 @@ node "$RELEASE_SKILL_ENTRY" assess --root <path> --offline --json
 # 日常发布快速路径：发布前确认可读计划摘要，状态文件可恢复。
 # 受限 postPublish hook 的 checkpoint 批准与计划批准分开。
 node "$RELEASE_SKILL_ENTRY" ship --root <path> --target-version <version> --json
+# 多发布单元项目显式选择本轮范围；未传 --unit 时仍为全部单元
+node "$RELEASE_SKILL_ENTRY" ship --root <path> \
+  --target-version <version> --unit <unit-a> --unit <unit-b> --json
 # 开发阶段执行声明 hooks 并生成 prepare 可复用的内容绑定收据
 # 配置时刻即授权（FM-16 处置 A）：hook 是任意本地进程、无隔离、触发前无确认点，
 # 命令调用本身即授权执行配置中的 hooks

@@ -126,6 +126,26 @@ unit 恰好声明一个 npm distribution。prepare 等所有 subject tarball 冻
 重新下载远端字节并核对 SHA-256。离线消费者只需该文件和其中 subjects 对应的精确 tarball，便可
 核对包名、版本、文件名、tarball SHA-256、源码仓库与源码基线提交。
 
+### 2.1 显式发布范围（v0.9.4）
+
+发布范围不增加配置字段。`releaseUnits[]` 继续声明项目可发布的全部单元；操作者可以在
+`prepare` 或新建 `ship` 状态时重复传入 `--unit <id>`，从中选择本轮范围。未传参数时
+选择全部单元。显式参数至少包含一个已声明的唯一 ID，计划顺序始终按
+`releaseUnits[]` 的声明顺序确定，不受命令行顺序影响。
+
+选择只裁剪按单元绑定的工作，包括版本与发布文档检查、公开文件快照、分发合同、
+`verificationGates[].scope.unit` 对应的验证门和发布后声明。配置 Schema、单元 ID
+唯一性、生成物新鲜度和顶层 `hooks` 仍覆盖完整项目。顶层 Hook 没有单元作用域，
+不得根据命令、路径或输出猜测归属。
+
+`publicSourceAuthorityReceipt` 是现有的附加依赖闭包。显式范围只要包含 coordinator
+或任一 subject，就必须同时包含该收据声明涉及的全部单元。prepare 不会自动扩大范围；
+范围不完整时会在 Hook、快照和计划写入前停止，并返回缺少的单元和精确重试参数。
+
+冻结计划只包含选中单元及其派生门、动作和发布后声明。`plan.units` 是冻结后的唯一
+发布范围权威，完整配置摘要仍进入计划绑定。延期单元不写回项目配置，也不形成状态、
+豁免或待办记录。`publish`、`reconcile`、`verify` 和 `distribute` 不接受单元选择参数。
+
 `postPublish` 只能位于某个 `releaseUnits[]` 条目内。下面的完整结构样例会由 schema 契约测试直接读取并校验，避免文档层级再次漂移：
 
 ```yaml

@@ -1,5 +1,34 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.4 locale=en baseline=sha256:bd122e1e4f28539503d3bdd702f73cbabc675dc7006f750cc38ff08544b72dc5 -->
+## [0.9.4] - 2026-09-01
+
+0.9.4 is a local source candidate that lets multi-unit projects freeze and approve an explicit safe release scope while deferring unrelated units. It consumes the three Foundation packages at the exact 0.16.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Ship persists an explicit unit request only before plan freeze and rejects attempts to change it while resuming the same state. Once external writes begin, partial success remains `PARTIAL` and recovery stays forward-only within the original plan.
+- Any host plan remains a qualified frozen-plan path and requires a VERIFIED-run before host acceptance; this source candidate does not provide that acceptance.
+
+### Added
+
+- Add repeatable `--unit <id>` selection to prepare and the pre-freeze ship path. Successful explicit selection reports selected and deferred unit IDs plus the exact next prepare command for deferred units.
+- Require an explicitly selected scope to include the complete existing `publicSourceAuthorityReceipt` dependency closure. The command reports missing units and stops before hooks, snapshots, or plan writes instead of expanding the scope automatically.
+
+### Changed
+
+- Run unit-scoped document, version, snapshot, distribution, and verification-gate work only for selected units. Project configuration validation, generated-artifact freshness checks, and top-level hooks still cover the whole project.
+- Keep `plan.units` as the only frozen release-scope authority. Publish, reconcile, verify, and distribute continue to consume the complete frozen plan and do not accept a new unit selector.
+- Consume skill-family-contracts, skill-family-harness-node, and skill-family-engineering-kit at the exact 0.16.0 release through their public package-root APIs. The CodeBuddy plugin declares marketplace: release-skill, and both release-finish local-finish examples pass --root <project-root>.
+- For CodeBuddy, treat only the closed plugin-management command set as eligible to consume complete read-only output when the CLI reports childExitCode 0 but leaves a residual process group; retain the Foundation anomaly and completed SIGTERM cleanup as observable facts, run each write command at most once, and require the final plugin version and commit to match exactly. This handling does not extend to WorkBuddy or change release status.
+- Improve Kimi TUI prompt matching for ANSI boxed prompts and `>` characters in command output, so trust-and-install and reload prompts are recognized without treating ordinary output as an input prompt.
+
+### Upgrade Notes
+
+Existing commands that omit `--unit` keep the full configured release scope. Multi-unit projects may repeat `--unit` on prepare or on a new ship state to defer unrelated units. Review `releaseScope.deferredUnitIds` and the approval summary before approving. A scope that touches `publicSourceAuthorityReceipt` must include its coordinator and every subject. Do not add `--unit` to publish, reconcile, verify, or distribute; those commands must execute the complete frozen plan. Real-host acceptance can begin only after 0.9.4 is officially published and VERIFIED; the official 0.9.4 entry must be installed or reloaded first. A source candidate, an older installed entry, or the mere existence of plan and run files cannot complete real-host acceptance. Each selected host must complete a first successful update. On the second run, Claude, Kimi, CodeBuddy, and WorkBuddy must report `ALREADY_CURRENT`; Codex may report `UPDATED` only when it reinstalls the same exact 0.9.4 frozen reference, payload validation passes, and `restartRequired=true` is declared.
+<!-- release-skill:changelog:end version=0.9.4 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.3 locale=en baseline=sha256:96e5f9167abb13203ba308ebacbb081452f8c23e26ff0b377514556338ebdfff -->
 ## [0.9.3] - 2026-08-31
 

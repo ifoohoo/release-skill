@@ -351,7 +351,7 @@ Options:
                    performs an append-only hooks edit of an existing config (create-once is untouched)
   --select-hooks <ids> Comma-separated proposal ids to adopt (propose-hooks mode)
   --foundation-profile <path> Explicit foundation postPublish profile JSON (proposal input only; never auto-applied)
-  --unit <id>      Release unit whose declared release documents are refreshed (docs refresh)
+  --unit <id>      Select a release unit for prepare/ship (repeatable); docs refresh accepts one unit
   --confirm-refresh <sha256:...> Confirm the exact dry-run refreshDigest before any document write
   --ack-local-document-write Acknowledge the explicit local release-document write (docs refresh --write)
   --platform <id>   Legacy attestation platform: kimi or codebuddy
@@ -559,6 +559,7 @@ if (command === 'ship' && (args.includes('--help') || args.includes('-h'))) {
       options: {
         targetVersion: '--target-version <version>',
         state: '--state <path>',
+        unit: '--unit <id> (repeatable before plan freeze)',
         approve: '--approve --actor <name>',
       },
       message: 'Repeat the same command to resume from the same state. For parallel or cross-session versions, use .release-skill/ships/<version>.json.',
@@ -572,6 +573,7 @@ Usage:
 Options:
   --target-version <version>  Specify the target version
   --state <path>              Specify the durable state file
+  --unit <id>                 Select a release unit before plan freeze (repeatable)
   --approve --actor <name>    Approve the plan bound to the current state
 
 Repeat the same command to resume from the same state.
@@ -787,6 +789,7 @@ function printShipApprovalSummary(result) {
   const summary = result.approvalSummary;
   if (!summary) return;
   console.log('Approval summary:');
+  console.log(`  This approval covers only these release units: ${(summary.units ?? []).map((unit) => unit.id).join(', ') || 'none'}`);
   for (const unit of summary.units ?? []) {
     console.log(`  Unit ${unit.id} ${unit.targetVersion}`);
     console.log(`    Public repo: ${unit.publicRepo}`);
@@ -817,6 +820,13 @@ if (command === 'ship') {
     return idx !== -1 && args[idx + 1] ? args[idx + 1] : undefined;
   };
   const root = resolve(value('--root') ?? process.cwd());
+  const hasUnitSelection = args.includes('--unit');
+  const unitIds = [];
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] === '--unit') {
+      unitIds.push(args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : '');
+    }
+  }
   // Repeatable --hook-approval <path>: checkpoint approvals for
   // requiresApproval postPublish hooks (same convention as distribute;
   // review major-1 — without this the ship flow can never complete a
@@ -862,6 +872,7 @@ if (command === 'ship') {
       planApprovalDigest: value('--approve-plan'),
       actor: value('--actor'),
       adapterRegistry,
+      ...(hasUnitSelection ? { unitIds } : {}),
       ...(postpublishApprovalPaths.length > 0 ? { postpublishApprovalPaths } : {}),
     });
     if (hasJson) {
@@ -996,6 +1007,13 @@ if (command === 'prepare') {
   const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve(args[outputIdx + 1]) : undefined;
   const runDirIdx = args.indexOf('--run-dir');
   const runDir = runDirIdx !== -1 && args[runDirIdx + 1] ? resolve(args[runDirIdx + 1]) : undefined;
+  const hasUnitSelection = args.includes('--unit');
+  const unitIds = [];
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] === '--unit') {
+      unitIds.push(args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : '');
+    }
+  }
 
   try {
     const { prepareRelease } = await import('../src/commands/prepare.mjs');
@@ -1012,6 +1030,7 @@ if (command === 'prepare') {
       testSelection,
       output,
       runDir,
+      ...(hasUnitSelection ? { unitIds } : {}),
     });
 
     // Keep stdout compact and stable. The immutable plan remains the single
@@ -1041,6 +1060,7 @@ if (command === 'prepare') {
         })),
         warnings: result.warnings,
         nextSteps: result.nextSteps ?? [],
+        ...(result.releaseScope ? { releaseScope: result.releaseScope } : {}),
       }, null, 2));
     } else {
       for (const warning of result.warnings) {
@@ -1050,7 +1070,11 @@ if (command === 'prepare') {
       console.log(`Plan digest: ${result.planDigest}`);
       console.log(`Evidence: ${result.evidenceDir}`);
       for (const step of result.nextSteps ?? []) {
-        console.log(`Next [${step.code}] ${step.message}`);
+        console.log(`Next [${step.code}] ${step.message}${step.argv ? ` (${step.argv.join(' ')})` : ''}`);
+      }
+      if (result.releaseScope) {
+        console.log(`Release scope: ${result.releaseScope.selectedUnitIds.join(', ')}`);
+        console.log(`Deferred units: ${result.releaseScope.deferredUnitIds.join(', ') || 'none'}`);
       }
       if (plan.workflowKind && plan.workflowKind !== 'full') {
         console.log(`Workflow: ${plan.workflowKind}`);

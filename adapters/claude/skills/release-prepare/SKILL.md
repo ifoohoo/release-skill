@@ -13,7 +13,9 @@ description: Freeze an immutable release plan with local configuration, document
 
 运行项目构建/测试 hook，生成公开快照并扫描泄漏，冻结不可变发布计划。prepare 自身不调用发布 adapter，但会执行用户配置的 hook。
 
-0.9.3 候选的 Hook cache v2 只复用有完整身份和输入证据的成功 Hook 结果。裸 PATH、PATHEXT、Windows、TTL、损坏记录或 Foundation 观察不可用时，缓存保持失败关闭，Hook 仍按完整路径冷执行；该机制不改变 prepare 的计划、批准和发布权威。
+0.9.4 候选允许多发布单元项目在冻结前显式选择本轮范围。`--unit <id>` 可以重复传入；未传时仍选择全部单元。显式选择只跳过延期单元的单元级工作，完整配置校验、生成物新鲜度和顶层 Hook 仍全部执行。计划冻结后以 `plan.units` 为唯一范围权威，publish、reconcile、verify 和 distribute 不接受单元选择。
+
+0.9.3 引入的 Hook cache v2 继续只复用有完整身份和输入证据的成功 Hook 结果。裸 PATH、PATHEXT、Windows、TTL、损坏记录或 Foundation 观察不可用时，缓存保持失败关闭，Hook 仍按完整路径冷执行；该机制不改变 prepare 的计划、批准和发布权威。
 
 **Hook 授权契约（配置时刻即授权，FM-16 处置 A）**: hook 是任意本地进程——在 `.release-skill/project.yaml` 中配置 hook 命令即完成授权，构成「配置时刻即授权」的显式契约。hook 不提供沙箱、无文件系统/网络隔离、触发前无确认点，命令调用本身即授权执行已配置的 hook 和 gate，不再设置额外人工授权环节；hook 可能产生项目目录外的副作用或远端写入，配置者须对其内容负责。旧参数 `--acknowledge-hook-side-effects` 和 `--acknowledge-gate-side-effects` 仍可解析，但只作为无效果的兼容输入，不能改变授权或执行语义。恢复「触发前强制确认门」属于后续加固项（属设计变更，需随新版本引入），当前版本不提供该确认门。
 
@@ -25,11 +27,13 @@ description: Freeze an immutable release plan with local configuration, document
 
 **发布文档新鲜度门**: 配置了 `releaseDocuments` 的单元在 hook 授权门前先执行同一只读规划器：`clean` 继续；`changes` 抛 `RELEASE_DOCS_STALE`，详情列出相对路径、语种、`refreshDigest` 和精确演练/写入参数数组。prepare 只检查、不写工作树。正式 prepare 前先运行只读演练；有变化时向用户展示文件/语种/版本/`refreshDigest`，只有在用户明确授权"本地发布文档写入"后，才执行带 `--write --confirm-refresh <refreshDigest> --ack-local-document-write` 三项绑定的写入，随后运行聚焦校验，要求维护者审阅并提交刷新结果，再重新 prepare。该授权不扩展为 hook、提交、push 或 publish 授权。
 
+**显式发布范围**: 只有用户已经指出本轮要发布哪些单元时，才把这些 ID 逐个传给 `--unit`。release-skill 不根据失败自动排除单元。选择命中 `publicSourceAuthorityReceipt` 的 coordinator 或 subject 时，必须包含收据声明的完整单元闭包；缺少单元时按命令返回的精确 argv 重新选择，不自动扩选。成功后展示 `releaseScope.selectedUnitIds`、`releaseScope.deferredUnitIds` 和批准摘要。延期仅表示没有进入本轮计划，不表示通过或失败。
+
 ## 正向执行路径
 
 1. 使用插件根相对路径运行 CLI：`CLI="node ${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs"`
 2. 配置含 `releaseDocuments` 时，先运行只读演练 `${CLI} docs refresh --unit <id> --json`；`status: "changes"` 时展示逐文件路径/语种/版本/`refreshDigest`，取得"本地发布文档写入"明确授权后才执行 `nextCommand.argv` 写入，审阅并提交刷新结果后再继续；`status: "clean"` 时直接进入 prepare
-3. 运行 `${CLI} prepare --root <path> --offline --json`
+3. 运行 `${CLI} prepare --root <path> --offline --json`；用户已明确选择范围时，为每个单元追加一个 `--unit <id>`
 4. 检查 exit code 0，读取 JSON 返回的 immutable `planPath=plans/<planDigest>.json`，再从该文件读取 `status`、`units`、`externalActions`
 5. 向用户展示可读的 `approvalSummary`：版本、公开仓库、分支策略、branch/tag、npm 与 GitHub Release 目标、全部外部动作、例外，以及需要独立 checkpoint 批准的 postPublish hook。`planDigest` 仅作为内部绑定字段，不要求用户复制或确认。后续 approve/publish 只能使用该 immutable planPath，等待确认后再 approve。计划批准不包含受限 postPublish hook 的 checkpoint 批准
 
@@ -64,6 +68,9 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" docs refresh --unit <id> --js
 node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" docs refresh --unit <id> \
   --write --confirm-refresh <refreshDigest> --ack-local-document-write --json
 node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" prepare --root <path> --offline --json
+# 显式选择发布范围；未传 --unit 时仍准备全部配置单元
+node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" prepare --root <path> --offline \
+  --unit <unit-a> --unit <unit-b> --json
 # 生产 happy end：bound 基线必须 online；远端目标唯一性仍由 publish 全局预检
 node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" prepare --root <path> --online --production --json
 ```
@@ -81,11 +88,12 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" prepare --root <path> --onlin
 | GATE_FAILED (bound + offline) | 改用 `--online --production`，不得把 unobserved-offline plan 交给 publish |
 | GATE_FAILED (前序基线漂移) | 先取得并比较实际远端内容；人工选择 merge/adopt/reject。merge/adopt 都必须把接受内容落回 human-owned 权威源，并把 `previousPublicBaseline` 更新为接受状态的精确 repo/ref/commit 后重新 online production prepare；reject 停止调查，禁止改 `mode: none` 绕过 |
 | GATE_FAILED (`npm-entry-closure`) | 修复打包内容或入口声明后重新 prepare；不得用 `requiredPublicFiles`/`smokeBin` 缺省绕过 |
+| GATE_FAILED（发布范围依赖闭包不完整） | 按详情补齐 `publicSourceAuthorityReceipt` 声明涉及的 coordinator 和全部 subjects，再重新 prepare；不得自动扩选或忽略收据 |
 | GATE_FAILED (其他) | 修复门失败原因后重试；以 CLI exit code 为准 |
 | RELEASE_DOCS_STALE | 文档相对说明源已陈旧；按详情运行只读演练，展示文件/语种/版本/摘要，经用户授权“本地发布文档写入”后执行写入，审阅提交再重新 prepare |
 | RELEASE_DOCS_INVALID / TRANSLATION_MISSING / CONFLICT / REFRESH_STALE | 修复配置/说明源/目标或重新演练取得新 `refreshDigest`；不得扩大写入范围绕过 |
 | SECRET_DETECTED | 移除密钥并更新 allowlist |
-| CONFIG_INVALID | 检查 version.source 和 package.json |
+| CONFIG_INVALID | 检查 version.source、package.json，以及 `--unit` 是否为空、重复或不在 `releaseUnits[]` 中 |
 
 重试时只保留最新结构化错误码和失败门，不沿用早期猜测；重跑确定性命令获得新证据。
 

@@ -33,7 +33,6 @@ import { ReleaseError, POST_PUBLISH_VERIFY_FAILED } from './errors.mjs';
 // this value so an upstream contract change fails closed during adoption.
 const FOUNDATION_PLUGIN_DRIVER_VERSION = '1.0.0';
 const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
-const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u;
 
 function isSafeRelativePath(value) {
   return typeof value === 'string'
@@ -46,7 +45,28 @@ function isSafeRelativePath(value) {
 }
 
 function decodeCanonicalBase64(value) {
-  if (typeof value !== 'string' || !BASE64_PATTERN.test(value)) return null;
+  if (typeof value !== 'string' || value.length % 4 !== 0) return null;
+  let paddingStart = -1;
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code === 61) {
+      if (paddingStart === -1) paddingStart = index;
+      continue;
+    }
+    if (paddingStart !== -1 || !(
+      code >= 65 && code <= 90
+      || code >= 97 && code <= 122
+      || code >= 48 && code <= 57
+      || code === 43
+      || code === 47
+    )) return null;
+  }
+  if (
+    paddingStart !== -1
+    && value.length - paddingStart > 2
+    || paddingStart !== -1
+    && paddingStart % 4 < 2
+  ) return null;
   const decoded = Buffer.from(value, 'base64');
   return decoded.toString('base64') === value ? decoded : null;
 }

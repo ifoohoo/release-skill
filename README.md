@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.3 -->
+<!-- release-skill:release-version: 0.9.4 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,34 +14,35 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.3** (2026-08-31)
+**0.9.4** (2026-09-01)
 
-0.9.3 is a local source candidate for the four workflow safeguards and the narrow Hook cache v2 and isolated-install-tree integrations. It consumes the three Foundation packages at the exact 0.15.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.4 is a local source candidate that lets multi-unit projects freeze and approve an explicit safe release scope while deferring unrelated units. It consumes the three Foundation packages at the exact 0.16.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- Unknown, corrupt, non-stable, or unsupported observations remain fail-closed. A cache hit never replaces a Hook execution when the authority or identity evidence is unavailable, and no TTL or ambient PATH inference is used.
+- Ship persists an explicit unit request only before plan freeze and rejects attempts to change it while resuming the same state. Once external writes begin, partial success remains `PARTIAL` and recovery stays forward-only within the original plan.
 - Any host plan remains a qualified frozen-plan path and requires a VERIFIED-run before host acceptance; this source candidate does not provide that acceptance.
 
 **Added**
 
-- Add the opt-in pre-hook public-surface check, ship help and target-version conflict guard, verify lineage guidance, and evidence-based adoption suggestions without adding a new command, state, or approval authority.
-- Add the narrow Hook cache v2 consumer path: absolute-path and validated cwd-relative executable identity, closed input and environment binding, no TTL, and fail-closed cache reuse for bare PATH, PATHEXT, Windows, and unavailable observations while Hooks still execute cold.
-- Add the narrow isolated install-tree record path after a completed host command, recording host-added links without following them and rejecting declared-payload symlinks while preserving legacy full-tree semantics.
+- Add repeatable `--unit <id>` selection to prepare and the pre-freeze ship path. Successful explicit selection reports selected and deferred unit IDs plus the exact next prepare command for deferred units.
+- Require an explicitly selected scope to include the complete existing `publicSourceAuthorityReceipt` dependency closure. The command reports missing units and stops before hooks, snapshots, or plan writes instead of expanding the scope automatically.
 
 **Changed**
 
-- Consume skill-family-contracts, skill-family-harness-node, and skill-family-engineering-kit at the exact 0.15.0 release through their public package-root APIs.
-- Keep the 0.9.2 production plan PREPARED and immutable as an unpublished historical record now replaced by the 0.9.3 candidate; with an explicit target, only unfinished records that pass complete run, plan, digest/binding, and lineage validation and whose plan target matches participate in current recovery, while all other history remains diagnostics. Without a target, route still shows full-history diagnostics, but workflow selection remains based on the current diff and baseline.
-- The CodeBuddy plugin explicitly declares marketplace: release-skill, and both release-finish local-finish examples pass --root <project-root>.
+- Run unit-scoped document, version, snapshot, distribution, and verification-gate work only for selected units. Project configuration validation, generated-artifact freshness checks, and top-level hooks still cover the whole project.
+- Keep `plan.units` as the only frozen release-scope authority. Publish, reconcile, verify, and distribute continue to consume the complete frozen plan and do not accept a new unit selector.
+- Consume skill-family-contracts, skill-family-harness-node, and skill-family-engineering-kit at the exact 0.16.0 release through their public package-root APIs. The CodeBuddy plugin declares marketplace: release-skill, and both release-finish local-finish examples pass --root <project-root>.
+- For CodeBuddy, treat only the closed plugin-management command set as eligible to consume complete read-only output when the CLI reports childExitCode 0 but leaves a residual process group; retain the Foundation anomaly and completed SIGTERM cleanup as observable facts, run each write command at most once, and require the final plugin version and commit to match exactly. This handling does not extend to WorkBuddy or change release status.
+- Improve Kimi TUI prompt matching for ANSI boxed prompts and `>` characters in command output, so trust-and-install and reload prompts are recognized without treating ordinary output as an input prompt.
 
 **Upgrade Notes**
 
-Real-host acceptance can begin only after 0.9.3 is officially published and VERIFIED; the official 0.9.3 entry must be installed or reloaded first. A source candidate, an older installed entry, or the mere existence of plan and run files cannot complete real-host acceptance. Each selected host must complete a first successful update. On the second run, Claude, Kimi, CodeBuddy, and WorkBuddy must report `ALREADY_CURRENT`; Codex may report `UPDATED` only when it reinstalls the same exact 0.9.3 frozen reference, payload validation passes, and `restartRequired=true` is declared. The 0.9.2 plan was never published and remains an immutable historical record. With an explicit target, only unfinished records that pass complete run, plan, digest/binding, and lineage validation and whose plan target matches participate in current recovery; all other history remains diagnostics. Without a target, route still shows full-history diagnostics, but workflow selection remains based on the current diff and baseline.
+Existing commands that omit `--unit` keep the full configured release scope. Multi-unit projects may repeat `--unit` on prepare or on a new ship state to defer unrelated units. Review `releaseScope.deferredUnitIds` and the approval summary before approving. A scope that touches `publicSourceAuthorityReceipt` must include its coordinator and every subject. Do not add `--unit` to publish, reconcile, verify, or distribute; those commands must execute the complete frozen plan. Real-host acceptance can begin only after 0.9.4 is officially published and VERIFIED; the official 0.9.4 entry must be installed or reloaded first. A source candidate, an older installed entry, or the mere existence of plan and run files cannot complete real-host acceptance. Each selected host must complete a first successful update. On the second run, Claude, Kimi, CodeBuddy, and WorkBuddy must report `ALREADY_CURRENT`; Codex may report `UPDATED` only when it reinstalls the same exact 0.9.4 frozen reference, payload validation passes, and `restartRequired=true` is declared.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.3 is the current source candidate. This README
+> **Current boundary:** v0.9.4 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -65,7 +66,7 @@ Real-host acceptance can begin only after 0.9.3 is officially published and VERI
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.3 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.4 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -94,12 +95,12 @@ checkpoints remain intact and use matching-version recovery. Evidence v1 stays
 read-only; v2 uses a closed top level with phase extensions in `details`.
 Summaries and recovery suggestions are diagnostic, never publication authority.
 
-The current 0.9.3 candidate includes the narrow R-05 Hook cache v2 consumer
+The current 0.9.4 candidate includes the narrow R-05 Hook cache v2 consumer
 path and the stable isolated install-tree record path (A2/A3). It still
 excludes R-02 safe full-tree inventory, R-10 historical-release verification
 implementation, real Kimi/WorkBuddy public-marketplace installation and
 invocation gates, and an Audit public offline release-record verifier.
-Foundation dependencies are pinned to the three released 0.15.0 packages.
+Foundation dependencies are pinned to the three released 0.16.0 packages.
 For new bundled-family Kimi/CodeBuddy plans, verify calls the released
 `runPluginVerification` entry with the complete frozen payload and records a
 minimal `install-only` observation receipt. Kimi maps to `kimi-code`; CodeBuddy
@@ -190,6 +191,37 @@ This scope summary is not a remote publication record or a consumer upgrade inst
 ## Quick start
 
 A release unit is a release object with independently configured version, public files, and distribution targets.
+
+### Selecting a release scope
+
+Multi-unit projects can repeat `--unit <id>` before the plan is frozen. Omitting
+the option keeps the existing full-scope behavior:
+
+```bash
+release-skill prepare --root "$PROJECT" --offline \
+  --unit runtime --unit plugin --json
+release-skill ship --root "$PROJECT" --target-version 1.2.3 \
+  --unit runtime --unit plugin --json
+```
+
+The selected IDs are normalized to project configuration order. Unit-scoped
+version, documentation, snapshot, distribution, and verification-gate work runs
+only for that scope. Full configuration validation, generated-artifact freshness
+checks, and top-level hooks still cover the whole project.
+
+An explicit scope that includes any unit named by
+`publicSourceAuthorityReceipt` must include its coordinator and every subject.
+release-skill reports the missing units and stops before hooks or plan writes; it
+does not expand the scope automatically. A successful explicit selection reports
+`releaseScope.selectedUnitIds`, `releaseScope.deferredUnitIds`, and the exact next
+prepare command for the deferred units.
+
+After freeze, `plan.units` is the only release-scope authority. Approval covers
+every action in that plan. `publish`, `reconcile`, `verify`, and `distribute` do
+not accept `--unit`; a partial external write remains `PARTIAL` and resumes
+forward within the same frozen plan. A resumed ship state may omit `--unit` and
+reuse its saved request, but cannot change that request or add it to a legacy
+full-scope state.
 
 ### Install
 

@@ -15,10 +15,91 @@ import {
 } from './post-release-local.mjs';
 import {
   ReleaseError,
+  CONFIG_INVALID,
   GATE_FAILED,
   PLAN_DIGEST_MISMATCH,
   CONSUMER_VERIFICATION_DEFERRED,
 } from '../core/errors.mjs';
+
+function normalizeNewShipUnitIds(releaseUnits, requestedUnitIds) {
+  if (requestedUnitIds === undefined) return undefined;
+  const availableUnitIds = (releaseUnits ?? []).map((unit) => unit.id);
+  if (!Array.isArray(requestedUnitIds) || requestedUnitIds.length === 0) {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      'explicit ship release-unit selection must contain at least one unit id',
+      { requestedUnitIds, availableUnitIds },
+    );
+  }
+  const requestedSet = new Set(requestedUnitIds);
+  const invalid = requestedUnitIds.filter((unitId) => typeof unitId !== 'string' || unitId.length === 0);
+  const unknown = requestedUnitIds.filter((unitId) => !availableUnitIds.includes(unitId));
+  if (invalid.length > 0 || requestedSet.size !== requestedUnitIds.length || unknown.length > 0) {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      'ship release-unit selection contains empty, duplicate, or unknown unit ids',
+      { requestedUnitIds, availableUnitIds },
+    );
+  }
+  return availableUnitIds.filter((unitId) => requestedSet.has(unitId));
+}
+
+function sameUnitSelection(left, right) {
+  return Array.isArray(left)
+    && Array.isArray(right)
+    && left.length === right.length
+    && new Set(left).size === left.length
+    && new Set(right).size === right.length
+    && left.every((unitId) => right.includes(unitId));
+}
+
+function sameUnitOrder(left, right) {
+  return Array.isArray(left)
+    && Array.isArray(right)
+    && left.length === right.length
+    && left.every((unitId, index) => unitId === right[index]);
+}
+
+function unitScopeMismatch(statePath, stateUnitIds, requestedUnitIds, message) {
+  return new ReleaseError(
+    GATE_FAILED,
+    message,
+    {
+      reason: 'SHIP_STATE_UNIT_SCOPE_MISMATCH',
+      statePath,
+      stateUnitIds: stateUnitIds ?? null,
+      requestedUnitIds: requestedUnitIds ?? null,
+    },
+  );
+}
+
+function assertFrozenPlanUnitScope({ statePath, stateUnitIds, expectedUnitIds, plan }) {
+  const planUnitIds = (plan.units ?? []).map((unit) => unit.id);
+  const exactMatch = Array.isArray(expectedUnitIds)
+    && planUnitIds.length === expectedUnitIds.length
+    && planUnitIds.every((unitId, index) => unitId === expectedUnitIds[index]);
+  if (!exactMatch) {
+    throw unitScopeMismatch(
+      statePath,
+      stateUnitIds,
+      planUnitIds,
+      'ship state release-unit scope does not match frozen plan.units',
+    );
+  }
+}
+
+async function readFrozenPlanForUnitScope(planPath, statePath, stateUnitIds) {
+  try {
+    return JSON.parse(await readFile(planPath, 'utf8'));
+  } catch (error) {
+    throw unitScopeMismatch(
+      statePath,
+      stateUnitIds,
+      null,
+      `cannot verify ship state release-unit scope against frozen plan: ${error.message}`,
+    );
+  }
+}
 
 async function writeJsonAtomic(path, value) {
   await mkdir(dirname(path), { recursive: true });
@@ -102,6 +183,7 @@ function publicState(state) {
     ...(state.hooks && state.hooks.length > 0 ? {
       hooks: state.hooks,
     } : {}),
+    ...(state.selectedUnitIds ? { selectedUnitIds: state.selectedUnitIds } : {}),
     ...(state.planPath ? {
       planPath: state.planPath,
       planDigest: state.planDigest,
@@ -334,6 +416,24 @@ export async function advanceShip(options = {}, injected = {}) {
       );
     }
   }
+  if (state && options.unitIds !== undefined) {
+    if (!Array.isArray(state.selectedUnitIds)) {
+      throw unitScopeMismatch(
+        statePath,
+        null,
+        options.unitIds,
+        'an existing full-scope or legacy ship state cannot acquire --unit; provide a new --state path',
+      );
+    }
+    if (!sameUnitSelection(state.selectedUnitIds, options.unitIds)) {
+      throw unitScopeMismatch(
+        statePath,
+        state.selectedUnitIds,
+        options.unitIds,
+        'ship state release-unit scope does not match the requested --unit values',
+      );
+    }
+  }
   if (state?.gitTransport) {
     process.env.RELEASE_SKILL_GIT_TRANSPORT = state.gitTransport;
   }
@@ -341,6 +441,7 @@ export async function advanceShip(options = {}, injected = {}) {
   if (!state) {
     const loaded = await deps.loadProjectConfig({ root });
     const hooks = Object.keys(loaded.config.hooks ?? {}).sort();
+    const selectedUnitIds = normalizeNewShipUnitIds(loaded.config.releaseUnits, options.unitIds);
     state = {
       schemaVersion: 2,
       root,
@@ -348,6 +449,7 @@ export async function advanceShip(options = {}, injected = {}) {
       targetVersion: options.targetVersion ?? null,
       configDigest: loaded.configDigest,
       hooks,
+      ...(selectedUnitIds ? { selectedUnitIds } : {}),
       status: 'NEW',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -364,8 +466,53 @@ export async function advanceShip(options = {}, injected = {}) {
     await writeJsonAtomic(statePath, state);
   }
 
+  if (state.planPath && Array.isArray(state.selectedUnitIds)) {
+    const frozenPlan = await readFrozenPlanForUnitScope(
+      state.planPath,
+      statePath,
+      state.selectedUnitIds,
+    );
+    assertFrozenPlanUnitScope({
+      statePath,
+      stateUnitIds: state.selectedUnitIds,
+      expectedUnitIds: state.selectedUnitIds,
+      plan: frozenPlan,
+    });
+  }
+
   if (state.status === 'NEW') {
     const loaded = await deps.loadProjectConfig({ root });
+    let stateChanged = false;
+    if (Array.isArray(state.selectedUnitIds)) {
+      const normalizedStateUnitIds = normalizeNewShipUnitIds(
+        loaded.config.releaseUnits,
+        state.selectedUnitIds,
+      );
+      if (!sameUnitSelection(normalizedStateUnitIds, state.selectedUnitIds)) {
+        throw unitScopeMismatch(
+          statePath,
+          state.selectedUnitIds,
+          normalizedStateUnitIds,
+          'ship state release-unit scope no longer matches project configuration',
+        );
+      }
+      if (!sameUnitOrder(normalizedStateUnitIds, state.selectedUnitIds)) {
+        if (state.planPath) {
+          throw unitScopeMismatch(
+            statePath,
+            state.selectedUnitIds,
+            normalizedStateUnitIds,
+            'frozen ship state release-unit order no longer matches project configuration',
+          );
+        }
+        state = {
+          ...state,
+          selectedUnitIds: normalizedStateUnitIds,
+          updatedAt: new Date().toISOString(),
+        };
+        stateChanged = true;
+      }
+    }
     if (loaded.configDigest !== state.configDigest) {
       const hooks = Object.keys(loaded.config.hooks ?? {}).sort();
       state = {
@@ -375,8 +522,9 @@ export async function advanceShip(options = {}, injected = {}) {
         status: 'NEW',
         updatedAt: new Date().toISOString(),
       };
-      await writeJsonAtomic(statePath, state);
+      stateChanged = true;
     }
+    if (stateChanged) await writeJsonAtomic(statePath, state);
     const prepared = await deps.prepareRelease({
       root,
       version: state.targetVersion ?? undefined,
@@ -385,10 +533,24 @@ export async function advanceShip(options = {}, injected = {}) {
       hooksAuthorized: true,
       verificationGatesAuthorized: true,
       hookCache: true,
+      ...(state.selectedUnitIds ? { unitIds: state.selectedUnitIds } : {}),
     });
+    let frozenPlan = null;
+    if (Array.isArray(state.selectedUnitIds) || deps.preflightGitTransports) {
+      frozenPlan = Array.isArray(state.selectedUnitIds)
+        ? await readFrozenPlanForUnitScope(prepared.planPath, statePath, state.selectedUnitIds)
+        : JSON.parse(await readFile(prepared.planPath, 'utf8'));
+    }
+    if (Array.isArray(state.selectedUnitIds)) {
+      assertFrozenPlanUnitScope({
+        statePath,
+        stateUnitIds: state.selectedUnitIds,
+        expectedUnitIds: state.selectedUnitIds,
+        plan: frozenPlan,
+      });
+    }
     let transportPreflight = null;
     if (deps.preflightGitTransports) {
-      const frozenPlan = JSON.parse(await readFile(prepared.planPath, 'utf8'));
       transportPreflight = await deps.preflightGitTransports(frozenPlan);
       process.env.RELEASE_SKILL_GIT_TRANSPORT = transportPreflight.transport;
     }

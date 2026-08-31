@@ -2,40 +2,41 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.3 -->
+<!-- release-skill:release-version: 0.9.4 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.3** (2026-08-31)
+**0.9.4** (2026-09-01)
 
-0.9.3 是四项工作流安全修补、Hook cache v2 窄接线和稳定隔离安装树记录接线的本地源码候选。三项 Foundation 依赖均精确消费已发布的 0.15.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.4 是支持多发布单元项目显式冻结安全发布范围、延期无关单元的本地源码候选。三项 Foundation 依赖均精确消费已发布的 0.16.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- 未知、损坏、非稳定或不支持的观察结果继续失败关闭。权威或身份证据不足时，缓存命中不能替代 Hook 执行；不使用 TTL，也不从环境 PATH 推断可执行文件身份。
+- ship 只在计划冻结前保存显式单元请求；沿用同一状态恢复时不能改变范围。外部写入开始后若出现部分成功，状态仍为 `PARTIAL`，只能在原计划内向前恢复。
 - 任何宿主计划都必须是合格冻结计划，且宿主验收要求 VERIFIED run；本源码候选不提供该验收。
 
 **新增**
 
-- 新增可选的 Hook 前公开表面检查、ship 帮助与目标版本冲突保护、verify 血缘提示和基于证据的接入建议，不增加新命令、状态或批准权威。
-- 新增窄范围 Hook cache v2 消费路径：支持绝对路径和经真实 cwd 校验的 cwd-relative executable identity，绑定封闭输入与环境，无 TTL；裸 PATH、PATHEXT、Windows 或观察不可用时仅禁止缓存复用，Hook 仍正常冷执行。
-- 新增宿主命令完成后的稳定隔离安装树记录路径：记录宿主附加链接但不跟随；声明载荷中的 symlink 仍失败关闭，同时保留 legacy 全树语义。
+- prepare 和冻结前的 ship 支持重复传入 `--unit <id>`。显式选择成功后，命令会列出选中单元、延期单元，以及下一次准备延期单元的精确命令。
+- 显式范围命中现有 `publicSourceAuthorityReceipt` 依赖闭包时，必须同时包含 coordinator 和全部 subjects。范围不完整会在 Hook、快照和计划写入前停止，并列出缺少的单元；命令不会自动扩大范围。
 
 **变更**
 
-- 通过公开包根 API 精确消费 skill-family-contracts、skill-family-harness-node 和 skill-family-engineering-kit 0.15.0。
-- 保留从未发布的 0.9.2 production plan 作为不可变历史记录；它已由 0.9.3 候选取代。显式传入目标时，只有完整通过 run、plan、digest/binding 和 lineage 校验且计划目标匹配的未完成记录，才参与当前恢复；其他历史仅保留为 diagnostics。未传目标时仍展示全历史 diagnostics，但 workflow 始终按当前 diff 和 baseline 选择，历史不能覆盖工作流。
-- CodeBuddy plugin 显式声明 marketplace: release-skill，两个 release-finish local-finish 示例都显式传入 --root <project-root>。
+- 版本、发布文档、快照、分发和按单元绑定的验证门只处理选中单元。完整项目配置校验、生成物新鲜度检查和顶层 Hook 仍覆盖整个项目。
+- `plan.units` 继续作为冻结后的唯一发布范围权威。publish、reconcile、verify 和 distribute 仍消费完整冻结计划，不增加单元选择参数。
+- 通过公开包根 API 精确消费 skill-family-contracts、skill-family-harness-node 和 skill-family-engineering-kit 0.16.0。CodeBuddy plugin 显式声明 marketplace: release-skill，两个 release-finish local-finish 示例都显式传入 --root <project-root>。
+- CodeBuddy 只对封闭的插件管理命令集合采用完整只读输出：即使命令报告 childExitCode 0 但残留进程组，仍保留 Foundation 异常和已完成的 SIGTERM 清理事实；每个写命令最多执行一次，并要求最终插件版本和提交精确一致。该处理不扩展到 WorkBuddy，也不改变发布状态。
+- 修正 Kimi TUI 对 ANSI 框线提示以及命令输出中 `>` 字符的识别，使信任安装和重新加载提示能够被识别，同时避免把普通输出误判为输入提示。
 
 **升级说明**
 
-只有 0.9.3 正式发布并达到 VERIFIED，且先安装或重载正式的 0.9.3 入口，才能开始真实宿主验收。源码候选、旧的已安装入口或仅存在计划和运行文件都不能完成真实宿主验收。每个选定宿主都须首次成功更新。第二次运行时，Claude、Kimi、CodeBuddy 和 WorkBuddy 必须返回 `ALREADY_CURRENT`；Codex 可以返回 `UPDATED`，但仅当再次安装同一精确 0.9.3 冻结引用、载荷验证通过且声明 `restartRequired=true`。0.9.2 计划从未发布，作为不可变历史记录保留并已由 0.9.3 候选取代。显式传入目标时，只有完整通过 run、plan、digest/binding 和 lineage 校验且计划目标匹配的未完成记录，才参与当前恢复；其他历史仅保留为 diagnostics。未传目标时仍展示全历史 diagnostics，但 workflow 始终按当前 diff 和 baseline 选择，历史不能覆盖工作流。
+未传 `--unit` 的现有命令继续选择配置中的全部发布单元。多发布单元项目可以在 prepare 或新的 ship 状态上重复传入 `--unit`，延期无关单元。批准前应审阅 `releaseScope.deferredUnitIds` 和批准摘要。范围只要命中 `publicSourceAuthorityReceipt`，就必须包含 coordinator 和全部 subjects。publish、reconcile、verify、distribute 不接受 `--unit`，这些命令必须完整执行冻结计划。只有 0.9.4 正式发布并达到 VERIFIED，且先安装或重载正式的 0.9.4 入口，才能开始真实宿主验收。源码候选、旧的已安装入口或仅存在计划和运行文件都不能完成真实宿主验收。每个选定宿主都须首次成功更新。第二次运行时，Claude、Kimi、CodeBuddy 和 WorkBuddy 必须返回 `ALREADY_CURRENT`；Codex 可以返回 `UPDATED`，但仅当再次安装同一精确 0.9.4 冻结引用、载荷验证通过且声明 `restartRequired=true`。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.3 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.4 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -51,7 +52,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.3 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.4 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -69,9 +70,9 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-当前 0.9.3 候选包含窄范围的 R-05 Hook cache v2 消费路径和稳定隔离安装树记录路径（A2/A3）。当前仍不包含 R-02 安全整树盘点、R-10 历史发布验证的产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录验证器。本范围说明不构成远端发布记录或消费者升级指引。
+当前 0.9.4 候选包含窄范围的 R-05 Hook cache v2 消费路径和稳定隔离安装树记录路径（A2/A3）。当前仍不包含 R-02 安全整树盘点、R-10 历史发布验证的产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录验证器。本范围说明不构成远端发布记录或消费者升级指引。
 
-Foundation 三包精确依赖已发布的 0.15.0。新生成的 Kimi/CodeBuddy 同仓计划在 verify 阶段调用正式 `runPluginVerification`，把完整冻结载荷交给 Foundation，并记录最小的 `install-only` 观察收据。Kimi 映射为 `kimi-code`，CodeBuddy 映射为兼容的 `workbuddy`。`observed` 与 `payloadMatches` 只表示机制观察结果，不代表远端已发布或 release-skill 已完成领域验证。独立市场来源、真实市场安装和宿主调用仍是人工后续任务。
+Foundation 三包精确依赖已发布的 0.16.0。新生成的 Kimi/CodeBuddy 同仓计划在 verify 阶段调用正式 `runPluginVerification`，把完整冻结载荷交给 Foundation，并记录最小的 `install-only` 观察收据。Kimi 映射为 `kimi-code`，CodeBuddy 映射为兼容的 `workbuddy`。`observed` 与 `payloadMatches` 只表示机制观察结果，不代表远端已发布或 release-skill 已完成领域验证。独立市场来源、真实市场安装和宿主调用仍是人工后续任务。
 
 <!-- release-skill:maturity:distribute-v1 -->
 <!-- release-skill:capability:distribute -->
@@ -144,6 +145,32 @@ Foundation 三包精确依赖已发布的 0.15.0。新生成的 Kimi/CodeBuddy �
 ## 快速开始
 
 发布单元是独立配置版本、公开文件和分发目标的发布对象。
+
+### 选择本轮发布范围
+
+多发布单元项目可以在计划冻结前重复传入 `--unit <id>`。不传该参数时，继续选择
+配置中的全部单元：
+
+```bash
+release-skill prepare --root "$PROJECT" --offline \
+  --unit runtime --unit plugin --json
+release-skill ship --root "$PROJECT" --target-version 1.2.3 \
+  --unit runtime --unit plugin --json
+```
+
+命令会按项目配置顺序整理单元 ID。版本、发布文档、快照、分发和按单元绑定的验证门
+只处理选中范围；完整配置校验、生成物新鲜度检查和顶层 Hook 仍覆盖整个项目。
+
+显式范围只要包含 `publicSourceAuthorityReceipt` 声明的任一单元，就必须同时包含
+coordinator 和全部 subjects。release-skill 会列出缺少的单元，并在 Hook 或计划写入前
+停止，不会自动扩大范围。选择成功后，`releaseScope.selectedUnitIds` 和
+`releaseScope.deferredUnitIds` 分别列出本轮单元与延期单元；返回结果还会给出下一次
+准备延期单元的精确命令。
+
+计划冻结后，`plan.units` 是唯一发布范围权威，批准覆盖计划内的全部动作。
+`publish`、`reconcile`、`verify` 和 `distribute` 不接受 `--unit`。外部写入部分成功时
+仍进入 `PARTIAL`，只能在同一冻结计划内向前恢复。恢复已有 ship 状态时可以省略
+`--unit` 并沿用首次请求，但不能改变该请求，也不能给旧的全范围状态追加该参数。
 
 ### 安装
 

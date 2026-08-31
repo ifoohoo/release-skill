@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.3"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.4"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "89f84bcd1ad3059c3590a490101b83f8fae25fe0f428345969fdc33f8600b18e";
+const __bundleSourceDigest = "f9cf3c6e981293ac4d26c870433f0d8cad33e8a838e48d0d9c027f2cefe8bec6";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -48,16 +48,16 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/version.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/version.mjs
 var init_version = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/version.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/version.mjs"() {
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/stability.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/stability.mjs
 var CAPABILITY_MATURITY_LEVELS, CANDIDATE_PROMOTION_POLICY, HISTORICAL_CANDIDATE_MIGRATION_POLICY;
 var init_stability = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/stability.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/stability.mjs"() {
     CAPABILITY_MATURITY_LEVELS = Object.freeze([
       "experimental",
       "candidate",
@@ -100,7 +100,7 @@ var init_stability = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/errors.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/errors.mjs
 import { readFileSync } from "node:fs";
 function deepFreeze(obj) {
   if (obj === null || typeof obj !== "object") return obj;
@@ -118,7 +118,7 @@ function isRegisteredErrorCode(code) {
 }
 var ERROR_REGISTRY, CODE_INDEX, ContractsError, ERROR_CODES;
 var init_errors = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/errors.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/errors.mjs"() {
     __name(deepFreeze, "deepFreeze");
     ERROR_REGISTRY = deepFreeze(JSON.parse(
       readFileSync(new URL("./error-codes.json", import.meta.url), "utf8")
@@ -140,7 +140,7 @@ var init_errors = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/registry.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/registry.mjs
 import { readFileSync as readFileSync2 } from "node:fs";
 function deepFreeze2(obj) {
   if (obj === null || typeof obj !== "object") return obj;
@@ -164,7 +164,7 @@ function findSchemaByObject(object, registry = REGISTRY) {
 }
 var REGISTRY;
 var init_registry = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/registry.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/registry.mjs"() {
     init_errors();
     __name(deepFreeze2, "deepFreeze");
     REGISTRY = deepFreeze2(JSON.parse(
@@ -8245,7 +8245,7 @@ var require__ = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/validator.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/validator.mjs
 import { readFileSync as readFileSync3 } from "node:fs";
 function detectDialect(schema2) {
   const uri = schema2 && schema2.$schema;
@@ -8374,7 +8374,7 @@ function validateDocument(document2, { schemaId, schema: schema2, dialect, polic
 }
 var import_ajv, import__, SUPPORTED_DIALECTS, DIALECT_CONSTRUCTORS, VALIDATION_POLICIES, DATE_TIME_PATTERN, instanceCache, packageSchemasCache;
 var init_validator = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/validator.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/validator.mjs"() {
     import_ajv = __toESM(require_ajv(), 1);
     import__ = __toESM(require__(), 1);
     init_errors();
@@ -8418,7 +8418,7 @@ var init_validator = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/kernel.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/kernel.mjs
 import { readFileSync as readFileSync4 } from "node:fs";
 function deepFreeze3(obj) {
   if (obj === null || typeof obj !== "object") return obj;
@@ -8433,7 +8433,7 @@ function deepFreeze3(obj) {
 }
 var import_ajv2, KERNEL, paramsAjv;
 var init_kernel = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/kernel.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/kernel.mjs"() {
     import_ajv2 = __toESM(require_ajv(), 1);
     __name(deepFreeze3, "deepFreeze");
     KERNEL = deepFreeze3(JSON.parse(
@@ -8443,11 +8443,11 @@ var init_kernel = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/fixtures.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/fixtures.mjs
 import { readdirSync, readFileSync as readFileSync5 } from "node:fs";
 var FIXTURE_CLASSES, FIXTURES_DIR;
 var init_fixtures = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/fixtures.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/fixtures.mjs"() {
     init_errors();
     init_registry();
     init_kernel();
@@ -8457,11 +8457,11 @@ var init_fixtures = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/checker.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/checker.mjs
 import { readFileSync as readFileSync6 } from "node:fs";
 var RULES_DOCUMENT, CHECK_TYPES, MANDATORY_RULES, RULE_BUDGET;
 var init_checker = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/checker.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/checker.mjs"() {
     init_errors();
     init_registry();
     init_fixtures();
@@ -8480,7 +8480,7 @@ var init_checker = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/consumer-contract-vectors.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/consumer-contract-vectors.mjs
 import { readFileSync as readFileSync7 } from "node:fs";
 function deepFreeze4(value) {
   if (value === null || typeof value !== "object" || Object.isFrozen(value)) return value;
@@ -8490,7 +8490,7 @@ function deepFreeze4(value) {
 }
 var VECTOR_SCHEMA, VECTOR_REGISTRY, VECTOR_SETS;
 var init_consumer_contract_vectors = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/consumer-contract-vectors.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/consumer-contract-vectors.mjs"() {
     init_errors();
     init_validator();
     VECTOR_SCHEMA = JSON.parse(readFileSync7(
@@ -8508,10 +8508,10 @@ var init_consumer_contract_vectors = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/token-estimate-consumption.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/token-estimate-consumption.mjs
 var TOKEN_ESTIMATE_CONSUMPTION_ERROR_KIND, RECORD_KIND, TOKEN_ESTIMATE_CONSUMPTION, TOKEN_ESTIMATE_CONSUMPTION_REASONS;
 var init_token_estimate_consumption = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/token-estimate-consumption.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/token-estimate-consumption.mjs"() {
     init_errors();
     TOKEN_ESTIMATE_CONSUMPTION_ERROR_KIND = "token-estimate-consumption-failed";
     RECORD_KIND = "skill-family.token-estimate-record";
@@ -8543,7 +8543,7 @@ var init_token_estimate_consumption = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/audit-surface.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/audit-surface.mjs
 import { createHash } from "node:crypto";
 import { readFileSync as readFileSync8 } from "node:fs";
 function canonicalJson(value) {
@@ -8582,7 +8582,7 @@ function digestDocument(value, { algorithm = "sha256" } = {}) {
 }
 var AUDIT_DIGEST_ALGORITHMS, BASELINE_PIN_KINDS;
 var init_audit_surface = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/audit-surface.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/audit-surface.mjs"() {
     init_errors();
     init_registry();
     init_kernel();
@@ -8599,19 +8599,19 @@ var init_audit_surface = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/source-authority.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/source-authority.mjs
 var SUBJECT_KEYS;
 var init_source_authority = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/source-authority.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/source-authority.mjs"() {
     init_validator();
     SUBJECT_KEYS = Object.freeze(["filename", "packageName", "sha256", "version"]);
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/index.mjs
+// ../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/index.mjs
 var CONTRACT_OBJECTS, CONTRACT_BOUNDARY;
 var init_src = __esm({
-  "../../node_modules/.pnpm/skill-family-contracts@0.15.0/node_modules/skill-family-contracts/src/index.mjs"() {
+  "../../node_modules/.pnpm/skill-family-contracts@0.16.0/node_modules/skill-family-contracts/src/index.mjs"() {
     init_stability();
     init_errors();
     init_registry();
@@ -8677,7 +8677,7 @@ var init_src = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/errors.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/errors.mjs
 function mechanismError(kind, message, extraDetails) {
   const values = Object.values(HARNESS_ERROR_KINDS);
   if (!values.includes(kind)) {
@@ -8688,7 +8688,7 @@ function mechanismError(kind, message, extraDetails) {
 }
 var HARNESS_ERROR_KINDS, HarnessError;
 var init_errors2 = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/errors.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/errors.mjs"() {
     init_src();
     HARNESS_ERROR_KINDS = Object.freeze({
       INVALID_PATH: "invalid-path",
@@ -8765,7 +8765,7 @@ var init_errors2 = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/paths.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/paths.mjs
 import { lstat, readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import process2 from "node:process";
@@ -8996,7 +8996,7 @@ async function readFileContained(root, relPath, { encoding } = {}) {
 }
 var WINDOWS_DRIVE_PATTERN, WINDOWS_UNC_PATTERN, POSIX_UNC_PATTERN, ANCHOR_REALPATH_ATTEMPTS, testHooks;
 var init_paths = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/paths.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/paths.mjs"() {
     init_errors2();
     WINDOWS_DRIVE_PATTERN = /^[A-Za-z]:/;
     WINDOWS_UNC_PATTERN = /^\\\\/;
@@ -9015,7 +9015,7 @@ var init_paths = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/closure.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/closure.mjs
 import { createHash as createHash2 } from "node:crypto";
 import path2 from "node:path";
 function digestBytes(bytes) {
@@ -9113,7 +9113,7 @@ async function computeResourceClosure({ root, resources } = {}) {
 }
 var CLOSURE_KIND, CLOSURE_SCHEMA_VERSION, DIGEST_ALGORITHM, ROLES;
 var init_closure = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/closure.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/closure.mjs"() {
     init_errors2();
     init_paths();
     CLOSURE_KIND = "skill-family.resource-closure";
@@ -9126,7 +9126,7 @@ var init_closure = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/native/loader.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/native/loader.mjs
 import { createHash as createHash3 } from "node:crypto";
 import { constants as FS_CONSTANTS } from "node:fs";
 import { lstat as lstat2, open, readFile as readFile2, readdir, realpath as realpath2 } from "node:fs/promises";
@@ -9209,7 +9209,7 @@ async function loadNativeBoundReadAddon() {
 }
 var PACKAGE_ROOT, MANIFEST_PATH, SHA256_PATTERN, EXPECTED_EXPORTS, PLATFORM_KEYS;
 var init_loader = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/native/loader.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/native/loader.mjs"() {
     PACKAGE_ROOT = path3.dirname(fileURLToPath(import.meta.url));
     MANIFEST_PATH = path3.join(PACKAGE_ROOT, "prebuild-manifest.json");
     SHA256_PATTERN = /^[0-9a-f]{64}$/u;
@@ -9224,7 +9224,7 @@ var init_loader = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/bound-read.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/bound-read.mjs
 import { constants as FS_CONSTANTS2 } from "node:fs";
 import { lstat as lstat3, open as open2, realpath as realpath3 } from "node:fs/promises";
 import path4 from "node:path";
@@ -9449,7 +9449,7 @@ async function readFileBound(root, relPath, { rootBinding, encoding, expectedSha
 }
 var SHA256_PATTERN2, ROOT_BINDING_KIND, ROOT_BINDING_BASIS, MEMBER_POLICY_FAILURE_REASONS, MEMBER_POLICY_FAILURE_REASON_SET;
 var init_bound_read = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/bound-read.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/bound-read.mjs"() {
     init_src();
     init_closure();
     init_errors2();
@@ -9481,7 +9481,7 @@ var init_bound_read = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/filesystem-observation.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/filesystem-observation.mjs
 import path5 from "node:path";
 import { lstat as lstat4, readdir as readdir2, readlink } from "node:fs/promises";
 function compareUnicodeCodePoints(left, right) {
@@ -9705,7 +9705,7 @@ async function observeFilesystemTree({ root, rootBinding, symlinkPolicy } = {}) 
 }
 var SHA256_PATTERN3, SYMLINK_POLICY_KEYS;
 var init_filesystem_observation = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/filesystem-observation.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/filesystem-observation.mjs"() {
     init_src();
     init_closure();
     init_errors2();
@@ -9725,7 +9725,7 @@ var init_filesystem_observation = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/executable-identity.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/executable-identity.mjs
 import { lstat as lstat5, readlink as readlink2 } from "node:fs/promises";
 import path6 from "node:path";
 import { TextDecoder as TextDecoder2 } from "node:util";
@@ -10127,7 +10127,7 @@ async function observeExecutableIdentity(input = {}) {
 }
 var POSIX, SHA256_PATTERN4, MAX_SYMLINK_DEPTH, MAX_SYMLINK_BYTES, ROOT_BINDING_KEYS, INPUT_KEYS, LOOKUP_KEYS, WINDOWS_DRIVE, decoder;
 var init_executable_identity = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/executable-identity.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/executable-identity.mjs"() {
     init_src();
     init_closure();
     init_errors2();
@@ -10176,7 +10176,7 @@ var init_executable_identity = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/strict-read.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/strict-read.mjs
 import { constants as FS_CONSTANTS3 } from "node:fs";
 import { lstat as lstat6, open as open3 } from "node:fs/promises";
 function sameIdentity(left, right) {
@@ -10277,7 +10277,7 @@ async function readFileStrict(root, relPath, { encoding, expectedSha256 } = {}) 
 }
 var SHA256_HEX_PATTERN;
 var init_strict_read = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/strict-read.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/strict-read.mjs"() {
     init_closure();
     init_errors2();
     init_paths();
@@ -10287,7 +10287,7 @@ var init_strict_read = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/url-redaction.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/url-redaction.mjs
 function redactUrlCredentials(value) {
   let url;
   if (value instanceof URL) {
@@ -10307,13 +10307,13 @@ function redactUrlCredentials(value) {
 }
 var REDACTED_URL_PLACEHOLDER;
 var init_url_redaction = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/url-redaction.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/url-redaction.mjs"() {
     REDACTED_URL_PLACEHOLDER = "[redacted-url]";
     __name(redactUrlCredentials, "redactUrlCredentials");
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/atomic.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/atomic.mjs
 import { createHash as createHash4, randomBytes } from "node:crypto";
 import { constants as FS_CONSTANTS4 } from "node:fs";
 import { link, lstat as lstat7, mkdir, open as open4, realpath as realpath4, rename, rm, unlink } from "node:fs/promises";
@@ -10778,7 +10778,7 @@ async function writeFileAtomic(root, relPath, data, { mode = 420 } = {}) {
 }
 var testHooks2;
 var init_atomic = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/atomic.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/atomic.mjs"() {
     init_errors2();
     init_paths();
     testHooks2 = null;
@@ -10804,7 +10804,7 @@ var init_atomic = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/token-lock.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/token-lock.mjs
 import { createHash as createHash5, randomBytes as randomBytes2 } from "node:crypto";
 import { constants as FS_CONSTANTS5 } from "node:fs";
 import { lstat as lstat8, open as open5, realpath as realpath5, unlink as unlink2 } from "node:fs/promises";
@@ -10962,7 +10962,7 @@ async function recoverFilesystemLock(root, relPath, { expectedTokenDigest, confi
 }
 var TOKEN_PATTERN;
 var init_token_lock = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/token-lock.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/token-lock.mjs"() {
     init_errors2();
     init_atomic();
     init_paths();
@@ -10981,7 +10981,7 @@ var init_token_lock = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/baseline.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/baseline.mjs
 import { createHash as createHash6 } from "node:crypto";
 import { lstat as lstat9, mkdir as mkdir2, mkdtemp, readdir as readdir3, readFile as readFile3, rm as rm2, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -11127,7 +11127,7 @@ async function materializeBaseline({ baselineDir, baselineDigest, prefix = "sf-b
 }
 var TEST_HOOKS, DIGEST_PATTERN;
 var init_baseline = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/baseline.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/baseline.mjs"() {
     init_errors2();
     TEST_HOOKS = { beforePostDigest: void 0 };
     __name(runTestHook3, "runTestHook");
@@ -11139,7 +11139,7 @@ var init_baseline = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/workspace.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/workspace.mjs
 import fsPromises from "node:fs/promises";
 import os2 from "node:os";
 import path10 from "node:path";
@@ -11204,7 +11204,7 @@ async function withTemporaryWorkspace(fn, options) {
 }
 var CLEANUP_OPTIONS, TemporaryWorkspace;
 var init_workspace = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/workspace.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/workspace.mjs"() {
     init_baseline();
     init_errors2();
     init_paths();
@@ -11323,28 +11323,28 @@ var init_workspace = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/chokepoint.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/chokepoint.mjs
 import path11 from "node:path";
 var init_chokepoint = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/chokepoint.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/chokepoint.mjs"() {
     init_errors2();
     init_paths();
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/validation.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/validation.mjs
 var init_validation = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/validation.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/validation.mjs"() {
     init_src();
     init_errors2();
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/surface-scan.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/surface-scan.mjs
 import path12 from "node:path";
 var POLICY_SCHEMA_ID;
 var init_surface_scan = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/surface-scan.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/surface-scan.mjs"() {
     init_src();
     init_errors2();
     init_paths();
@@ -11353,12 +11353,12 @@ var init_surface_scan = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/declared-read-surface.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/declared-read-surface.mjs
 import path13 from "node:path";
 import { readFileSync as readFileSync9, readdirSync as readdirSync2, statSync } from "node:fs";
 var WRITE_FS_VERBS, WRITE_FS_APIS, DECLARED_READ_SURFACE_RULES, RESULT_GUARANTEES;
 var init_declared_read_surface = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/declared-read-surface.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/declared-read-surface.mjs"() {
     init_errors2();
     WRITE_FS_VERBS = ["writeFile", "appendFile", "mkdir", "rm", "unlink", "rename", "copyFile"];
     WRITE_FS_APIS = WRITE_FS_VERBS.map((verb) => `${verb}Sync`).concat([
@@ -33492,7 +33492,7 @@ var require_dist2 = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/structured-scan.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/structured-scan.mjs
 import { mkdtempSync, rmSync, writeFileSync, lstatSync, readlinkSync } from "node:fs";
 import os3 from "node:os";
 import path14 from "node:path";
@@ -33780,7 +33780,7 @@ function scanTreeJsonContent(ctx, relPath, bytes) {
 }
 var import_ipaddr, import_lockfile, import_yaml, POLICY_SCHEMA_ID2, STRUCTURED_SCAN_RULES, URL_PATTERN, EMAIL_PATTERN, HOST_KEY_STRING_PATTERN, HOST_KEY_ARRAY_PATTERN, QUOTED_TOKEN_PATTERN, NPM_SCOPE_PATTERN, IP_RUN_PATTERN, IPV4_SHAPED_PATTERN, HEX_GROUP_SEGMENT_PATTERN, ALPHA_SHORT_SEGMENT_PATTERN, HEX_LETTER_PATTERN, DECIMAL_DIGIT_PATTERN, LOCKFILE_URL_REFERENCE_PATTERN, LOCAL_LOCKFILE_REF_PREFIXES, BUILTIN_ADAPTERS;
 var init_structured_scan = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/structured-scan.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/structured-scan.mjs"() {
     init_src();
     import_ipaddr = __toESM(require_ipaddr(), 1);
     import_lockfile = __toESM(require_lib18(), 1);
@@ -33836,10 +33836,10 @@ var init_structured_scan = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/token-estimate.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/token-estimate.mjs
 var GUARANTEES, TOKEN_GUARANTEES, CJK_CODE_POINT_RANGES;
 var init_token_estimate = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/token-estimate.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/token-estimate.mjs"() {
     GUARANTEES = Object.freeze([
       "covers-content-text-only",
       "no-model-calls",
@@ -33863,7 +33863,7 @@ var init_token_estimate = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/state-store.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/state-store.mjs
 import { constants as FS_CONSTANTS6 } from "node:fs";
 import {
   link as link2,
@@ -33880,7 +33880,7 @@ import path15 from "node:path";
 import process6 from "node:process";
 var STATE_GENESIS_DIGEST, EVENT_SCHEMA_ID, SNAPSHOT_SCHEMA_ID;
 var init_state_store = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/state-store.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/state-store.mjs"() {
     init_src();
     init_errors2();
     init_validation();
@@ -33890,16 +33890,16 @@ var init_state_store = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/budget-guard.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/budget-guard.mjs
 var init_budget_guard = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/budget-guard.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/budget-guard.mjs"() {
     init_errors2();
     init_token_lock();
     init_state_store();
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/supervise-process.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/supervise-process.mjs
 import { spawn as nodeSpawn } from "node:child_process";
 import { constants as FS_CONSTANTS7, existsSync, readFileSync as readFileSync10, statSync as statSync2, writeFileSync as writeFileSync2, renameSync } from "node:fs";
 import { open as openFile, readdir as readdir5, realpath as realpath7, stat as stat2 } from "node:fs/promises";
@@ -34848,7 +34848,7 @@ async function superviseProcess(options, deps = {}) {
 }
 var WATCHDOG_REASONS, TERMINATION_REASONS, PROCESS_STATUSES, ENVELOPE_GUARANTEES, ENVELOPE_KIND, TRACE_KIND, TIMEOUT_POLICY_FIELDS, TIMEOUT_WATCHDOG_REASONS, OUTPUT_LIMIT_FIELDS, MAX_SAFE_OUTPUT_BYTES, RAW_SINK_FIELDS, defaultDeps, WATCHDOG_TO_TERMINATION;
 var init_supervise_process = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/supervise-process.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/supervise-process.mjs"() {
     init_errors2();
     WATCHDOG_REASONS = Object.freeze([
       "max_seconds",
@@ -34982,7 +34982,7 @@ var init_supervise_process = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/request.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/request.mjs
 function schemaIdFor(objectName) {
   const registration = findSchemaByObject(objectName);
   if (!registration) {
@@ -34995,7 +34995,7 @@ function schemaIdFor(objectName) {
 }
 var REQUEST_ENVELOPE, REQUEST_SCHEMA_ID, RESULT_SCHEMA_ID;
 var init_request = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/request.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/request.mjs"() {
     init_src();
     init_errors2();
     init_validation();
@@ -35009,14 +35009,14 @@ var init_request = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/host.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/host.mjs
 import { constants } from "node:fs";
 import { access, lstat as lstat11, mkdtemp as mkdtemp2, readFile as readFile4, realpath as realpath8, rename as rename3, rm as rm3 } from "node:fs/promises";
 import path17 from "node:path";
 import { spawnSync } from "node:child_process";
 var SCHEMAS;
 var init_host = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/host.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/host.mjs"() {
     init_src();
     init_atomic();
     init_closure();
@@ -35030,12 +35030,12 @@ var init_host = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/peer-adapter.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/peer-adapter.mjs
 import { lstat as lstat12, opendir } from "node:fs/promises";
 import { TextDecoder as TextDecoder3 } from "node:util";
 import path18 from "node:path";
 var init_peer_adapter = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/peer-adapter.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/peer-adapter.mjs"() {
     init_src();
     init_paths();
     init_bound_read();
@@ -35044,10 +35044,10 @@ var init_peer_adapter = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/package.json
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/package.json
 var package_default;
 var init_package = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/package.json"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/package.json"() {
     package_default = {
       "//": '~~ Generated by projen. To modify, edit .projenrc.js and run "npx projen".',
       author: "\u5E7F\u5DDE\u5E02\u98CE\u8377\u79D1\u6280\u6709\u9650\u516C\u53F8",
@@ -35060,7 +35060,7 @@ var init_package = __esm({
       dependencies: {
         "@pnpm/lockfile.fs": "1001.1.35",
         "ipaddr.js": "2.5.0",
-        "skill-family-contracts": "0.15.0",
+        "skill-family-contracts": "0.16.0",
         yaml: "2.9.0"
       },
       description: "Thin Node.js mechanism runtime for Skill Family engineering contracts.",
@@ -35099,7 +35099,7 @@ var init_package = __esm({
         url: "https://github.com/ifoohoo/skill-family-harness-node.git"
       },
       type: "module",
-      version: "0.15.0",
+      version: "0.16.0",
       scripts: {
         check: "node --test",
         test: "node --test"
@@ -35108,19 +35108,19 @@ var init_package = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/report-version.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/report-version.mjs
 var REPORT_RENDERER_VERSION;
 var init_report_version = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/report-version.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/report-version.mjs"() {
     init_package();
     REPORT_RENDERER_VERSION = package_default.version;
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/report.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/report.mjs
 var SUPPORTED_REPORT_LOCALES, EXECUTION_STATUSES, REPORT_AUDIENCES, RESULT_STATE_EXECUTION_STATUSES, REPORT_STYLE_RULES, TRANSLATESE_ZH, TRANSLATESE_EN, UNEXPLAINED_TERMS, REPORT_MODEL_SCHEMA_ID, REPORT_BINDING_SCHEMA_ID, OPERATION_RESULT_SCHEMA_ID, TEXT;
 var init_report = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/report.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/report.mjs"() {
     init_src();
     init_closure();
     init_errors2();
@@ -35238,31 +35238,31 @@ var init_report = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/fixed-set-publication-loader.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/fixed-set-publication-loader.mjs
 var init_fixed_set_publication_loader = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/fixed-set-publication-loader.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/fixed-set-publication-loader.mjs"() {
     init_loader();
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/fixed-set-publication.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/fixed-set-publication.mjs
 import { createHash as createHash8 } from "node:crypto";
 import { constants as FS_CONSTANTS8 } from "node:fs";
 import { lstat as lstat13, open as open7, readdir as readdir6, realpath as realpath9 } from "node:fs/promises";
 import path19 from "node:path";
 var ZERO_DIGEST;
 var init_fixed_set_publication = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/fixed-set-publication.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/fixed-set-publication.mjs"() {
     init_src();
     init_fixed_set_publication_loader();
     ZERO_DIGEST = "0".repeat(64);
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/index.mjs
+// ../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/index.mjs
 var HARNESS_CAPABILITIES, HARNESS_EXCLUSIONS;
 var init_src2 = __esm({
-  "../../node_modules/.pnpm/skill-family-harness-node@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/index.mjs"() {
+  "../../node_modules/.pnpm/skill-family-harness-node@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-harness-node/src/index.mjs"() {
     init_version();
     init_errors2();
     init_paths();
@@ -37092,7 +37092,7 @@ var init_release_assets = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/errors.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/errors.mjs
 function kitError(kind, message, extraDetails) {
   const values = Object.values(KIT_ERROR_KINDS);
   if (!values.includes(kind)) {
@@ -37117,7 +37117,7 @@ function invalidParamsError(message, extraDetails) {
 }
 var KIT_ERROR_KINDS, KitError, REFUSED_MUTATION_FLAGS;
 var init_errors4 = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/errors.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/errors.mjs"() {
     init_src();
     KIT_ERROR_KINDS = Object.freeze({
       // scaffold
@@ -37215,13 +37215,13 @@ var init_errors4 = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/gitprobe.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/gitprobe.mjs
 import { spawnSync as spawnSync2 } from "node:child_process";
 import { readFile as readFile6 } from "node:fs/promises";
 import path20 from "node:path";
 var GIT_STATUS_ARGS, GIT_LS_FILES_ARGS, GIT_CHECK_IGNORE_ARGS, GIT_READ_ONLY_ALLOWLIST;
 var init_gitprobe = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/gitprobe.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/gitprobe.mjs"() {
     GIT_STATUS_ARGS = Object.freeze([
       "--no-optional-locks",
       "-c",
@@ -37253,13 +37253,13 @@ var init_gitprobe = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/licensing.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/licensing.mjs
 import { readFileSync as readFileSync12 } from "node:fs";
 import path21 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 var APACHE_2_TEXT, MIT_TEMPLATE;
 var init_licensing = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/licensing.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/licensing.mjs"() {
     init_src2();
     init_src();
     init_errors4();
@@ -37274,7 +37274,7 @@ var init_licensing = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/workspace.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/workspace.mjs
 import { lstat as lstat16, readdir as readdir8, readFile as readFile7, stat as stat3 } from "node:fs/promises";
 import path22 from "node:path";
 async function resolveTargetRoot(rootInput) {
@@ -37427,7 +37427,7 @@ async function loadTargetFacts(root) {
 }
 var OPAQUE_DIRECTORIES, DEFAULT_HANDWRITTEN_PATTERNS;
 var init_workspace2 = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/workspace.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/workspace.mjs"() {
     init_errors4();
     OPAQUE_DIRECTORIES = Object.freeze([".git", "node_modules"]);
     DEFAULT_HANDWRITTEN_PATTERNS = Object.freeze([
@@ -37453,12 +37453,12 @@ var init_workspace2 = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/migration.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/migration.mjs
 import { lstat as lstat17, readFile as readFile8 } from "node:fs/promises";
 import { TextDecoder as TextDecoder4 } from "node:util";
 var UTF8_STRICT_DECODER, MIGRATION_MANIFEST_SCHEMA_ID, MIGRATION_MANIFEST_STATES, EXCEPTION_REQUIRED_FIELDS, MIGRATION_STATES, REQUIRED_FOUNDATION_PACKAGES, CAPABILITY_DISPOSITIONS, CONSUMER_VERIFICATION_NOT_EVALUATED, VERIFICATION_EVIDENCE_KINDS;
 var init_migration = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/migration.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/migration.mjs"() {
     init_src();
     init_src2();
     init_workspace2();
@@ -37508,10 +37508,10 @@ var init_migration = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/package.json
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/package.json
 var package_default2;
 var init_package2 = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/package.json"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/package.json"() {
     package_default2 = {
       "//": '~~ Generated by projen. To modify, edit .projenrc.js and run "npx projen".',
       author: "\u5E7F\u5DDE\u5E02\u98CE\u8377\u79D1\u6280\u6709\u9650\u516C\u53F8",
@@ -37522,8 +37522,8 @@ var init_package2 = __esm({
         url: "https://github.com/ifoohoo/skill-family-engineering-kit/issues"
       },
       dependencies: {
-        "skill-family-contracts": "0.15.0",
-        "skill-family-harness-node": "0.15.0"
+        "skill-family-contracts": "0.16.0",
+        "skill-family-harness-node": "0.16.0"
       },
       description: "Build-time scaffold, adoption planning, projection, and checks.",
       engines: {
@@ -37565,7 +37565,7 @@ var init_package2 = __esm({
         url: "https://github.com/ifoohoo/skill-family-engineering-kit.git"
       },
       type: "module",
-      version: "0.15.0",
+      version: "0.16.0",
       scripts: {
         check: "node --test",
         test: "node --test"
@@ -37574,22 +37574,22 @@ var init_package2 = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/version.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/version.mjs
 var KIT_VERSION;
 var init_version2 = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/version.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/version.mjs"() {
     init_package2();
     KIT_VERSION = package_default2.version;
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/capability-assessment.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/capability-assessment.mjs
 import { lstat as lstat18, readFile as readFile9 } from "node:fs/promises";
 import path23 from "node:path";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
 var ADOPTION_SCOPES, LOCALES, MODES, DEFAULT_CATALOG_DIR, DECISION_REQUIREMENTS;
 var init_capability_assessment = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/capability-assessment.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/capability-assessment.mjs"() {
     init_src();
     init_src2();
     init_errors4();
@@ -37613,11 +37613,11 @@ var init_capability_assessment = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/skeleton.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/skeleton.mjs
 import { readFile as readFile10 } from "node:fs/promises";
 var KIT_TOOL_NAME, PROJECT_MANIFEST_PATH, MANAGED_LOCK_PATH, PROJECTION_MANIFEST_PATH, IDENTITY_RECORD_PATH, PUBLIC_BOUNDARY_DECLARATION_PATH, PLATFORM_SUBSET_DECLARATION_PATH;
 var init_skeleton = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/skeleton.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/skeleton.mjs"() {
     init_src();
     init_src2();
     init_errors4();
@@ -37635,12 +37635,12 @@ var init_skeleton = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/identity-check.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/identity-check.mjs
 import { readdir as readdir9 } from "node:fs/promises";
 import path24 from "node:path";
 var IDENTITY_SOURCE_PRIORITY;
 var init_identity_check = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/identity-check.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/identity-check.mjs"() {
     init_src2();
     init_licensing();
     IDENTITY_SOURCE_PRIORITY = Object.freeze([
@@ -37656,11 +37656,11 @@ var init_identity_check = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/check.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/check.mjs
 import { readFileSync as readFileSync13 } from "node:fs";
 var CHECK_CLASSES, DOCUMENT_STATES;
 var init_check = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/check.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/check.mjs"() {
     init_src();
     init_src2();
     init_errors4();
@@ -37689,10 +37689,10 @@ var init_check = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/adopt-plan.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/adopt-plan.mjs
 import path25 from "node:path";
 var init_adopt_plan = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/adopt-plan.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/adopt-plan.mjs"() {
     init_src();
     init_src2();
     init_check();
@@ -37705,12 +37705,12 @@ var init_adopt_plan = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/core-check.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/core-check.mjs
 import { lstat as lstat19 } from "node:fs/promises";
 import path26 from "node:path";
 var CORE_CHECK_SECURITY_KINDS, CLASS_READ_PATHS;
 var init_core_check = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/core-check.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/core-check.mjs"() {
     init_errors4();
     init_check();
     init_skeleton();
@@ -37746,10 +37746,10 @@ var init_core_check = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/entry-check.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/entry-check.mjs
 var ENTRY_FORMS, ENTRY_SIDE_EFFECT_CLASSES;
 var init_entry_check = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/entry-check.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/entry-check.mjs"() {
     init_src2();
     init_src();
     init_errors4();
@@ -37760,11 +37760,11 @@ var init_entry_check = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/relock.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/relock.mjs
 import { lstat as lstat20, readFile as readFile11 } from "node:fs/promises";
 import path27 from "node:path";
 var init_relock = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/relock.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/relock.mjs"() {
     init_src2();
     init_errors4();
     init_skeleton();
@@ -37774,7 +37774,7 @@ var init_relock = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/projection.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/projection.mjs
 import {
   chmod,
   lstat as lstat21,
@@ -39113,7 +39113,7 @@ async function runProjection({ root, manifest: manifestInput, candidateRoot, fau
 }
 var SHA256_HEX_PATTERN2, V2_KIND, OWNER_KIND, TARGET_FACTS_CONTROL_PATHS, PROJECTION_AUTHORITY_BINDING_KINDS, BASE64_PATTERN;
 var init_projection = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/projection.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/projection.mjs"() {
     init_src();
     init_src2();
     init_errors4();
@@ -39186,12 +39186,12 @@ var init_projection = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/report.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/report.mjs
 import process7 from "node:process";
 import { lstat as lstat22, readFile as readFile13, realpath as realpath12, rm as rm5, stat as stat5 } from "node:fs/promises";
 import path29 from "node:path";
 var init_report2 = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/report.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/report.mjs"() {
     init_src2();
     init_src();
     init_errors4();
@@ -39199,11 +39199,11 @@ var init_report2 = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/scaffold.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/scaffold.mjs
 import { lstat as lstat23, mkdir as mkdir4, readdir as readdir11 } from "node:fs/promises";
 import path30 from "node:path";
 var init_scaffold = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/scaffold.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/scaffold.mjs"() {
     init_src();
     init_src2();
     init_errors4();
@@ -39213,11 +39213,11 @@ var init_scaffold = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-drivers.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-drivers.mjs
 import path31 from "node:path";
 var CAPABILITIES, DRIVERS, HOST_DRIVER_IDS;
 var init_host_drivers = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-drivers.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-drivers.mjs"() {
     init_src2();
     CAPABILITIES = Object.freeze(["cli", "version", "payload", "registry", "discover", "enabled", "reload", "smoke", "uninstall"]);
     DRIVERS = Object.freeze({
@@ -39228,7 +39228,7 @@ var init_host_drivers = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-profiles.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-profiles.mjs
 import { realpathSync as realpathSync2 } from "node:fs";
 import { fileURLToPath as fileURLToPath5 } from "node:url";
 function bundledHostProfilesRoot() {
@@ -39311,7 +39311,7 @@ async function resolveHostId(options = {}) {
 }
 var HOST_DESCRIPTOR_SCHEMA_ID, HOST_REGISTRY_SCHEMA_ID, HOST_ID_PATTERN;
 var init_host_profiles = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-profiles.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-profiles.mjs"() {
     init_src();
     init_src2();
     init_errors4();
@@ -39331,10 +39331,10 @@ var init_host_profiles = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host.mjs
 import path32 from "node:path";
 var init_host2 = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host.mjs"() {
     init_src();
     init_src2();
     init_errors4();
@@ -39343,7 +39343,7 @@ var init_host2 = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-verification-drivers.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-verification-drivers.mjs
 import path33 from "node:path";
 function nativeStage(name, commands) {
   return Object.freeze({
@@ -39549,7 +39549,7 @@ function qoderJsonOk(stdoutText) {
 }
 var CONTROLLED_NATIVE_LIFECYCLE_FIXTURE_PROTOCOL, NATIVE_TREE_ROLES, QODER_NATIVE_LIFECYCLE, WORKBUDDY_NATIVE_LIFECYCLE, KIMI_DRIVER, WORKBUDDY_DRIVER, CLAUDE_DRIVER, CODEX_DRIVER, QODER_DRIVER, BUILT_IN_HOST_VERIFICATION_DRIVERS;
 var init_host_verification_drivers = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-verification-drivers.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-verification-drivers.mjs"() {
     CONTROLLED_NATIVE_LIFECYCLE_FIXTURE_PROTOCOL = "skill-family.controlled-native-lifecycle-fixture/v1";
     NATIVE_TREE_ROLES = Object.freeze({
       preflight: Object.freeze([]),
@@ -39715,11 +39715,11 @@ var init_host_verification_drivers = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-verification.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-verification.mjs
 import { lstat as lstat24, mkdir as mkdir5, readdir as readdir12, realpath as realpath13, stat as stat6 } from "node:fs/promises";
 import path34 from "node:path";
 var init_host_verification = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-verification.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/host-verification.mjs"() {
     init_src();
     init_src2();
     init_errors4();
@@ -39728,7 +39728,7 @@ var init_host_verification = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/plugin-verification.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/plugin-verification.mjs
 import { mkdir as mkdir6, readdir as readdir13, realpath as realpath14, stat as stat7 } from "node:fs/promises";
 import path35 from "node:path";
 function fail3(message, details = {}) {
@@ -40371,7 +40371,7 @@ async function runPluginVerification({ request, bindings, hostsRoot } = {}) {
 }
 var REQUEST_SCHEMA, RESULT_SCHEMA, ACTION, SHA256, COMMIT, NATIVE_LIFECYCLE_STAGES;
 var init_plugin_verification = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/plugin-verification.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/plugin-verification.mjs"() {
     init_src();
     init_src2();
     init_errors4();
@@ -40436,11 +40436,11 @@ var init_plugin_verification = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/skill-family-directory-verification.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/skill-family-directory-verification.mjs
 import { mkdir as mkdir7, readdir as readdir14, realpath as realpath15, stat as stat8 } from "node:fs/promises";
 import path36 from "node:path";
 var init_skill_family_directory_verification = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/skill-family-directory-verification.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/skill-family-directory-verification.mjs"() {
     init_src();
     init_src2();
     init_errors4();
@@ -40449,12 +40449,12 @@ var init_skill_family_directory_verification = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/qualification.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/qualification.mjs
 import { lstat as lstat25, mkdir as mkdir8, readdir as readdir15, realpath as realpath16, stat as stat9 } from "node:fs/promises";
 import path37 from "node:path";
 var QUALIFICATION_NOTICE;
 var init_qualification = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/qualification.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/qualification.mjs"() {
     init_src();
     init_src();
     init_src2();
@@ -40469,10 +40469,10 @@ var init_qualification = __esm({
   }
 });
 
-// ../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/index.mjs
+// ../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/index.mjs
 var TOP_LEVEL_COMMANDS, FORBIDDEN_SIDE_EFFECTS, COMMAND_SIDE_EFFECTS, KIT_EXIT_CODES;
 var init_src3 = __esm({
-  "../../node_modules/.pnpm/skill-family-engineering-kit@0.15.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/index.mjs"() {
+  "../../node_modules/.pnpm/skill-family-engineering-kit@0.16.0_@pnpm+logger@1001.0.1/node_modules/skill-family-engineering-kit/src/index.mjs"() {
     init_src();
     init_adopt_plan();
     init_check();
@@ -47797,7 +47797,17 @@ function isSafeRelativePath(value) {
   return typeof value === "string" && value.length > 0 && !value.startsWith("/") && !value.includes("\\") && !value.includes(":") && !value.includes("\0") && value.split("/").every((part) => part.length > 0 && part !== "." && part !== "..");
 }
 function decodeCanonicalBase64(value) {
-  if (typeof value !== "string" || !BASE64_PATTERN2.test(value)) return null;
+  if (typeof value !== "string" || value.length % 4 !== 0) return null;
+  let paddingStart = -1;
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code === 61) {
+      if (paddingStart === -1) paddingStart = index;
+      continue;
+    }
+    if (paddingStart !== -1 || !(code >= 65 && code <= 90 || code >= 97 && code <= 122 || code >= 48 && code <= 57 || code === 43 || code === 47)) return null;
+  }
+  if (paddingStart !== -1 && value.length - paddingStart > 2 || paddingStart !== -1 && paddingStart % 4 < 2) return null;
   const decoded = Buffer.from(value, "base64");
   return decoded.toString("base64") === value ? decoded : null;
 }
@@ -48075,7 +48085,7 @@ async function verifyFrozenPluginWithFoundation({
     ...extraInstallAudit.extraInstalledLinks.length > 0 ? { extraInstalledLinks: extraInstallAudit.extraInstalledLinks } : {}
   };
 }
-var FOUNDATION_PLUGIN_DRIVER_VERSION, SHA256_PATTERN5, BASE64_PATTERN2;
+var FOUNDATION_PLUGIN_DRIVER_VERSION, SHA256_PATTERN5;
 var init_foundation_plugin_verification = __esm({
   async "src/core/foundation-plugin-verification.mjs"() {
     init_src();
@@ -48086,7 +48096,6 @@ var init_foundation_plugin_verification = __esm({
     init_errors3();
     FOUNDATION_PLUGIN_DRIVER_VERSION = "1.0.0";
     SHA256_PATTERN5 = /^[0-9a-f]{64}$/u;
-    BASE64_PATTERN2 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u;
     __name(isSafeRelativePath, "isSafeRelativePath");
     __name(decodeCanonicalBase64, "decodeCanonicalBase64");
     __name(hasExactKeys, "hasExactKeys");
@@ -129351,6 +129360,123 @@ async function runPreHookPublicSurfaceGate({
   } finally {
   }
 }
+function prepareRetryPathArg(path40) {
+  return relative26(process.cwd(), resolve31(path40)) || ".";
+}
+function buildPrepareRetryArgv(options, unitIds) {
+  const argv = [
+    "release-skill",
+    "prepare",
+    "--root",
+    prepareRetryPathArg(options.root)
+  ];
+  if (typeof options.version === "string" && options.version.length > 0) {
+    argv.push("--target-version", options.version);
+  }
+  argv.push(options.offline ? "--offline" : "--online");
+  if (options.production) argv.push("--production");
+  argv.push("--workflow", options.workflow);
+  if (typeof options.testSelection === "string") {
+    argv.push("--test-selection", options.testSelection);
+  }
+  if (typeof options.output === "string") {
+    argv.push("--output", prepareRetryPathArg(options.output));
+  }
+  if (options.hookCache === false) argv.push("--no-hook-cache");
+  for (const unitId of unitIds) argv.push("--unit", unitId);
+  return argv;
+}
+function buildDeferredReleaseDiagnostics(options, deferredUnitIds) {
+  if (deferredUnitIds.length === 0) return null;
+  return {
+    deferredUnitIds: [...deferredUnitIds],
+    nextPrepareArgv: buildPrepareRetryArgv(options, deferredUnitIds)
+  };
+}
+function resolveRequestedReleaseUnits(config, requestedUnitIds, retryOptions) {
+  const availableUnits = config.releaseUnits ?? [];
+  const availableUnitIds = availableUnits.map((unit) => unit.id);
+  if (requestedUnitIds === void 0) {
+    return {
+      explicit: false,
+      selectedUnits: availableUnits,
+      selectedUnitIds: availableUnitIds,
+      deferredUnitIds: [],
+      receiptSelected: Boolean(config.publicSourceAuthorityReceipt)
+    };
+  }
+  if (!Array.isArray(requestedUnitIds) || requestedUnitIds.length === 0) {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      "explicit release-unit selection must contain at least one unit id",
+      { requestedUnitIds, availableUnitIds }
+    );
+  }
+  const invalidUnitIds = requestedUnitIds.filter(
+    (unitId) => typeof unitId !== "string" || unitId.length === 0
+  );
+  const seen = /* @__PURE__ */ new Set();
+  const duplicateUnitIds = [];
+  for (const unitId of requestedUnitIds) {
+    if (seen.has(unitId) && !duplicateUnitIds.includes(unitId)) duplicateUnitIds.push(unitId);
+    seen.add(unitId);
+  }
+  const availableSet = new Set(availableUnitIds);
+  const unknownUnitIds = requestedUnitIds.filter(
+    (unitId) => typeof unitId === "string" && unitId.length > 0 && !availableSet.has(unitId)
+  );
+  if (invalidUnitIds.length > 0 || duplicateUnitIds.length > 0 || unknownUnitIds.length > 0) {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      "release-unit selection contains empty, duplicate, or unknown unit ids",
+      {
+        requestedUnitIds,
+        availableUnitIds,
+        invalidUnitIds,
+        duplicateUnitIds,
+        unknownUnitIds
+      }
+    );
+  }
+  const selectedSet = new Set(requestedUnitIds);
+  const selectedUnits = availableUnits.filter((unit) => selectedSet.has(unit.id));
+  const selectedUnitIds = selectedUnits.map((unit) => unit.id);
+  const deferredUnitIds = availableUnitIds.filter((unitId) => !selectedSet.has(unitId));
+  const deferredReleaseDiagnostics = buildDeferredReleaseDiagnostics(retryOptions, deferredUnitIds);
+  const receipt = config.publicSourceAuthorityReceipt;
+  let receiptSelected = false;
+  if (receipt) {
+    const receiptSet = /* @__PURE__ */ new Set([receipt.coordinatorUnitId, ...receipt.subjectUnitIds]);
+    const dependencyUnitIds = availableUnitIds.filter((unitId) => receiptSet.has(unitId));
+    receiptSelected = dependencyUnitIds.some((unitId) => selectedSet.has(unitId));
+    if (receiptSelected) {
+      const missingUnitIds = dependencyUnitIds.filter((unitId) => !selectedSet.has(unitId));
+      if (missingUnitIds.length > 0) {
+        const retryUnitIds = availableUnitIds.filter(
+          (unitId) => selectedSet.has(unitId) || receiptSet.has(unitId)
+        );
+        throw new ReleaseError(
+          GATE_FAILED,
+          "release-unit selection does not include the complete public source-authority dependency closure",
+          {
+            selectedUnitIds,
+            missingUnitIds,
+            dependencyUnitIds,
+            retryArgv: buildPrepareRetryArgv(retryOptions, retryUnitIds)
+          }
+        );
+      }
+    }
+  }
+  return {
+    explicit: true,
+    selectedUnits,
+    selectedUnitIds,
+    deferredUnitIds,
+    deferredReleaseDiagnostics,
+    receiptSelected
+  };
+}
 async function prepareRelease(options) {
   const {
     root,
@@ -129364,7 +129490,8 @@ async function prepareRelease(options) {
     production = false,
     workflow = "full",
     observePreviousPublicBaselineFn,
-    testSelection = "full"
+    testSelection = "full",
+    unitIds
   } = options ?? {};
   const WORKFLOW_KINDS2 = /* @__PURE__ */ new Set(["full", "docs", "config", "marketplace"]);
   if (!WORKFLOW_KINDS2.has(workflow)) {
@@ -129438,7 +129565,20 @@ async function prepareRelease(options) {
   try {
     await evidence.append({ phase: "config", status: "started" });
     const { config, configPath, configDigest } = await loadProjectConfig({ root: realRoot });
-    const adoptionWarnings = collectExpectedPublicSurfaceAdoptionWarnings(config);
+    const releaseSelection = resolveRequestedReleaseUnits(config, unitIds, {
+      root,
+      version,
+      offline,
+      production,
+      workflow,
+      testSelection: typeof options?.testSelection === "string" ? testSelection : void 0,
+      output,
+      hookCache: options?.hookCache
+    });
+    const configUnits = releaseSelection.selectedUnits;
+    const selectedConfig = { ...config, releaseUnits: configUnits };
+    const selectedUnitIdSet = new Set(releaseSelection.selectedUnitIds);
+    const adoptionWarnings = collectExpectedPublicSurfaceAdoptionWarnings(selectedConfig);
     const runWarnings = [...adoptionWarnings];
     await evidence.append({
       phase: "config",
@@ -129451,6 +129591,16 @@ async function prepareRelease(options) {
         phase: "public-surface-adoption",
         status: "warning",
         ...warning
+      });
+    }
+    if (releaseSelection.explicit) {
+      await evidence.append({
+        phase: "release-scope",
+        status: "selected",
+        mode: "selected",
+        selectedUnitIds: releaseSelection.selectedUnitIds,
+        deferredUnitIds: releaseSelection.deferredUnitIds,
+        ...releaseSelection.deferredReleaseDiagnostics ? { nextPrepareArgv: releaseSelection.deferredReleaseDiagnostics.nextPrepareArgv } : {}
       });
     }
     await evidence.append({ phase: "bundle-freshness", status: "started" });
@@ -129500,7 +129650,6 @@ async function prepareRelease(options) {
         "consumer-verify"
       ]
     });
-    const configUnits = config.releaseUnits ?? [];
     const resolvedVersions = await resolveAllUnitVersions(
       configUnits,
       realRoot,
@@ -129629,7 +129778,7 @@ async function prepareRelease(options) {
         hooks: declaredHooks.map((h) => `${h.name}: ${h.executable} ${h.args.join(" ")}`)
       });
     }
-    const declaredVerificationGates = config.verificationGates ?? [];
+    const declaredVerificationGates = (config.verificationGates ?? []).filter((gate) => selectedUnitIdSet.has(gate.scope.unit));
     if (declaredVerificationGates.length > 0) {
       await evidence.append({
         phase: "verification-gate-authorization",
@@ -129709,7 +129858,7 @@ async function prepareRelease(options) {
       });
     }
     await runPreHookPublicSurfaceGate({
-      config,
+      config: selectedConfig,
       root: realRoot,
       resolvedVersions,
       evidence,
@@ -130079,7 +130228,7 @@ async function prepareRelease(options) {
       }
     }
     const { unitResults, snapshotDigests } = await processSnapshots(
-      config,
+      selectedConfig,
       realRoot,
       evidence,
       runDir,
@@ -130351,7 +130500,7 @@ async function prepareRelease(options) {
       }
     }
     let publicSourceAuthorityReceipt = null;
-    if (config.publicSourceAuthorityReceipt) {
+    if (config.publicSourceAuthorityReceipt && releaseSelection.receiptSelected) {
       if (workflow === "config" && configDecision?.publishPath === "no-publish-needed") {
         await evidence.append({
           phase: "public-source-authority-receipt",
@@ -130536,7 +130685,7 @@ async function prepareRelease(options) {
           totalFindingCount: 0
         }
       } : {},
-      verificationGates: config.verificationGates ?? [],
+      verificationGates: declaredVerificationGates,
       snapshotDigest: overallSnapshotDigest,
       ...humanConsumersStrategy ? { humanConsumersStrategy } : {},
       ...production ? {
@@ -130597,6 +130746,13 @@ async function prepareRelease(options) {
       completedAt: clock ? clock() : (/* @__PURE__ */ new Date()).toISOString()
     });
     const nextSteps = [];
+    if (releaseSelection.explicit && releaseSelection.deferredUnitIds.length > 0) {
+      nextSteps.push({
+        code: "DEFERRED_RELEASE_UNITS",
+        message: `Prepare the deferred release units separately: ${releaseSelection.deferredUnitIds.join(", ")}`,
+        argv: releaseSelection.deferredReleaseDiagnostics.nextPrepareArgv
+      });
+    }
     if (!production) {
       nextSteps.push({
         code: "NON_PRODUCTION_PLAN_NOT_PUBLISHABLE",
@@ -130608,7 +130764,14 @@ async function prepareRelease(options) {
       planDigest,
       evidenceDir,
       warnings: runWarnings,
-      nextSteps
+      nextSteps,
+      ...releaseSelection.explicit ? {
+        releaseScope: {
+          mode: "selected",
+          selectedUnitIds: releaseSelection.selectedUnitIds,
+          deferredUnitIds: releaseSelection.deferredUnitIds
+        }
+      } : {}
     };
   } catch (err) {
     try {
@@ -130704,6 +130867,10 @@ var init_prepare = __esm({
     __name(resolveDistributionManifestFacts, "resolveDistributionManifestFacts");
     __name(runPrepareSkillResourceClosureGate, "runPrepareSkillResourceClosureGate");
     __name(runPreHookPublicSurfaceGate, "runPreHookPublicSurfaceGate");
+    __name(prepareRetryPathArg, "prepareRetryPathArg");
+    __name(buildPrepareRetryArgv, "buildPrepareRetryArgv");
+    __name(buildDeferredReleaseDiagnostics, "buildDeferredReleaseDiagnostics");
+    __name(resolveRequestedReleaseUnits, "resolveRequestedReleaseUnits");
     __name(prepareRelease, "prepareRelease");
   }
 });
@@ -130789,6 +130956,13 @@ __export(post_release_local_exports, {
 import { access as access2 } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join as join27, relative as relative27 } from "node:path";
+function attachFoundationFailure(error, { envelope, stdout }) {
+  Object.defineProperties(error, {
+    foundationEnvelope: { value: envelope, enumerable: false },
+    foundationStdout: { value: stdout, enumerable: false }
+  });
+  return error;
+}
 function actionTarget(plan, action, host) {
   const parameters = action.parameters ?? {};
   const sourceDescriptor = parameters.sourceDescriptor ?? {};
@@ -130963,7 +131137,7 @@ async function defaultRun(command2, args2, options = {}) {
         watchdogReason: envelope.watchdogReason,
         ...envelope.evidence?.spawnError ? { spawnError: envelope.evidence.spawnError } : {}
       };
-      throw error;
+      throw attachFoundationFailure(error, { envelope, stdout });
     }
     return { stdout, stderr };
   }, { prefix: "release-skill-host-command-" });
@@ -131002,6 +131176,64 @@ function parseJson2(stdout, label) {
   } catch {
     throw new Error(`${label} did not return JSON`);
   }
+}
+function foundationEnvelopeFromError(error) {
+  return error?.foundationEnvelope ?? null;
+}
+function foundationStdoutFromError(error) {
+  return error?.foundationStdout ?? null;
+}
+function isCodeBuddyResidualEnvelope(error) {
+  const envelope = foundationEnvelopeFromError(error);
+  const evidence = envelope?.evidence;
+  const signals = evidence?.signalSequence;
+  const signal = signals?.[0];
+  return envelope?.ok === false && envelope.exitStatus === 124 && envelope.processStatus === "TERMINATED" && envelope.terminationReason === "child_exit" && envelope.watchdogReason === "residual_process_group" && evidence?.childExitCode === 0 && (evidence.childSignal === null || evidence.childSignal === void 0) && evidence.residualGroupCleanupCompleted === true && evidence.forcedKill === false && evidence.outputLimitExceeded === null && Array.isArray(signals) && signals.length === 1 && signal?.signal === "SIGTERM" && signal.requestedMode === "process_group" && signal.successfulMode === "process_group";
+}
+function isCodeBuddyReadCommand(target, command2, args2) {
+  return target.host === "codebuddy" && (command2 === "codebuddy" || command2 === "cbc" || command2 === CODEBUDDY_MACOS_PATH) && Array.isArray(args2) && (args2.every((value, index) => value === CODEBUDDY_PLUGIN_LIST_ARGS[index]) && args2.length === CODEBUDDY_PLUGIN_LIST_ARGS.length || args2.every((value, index) => value === CODEBUDDY_MARKETPLACE_LIST_ARGS[index]) && args2.length === CODEBUDDY_MARKETPLACE_LIST_ARGS.length);
+}
+function isCodeBuddyWriteCommand(target, command2, args2, kind) {
+  if (target.host !== "codebuddy" || !["codebuddy", "cbc", CODEBUDDY_MACOS_PATH].includes(command2)) return false;
+  const expected = kind === "marketplace-update" ? ["plugin", "marketplace", "update", target.marketplace] : ["plugin", "update", `${target.plugin}@${target.marketplace}`, "--scope", "user"];
+  return Array.isArray(args2) && args2.length === expected.length && args2.every((value, index) => value === expected[index]);
+}
+async function runCodeBuddyRead(target, command2, args2, label, env, run6) {
+  try {
+    return { output: await run6(command2, [...args2], { env }), recovered: false };
+  } catch (error) {
+    if (!isCodeBuddyReadCommand(target, command2, args2) || !isCodeBuddyResidualEnvelope(error)) throw error;
+    const residualStdout = foundationStdoutFromError(error);
+    if (typeof residualStdout !== "string") throw error;
+    parseJson2(residualStdout, label);
+    return {
+      output: { stdout: residualStdout, stderr: "" },
+      recovered: true
+    };
+  }
+}
+function exactCodeBuddyMarketplaceObservation(target, stdout) {
+  const parsed = parseJson2(stdout, `${target.host} marketplace list`);
+  if (!Array.isArray(parsed)) throw new Error(`${target.host} marketplace list did not return an array`);
+  const matches = parsed.filter((entry) => entry?.name === target.marketplace);
+  if (matches.length !== 1) {
+    throw new Error(`${target.host} marketplace list did not contain exactly one ${target.marketplace}`);
+  }
+  if (matches[0].type !== "git") {
+    throw new Error(`${target.host} marketplace ${target.marketplace} is not a git marketplace`);
+  }
+  return { installed: true, exact: true, found: matches[0] };
+}
+async function observeCodeBuddyMarketplaceAfterResidual(target, command2, env, run6) {
+  const observed = await runCodeBuddyRead(
+    target,
+    command2,
+    CODEBUDDY_MARKETPLACE_LIST_ARGS,
+    `${target.host} marketplace list`,
+    env,
+    run6
+  );
+  return exactCodeBuddyMarketplaceObservation(target, observed.output.stdout);
 }
 function exactPluginObservation(target, stdout) {
   const selector = `${target.plugin}@${target.marketplace}`;
@@ -131120,7 +131352,8 @@ async function runStructuredUpdate(target, detected, run6, {
 }) {
   if (target.host === "codebuddy" || target.host === "workbuddy") {
     const env2 = hostEnvironment(target.host);
-    const listed = await run6(detected.command, ["plugin", "list", "--json"], { env: env2 });
+    const listedObservation = target.host === "codebuddy" ? await runCodeBuddyRead(target, detected.command, CODEBUDDY_PLUGIN_LIST_ARGS, `${target.host} plugin list`, env2, run6) : { output: await run6(detected.command, [...CODEBUDDY_PLUGIN_LIST_ARGS], { env: env2 }), recovered: false };
+    const listed = listedObservation.output;
     const observed = exactPluginObservation(target, listed.stdout);
     if (target.sourceForm !== "bundled-family" || target.pluginRepo !== target.marketplaceRepo || target.pluginCommit !== target.marketplaceCommit) {
       return {
@@ -131128,7 +131361,13 @@ async function runStructuredUpdate(target, detected, run6, {
         reason: `${target.host} source identity is not eligible for a frozen bundled-family update`
       };
     }
-    if (observed.exact) return { status: "ALREADY_CURRENT", version: target.version };
+    if (observed.exact) {
+      return {
+        status: "ALREADY_CURRENT",
+        version: target.version,
+        ...listedObservation.recovered ? { residualRecovery: true } : {}
+      };
+    }
     if (!observed.installed) {
       return {
         status: "MANUAL_REQUIRED",
@@ -131158,18 +131397,54 @@ async function runStructuredUpdate(target, detected, run6, {
         reason: `${target.host} frozen tag and mutable ref do not both resolve to ${target.pluginCommit}`
       };
     }
-    await run6(detected.command, ["plugin", "marketplace", "update", target.marketplace], { env: env2 });
-    await run6(detected.command, [
-      "plugin",
-      "update",
-      `${target.plugin}@${target.marketplace}`,
-      "--scope",
-      "user"
-    ], { env: env2 });
-    const afterList = await run6(detected.command, ["plugin", "list", "--json"], { env: env2 });
-    const after2 = exactPluginObservation(target, afterList.stdout);
+    let marketplaceRecovered = false;
+    try {
+      await run6(detected.command, ["plugin", "marketplace", "update", target.marketplace], { env: env2 });
+    } catch (error) {
+      if (!isCodeBuddyWriteCommand(target, detected.command, ["plugin", "marketplace", "update", target.marketplace], "marketplace-update") || !isCodeBuddyResidualEnvelope(error)) throw error;
+      await observeCodeBuddyMarketplaceAfterResidual(target, detected.command, env2, run6);
+      marketplaceRecovered = true;
+    }
+    let after2;
+    let pluginRecovered = false;
+    try {
+      await run6(detected.command, [
+        "plugin",
+        "update",
+        `${target.plugin}@${target.marketplace}`,
+        "--scope",
+        "user"
+      ], { env: env2 });
+    } catch (error) {
+      if (!isCodeBuddyWriteCommand(target, detected.command, [
+        "plugin",
+        "update",
+        `${target.plugin}@${target.marketplace}`,
+        "--scope",
+        "user"
+      ], "plugin-update") || !isCodeBuddyResidualEnvelope(error)) throw error;
+      const afterList = await runCodeBuddyRead(
+        target,
+        detected.command,
+        CODEBUDDY_PLUGIN_LIST_ARGS,
+        `${target.host} plugin list`,
+        env2,
+        run6
+      );
+      after2 = exactPluginObservation(target, afterList.output.stdout);
+      pluginRecovered = true;
+    }
+    if (!pluginRecovered) {
+      const afterList = target.host === "codebuddy" ? await runCodeBuddyRead(target, detected.command, CODEBUDDY_PLUGIN_LIST_ARGS, `${target.host} plugin list`, env2, run6) : { output: await run6(detected.command, [...CODEBUDDY_PLUGIN_LIST_ARGS], { env: env2 }), recovered: false };
+      after2 = exactPluginObservation(target, afterList.output.stdout);
+    }
     if (!after2.exact) throw new Error(`${target.host} did not update to the frozen plugin identity`);
-    return { status: "UPDATED", version: target.version, restartRequired: true };
+    return {
+      status: "UPDATED",
+      version: target.version,
+      restartRequired: true,
+      ...marketplaceRecovered || listedObservation.recovered || pluginRecovered ? { residualRecovery: true } : {}
+    };
   }
   const command2 = detected.command;
   const env = hostEnvironment(target.host);
@@ -131245,9 +131520,9 @@ expect {
       timeout { exit 95 }
       eof { exit 96 }
     }
-    expect -re {> $}
+    expect -re $promptPattern
   }
-  -re {> $} {}
+  -re $promptPattern {}
   timeout { exit 93 }
   eof { exit 94 }
 }
@@ -131259,8 +131534,9 @@ foreach variable {RELEASE_SKILL_KIMI_COMMAND RELEASE_SKILL_KIMI_INSTALL_URL RELE
 set kimiCommand $env(RELEASE_SKILL_KIMI_COMMAND)
 set installUrl $env(RELEASE_SKILL_KIMI_INSTALL_URL)
 set removePlugin $env(RELEASE_SKILL_KIMI_REMOVE_PLUGIN)
+set promptPattern {(?:(?:^|\\r|\\n)> |(?:^|\\r|\\n)(?:\\033\\[[0-9;?]*[ -/]*[@-~])*\u2502[ \\t]*>[ \\t]*\u2502(?:\\033\\[[0-9;?]*[ -/]*[@-~])*)(?![^\\n]|\\n)}
 spawn $kimiCommand
-expect -re {> $}
+expect -re $promptPattern
 ${removeCommand}send -- "/plugins install $installUrl\\r"
 expect {
   -nocase -re {trust and install} {
@@ -131273,9 +131549,9 @@ expect {
   timeout { exit 91 }
   eof { exit 92 }
 }
-expect -re {> $}
+expect -re $promptPattern
 send -- "/reload\\r"
-expect -re {> $}
+expect -re $promptPattern
 send -- "/exit\\r"
 expect eof
 `;
@@ -131402,6 +131678,8 @@ function aggregateStatus(results) {
 }
 function failedHostResult(target, error) {
   const message = error?.message ?? String(error);
+  const details = error?.details;
+  const publicDetails = details && typeof details === "object" && !Array.isArray(details) ? Object.fromEntries(Object.entries(details).filter(([key]) => key !== "foundationEnvelope" && key !== "foundationStdout" && key !== "foundationStderr")) : details;
   return {
     host: target.host,
     unitId: target.unitId,
@@ -131409,7 +131687,7 @@ function failedHostResult(target, error) {
     error: message,
     reason: typeof error?.reason === "string" ? error.reason : message,
     ...error?.code !== void 0 ? { code: error.code } : {},
-    ...error?.details !== void 0 ? { details: error.details } : {}
+    ...publicDetails !== void 0 ? { details: publicDetails } : {}
   };
 }
 async function updateLocalHostPlugins({
@@ -131468,7 +131746,7 @@ async function updateLocalHostPlugins({
     releaseStatusChanged: false
   };
 }
-var HOSTS_BY_ACTION, DISTRIBUTION_BY_ACTION, BRANCH_ACTION_INCLUDED, CODEBUDDY_MACOS_PATH, SAFE_ENV_KEYS;
+var HOSTS_BY_ACTION, DISTRIBUTION_BY_ACTION, BRANCH_ACTION_INCLUDED, CODEBUDDY_MACOS_PATH, SAFE_ENV_KEYS, CODEBUDDY_PLUGIN_LIST_ARGS, CODEBUDDY_MARKETPLACE_LIST_ARGS;
 var init_post_release_local = __esm({
   async "src/commands/post-release-local.mjs"() {
     init_src2();
@@ -131511,6 +131789,9 @@ var init_post_release_local = __esm({
       "CODEX_HOME",
       "KIMI_CONFIG_DIR"
     ]);
+    CODEBUDDY_PLUGIN_LIST_ARGS = Object.freeze(["plugin", "list", "--json"]);
+    CODEBUDDY_MARKETPLACE_LIST_ARGS = Object.freeze(["plugin", "marketplace", "list"]);
+    __name(attachFoundationFailure, "attachFoundationFailure");
     __name(actionTarget, "actionTarget");
     __name(pluginTargets, "pluginTargets");
     __name(assertExecutableTarget, "assertExecutableTarget");
@@ -131522,6 +131803,14 @@ var init_post_release_local = __esm({
     __name(commandAvailable, "commandAvailable");
     __name(defaultDetect, "defaultDetect");
     __name(parseJson2, "parseJson");
+    __name(foundationEnvelopeFromError, "foundationEnvelopeFromError");
+    __name(foundationStdoutFromError, "foundationStdoutFromError");
+    __name(isCodeBuddyResidualEnvelope, "isCodeBuddyResidualEnvelope");
+    __name(isCodeBuddyReadCommand, "isCodeBuddyReadCommand");
+    __name(isCodeBuddyWriteCommand, "isCodeBuddyWriteCommand");
+    __name(runCodeBuddyRead, "runCodeBuddyRead");
+    __name(exactCodeBuddyMarketplaceObservation, "exactCodeBuddyMarketplaceObservation");
+    __name(observeCodeBuddyMarketplaceAfterResidual, "observeCodeBuddyMarketplaceAfterResidual");
     __name(exactPluginObservation, "exactPluginObservation");
     __name(normalizeGitSource, "normalizeGitSource");
     __name(observeMarketplace, "observeMarketplace");
@@ -138331,6 +138620,70 @@ __export(ship_exports, {
 });
 import { readFile as readFile45, lstat as lstat45, mkdir as mkdir30 } from "node:fs/promises";
 import { basename as basename14, dirname as dirname21, resolve as resolve37 } from "node:path";
+function normalizeNewShipUnitIds(releaseUnits, requestedUnitIds) {
+  if (requestedUnitIds === void 0) return void 0;
+  const availableUnitIds = (releaseUnits ?? []).map((unit) => unit.id);
+  if (!Array.isArray(requestedUnitIds) || requestedUnitIds.length === 0) {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      "explicit ship release-unit selection must contain at least one unit id",
+      { requestedUnitIds, availableUnitIds }
+    );
+  }
+  const requestedSet = new Set(requestedUnitIds);
+  const invalid5 = requestedUnitIds.filter((unitId) => typeof unitId !== "string" || unitId.length === 0);
+  const unknown = requestedUnitIds.filter((unitId) => !availableUnitIds.includes(unitId));
+  if (invalid5.length > 0 || requestedSet.size !== requestedUnitIds.length || unknown.length > 0) {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      "ship release-unit selection contains empty, duplicate, or unknown unit ids",
+      { requestedUnitIds, availableUnitIds }
+    );
+  }
+  return availableUnitIds.filter((unitId) => requestedSet.has(unitId));
+}
+function sameUnitSelection(left, right) {
+  return Array.isArray(left) && Array.isArray(right) && left.length === right.length && new Set(left).size === left.length && new Set(right).size === right.length && left.every((unitId) => right.includes(unitId));
+}
+function sameUnitOrder(left, right) {
+  return Array.isArray(left) && Array.isArray(right) && left.length === right.length && left.every((unitId, index) => unitId === right[index]);
+}
+function unitScopeMismatch(statePath, stateUnitIds, requestedUnitIds, message) {
+  return new ReleaseError(
+    GATE_FAILED,
+    message,
+    {
+      reason: "SHIP_STATE_UNIT_SCOPE_MISMATCH",
+      statePath,
+      stateUnitIds: stateUnitIds ?? null,
+      requestedUnitIds: requestedUnitIds ?? null
+    }
+  );
+}
+function assertFrozenPlanUnitScope({ statePath, stateUnitIds, expectedUnitIds, plan }) {
+  const planUnitIds = (plan.units ?? []).map((unit) => unit.id);
+  const exactMatch = Array.isArray(expectedUnitIds) && planUnitIds.length === expectedUnitIds.length && planUnitIds.every((unitId, index) => unitId === expectedUnitIds[index]);
+  if (!exactMatch) {
+    throw unitScopeMismatch(
+      statePath,
+      stateUnitIds,
+      planUnitIds,
+      "ship state release-unit scope does not match frozen plan.units"
+    );
+  }
+}
+async function readFrozenPlanForUnitScope(planPath, statePath, stateUnitIds) {
+  try {
+    return JSON.parse(await readFile45(planPath, "utf8"));
+  } catch (error) {
+    throw unitScopeMismatch(
+      statePath,
+      stateUnitIds,
+      null,
+      `cannot verify ship state release-unit scope against frozen plan: ${error.message}`
+    );
+  }
+}
 async function writeJsonAtomic(path40, value) {
   await mkdir30(dirname21(path40), { recursive: true });
   const { stateDigest: _oldDigest, ...body } = value;
@@ -138407,6 +138760,7 @@ function publicState2(state) {
     ...state.hooks && state.hooks.length > 0 ? {
       hooks: state.hooks
     } : {},
+    ...state.selectedUnitIds ? { selectedUnitIds: state.selectedUnitIds } : {},
     ...state.planPath ? {
       planPath: state.planPath,
       planDigest: state.planDigest,
@@ -138553,12 +138907,31 @@ async function advanceShip(options = {}, injected = {}) {
       );
     }
   }
+  if (state && options.unitIds !== void 0) {
+    if (!Array.isArray(state.selectedUnitIds)) {
+      throw unitScopeMismatch(
+        statePath,
+        null,
+        options.unitIds,
+        "an existing full-scope or legacy ship state cannot acquire --unit; provide a new --state path"
+      );
+    }
+    if (!sameUnitSelection(state.selectedUnitIds, options.unitIds)) {
+      throw unitScopeMismatch(
+        statePath,
+        state.selectedUnitIds,
+        options.unitIds,
+        "ship state release-unit scope does not match the requested --unit values"
+      );
+    }
+  }
   if (state?.gitTransport) {
     process.env.RELEASE_SKILL_GIT_TRANSPORT = state.gitTransport;
   }
   if (!state) {
     const loaded = await deps.loadProjectConfig({ root });
     const hooks = Object.keys(loaded.config.hooks ?? {}).sort();
+    const selectedUnitIds = normalizeNewShipUnitIds(loaded.config.releaseUnits, options.unitIds);
     state = {
       schemaVersion: 2,
       root,
@@ -138566,6 +138939,7 @@ async function advanceShip(options = {}, injected = {}) {
       targetVersion: options.targetVersion ?? null,
       configDigest: loaded.configDigest,
       hooks,
+      ...selectedUnitIds ? { selectedUnitIds } : {},
       status: "NEW",
       createdAt: (/* @__PURE__ */ new Date()).toISOString(),
       updatedAt: (/* @__PURE__ */ new Date()).toISOString()
@@ -138577,8 +138951,52 @@ async function advanceShip(options = {}, injected = {}) {
     state.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
     await writeJsonAtomic(statePath, state);
   }
+  if (state.planPath && Array.isArray(state.selectedUnitIds)) {
+    const frozenPlan = await readFrozenPlanForUnitScope(
+      state.planPath,
+      statePath,
+      state.selectedUnitIds
+    );
+    assertFrozenPlanUnitScope({
+      statePath,
+      stateUnitIds: state.selectedUnitIds,
+      expectedUnitIds: state.selectedUnitIds,
+      plan: frozenPlan
+    });
+  }
   if (state.status === "NEW") {
     const loaded = await deps.loadProjectConfig({ root });
+    let stateChanged = false;
+    if (Array.isArray(state.selectedUnitIds)) {
+      const normalizedStateUnitIds = normalizeNewShipUnitIds(
+        loaded.config.releaseUnits,
+        state.selectedUnitIds
+      );
+      if (!sameUnitSelection(normalizedStateUnitIds, state.selectedUnitIds)) {
+        throw unitScopeMismatch(
+          statePath,
+          state.selectedUnitIds,
+          normalizedStateUnitIds,
+          "ship state release-unit scope no longer matches project configuration"
+        );
+      }
+      if (!sameUnitOrder(normalizedStateUnitIds, state.selectedUnitIds)) {
+        if (state.planPath) {
+          throw unitScopeMismatch(
+            statePath,
+            state.selectedUnitIds,
+            normalizedStateUnitIds,
+            "frozen ship state release-unit order no longer matches project configuration"
+          );
+        }
+        state = {
+          ...state,
+          selectedUnitIds: normalizedStateUnitIds,
+          updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+        };
+        stateChanged = true;
+      }
+    }
     if (loaded.configDigest !== state.configDigest) {
       const hooks = Object.keys(loaded.config.hooks ?? {}).sort();
       state = {
@@ -138588,8 +139006,9 @@ async function advanceShip(options = {}, injected = {}) {
         status: "NEW",
         updatedAt: (/* @__PURE__ */ new Date()).toISOString()
       };
-      await writeJsonAtomic(statePath, state);
+      stateChanged = true;
     }
+    if (stateChanged) await writeJsonAtomic(statePath, state);
     const prepared = await deps.prepareRelease({
       root,
       version: state.targetVersion ?? void 0,
@@ -138597,11 +139016,23 @@ async function advanceShip(options = {}, injected = {}) {
       production: true,
       hooksAuthorized: true,
       verificationGatesAuthorized: true,
-      hookCache: true
+      hookCache: true,
+      ...state.selectedUnitIds ? { unitIds: state.selectedUnitIds } : {}
     });
+    let frozenPlan = null;
+    if (Array.isArray(state.selectedUnitIds) || deps.preflightGitTransports) {
+      frozenPlan = Array.isArray(state.selectedUnitIds) ? await readFrozenPlanForUnitScope(prepared.planPath, statePath, state.selectedUnitIds) : JSON.parse(await readFile45(prepared.planPath, "utf8"));
+    }
+    if (Array.isArray(state.selectedUnitIds)) {
+      assertFrozenPlanUnitScope({
+        statePath,
+        stateUnitIds: state.selectedUnitIds,
+        expectedUnitIds: state.selectedUnitIds,
+        plan: frozenPlan
+      });
+    }
     let transportPreflight = null;
     if (deps.preflightGitTransports) {
-      const frozenPlan = JSON.parse(await readFile45(prepared.planPath, "utf8"));
       transportPreflight = await deps.preflightGitTransports(frozenPlan);
       process.env.RELEASE_SKILL_GIT_TRANSPORT = transportPreflight.transport;
     }
@@ -138841,6 +139272,12 @@ var init_ship = __esm({
     init_postpublish();
     await init_post_release_local();
     init_errors3();
+    __name(normalizeNewShipUnitIds, "normalizeNewShipUnitIds");
+    __name(sameUnitSelection, "sameUnitSelection");
+    __name(sameUnitOrder, "sameUnitOrder");
+    __name(unitScopeMismatch, "unitScopeMismatch");
+    __name(assertFrozenPlanUnitScope, "assertFrozenPlanUnitScope");
+    __name(readFrozenPlanForUnitScope, "readFrozenPlanForUnitScope");
     __name(writeJsonAtomic, "writeJsonAtomic");
     __name(readState, "readState");
     __name(defaultDependencies, "defaultDependencies");
@@ -144942,7 +145379,7 @@ Options:
                    performs an append-only hooks edit of an existing config (create-once is untouched)
   --select-hooks <ids> Comma-separated proposal ids to adopt (propose-hooks mode)
   --foundation-profile <path> Explicit foundation postPublish profile JSON (proposal input only; never auto-applied)
-  --unit <id>      Release unit whose declared release documents are refreshed (docs refresh)
+  --unit <id>      Select a release unit for prepare/ship (repeatable); docs refresh accepts one unit
   --confirm-refresh <sha256:...> Confirm the exact dry-run refreshDigest before any document write
   --ack-local-document-write Acknowledge the explicit local release-document write (docs refresh --write)
   --platform <id>   Legacy attestation platform: kimi or codebuddy
@@ -145117,6 +145554,7 @@ if (command === "ship" && (args.includes("--help") || args.includes("-h"))) {
       options: {
         targetVersion: "--target-version <version>",
         state: "--state <path>",
+        unit: "--unit <id> (repeatable before plan freeze)",
         approve: "--approve --actor <name>"
       },
       message: "Repeat the same command to resume from the same state. For parallel or cross-session versions, use .release-skill/ships/<version>.json."
@@ -145130,6 +145568,7 @@ Usage:
 Options:
   --target-version <version>  Specify the target version
   --state <path>              Specify the durable state file
+  --unit <id>                 Select a release unit before plan freeze (repeatable)
   --approve --actor <name>    Approve the plan bound to the current state
 
 Repeat the same command to resume from the same state.
@@ -145324,6 +145763,7 @@ function printShipApprovalSummary(result2) {
   const summary = result2.approvalSummary;
   if (!summary) return;
   console.log("Approval summary:");
+  console.log(`  This approval covers only these release units: ${(summary.units ?? []).map((unit) => unit.id).join(", ") || "none"}`);
   for (const unit of summary.units ?? []) {
     console.log(`  Unit ${unit.id} ${unit.targetVersion}`);
     console.log(`    Public repo: ${unit.publicRepo}`);
@@ -145354,6 +145794,13 @@ if (command === "ship") {
     return idx !== -1 && args[idx + 1] ? args[idx + 1] : void 0;
   }, "value");
   const root = resolve41(value("--root") ?? process.cwd());
+  const hasUnitSelection = args.includes("--unit");
+  const unitIds = [];
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] === "--unit") {
+      unitIds.push(args[i + 1] && !args[i + 1].startsWith("--") ? args[i + 1] : "");
+    }
+  }
   const postpublishApprovalPaths = [];
   for (let i = 0; i < args.length; i += 1) {
     if (args[i] === "--hook-approval" && args[i + 1]) {
@@ -145393,6 +145840,7 @@ if (command === "ship") {
       planApprovalDigest: value("--approve-plan"),
       actor: value("--actor"),
       adapterRegistry,
+      ...hasUnitSelection ? { unitIds } : {},
       ...postpublishApprovalPaths.length > 0 ? { postpublishApprovalPaths } : {}
     });
     if (hasJson) {
@@ -145515,6 +145963,13 @@ if (command === "prepare") {
   const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve41(args[outputIdx + 1]) : void 0;
   const runDirIdx = args.indexOf("--run-dir");
   const runDir = runDirIdx !== -1 && args[runDirIdx + 1] ? resolve41(args[runDirIdx + 1]) : void 0;
+  const hasUnitSelection = args.includes("--unit");
+  const unitIds = [];
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] === "--unit") {
+      unitIds.push(args[i + 1] && !args[i + 1].startsWith("--") ? args[i + 1] : "");
+    }
+  }
   try {
     const { prepareRelease: prepareRelease2 } = await init_prepare().then(() => prepare_exports);
     const { readFile: readFileFs } = await import("node:fs/promises");
@@ -145529,7 +145984,8 @@ if (command === "prepare") {
       workflow,
       testSelection,
       output,
-      runDir
+      runDir,
+      ...hasUnitSelection ? { unitIds } : {}
     });
     const planContent = await readFileFs(result2.planPath, "utf8");
     const plan = JSON.parse(planContent);
@@ -145553,7 +146009,8 @@ if (command === "prepare") {
           unitId: action.unitId
         })),
         warnings: result2.warnings,
-        nextSteps: result2.nextSteps ?? []
+        nextSteps: result2.nextSteps ?? [],
+        ...result2.releaseScope ? { releaseScope: result2.releaseScope } : {}
       }, null, 2));
     } else {
       for (const warning of result2.warnings) {
@@ -145563,7 +146020,11 @@ if (command === "prepare") {
       console.log(`Plan digest: ${result2.planDigest}`);
       console.log(`Evidence: ${result2.evidenceDir}`);
       for (const step of result2.nextSteps ?? []) {
-        console.log(`Next [${step.code}] ${step.message}`);
+        console.log(`Next [${step.code}] ${step.message}${step.argv ? ` (${step.argv.join(" ")})` : ""}`);
+      }
+      if (result2.releaseScope) {
+        console.log(`Release scope: ${result2.releaseScope.selectedUnitIds.join(", ")}`);
+        console.log(`Deferred units: ${result2.releaseScope.deferredUnitIds.join(", ") || "none"}`);
       }
       if (plan.workflowKind && plan.workflowKind !== "full") {
         console.log(`Workflow: ${plan.workflowKind}`);

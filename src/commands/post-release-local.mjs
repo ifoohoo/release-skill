@@ -35,6 +35,16 @@ const SAFE_ENV_KEYS = Object.freeze([
   'SSL_CERT_FILE', 'SSL_CERT_DIR', 'NODE_EXTRA_CA_CERTS',
   'CLAUDE_CONFIG_DIR', 'CODEX_HOME', 'KIMI_CONFIG_DIR',
 ]);
+const CODEBUDDY_PLUGIN_LIST_ARGS = Object.freeze(['plugin', 'list', '--json']);
+const CODEBUDDY_MARKETPLACE_LIST_ARGS = Object.freeze(['plugin', 'marketplace', 'list']);
+
+function attachFoundationFailure(error, { envelope, stdout }) {
+  Object.defineProperties(error, {
+    foundationEnvelope: { value: envelope, enumerable: false },
+    foundationStdout: { value: stdout, enumerable: false },
+  });
+  return error;
+}
 
 function actionTarget(plan, action, host) {
   const parameters = action.parameters ?? {};
@@ -259,7 +269,7 @@ async function defaultRun(command, args, options = {}) {
         watchdogReason: envelope.watchdogReason,
         ...(envelope.evidence?.spawnError ? { spawnError: envelope.evidence.spawnError } : {}),
       };
-      throw error;
+      throw attachFoundationFailure(error, { envelope, stdout });
     }
     return { stdout, stderr };
   }, { prefix: 'release-skill-host-command-' });
@@ -301,6 +311,96 @@ function parseJson(stdout, label) {
   } catch {
     throw new Error(`${label} did not return JSON`);
   }
+}
+
+function foundationEnvelopeFromError(error) {
+  return error?.foundationEnvelope ?? null;
+}
+
+function foundationStdoutFromError(error) {
+  return error?.foundationStdout ?? null;
+}
+
+function isCodeBuddyResidualEnvelope(error) {
+  const envelope = foundationEnvelopeFromError(error);
+  const evidence = envelope?.evidence;
+  const signals = evidence?.signalSequence;
+  const signal = signals?.[0];
+  return envelope?.ok === false
+    && envelope.exitStatus === 124
+    && envelope.processStatus === 'TERMINATED'
+    && envelope.terminationReason === 'child_exit'
+    && envelope.watchdogReason === 'residual_process_group'
+    && evidence?.childExitCode === 0
+    && (evidence.childSignal === null || evidence.childSignal === undefined)
+    && evidence.residualGroupCleanupCompleted === true
+    && evidence.forcedKill === false
+    && evidence.outputLimitExceeded === null
+    && Array.isArray(signals)
+    && signals.length === 1
+    && signal?.signal === 'SIGTERM'
+    && signal.requestedMode === 'process_group'
+    && signal.successfulMode === 'process_group';
+}
+
+function isCodeBuddyReadCommand(target, command, args) {
+  return target.host === 'codebuddy'
+    && (command === 'codebuddy' || command === 'cbc' || command === CODEBUDDY_MACOS_PATH)
+    && Array.isArray(args)
+    && (
+      args.every((value, index) => value === CODEBUDDY_PLUGIN_LIST_ARGS[index])
+      && args.length === CODEBUDDY_PLUGIN_LIST_ARGS.length
+      || args.every((value, index) => value === CODEBUDDY_MARKETPLACE_LIST_ARGS[index])
+      && args.length === CODEBUDDY_MARKETPLACE_LIST_ARGS.length
+    );
+}
+
+function isCodeBuddyWriteCommand(target, command, args, kind) {
+  if (target.host !== 'codebuddy' || !['codebuddy', 'cbc', CODEBUDDY_MACOS_PATH].includes(command)) return false;
+  const expected = kind === 'marketplace-update'
+    ? ['plugin', 'marketplace', 'update', target.marketplace]
+    : ['plugin', 'update', `${target.plugin}@${target.marketplace}`, '--scope', 'user'];
+  return Array.isArray(args) && args.length === expected.length && args.every((value, index) => value === expected[index]);
+}
+
+async function runCodeBuddyRead(target, command, args, label, env, run) {
+  try {
+    return { output: await run(command, [...args], { env }), recovered: false };
+  } catch (error) {
+    if (!isCodeBuddyReadCommand(target, command, args) || !isCodeBuddyResidualEnvelope(error)) throw error;
+    const residualStdout = foundationStdoutFromError(error);
+    if (typeof residualStdout !== 'string') throw error;
+    parseJson(residualStdout, label);
+    return {
+      output: { stdout: residualStdout, stderr: '' },
+      recovered: true,
+    };
+  }
+}
+
+function exactCodeBuddyMarketplaceObservation(target, stdout) {
+  const parsed = parseJson(stdout, `${target.host} marketplace list`);
+  if (!Array.isArray(parsed)) throw new Error(`${target.host} marketplace list did not return an array`);
+  const matches = parsed.filter((entry) => entry?.name === target.marketplace);
+  if (matches.length !== 1) {
+    throw new Error(`${target.host} marketplace list did not contain exactly one ${target.marketplace}`);
+  }
+  if (matches[0].type !== 'git') {
+    throw new Error(`${target.host} marketplace ${target.marketplace} is not a git marketplace`);
+  }
+  return { installed: true, exact: true, found: matches[0] };
+}
+
+async function observeCodeBuddyMarketplaceAfterResidual(target, command, env, run) {
+  const observed = await runCodeBuddyRead(
+    target,
+    command,
+    CODEBUDDY_MARKETPLACE_LIST_ARGS,
+    `${target.host} marketplace list`,
+    env,
+    run,
+  );
+  return exactCodeBuddyMarketplaceObservation(target, observed.output.stdout);
 }
 
 function exactPluginObservation(target, stdout) {
@@ -433,7 +533,10 @@ async function runStructuredUpdate(target, detected, run, {
 }) {
   if (target.host === 'codebuddy' || target.host === 'workbuddy') {
     const env = hostEnvironment(target.host);
-    const listed = await run(detected.command, ['plugin', 'list', '--json'], { env });
+    const listedObservation = target.host === 'codebuddy'
+      ? await runCodeBuddyRead(target, detected.command, CODEBUDDY_PLUGIN_LIST_ARGS, `${target.host} plugin list`, env, run)
+      : { output: await run(detected.command, [...CODEBUDDY_PLUGIN_LIST_ARGS], { env }), recovered: false };
+    const listed = listedObservation.output;
     const observed = exactPluginObservation(target, listed.stdout);
     if (
       target.sourceForm !== 'bundled-family'
@@ -445,7 +548,13 @@ async function runStructuredUpdate(target, detected, run, {
         reason: `${target.host} source identity is not eligible for a frozen bundled-family update`,
       };
     }
-    if (observed.exact) return { status: 'ALREADY_CURRENT', version: target.version };
+    if (observed.exact) {
+      return {
+        status: 'ALREADY_CURRENT',
+        version: target.version,
+        ...(listedObservation.recovered ? { residualRecovery: true } : {}),
+      };
+    }
     if (!observed.installed) {
       return {
         status: 'MANUAL_REQUIRED',
@@ -471,14 +580,51 @@ async function runStructuredUpdate(target, detected, run, {
         reason: `${target.host} frozen tag and mutable ref do not both resolve to ${target.pluginCommit}`,
       };
     }
-    await run(detected.command, ['plugin', 'marketplace', 'update', target.marketplace], { env });
-    await run(detected.command, [
-      'plugin', 'update', `${target.plugin}@${target.marketplace}`, '--scope', 'user',
-    ], { env });
-    const afterList = await run(detected.command, ['plugin', 'list', '--json'], { env });
-    const after = exactPluginObservation(target, afterList.stdout);
+    let marketplaceRecovered = false;
+    try {
+      await run(detected.command, ['plugin', 'marketplace', 'update', target.marketplace], { env });
+    } catch (error) {
+      if (!isCodeBuddyWriteCommand(target, detected.command, ['plugin', 'marketplace', 'update', target.marketplace], 'marketplace-update')
+        || !isCodeBuddyResidualEnvelope(error)) throw error;
+      await observeCodeBuddyMarketplaceAfterResidual(target, detected.command, env, run);
+      marketplaceRecovered = true;
+    }
+    let after;
+    let pluginRecovered = false;
+    try {
+      await run(detected.command, [
+        'plugin', 'update', `${target.plugin}@${target.marketplace}`, '--scope', 'user',
+      ], { env });
+    } catch (error) {
+      if (!isCodeBuddyWriteCommand(target, detected.command, [
+        'plugin', 'update', `${target.plugin}@${target.marketplace}`, '--scope', 'user',
+      ], 'plugin-update') || !isCodeBuddyResidualEnvelope(error)) throw error;
+      const afterList = await runCodeBuddyRead(
+        target,
+        detected.command,
+        CODEBUDDY_PLUGIN_LIST_ARGS,
+        `${target.host} plugin list`,
+        env,
+        run,
+      );
+      after = exactPluginObservation(target, afterList.output.stdout);
+      pluginRecovered = true;
+    }
+    if (!pluginRecovered) {
+      const afterList = target.host === 'codebuddy'
+        ? await runCodeBuddyRead(target, detected.command, CODEBUDDY_PLUGIN_LIST_ARGS, `${target.host} plugin list`, env, run)
+        : { output: await run(detected.command, [...CODEBUDDY_PLUGIN_LIST_ARGS], { env }), recovered: false };
+      after = exactPluginObservation(target, afterList.output.stdout);
+    }
     if (!after.exact) throw new Error(`${target.host} did not update to the frozen plugin identity`);
-    return { status: 'UPDATED', version: target.version, restartRequired: true };
+    return {
+      status: 'UPDATED',
+      version: target.version,
+      restartRequired: true,
+      ...(marketplaceRecovered || listedObservation.recovered || pluginRecovered
+        ? { residualRecovery: true }
+        : {}),
+    };
   }
 
   const command = detected.command;
@@ -566,9 +712,9 @@ expect {
       timeout { exit 95 }
       eof { exit 96 }
     }
-    expect -re {> $}
+    expect -re $promptPattern
   }
-  -re {> $} {}
+  -re $promptPattern {}
   timeout { exit 93 }
   eof { exit 94 }
 }
@@ -581,8 +727,9 @@ foreach variable {RELEASE_SKILL_KIMI_COMMAND RELEASE_SKILL_KIMI_INSTALL_URL RELE
 set kimiCommand $env(RELEASE_SKILL_KIMI_COMMAND)
 set installUrl $env(RELEASE_SKILL_KIMI_INSTALL_URL)
 set removePlugin $env(RELEASE_SKILL_KIMI_REMOVE_PLUGIN)
+set promptPattern {(?:(?:^|\\r|\\n)> |(?:^|\\r|\\n)(?:\\033\\[[0-9;?]*[ -/]*[@-~])*│[ \\t]*>[ \\t]*│(?:\\033\\[[0-9;?]*[ -/]*[@-~])*)(?![^\\n]|\\n)}
 spawn $kimiCommand
-expect -re {> $}
+expect -re $promptPattern
 ${removeCommand}send -- "/plugins install $installUrl\\r"
 expect {
   -nocase -re {trust and install} {
@@ -595,9 +742,9 @@ expect {
   timeout { exit 91 }
   eof { exit 92 }
 }
-expect -re {> $}
+expect -re $promptPattern
 send -- "/reload\\r"
-expect -re {> $}
+expect -re $promptPattern
 send -- "/exit\\r"
 expect eof
 `;
@@ -730,6 +877,12 @@ function aggregateStatus(results) {
 
 function failedHostResult(target, error) {
   const message = error?.message ?? String(error);
+  const details = error?.details;
+  const publicDetails = details && typeof details === 'object' && !Array.isArray(details)
+    ? Object.fromEntries(Object.entries(details).filter(([key]) => (
+      key !== 'foundationEnvelope' && key !== 'foundationStdout' && key !== 'foundationStderr'
+    )))
+    : details;
   return {
     host: target.host,
     unitId: target.unitId,
@@ -737,7 +890,7 @@ function failedHostResult(target, error) {
     error: message,
     reason: typeof error?.reason === 'string' ? error.reason : message,
     ...(error?.code !== undefined ? { code: error.code } : {}),
-    ...(error?.details !== undefined ? { details: error.details } : {}),
+    ...(publicDetails !== undefined ? { details: publicDetails } : {}),
   };
 }
 

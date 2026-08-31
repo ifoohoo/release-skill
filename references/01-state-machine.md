@@ -84,6 +84,24 @@ postPublish hooks 分两个阶段，各自对应独立的 distribute run：
 - **postVerify 阶段**（`phase: postVerify`）：主 run VERIFIED 后由 ship/verify 路由触发，产出独立的 distribute run（复用现有 run 记录与 checkpoint 机制）；失败即该 run PARTIAL、reconcile 可续。主 run 的 VERIFIED 不回退，但 postVerify run 的失败必须以证据显著记录，绝不静默。
 - **checkpoint 级批准**：`requiresApproval: true` 的 hook 执行前需要绑定 `(planDigest, hookId)` 的独立批准记录（24h 过期、5 分钟时钟偏移容忍）。批准未获时：尚无外部 checkpoint 成功 → checkpoint 标记 `AWAITING_APPROVAL`、run 进 NEEDS_INPUT；已有外部 checkpoint 成功 → run 保持 PARTIAL。
 
+### 2.3 发布范围与延期单元（v0.9.4）
+
+多发布单元项目可以在首次计划冻结前显式选择本轮发布范围。`prepare` 和新建的
+`ship` 状态接受可重复的 `--unit <id>`；未传该参数时，范围仍是配置中的全部发布单元。
+
+显式选择不会增加生命周期状态。未选中的单元只显示为延期单元，不进入本轮
+`plan.units`，也不获得 PREPARED、APPROVED、PUBLISHED 或 VERIFIED 含义。完整项目配置、
+生成物新鲜度和顶层 hooks 仍按项目级规则检查；按单元绑定的版本、文档、快照、分发和
+验证门只处理选中单元。
+
+计划冻结后，`plan.units` 是唯一发布范围权威。批准必须绑定计划内的全部动作，
+`publish`、`reconcile`、`verify` 和 `distribute` 必须完整处理该计划，不接受单元选择参数。
+`ship` 可以沿用首次保存的显式范围恢复，但不得在同一状态上改变范围。旧状态没有保存
+显式范围时按全范围处理，不能在原状态上追加 `--unit`。
+
+外部写入开始后不得缩小范围。任一检查点成功后出现失败，仍进入 PARTIAL，并由
+`reconcile` 在原冻结计划内向前恢复；延期单元需要另行 prepare、审阅和批准。
+
 ---
 
 ## 3. 禁止转换
