@@ -548,6 +548,38 @@ if (!COMMANDS.has(command)) {
   await exitAfterFlush(2);
 }
 
+// Ship help is intentionally handled before resolving a project root or
+// importing adapters. It must remain usable in an empty, invalid, or
+// read-only directory and must not touch config, locks, or ship state.
+if (command === 'ship' && (args.includes('--help') || args.includes('-h'))) {
+  if (hasJson) {
+    console.log(JSON.stringify({
+      command: 'ship',
+      status: 'HELP',
+      options: {
+        targetVersion: '--target-version <version>',
+        state: '--state <path>',
+        approve: '--approve --actor <name>',
+      },
+      message: 'Repeat the same command to resume from the same state. For parallel or cross-session versions, use .release-skill/ships/<version>.json.',
+    }, null, 2));
+  } else {
+    console.log(`release-skill ship - Resume one durable release flow
+
+Usage:
+  release-skill ship [options]
+
+Options:
+  --target-version <version>  Specify the target version
+  --state <path>              Specify the durable state file
+  --approve --actor <name>    Approve the plan bound to the current state
+
+Repeat the same command to resume from the same state.
+For parallel or cross-session versions, use .release-skill/ships/<version>.json.`);
+  }
+  await exitAfterFlush(0);
+}
+
 // --- Setup command routing ---
 if (command === 'setup') {
   const rootIdx = args.indexOf('--root');

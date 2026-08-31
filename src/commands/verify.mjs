@@ -1045,6 +1045,27 @@ export async function verifyRelease(options) {
       requireDigest: Boolean(plan.production),
       ...(plan.production ? { authorityPlanPath: planPath } : {}),
     });
+
+    // `distribute` runs are deliberately not valid verify sources. Report the
+    // actionable lineage correction before the generic lineage validator's
+    // unsupported-command error, while keeping the existing source authority
+    // and automatic distribute discovery semantics unchanged.
+    if (sourceRun.command === 'distribute') {
+      throw new ReleaseError(
+        GATE_FAILED,
+        'verify --run must point to a PUBLISHED publish or reconcile run from the same plan; distribute runs are automatically discovered by verify and do not become the verify authority',
+        {
+          sourceRunCommand: sourceRun.command,
+          sourceRunId: sourceRun.runId,
+          sourceRunStatus: sourceRun.status,
+          expectedSourceCommands: ['publish', 'reconcile'],
+          requiredSourceStatus: 'PUBLISHED',
+          distributeRunsAutoDiscovered: true,
+          verifyAuthority: 'publish-or-reconcile-source-run',
+        },
+      );
+    }
+
     await validateRunLineage(sourceRun, {
       plan,
       planPath,

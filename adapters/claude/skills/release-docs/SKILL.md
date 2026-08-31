@@ -36,7 +36,7 @@ plan 记录 `workflowKind: 'docs'` 与 `workflowDecision`（绑定进 plan diges
 
 ## 正向执行路径
 
-1. 运行 `release-skill route --root <path> [--target-version <ver>] --json` 获取 diff 分类和工作流推荐
+1. 运行 `release-skill route --root <path> [--target-version <ver>] --json` 获取 diff 分类和工作流建议；已知目标版本时显式传入，route 不承担发布授权
 2. 若推荐 `workflowKind === 'docs-only'`，则使用本技能
 3. 执行步骤②：调用 `check-style.mjs <doc-path>...` 执行事实/可读性/风格检查
 4. 执行步骤③：调用 `render-public-site.mjs --check [--repo <name>]` 验证渲染无漂移
@@ -49,8 +49,10 @@ plan 记录 `workflowKind: 'docs'` 与 `workflowDecision`（绑定进 plan diges
 ## 确定性脚本调用
 
 ```bash
-# Step 1: Diff classification (from release-skill route)
+# Step 1: Diff classification (from release-skill route; pass the known target)
 node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" route --root <path> --json
+node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" route \
+  --root <path> --target-version <version> --json
 
 # Step 2: Style-guard three gates (check-style.mjs takes file paths only)
 node "${WORKBUDDY_ROOT}/adapters/workbuddy/skills/skill-family-docs-style-guard/scripts/check-style.mjs" \

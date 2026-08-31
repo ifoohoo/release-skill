@@ -20,6 +20,8 @@ description: Freeze an immutable release plan with local configuration, document
 
 运行项目构建/测试 hook，生成公开快照并扫描泄漏，冻结不可变发布计划。prepare 自身不调用发布 adapter，但会执行用户配置的 hook。
 
+0.9.3 候选的 Hook cache v2 只复用有完整身份和输入证据的成功 Hook 结果。裸 PATH、PATHEXT、Windows、TTL、损坏记录或 Foundation 观察不可用时，缓存保持失败关闭，Hook 仍按完整路径冷执行；该机制不改变 prepare 的计划、批准和发布权威。
+
 **Hook 授权契约（配置时刻即授权，FM-16 处置 A）**: hook 是任意本地进程——在 `.release-skill/project.yaml` 中配置 hook 命令即完成授权，构成「配置时刻即授权」的显式契约。hook 不提供沙箱、无文件系统/网络隔离、触发前无确认点，命令调用本身即授权执行已配置的 hook 和 gate，不再设置额外人工授权环节；hook 可能产生项目目录外的副作用或远端写入，配置者须对其内容负责。旧参数 `--acknowledge-hook-side-effects` 和 `--acknowledge-gate-side-effects` 仍可解析，但只作为无效果的兼容输入，不能改变授权或执行语义。恢复「触发前强制确认门」属于后续加固项（属设计变更，需随新版本引入），当前版本不提供该确认门。
 
 **阶段通过规则**: 本阶段的通过只能由 CLI exit code 0 和结构化状态码 `PREPARED` 确认。Agent 无权自行宣布计划冻结成功。

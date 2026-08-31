@@ -2,9 +2,10 @@
  * Incremental hook result cache (T3.2).
  *
  * A hook that opts in with `cacheable: true` and a `cacheInputs` glob list is
- * keyed by the fingerprint of its full configuration plus the content of every
- * file its inputs match. When the key is unchanged and the last run succeeded,
- * prepare replays the cached outcome instead of re-executing the hook.
+ * keyed by a closed v2 receipt: its configuration and input closure, the
+ * allowlisted environment values, runtime and physical identities, plus the
+ * Foundation executable observation. When the key is unchanged and the last
+ * run succeeded, prepare replays the cached outcome instead of re-executing.
  *
  * Safety contract (see t3-2-incremental-hooks.md §4.8):
  * - Failures are never cached. Only an `exitCode === 0` result is written; a
@@ -25,16 +26,42 @@
  * @module hook-cache
  */
 
-import { readdir, readFile, mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { readdir, realpath, stat } from 'node:fs/promises';
+import { release as osRelease } from 'node:os';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import {
+  createFilesystemRootBinding,
+  observeExecutableIdentity,
+  readFileStrict,
+  readFileBound,
+  publishFileExclusive,
+  publishFileOrReplace,
+  HARNESS_ERROR_KINDS,
+} from 'skill-family-harness-node';
 import { canonicalJson, sha256Hex } from './digest.mjs';
 import { ReleaseError, GATE_FAILED } from './errors.mjs';
+import { buildHookEnvironment } from './hooks.mjs';
+import { readTrustedPackageResourceSync } from './trusted-resource.mjs';
 
 /** Control-plane location of hook cache records: `.release-skill/cache/hooks`. */
 const CACHE_BASE = ['.release-skill', 'cache', 'hooks'];
 
 /** Bounded tail length stored per stream (matches prepare's evidence tails). */
 const TAIL_LENGTH = 4000;
+
+const CACHE_SCHEMA_VERSION = 2;
+const CACHE_KIND = 'release-skill.hook-cache';
+const CACHE_ALGORITHM = 'release-skill-hook-cache-v2';
+const CACHE_RECEIPT_VERSION = 1;
+const CACHE_RECORD_KEYS = Object.freeze([
+  'algorithm', 'cacheKey', 'createdAt', 'exitCode', 'kind', 'receipt',
+  'receiptVersion', 'schemaVersion', 'stderrTail', 'stdoutTail',
+]);
+const CACHE_RECEIPT_KEYS = Object.freeze([
+  'algorithm', 'envDigest', 'executableObservationDigest', 'hookDigest',
+  'hookCwdIdentity', 'inputsDigest', 'projectRootIdentity', 'receiptVersion',
+  'releaseSkillVersion', 'runtime', 'schemaVersion',
+]);
 
 /**
  * Directory names never walked when enumerating hook inputs. `.git` and
@@ -88,30 +115,42 @@ function globToRegExp(glob) {
  * @param {string} root - Absolute project root.
  * @returns {Promise<string[]>} Sorted relative paths.
  */
-async function listInputFiles(root) {
+async function listInputFiles(root, matchers) {
   const out = [];
+  let unsafe = false;
+
+  function matches(relPath) {
+    return matchers.some(({ re }) => re.test(relPath));
+  }
 
   async function walk(dirAbs, dirRel) {
     let entries;
     try {
       entries = await readdir(dirAbs, { withFileTypes: true });
     } catch {
-      return; // Unreadable directory: treat as no inputs there.
+      unsafe = true;
+      return;
     }
     for (const entry of entries) {
+      const rel = dirRel ? `${dirRel}/${entry.name}` : entry.name;
+      if (SKIPPED_DIRS.has(entry.name)) continue;
+      if (entry.isSymbolicLink()) {
+        if (matches(rel) || symlinkCouldCarryInput(rel, matchers)) unsafe = true;
+        continue;
+      }
       if (entry.isDirectory()) {
-        if (SKIPPED_DIRS.has(entry.name)) continue;
-        const rel = dirRel ? `${dirRel}/${entry.name}` : entry.name;
         await walk(join(dirAbs, entry.name), rel);
       } else if (entry.isFile()) {
-        out.push(dirRel ? `${dirRel}/${entry.name}` : entry.name);
+        out.push(rel);
+      } else if (matches(rel)) {
+        unsafe = true;
       }
     }
   }
 
   await walk(root, '');
   out.sort();
-  return out;
+  return { files: out, unsafe };
 }
 
 /**
@@ -129,11 +168,186 @@ async function listInputFiles(root) {
  * @returns {Promise<{ cacheKey: string, matchedFiles: string[] }>}
  * @throws {ReleaseError} GATE_FAILED when any declared glob matches no file.
  */
-export async function computeHookCacheKey(hook, root) {
+function hasPathSeparator(command) {
+  return typeof command === 'string' && (command.includes('/') || command.includes('\\'));
+}
+
+function staticGlobBase(glob) {
+  const wildcard = glob.search(/[?*]/);
+  const prefix = wildcard === -1 ? glob : glob.slice(0, wildcard);
+  const slash = prefix.lastIndexOf('/');
+  return slash === -1 ? '' : prefix.slice(0, slash);
+}
+
+function symlinkCouldCarryInput(relPath, matchers) {
+  return matchers.some(({ glob }) => {
+    const base = staticGlobBase(glob);
+    return base === '' || relPath === base || relPath.startsWith(`${base}/`);
+  });
+}
+
+function isWithin(root, candidate) {
+  const rel = relative(root, candidate);
+  return rel === '' || (rel !== '..' && !rel.startsWith('../') && !rel.startsWith('/'));
+}
+
+function nearestCommonDirectory(first, second) {
+  const firstParts = first.split('/').filter(Boolean);
+  const secondParts = second.split('/').filter(Boolean);
+  let length = 0;
+  while (length < firstParts.length && firstParts[length] === secondParts[length]) length += 1;
+  return length === 0 ? '/' : `/${firstParts.slice(0, length).join('/')}`;
+}
+
+async function executableBindingRoot(projectRoot, lexicalPath, targetPath, relativeCommand) {
+  if (relativeCommand) return projectRoot;
+  if (isWithin(projectRoot, lexicalPath) && isWithin(projectRoot, targetPath)) return projectRoot;
+  const common = nearestCommonDirectory(dirname(lexicalPath), dirname(targetPath));
+  if (common === '/') return null;
+  try {
+    const details = await stat(common);
+    if (!details.isDirectory()) return null;
+    const canonical = await realpath(common);
+    return canonical === '/' ? null : canonical;
+  } catch {
+    return null;
+  }
+}
+
+async function physicalIdentity(path) {
+  const canonical = await realpath(path);
+  const details = await stat(canonical);
+  return {
+    path: canonical,
+    device: String(details.dev),
+    inode: String(details.ino),
+    mode: details.mode,
+    type: details.isDirectory() ? 'directory' : details.isFile() ? 'file' : 'other',
+  };
+}
+
+async function observeHookExecutable(hook, root, options = {}) {
+  if (process.platform === 'win32') return { eligible: false, reason: 'WINDOWS' };
+  const command = Array.isArray(hook.command) ? hook.command[0] : undefined;
+  if (!hasPathSeparator(command) || /^[A-Za-z]:[\\/]/.test(command)) {
+    return { eligible: false, reason: 'AMBIENT_PATH_OR_UNSUPPORTED_COMMAND' };
+  }
+
+  let projectRoot;
+  let cwd;
+  let executablePath;
+  try {
+    projectRoot = await realpath(root);
+    const declaredCwd = typeof hook.cwd === 'string' && hook.cwd.length > 0 ? hook.cwd : '.';
+    cwd = await realpath(resolve(projectRoot, declaredCwd));
+    if (!isWithin(projectRoot, cwd)) return { eligible: false, reason: 'CWD_OUTSIDE_PROJECT' };
+    executablePath = isAbsolute(command) ? resolve(command) : resolve(cwd, command);
+    if (!isAbsolute(command) && !isWithin(projectRoot, executablePath)) {
+      return { eligible: false, reason: 'EXECUTABLE_OUTSIDE_PROJECT' };
+    }
+    const targetPath = await realpath(executablePath);
+    const executableRoot = await executableBindingRoot(
+      projectRoot,
+      executablePath,
+      targetPath,
+      !isAbsolute(command),
+    );
+    if (!executableRoot) return { eligible: false, reason: 'BOUND_ROOT_TOO_BROAD' };
+    // The executable observation receives one minimal root covering the
+    // lexical absolute entry and its physical target. The project root binding
+    // is separate and is used only for cache-record IO.
+    const executableBinding = await createFilesystemRootBinding(executableRoot);
+    const projectRootBinding = executableRoot === projectRoot
+      ? executableBinding : await createFilesystemRootBinding(projectRoot);
+    try {
+      const observe = options.observeExecutableIdentityFn ?? observeExecutableIdentity;
+      const observed = await observe({
+        boundRoots: [{ root: executableRoot, rootBinding: executableBinding }],
+        lookup: { mode: 'absolute-path', path: executablePath },
+      });
+      if (!observed || !isDigest(observed.observationDigest)) {
+        return { eligible: false, reason: 'OBSERVATION_INVALID' };
+      }
+      return {
+        eligible: true,
+        observationDigest: observed.observationDigest,
+        projectRoot: await physicalIdentity(projectRoot),
+        hookCwd: await physicalIdentity(cwd),
+        projectRootBinding,
+      };
+    } catch {
+      return { eligible: false, reason: 'OBSERVATION_FAILED' };
+    }
+  } catch {
+    return { eligible: false, reason: 'OBSERVATION_FAILED' };
+  }
+}
+
+function sortedObject(object) {
+  return Object.fromEntries(Object.keys(object).sort().map((key) => [key, object[key]]));
+}
+
+function hasExactKeys(value, keys) {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    && Object.keys(value).sort().join('\0') === keys.slice().sort().join('\0');
+}
+
+function isDigest(value) {
+  return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
+}
+
+function isValidIdentity(value) {
+  return hasExactKeys(value, ['device', 'inode', 'mode', 'path', 'type'])
+    && typeof value.path === 'string'
+    && typeof value.device === 'string'
+    && typeof value.inode === 'string'
+    && Number.isInteger(value.mode)
+    && ['directory', 'file', 'other'].includes(value.type);
+}
+
+function readCurrentReleaseSkillVersion() {
+  const validVersion = (version) => typeof version === 'string'
+    && version.length > 0 && version.length <= 128 && !/[\u0000-\u001f\u007f]/.test(version)
+    ? version : null;
+  if (typeof __bundlePkg !== 'undefined' && __bundlePkg && typeof __bundlePkg.version === 'string') {
+    return validVersion(__bundlePkg.version);
+  }
+  try {
+    const pkg = JSON.parse(readTrustedPackageResourceSync('package.json').toString('utf8'));
+    return validVersion(pkg.version);
+  } catch {
+    return null;
+  }
+}
+
+function isValidReceipt(receipt, cacheKey, currentVersion) {
+  if (!hasExactKeys(receipt, CACHE_RECEIPT_KEYS)) return false;
+  if (receipt.schemaVersion !== CACHE_SCHEMA_VERSION
+    || receipt.algorithm !== CACHE_ALGORITHM
+    || receipt.receiptVersion !== CACHE_RECEIPT_VERSION
+    || receipt.releaseSkillVersion !== currentVersion
+    || !isDigest(receipt.hookDigest)
+    || !isDigest(receipt.inputsDigest)
+    || !isDigest(receipt.envDigest)
+    || !isDigest(receipt.executableObservationDigest)
+    || !isValidIdentity(receipt.projectRootIdentity)
+    || !isValidIdentity(receipt.hookCwdIdentity)
+    || !hasExactKeys(receipt.runtime, ['arch', 'node', 'os', 'platform'])
+    || typeof receipt.runtime.arch !== 'string'
+    || typeof receipt.runtime.node !== 'string'
+    || typeof receipt.runtime.os !== 'string'
+    || typeof receipt.runtime.platform !== 'string') return false;
+  return sha256Hex(canonicalJson(receipt)) === cacheKey;
+}
+
+export async function computeHookCacheKey(hook, root, options = {}) {
   const globs = Array.isArray(hook.cacheInputs) ? hook.cacheInputs : [];
   const matchers = globs.map((glob) => ({ glob, re: globToRegExp(glob) }));
 
-  const allFiles = await listInputFiles(root);
+  const { files: allFiles, unsafe: unsafeInputs } = await listInputFiles(root, matchers);
+  if (unsafeInputs) {
+    return { cacheKey: null, matchedFiles: [], cacheable: false, reason: 'INPUT_CLOSURE_UNSAFE' };
+  }
   const matched = [];
   const hitPerGlob = matchers.map(() => false);
   for (const relPath of allFiles) {
@@ -162,15 +376,47 @@ export async function computeHookCacheKey(hook, root) {
   matched.sort();
   const fileEntries = [];
   for (const relPath of matched) {
-    const content = await readFile(join(root, relPath));
-    fileEntries.push({ path: relPath, sha256: sha256Hex(content) });
+    try {
+      const content = await readFileStrict(root, relPath);
+      if (!content || !Buffer.isBuffer(content.content) || !isDigest(content.sha256)) {
+        return { cacheKey: null, matchedFiles: matched, cacheable: false, reason: 'INPUT_READ_FAILED' };
+      }
+      fileEntries.push({ path: relPath, sha256: content.sha256 });
+    } catch {
+      return { cacheKey: null, matchedFiles: matched, cacheable: false, reason: 'INPUT_READ_FAILED' };
+    }
   }
 
-  // 摘要机制已委托 Foundation：canonicalJson（contracts 权威序列化 + 本地宽松
-  // 输入域包装）与 sha256Hex（harness-node digestBytes）。拼接哈希组合无法用
-  // digestDocument 表达，保持组合结构不变（迁移前后字节一致）。
-  const cacheKey = sha256Hex(canonicalJson(hook) + canonicalJson(fileEntries));
-  return { cacheKey, matchedFiles: matched };
+  const observed = await observeHookExecutable(hook, root, options);
+  if (!observed.eligible) {
+    return { cacheKey: null, matchedFiles: matched, cacheable: false, reason: observed.reason };
+  }
+
+  const releaseSkillVersion = readCurrentReleaseSkillVersion();
+  if (releaseSkillVersion === null) {
+    return { cacheKey: null, matchedFiles: matched, cacheable: false, reason: 'VERSION_UNAVAILABLE' };
+  }
+  const selectedEnv = buildHookEnvironment(hook.envAllowlist ?? [], options.env ?? process.env);
+  const receipt = {
+    schemaVersion: CACHE_SCHEMA_VERSION,
+    algorithm: CACHE_ALGORITHM,
+    receiptVersion: CACHE_RECEIPT_VERSION,
+    hookDigest: sha256Hex(canonicalJson(hook)),
+    inputsDigest: sha256Hex(canonicalJson(fileEntries)),
+    envDigest: sha256Hex(canonicalJson(sortedObject(selectedEnv))),
+    releaseSkillVersion,
+    runtime: {
+      platform: process.platform,
+      arch: process.arch,
+      os: osRelease(),
+      node: process.versions.node,
+    },
+    projectRootIdentity: observed.projectRoot,
+    hookCwdIdentity: observed.hookCwd,
+    executableObservationDigest: observed.observationDigest,
+  };
+  const cacheKey = sha256Hex(canonicalJson(receipt));
+  return { cacheKey, matchedFiles: matched, cacheable: true, receipt };
 }
 
 /**
@@ -196,6 +442,10 @@ export function hookCachePath(root, hookName, cacheKey) {
   return join(hookCacheDir(root, hookName), `${cacheKey}.json`);
 }
 
+function hookCacheRelativePath(hookName, cacheKey) {
+  return join(...CACHE_BASE, hookName, `${cacheKey}.json`);
+}
+
 /**
  * Read a cached hook result. Returns the record only when it exists, its key
  * matches, and it recorded a successful (`exitCode === 0`) run; anything else
@@ -206,11 +456,36 @@ export function hookCachePath(root, hookName, cacheKey) {
  * @param {string} cacheKey
  * @returns {Promise<Object | null>}
  */
-export async function readHookCache(root, hookName, cacheKey) {
+async function resolveCacheRoot(root, suppliedBinding) {
+  const projectRoot = await realpath(root);
+  const rootBinding = suppliedBinding ?? await createFilesystemRootBinding(projectRoot);
+  return { projectRoot, rootBinding };
+}
+
+export async function readHookCache(root, hookName, cacheKey, options = {}) {
   try {
-    const raw = await readFile(hookCachePath(root, hookName, cacheKey), 'utf8');
+    const currentVersion = readCurrentReleaseSkillVersion();
+    if (currentVersion === null) return null;
+    const { projectRoot, rootBinding } = await resolveCacheRoot(root, options.rootBinding);
+    const rawReceipt = await readFileBound(projectRoot, hookCacheRelativePath(hookName, cacheKey), {
+      rootBinding,
+      encoding: 'utf8',
+    });
+    const raw = rawReceipt?.content;
+    if (typeof raw !== 'string') return null;
     const record = JSON.parse(raw);
-    if (record && record.cacheKey === cacheKey && record.exitCode === 0) {
+    if (record && record.cacheKey === cacheKey && record.exitCode === 0
+      && hasExactKeys(record, CACHE_RECORD_KEYS)
+      && record.schemaVersion === CACHE_SCHEMA_VERSION
+      && record.kind === CACHE_KIND
+      && record.algorithm === CACHE_ALGORITHM
+      && record.receiptVersion === CACHE_RECEIPT_VERSION
+      && typeof record.createdAt === 'string'
+      && typeof record.stdoutTail === 'string'
+      && typeof record.stderrTail === 'string'
+      && record.stdoutTail.length <= TAIL_LENGTH
+      && record.stderrTail.length <= TAIL_LENGTH
+      && isValidReceipt(record.receipt, cacheKey, currentVersion)) {
       return record;
     }
     return null;
@@ -232,24 +507,41 @@ export async function readHookCache(root, hookName, cacheKey) {
  * @param {string} [result.stdoutTail] - Already truncated to TAIL_LENGTH.
  * @param {string} [result.stderrTail] - Already truncated to TAIL_LENGTH.
  * @param {string} [result.createdAt] - ISO timestamp (defaults to now).
+ * @param {Object} result.receipt - The v2 cache receipt produced with the key.
  * @returns {Promise<{ ok: true } | { ok: false, error: string }>}
  */
-export async function writeHookCache(root, hookName, cacheKey, result) {
+export async function writeHookCache(root, hookName, cacheKey, result, options = {}) {
   // Defence in depth: a failure must never be persisted, even if a caller
   // mistakenly passes a non-zero exit code.
   if (!result || result.exitCode !== 0) {
     return { ok: false, error: 'refusing to cache a non-zero exit result' };
   }
   try {
-    await mkdir(hookCacheDir(root, hookName), { recursive: true });
+    const currentVersion = readCurrentReleaseSkillVersion();
+    if (!isValidReceipt(result.receipt, cacheKey, currentVersion)) {
+      return { ok: false, error: 'refusing to cache without a v2 receipt' };
+    }
     const record = {
+      schemaVersion: CACHE_SCHEMA_VERSION,
+      kind: CACHE_KIND,
+      algorithm: CACHE_ALGORITHM,
+      receiptVersion: CACHE_RECEIPT_VERSION,
       cacheKey,
       exitCode: 0,
       stdoutTail: String(result.stdoutTail ?? '').slice(-TAIL_LENGTH),
       stderrTail: String(result.stderrTail ?? '').slice(-TAIL_LENGTH),
       createdAt: result.createdAt ?? new Date().toISOString(),
+      receipt: result.receipt,
     };
-    await writeFile(hookCachePath(root, hookName, cacheKey), `${JSON.stringify(record, null, 2)}\n`, 'utf8');
+    const { projectRoot, rootBinding } = await resolveCacheRoot(root, options.rootBinding);
+    const relPath = hookCacheRelativePath(hookName, cacheKey);
+    const bytes = `${JSON.stringify(record, null, 2)}\n`;
+    try {
+      await publishFileExclusive(projectRoot, relPath, bytes, { mode: 0o644, createParents: true });
+    } catch (err) {
+      if (err?.details?.kind !== HARNESS_ERROR_KINDS.EXCLUSIVE_PUBLISH_CONFLICT) throw err;
+      await publishFileOrReplace(projectRoot, relPath, bytes, { mode: 0o644 });
+    }
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err.message };

@@ -34,11 +34,20 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { readdir, readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { ReleaseError } from '../core/errors.mjs';
+import { lstat, readdir, readFile } from 'node:fs/promises';
+import { relative, resolve, basename, dirname, join } from 'node:path';
+import { ReleaseError, GATE_FAILED } from '../core/errors.mjs';
 import { listReleaseTags } from './lineage.mjs';
 import { readRunRecovery, renderRecoveryCommand } from '../core/recovery.mjs';
+import {
+  loadRun,
+  validateRunLineage,
+  validateRunPlanDigest,
+  validateRunCheckpointMapping,
+} from '../core/run.mjs';
+import { computePlanDigest, validatePlan } from '../core/plan.mjs';
+import { resolveProducerVersion } from '../core/evidence.mjs';
+import { normalizePostPublishView, postPublishActionId } from '../core/postpublish.mjs';
 
 const WORKFLOW_KINDS = Object.freeze([
   'full-happy-end',
@@ -349,38 +358,129 @@ export async function classifyBaselineSurface(root, prevCommit) {
  */
 export async function readRunRouting(root, options = {}) {
   const cwd = resolve(root);
+  const targetVersion = options.targetVersion ?? null;
   const runsDir = resolve(cwd, '.release-skill', 'runs');
   let runDirs;
   try {
     runDirs = await readdir(runsDir);
   } catch (error) {
     if (error.code === 'ENOENT') return { hasPartialRun: false, recoveryActionCode: null, runs: [] };
-    return { hasPartialRun: false, recoveryActionCode: 'DIAGNOSE', runs: [], diagnostic: { code: error.code, message: error.message } };
+    const relativePath = relative(cwd, runsDir);
+    const diagnostic = {
+      code: error.code ?? 'RUNS_DIRECTORY_UNREADABLE',
+      message: `cannot read release runs directory: ${error.message}`,
+      relativePath,
+      nextActionCode: 'DIAGNOSE',
+      nextAction: '保留历史记录，先按该路径完成人工诊断，再决定正式恢复动作',
+      classification: 'UNKNOWN_LEGACY_OR_CORRUPT_AUTHORITY',
+    };
+    const run = {
+      runPath: runsDir,
+      recoveryActionCode: null,
+      diagnostic,
+    };
+    return {
+      hasPartialRun: false,
+      recoveryActionCode: null,
+      runs: [],
+      diagnostics: [{
+        path: relativePath,
+        runPath: runsDir,
+        classification: diagnostic.classification,
+        basis: diagnostic.message,
+        recoveryActionCode: null,
+        nextActionCode: 'DIAGNOSE',
+        nextAction: diagnostic.nextAction,
+      }],
+    };
   }
   const records = [];
+  const diagnostics = [];
   for (const runDir of runDirs) {
     let runPath = resolve(runsDir, runDir, 'release-run.json');
+    const runDirectory = resolve(runsDir, runDir);
+    let authorityExists = false;
+    let authorityMissing = false;
+    let markerlessRunDebris = false;
     try {
       await readFile(runPath);
+      authorityExists = true;
     } catch (error) {
       if (error.code === 'ENOENT') {
+        authorityMissing = true;
         // Prepare/assess have evidence directories but no release-run contract.
         if (/^(prepare|assess|hooks-validate)-/.test(runDir)) continue;
+        const statesPath = resolve(runsDir, runDir, 'states');
+        const stateInspection = await inspectStateDirectory(statesPath);
+        if (!stateInspection.ok) {
+          records.push({
+            runPath: stateInspection.path,
+            recoveryActionCode: 'DIAGNOSE',
+            diagnostic: {
+              code: stateInspection.code,
+              message: stateInspection.message,
+            },
+          });
+          continue;
+        }
         // An append-only sequence is ordered by its bound slot, never by time.
         // readRunRecovery reuses validateRunLineage to check its predecessors.
-        const states = await readdir(resolve(runsDir, runDir, 'states')).catch(() => []);
-        const slots = states.filter((name) => /^\d{6}\.json$/.test(name)).sort();
-        if (slots.length > 0) runPath = resolve(runsDir, runDir, 'states', slots.at(-1));
+        const slots = stateInspection.entries.filter((name) => /^\d{6}\.json$/.test(name)).sort();
+        if (slots.length > 0) {
+          runPath = resolve(runsDir, runDir, 'states', slots.at(-1));
+          authorityExists = true;
+        }
       }
     }
-    records.push(await readRunRecovery(runPath, options));
+    if (!authorityExists && authorityMissing
+      && await isProvenPreAuthorityFailure(runDirectory, runDir)) {
+      diagnostics.push({
+        path: relative(cwd, runDirectory),
+        relativePath: relative(cwd, runPath),
+        runPath,
+        classification: 'PRE_AUTHORITY_FAILURE',
+        basis: '版本化 evidence writer、发布命令顺序和缺少 states/release-run.json 共同证明未取得运行 authority，未进入 checkpoint execute',
+        recoveryActionCode: 'RETRY_COMMAND',
+        nextActionCode: 'RETRY_COMMAND',
+        nextAction: '修复失败原因后重新运行原命令；该目录不是发布 authority',
+      });
+      continue;
+    }
+    const record = runDir.startsWith('postverify-') && authorityExists
+      ? await readLegacyPostverifyRecovery(runPath)
+      : await readRunRecovery(runPath, options);
+    if (targetVersion && authorityMissing) {
+      markerlessRunDebris = await isMarkerlessRunDebris(runDirectory);
+      if (markerlessRunDebris) record.emptyRunDebris = true;
+    }
+    records.push(record);
+  }
+  const targetScopedRecords = [];
+  const historicalDiagnostics = [];
+  for (const record of records) {
+    // Without an explicit target there is no safe release authority to
+    // recover. Keep every finding visible, but leave workflow selection to
+    // diff/baseline classification. This prevents an old DIAGNOSE or PARTIAL
+    // record from becoming an implicit target or an authorization gate.
+    if (!targetVersion) {
+      historicalDiagnostics.push(buildHistoricalDiagnostic(cwd, record, null));
+      continue;
+    }
+    if (!(await classifyTargetScope(cwd, record, targetVersion))) {
+      historicalDiagnostics.push(buildHistoricalDiagnostic(cwd, record, targetVersion));
+    } else {
+      targetScopedRecords.push(record);
+    }
   }
   const identity = (run) => `${run.planDigest}:${run.runId}:${run.runDigest}`;
   const consumed = new Set(records.filter((r) => r.run).flatMap((r) => r.lineage.map((edge) => identity(edge.run))));
   const samePublication = (a, b) => a.planDigest === b.planDigest
     && a.sourceRunId === b.sourceRunId && a.sourceRunDigest === b.sourceRunDigest;
-  const unresolved = records.filter((record) => {
-    if (!record.run) return true; // invalid/unknown never disappears as "no PARTIAL"
+  const unresolved = targetScopedRecords.filter((record) => {
+    // A record is eligible for current recovery only after the existing
+    // reader has validated its run and its bound plan. Invalid, legacy, and
+    // damaged records remain diagnostics and can never authorize recovery.
+    if (!record.run || !record.plan) return false;
     if (consumed.has(identity(record.run))) return false;
     // Distribute retries point to the same publication, not to each other.
     // Only a validated completed distribution can retire its failed sibling.
@@ -394,7 +494,14 @@ export async function readRunRouting(root, options = {}) {
     return true;
   });
   const priority = ['DIAGNOSE', 'RECONCILE', 'DISTRIBUTE', 'VERIFY', 'RETRY_COMMAND'];
-  const recoveryActionCode = priority.find((code) => unresolved.some((r) => r.recoveryActionCode === code)) ?? null;
+  const actionable = unresolved.filter((record) =>
+    typeof record.recoveryActionCode === 'string' && record.recoveryActionCode.length > 0);
+  // Multiple valid unfinished authorities for one explicit target cannot be
+  // selected by directory order, mtime, or producer metadata. Surface all of
+  // them and require an operator to choose the exact lineage.
+  const recoveryActionCode = actionable.length > 1
+    ? 'DIAGNOSE'
+    : priority.find((code) => unresolved.some((r) => r.recoveryActionCode === code)) ?? null;
   const runs = unresolved.filter((r) => r.recoveryActionCode).map((r) => ({
     runPath: r.runPath,
     planPath: r.run?.planPath,
@@ -402,9 +509,447 @@ export async function readRunRouting(root, options = {}) {
     status: r.run?.status,
     recoveryActionCode: r.recoveryActionCode,
     recoveryRunPath: r.recoveryRunPath,
-    ...(r.diagnostic ? { diagnostic: r.diagnostic } : {}),
+    ...(r.diagnostic ? {
+      diagnostic: {
+        ...r.diagnostic,
+        relativePath: r.runPath ? relative(cwd, r.runPath) : null,
+        nextActionCode: 'DIAGNOSE',
+        nextAction: '保留历史记录，先按该路径完成人工诊断，再决定正式恢复动作',
+        classification: 'UNKNOWN_LEGACY_OR_CORRUPT_AUTHORITY',
+      },
+    } : {}),
   })).sort((a, b) => a.runPath.localeCompare(b.runPath));
-  return { hasPartialRun: unresolved.some((r) => r.run?.status === 'PARTIAL'), recoveryActionCode, runs };
+  const unifiedDiagnostics = [
+    ...diagnostics,
+    ...historicalDiagnostics,
+    ...runs.filter((run) => run.diagnostic).map((run) => ({
+      path: run.diagnostic.relativePath,
+      runPath: run.runPath,
+      classification: run.diagnostic.classification,
+      basis: run.diagnostic.message,
+      recoveryActionCode: run.recoveryActionCode,
+      nextActionCode: run.diagnostic.nextActionCode,
+      nextAction: run.diagnostic.nextAction,
+    })),
+  ];
+  return {
+    hasPartialRun: unresolved.some((r) => r.run?.status === 'PARTIAL'),
+    recoveryActionCode,
+    runs,
+    ...(unifiedDiagnostics.length > 0 ? { diagnostics: unifiedDiagnostics } : {}),
+  };
+}
+
+/**
+ * Resolve whether a validated record belongs to the explicitly requested
+ * target. Plans are the only release-domain target authority; evidence and
+ * directory names never substitute for a plan binding.
+ */
+function planTargetVersions(plan) {
+  return [...new Set((Array.isArray(plan?.units) ? plan.units : [])
+    .map((unit) => unit?.targetVersion)
+    .filter((version) => typeof version === 'string' && version.length > 0))];
+}
+
+async function classifyTargetScope(cwd, record, targetVersion) {
+  if (record.emptyRunDebris) return false;
+  // Only the fully validated run + plan pair is a current-recovery
+  // candidate. A readable path, producer version, directory name, timestamp,
+  // summary, or error text cannot substitute for that authority.
+  if (!(record.run && record.plan)) return false;
+  const versions = planTargetVersions(record.plan);
+  return versions.length > 0 && versions.every((version) => version === targetVersion);
+}
+
+function buildHistoricalDiagnostic(cwd, record, targetVersion) {
+  const path = record.runPath ? relative(cwd, record.runPath) : null;
+  const versions = planTargetVersions(record.plan);
+  const binding = !targetVersion
+    ? '未指定目标版本；该记录只能作为历史诊断，不能决定当前工作流'
+    : record.emptyRunDebris
+    ? '目录内没有可识别 authority、summary、evidence 或 state 制品的空 debris'
+    : versions.length > 0
+    ? `记录绑定版本 ${versions.join('、')}`
+    : '记录属于不能绑定目标版本的旧 authority 或 legacy schema';
+  return {
+    path,
+    runPath: record.runPath,
+    classification: 'HISTORICAL_OUT_OF_SCOPE',
+    basis: targetVersion
+      ? `${binding}，显式目标为 ${targetVersion}；保留历史诊断，不参与目标版本阻断计数或下一动作`
+      : `${binding}；保留历史诊断，不参与当前工作流或恢复动作`,
+    recoveryActionCode: record.recoveryActionCode ?? null,
+    nextActionCode: null,
+    nextAction: '仅作历史诊断，不参与当前目标版本路由',
+  };
+}
+
+async function isMarkerlessRunDebris(runDirectory) {
+  const knownConsumers = new Set(['claude', 'codex', 'kimi', 'codebuddy', 'workbuddy']);
+  const readDirectory = async (path) => {
+    try {
+      return await readdir(path, { withFileTypes: true });
+    } catch {
+      return null;
+    }
+  };
+  const entries = await readDirectory(runDirectory);
+  if (entries === null) return false;
+  if (entries.length === 0) return true;
+
+  // A lifecycle run has its markers at the run root. The only markerless
+  // exception is the known consumer-install evidence layout, whose payload
+  // is nested below `evidence/` (with optional consumer homes beside it).
+  const allowed = new Set(['evidence', 'consumers']);
+  if (entries.some((entry) => !allowed.has(entry.name) || !entry.isDirectory() || entry.isSymbolicLink())) return false;
+  const evidence = entries.find((entry) => entry.name === 'evidence');
+  if (!evidence) return false;
+  const evidenceEntries = await readDirectory(join(runDirectory, 'evidence'));
+  if (!evidenceEntries || evidenceEntries.length === 0) return false;
+  for (const evidenceEntry of evidenceEntries) {
+    if (!evidenceEntry.isDirectory() || evidenceEntry.isSymbolicLink()
+      || !/^[a-z][a-z0-9-]*$/i.test(evidenceEntry.name)) return false;
+    const evidenceFiles = await readDirectory(join(runDirectory, 'evidence', evidenceEntry.name));
+    if (!evidenceFiles || evidenceFiles.length !== 1
+      || evidenceFiles[0].name !== 'release-skill-install-evidence.json'
+      || !evidenceFiles[0].isFile() || evidenceFiles[0].isSymbolicLink()) return false;
+    try {
+      const evidenceRecord = JSON.parse(await readFile(
+        join(runDirectory, 'evidence', evidenceEntry.name, evidenceFiles[0].name),
+        'utf8',
+      ));
+      if (!evidenceRecord || typeof evidenceRecord !== 'object' || Array.isArray(evidenceRecord)
+        || !knownConsumers.has(evidenceRecord.consumer)
+        || typeof evidenceRecord.plugin !== 'string' || evidenceRecord.plugin.length === 0
+        || typeof evidenceRecord.version !== 'string' || evidenceRecord.version.length === 0) return false;
+    } catch {
+      return false;
+    }
+  }
+
+  const consumers = entries.find((entry) => entry.name === 'consumers');
+  if (consumers) {
+    const consumerEntries = await readDirectory(join(runDirectory, 'consumers'));
+    if (!consumerEntries || consumerEntries.length === 0) return false;
+    for (const consumerEntry of consumerEntries) {
+      const consumer = consumerEntry.name.split('-', 1)[0];
+      if (!consumerEntry.isDirectory() || consumerEntry.isSymbolicLink()
+        || !knownConsumers.has(consumer)) return false;
+      const homeEntries = await readDirectory(join(runDirectory, 'consumers', consumerEntry.name));
+      if (!homeEntries || homeEntries.some((entry) => !entry.isDirectory() || entry.isSymbolicLink()
+        || !knownConsumers.has(entry.name.slice(1)))) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * The publish writer creates the run directory before evidence, but writes
+ * its first immutable run state only after global preflight and immediately
+ * before checkpoint execution. Its final catch appends one generic failed
+ * `publish` event; when no authority exists, all preceding events must still
+ * be pre-authority phases. A current v2 summary/evidence pair with that exact
+ * shape therefore proves a failed, non-authoritative attempt. Legacy v1
+ * streams use the same writer order but have no producer envelope; they are
+ * accepted only when their older, looser event shape still proves the same
+ * boundary. Summaries without matching evidence and any stream that reached
+ * a persisted `publish` or checkpoint event remain diagnostic.
+ */
+async function inspectStateDirectory(statesPath) {
+  let directoryStat;
+  try {
+    directoryStat = await lstat(statesPath);
+  } catch (error) {
+    if (error.code === 'ENOENT') return { ok: true, entries: [] };
+    return {
+      ok: false,
+      path: statesPath,
+      code: 'STATE_DIRECTORY_UNREADABLE',
+      message: `cannot inspect run states directory: ${error.message}`,
+    };
+  }
+  if (!directoryStat.isDirectory()) {
+    return {
+      ok: false,
+      path: statesPath,
+      code: 'STATE_DIRECTORY_INVALID',
+      message: 'run states path is not a regular directory',
+    };
+  }
+  let entries;
+  try {
+    entries = await readdir(statesPath);
+  } catch (error) {
+    return {
+      ok: false,
+      path: statesPath,
+      code: 'STATE_DIRECTORY_UNREADABLE',
+      message: `cannot read run states directory: ${error.message}`,
+    };
+  }
+  for (const entry of entries) {
+    let entryStat;
+    const entryPath = join(statesPath, entry);
+    try {
+      entryStat = await lstat(entryPath);
+    } catch (error) {
+      return {
+        ok: false,
+        path: entryPath,
+        code: 'STATE_ENTRY_UNREADABLE',
+        message: `cannot inspect run state entry: ${error.message}`,
+      };
+    }
+    if (!/^\d{6}\.json$/.test(entry) || !entryStat.isFile() || entryStat.isSymbolicLink()) {
+      return {
+        ok: false,
+        path: entryPath,
+        code: 'STATE_ENTRY_INVALID',
+        message: 'run states must contain only regular files named NNNNNN.json',
+      };
+    }
+  }
+  return { ok: true, entries };
+}
+
+async function isProvenPreAuthorityFailure(runDir, runName) {
+  if (!/^publish-/.test(runName)) return false;
+  const summaryPath = join(runDir, 'summary.json');
+  const evidencePath = join(runDir, 'evidence.jsonl');
+  let summary;
+  let events;
+  try {
+    summary = JSON.parse(await readFile(summaryPath, 'utf8'));
+    events = (await readFile(evidencePath, 'utf8')).trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  } catch {
+    return false;
+  }
+
+  // The v1 writer (used before the producer-bound v2 envelope) created the
+  // run directory and appended safety-gate events before its first
+  // `release-run.json` state. A failed global preflight then appended only a
+  // generic `publish` failure and sealed a summary. This branch deliberately
+  // accepts that historical shape only when every byte still proves the same
+  // pre-authority boundary. It never infers safety from a directory name,
+  // mtime, summary alone, or a loosely similar phase.
+  const legacyPreAuthorityPhases = new Set([
+    'safety-gate',
+    'global-preflight-arbitration',
+    're-observe-previous-public-baseline',
+  ]);
+  const legacyInputFailure = /(?:global preflight failed|source authority .*failed|cannot read (?:release plan|approval record)|production (?:publish|commands) require|plan (?:digest mismatch|action completeness gate failed|is not valid|requires)|baseline (?:changed|check failed)|previous-public-baseline|adapter .*failed)/i;
+  const legacyUnsafeFailure = /(?:remote (?:tag|branch|release) .*already exists|human intervention required|remote conflict|external write)/i;
+  const legacyPreAuthorityGates = new Set([
+    'plan-load',
+    'plan-schema',
+    'plan-digest',
+    'action-completeness',
+    'approval-load',
+    'adapter-availability',
+    'baseline-check',
+    'source-authority',
+  ]);
+  const validLegacyTimestamp = (value) => typeof value === 'string'
+    && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)
+    && Number.isFinite(Date.parse(value));
+  const validLegacyError = (error) => error && typeof error === 'object' && !Array.isArray(error)
+    && typeof error.code === 'string' && error.code.length > 0
+    && (error.message === undefined || typeof error.message === 'string');
+  const validLegacyEvent = (event, runId) => event && typeof event === 'object' && !Array.isArray(event)
+    && event.schemaVersion === 1
+    && !Object.hasOwn(event, 'producer')
+    && typeof event.runId === 'string' && event.runId === runId
+    && Number.isSafeInteger(event.sequence) && event.sequence >= 1
+    && validLegacyTimestamp(event.timestamp)
+    && event.command === 'publish'
+    && typeof event.phase === 'string'
+    && (legacyPreAuthorityPhases.has(event.phase) || event.phase === 'publish')
+    && typeof event.status === 'string' && event.status.length > 0
+    && (event.error === undefined || event.error === null || validLegacyError(event.error))
+    && (event.duration === undefined || Number.isSafeInteger(event.duration) && event.duration >= 0)
+    && (event.details === undefined || event.details !== null
+      && typeof event.details === 'object' && !Array.isArray(event.details));
+  const legacyRunId = basename(runDir);
+  const legacyTerminal = events.at(-1);
+  const legacyValid = summary && summary.status === 'FAILED'
+    && validLegacyError(summary.error)
+    && typeof summary.error.message === 'string' && legacyInputFailure.test(summary.error.message)
+    && !legacyUnsafeFailure.test(summary.error.message)
+    && (summary.recoveryActionCode === undefined || summary.recoveryActionCode === 'RETRY_COMMAND')
+    && summary.runPath === undefined
+    && summary.finalRunDigest === undefined
+    && summary.latestStatePath === undefined
+    && summary.checkpointStatuses === undefined
+    && Array.isArray(events) && events.length >= 2
+    && events.every((event, index) => validLegacyEvent(event, legacyRunId)
+      && event.sequence === index + 1)
+    && legacyTerminal.phase === 'publish'
+    && legacyTerminal.status === 'failed'
+    && validLegacyError(legacyTerminal.error)
+    && legacyTerminal.error.code === summary.error.code
+    && events.slice(0, -1).filter((event) => event.status === 'failed').every((event) =>
+      event.phase === 'safety-gate'
+      && legacyPreAuthorityGates.has(event.gate)
+      && validLegacyError(event.error))
+    && !events.some((event) => event.phase === 'global-preflight-arbitration'
+      && event.status !== 'pre-observe')
+    && !events.slice(0, -1).some((event) => event.phase === 'publish'
+      || /checkpoint|execute|postpublish/i.test(event.phase)
+      || Object.hasOwn(event, 'prePersistedRunPath')
+      || Object.hasOwn(event, 'checkpointCount')
+      || Object.hasOwn(event, 'checkpointStatuses'));
+  if (legacyValid) return true;
+
+  const producerVersion = resolveProducerVersion();
+  const sameProducer = (value) => value && typeof value === 'object' && !Array.isArray(value)
+    && Object.keys(value).length === 2
+    && value.name === 'release-skill' && value.version === producerVersion;
+  const envelopeKeys = new Set([
+    'schemaVersion', 'runId', 'sequence', 'timestamp', 'command', 'producer',
+    'phase', 'status', 'error', 'duration', 'details',
+  ]);
+  const validTimestamp = (value) => typeof value === 'string'
+    && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)
+    && Number.isFinite(Date.parse(value));
+  const detailValidators = {
+    unitId: (value) => typeof value === 'string',
+    gate: (value) => typeof value === 'string',
+    hookName: (value) => typeof value === 'string',
+    actionId: (value) => typeof value === 'string',
+    step: (value) => typeof value === 'string',
+    hookId: (value) => typeof value === 'string',
+    tagCommit: (value) => typeof value === 'string',
+    cached: (value) => typeof value === 'boolean',
+    testSelection: (value) => typeof value === 'string',
+    cacheKey: (value) => typeof value === 'string',
+    durationMs: (value) => value === null || Number.isSafeInteger(value) && value >= 0,
+    exitCode: (value) => Number.isSafeInteger(value),
+    findingCount: (value) => Number.isSafeInteger(value) && value >= 0,
+  };
+  const validDetails = (value) => value === undefined
+    || value !== null && typeof value === 'object' && !Array.isArray(value)
+      && Object.entries(value).every(([key, detail]) => !detailValidators[key] || detailValidators[key](detail));
+  const validEnvelope = (event) => event && typeof event === 'object'
+    && Object.keys(event).every((key) => envelopeKeys.has(key))
+    && event.schemaVersion === 2
+    && typeof event.runId === 'string' && event.runId === basename(runDir)
+    && Number.isSafeInteger(event.sequence) && event.sequence >= 1
+    && validTimestamp(event.timestamp)
+    && event.command === 'publish'
+    && typeof event.phase === 'string' && event.phase.length > 0
+    && typeof event.status === 'string' && event.status.length > 0
+    && sameProducer(event.producer)
+    && (event.error === undefined || event.error === null
+      || (typeof event.error === 'object' && !Array.isArray(event.error)
+        && Object.keys(event.error).every((key) => key === 'code' || key === 'message')
+        && typeof event.error.code === 'string' && event.error.code.length > 0
+        && (event.error.message === undefined || typeof event.error.message === 'string')))
+    && (event.duration === undefined || Number.isSafeInteger(event.duration) && event.duration >= 0)
+    && validDetails(event.details);
+  if (summary.status !== 'FAILED' || summary.recoveryActionCode !== 'RETRY_COMMAND'
+    || summary.evidencePath !== 'evidence.jsonl' || !sameProducer(summary.producer)
+    || !Array.isArray(events) || events.length === 0) return false;
+  let previousSequence = 0;
+  let firstFailure = null;
+  let genericFailure = null;
+  for (const event of events) {
+    if (!validEnvelope(event) || event.sequence !== previousSequence + 1) return false;
+    previousSequence = event.sequence;
+    if (event.status === 'failed' && firstFailure === null) firstFailure = event;
+    if (event.phase === 'publish') {
+      if (event.status !== 'failed' || genericFailure !== null || event.details?.prePersistedRunPath
+        || event.details?.recoveryActionCode !== summary.recoveryActionCode) return false;
+      genericFailure = event;
+    } else if (!['safety-gate', 'global-preflight-arbitration'].includes(event.phase)) {
+      return false;
+    }
+  }
+  if (!firstFailure || !genericFailure || events.at(-1) !== genericFailure
+    || summary.evidenceSequence !== firstFailure.sequence
+    || summary.stablePhase !== firstFailure.phase) return false;
+  return !events.some((event) => event.details?.prePersistedRunPath);
+}
+
+/**
+ * Postverify is a downstream run type that predates the generic recovery
+ * reader. A terminal legacy record is consumable only when its summary agrees
+ * with its sealed status and its verify parent is fully lineage-valid.
+ */
+async function readLegacyPostverifyRecovery(runPath) {
+  try {
+    const run = await loadRun(runPath, { requireDigest: true });
+    if (run.command !== 'postverify' || run.status !== 'DISTRIBUTED') {
+      throw new ReleaseError(GATE_FAILED, 'legacy postverify status is not terminal DISTRIBUTED');
+    }
+    const planRaw = await readFile(run.planPath, 'utf8');
+    const plan = JSON.parse(planRaw);
+    validatePlan(plan);
+    if (!plan.digest || plan.digest !== computePlanDigest(plan)) {
+      throw new ReleaseError(GATE_FAILED, 'legacy postverify plan digest is not intact');
+    }
+    validateRunPlanDigest(run, plan, { planPath: run.planPath });
+    const production = Boolean(plan.production);
+    if (production) {
+      // Production run authority is digest-addressed and must remain under
+      // the plan's sibling runs/ directory, exactly as recovery consumes it.
+      await loadRun(runPath, { requireDigest: true, authorityPlanPath: run.planPath });
+    }
+    if (!run.sourceRunPath || !run.sourceRunId || !run.sourceRunDigest) {
+      throw new ReleaseError(GATE_FAILED, 'legacy postverify is missing complete verify parent lineage');
+    }
+    const parent = await loadRun(run.sourceRunPath, {
+      requireDigest: true,
+      ...(production ? { authorityPlanPath: run.planPath } : {}),
+    });
+    if (parent.command !== 'verify' || parent.status !== 'VERIFIED'
+      || parent.runId !== run.sourceRunId || parent.runDigest !== run.sourceRunDigest) {
+      throw new ReleaseError(GATE_FAILED, 'legacy postverify requires the same-lineage VERIFIED verify parent');
+    }
+    validateRunCheckpointMapping(parent, plan.externalActions ?? []);
+    if (parent.checkpoints.some((checkpoint) => !['succeeded', 'skipped', 'NO_CHANGE'].includes(checkpoint.status))) {
+      throw new ReleaseError(GATE_FAILED, 'legacy postverify verify parent has incomplete checkpoints');
+    }
+    await validateRunLineage(parent, {
+      plan,
+      planPath: run.planPath,
+      runPath: run.sourceRunPath,
+      production,
+    });
+    const summary = JSON.parse(await readFile(join(resolve(runPath, '..'), 'summary.json'), 'utf8'));
+    if (!summary || summary.status !== run.status) {
+      throw new ReleaseError(GATE_FAILED, 'legacy postverify summary status does not match its sealed run status');
+    }
+    const expectedPostVerifyActions = normalizePostPublishView(plan).flatMap((declaration) => (
+      (declaration.hooks ?? [])
+        .filter((hook) => (hook.phase ?? 'distribute') === 'postVerify')
+        .map((hook) => ({
+          id: postPublishActionId({
+            planVersion: plan.planVersion,
+            unitId: declaration.unitId,
+            localId: hook.id,
+          }),
+          type: 'postpublish-hook',
+        }))
+    ));
+    validateRunCheckpointMapping(run, expectedPostVerifyActions);
+    if (run.checkpoints.some((checkpoint) => !['succeeded', 'skipped', 'NO_CHANGE'].includes(checkpoint.status))) {
+      throw new ReleaseError(GATE_FAILED, 'legacy postverify DISTRIBUTED run has incomplete checkpoints');
+    }
+    return {
+      runPath: resolve(runPath),
+      run,
+      plan,
+      lineage: [{ run: parent, runPath: resolve(run.sourceRunPath) }],
+      recoveryActionCode: null,
+      legacyPostverify: true,
+    };
+  } catch (error) {
+    return {
+      runPath: resolve(runPath),
+      recoveryActionCode: 'DIAGNOSE',
+      diagnostic: { code: error.code ?? GATE_FAILED, message: error.message },
+    };
+  }
 }
 
 export async function hasPartialRun(root) {
@@ -434,7 +979,10 @@ export function recommendWorkflow(diffClassification, baselineSurface, targetVer
   const { code, docs, config, marketplace, mixed } = diffClassification;
 
   const recovery = options.recovery;
-  if (recovery?.recoveryActionCode) {
+  // Recovery advice is target-bound. With no explicit target, route must
+  // remain a diff/baseline workflow recommendation even when diagnostics
+  // contain old PARTIAL or DIAGNOSE records.
+  if (targetVersion && recovery?.recoveryActionCode) {
     const action = recovery.recoveryActionCode;
     const selected = recovery.runs.find((run) => run.recoveryActionCode === action);
     const recoveryRunPath = selected?.recoveryRunPath ?? selected?.runPath;
@@ -444,13 +992,20 @@ export function recommendWorkflow(diffClassification, baselineSurface, targetVer
       reason: action === 'DIAGNOSE' ? '运行权威、冲突或批准尚需诊断；保留既有记录，不开始新发布'
         : action === 'RETRY_COMMAND' ? '已校验为零写入阻断；修复原因后重试原命令'
           : '根据已校验的计划、运行和血缘继续未完成阶段',
-      firstCommand: renderRecoveryCommand(action, { planPath: selected?.planPath, runPath: recoveryRunPath }) ?? 'release-skill help',
-      routing: { rule: 1, hasPartialRun, recoveryActionCode: action, runs: recovery.runs },
+      firstCommand: renderRecoveryCommand(action, { planPath: selected?.planPath, runPath: recoveryRunPath })
+        ?? `无自动安全恢复入口；按 recoveryActionCode=${action} 处理既有记录`,
+      routing: {
+        rule: 1,
+        hasPartialRun,
+        recoveryActionCode: action,
+        runs: recovery.runs,
+        ...(recovery.diagnostics?.length > 0 ? { diagnostics: recovery.diagnostics } : {}),
+      },
     };
   }
 
   // Rule 1: PARTIAL run → reconcile first (highest priority).
-  if (hasPartialRun) {
+  if (targetVersion && hasPartialRun) {
     return {
       workflowKind: 'reconcile',
       reason: '存在 PARTIAL run，必须先 reconcile 再开始任何新操作',
@@ -632,6 +1187,24 @@ function formatRecommendationText(recommendation) {
   if (recommendation.requiresAuthorization) {
     lines.push('Note: 远程写入（publish）未授权——prepare 只读冻结计划，publish 需另行授权。', '');
   }
+  const diagnostics = recommendation.routing?.diagnostics ?? [
+    ...(recommendation.routing?.runs ?? [])
+      .filter((run) => run.diagnostic)
+      .map((run) => ({ ...run.diagnostic, path: run.diagnostic.relativePath })),
+  ];
+  if (diagnostics.length > 0) {
+    lines.push('Diagnostics:');
+    for (const diagnostic of diagnostics) {
+      lines.push(`  - 路径: ${diagnostic.path ?? diagnostic.relativePath ?? 'unknown'}`);
+      lines.push(`    分类: ${diagnostic.classification ?? 'UNKNOWN_LEGACY_OR_CORRUPT_AUTHORITY'}`);
+      lines.push(`    动作: ${diagnostic.nextActionCode ?? diagnostic.recoveryActionCode ?? 'DIAGNOSE'}`);
+      if (diagnostic.nextAction) lines.push(`    下一步: ${diagnostic.nextAction}`);
+      if ((diagnostic.nextActionCode ?? diagnostic.recoveryActionCode) === 'DIAGNOSE') {
+        lines.push('    无自动安全恢复入口');
+      }
+    }
+    lines.push('');
+  }
   return lines.join('\n');
 }
 
@@ -700,7 +1273,7 @@ export default async function main(args = [], options = {}) {
     } else {
       baselineSurface = { status: 'indeterminable', kind: null, categories: {}, paths: [] };
     }
-    const recovery = await readRunRouting(root);
+    const recovery = await readRunRouting(root, { targetVersion });
     const partial = recovery.hasPartialRun;
     const recommendation = recommendWorkflow(
       classification,
@@ -709,6 +1282,12 @@ export default async function main(args = [], options = {}) {
       partial,
       { publishAuthorized, recovery },
     );
+    if (recovery.diagnostics?.length > 0) {
+      recommendation.routing = {
+        ...recommendation.routing,
+        diagnostics: recovery.diagnostics,
+      };
+    }
 
     if (json) {
       console.log(JSON.stringify({

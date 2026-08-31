@@ -315,6 +315,25 @@ export async function advanceShip(options = {}, injected = {}) {
     ? injected
     : await defaultDependencies();
   let state = await readState(statePath);
+  const requestedTargetVersion = options.targetVersion ?? null;
+  if (state && requestedTargetVersion !== null) {
+    const stateTargetVersion = state.targetVersion ?? null;
+    if (stateTargetVersion === null || stateTargetVersion !== requestedTargetVersion) {
+      const suffix = stateTargetVersion === null
+        ? 'state targetVersion is missing; provide a new --state path to start the requested version'
+        : `state targetVersion ${stateTargetVersion} does not match requested targetVersion ${requestedTargetVersion}`;
+      throw new ReleaseError(
+        GATE_FAILED,
+        `ship state target version mismatch: ${suffix}`,
+        {
+          reason: 'SHIP_STATE_TARGET_VERSION_MISMATCH',
+          statePath,
+          stateTargetVersion,
+          requestedTargetVersion,
+        },
+      );
+    }
+  }
   if (state?.gitTransport) {
     process.env.RELEASE_SKILL_GIT_TRANSPORT = state.gitTransport;
   }

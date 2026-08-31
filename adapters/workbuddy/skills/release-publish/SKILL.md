@@ -21,16 +21,23 @@ description: "从已批准的生产计划发布冻结 Git branch/tag、npm tarba
 
 ## 前置条件：工作流选择
 
-在运行 `release-publish` 之前，必须先完成快速入门决策路由（§4.3 Workflow Profile Support）：
+调用方持有合法、未过期且绑定当前 production plan 的 approval record 时，
+`release-publish` 直接执行自身的计划、批准、冻结制品身份和远端预检。`route` 只提供
+工作流建议，不是已批准 production plan 的授权门。
 
-1. 使用 `release-skill route --root <path> --json` 确定变更类型
-2. 根据推荐的 `workflowKind` 选择对应路径：
-   - `docs-only` → 先执行 `release-docs` 完整流程
-   - `config-only` → 先执行 `release-config`，仅在 public surface 变化时进入 publish
-   - `marketplace-only` → 先执行 `release-marketplace`，然后由 workspace exclusive skill 接管
-   - `full-happy-end` → 直接进入标准完整流程：`prepare → approve → publish → verify`
-   - `reconcile` → 先执行 `release-reconcile` 恢复 PARTIAL 状态
-   - `help` → 无变更，无需 publish
+尚未形成计划时，可以先使用 `release-skill route --root <path> --json` 确定变更类型。
+已知目标版本时一并传入 `--target-version <version>`，使恢复建议只读取与该目标绑定的
+完整运行血缘。未传目标时，route 仍按 diff/baseline 选择工作流；历史 diagnostics 只作
+报告，不得覆盖当前建议。
+
+根据推荐的 `workflowKind` 选择对应路径：
+
+- `docs-only` → 先执行 `release-docs` 完整流程
+- `config-only` → 先执行 `release-config`，仅在 public surface 变化时进入 publish
+- `marketplace-only` → 先执行 `release-marketplace`，然后由 workspace exclusive skill 接管
+- `full-happy-end` → 直接进入标准完整流程：`prepare → approve → publish → verify`
+- `reconcile` → 先执行 `release-reconcile` 恢复 PARTIAL 状态
+- `help` → 无变更，无需 publish
 
 **注意**: `release-publish` 是标准工作流中的第⑦步，必须在以下步骤之后：
 - 步骤⑤: `release-prepare` (或轻量级 prepare)

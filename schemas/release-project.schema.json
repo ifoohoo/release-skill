@@ -791,6 +791,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "preHookPublicSurfaceCheck": {
+          "type": "boolean",
+          "description": "Run the ephemeral public-surface closure gate before declared hooks"
         }
       }
     }

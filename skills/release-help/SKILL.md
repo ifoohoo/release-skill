@@ -17,6 +17,12 @@ description: "Discoverable entry point for release-skill: dependency and environ
 - 只读诊断：运行 dry-run 检查，不修改任何文件
 - 故障引导：根据错误码指向对应的修复 Skill
 
+## 0.9.3 候选边界
+
+当前源码候选已接入四项工作流保护、Hook cache v2 和稳定隔离安装树记录。三项 Foundation 依赖精确使用 0.15.0 的公开包根 API。Hook cache 只复用绝对路径或经真实 cwd 校验的 cwd-relative executable identity；裸 PATH、PATHEXT、Windows 和观察不可用时，Hook 仍冷执行，缓存复用失败关闭且不写入 v2 cache。缓存没有 TTL。
+
+稳定隔离安装树记录只在宿主命令退出、目录已隔离且扫描期间没有并发写入时执行；宿主附加链接只记录、不跟随，声明载荷中的 symlink 失败关闭，legacy 全树语义保持不变。0.9.3 仍是源码候选，不能从本说明推断已批准、发布或验证。
+
 **阶段通过规则**: `status` 与 `readiness.localPreparation.status` 只判断本地 help/assess/prepare；其充要条件是 `READY` 且 exit code 为 0。`missingRequired` 列出缺失的 Node/Git。生产发布必须另外读取 `readiness.productionPublish`：缺少 npm/gh 时为 `NOT_READY`，依赖存在时仍是 `AUTH_CHECK_REQUIRED`，因为 help 不访问网络、不验证认证。Agent 无权把本地就绪解释为生产就绪。
 
 **边界**: help 不修改文件系统、不执行外部写操作、不生成发布计划。优先探测 PATH 上的全局安装命令 `release-skill`，不可用时回退到源码路径。每个 unit 必须配置 `previousPublicBaseline`：首次发布且确认无前序版本用 none，已有版本用 bound + repo/ref/commit；none 不是绕过 publish 唯一性预检的开关。v0.1.1 已完成 GitHub/npm 真实生产发布、冻结 Git ref 的 Claude/Codex 消费者安装、精确 npm 安装 smoke 与最终 VERIFIED；生产等价本地协议套件继续覆盖 fake gh/npm/Claude/Codex 和本地 bare Git。测试未做 OS 级禁网，且一次成功发布不能证明其他项目的认证、权限、限流或最终一致性行为；每个项目的首次生产发布仍应作为受监控 canary。
@@ -26,7 +32,7 @@ description: "Discoverable entry point for release-skill: dependency and environ
 1. 使用插件根相对路径运行 CLI：`node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" help --json`
 2. 检查 `readiness.localPreparation`；需要生产发布时再检查 `readiness.productionPublish`
 3. 若环境就绪且缺少 `.release-skill/project.yaml`，先路由 `release-setup`；配置已存在才运行 `release-assess`
-4. 默认在审阅本地计划和快照后停止；只有用户明确要求且完成摘要审批时才路由到 `release-publish`
+4. 默认在审阅本地计划和快照后停止；只有用户明确要求且完成摘要审批时才进入 `release-publish`。已持有合法批准的 production plan 时，publish 自行完成权威校验，不把 route 当作授权门
 
 ## 确定性脚本调用
 
@@ -76,7 +82,7 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" docs refresh --unit <id> \
 | CLI 入口不存在 | 确认 `${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs` 存在；不存在时重新安装插件 |
 | 项目配置不存在 | 路由 `release-setup`，默认只读；不得直接生成或覆盖 README/配置 |
 | assess 失败 | 运行 `node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" assess --offline --json` 获取详情 |
-| 请求生产发布 | 已有公开版本先调用 `release-prepare --online --production` 观察 bound 基线；人工审阅后再路由 `release-publish` |
+| 请求生产发布 | 已有公开版本先调用 `release-prepare --online --production` 观察 bound 基线；人工审阅后直接调用 `release-publish`，由 publish 自行完成计划、approval、digest、远端冲突和 `PARTIAL` 校验 |
 | RELEASE_DOCS_INVALID | 配置或说明源语义非法（重复键、alias、未知字段、版本漂移等）；修正配置或说明源后重新演练 |
 | RELEASE_DOCS_TRANSLATION_MISSING | 配置语种缺失或多余；补齐说明源语种，与 `releaseDocuments.locales` 完全一致，不得回退 |
 
@@ -85,8 +91,10 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" docs refresh --unit <id> \
 对于不清楚如何开始的用户，推荐使用 `release-skill route` 命令进行自动化工作流选择：
 
 ```bash
-# 快速分类变更并推荐工作流
+# 快速分类变更并推荐工作流；已知目标版本时显式传入，未知时省略
 node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" route --root <path> --json
+node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" route --root <path> \
+  --target-version <version> --json
 
 # JSON 输出包含 classification 和 recommendation 字段
 {

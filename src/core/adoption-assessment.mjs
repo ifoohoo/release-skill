@@ -506,6 +506,65 @@ export function deriveLongHookSuggestions(hookDurations) {
   return findings;
 }
 
+/**
+ * Report the opt-in R93-01 pre-hook public-surface check without changing the
+ * base adoption conclusion. A candidate is based only on hookDurations that
+ * already passed the current-producer, command/cwd-matching and real
+ * started/completed-pair checks above; timeout, cache hits and labels are not
+ * consulted here.
+ *
+ * @param {object} options
+ * @param {object} options.config - Loaded project configuration.
+ * @param {Array<object>} options.hookDurations - Trusted duration facts.
+ * @returns {object} One adoption finding for the policy field.
+ */
+export function derivePreHookPublicSurfaceFinding({ config, hookDurations }) {
+  const fieldPath = 'policy.preHookPublicSurfaceCheck';
+  if (config?.policy?.preHookPublicSurfaceCheck === true) {
+    return createFinding({
+      category: FINDING_CATEGORY.SATISFIED,
+      code: 'PRE_HOOK_PUBLIC_SURFACE_CHECK_ADOPTED',
+      fieldPath,
+      message: '已启用 Hook 前公开表面检查；prepare 会在首个 Hook 前验证候选公开表面，并在 Hook 后重新执行正式检查。',
+      evidence: { enabled: true },
+    });
+  }
+
+  const candidate = (hookDurations ?? [])
+    .filter((duration) => (
+      duration?.basis === 'evidence'
+      && Number.isFinite(duration.durationMs)
+      && duration.durationMs >= LONG_HOOK_THRESHOLD_MS
+      && duration.realRuns >= 1
+    ))
+    .sort((a, b) => (
+      (b.durationMs - a.durationMs) || a.hookName.localeCompare(b.hookName)
+    ))[0];
+  if (candidate) {
+    return createFinding({
+      category: FINDING_CATEGORY.OPTIONAL_SUGGESTION,
+      code: 'PRE_HOOK_PUBLIC_SURFACE_CHECK_CANDIDATE',
+      fieldPath,
+      message: `当前 hook "${candidate.hookName}" 有可信的实际运行证据（至少 30 分钟）；可人工评估是否启用 Hook 前公开表面检查。`,
+      evidence: {
+        hookName: candidate.hookName,
+        durationMs: candidate.durationMs,
+        realRuns: candidate.realRuns,
+        lastObservedAt: candidate.lastObservedAt,
+      },
+      action: '确认公开文件不会由 Hook 生成或修复后，再在配置中将 policy.preHookPublicSurfaceCheck 设为 true；评估不会自动修改配置。',
+      severity: 'suggestion',
+    });
+  }
+
+  return createFinding({
+    category: FINDING_CATEGORY.NOT_APPLICABLE,
+    code: 'PRE_HOOK_PUBLIC_SURFACE_CHECK_NOT_APPLICABLE',
+    fieldPath,
+    message: '当前没有可信且匹配当前 Hook 的至少 30 分钟实际运行证据，暂不建议启用 Hook 前公开表面检查。',
+  });
+}
+
 const STATUS_LABEL = Object.freeze({
   NOT_CONFIGURED: '尚未配置',
   PARTIALLY_ADOPTED: '部分接入（存在必选缺口）',

@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/skill-family-directory-verification-result.json",
+  "title": "Skill-family directory verification result",
+  "description": "A public, closed Kimi directory verification result. It carries only digests and structured observation summaries; family roots, raw streams, credentials and executable identity inputs remain private.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "operation", "status", "requestDigest", "host", "facts", "reason", "requiredActions"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.skill-family-directory-verification-result" },
+    "operation": { "const": "skill-family-directory-verification" },
+    "status": { "enum": ["observed", "rejected", "failed", "indeterminate"] },
+    "requestDigest": { "$ref": "#/$defs/sha256" },
+    "host": { "$ref": "https://contracts.skill-family.example/v1/skill-family-directory-verification-request.json#/$defs/host" },
+    "facts": { "$ref": "#/$defs/facts" },
+    "reason": {
+      "enum": [null, "preflight-rejected", "executable-observation-mismatch", "execution-failed", "snapshot-mismatch", "private-evidence-publication-failed", "boundary-state-indeterminate", "source-invalid", "directory-mismatch", "skill-not-discovered", "skill-not-loaded", "official-observation-unavailable"]
+    },
+    "requiredActions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["manual-temporary-root-inspection-required"] }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "type": "object", "properties": { "status": { "const": "observed" } }, "required": ["status"] },
+      "then": {
+        "type": "object",
+        "properties": {
+          "reason": { "const": null },
+          "requiredActions": { "type": "array", "maxItems": 0 },
+          "facts": {
+            "type": "object",
+            "properties": {
+                "skills": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["callId", "resultId"],
+                    "properties": {
+                      "discovery": { "const": "observed" },
+                      "load": { "const": "observed" },
+                      "callId": { "type": "string", "minLength": 1, "maxLength": 512 },
+                      "resultId": { "type": "string", "minLength": 1, "maxLength": 512 }
+                    }
+                  }
+                },
+              "workload": {
+                "type": "object",
+                "properties": {
+                  "execution": {
+                    "type": "object",
+                    "properties": {
+                      "spawned": { "const": true },
+                      "exitStatus": { "const": 0 },
+                      "processStatus": { "const": "EXITED" },
+                      "terminationReason": { "const": null },
+                      "watchdogReason": { "const": null },
+                      "runnerModelOverrideAbsent": { "const": true }
+                    }
+                  },
+                  "streams": { "type": "object" },
+                  "snapshots": { "type": "object" },
+                  "snapshotsMatch": { "const": true }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "type": "object", "properties": { "status": { "const": "indeterminate" } }, "required": ["status"] },
+      "then": {
+        "type": "object",
+        "properties": {
+          "reason": { "enum": ["boundary-state-indeterminate", "official-observation-unavailable"] },
+          "requiredActions": { "const": ["manual-temporary-root-inspection-required"] }
+        }
+      }
+    },
+    {
+      "if": { "type": "object", "properties": { "status": { "const": "rejected" } }, "required": ["status"] },
+      "then": {
+        "type": "object",
+        "properties": {
+          "reason": { "enum": ["preflight-rejected", "executable-observation-mismatch", "source-invalid", "directory-mismatch"] },
+          "requiredActions": { "type": "array", "maxItems": 0 },
+          "facts": { "type": "object", "properties": { "workload": { "const": null } } }
+        }
+      }
+    },
+    {
+      "if": { "type": "object", "properties": { "status": { "const": "failed" } }, "required": ["status"] },
+      "then": {
+        "type": "object",
+        "properties": {
+          "reason": { "enum": ["execution-failed", "snapshot-mismatch", "private-evidence-publication-failed", "skill-not-discovered", "skill-not-loaded"] },
+          "requiredActions": { "type": "array", "maxItems": 0 }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "skillName": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "facts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["familyTree", "skills", "workload"],
+      "properties": {
+        "familyTree": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sourceManifestSha256", "membersDigest"],
+          "properties": {
+            "sourceManifestSha256": { "$ref": "#/$defs/sha256" },
+            "membersDigest": { "$ref": "#/$defs/sha256" }
+          }
+        },
+        "skills": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 128,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "sourceSha256", "discovery", "load", "callId", "resultId"],
+            "properties": {
+              "name": { "$ref": "#/$defs/skillName" },
+              "sourceSha256": { "$ref": "#/$defs/sha256" },
+              "discovery": { "enum": ["observed", "absent", "unknown"] },
+              "load": { "enum": ["observed", "absent", "unknown"] },
+              "callId": { "type": ["string", "null"], "minLength": 1, "maxLength": 512 },
+              "resultId": { "type": ["string", "null"], "minLength": 1, "maxLength": 512 }
+            }
+          }
+        },
+        "workload": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "required": ["execution", "streams", "snapshots", "snapshotsMatch"],
+          "properties": {
+            "execution": { "$ref": "#/$defs/execution" },
+            "streams": { "$ref": "#/$defs/streams" },
+            "snapshots": { "$ref": "#/$defs/snapshots" },
+            "snapshotsMatch": { "type": ["boolean", "null"] }
+          }
+        }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spawned", "exitStatus", "processStatus", "terminationReason", "watchdogReason", "runnerModelOverrideAbsent"],
+      "properties": {
+        "spawned": { "type": "boolean" },
+        "exitStatus": { "type": ["integer", "null"], "minimum": 0 },
+        "processStatus": { "type": ["string", "null"], "enum": ["PLANNED", "STARTING", "RUNNING", "EXITED", "FAILED_TO_START", "TIMED_OUT", "TERMINATED", null] },
+        "terminationReason": { "type": ["string", "null"] },
+        "watchdogReason": { "type": ["string", "null"] },
+        "runnerModelOverrideAbsent": { "type": "boolean" }
+      }
+    },
+    "stream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "bytes", "sensitivity"],
+      "properties": { "sha256": { "$ref": "#/$defs/sha256" }, "bytes": { "type": "integer", "minimum": 0 }, "sensitivity": { "const": "private" } }
+    },
+    "streams": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["stdout", "stderr"],
+      "properties": { "stdout": { "$ref": "#/$defs/stream" }, "stderr": { "$ref": "#/$defs/stream" } }
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preClosureDigest", "postClosureDigest"],
+      "properties": { "preClosureDigest": { "$ref": "#/$defs/sha256" }, "postClosureDigest": { "$ref": "#/$defs/sha256" } }
+    },
+    "snapshots": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["family", "fixture", "protectedWorkspace"],
+      "properties": { "family": { "$ref": "#/$defs/snapshot" }, "fixture": { "$ref": "#/$defs/snapshot" }, "protectedWorkspace": { "$ref": "#/$defs/snapshot" } }
+    }
+  }
+}

@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.1 -->
+<!-- release-skill:release-version: 0.9.3 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,38 +14,34 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.1** (2026-08-28)
+**0.9.3** (2026-08-31)
 
-0.9.1 is a local source candidate for safer post-release host finishing. It now pins Foundation 0.14.0, whose public temporary-workspace and raw-output APIs pass the default Node.js 22 macOS consumer composition. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.3 is a local source candidate for the four workflow safeguards and the narrow Hook cache v2 and isolated-install-tree integrations. It consumes the three Foundation packages at the exact 0.15.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- Real-host acceptance requires a qualified frozen release plan and a VERIFIED run from the same release lineage. The workflow confirms the exact plan digest and selected hosts before any host write. release-skill's optional local finishing never changes the terminal release state.
+- Unknown, corrupt, non-stable, or unsupported observations remain fail-closed. A cache hit never replaces a Hook execution when the authority or identity evidence is unavailable, and no TTL or ambient PATH inference is used.
+- Any host plan remains a qualified frozen-plan path and requires a VERIFIED-run before host acceptance; this source candidate does not provide that acceptance.
+
+**Added**
+
+- Add the opt-in pre-hook public-surface check, ship help and target-version conflict guard, verify lineage guidance, and evidence-based adoption suggestions without adding a new command, state, or approval authority.
+- Add the narrow Hook cache v2 consumer path: absolute-path and validated cwd-relative executable identity, closed input and environment binding, no TTL, and fail-closed cache reuse for bare PATH, PATHEXT, Windows, and unavailable observations while Hooks still execute cold.
+- Add the narrow isolated install-tree record path after a completed host command, recording host-added links without following them and rejecting declared-payload symlinks while preserving legacy full-tree semantics.
 
 **Changed**
 
-- Pin skill-family-contracts, skill-family-harness-node, and skill-family-engineering-kit together at 0.14.0. A consumer test now combines the public withTemporaryWorkspace and superviseProcess.rawSink APIs under the default Node.js 22 macOS temporary directory.
-- Derive platform-manifest.json version ownership from package.json.version and check manifest freshness before prepare runs hooks, including docs-only and config-only workflows.
-- Expand ship's plan-approval summary from the frozen plan so reviewers can see public repositories, branch strategies, tags, npm targets, GitHub Releases, external action targets, waivers, and separately gated postPublish hooks.
-- Claude now re-observes the installed plugin after marketplace rebinding before deciding whether a plugin update is still required. Codex keeps the formal frozen-marketplace reinstall path.
-- Kimi accepts a managed installation without a .git directory when the package name, version, release tag, installed revision, managed root, and real payload all match. Legacy local-path entries are removed and reinstalled from the pinned release tag in one controlled TUI session.
-- CodeBuddy/WorkBuddy can update an existing bundled-family entry only when one remote query proves that the frozen tag and mutable marketplace branch both resolve to the frozen commit. The final installed list must contain exactly one entry with the expected marketplace, version, and revision.
-
-**Fixed**
-
-- Prevent prepare from freezing a stale platform manifest into the public snapshot or npm tarball.
-- Remove the misleading claim that plan approval includes a requiresApproval postPublish checkpoint. Plan approval remains the single normal release-level approval; each gated postPublish hook needs its own approval record, bound to the plan digest and hook id for at most 24 hours.
-- Avoid a redundant Claude plugin update after marketplace rebinding has already removed or replaced the old installed entry.
-- Classify legacy Kimi local-path installations before managed-root checks so they can follow the explicit migration path.
-- Keep CodeBuddy/WorkBuddy host state unchanged when the target is absent, standalone, inaccessible, ambiguous, or inconsistent with the frozen release identity.
+- Consume skill-family-contracts, skill-family-harness-node, and skill-family-engineering-kit at the exact 0.15.0 release through their public package-root APIs.
+- Keep the 0.9.2 production plan PREPARED and immutable as an unpublished historical record now replaced by the 0.9.3 candidate; with an explicit target, only unfinished records that pass complete run, plan, digest/binding, and lineage validation and whose plan target matches participate in current recovery, while all other history remains diagnostics. Without a target, route still shows full-history diagnostics, but workflow selection remains based on the current diff and baseline.
+- The CodeBuddy plugin explicitly declares marketplace: release-skill, and both release-finish local-finish examples pass --root <project-root>.
 
 **Upgrade Notes**
 
-Real-host acceptance can begin only after 0.9.1 is officially published and VERIFIED; the official 0.9.1 entry must be installed or reloaded first. A source candidate, an older installed entry, or the mere existence of plan and run files cannot complete real-host acceptance. Each selected host must complete a first successful update and a second run that reports `ALREADY_CURRENT`.
+Real-host acceptance can begin only after 0.9.3 is officially published and VERIFIED; the official 0.9.3 entry must be installed or reloaded first. A source candidate, an older installed entry, or the mere existence of plan and run files cannot complete real-host acceptance. Each selected host must complete a first successful update. On the second run, Claude, Kimi, CodeBuddy, and WorkBuddy must report `ALREADY_CURRENT`; Codex may report `UPDATED` only when it reinstalls the same exact 0.9.3 frozen reference, payload validation passes, and `restartRequired=true` is declared. The 0.9.2 plan was never published and remains an immutable historical record. With an explicit target, only unfinished records that pass complete run, plan, digest/binding, and lineage validation and whose plan target matches participate in current recovery; all other history remains diagnostics. Without a target, route still shows full-history diagnostics, but workflow selection remains based on the current diff and baseline.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.1 is the current source candidate. This README
+> **Current boundary:** v0.9.3 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -69,7 +65,7 @@ Real-host acceptance can begin only after 0.9.1 is officially published and VERI
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.1 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.3 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -98,11 +94,12 @@ checkpoints remain intact and use matching-version recovery. Evidence v1 stays
 read-only; v2 uses a closed top level with phase extensions in `details`.
 Summaries and recovery suggestions are diagnostic, never publication authority.
 
-This version excludes R-02 safe full-tree inventory, R-05 Hook cache v2,
-R-10 historical-release verification implementation, real Kimi/WorkBuddy
-public-marketplace installation and invocation gates, and an Audit public
-offline release-record verifier.
-Foundation dependencies are pinned to the three released 0.14.0 packages.
+The current 0.9.3 candidate includes the narrow R-05 Hook cache v2 consumer
+path and the stable isolated install-tree record path (A2/A3). It still
+excludes R-02 safe full-tree inventory, R-10 historical-release verification
+implementation, real Kimi/WorkBuddy public-marketplace installation and
+invocation gates, and an Audit public offline release-record verifier.
+Foundation dependencies are pinned to the three released 0.15.0 packages.
 For new bundled-family Kimi/CodeBuddy plans, verify calls the released
 `runPluginVerification` entry with the complete frozen payload and records a
 minimal `install-only` observation receipt. Kimi maps to `kimi-code`; CodeBuddy
@@ -370,6 +367,7 @@ ACTOR=your-name
      --plan "$PLAN_PATH" --approval "$APPROVAL_PATH" --json)
    PUBLISH_RUN_PATH=$(printf '%s\n' "$PUBLISH_JSON" | jq -r '.runPath')
    ```
+   A valid approved production plan may enter `publish` directly; `route` is only a workflow suggestion. `publish` still requires the plan, approval, frozen digest and artifact identity, remote preflight, and fail-closed `PARTIAL` checkpoint rules.
    `PUBLISHED` is **not** the terminal state.
 9. **verify** — consumer install check:
    ```bash
@@ -758,7 +756,7 @@ the first minimal semantic boundary, so the static gate fails closed until the
 declaration is narrowed to concrete targets.
 
 <!-- release-skill:capability:unsupported-scope -->
-- **not in the current version:** Hook cache v2 (executor-identity receipts, R-05) — the current version keeps the v1 content-bound hook cache and never imports old run evidence; full consumer install-tree scanning (R-02) — only declared files are verified byte-for-byte; and a real-host (Kimi/WorkBuddy) verification gate — host verification stays a design and can never produce `PASS`/`VERIFIED` in this version;
+- **not in the current version:** full consumer install-tree scanning (R-02) — the current implementation handles only the declared public surface and the stable isolated install-tree record; and a real-host (Kimi/WorkBuddy) verification gate — host verification stays a non-blocking manual follow-up and does not produce `PASS`/`VERIFIED` evidence;
 - no automatic README generation or source-file overwrite;
 - no automatic conflict merge or rollback workflow;
 - no claim that a real production canary has run for marketplace verification;

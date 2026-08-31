@@ -2,44 +2,40 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.1 -->
+<!-- release-skill:release-version: 0.9.3 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.1** (2026-08-28)
+**0.9.3** (2026-08-31)
 
-0.9.1 是发布后本机宿主安全收尾的本地源码候选。三项 Foundation 依赖已精确锁定到 0.14.0；其正式临时工作区与原始输出接口已通过默认 Node.js 22 和 macOS 消费者组合。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.3 是四项工作流安全修补、Hook cache v2 窄接线和稳定隔离安装树记录接线的本地源码候选。三项 Foundation 依赖均精确消费已发布的 0.15.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- 真实宿主验收须使用合格的冻结发布计划与同一发布血缘的 VERIFIED run。工作流须在宿主写入前确认精确的计划摘要和选定宿主。release-skill 的可选本机收尾不会改变发布终态。
+- 未知、损坏、非稳定或不支持的观察结果继续失败关闭。权威或身份证据不足时，缓存命中不能替代 Hook 执行；不使用 TTL，也不从环境 PATH 推断可执行文件身份。
+- 任何宿主计划都必须是合格冻结计划，且宿主验收要求 VERIFIED run；本源码候选不提供该验收。
+
+**新增**
+
+- 新增可选的 Hook 前公开表面检查、ship 帮助与目标版本冲突保护、verify 血缘提示和基于证据的接入建议，不增加新命令、状态或批准权威。
+- 新增窄范围 Hook cache v2 消费路径：支持绝对路径和经真实 cwd 校验的 cwd-relative executable identity，绑定封闭输入与环境，无 TTL；裸 PATH、PATHEXT、Windows 或观察不可用时仅禁止缓存复用，Hook 仍正常冷执行。
+- 新增宿主命令完成后的稳定隔离安装树记录路径：记录宿主附加链接但不跟随；声明载荷中的 symlink 仍失败关闭，同时保留 legacy 全树语义。
 
 **变更**
 
-- skill-family-contracts、skill-family-harness-node 和 skill-family-engineering-kit 已一起精确锁定到 0.14.0。新增消费者测试，在默认 Node.js 22 与 macOS 临时目录下组合正式 withTemporaryWorkspace 与 superviseProcess.rawSink 接口。
-- platform-manifest.json 的版本归属改为从 package.json.version 派生。prepare 在运行 hook 前检查 manifest 新鲜度，docs-only 和 config-only 工作流同样执行该检查。
-- ship 现在从冻结计划展开批准摘要。审阅者可直接查看公开仓库、分支策略、标签、npm 目标、GitHub Release、外部动作目标、豁免以及需要单独批准的 postPublish hook。
-- Claude 重新绑定市场后，会再次观察本机安装状态，再判断是否仍需更新插件。Codex 继续使用正式的冻结市场重装路径。
-- Kimi 的受管安装只要包名、版本、发布标签、已安装修订号、受管根和真实载荷都匹配，即使没有 .git 目录也可通过。旧的本地路径条目会在同一个受控 TUI 会话中先移除，再从钉死的发布标签安装。
-- CodeBuddy/WorkBuddy 只在一次远端查询证明冻结标签和可变市场分支都解析到冻结提交后，更新已有的 bundled-family 条目。最终安装列表必须只有一个条目，且市场、版本和修订号都符合预期。
-
-**修复**
-
-- 防止 prepare 把陈旧的 platform manifest 冻结进公开快照或 npm tarball。
-- 移除“计划批准已包含 requiresApproval postPublish checkpoint”的误导性说明。冻结计划批准仍是正常发布级流程的唯一批准门；每个受限的 postPublish hook 仍需独立批准记录，记录绑定计划摘要与 hook id，有效期最长 24 小时。
-- 避免 Claude 重新绑定市场后，旧安装已经移除或替换却仍重复执行插件更新。
-- 在检查受管根之前识别 Kimi 的旧本地路径安装，使其进入明确的迁移流程。
-- CodeBuddy/WorkBuddy 目标缺失、使用 standalone 来源、远端不可访问、身份含糊或与冻结身份不一致时，保持宿主不变。
+- 通过公开包根 API 精确消费 skill-family-contracts、skill-family-harness-node 和 skill-family-engineering-kit 0.15.0。
+- 保留从未发布的 0.9.2 production plan 作为不可变历史记录；它已由 0.9.3 候选取代。显式传入目标时，只有完整通过 run、plan、digest/binding 和 lineage 校验且计划目标匹配的未完成记录，才参与当前恢复；其他历史仅保留为 diagnostics。未传目标时仍展示全历史 diagnostics，但 workflow 始终按当前 diff 和 baseline 选择，历史不能覆盖工作流。
+- CodeBuddy plugin 显式声明 marketplace: release-skill，两个 release-finish local-finish 示例都显式传入 --root <project-root>。
 
 **升级说明**
 
-只有 0.9.1 正式发布并达到 VERIFIED，且先安装或重载正式的 0.9.1 入口，才能开始真实宿主验收。源码候选、旧的已安装入口或仅存在计划和运行文件都不能完成真实宿主验收。每个选定宿主都须首次成功更新，第二次运行返回 `ALREADY_CURRENT`。
+只有 0.9.3 正式发布并达到 VERIFIED，且先安装或重载正式的 0.9.3 入口，才能开始真实宿主验收。源码候选、旧的已安装入口或仅存在计划和运行文件都不能完成真实宿主验收。每个选定宿主都须首次成功更新。第二次运行时，Claude、Kimi、CodeBuddy 和 WorkBuddy 必须返回 `ALREADY_CURRENT`；Codex 可以返回 `UPDATED`，但仅当再次安装同一精确 0.9.3 冻结引用、载荷验证通过且声明 `restartRequired=true`。0.9.2 计划从未发布，作为不可变历史记录保留并已由 0.9.3 候选取代。显式传入目标时，只有完整通过 run、plan、digest/binding 和 lineage 校验且计划目标匹配的未完成记录，才参与当前恢复；其他历史仅保留为 diagnostics。未传目标时仍展示全历史 diagnostics，但 workflow 始终按当前 diff 和 baseline 选择，历史不能覆盖工作流。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.1 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.3 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -55,7 +51,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.1 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.3 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -73,9 +69,9 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-本版不包含 R-02 安全整树盘点、R-05 Hook cache v2、R-10 历史发布验证的产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录验证器。本范围说明不构成远端发布记录或消费者升级指引。
+当前 0.9.3 候选包含窄范围的 R-05 Hook cache v2 消费路径和稳定隔离安装树记录路径（A2/A3）。当前仍不包含 R-02 安全整树盘点、R-10 历史发布验证的产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录验证器。本范围说明不构成远端发布记录或消费者升级指引。
 
-Foundation 三包精确依赖已发布的 0.14.0。新生成的 Kimi/CodeBuddy 同仓计划在 verify 阶段调用正式 `runPluginVerification`，把完整冻结载荷交给 Foundation，并记录最小的 `install-only` 观察收据。Kimi 映射为 `kimi-code`，CodeBuddy 映射为兼容的 `workbuddy`。`observed` 与 `payloadMatches` 只表示机制观察结果，不代表远端已发布或 release-skill 已完成领域验证。独立市场来源、真实市场安装和宿主调用仍是人工后续任务。
+Foundation 三包精确依赖已发布的 0.15.0。新生成的 Kimi/CodeBuddy 同仓计划在 verify 阶段调用正式 `runPluginVerification`，把完整冻结载荷交给 Foundation，并记录最小的 `install-only` 观察收据。Kimi 映射为 `kimi-code`，CodeBuddy 映射为兼容的 `workbuddy`。`observed` 与 `payloadMatches` 只表示机制观察结果，不代表远端已发布或 release-skill 已完成领域验证。独立市场来源、真实市场安装和宿主调用仍是人工后续任务。
 
 <!-- release-skill:maturity:distribute-v1 -->
 <!-- release-skill:capability:distribute -->
@@ -310,6 +306,7 @@ ACTOR=your-name
      --plan "$PLAN_PATH" --approval "$APPROVAL_PATH" --json)
    PUBLISH_RUN_PATH=$(printf '%s\n' "$PUBLISH_JSON" | jq -r '.runPath')
    ```
+   持有合法批准的 production plan 时可以直接进入 `publish`；`route` 只是工作流建议。`publish` 仍要求计划、批准、冻结摘要与制品身份、远端预检，并在检查点失败时保持 fail-closed 的 `PARTIAL` 规则。
    `PUBLISHED` **不是**终态。
 9. **verify** — 消费者安装检查：
    ```bash
@@ -640,7 +637,7 @@ standalone 来源、远端不可访问或身份含糊时仍转人工处理，不
 静态门禁会阻断，直到入口声明收窄为具体目标。
 
 <!-- release-skill:capability:unsupported-scope -->
-- **当前版本不含：** Hook cache v2（执行器身份收据，R-05）——当前版本保持 v1 内容绑定缓存，且从不导入旧运行证据；消费者安装整树盘点（R-02）——只对声明文件做逐字节核对；真实宿主（Kimi/WorkBuddy）验证门禁——宿主验证仍是设计，本版本中不能产生 `PASS` 或 `VERIFIED`；
+- **当前版本不含：** 消费者安装整树盘点（R-02）——当前版本只处理声明的公开表面和稳定隔离安装树记录；真实宿主（Kimi/WorkBuddy）验证门禁——宿主验证仍是非阻断的人工后续任务，不产生 `PASS` 或 `VERIFIED` 证据；
 - 不自动生成 README，不覆盖项目源文件；
 - 不自动合并冲突，也不要求回滚工作流；
 - 不声称已经替项目完成真实生产 canary，不声称已完成真实插件市场验证；

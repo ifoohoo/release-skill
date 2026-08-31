@@ -51,7 +51,7 @@ byte、platform manifest 是核心 gate，由 workspace 自己的生成器与
 
 ## 正向执行路径
 
-1. 运行 `release-skill route --root <path> --json` 获取 diff 分类
+1. 运行 `release-skill route --root <path> [--target-version <ver>] --json` 获取 diff 分类；已知目标版本时显式传入，route 只是工作流建议
 2. 若推荐 `workflowKind === 'marketplace-only'`，则使用本技能
 3. 执行步骤②：手动审查并更新 `plugins.mjs`（唯一 truth source）
 4. 执行步骤③：调用 workspace 自己的生成器再生成 `public-snapshot/`
@@ -66,6 +66,8 @@ byte、platform manifest 是核心 gate，由 workspace 自己的生成器与
 # Step 1: Diff classification confirmation (marketplace-only)
 node "$RELEASE_SKILL_ENTRY" route \
   --root <workspace-root> --json
+node "$RELEASE_SKILL_ENTRY" route \
+  --root <workspace-root> --target-version <version> --json
 
 # Step 2: Manual review and update plugins.mjs
 # Human-in-the-loop: entry is the sole truth source

@@ -46,6 +46,7 @@ import {
   deriveGateSuggestions,
   deriveHookDurations,
   deriveLongHookSuggestions,
+  derivePreHookPublicSurfaceFinding,
   scanGateDeclarationFindings,
   FINDING_CATEGORY,
   ASSESSMENT_STATUS,
@@ -3209,6 +3210,7 @@ export async function assessAdoption({ root } = {}) {
     currentProducerVersion: resolveProducerVersion(),
   });
   findings.push(...deriveLongHookSuggestions(hookDurations));
+  findings.push(derivePreHookPublicSurfaceFinding({ config, hookDurations }));
   findings.push(...deriveCheckOnlySuggestions(config.hooks));
 
   // --- Gate suggestions (scenarios 5 & 6) ---

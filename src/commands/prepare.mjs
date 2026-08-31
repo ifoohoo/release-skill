@@ -25,7 +25,7 @@ import { promisify } from 'node:util';
 
 const execFile = promisify(execFileCb);
 
-import { classifyPathInput, writeFileAtomic } from 'skill-family-harness-node';
+import { classifyPathInput, writeFileAtomic, withTemporaryWorkspace } from 'skill-family-harness-node';
 import { loadProjectConfig } from '../core/config.mjs';
 import { captureBaseline } from '../core/baseline.mjs';
 import { runHook } from '../core/hooks.mjs';
@@ -323,9 +323,16 @@ export async function runDeclaredHooks(config, root, evidence, hookFn = runHook,
 
     // --- Incremental cache lookup (opt-in only; default zero change) ---
     let cacheKey;
+    let cacheReceipt;
+    let cacheRootBinding;
     if (cacheEnabled && hook.cacheable === true) {
       try {
-        ({ cacheKey } = await computeHookCacheKey(hook, root));
+        ({ cacheKey, receipt: cacheReceipt, projectRootBinding: cacheRootBinding } = await computeHookCacheKey(hook, root, {
+          env: options.env ?? process.env,
+          ...(typeof options.observeExecutableIdentityFn === 'function'
+            ? { observeExecutableIdentityFn: options.observeExecutableIdentityFn }
+            : {}),
+        }));
       } catch (err) {
         await evidence.append({
           phase: 'hooks',
@@ -336,7 +343,9 @@ export async function runDeclaredHooks(config, root, evidence, hookFn = runHook,
         throw err;
       }
 
-      const cached = await readHookCache(root, name, cacheKey);
+      const cached = cacheKey ? await readHookCache(root, name, cacheKey, {
+        rootBinding: cacheRootBinding,
+      }) : null;
       if (cached) {
         // Cache hit: skip execution. The authorization gate already passed and
         // no GATE is bypassed — ordering and failure semantics are untouched.
@@ -407,12 +416,13 @@ export async function runDeclaredHooks(config, root, evidence, hookFn = runHook,
     }
 
     // --- Write cache on success only; failures are never cached ---
-    if (cacheEnabled && hook.cacheable === true && cacheKey) {
+    if (cacheEnabled && hook.cacheable === true && cacheKey && cacheReceipt) {
       const written = await writeHookCache(root, name, cacheKey, {
         exitCode: 0,
         stdoutTail: result.stdout.slice(-4000),
         stderrTail: result.stderr.slice(-4000),
-      });
+        receipt: cacheReceipt,
+      }, { rootBinding: cacheRootBinding });
       if (!written.ok) {
         // The cache is an optimisation, not a gate: a write failure must not
         // abort prepare. Surface it as a warning-level evidence event.
@@ -2794,6 +2804,119 @@ async function runPrepareSkillResourceClosureGate({
   return skillResourceClosureResults;
 }
 
+/**
+ * R93-01: optionally inspect the public surface before the first declared
+ * hook. The staging and closure checks are deliberately ephemeral: their
+ * result is an execution gate, not a plan/approval/publish receipt. The
+ * normal post-hook snapshot and closure gate remains authoritative.
+ */
+async function runPreHookPublicSurfaceGate({
+  config,
+  root,
+  resolvedVersions,
+  evidence,
+  skipDeclaredHooks,
+  workflow,
+}) {
+  if (config.policy?.preHookPublicSurfaceCheck !== true) return;
+
+  const declaredHookCount = Object.values(config.hooks ?? {})
+    .filter((hook) => hook && hook.command).length;
+  if (skipDeclaredHooks || declaredHookCount === 0) {
+    await evidence.append({
+      phase: 'pre-hook-public-surface',
+      status: 'skipped',
+      reason: skipDeclaredHooks
+        ? `workflow "${workflow}" trims code-class hooks`
+        : 'no declared hooks',
+    });
+    return;
+  }
+
+  await evidence.append({ phase: 'pre-hook-public-surface', status: 'started' });
+  let currentUnitId = null;
+  let unitCount = 0;
+  try {
+    await withTemporaryWorkspace(async (workspace) => {
+      const stagingRoot = workspace.root;
+      const unitResults = [];
+      for (const unit of config.releaseUnits ?? []) {
+        currentUnitId = unit.id;
+        const outputDir = resolveUnitScopedPath(stagingRoot, unit.id);
+        const publicManifest = await buildPublicStaging({
+          sourceRoot: root,
+          unit,
+          outputDir,
+        });
+        unitResults.push({
+          unit,
+          manifest: {
+            entries: publicManifest.entries,
+            files: publicManifest.entries.map((entry) => entry.path).sort(),
+            totalSize: publicManifest.totalSize,
+            fileCount: publicManifest.fileCount,
+            contentHash: publicManifest.contentHash,
+            snapshotDigest: publicManifest.contentHash,
+            source: unit.source,
+            outputDir: publicManifest.outputDir,
+          },
+        });
+      }
+
+      const { frozenManifestByDist } = await resolveDistributionManifestFacts(
+        unitResults,
+        resolvedVersions,
+      );
+      unitCount = unitResults.length;
+      // Reuse the production closure/host-surface implementation, but do not
+      // append its ordinary phase events or retain its receipt in the plan.
+      await runPrepareSkillResourceClosureGate({
+        unitResults,
+        frozenManifestByDist,
+        freezeTimestamp: null,
+        evidence: { append: async () => undefined },
+        skipSkillResourceClosure: false,
+        workflow: 'pre-hook-public-surface',
+      });
+    });
+    await evidence.append({
+      phase: 'pre-hook-public-surface',
+      status: 'passed',
+      unitCount,
+    });
+  } catch (error) {
+    const details = {
+      ...(error instanceof ReleaseError ? error.details : {}),
+      phase: 'pre-hook-public-surface',
+      unitId: error?.details?.unitId ?? currentUnitId,
+    };
+    if (Array.isArray(details.findings)) {
+      details.findings = details.findings.slice(0, 50);
+    }
+    await evidence.append({
+      phase: 'pre-hook-public-surface',
+      status: 'failed',
+      error: { code: error.code ?? GATE_FAILED, message: error.message },
+    });
+    if (error instanceof ReleaseError) {
+      throw new ReleaseError(
+        error.code,
+        `pre-hook public surface check failed before hooks: ${error.message}`,
+        details,
+        error.exitCode,
+      );
+    }
+    throw new ReleaseError(
+      GATE_FAILED,
+      `pre-hook public surface check failed before hooks: ${error.message}`,
+      details,
+    );
+  } finally {
+    // withTemporaryWorkspace disposes the Foundation-managed staging root on
+    // both success and failure; no project run artifact is retained.
+  }
+}
+
 export async function prepareRelease(options) {
   const {
     root,
@@ -3308,6 +3431,17 @@ export async function prepareRelease(options) {
         unitCount: configUnits.length,
       });
     }
+
+    // R93-01: optional ephemeral public-surface check immediately before the
+    // first hook. Its staging and closure receipt never enter the plan.
+    await runPreHookPublicSurfaceGate({
+      config,
+      root: realRoot,
+      resolvedVersions,
+      evidence,
+      skipDeclaredHooks,
+      workflow,
+    });
 
     // --- Step 3: Run declared hooks ---
     let hookRecords = [];

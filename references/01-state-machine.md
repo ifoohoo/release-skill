@@ -152,7 +152,22 @@ postPublish hooks 分两个阶段，各自对应独立的 distribute run：
 
 失效后系统回退到 PREPARED 状态，要求重新批准。
 
-### 4.5 发布检查点失败
+### 4.5 路由诊断与当前恢复
+
+`route` 负责选择 workflow 和展示 diagnostics，不承担发布授权。传入
+`--target-version <ver>` 时，只有既有校验器确认 `release-run.json`、绑定 plan、摘要
+身份和 lineage 完整，且计划目标等于该版本、仍有未完成动作的记录，才可生成
+`reconcile`、`distribute` 或 `verify` 建议。目录名、mtime、producer 版本、`summary.json`、
+错误文案和旧阶段名只能进入 diagnostics。
+
+未传 target 时，route 始终依据当前 diff/baseline 选择 workflow。历史 `PARTIAL`、
+`DIAGNOSE` 或损坏记录保持可见，但不能把 workflow 改成恢复阶段或诊断入口。多个当前
+有效候选必须保留候选列表并要求明确选择，不生成猜测命令。
+
+这些路由规则不改变状态机的发布门。`publish`、`reconcile` 和 `verify` 仍必须校验
+plan、approval、冻结制品身份、远端状态、检查点和 `PARTIAL` 血缘。
+
+### 4.6 发布检查点失败
 
 发布按以下检查点顺序执行（详见 `06-adapter-contract.md`）：
 

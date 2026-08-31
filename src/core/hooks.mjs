@@ -161,7 +161,12 @@ export function validateHook(hook) {
  * @param {Record<string, string>} [contextEnv] - Caller-provided env map.
  * @returns {Record<string, string>}
  */
-function buildFilteredEnv(envAllowlist, contextEnv) {
+/**
+ * Resolve the exact environment map delivered to a declared Hook. This is an
+ * internal shared seam for cache-key construction; it deliberately keeps the
+ * existing platform-required and allowlist precedence rules in one place.
+ */
+export function buildHookEnvironment(envAllowlist = [], contextEnv) {
   const env = {};
 
   // 1. Platform-required variables
@@ -183,6 +188,8 @@ function buildFilteredEnv(envAllowlist, contextEnv) {
 
   return env;
 }
+
+const buildFilteredEnv = buildHookEnvironment;
 
 // ---------------------------------------------------------------------------
 // Public API

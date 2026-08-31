@@ -1,6 +1,6 @@
 {
   "name": "release-skill",
-  "version": "0.9.1",
+  "version": "0.9.3",
   "description": "Safe preparation and frozen GitHub/npm production publishing with full happy end verification",
   "author": {
     "name": "广州市风荷科技有限公司"
@@ -55,7 +55,7 @@
   "scripts": {
     "build": "node --check src/**/*.mjs && node scripts/build-bundle.mjs",
     "test": "node --test $(ls test/*.test.mjs | grep -v -E 'artifacts-safe-fs-native-seam')",
-    "test:no-dogfood": "node --test $(ls test/*.test.mjs | grep -v -E 'dogfood|artifacts-safe-fs-native-seam|setup-live-samples|reference-configs')",
+    "test:no-dogfood": "node --test $(ls test/*.test.mjs | grep -v -E 'dogfood|artifacts-safe-fs-native-seam|setup-live-samples|reference-configs|readme-contract') && node --test test/readme-contract.test.mjs",
     "test:cli-contract": "node --test test/cli-contract.test.mjs",
     "typecheck": "node --check src/**/*.mjs bin/*.mjs",
     "sync:skills": "node scripts/sync-skills.mjs",
@@ -79,9 +79,9 @@
     "ajv-formats": "3.0.1",
     "libnpmpublish": "11.2.0",
     "npm-registry-fetch": "18.0.2",
-    "skill-family-contracts": "0.14.0",
-    "skill-family-engineering-kit": "0.14.0",
-    "skill-family-harness-node": "0.14.0",
+    "skill-family-contracts": "0.15.0",
+    "skill-family-engineering-kit": "0.15.0",
+    "skill-family-harness-node": "0.15.0",
     "yaml": "2.9.0"
   },
   "devDependencies": {

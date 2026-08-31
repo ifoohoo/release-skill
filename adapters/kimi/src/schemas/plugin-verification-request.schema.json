@@ -30,23 +30,20 @@
     "goal": {
       "enum": [
         "install-only",
-        "install-and-invoke"
+        "install-and-invoke",
+        "native-lifecycle"
       ]
     },
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "type",
-        "candidateRef",
-        "sourceManifestSha256",
-        "membersDigest"
-      ],
+      "required": ["type"],
       "properties": {
         "type": {
           "enum": [
             "local-staged",
-            "public-channel"
+            "public-channel",
+            "local-marketplace"
           ]
         },
         "candidateRef": {
@@ -57,6 +54,21 @@
         },
         "membersDigest": {
           "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256"
+        },
+        "marketplaceId": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/opaque"
+        },
+        "pluginId": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/opaque"
+        },
+        "revisions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["v1", "v2"],
+          "properties": {
+            "v1": { "$ref": "#/$defs/marketplaceRevision" },
+            "v2": { "$ref": "#/$defs/marketplaceRevision" }
+          }
         },
         "channel": {
           "type": "object",
@@ -86,7 +98,48 @@
             }
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "local-staged" } },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["candidateRef", "sourceManifestSha256", "membersDigest"],
+            "properties": {
+              "candidateRef": {}, "sourceManifestSha256": {}, "membersDigest": {},
+              "channel": false, "marketplaceId": false, "pluginId": false, "revisions": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "public-channel" } },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["candidateRef", "sourceManifestSha256", "membersDigest", "channel"],
+            "properties": {
+              "candidateRef": {}, "sourceManifestSha256": {}, "membersDigest": {}, "channel": {},
+              "marketplaceId": false, "pluginId": false, "revisions": false
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "local-marketplace" } },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["candidateRef", "marketplaceId", "pluginId", "revisions"],
+            "properties": {
+              "candidateRef": {}, "marketplaceId": {}, "pluginId": {}, "revisions": {},
+              "sourceManifestSha256": false, "membersDigest": false, "channel": false
+            }
+          }
+        }
+      ]
     },
     "host": {
       "type": "object",
@@ -211,14 +264,17 @@
   "allOf": [
     {
       "if": {
-        "type": "object",
-        "properties": {
-          "goal": {
-            "const": "install-and-invoke"
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": { "goal": { "const": "install-and-invoke" } },
+            "required": ["goal"]
+          },
+          {
+            "type": "object",
+            "properties": { "goal": { "const": "native-lifecycle" } },
+            "required": ["goal"]
           }
-        },
-        "required": [
-          "goal"
         ]
       },
       "then": {
@@ -284,6 +340,17 @@
       },
       "else": {
         "type": "object",
+        "if": {
+          "properties": {
+            "source": {
+              "type": "object",
+              "properties": { "type": { "const": "local-staged" } },
+              "required": ["type"]
+            }
+          },
+          "required": ["source"]
+        },
+        "then": {
         "properties": {
           "source": {
             "type": "object",
@@ -298,6 +365,7 @@
               "outputByteLimits": false
             }
           }
+        }
         }
       }
     },
@@ -333,6 +401,11 @@
             "required": [
               "source"
             ]
+          },
+          {
+            "type": "object",
+            "properties": { "goal": { "const": "native-lifecycle" } },
+            "required": ["goal"]
           }
         ]
       },
@@ -348,13 +421,37 @@
             "properties": {
               "cliVersion": {},
               "executableSha256": {}
-            },
-            "required": [
-              "cliVersion",
-              "executableSha256"
-            ]
+            }
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "type": "object",
+              "properties": { "goal": { "const": "native-lifecycle" } },
+              "required": ["goal"]
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "host": {
+                  "type": "object",
+                  "properties": { "cliVersion": false, "executableSha256": false }
+                }
+              }
+            },
+            "else": {
+              "type": "object",
+              "properties": {
+                "host": {
+                  "type": "object",
+                  "required": ["cliVersion", "executableSha256"],
+                  "properties": { "cliVersion": {}, "executableSha256": {} }
+                }
+              }
+            }
+          }
+        ]
       },
       "else": {
         "type": "object",
@@ -369,6 +466,34 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": { "goal": { "const": "native-lifecycle" } },
+        "required": ["goal"]
+      },
+      "then": {
+        "properties": {
+          "source": {
+            "type": "object",
+            "properties": { "type": { "const": "local-marketplace" } },
+            "required": ["type"]
+          }
+        },
+        "required": ["auth", "invocation"]
+      }
     }
-  ]
+  ],
+  "$defs": {
+    "marketplaceRevision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "sourceManifestSha256", "membersDigest"],
+      "properties": {
+        "version": { "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/host/properties/driverVersion" },
+        "sourceManifestSha256": { "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256" },
+        "membersDigest": { "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256" }
+      }
+    }
+  }
 }

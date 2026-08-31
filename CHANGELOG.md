@@ -1,5 +1,54 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.3 locale=en baseline=sha256:96e5f9167abb13203ba308ebacbb081452f8c23e26ff0b377514556338ebdfff -->
+## [0.9.3] - 2026-08-31
+
+0.9.3 is a local source candidate for the four workflow safeguards and the narrow Hook cache v2 and isolated-install-tree integrations. It consumes the three Foundation packages at the exact 0.15.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Unknown, corrupt, non-stable, or unsupported observations remain fail-closed. A cache hit never replaces a Hook execution when the authority or identity evidence is unavailable, and no TTL or ambient PATH inference is used.
+- Any host plan remains a qualified frozen-plan path and requires a VERIFIED-run before host acceptance; this source candidate does not provide that acceptance.
+
+### Added
+
+- Add the opt-in pre-hook public-surface check, ship help and target-version conflict guard, verify lineage guidance, and evidence-based adoption suggestions without adding a new command, state, or approval authority.
+- Add the narrow Hook cache v2 consumer path: absolute-path and validated cwd-relative executable identity, closed input and environment binding, no TTL, and fail-closed cache reuse for bare PATH, PATHEXT, Windows, and unavailable observations while Hooks still execute cold.
+- Add the narrow isolated install-tree record path after a completed host command, recording host-added links without following them and rejecting declared-payload symlinks while preserving legacy full-tree semantics.
+
+### Changed
+
+- Consume skill-family-contracts, skill-family-harness-node, and skill-family-engineering-kit at the exact 0.15.0 release through their public package-root APIs.
+- Keep the 0.9.2 production plan PREPARED and immutable as an unpublished historical record now replaced by the 0.9.3 candidate; with an explicit target, only unfinished records that pass complete run, plan, digest/binding, and lineage validation and whose plan target matches participate in current recovery, while all other history remains diagnostics. Without a target, route still shows full-history diagnostics, but workflow selection remains based on the current diff and baseline.
+- The CodeBuddy plugin explicitly declares marketplace: release-skill, and both release-finish local-finish examples pass --root <project-root>.
+
+### Upgrade Notes
+
+Real-host acceptance can begin only after 0.9.3 is officially published and VERIFIED; the official 0.9.3 entry must be installed or reloaded first. A source candidate, an older installed entry, or the mere existence of plan and run files cannot complete real-host acceptance. Each selected host must complete a first successful update. On the second run, Claude, Kimi, CodeBuddy, and WorkBuddy must report `ALREADY_CURRENT`; Codex may report `UPDATED` only when it reinstalls the same exact 0.9.3 frozen reference, payload validation passes, and `restartRequired=true` is declared. The 0.9.2 plan was never published and remains an immutable historical record. With an explicit target, only unfinished records that pass complete run, plan, digest/binding, and lineage validation and whose plan target matches participate in current recovery; all other history remains diagnostics. Without a target, route still shows full-history diagnostics, but workflow selection remains based on the current diff and baseline.
+<!-- release-skill:changelog:end version=0.9.3 locale=en -->
+
+
+<!-- release-skill:changelog:start version=0.9.2 locale=en baseline=sha256:748e2f51de3ee9b773ddc2f0f2ffccb3756065c814ec218dffc738364ad25630 -->
+## [0.9.2] - 2026-08-30
+
+0.9.2 is a local source candidate for two release-finish maintenance updates and a route recovery maintenance update. Foundation remains pinned to 0.14.0, whose public temporary-workspace and raw-output APIs pass the default Node.js 22 macOS consumer composition. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- The release-finish maintenance keeps the qualified frozen-plan boundary and the VERIFIED-run requirement; the consumer test combines the public withTemporaryWorkspace and superviseProcess.rawSink APIs under the default Node.js 22 macOS temporary directory.
+
+### Changed
+
+- Self-bootstrap now declares marketplace: release-skill explicitly for the CodeBuddy plugin.
+- Both release-finish local-finish examples now pass --root <project-root> explicitly.
+- Route recovery now skips only failed publish attempts that the current evidence-v2 writer contract proves never acquired release authority; unknown or corrupt history remains blocking DIAGNOSE with an exact path and formal next action.
+
+### Upgrade Notes
+
+Real-host acceptance can begin only after 0.9.2 is officially published and VERIFIED; the official 0.9.2 entry must be installed or reloaded first. A source candidate, an older installed entry, or the mere existence of plan and run files cannot complete real-host acceptance. Each selected host must complete a first successful update. On the second run, Claude, Kimi, CodeBuddy, and WorkBuddy must report `ALREADY_CURRENT`; Codex may report `UPDATED` only when it reinstalls the same exact 0.9.2 frozen reference, payload validation passes, and `restartRequired=true` is declared. In the current workspace, route still reports 63 DIAGNOSE records and 2 VERIFY records; the first UNKNOWN legacy record has no automatic safe recovery entry and requires the formal diagnostic action.
+<!-- release-skill:changelog:end version=0.9.2 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.1 locale=en baseline=sha256:71720f2bbde891ebccda25baf35ef03593d1f6aee1077aeccb3b4af4d2eddfc0 -->
 ## [0.9.1] - 2026-08-28
 

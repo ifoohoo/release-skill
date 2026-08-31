@@ -1,5 +1,5 @@
 /**
- * Release-domain thin adapter for Foundation 0.13 complete-plugin observation.
+ * Release-domain thin adapter for Foundation 0.15 complete-plugin observation.
  *
  * The frozen snapshot remains the only payload authority. This module derives
  * transient Foundation inputs from that tree, calls the released Kit API, and
@@ -19,6 +19,8 @@ import {
 } from 'skill-family-engineering-kit';
 import {
   createFilesystemRootBinding,
+  digestBytes,
+  observeFilesystemTree,
   readFileBound,
 } from 'skill-family-harness-node';
 
@@ -30,6 +32,176 @@ import { ReleaseError, POST_PUBLISH_VERIFY_FAILED } from './errors.mjs';
 // contract at 1.0.0. The real API integration test intentionally exercises
 // this value so an upstream contract change fails closed during adoption.
 const FOUNDATION_PLUGIN_DRIVER_VERSION = '1.0.0';
+const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
+const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u;
+
+function isSafeRelativePath(value) {
+  return typeof value === 'string'
+    && value.length > 0
+    && !value.startsWith('/')
+    && !value.includes('\\')
+    && !value.includes(':')
+    && !value.includes('\0')
+    && value.split('/').every((part) => part.length > 0 && part !== '.' && part !== '..');
+}
+
+function decodeCanonicalBase64(value) {
+  if (typeof value !== 'string' || !BASE64_PATTERN.test(value)) return null;
+  const decoded = Buffer.from(value, 'base64');
+  return decoded.toString('base64') === value ? decoded : null;
+}
+
+function hasExactKeys(value, keys) {
+  return Object.keys(value).sort().join(',') === keys.join(',');
+}
+
+function compareUnicodeCodePoints(left, right) {
+  const leftPoints = Array.from(left, (character) => character.codePointAt(0));
+  const rightPoints = Array.from(right, (character) => character.codePointAt(0));
+  const length = Math.min(leftPoints.length, rightPoints.length);
+  for (let index = 0; index < length; index += 1) {
+    if (leftPoints[index] !== rightPoints[index]) return leftPoints[index] - rightPoints[index];
+  }
+  return leftPoints.length - rightPoints.length;
+}
+
+function installCommandExited(result) {
+  const commands = result?.facts?.install?.commands;
+  if (!Array.isArray(commands)) return false;
+  return commands.every((command) => {
+    const execution = command?.execution;
+    return execution?.exitStatus === 0 && execution.processStatus === 'exited';
+  });
+}
+
+function assertStableInstallTreeState(state) {
+  if (state === undefined) return;
+  if (!state || typeof state !== 'object' || Array.isArray(state)) {
+    throw fail('Foundation install tree state is invalid');
+  }
+  if (
+    state.commandExited === false
+    || state.isolated === false
+    || state.stable === false
+    || state.namespaceWriterActive === true
+  ) {
+    throw fail('Foundation install tree is not a stable isolated post-command tree', {
+      commandExited: state.commandExited ?? null,
+      isolated: state.isolated ?? null,
+      stable: state.stable ?? null,
+      namespaceWriterActive: state.namespaceWriterActive ?? null,
+    });
+  }
+}
+
+function compareRecordedInstallTree(observation, expectedMembers) {
+  if (
+    !observation
+    || typeof observation !== 'object'
+    || observation.schemaVersion !== 1
+    || observation.kind !== 'skill-family.filesystem-tree-observation'
+    || !/^[0-9a-f]{64}$/u.test(observation.membersDigest ?? '')
+    || !Array.isArray(observation.members)
+  ) {
+    throw fail('Foundation install tree observation has an invalid shape');
+  }
+  if (digestDocument(observation.members) !== observation.membersDigest) {
+    throw fail('Foundation install tree observation digest does not match its members');
+  }
+  const actual = new Map();
+  const foldedPaths = new Set();
+  let previousPath = null;
+  for (const member of observation.members) {
+    const foldedPath = member?.path?.toLowerCase();
+    if (
+      !member
+      || !isSafeRelativePath(member.path)
+      || !['directory', 'file', 'symlink'].includes(member.type)
+      || actual.has(member.path)
+      || foldedPaths.has(foldedPath)
+      || previousPath !== null && compareUnicodeCodePoints(previousPath, member.path) >= 0
+    ) {
+      throw fail('Foundation install tree observation contains duplicate or invalid paths');
+    }
+    actual.set(member.path, member);
+    foldedPaths.add(foldedPath);
+    const requiredKeys = member.type === 'directory'
+      ? ['path', 'statMode', 'type']
+      : member.type === 'file'
+        ? ['bytes', 'contentBase64', 'path', 'sha256', 'statMode', 'type']
+        : ['bytes', 'path', 'statMode', 'targetBase64', 'type'];
+    if (!hasExactKeys(member, requiredKeys)) {
+      throw fail('Foundation install tree member has unknown or missing fields', { path: member.path });
+    }
+    previousPath = member.path;
+    if (
+      typeof member.statMode !== 'number'
+      || !Number.isInteger(member.statMode)
+      || member.statMode < 0
+      || member.statMode > 0xffff
+    ) {
+      throw fail('Foundation install tree member mode is invalid', { path: member.path });
+    }
+    if (member.type === 'file') {
+      const content = decodeCanonicalBase64(member.contentBase64);
+      if (
+        !content
+        || typeof member.sha256 !== 'string'
+        || !SHA256_PATTERN.test(member.sha256)
+        || !Number.isSafeInteger(member.bytes)
+        || member.bytes < 0
+        || member.bytes !== content.length
+        || member.sha256 !== digestBytes(content)
+      ) {
+        throw fail('Foundation install tree file record is invalid', { path: member.path });
+      }
+    }
+    if (member.type === 'symlink') {
+      const target = decodeCanonicalBase64(member.targetBase64);
+      if (
+        !target
+        || target.length === 0
+        || !Number.isSafeInteger(member.bytes)
+        || member.bytes < 1
+        || member.bytes !== target.length
+      ) {
+        throw fail('Foundation install tree link record is invalid', { path: member.path });
+      }
+    }
+  }
+  const expected = new Map(expectedMembers.map((member) => [member.path, member]));
+  for (const [path, expectedMember] of expected) {
+    const member = actual.get(path);
+    if (!member || member.type === 'symlink' || member.type !== expectedMember.type) {
+      throw fail('declared install tree member is missing or unsafe', { path });
+    }
+    if (member.type === 'file' && (
+      member.sha256 !== expectedMember.sha256
+      || member.bytes !== expectedMember.bytes
+      || ((member.statMode & 0o111) !== 0) !== expectedMember.executable
+    )) {
+      throw fail('declared install tree member drifted from the frozen payload', { path });
+    }
+  }
+  const extras = [...actual.values()].filter((member) => !expected.has(member.path));
+  const extraInstalledPaths = extras
+    .map((member) => member.path)
+    .sort(compareUnicodeCodePoints);
+  const extraInstalledLinks = extras
+    .filter((member) => member.type === 'symlink')
+    .map((member) => {
+      // Keep the target bytes supplied by Foundation. No path resolution or
+      // target read occurs here, so an added link can never be followed.
+      return {
+        path: member.path,
+        targetBase64: member.targetBase64,
+        bytes: member.bytes,
+        statMode: member.statMode,
+      };
+    })
+    .sort((left, right) => compareUnicodeCodePoints(left.path, right.path));
+  return { extraInstalledPaths, extraInstalledLinks };
+}
 
 function fail(message, details = {}) {
   return new ReleaseError(POST_PUBLISH_VERIFY_FAILED, message, details);
@@ -135,6 +307,8 @@ export async function verifyFrozenPluginWithFoundation({
   root,
   runDir,
   runPluginVerificationFn = runPluginVerification,
+  observeFilesystemTreeFn = observeFilesystemTree,
+  installTreeState,
   clock = () => new Date().toISOString(),
 } = {}) {
   const unit = (plan?.units ?? []).find((candidate) => candidate.id === action?.unitId);
@@ -231,6 +405,38 @@ export async function verifyFrozenPluginWithFoundation({
   const result = await runPluginVerificationFn({ request, bindings, hostsRoot });
   assertResultMatchesRequest(result, request);
 
+  // A3: the installation command (if Foundation reports one) must have
+  // exited before the isolated tree is observed. The install-only Foundation
+  // path reports no commands, which is the completed local materialization.
+  if (!installCommandExited(result)) {
+    throw fail('Foundation install tree observation requires an exited install command');
+  }
+  assertStableInstallTreeState(installTreeState);
+
+  // Foundation's local install-only contract materializes the payload at the
+  // stable child of the isolated install container. Observe that payload root
+  // rather than the container, whose private siblings are not plugin bytes.
+  const installRoot = join(runDir, 'install', 'payload');
+  let treeObservation;
+  try {
+    const rootBinding = await createFilesystemRootBinding(installRoot);
+    treeObservation = await observeFilesystemTreeFn({
+      root: installRoot,
+      rootBinding,
+      symlinkPolicy: { mode: 'record' },
+    });
+    if (treeObservation?.rootBinding?.digest !== rootBinding.digest) {
+      throw fail('Foundation install tree observation root binding drifted');
+    }
+  } catch (error) {
+    if (error instanceof ReleaseError) throw error;
+    throw fail('Foundation install tree observation failed closed', {
+      cause: error?.message ?? String(error),
+      code: error?.code ?? null,
+    });
+  }
+  const extraInstallAudit = compareRecordedInstallTree(treeObservation, sourceMembers);
+
   return {
     planDigest: plan.digest,
     actionId: action.id,
@@ -243,5 +449,11 @@ export async function verifyFrozenPluginWithFoundation({
     payloadMatches: result.facts.install.payloadMatches,
     observationDigest: result.facts.install.observationDigest,
     observedAt: clock(),
+    ...(extraInstallAudit.extraInstalledPaths.length > 0
+      ? { extraInstalledPaths: extraInstallAudit.extraInstalledPaths }
+      : {}),
+    ...(extraInstallAudit.extraInstalledLinks.length > 0
+      ? { extraInstalledLinks: extraInstallAudit.extraInstalledLinks }
+      : {}),
   };
 }

@@ -46,7 +46,7 @@ prepare 的真实输出是 plan 内的 `workflowDecision`。
 
 ## 正向执行路径
 
-1. 运行 `release-skill route --root <path> --json` 获取 diff 分类
+1. 运行 `release-skill route --root <path> [--target-version <ver>] --json` 获取 diff 分类；已知目标版本时显式传入，route 只是工作流建议
 2. 若推荐 `workflowKind === 'config-only'`，则使用本技能
 3. 执行步骤②：运行 `release-skill assess --root <path> --offline --json` 进行 schema validation
 4. 执行步骤③：运行 `release-skill prepare --offline --workflow config --target-version <ver> --json`
@@ -61,8 +61,10 @@ prepare 的真实输出是 plan 内的 `workflowDecision`。
 ## 确定性脚本调用
 
 ```bash
-# Step 1: Diff classification confirmation (config-only)
+# Step 1: Diff classification confirmation (config-only; pass the known target)
 node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" route --root <path> --json
+node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" route \
+  --root <path> --target-version <version> --json
 
 # Step 2: Assess with schema validation
 node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" assess --root <path> --offline --json
@@ -96,7 +98,7 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" verify \
 | prepare 检测到基线漂移 | BASELINE_DRIFT_DETECTED | 人工审查 drift 后决定是否继续或回滚 |
 | workflowDecision 不可判定（无对比 plan） | indeterminable | fail-safe 到 publish-needed，走场景 B |
 | approval expired | APPROVAL_EXPIRED | 重新执行 approve，digest 必须匹配 |
-| remote conflict at publish | REMOTE_CONFLICT | 人工决策：force override 或 cancel |
+| remote conflict at publish | REMOTE_CONFLICT | 人工决策；不得 force override 或覆盖远端状态 |
 
 ## 决策树 (Step 4)
 

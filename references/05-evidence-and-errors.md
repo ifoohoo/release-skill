@@ -95,7 +95,7 @@ v2 的顶层结构封闭（`additionalProperties: false`），只接受 Schema �
 
 ### 2.4 摘要输出
 
-`summary.json` 只是 evidence 的有界诊断投影：它必须可由 `evidence.jsonl` 重建，**不参与发布事实判断**。`route` 等发布判断只消费经过 Schema、摘要与血缘校验的 `release-run.json`；summary 丢失、损坏或被改写不能改变发布状态。
+`summary.json` 只是 evidence 的有界诊断投影：它必须可由 `evidence.jsonl` 重建，**不参与发布事实判断**。`route` 等发布判断只消费经过 Schema、digest/binding、计划和 lineage 校验的 `release-run.json` 与其绑定 plan；summary 丢失、损坏或被改写不能改变发布状态。
 
 每次执行结束时产生一个面向用户的中文摘要，包含：
 
@@ -115,7 +115,7 @@ v2 的顶层结构封闭（`additionalProperties: false`），只接受 Schema �
 | `producer` | 生产者名称和版本，只用于归因 |
 | `recoveryActionCode` | 恢复建议码（见下），只供展示；不持久化可执行 shell 命令字符串 |
 
-恢复建议以本次 `readRunRecovery` 对运行、计划、血缘、检查点和批准的校验结果为准，不能只按成功检查点数量判断阶段。冲突、认证未知或批准问题优先诊断；没有证据或旧生产者输入返回 `unknown`。
+恢复建议以本次 `readRunRecovery` 对运行、计划、digest/binding、血缘、检查点和批准的校验结果为准，不能只按成功检查点数量、目录名、mtime、producer 版本、summary 或错误文案判断阶段。显式 target 下，只有计划目标一致且仍有未完成动作的完整校验记录才能生成当前恢复建议；其他版本、无法绑定、legacy 或损坏记录只进入 diagnostics。未传 target 时，route 按 diff/baseline 选择 workflow，历史恢复码只作展示。
 
 0.8.0 候选已接齐恢复建议输出，仍待独立验收，尚未发布。有本次证据且 FAILED 摘要收到明确的领域建议时，顶层采用同一次计算结果。兼容 `details` 和返回错误如保留建议，只镜像同一结果。未提供领域建议时保留原通用回退，无证据时仍为 `unknown`，成功 verify 的 `null` 不得改成重试建议。不得从磁盘摘要或历史 `details` 反向读取授权事实。
 

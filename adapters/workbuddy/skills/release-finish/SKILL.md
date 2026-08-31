@@ -21,6 +21,7 @@ description: 发布达到 VERIFIED 后处理可选的本地收尾：按发布分
 
 ```bash
 node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill-local-finish.mjs" \
+  --root <project-root> \
   --plan <plan-path> \
   --run <verified-run-path> \
   --json
@@ -42,6 +43,7 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill-local-finish.mjs" \
 
 ```bash
 node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill-local-finish.mjs" \
+  --root <project-root> \
   --plan <plan-path> \
   --run <verified-run-path> \
   --update-local-hosts \

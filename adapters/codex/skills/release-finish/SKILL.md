@@ -28,6 +28,7 @@ description: 发布达到 VERIFIED 后处理可选的本地收尾：按发布分
 
 ```bash
 node "$RELEASE_SKILL_LOCAL_FINISH_ENTRY" \
+  --root <project-root> \
   --plan <plan-path> \
   --run <verified-run-path> \
   --json
@@ -49,6 +50,7 @@ node "$RELEASE_SKILL_LOCAL_FINISH_ENTRY" \
 
 ```bash
 node "$RELEASE_SKILL_LOCAL_FINISH_ENTRY" \
+  --root <project-root> \
   --plan <plan-path> \
   --run <verified-run-path> \
   --update-local-hosts \
