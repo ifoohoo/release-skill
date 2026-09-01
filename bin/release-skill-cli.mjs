@@ -92,6 +92,39 @@ async function exitAfterFlush(exitCode) {
 }
 
 /**
+ * Keep command-line error JSON useful without exposing internal error objects,
+ * process envelopes, or filesystem details.  Local-finish evidence errors
+ * intentionally expose only their stable cause and executable next steps.
+ *
+ * @param {unknown} error
+ * @returns {Record<string, unknown>}
+ */
+function publicErrorDetails(error) {
+  const details = error?.details;
+  if (!details || typeof details !== 'object' || Array.isArray(details)) return {};
+  const output = {};
+  if (details.cause && typeof details.cause === 'object' && !Array.isArray(details.cause)) {
+    const cause = {};
+    if (typeof details.cause.code === 'string') cause.code = details.cause.code;
+    if (typeof details.cause.message === 'string') cause.message = details.cause.message;
+    if (Object.keys(cause).length > 0) output.cause = cause;
+  }
+  if (Array.isArray(details.nextSteps)) {
+    const nextSteps = details.nextSteps
+      .filter((step) => step && typeof step === 'object' && !Array.isArray(step))
+      .map((step) => ({
+        ...(typeof step.code === 'string' ? { code: step.code } : {}),
+        ...(typeof step.message === 'string' ? { message: step.message } : {}),
+        ...(Array.isArray(step.argv) && step.argv.every((arg) => typeof arg === 'string')
+          ? { argv: [...step.argv] } : {}),
+      }))
+      .filter((step) => Object.keys(step).length > 0);
+    if (nextSteps.length > 0) output.nextSteps = nextSteps;
+  }
+  return output;
+}
+
+/**
  * Check if a command is available and get its version.
  *
  * @param {string} command - The command to check.
@@ -903,9 +936,15 @@ if (command === 'ship') {
         } else {
           console.log('Post-release: branch advancement was already included; skip the merge question.');
         }
-        if (result.postRelease.localHostUpdate?.promptRequired) {
+        const localHostUpdate = result.postRelease.localHostUpdate;
+        if (localHostUpdate?.available === true && typeof localHostUpdate.runPath === 'string') {
           console.log(`Post-release: ask whether to update local host plugins (${result.postRelease.localHostUpdate.hosts.join(', ')}).`);
-          console.log(`Post-release command: release-skill post-release --plan ${result.planPath} --run ${result.verifyRunPath}`);
+          console.log(`Post-release command: release-skill post-release --plan ${result.planPath} --run ${localHostUpdate.runPath}`);
+          console.log('Choose --hosts before adding --update-local-hosts to perform a local update.');
+        } else {
+          for (const step of localHostUpdate?.nextSteps ?? []) {
+            console.log(`Next [${step.code}] ${step.message} (${step.argv.join(' ')})`);
+          }
         }
       }
       for (const followUp of result.manualFollowUps ?? []) {
@@ -1293,14 +1332,13 @@ if (command === 'post-release') {
   const planPath = value('--plan') ? resolve(value('--plan')) : undefined;
   const runPath = value('--run') ? resolve(value('--run')) : undefined;
   if (!planPath || !runPath) {
-    const message = 'post-release requires --plan <path> and --run <verified-run-path>';
+    const message = 'post-release requires --plan <path> and --run <verify-or-postverify-run-path>';
     if (hasJson) console.log(JSON.stringify({ error: 'MISSING_PARAMETERS', message, exitCode: 1 }));
     else console.error(`Error: ${message}`);
     await exitAfterFlush(1);
   }
   try {
     const {
-      assertVerifiedReleaseRun,
       derivePostReleaseChecklist,
       updateLocalHostPlugins,
     } = await import('../src/commands/post-release-local.mjs');
@@ -1308,24 +1346,26 @@ if (command === 'post-release') {
     const {
       loadRun,
       resolveRunPath,
-      validateRunLineage,
     } = await import('../src/core/run.mjs');
     const plan = JSON.parse(await readFile(planPath, 'utf8'));
     validatePlan(plan);
+    const updateRequested = args.includes('--update-local-hosts');
     const resolvedRunPath = await resolveRunPath(runPath);
     const runRecord = await loadRun(resolvedRunPath, {
       requireDigest: true,
       authorityPlanPath: planPath,
     });
-    await validateRunLineage(runRecord, {
-      plan,
-      planPath,
-      runPath: resolvedRunPath,
-      production: Boolean(plan.production),
-    });
-    assertVerifiedReleaseRun(plan, runRecord);
-
-    const updateRequested = args.includes('--update-local-hosts');
+    if (!updateRequested) {
+      const { assertLocalFinishRun } = await import('../src/commands/post-release-local.mjs');
+      await assertLocalFinishRun({
+        plan,
+        planPath,
+        runPath: resolvedRunPath,
+        runRecord,
+        production: Boolean(plan.production),
+        root: resolve(value('--root') ?? process.cwd()),
+      });
+    }
     const hostsIndex = args.indexOf('--hosts');
     const rawHosts = hostsIndex !== -1
       && args[hostsIndex + 1]
@@ -1338,12 +1378,19 @@ if (command === 'post-release') {
       .filter(Boolean);
     const result = updateRequested
       ? await updateLocalHostPlugins({
-        plan,
+        planPath,
+        runPath: resolvedRunPath,
         root: resolve(value('--root') ?? process.cwd()),
         confirmPlanDigest: value('--confirm-plan'),
         selectedHosts,
       })
-      : derivePostReleaseChecklist(plan);
+      : derivePostReleaseChecklist(plan, {
+        runPath: runRecord.command === 'postverify' && runRecord.status === 'DISTRIBUTED'
+          ? resolvedRunPath
+          : runRecord.command === 'verify' ? resolvedRunPath : undefined,
+        root: resolve(value('--root') ?? process.cwd()),
+        postVerifyComplete: runRecord.command === 'postverify' && runRecord.status === 'DISTRIBUTED',
+      });
 
     if (hasJson) {
       console.log(JSON.stringify(result, null, 2));
@@ -1351,8 +1398,14 @@ if (command === 'post-release') {
       console.log(`Post-release status: ${result.status}`);
       if (result.merge.promptRequired) console.log('Ask whether the user wants to merge the remaining branch.');
       else console.log('Branch advancement was already included in the release workflow; skip the merge question.');
-      if (result.localHostUpdate.promptRequired) {
+      if (result.localHostUpdate.available === true && typeof result.localHostUpdate.runPath === 'string') {
         console.log(`Ask whether to update local host plugins: ${result.localHostUpdate.hosts.join(', ')}`);
+        console.log(`Post-release command: release-skill post-release --plan ${planPath} --run ${result.localHostUpdate.runPath}`);
+        console.log('Choose --hosts before adding --update-local-hosts to perform a local update.');
+      } else {
+        for (const step of result.localHostUpdate.nextSteps ?? []) {
+          console.log(`Next [${step.code}] ${step.message} (${step.argv.join(' ')})`);
+        }
       }
     } else {
       console.log(`Local host update: ${result.status}`);
@@ -1368,9 +1421,15 @@ if (command === 'post-release') {
       console.log(JSON.stringify({
         error: err.code ?? 'POST_RELEASE_FAILED',
         message: err.message,
+        details: publicErrorDetails(err),
         exitCode: err.exitCode ?? 1,
       }));
-    } else console.error(`Error: ${err.message}`);
+    } else {
+      console.error(`Error: ${err.message}`);
+      for (const step of err.details?.nextSteps ?? []) {
+        console.error(`Next [${step.code}] ${step.message} (${step.argv.join(' ')})`);
+      }
+    }
     await exitAfterFlush(err.exitCode ?? 1);
   }
 }
@@ -1425,7 +1484,7 @@ if (command === 'verify') {
       } = await import('../src/commands/post-release-local.mjs');
       const plan = JSON.parse(await readFile(planPath, 'utf8'));
       try {
-        result.postRelease = derivePostReleaseChecklist(plan);
+        result.postRelease = derivePostReleaseChecklist(plan, { root, runPath: result.runPath });
       } catch (error) {
         result.postRelease = unavailablePostReleaseChecklist(plan, error);
       }
@@ -1451,8 +1510,15 @@ if (command === 'verify') {
       } else if (result.postRelease?.merge.promptRequired) {
         console.log('Post-release: ask whether to merge the remaining branch.');
       }
-      if (result.postRelease?.localHostUpdate.promptRequired) {
+      if (result.postRelease?.localHostUpdate?.available === true
+        && typeof result.postRelease.localHostUpdate.runPath === 'string') {
         console.log(`Post-release: ask whether to update local host plugins (${result.postRelease.localHostUpdate.hosts.join(', ')}).`);
+        console.log(`Post-release command: release-skill post-release --plan ${planPath} --run ${result.postRelease.localHostUpdate.runPath}`);
+        console.log('Choose --hosts before adding --update-local-hosts to perform a local update.');
+      } else {
+        for (const step of result.postRelease?.localHostUpdate?.nextSteps ?? []) {
+          console.log(`Next [${step.code}] ${step.message} (${step.argv.join(' ')})`);
+        }
       }
     }
 
@@ -1462,6 +1528,7 @@ if (command === 'verify') {
       const errOutput = {
         error: err.code ?? 'UNKNOWN_ERROR',
         message: err.message,
+        details: err.details ?? {},
         exitCode: err.exitCode ?? 1,
       };
       console.log(JSON.stringify(errOutput));

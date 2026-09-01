@@ -45,7 +45,7 @@ verify 只接受 `PUBLISHED` 状态的源 run；`VERIFIED` 是终态，不会再
 2. 使用插件根相对路径运行 CLI；命令调用本身即授权执行已配置的 verification gate 和 smoke process
 3. 检查 exit code 和结构化状态：`VERIFIED`（全部通过）/ 失败（具体错误）
 4. 只有 `VERIFIED` 才是发布 happy end
-5. 达到 `VERIFIED` 后立即路由 `release-finish`：先生成只读收尾清单，再按清单主动询问分支合并和本机宿主插件更新；发布策略已包含分支动作时略过合并询问
+5. 达到 `VERIFIED` 后先检查计划是否声明 `postVerify` hook：有未完成 hook 时，先按 approval 合同批准并通过 `ship` 完成 postVerify，再把最终 `DISTRIBUTED` postVerify run 路径交给 `release-finish`；没有 postVerify hook 时，才把当前 verify run 路径交给 `release-finish`。随后按清单主动询问分支合并和本机宿主插件更新；发布策略已包含分支动作时略过合并询问
 
 ## 确定性脚本调用
 
@@ -66,6 +66,7 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" verify --root <path> --plan <
 ## 发布后收尾
 
 `VERIFIED` 不代表要自动修改开发分支或本机宿主。进入 `release-finish` 后，只有用户明确同意，才执行对应的本地动作。本机插件更新失败不会改变发布终态。
+核心 prepare、publish、verify 流程跨平台；WorkBuddy 的本机收尾探测和更新仅支持 macOS。
 
 ## 烟雾测试
 

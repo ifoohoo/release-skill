@@ -539,6 +539,18 @@
                   ],
                   "description": "市场来源类型：bundled-family（技能族自带市场文件）或 standalone-index（独立市场仓库）；每个平台每次发布只冻结一种来源"
                 },
+                "firstReleaseBootstrap": {
+                  "type": "string",
+                  "enum": [
+                    "manual-index-checkpoint"
+                  ],
+                  "description": "首次 standalone-index 发布的人工索引停点；仅显式 opt-in 时启用"
+                },
+                "marketplaceIndexSha": {
+                  "type": ["string", "null"],
+                  "pattern": "^[0-9a-f]{40}$",
+                  "description": "最终市场索引提交 SHA；首次 bootstrap prepare 阶段必须保持 null，verify 仅记录实际观察值"
+                },
                 "marketplaceCommitSha": {
                   "type": "string",
                   "pattern": "^[0-9a-f]{40}$",
@@ -695,6 +707,30 @@
                     "required": [
                       "marketplaceRepo"
                     ]
+                  }
+                },
+                {
+                  "if": {
+                    "required": [
+                      "firstReleaseBootstrap"
+                    ]
+                  },
+                  "then": {
+                    "required": [
+                      "marketplaceSourceType",
+                      "marketplaceRepo"
+                    ],
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin"
+                        ]
+                      },
+                      "marketplaceSourceType": {
+                        "const": "standalone-index"
+                      }
+                    }
                   }
                 },
                 {

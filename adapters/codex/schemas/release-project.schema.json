@@ -257,6 +257,13 @@
                   ],
                   "description": "市场来源类型：bundled-family（技能族自带市场文件）或 standalone-index（独立市场仓库）；每个平台每次发布只冻结一种来源"
                 },
+                "firstReleaseBootstrap": {
+                  "type": "string",
+                  "enum": [
+                    "manual-index-checkpoint"
+                  ],
+                  "description": "首次 standalone-index 发布的人工索引停点；仅显式 opt-in 时启用"
+                },
                 "marketplaceIndexPath": {
                   "type": "string",
                   "minLength": 1,
@@ -445,6 +452,30 @@
                     "required": [
                       "marketplaceRepo"
                     ]
+                  }
+                },
+                {
+                  "if": {
+                    "required": [
+                      "firstReleaseBootstrap"
+                    ]
+                  },
+                  "then": {
+                    "required": [
+                      "marketplaceSourceType",
+                      "marketplaceRepo"
+                    ],
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin"
+                        ]
+                      },
+                      "marketplaceSourceType": {
+                        "const": "standalone-index"
+                      }
+                    }
                   }
                 },
                 {

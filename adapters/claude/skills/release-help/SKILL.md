@@ -12,12 +12,12 @@ description: "Discoverable entry point for release-skill: dependency and environ
 ## 职责
 
 - 依赖和环境检查：Node.js >= 22、Git 决定本地准备就绪度；npm/gh 另行决定生产依赖就绪度
-- 能力说明：缺少配置时走 `help → setup → assess`；已有配置的安全默认路径是 `help → assess → prepare --offline`；日常生产发布优先使用可恢复的 `ship`，兼容的分阶段闭环仍是 `prepare --online --production → approve → publish → verify`。冻结计划批准是正常发布级流程的唯一批准门；声明 `requiresApproval: true` 的 postPublish hook 仍须等待独立 checkpoint 批准
+- 能力说明：缺少配置时走 `help → setup → assess`；已有配置的安全默认路径是 `help → assess → prepare --offline`；日常生产发布优先使用可恢复的 `ship`，兼容的分阶段闭环仍是 `prepare --online --production → approve → publish → verify`。冻结计划批准是正常发布级流程的唯一批准门；声明 `requiresApproval: true` 的 postPublish hook 仍须等待独立 checkpoint 批准。若计划声明 `postVerify` hook，本机收尾必须等待 `ship` 产出的完成 postVerify run，不能把仅有 `VERIFIED` 的 verify run 当作本机收尾授权。核心发布流程跨平台，WorkBuddy 本机收尾仅支持 macOS
 - 最小示例：展示从 release-help 到 release-assess 的最短路径
 - 只读诊断：运行 dry-run 检查，不修改任何文件
 - 故障引导：根据错误码指向对应的修复 Skill
 
-## 0.9.4 候选边界
+## 0.9.5 候选边界
 
 当前源码候选允许多发布单元项目在计划冻结前显式选择本轮范围。`prepare` 和新建的 `ship` 状态支持重复传入 `--unit <id>`；未传时继续选择全部配置单元。成功选择会列出选中与延期单元。延期单元不进入本轮计划，也不获得发布状态。
 
@@ -25,7 +25,7 @@ description: "Discoverable entry point for release-skill: dependency and environ
 
 0.9.3 引入的四项工作流保护、Hook cache v2 和稳定隔离安装树记录在 0.9.4 继续保留。0.9.4 精确消费 Foundation 0.16.0 的公开包根 API。Hook cache 只复用绝对路径或经真实 cwd 校验的 cwd-relative executable identity；裸 PATH、PATHEXT、Windows 和观察不可用时，Hook 仍冷执行，缓存复用失败关闭且不写入 v2 cache。缓存没有 TTL。
 
-稳定隔离安装树记录只在宿主命令退出、目录已隔离且扫描期间没有并发写入时执行；宿主附加链接只记录、不跟随，声明载荷中的 symlink 失败关闭，legacy 全树语义保持不变。0.9.4 仍是源码候选，不能从本说明推断已批准、发布或验证。
+稳定隔离安装树记录只在宿主命令退出、目录已隔离且扫描期间没有并发写入时执行；宿主附加链接只记录、不跟随，声明载荷中的 symlink 失败关闭，legacy 全树语义保持不变。0.9.5 仍是源码候选，不能从本说明推断已批准、发布或验证。
 
 **阶段通过规则**: `status` 与 `readiness.localPreparation.status` 只判断本地 help/assess/prepare；其充要条件是 `READY` 且 exit code 为 0。`missingRequired` 列出缺失的 Node/Git。生产发布必须另外读取 `readiness.productionPublish`：缺少 npm/gh 时为 `NOT_READY`，依赖存在时仍是 `AUTH_CHECK_REQUIRED`，因为 help 不访问网络、不验证认证。Agent 无权把本地就绪解释为生产就绪。
 

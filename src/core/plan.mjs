@@ -34,7 +34,7 @@ import { digestReleaseAssetIdentities, normalizeReleaseAssets } from './release-
 // function bodies (after the import graph has settled), never at plan.mjs
 // module-init time — a top-level read would hit the registry's
 // not-yet-initialized bindings when the cycle is entered registry-first.
-import { PLATFORMS } from '../platforms/registry.mjs';
+import { PLATFORMS, buildExpectedStandaloneIndexInstallIdentity } from '../platforms/registry.mjs';
 
 // ---------------------------------------------------------------------------
 // Schema loaded from the authoritative JSON file (single source of truth)
@@ -1278,6 +1278,7 @@ export function validatePlanActionCompleteness(plan, options = {}) {
         // 也不得接受"用 null 表示存在"的方案。
         if (production && externalMarketplace && dist.marketplaceSourceType === 'standalone-index') {
           const params = action.parameters;
+          const bootstrap = dist.firstReleaseBootstrap === 'manual-index-checkpoint';
           if (params) {
             if (!params.marketplaceIndexPath) {
               failures.push(
@@ -1292,6 +1293,41 @@ export function validatePlanActionCompleteness(plan, options = {}) {
             if (!params.selectedEntry) {
               failures.push(
                 `unit "${unitId}", action "${action.id}": parameters.selectedEntry is required for production standalone-index`,
+              );
+            }
+            if (bootstrap) {
+              if (params.firstReleaseBootstrap !== 'manual-index-checkpoint') {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": parameters.firstReleaseBootstrap must be manual-index-checkpoint for a bootstrap distribution`,
+                );
+              }
+              if (params.marketplaceIndexSha !== null) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": parameters.marketplaceIndexSha must remain null until the manual index checkpoint`,
+                );
+              }
+              let expectedEntry = null;
+              try {
+                expectedEntry = buildExpectedStandaloneIndexInstallIdentity(platform, {
+                  name: plugin,
+                  version: targetVersion,
+                  repo: publicRepo,
+                  tag: expectedTag,
+                  sha: frozen?.commit,
+                });
+              } catch {
+                // Missing frozen identity is reported by the surrounding
+                // production-field checks; do not turn completeness into an
+                // uncaught implementation error.
+              }
+              if (!expectedEntry || canonicalJson(params.selectedEntry) !== canonicalJson(expectedEntry)) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": bootstrap selectedEntry does not match the frozen plugin repository, tag, commit, and version`,
+                );
+              }
+            } else if (params.firstReleaseBootstrap !== undefined || params.marketplaceIndexSha !== undefined) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": bootstrap-only fields are not allowed without firstReleaseBootstrap`,
               );
             }
           }
@@ -1329,6 +1365,14 @@ export function validatePlanActionCompleteness(plan, options = {}) {
             _checkRequired(action, 'expected.ref', action.expected?.ref, action.parameters?.ref, unitId, failures);
             _checkRequired(action, 'expected.marketplaceLocation', action.expected?.marketplaceLocation, 'external', unitId, failures);
             _checkRequired(action, 'expected.marketplaceCommitSha', action.expected?.marketplaceCommitSha, action.parameters?.marketplaceCommitSha, unitId, failures);
+            if (dist.firstReleaseBootstrap === 'manual-index-checkpoint') {
+              _checkRequired(action, 'expected.firstReleaseBootstrap', action.expected?.firstReleaseBootstrap, 'manual-index-checkpoint', unitId, failures);
+              if (action.expected?.marketplaceIndexSha !== null) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": expected.marketplaceIndexSha must be null until the manual index checkpoint`,
+                );
+              }
+            }
           } else {
             _checkRequired(action, 'expected.repo', action.expected?.repo, publicRepo, unitId, failures);
             _checkRequired(action, 'expected.ref', action.expected?.ref, expectedTag, unitId, failures);

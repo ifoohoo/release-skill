@@ -2,41 +2,41 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.4 -->
+<!-- release-skill:release-version: 0.9.5 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.4** (2026-09-01)
+**0.9.5** (2026-09-02)
 
-0.9.4 是支持多发布单元项目显式冻结安全发布范围、延期无关单元的本地源码候选。三项 Foundation 依赖均精确消费已发布的 0.16.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.5 是当前本地源码候选，收口 postVerify 到本机收尾的生命周期，识别受支持的真实宿主安装命令，并收紧 standalone-index 市场索引的身份校验。三项 Foundation 依赖均精确消费已发布的 0.16.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- ship 只在计划冻结前保存显式单元请求；沿用同一状态恢复时不能改变范围。外部写入开始后若出现部分成功，状态仍为 `PARTIAL`，只能在原计划内向前恢复。
-- 任何宿主计划都必须是合格冻结计划，且宿主验收要求 VERIFIED run；本源码候选不提供该验收。
+- canonical plan 或 run 证据缺失、摘要不一致、内容不完整或未连接到同一 VERIFIED 谱系时，本机收尾会失败关闭；该路径不会开始宿主探测或写入。
+- 任何宿主计划都必须是合格冻结计划，并要求同一发布谱系的 VERIFIED run 才能开始宿主验收；本源码候选不提供该验收。
 
 **新增**
 
-- prepare 和冻结前的 ship 支持重复传入 `--unit <id>`。显式选择成功后，命令会列出选中单元、延期单元，以及下一次准备延期单元的精确命令。
-- 显式范围命中现有 `publicSourceAuthorityReceipt` 依赖闭包时，必须同时包含 coordinator 和全部 subjects。范围不完整会在 Hook、快照和计划写入前停止，并列出缺少的单元；命令不会自动扩大范围。
+- 本机更新前必须先取得同一发布谱系的 VERIFIED 证据，并逐项完成所有已声明 checkpoint；postVerify 尚未完成时不会探测或执行宿主。本机状态证据可用时，待处理路径会返回带绑定信息的 `ship` 续接命令。
+- 为 Claude 和 Codex 的 standalone-index 分发新增显式 `manual-index-checkpoint` 首发引导路径。计划会绑定预期插件身份，并把最终市场索引提交留到 verify 观察远端索引后确定。
 
 **变更**
 
-- 版本、发布文档、快照、分发和按单元绑定的验证门只处理选中单元。完整项目配置校验、生成物新鲜度检查和顶层 Hook 仍覆盖整个项目。
-- `plan.units` 继续作为冻结后的唯一发布范围权威。publish、reconcile、verify 和 distribute 仍消费完整冻结计划，不增加单元选择参数。
-- 通过公开包根 API 精确消费 skill-family-contracts、skill-family-harness-node 和 skill-family-engineering-kit 0.16.0。CodeBuddy plugin 显式声明 marketplace: release-skill，两个 release-finish local-finish 示例都显式传入 --root <project-root>。
-- CodeBuddy 只对封闭的插件管理命令集合采用完整只读输出：即使命令报告 childExitCode 0 但残留进程组，仍保留 Foundation 异常和已完成的 SIGTERM 清理事实；每个写命令最多执行一次，并要求最终插件版本和提交精确一致。该处理不扩展到 WorkBuddy，也不改变发布状态。
-- 修正 Kimi TUI 对 ANSI 框线提示以及命令输出中 `>` 字符的识别，使信任安装和重新加载提示能够被识别，同时避免把普通输出误判为输入提示。
+- 分别识别 CodeBuddy 与 WorkBuddy 支持的真实宿主安装命令和环境边界；在不支持 WorkBuddy 的平台上只报告跳过状态，不调用宿主命令。
+- 首发引导计划必须确认插件仓库为空、目标 tag 和 GitHub Release 均不存在，再严格匹配市场名称与选定条目后继续。
+- 普通非 bootstrap 远端分发保留完整的市场条目元数据；身份校验只取平台自有字段生成。
+- CodeBuddy 插件显式声明 `marketplace: release-skill`；两个 release-finish 本机收尾示例都传入 `--root <project-root>`。
+- 当前 0.9.5 候选保留窄范围的 R-05 Hook cache v2 消费路径；本版不扩大 Hook cache 或宿主验收范围。
 
 **升级说明**
 
-未传 `--unit` 的现有命令继续选择配置中的全部发布单元。多发布单元项目可以在 prepare 或新的 ship 状态上重复传入 `--unit`，延期无关单元。批准前应审阅 `releaseScope.deferredUnitIds` 和批准摘要。范围只要命中 `publicSourceAuthorityReceipt`，就必须包含 coordinator 和全部 subjects。publish、reconcile、verify、distribute 不接受 `--unit`，这些命令必须完整执行冻结计划。只有 0.9.4 正式发布并达到 VERIFIED，且先安装或重载正式的 0.9.4 入口，才能开始真实宿主验收。源码候选、旧的已安装入口或仅存在计划和运行文件都不能完成真实宿主验收。每个选定宿主都须首次成功更新。第二次运行时，Claude、Kimi、CodeBuddy 和 WorkBuddy 必须返回 `ALREADY_CURRENT`；Codex 可以返回 `UPDATED`，但仅当再次安装同一精确 0.9.4 冻结引用、载荷验证通过且声明 `restartRequired=true`。
+采用这些改动时请重新准备 0.9.5 计划。清单返回 `COMPLETE_POST_VERIFY` 时，先用 `ship` 完成 postVerify，再运行 post-release。只有 0.9.5 正式发布并达到 VERIFIED，才能开始真实宿主验收；必须先安装或重载正式的 0.9.5 入口。源码候选、旧的已安装入口，或仅存在计划和运行文件，都不能完成真实宿主验收。每个选定宿主都必须先完成首次成功更新。第二次运行时，Claude、Kimi、CodeBuddy 和 WorkBuddy 必须返回 `ALREADY_CURRENT`；Codex 可以使用 `UPDATED`，但只有在重新安装同一精确 0.9.5 冻结引用、载荷验证通过并声明 `restartRequired=true` 时才允许这样返回。首发引导只适用于 Claude 或 Codex 的 standalone-index 分发，并使用 `manual-index-checkpoint`；verify 期间必须完成一次人工索引检查，当前版本不扩展 standalone-index 的通用支持。本源码候选不提供真实宿主验收。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.4 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.5 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -52,7 +52,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.4 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.5 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -70,7 +70,7 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-当前 0.9.4 候选包含窄范围的 R-05 Hook cache v2 消费路径和稳定隔离安装树记录路径（A2/A3）。当前仍不包含 R-02 安全整树盘点、R-10 历史发布验证的产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录验证器。本范围说明不构成远端发布记录或消费者升级指引。
+当前 0.9.5 候选包含窄范围的 R-05 Hook cache v2 消费路径和稳定隔离安装树记录路径（A2/A3）。当前仍不包含 R-02 安全整树盘点、R-10 历史发布验证的产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录验证器。本范围说明不构成远端发布记录或消费者升级指引。
 
 Foundation 三包精确依赖已发布的 0.16.0。新生成的 Kimi/CodeBuddy 同仓计划在 verify 阶段调用正式 `runPluginVerification`，把完整冻结载荷交给 Foundation，并记录最小的 `install-only` 观察收据。Kimi 映射为 `kimi-code`，CodeBuddy 映射为兼容的 `workbuddy`。`observed` 与 `payloadMatches` 只表示机制观察结果，不代表远端已发布或 release-skill 已完成领域验证。独立市场来源、真实市场安装和宿主调用仍是人工后续任务。
 
@@ -653,6 +653,9 @@ release-skill ship --root "$PROJECT" --hook-approval "$HOOK_APPROVAL_PATH" --jso
 对于已有的 bundled-family CodeBuddy/WorkBuddy 条目，只有冻结标签与可变分支都解析到
 冻结提交时才允许更新。该流程要求用户明确同意，且不改变发布状态。目标缺失、使用
 standalone 来源、远端不可访问或身份含糊时仍转人工处理，不修改宿主。
+WorkBuddy 本机更新仅支持 macOS；其他平台返回不支持并跳过。计划声明 postVerify hook 时，
+release-finish 必须接收 `ship` 产出的已完成 postVerify run，不能直接使用较早的
+verify run；核心 prepare、publish、verify 流程仍跨平台。
 
 `codebuddy-plugin` 分发可以可选地声明 `marketplace`（以及 `marketplaceSource`，即消费者添加市场所用的 URL）来覆盖默认统一市场 `artifact-skill-set`；未声明的分发保持默认值，冻结计划字节不变。
 

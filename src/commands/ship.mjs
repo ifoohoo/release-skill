@@ -174,7 +174,8 @@ async function defaultDependencies() {
   };
 }
 
-function publicState(state) {
+function publicState(state, { postRelease } = {}) {
+  const visiblePostRelease = postRelease === undefined ? state.postRelease : postRelease;
   return {
     command: 'ship',
     status: state.status,
@@ -199,7 +200,7 @@ function publicState(state) {
     ...(state.requirements ? { requirements: state.requirements } : {}),
     ...(state.manualFollowUps ? { manualFollowUps: state.manualFollowUps } : {}),
     ...(state.metadataUpdate ? { metadataUpdate: state.metadataUpdate } : {}),
-    ...(state.postRelease ? { postRelease: state.postRelease } : {}),
+    ...(visiblePostRelease ? { postRelease: visiblePostRelease } : {}),
     externalActionsIncludedInPlanApproval: true,
     verificationGatesIncludedInPlanApproval: true,
     postPublishCheckpointApprovalsIncludedInPlanApproval: false,
@@ -718,15 +719,6 @@ export async function advanceShip(options = {}, injected = {}) {
         updatedAt: new Date().toISOString(),
       };
       await writeJsonAtomic(statePath, state);
-      if (verified.status === 'VERIFIED') {
-        try {
-          state.postRelease = derivePostReleaseChecklist(plan);
-        } catch (error) {
-          state.postRelease = unavailablePostReleaseChecklist(plan, error);
-        }
-        state.updatedAt = new Date().toISOString();
-        await writeJsonAtomic(statePath, state);
-      }
     } catch (error) {
       if (error?.code !== CONSUMER_VERIFICATION_DEFERRED) throw error;
       state = {
@@ -833,6 +825,29 @@ export async function advanceShip(options = {}, injected = {}) {
       };
       await writeJsonAtomic(statePath, state);
     }
+  }
+
+  if (state.status === 'VERIFIED') {
+    const finalPlan = JSON.parse(await readFile(state.planPath, 'utf8'));
+    const hasPostVerify = normalizePostPublishView(finalPlan).some((declaration) => (
+      (declaration.hooks ?? []).some((hook) => hook.phase === 'postVerify')
+    ));
+    const localFinishRunPath = hasPostVerify
+      ? (state.postVerify?.status === 'DISTRIBUTED' ? state.postVerify.runPath : undefined)
+      : state.verifyRunPath;
+    let postRelease;
+    try {
+      postRelease = derivePostReleaseChecklist(finalPlan, {
+        root,
+        statePath,
+        unitIds: state.selectedUnitIds,
+        runPath: localFinishRunPath,
+        postVerifyComplete: !hasPostVerify || state.postVerify?.status === 'DISTRIBUTED',
+      });
+    } catch (error) {
+      postRelease = unavailablePostReleaseChecklist(finalPlan, error);
+    }
+    return publicState(state, { postRelease });
   }
 
   return publicState(state);

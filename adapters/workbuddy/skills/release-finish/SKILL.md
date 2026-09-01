@@ -13,7 +13,7 @@ description: 发布达到 VERIFIED 后处理可选的本地收尾：按发布分
 
 这是发布后的独立收尾，不属于 `prepare → approve → publish → verify` 状态机。它不能把本机更新结果写成新的发布状态，也不能因为本机更新失败而降低 `VERIFIED`。
 
-默认只读取冻结计划和 verify run。没有用户明确同意，不合并分支，不更新插件，不接受 Kimi 的安装信任提示。
+默认只读取冻结计划和 verify 或 postVerify run。没有用户明确同意，不合并分支，不更新插件，不接受 Kimi 的安装信任提示。
 
 ## 先生成收尾清单
 
@@ -23,11 +23,11 @@ description: 发布达到 VERIFIED 后处理可选的本地收尾：按发布分
 node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill-local-finish.mjs" \
   --root <project-root> \
   --plan <plan-path> \
-  --run <verified-run-path> \
+  --run <verify-or-postverify-run-path> \
   --json
 ```
 
-脚本只接受状态为 `VERIFIED`、且 `planDigest` 与冻结计划一致的 verify run。
+脚本只接受与冻结计划一致的显式运行证据：计划未声明 `postVerify` hook 时，传入同计划的 `VERIFIED` verify run；计划声明了 `postVerify` hook 时，必须传入同计划、沿同一 `VERIFIED` verify run 继承谱系且所有 hook checkpoint 均为 `succeeded` 或 `NO_CHANGE` 的 `DISTRIBUTED` postVerify run。postVerify 尚未完成时，不能直接运行本机收尾；应先完成所需 checkpoint approval，再通过 `ship` 完成 postVerify，并使用结果中的 postVerify run 路径。
 
 ## 主动询问
 
@@ -45,7 +45,7 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill-local-finish.mjs" \
 node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill-local-finish.mjs" \
   --root <project-root> \
   --plan <plan-path> \
-  --run <verified-run-path> \
+  --run <verify-or-postverify-run-path> \
   --update-local-hosts \
   --hosts claude,codex,kimi,codebuddy,workbuddy \
   --confirm-plan <planDigest> \
@@ -56,7 +56,7 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill-local-finish.mjs" \
 
 - Claude 先重新绑定冻结市场，再重新观察安装状态；旧插件若仍存在，才调用正式更新命令。Codex 继续按正式市场协议移除并安装冻结的 Git 引用。两者都在安装后核对插件、市场、版本和市场检出提交。
 - Kimi 的精确当前安装会在返回 `ALREADY_CURRENT` 前核对真实载荷；发生安装或迁移时，只在操作完成后核对结果。包名、版本、发布标签、已安装修订号和受管安装根必须与冻结计划一致；`.git` 只提供附加诊断，不是通过条件。旧的本地路径安装会在同一个受控终端交互界面（TUI）会话中先移除，再按发布标签安装、确认信任并重新加载。
-- CodeBuddy/WorkBuddy 只处理同一 bundled-family 插件和市场。只有冻结标签与计划声明的可变分支都从同一远端解析到冻结提交时，才调用正式市场更新和插件更新命令；完成后重新读取安装列表，并精确核对唯一条目的市场、版本和修订号。目标未安装、来源不符、远端不可访问或身份不一致时返回 `MANUAL_REQUIRED`，不修改宿主。
+- CodeBuddy/WorkBuddy 只处理同一 bundled-family 插件和市场。CodeBuddy 仅探测全局 `codebuddy`/`cbc`，由收尾脚本把 `CODEBUDDY_CONFIG_DIR` 固定为有效 `HOME`（环境未提供时取操作系统用户主目录）下名为 `.codebuddy` 的目录；WorkBuddy 仅在 macOS 探测 WorkBuddy 应用内嵌 CLI，由收尾脚本把 `CODEBUDDY_CONFIG_DIR` 与 `WORKBUDDY_CONFIG_DIR` 同时固定为有效 `HOME` 下名为 `.workbuddy` 的目录，绝不把两者互作回退。只有冻结标签与计划声明的可变分支都从同一远端解析到冻结提交时，才调用正式市场更新和插件更新命令；完成后重新读取安装列表，并精确核对唯一条目的市场、版本和修订号。目标未安装、来源不符、远端不可访问或身份不一致时返回 `MANUAL_REQUIRED`，不修改宿主。非 macOS 的 WorkBuddy 返回 `SKIPPED_UNSUPPORTED_PLATFORM`。
 
 任何宿主失败都保留其他宿主的实际结果，不回滚，也不把失败冒充成功。
 

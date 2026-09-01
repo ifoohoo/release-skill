@@ -1,4 +1,4 @@
-import { access } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, relative } from 'node:path';
 
@@ -12,6 +12,8 @@ import {
 import { getPlatform } from '../platforms/registry.mjs';
 import { resolveCodeBuddyMarketplace } from '../platforms/codebuddy.mjs';
 import { verifyInstalledMarketplacePayload } from '../adapters/plugin-marketplace.mjs';
+import { normalizePostPublishView, postPublishActionId } from '../core/postpublish.mjs';
+import { loadRun, validateRunLineage } from '../core/run.mjs';
 
 const HOSTS_BY_ACTION = Object.freeze({
   'claude-marketplace-install': ['claude'],
@@ -34,6 +36,7 @@ const SAFE_ENV_KEYS = Object.freeze([
   'HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'http_proxy', 'https_proxy', 'no_proxy',
   'SSL_CERT_FILE', 'SSL_CERT_DIR', 'NODE_EXTRA_CA_CERTS',
   'CLAUDE_CONFIG_DIR', 'CODEX_HOME', 'KIMI_CONFIG_DIR',
+  'CODEBUDDY_CONFIG_DIR', 'WORKBUDDY_CONFIG_DIR',
 ]);
 const CODEBUDDY_PLUGIN_LIST_ARGS = Object.freeze(['plugin', 'list', '--json']);
 const CODEBUDDY_MARKETPLACE_LIST_ARGS = Object.freeze(['plugin', 'marketplace', 'list']);
@@ -169,7 +172,27 @@ function assertExecutableTarget(target) {
   }
 }
 
-export function derivePostReleaseChecklist(plan) {
+function buildShipNextStep({ root, statePath, unitIds }) {
+  const argv = ['release-skill', 'ship'];
+  if (typeof root === 'string' && root.length > 0) argv.push('--root', root);
+  if (typeof statePath === 'string' && statePath.length > 0) argv.push('--state', statePath);
+  if (Array.isArray(unitIds) && unitIds.length > 0) {
+    for (const unitId of unitIds) argv.push('--unit', unitId);
+  }
+  return {
+    code: 'COMPLETE_POST_VERIFY',
+    message: 'Complete the postVerify phase with ship before running post-release.',
+    argv,
+  };
+}
+
+export function derivePostReleaseChecklist(plan, {
+  runPath,
+  root,
+  statePath,
+  unitIds,
+  postVerifyComplete = false,
+} = {}) {
   if (!plan || typeof plan !== 'object' || typeof plan.digest !== 'string') {
     throw new Error('a frozen release plan with digest is required');
   }
@@ -178,6 +201,9 @@ export function derivePostReleaseChecklist(plan) {
     !BRANCH_ACTION_INCLUDED.has(unit.productionConfig?.branchStrategy)
   ));
   const targets = pluginTargets(plan);
+  const hasPendingPostVerify = postVerifyHooks(plan).length > 0 && !postVerifyComplete && targets.length > 0;
+  const hasStatePath = typeof statePath === 'string' && statePath.length > 0;
+  const selectedUnitIds = Array.isArray(unitIds) ? unitIds : undefined;
   return {
     command: 'post-release',
     status: 'AWAITING_USER_DECISION',
@@ -193,12 +219,171 @@ export function derivePostReleaseChecklist(plan) {
       })),
     },
     localHostUpdate: {
-      promptRequired: targets.length > 0,
-      available: targets.length > 0,
+      promptRequired: targets.length > 0 && !hasPendingPostVerify,
+      available: targets.length > 0 && !hasPendingPostVerify,
+      ...(!hasPendingPostVerify && runPath ? { runPath } : {}),
+      ...(hasPendingPostVerify ? {
+        ...(hasStatePath ? { nextSteps: [buildShipNextStep({ root, statePath, unitIds: selectedUnitIds })] } : {}),
+      } : {}),
       hosts: [...new Set(targets.map((target) => target.host))].sort(),
       targets,
     },
   };
+}
+
+function postVerifyHooks(plan) {
+  if (plan?.planVersion === undefined) return [];
+  return normalizePostPublishView(plan).flatMap((declaration) => (
+    (declaration.hooks ?? [])
+      .filter((hook) => hook.phase === 'postVerify')
+      .map((hook) => ({
+        actionId: postPublishActionId({ planVersion: plan.planVersion, unitId: declaration.unitId, localId: hook.id }),
+        hook,
+        unitId: declaration.unitId,
+      }))
+  ));
+}
+
+function localFinishEvidenceError(message, { cause, root, statePath, unitIds } = {}) {
+  const error = new Error(`local host update evidence is not ready: ${message}; next step: obtain approval if required, then complete the postVerify phase with ship before rerunning post-release`);
+  error.code = 'LOCAL_FINISH_EVIDENCE_NOT_READY';
+  const hasStatePath = typeof statePath === 'string' && statePath.length > 0;
+  error.details = {
+    cause: {
+      code: cause?.code ?? 'LOCAL_FINISH_EVIDENCE_NOT_READY',
+      message: cause?.message ?? message,
+    },
+    ...(hasStatePath ? {
+      nextSteps: [buildShipNextStep({ root, statePath, unitIds })],
+    } : {}),
+  };
+  return error;
+}
+
+/**
+ * Validate the frozen run authority before allowing any local host command.
+ * This is the only exported entry that can perform local host writes.
+ */
+export async function updateLocalHostPlugins({
+  plan: _suppliedPlan,
+  planPath,
+  runPath,
+  runRecord: _suppliedRunRecord,
+  production: _suppliedProduction,
+  root = process.cwd(),
+  statePath,
+  unitIds,
+  ...options
+} = {}) {
+  if (!planPath || !runPath) {
+    throw localFinishEvidenceError(
+      'planPath and runPath are required before local host updates',
+      { root, statePath, unitIds },
+    );
+  }
+  let plan;
+  let runRecord;
+  try {
+    plan = JSON.parse(await readFile(planPath, 'utf8'));
+    runRecord = await loadRun(runPath, {
+      requireDigest: true,
+      authorityPlanPath: planPath,
+    });
+  } catch (cause) {
+    throw localFinishEvidenceError(cause.message, { cause, root, statePath, unitIds });
+  }
+  await assertLocalFinishRun({
+    plan,
+    planPath,
+    runPath,
+    runRecord,
+    production: Boolean(plan.production),
+    root,
+    statePath,
+    unitIds,
+  });
+  return updateLocalHostPluginsInternal({
+    plan,
+    root,
+    ...options,
+  });
+}
+
+/** Validate the explicit run supplied to local-finish before any host probe. */
+export async function assertLocalFinishRun({
+  plan,
+  planPath,
+  runPath,
+  runRecord,
+  production = false,
+  root,
+  statePath,
+  unitIds,
+} = {}) {
+  const hooks = postVerifyHooks(plan);
+  if (hooks.length === 0) {
+    try {
+      await validateRunLineage(runRecord, { plan, planPath, runPath, production });
+      assertVerifiedReleaseRun(plan, runRecord);
+    } catch (cause) {
+      throw localFinishEvidenceError(cause.message, { cause, root, statePath, unitIds, plan });
+    }
+    return { runPath, phase: 'verify' };
+  }
+  if (runRecord?.command !== 'postverify' || runRecord?.status !== 'DISTRIBUTED') {
+    throw localFinishEvidenceError('the plan declares postVerify hooks, so the supplied verify run cannot authorize local-finish', { root, statePath, unitIds, plan });
+  }
+  if (runRecord.planDigest !== plan?.digest) {
+    throw localFinishEvidenceError('postVerify run is not bound to the frozen plan', { root, statePath, unitIds, plan });
+  }
+  if (typeof runRecord.sourceRunPath !== 'string' || typeof runRecord.sourceRunId !== 'string' || typeof runRecord.sourceRunDigest !== 'string') {
+    throw localFinishEvidenceError('completed postVerify run has incomplete verify-run lineage', { root, statePath, unitIds, plan });
+  }
+  const checkpoints = Array.isArray(runRecord.checkpoints) ? runRecord.checkpoints : null;
+  const expectedIds = hooks.map(({ actionId }) => actionId);
+  const actualIds = checkpoints?.map((checkpoint) => checkpoint?.actionId) ?? [];
+  if (
+    !checkpoints
+    || actualIds.length !== expectedIds.length
+    || new Set(actualIds).size !== actualIds.length
+    || actualIds.some((id) => !expectedIds.includes(id))
+    || expectedIds.some((id) => !actualIds.includes(id))
+    || checkpoints.some((checkpoint) => (
+      checkpoint.actionType !== 'postpublish-hook'
+      || !['succeeded', 'NO_CHANGE'].includes(checkpoint.status)
+    ))
+  ) {
+    throw localFinishEvidenceError('postVerify checkpoints must match each declared hook exactly and be succeeded or NO_CHANGE', { root, statePath, unitIds, plan });
+  }
+  let sourceRun;
+  try {
+    sourceRun = await loadRun(runRecord.sourceRunPath, {
+      requireDigest: true,
+      authorityPlanPath: planPath,
+    });
+  } catch (cause) {
+    throw localFinishEvidenceError(cause.message, { cause, root, statePath, unitIds, plan });
+  }
+  if (
+    sourceRun.command !== 'verify'
+    || sourceRun.status !== 'VERIFIED'
+    || sourceRun.runId !== runRecord.sourceRunId
+    || sourceRun.runDigest !== runRecord.sourceRunDigest
+    || sourceRun.planDigest !== plan.digest
+  ) {
+    throw localFinishEvidenceError('postVerify lineage does not point to the same-plan VERIFIED run', { root, statePath, unitIds, plan });
+  }
+  try {
+    await validateRunLineage(sourceRun, {
+      plan,
+      planPath,
+      runPath: runRecord.sourceRunPath,
+      production,
+    });
+  } catch (cause) {
+    throw localFinishEvidenceError(cause.message, { cause, root, statePath, unitIds, plan });
+  }
+  return { runPath, sourceRunPath: runRecord.sourceRunPath, phase: 'postverify' };
 }
 
 export function unavailablePostReleaseChecklist(plan, error) {
@@ -232,7 +417,11 @@ function hostEnvironment(host, { kimiHome } = {}) {
   env.HOME ??= homedir();
   env.PATH ??= '/usr/bin:/bin';
   env.GIT_TERMINAL_PROMPT = '0';
-  if (host === 'workbuddy') env.CODEBUDDY_CONFIG_DIR = join(env.HOME, '.workbuddy');
+  if (host === 'codebuddy') env.CODEBUDDY_CONFIG_DIR = join(env.HOME, '.codebuddy');
+  if (host === 'workbuddy') {
+    env.CODEBUDDY_CONFIG_DIR = join(env.HOME, '.workbuddy');
+    env.WORKBUDDY_CONFIG_DIR = join(env.HOME, '.workbuddy');
+  }
   if (host === 'kimi' && kimiHome) env.KIMI_CONFIG_DIR = kimiHome;
   return env;
 }
@@ -286,11 +475,16 @@ async function commandAvailable(command, host, run) {
 }
 
 async function defaultDetect(host, run = defaultRun) {
-  if (host === 'codebuddy' || host === 'workbuddy') {
-    for (const command of ['codebuddy', 'cbc', CODEBUDDY_MACOS_PATH]) {
+  if (host === 'codebuddy') {
+    for (const command of ['codebuddy', 'cbc']) {
       if (await commandAvailable(command, host, run)) return { available: true, command };
     }
     return { available: false, reason: 'CodeBuddy/WorkBuddy CLI not found' };
+  }
+  if (host === 'workbuddy') {
+    if (process.platform !== 'darwin') return { available: false, status: 'SKIPPED_UNSUPPORTED_PLATFORM', reason: 'WorkBuddy local update is supported only on macOS' };
+    if (await commandAvailable(CODEBUDDY_MACOS_PATH, host, run)) return { available: true, command: CODEBUDDY_MACOS_PATH };
+    return { available: false, reason: 'WorkBuddy embedded CLI not found' };
   }
   if (host === 'kimi') {
     if (!await commandAvailable('kimi', host, run)) return { available: false, reason: 'kimi CLI not found' };
@@ -894,7 +1088,7 @@ function failedHostResult(target, error) {
   };
 }
 
-export async function updateLocalHostPlugins({
+async function updateLocalHostPluginsInternal({
   plan,
   root = process.cwd(),
   confirmPlanDigest,
@@ -905,7 +1099,7 @@ export async function updateLocalHostPlugins({
   verifyInstalledPayload = verifyInstalledMarketplacePayload,
 } = {}) {
   const effectiveKimiHome = kimiHome ?? process.env.KIMI_CONFIG_DIR ?? join(homedir(), '.kimi-code');
-  const checklist = derivePostReleaseChecklist(plan);
+  const checklist = derivePostReleaseChecklist(plan, { postVerifyComplete: true });
   if (confirmPlanDigest !== plan.digest) {
     throw new Error('plan digest confirmation does not match the frozen release plan');
   }
@@ -923,7 +1117,7 @@ export async function updateLocalHostPlugins({
         results.push({
           host: target.host,
           unitId: target.unitId,
-          status: 'SKIPPED_NOT_INSTALLED',
+          status: detected?.status ?? 'SKIPPED_NOT_INSTALLED',
           reason: detected?.reason ?? 'host unavailable',
         });
         continue;

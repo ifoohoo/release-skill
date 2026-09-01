@@ -77,7 +77,11 @@ import { acquireProjectLock } from '../artifacts/project-lock.mjs';
 import { observePreviousPublicBaseline } from '../core/previous-public-baseline.mjs';
 import { verifyFrozenNpmTarballContract } from '../adapters/npm.mjs';
 import { createProductionPrepareRunDir } from '../core/run.mjs';
-import { PLATFORMS, normalizeHostId } from '../platforms/registry.mjs';
+import {
+  PLATFORMS,
+  normalizeHostId,
+  buildExpectedStandaloneIndexInstallIdentity,
+} from '../platforms/registry.mjs';
 import { deriveSurfaceHostBinding, pluginRootFromManifestRelativePath } from '../core/surface-host-bindings.mjs';
 import { validateMarketplaceSourceSelection, MARKETPLACE_SOURCE_TYPES, resolvePluginManifestFromMarketplaceEntrySource, resolveMarketplaceRoot } from '../adapters/plugin-marketplace.mjs';
 import { buildInstallationContract, computeInstallationContractDigest, INSTALLATION_CONTRACT_ALGORITHM_VERSION } from '../core/installation-contract.mjs';
@@ -97,6 +101,7 @@ import { digestReleaseAssetIdentities } from '../core/release-assets.mjs';
 
 /** 消费端安装验证配方版本。算法变更时递增。 */
 const CONSUMER_INSTALL_RECIPE_VERSION = 'consumer-install-v1';
+const FIRST_RELEASE_BOOTSTRAP_MODE = 'manual-index-checkpoint';
 
 // ---------------------------------------------------------------------------
 // Version resolution
@@ -1499,6 +1504,72 @@ async function defaultFetchExternalMarketplaceIndex(repo, manifestPath, ref, { g
 }
 
 /**
+ * Observe the plugin repository before a first standalone-index release.
+ * This is deliberately a read-only, fail-closed observation: an empty
+ * repository, no target tag, and no target GitHub Release are all required.
+ */
+export function parseFirstReleasePluginRepositoryRefs(stdout, tag) {
+  if (typeof stdout !== 'string' || typeof tag !== 'string' || tag.length === 0) {
+    return { hasRefs: false, tagExists: false };
+  }
+  const refs = [];
+  let hasRefs = false;
+  for (const line of stdout.trim().split('\n').filter(Boolean)) {
+    const tabIndex = line.indexOf('\t');
+    if (tabIndex < 0) continue;
+    const sha = line.slice(0, tabIndex);
+    const ref = line.slice(tabIndex + 1);
+    if (EXTERNAL_MARKETPLACE_SHA_RE.test(sha)) {
+      hasRefs = true;
+      if (ref && ref !== 'HEAD') refs.push(ref);
+    }
+  }
+  const target = `refs/tags/${tag}`;
+  return {
+    hasRefs,
+    tagExists: refs.includes(target) || refs.includes(`${target}^{}`),
+  };
+}
+
+async function defaultObserveFirstReleasePluginRepository(repo, tag, { githubHost = 'github.com' } = {}) {
+  const url = `https://${githubHost}/${repo}.git`;
+  let repositoryRefs;
+  try {
+    const { stdout } = await execFile(
+      'git', ['ls-remote', '--symref', url],
+      { shell: false, encoding: 'utf8', timeout: 30000 },
+    );
+    repositoryRefs = parseFirstReleasePluginRepositoryRefs(String(stdout ?? ''), tag);
+  } catch (error) {
+    return { status: 'unknown', error: error.message };
+  }
+
+  let releaseExists = false;
+  try {
+    await execFile(
+      'gh', ['api', `repos/${repo}/releases/tags/${tag}`],
+      {
+        shell: false,
+        encoding: 'utf8',
+        timeout: 30000,
+        env: { ...process.env, GH_HOST: githubHost },
+      },
+    );
+    releaseExists = true;
+  } catch (error) {
+    const diagnostic = `${error?.stderr ?? ''} ${error?.message ?? ''}`;
+    if (!/\b404\b|not found/i.test(diagnostic)) {
+      return { status: 'unknown', error: error.message };
+    }
+  }
+  return { status: repositoryRefs.hasRefs ? 'non-empty' : 'empty', tagExists: repositoryRefs.tagExists, releaseExists };
+}
+
+function isFirstReleaseBootstrap(dist) {
+  return dist?.firstReleaseBootstrap === FIRST_RELEASE_BOOTSTRAP_MODE;
+}
+
+/**
  * Freeze the external marketplace HEAD for every claude/codex distribution
  * that declares `marketplaceRepo` (production + online only). For each such
  * distribution: resolve the external repository's HEAD commit sha + default
@@ -1518,6 +1589,8 @@ export async function resolveExternalMarketplaceFreezes({
   evidence,
   observeHeadFn,
   fetchIndexFn,
+  productionAssets = null,
+  observePluginRepositoryFn = defaultObserveFirstReleasePluginRepository,
 }) {
   const freezes = new Map();
   for (let index = 0; index < unitResults.length; index += 1) {
@@ -1525,10 +1598,26 @@ export async function resolveExternalMarketplaceFreezes({
     const version = resolvedVersions[index];
     const githubHost = unit.production?.githubHost ?? 'github.com';
     for (const dist of unit.distributions ?? []) {
+      if (isFirstReleaseBootstrap(dist) && dist.marketplaceSourceType !== 'standalone-index') {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" ${dist.type} first-release bootstrap requires marketplaceSourceType standalone-index`,
+          { unitId: unit.id, distributionType: dist.type },
+        );
+      }
       // 只处理 standalone-index 来源；bundled-family 不需要外部冻结。
       if (dist.marketplaceSourceType !== 'standalone-index') continue;
       // standalone-index 必须有 marketplaceRepo；没有则跳过（兼容旧配置）。
-      if (!dist.marketplaceRepo) continue;
+      if (!dist.marketplaceRepo) {
+        if (isFirstReleaseBootstrap(dist)) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}" ${dist.type} first-release bootstrap requires marketplaceRepo`,
+            { unitId: unit.id, distributionType: dist.type },
+          );
+        }
+        continue;
+      }
       const platform = PLATFORMS.find((p) => p.distributionType === dist.type);
       if (!platform) {
         throw new ReleaseError(
@@ -1543,6 +1632,13 @@ export async function resolveExternalMarketplaceFreezes({
           `unit "${unit.id}" ${dist.type} external marketplace form requires online production prepare to freeze the marketplace commit sha. ` +
           `Remediation: release-skill prepare --production --online`,
           { unitId: unit.id, marketplaceSourceType: dist.marketplaceSourceType },
+        );
+      }
+      if (isFirstReleaseBootstrap(dist) && dist.type !== 'claude-plugin' && dist.type !== 'codex-plugin') {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" ${dist.type} first-release bootstrap is supported only for claude-plugin or codex-plugin standalone-index distributions`,
+          { unitId: unit.id, distributionType: dist.type },
         );
       }
       const observed = await observeHeadFn(dist.marketplaceRepo, { githubHost });
@@ -1581,22 +1677,64 @@ export async function resolveExternalMarketplaceFreezes({
           { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo },
         );
       }
-      const pluginEntries = Array.isArray(marketplaceIndex.plugins)
-        ? marketplaceIndex.plugins.filter((entry) => entry && entry.name === dist.plugin)
-        : [];
-      if (pluginEntries.length !== 1) {
+      if (!Array.isArray(marketplaceIndex.plugins)) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" ${dist.type} external marketplace index plugins must be an array`,
+          { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo },
+        );
+      }
+      const pluginEntries = marketplaceIndex.plugins.filter((entry) => entry && entry.name === dist.plugin);
+      if (isFirstReleaseBootstrap(dist) && pluginEntries.length > 0) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" first-release bootstrap requires the marketplace entry to be absent, found ${pluginEntries.length} matching entries`,
+          { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo },
+        );
+      }
+      if (pluginEntries.length !== 1 && !isFirstReleaseBootstrap(dist)) {
         throw new ReleaseError(
           GATE_FAILED,
           `unit "${unit.id}" external marketplace index must contain exactly one plugin entry named "${dist.plugin}", found ${pluginEntries.length}`,
           { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo },
         );
       }
-      if (platform.marketplaceEntryCarriesVersion && pluginEntries[0].version !== version) {
+      let selectedEntry = pluginEntries[0];
+      if (!isFirstReleaseBootstrap(dist) && platform.marketplaceEntryCarriesVersion && selectedEntry.version !== version) {
         throw new ReleaseError(
           GATE_FAILED,
           `unit "${unit.id}" external marketplace index entry version "${pluginEntries[0].version}" does not match target version "${version}"`,
           { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo },
         );
+      }
+      if (isFirstReleaseBootstrap(dist)) {
+        const asset = productionAssets?.[index];
+        if (!asset || !EXTERNAL_MARKETPLACE_SHA_RE.test(asset.commit ?? '') || !asset.tag) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}" first-release bootstrap requires a frozen plugin tag and commit`,
+            { unitId: unit.id, distributionType: dist.type },
+          );
+        }
+        const pluginState = await observePluginRepositoryFn(unit.publicRepo, asset.tag, { githubHost });
+        if (
+          pluginState?.status !== 'empty'
+          || pluginState.tagExists !== false
+          || pluginState.releaseExists !== false
+        ) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}" first-release bootstrap requires an empty plugin repository without the target tag or release`,
+            { unitId: unit.id, publicRepo: unit.publicRepo, tag: asset.tag, observed: pluginState },
+          );
+        }
+        selectedEntry = buildExpectedStandaloneIndexInstallIdentity(platform, {
+          name: dist.plugin,
+          repo: unit.publicRepo,
+          tag: asset.tag,
+          sha: asset.commit,
+          version,
+        });
       }
       // marketplaceRef：Claude 使用默认分支名（name-ref），其余平台使用提交 SHA。
       // 无 CLI 的平台（kimi、codebuddy）也必须能冻结，ref 用 SHA。
@@ -1612,7 +1750,10 @@ export async function resolveExternalMarketplaceFreezes({
         marketplaceRef,
         marketplaceIndexPath: manifestPath,
         marketplaceName: marketplaceIndex.name,
-        selectedEntry: pluginEntries[0],
+        selectedEntry,
+        ...(isFirstReleaseBootstrap(dist)
+          ? { firstReleaseBootstrap: FIRST_RELEASE_BOOTSTRAP_MODE, marketplaceIndexSha: null }
+          : {}),
       });
       await evidence.append({
         phase: 'external-marketplace-freeze',
@@ -1624,7 +1765,10 @@ export async function resolveExternalMarketplaceFreezes({
         marketplaceRef,
         marketplaceIndexPath: manifestPath,
         marketplaceName: marketplaceIndex.name,
-        selectedEntry: pluginEntries[0],
+        selectedEntry,
+        ...(isFirstReleaseBootstrap(dist)
+          ? { firstReleaseBootstrap: FIRST_RELEASE_BOOTSTRAP_MODE, marketplaceIndexSha: null }
+          : {}),
         defaultBranch: observed.defaultBranch,
       });
     }
@@ -2043,6 +2187,10 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
             marketplaceIndexPath: freeze.marketplaceIndexPath,
             marketplaceName: freeze.marketplaceName,
             selectedEntry: freeze.selectedEntry,
+            ...(freeze.firstReleaseBootstrap ? {
+              firstReleaseBootstrap: freeze.firstReleaseBootstrap,
+              marketplaceIndexSha: null,
+            } : {}),
           } : {}),
         },
         expected: {
@@ -2058,6 +2206,10 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
           entrySkillFound: true,
           manifestDigest: asset.manifestDigest,
           ...(externalMarketplace ? { marketplaceLocation: 'external', marketplaceCommitSha: freeze.marketplaceCommitSha } : {}),
+          ...(externalMarketplace && freeze?.firstReleaseBootstrap ? {
+            firstReleaseBootstrap: freeze.firstReleaseBootstrap,
+            marketplaceIndexSha: null,
+          } : {}),
         },
         status: 'PENDING',
       });
@@ -4242,6 +4394,17 @@ export async function prepareRelease(options) {
     // and validate the marketplace index entry at that sha before freezing the
     // add-ref. The remote is only ever read (git ls-remote / gh api), never
     // written, and it is only ever reached AFTER the local closure passed.
+    for (const { unit } of unitResults) {
+      for (const dist of unit.distributions ?? []) {
+        if (isFirstReleaseBootstrap(dist) && (!production || offline)) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}" ${dist.type} first-release bootstrap requires online production prepare`,
+            { unitId: unit.id, distributionType: dist.type },
+          );
+        }
+      }
+    }
     const externalMarketplaceFreezes = production
       ? await resolveExternalMarketplaceFreezes({
           unitResults,
@@ -4250,6 +4413,8 @@ export async function prepareRelease(options) {
           evidence,
           observeHeadFn: options.observeExternalMarketplaceHeadFn ?? defaultObserveExternalMarketplaceHead,
           fetchIndexFn: options.fetchExternalMarketplaceIndexFn ?? defaultFetchExternalMarketplaceIndex,
+          productionAssets,
+          observePluginRepositoryFn: options.observeFirstReleasePluginRepositoryFn ?? defaultObserveFirstReleasePluginRepository,
         })
       : new Map();
 
@@ -4353,6 +4518,10 @@ export async function prepareRelease(options) {
             frozenDist.marketplaceIndexPath = freeze.marketplaceIndexPath;
             frozenDist.marketplaceName = freeze.marketplaceName;
             frozenDist.selectedEntry = freeze.selectedEntry;
+            if (freeze.firstReleaseBootstrap) {
+              frozenDist.firstReleaseBootstrap = freeze.firstReleaseBootstrap;
+              frozenDist.marketplaceIndexSha = null;
+            }
           }
         }
 

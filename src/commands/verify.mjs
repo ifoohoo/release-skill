@@ -68,6 +68,7 @@ import {
   verifyFrozenPluginWithFoundation,
 } from '../core/foundation-plugin-verification.mjs';
 import { resolveUnitScopedPath } from '../snapshot/public-path.mjs';
+import { canonicalJson } from '../core/digest.mjs';
 import {
   normalizeRegistry,
   registryTokenKey,
@@ -83,7 +84,7 @@ import {
 } from '../core/skill-resource-closure.mjs';
 import { deriveSurfaceHostBinding, pluginRootFromManifestRelativePath } from '../core/surface-host-bindings.mjs';
 import { isRemoteWriteAction, isMarketplaceAction } from '../core/checkpoints.mjs';
-import { PLATFORMS, normalizeHostId } from '../platforms/registry.mjs';
+import { PLATFORMS, normalizeHostId, projectObservedStandaloneIndexInstallIdentity } from '../platforms/registry.mjs';
 import {
   shouldSkipVerification,
   INSTALLATION_CONTRACT_ALGORITHM_VERSION,
@@ -181,6 +182,140 @@ const ADAPTER_ACTION_TYPE_MAP = {
 
 function defaultClock() {
   return new Date().toISOString();
+}
+
+const FIRST_RELEASE_BOOTSTRAP_MODE = 'manual-index-checkpoint';
+const EXTERNAL_MARKETPLACE_SHA_RE = /^[0-9a-f]{40}$/;
+
+function parseMarketplaceHead(stdout) {
+  if (typeof stdout !== 'string') return null;
+  let sha = null;
+  let defaultBranch = null;
+  for (const line of stdout.trim().split('\n').filter(Boolean)) {
+    const tab = line.indexOf('\t');
+    if (tab < 0) continue;
+    const left = line.slice(0, tab);
+    const right = line.slice(tab + 1);
+    if (right !== 'HEAD') continue;
+    if (left.startsWith('ref: refs/heads/')) defaultBranch = left.slice('ref: refs/heads/'.length);
+    else if (EXTERNAL_MARKETPLACE_SHA_RE.test(left)) sha = left;
+  }
+  return sha && defaultBranch ? { sha, defaultBranch } : null;
+}
+
+async function defaultObserveMarketplaceHead(repo, { githubHost = 'github.com' } = {}) {
+  try {
+    const { stdout } = await execFile('git', [
+      'ls-remote', '--symref', `https://${githubHost}/${repo}.git`, 'HEAD',
+    ], { shell: false, encoding: 'utf8', timeout: 30000 });
+    const parsed = parseMarketplaceHead(stdout);
+    return parsed ? { status: 'observed', ...parsed } : { status: 'unknown', error: 'could not resolve marketplace HEAD' };
+  } catch (error) {
+    return { status: 'unknown', error: error.message };
+  }
+}
+
+function decodeMarketplaceIndex(content) {
+  if (typeof content !== 'string') return null;
+  try {
+    return JSON.parse(Buffer.from(content.replace(/\s/g, ''), 'base64').toString('utf8'));
+  } catch {
+    return null;
+  }
+}
+
+async function defaultFetchMarketplaceIndex(repo, path, ref, { githubHost = 'github.com' } = {}) {
+  try {
+    const { stdout } = await execFile('gh', [
+      'api', `repos/${repo}/contents/${path}?ref=${ref}`, '--jq', '.content',
+    ], {
+      shell: false,
+      encoding: 'utf8',
+      timeout: 30000,
+      env: { ...process.env, GH_HOST: githubHost },
+    });
+    const index = decodeMarketplaceIndex(stdout);
+    return index && typeof index === 'object'
+      ? { status: 'fetched', index }
+      : { status: 'unknown', error: 'could not decode marketplace index' };
+  } catch (error) {
+    return { status: 'unknown', error: error.message };
+  }
+}
+
+async function verifyFirstReleaseBootstrapIndexes({
+  actions,
+  plan,
+  evidence,
+  observeHeadFn,
+  fetchIndexFn,
+}) {
+  const bindings = new Map();
+  for (const action of actions) {
+    if (action.parameters?.firstReleaseBootstrap !== FIRST_RELEASE_BOOTSTRAP_MODE) continue;
+    const params = action.parameters;
+    const githubHost = params.githubHost ?? 'github.com';
+    const failDeferred = async (reason, observed = null) => {
+      await evidence.append({
+        phase: 'verify-marketplace-bootstrap-index',
+        actionId: action.id,
+        actionType: action.type,
+        status: 'needs-input',
+        reason,
+        ...(observed ? { observed } : {}),
+      });
+      throw new ReleaseError(
+        CONSUMER_VERIFICATION_DEFERRED,
+        `first-release bootstrap marketplace index is not an exact match for action "${action.id}"; complete the manual index checkpoint and retry verify with the same plan`,
+        { actionId: action.id, reason, observed, nextState: 'NEEDS_MANUAL_ATTESTATIONS' },
+      );
+    };
+    const observed = await observeHeadFn(params.repo, { githubHost });
+    if (observed?.status !== 'observed' || !EXTERNAL_MARKETPLACE_SHA_RE.test(observed.sha ?? '') || !observed.defaultBranch) {
+      await failDeferred(`could not observe current marketplace HEAD: ${observed?.error ?? 'unknown'}`, observed);
+    }
+    const path = params.marketplaceIndexPath;
+    const fetched = await fetchIndexFn(params.repo, path, observed.sha, { githubHost });
+    if (fetched?.status !== 'fetched' || !fetched.index || typeof fetched.index !== 'object') {
+      await failDeferred(`could not read marketplace index at ${observed.sha}: ${fetched?.error ?? 'unknown'}`, observed);
+    }
+    const index = fetched.index;
+    if (index.name !== params.marketplaceName) {
+      await failDeferred(`marketplace name mismatch: expected ${params.marketplaceName}, got ${index.name}`, { ...observed, name: index.name });
+    }
+    if (!Array.isArray(index.plugins)) {
+      await failDeferred('marketplace index plugins must be an array', { ...observed, pluginsType: typeof index.plugins });
+    }
+    const entries = index.plugins.filter((entry) => entry && entry.name === params.plugin);
+    let projectedEntry = null;
+    if (entries.length === 1) {
+      try {
+        projectedEntry = projectObservedStandaloneIndexInstallIdentity(params.consumer, entries[0]);
+      } catch {
+        projectedEntry = null;
+      }
+    }
+    if (entries.length !== 1 || !projectedEntry || canonicalJson(projectedEntry) !== canonicalJson(params.selectedEntry)) {
+      await failDeferred('marketplace selectedEntry is missing, duplicated, or does not exactly match the plan-bound expected entry', {
+        ...observed,
+        entryCount: entries.length,
+        selectedEntry: projectedEntry ?? entries[0] ?? null,
+      });
+    }
+    bindings.set(action.id, {
+      marketplaceIndexSha: observed.sha,
+      marketplaceIndexRef: action.type === 'claude-marketplace-install' ? observed.defaultBranch : observed.sha,
+    });
+    await evidence.append({
+      phase: 'verify-marketplace-bootstrap-index',
+      actionId: action.id,
+      actionType: action.type,
+      status: 'observed',
+      marketplaceIndexSha: observed.sha,
+      marketplaceIndexRef: action.type === 'claude-marketplace-install' ? observed.defaultBranch : observed.sha,
+    });
+  }
+  return bindings;
 }
 
 /**
@@ -957,6 +1092,8 @@ export async function verifyRelease(options) {
     execFn,
     configPath: configPathOpt,
     runPluginVerificationFn,
+    observeFirstReleaseMarketplaceHeadFn,
+    fetchFirstReleaseMarketplaceIndexFn,
   } = options ?? {};
 
   const clockFn = typeof clockOpt === 'function' ? clockOpt : defaultClock;
@@ -1265,6 +1402,19 @@ export async function verifyRelease(options) {
     const consumerVerificationReceipts = [];
     const actions = plan.externalActions ?? [];
 
+    // A bootstrap plan intentionally leaves the final marketplace index SHA
+    // pending. Before any marketplace adapter call, observe the current
+    // remote index and require an exact match for the plan-bound entry. A
+    // mismatch is the existing deferred/manual-attestation state; no add or
+    // install command is reached on this path.
+    const bootstrapIndexBindings = await verifyFirstReleaseBootstrapIndexes({
+      actions,
+      plan,
+      evidence,
+      observeHeadFn: observeFirstReleaseMarketplaceHeadFn ?? defaultObserveMarketplaceHead,
+      fetchIndexFn: fetchFirstReleaseMarketplaceIndexFn ?? defaultFetchMarketplaceIndex,
+    });
+
     // --- 自动发现可信消费端验证收据 ---
     // 收据选择逻辑（per-action 从所有候选中选最新匹配）：
     // - 只读取同一权威 .release-skill/runs 的真实直接子目录
@@ -1533,10 +1683,21 @@ export async function verifyRelease(options) {
           runDir,
         };
 
+        const bootstrapBinding = bootstrapIndexBindings.get(action.id) ?? null;
         const actionInput = {
           actionType: adapterActionType,
           ...action.parameters,
         };
+        if (bootstrapBinding) {
+          actionInput.marketplaceCommitSha = bootstrapBinding.marketplaceIndexSha;
+          actionInput.marketplaceIndexSha = bootstrapBinding.marketplaceIndexSha;
+          actionInput.ref = bootstrapBinding.marketplaceIndexRef;
+          actionInput.sourceDescriptor = {
+            ...actionInput.sourceDescriptor,
+            marketplaceCommitSha: bootstrapBinding.marketplaceIndexSha,
+            ref: bootstrapBinding.marketplaceIndexRef,
+          };
+        }
 
         // --- 安装契约摘要免验检查 ---
         // 从计划中读取冻结的安装契约摘要。
@@ -1614,6 +1775,7 @@ export async function verifyRelease(options) {
               actionType: action.type,
               status: VERIFICATION_RESOLVED_TYPES.NOT_REQUIRED_UNCHANGED,
               installationContractDigest: currentDigest,
+              ...(bootstrapBinding ? { marketplaceIndexSha: bootstrapBinding.marketplaceIndexSha, marketplaceIndexRef: bootstrapBinding.marketplaceIndexRef } : {}),
               reason: '安装契约摘要未变化，跳过验证',
             });
 
@@ -1634,6 +1796,7 @@ export async function verifyRelease(options) {
               actionType: action.type,
               status: VERIFICATION_RESOLVED_TYPES.NOT_REQUIRED_UNCHANGED,
               installationContractDigest: currentDigest,
+              ...(bootstrapBinding ? { marketplaceIndexSha: bootstrapBinding.marketplaceIndexSha, marketplaceIndexRef: bootstrapBinding.marketplaceIndexRef } : {}),
             });
 
             return;
@@ -1657,8 +1820,16 @@ export async function verifyRelease(options) {
         }
 
         // Step 3c: Verify (observe + match against plan expected state)
+        const expectedInput = bootstrapBinding
+          ? {
+            ...action.expected,
+            marketplaceCommitSha: bootstrapBinding.marketplaceIndexSha,
+            marketplaceIndexSha: bootstrapBinding.marketplaceIndexSha,
+            ref: bootstrapBinding.marketplaceIndexRef,
+          }
+          : action.expected;
         const verifyResult = await adapter.verify(
-          { ...actionInput, expected: action.expected },
+          { ...actionInput, expected: expectedInput },
           marketplaceContext,
         );
 
@@ -1676,6 +1847,7 @@ export async function verifyRelease(options) {
           status: resolvedStatus,
           observation: verifyResult.observation,
           error: verifyResult.error,
+          ...(bootstrapBinding ? { marketplaceIndexSha: bootstrapBinding.marketplaceIndexSha, marketplaceIndexRef: bootstrapBinding.marketplaceIndexRef } : {}),
           ...(dist?.installationContractDigest ? { installationContractDigest: dist.installationContractDigest } : {}),
         };
         adapterChecks.push(check);
@@ -1700,6 +1872,7 @@ export async function verifyRelease(options) {
           actionId: action.id,
           actionType: action.type,
           status: check.status,
+          ...(bootstrapBinding ? { marketplaceIndexSha: bootstrapBinding.marketplaceIndexSha, marketplaceIndexRef: bootstrapBinding.marketplaceIndexRef } : {}),
         });
 
         if (check.status === 'FAILED') {

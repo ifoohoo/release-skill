@@ -169,6 +169,28 @@ function findSkillNames(content, manifestSkillNames) {
   return manifestSkillNames.filter((name) => content.includes(name));
 }
 
+/**
+ * Determine whether README content contains a supported installation command.
+ *
+ * npm and npx remain compatible with the original whole-document check. The
+ * platform plugin commands are checked only inside Markdown code so that a
+ * marketplace-source explanation cannot be mistaken for an installation.
+ * @param {string} content
+ * @returns {boolean}
+ */
+function hasInstallCommand(content) {
+  if (/npm\s+install|npx\s+release-skill|npm\s+i\s+release-skill/i.test(content)) {
+    return true;
+  }
+
+  const codeBlocks = [
+    ...[...content.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map((match) => match[1]),
+    ...[...content.matchAll(/`([^`\n]+)`/g)].map((match) => match[1]),
+  ];
+  const pluginInstall = /^(?:[$>]\s*)?(?:codex\s+plugin\s+add|claude\s+plugin\s+install)\s+\S+/i;
+  return codeBlocks.some((block) => block.split('\n').some((line) => pluginInstall.test(line.trim())));
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -250,9 +272,7 @@ export async function evaluateReadme({ snapshotDir, pluginManifest }) {
 
   // Readability checks: installation, minimal example, failure diagnosis
   const readabilityChecks = {
-    hasInstall: enContent
-      ? /npm\s+install|npx\s+release-skill|npm\s+i\s+release-skill/i.test(enContent)
-      : false,
+    hasInstall: enContent ? hasInstallCommand(enContent) : false,
     hasMinimalExample: enContent
       ? /```[\s\S]*?(release-skill|assess|prepare|help)[\s\S]*?```/i.test(enContent)
       : false,

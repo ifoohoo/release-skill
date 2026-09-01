@@ -1,5 +1,34 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.5 locale=en baseline=sha256:21c87f71244641b1819ee77ca067f65fd29caa64e42229184cd552b82829d86b -->
+## [0.9.5] - 2026-09-02
+
+0.9.5 is a local source candidate that closes the postVerify-to-local-finish lifecycle, recognizes the supported real host install commands, and tightens standalone-index marketplace identity checks. It consumes the three Foundation packages at the exact 0.16.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Local finishing fails closed when the canonical plan or run evidence is missing, mismatched, incomplete, or not linked to the same VERIFIED lineage; host detection and host writes do not start on that path.
+- Any host plan remains a qualified frozen-plan path and requires a VERIFIED-run from the same release lineage before host acceptance; this source candidate does not provide that acceptance.
+
+### Added
+
+- Require completed postVerify evidence, including same-lineage VERIFIED data and every declared checkpoint, before any local host update is probed or executed. Incomplete postVerify evidence returns a bound `ship` continuation when state evidence is available.
+- Add the explicit `manual-index-checkpoint` first-release bootstrap path for Claude and Codex standalone-index distributions. The plan binds the expected plugin identity and leaves the final marketplace index commit pending until verify observes the remote index.
+
+### Changed
+
+- Recognize the supported real host install commands and environment boundaries separately for CodeBuddy and WorkBuddy; unsupported WorkBuddy platforms are reported without invoking a host command.
+- Require first-release bootstrap plans to observe an empty plugin repository without the target tag or GitHub Release, then match the marketplace name and selected entry exactly before continuing.
+- Preserve the complete selected marketplace entry metadata for ordinary non-bootstrap remote distributions while deriving verification identity only from the platform-owned fields.
+- The CodeBuddy plugin declares `marketplace: release-skill`, and both release-finish local-finish examples pass `--root <project-root>`.
+- Keep the narrow R-05 Hook cache v2 consumer path in the current 0.9.5 candidate; this does not add a broader Hook cache or host acceptance surface.
+
+### Upgrade Notes
+
+Prepare a new 0.9.5 plan when adopting these changes. Complete postVerify with `ship` before running post-release when the checklist reports `COMPLETE_POST_VERIFY`. Real-host acceptance can begin only after 0.9.5 is officially published and VERIFIED; the official 0.9.5 entry must be installed or reloaded first. A source candidate, an older installed entry, or the mere existence of plan and run files cannot complete real-host acceptance. Each selected host must complete a first successful update. On the second run, Claude, Kimi, CodeBuddy, and WorkBuddy must report `ALREADY_CURRENT`; Codex may report `UPDATED` only when it reinstalls the same exact 0.9.5 frozen reference, payload validation passes, and `restartRequired=true` is declared. A first-release bootstrap uses `manual-index-checkpoint` only for Claude or Codex standalone-index distributions and requires a manual index checkpoint during verify; it does not add general standalone-index support. This source candidate does not provide real-host acceptance.
+<!-- release-skill:changelog:end version=0.9.5 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.4 locale=en baseline=sha256:bd122e1e4f28539503d3bdd702f73cbabc675dc7006f750cc38ff08544b72dc5 -->
 ## [0.9.4] - 2026-09-01
 

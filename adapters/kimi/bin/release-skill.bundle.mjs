@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.4"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.5"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "f9cf3c6e981293ac4d26c870433f0d8cad33e8a838e48d0d9c027f2cefe8bec6";
+const __bundleSourceDigest = "cbcc967eb1306a8f2e88e404a9ffbdb8bfaf0ffb8863fe8c5521cbb4d44346c1";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -19972,8 +19972,8 @@ var require_graceful_fs = __commonJS({
       fs2.createReadStream = createReadStream2;
       fs2.createWriteStream = createWriteStream;
       var fs$readFile = fs2.readFile;
-      fs2.readFile = readFile56;
-      function readFile56(path40, options, cb) {
+      fs2.readFile = readFile57;
+      function readFile57(path40, options, cb) {
         if (typeof options === "function")
           cb = options, options = null;
         return go$readFile(path40, options, cb);
@@ -19989,7 +19989,7 @@ var require_graceful_fs = __commonJS({
         }
         __name(go$readFile, "go$readFile");
       }
-      __name(readFile56, "readFile");
+      __name(readFile57, "readFile");
       var fs$writeFile = fs2.writeFile;
       fs2.writeFile = writeFile16;
       function writeFile16(path40, data, options, cb) {
@@ -41768,6 +41768,91 @@ function getPlatform(id) {
   if (!platform) throw new Error(`unknown platform: ${id}`);
   return platform;
 }
+function standaloneIdentityCore(platformOrId, fields) {
+  const platform = typeof platformOrId === "string" ? getPlatform(platformOrId) : platformOrId;
+  const id = platform?.id;
+  if (id !== "claude" && id !== "codex") {
+    throw new Error(`standalone-index install identity is unsupported for platform "${id ?? "<unknown>"}"`);
+  }
+  const { name, source, version } = fields;
+  if (typeof name !== "string" || name.length === 0 || !source || typeof source !== "object" || Array.isArray(source) || typeof source.source !== "string" || typeof source.ref !== "string" || source.ref.length === 0 || typeof source.sha !== "string" || !STANDALONE_SHA_RE.test(source.sha)) {
+    throw new Error(`${id} standalone-index install identity has invalid owned fields`);
+  }
+  if (id === "claude") {
+    if (source.source !== "github" || typeof source.repo !== "string" || source.repo.length === 0 || typeof version !== "string" || version.length === 0) {
+      throw new Error("Claude standalone-index install identity requires github repo, ref, sha, and version");
+    }
+    return {
+      name,
+      source: { source: "github", repo: source.repo, ref: source.ref, sha: source.sha },
+      version
+    };
+  }
+  if (source.source !== "url" || typeof source.url !== "string" || source.url.length === 0) {
+    throw new Error("Codex standalone-index install identity requires url, ref, and sha");
+  }
+  return {
+    name,
+    source: { source: "url", url: source.url, ref: source.ref, sha: source.sha }
+  };
+}
+function buildExpectedStandaloneIndexInstallIdentity(platformOrId, frozenIdentity = {}) {
+  const platform = typeof platformOrId === "string" ? getPlatform(platformOrId) : platformOrId;
+  const id = platform?.id;
+  const { name, repo, tag, sha, version } = frozenIdentity;
+  if (typeof repo !== "string" || repo.length === 0 || typeof tag !== "string" || tag.length === 0) {
+    throw new Error("standalone-index expected identity requires a plugin repository and tag");
+  }
+  if (id === "claude") {
+    return standaloneIdentityCore(platform, {
+      name,
+      version,
+      source: { source: "github", repo, ref: tag, sha }
+    });
+  }
+  if (id === "codex") {
+    return standaloneIdentityCore(platform, {
+      name,
+      source: { source: "url", url: `https://github.com/${repo}.git`, ref: `refs/tags/${tag}`, sha }
+    });
+  }
+  return standaloneIdentityCore(platform, { name, source: {}, version });
+}
+function projectObservedStandaloneIndexInstallIdentity(platformOrId, entry) {
+  const platform = typeof platformOrId === "string" ? getPlatform(platformOrId) : platformOrId;
+  const id = platform?.id;
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+    throw new Error("standalone-index observed identity requires an entry object");
+  }
+  const source = entry.source;
+  if (!source || typeof source !== "object" || Array.isArray(source)) {
+    throw new Error("standalone-index observed identity requires a source object");
+  }
+  if (id === "claude") {
+    return standaloneIdentityCore(platform, {
+      name: entry.name,
+      version: entry.version,
+      source: {
+        source: source.source,
+        repo: source.repo,
+        ref: source.ref,
+        sha: source.sha
+      }
+    });
+  }
+  if (id === "codex") {
+    return standaloneIdentityCore(platform, {
+      name: entry.name,
+      source: {
+        source: source.source,
+        url: source.url,
+        ref: source.ref,
+        sha: source.sha
+      }
+    });
+  }
+  return standaloneIdentityCore(platform, { name: entry.name, source });
+}
 function resolveSkillProjectionSurfaceHost(surfaceId, registry = PLATFORMS) {
   const platform = registry.find((item) => item.skillProjectionSurface === surfaceId);
   return platform?.buildAdapter?.name ?? null;
@@ -41982,7 +42067,7 @@ async function normalizeHostId(hostId, { fallback = false } = {}) {
     throw err;
   }
 }
-var CLAUDE, CODEX, KIMI, CODEBUDDY, PLATFORMS, VALID_DISTRIBUTION_TYPES, VALID_ACTION_TYPES, VALID_SOURCE_FORMS, VALID_MARKETPLACE_REF_FORMS, VALID_LIST_OUTPUTS, VALID_CLI_OUTPUTS, VALID_ENTRY_VERSION_BINDING, VALID_INSTALL_METHODS, VALID_REF_STRENGTHS, VALID_OUTPUT_PROTOCOLS, VALID_IDENTITY_EVIDENCE, VALID_DEGRADATION_POLICIES, SKILL_PROJECTION_SURFACE_PATTERN, cachedHostsRoot, normalizedHostIds;
+var CLAUDE, CODEX, KIMI, CODEBUDDY, PLATFORMS, VALID_DISTRIBUTION_TYPES, VALID_ACTION_TYPES, VALID_SOURCE_FORMS, VALID_MARKETPLACE_REF_FORMS, VALID_LIST_OUTPUTS, VALID_CLI_OUTPUTS, VALID_ENTRY_VERSION_BINDING, VALID_INSTALL_METHODS, VALID_REF_STRENGTHS, VALID_OUTPUT_PROTOCOLS, VALID_IDENTITY_EVIDENCE, VALID_DEGRADATION_POLICIES, SKILL_PROJECTION_SURFACE_PATTERN, STANDALONE_SHA_RE, cachedHostsRoot, normalizedHostIds;
 var init_registry2 = __esm({
   async "src/platforms/registry.mjs"() {
     init_src3();
@@ -42269,6 +42354,10 @@ var init_registry2 = __esm({
     VALID_DEGRADATION_POLICIES = /* @__PURE__ */ new Set(["block", "human-attestation", "human-attestation-with-fallback"]);
     SKILL_PROJECTION_SURFACE_PATTERN = /^platforms\/[a-z0-9]+(?:-[a-z0-9]+)*$/u;
     __name(getPlatform, "getPlatform");
+    STANDALONE_SHA_RE = /^[0-9a-f]{40}$/u;
+    __name(standaloneIdentityCore, "standaloneIdentityCore");
+    __name(buildExpectedStandaloneIndexInstallIdentity, "buildExpectedStandaloneIndexInstallIdentity");
+    __name(projectObservedStandaloneIndexInstallIdentity, "projectObservedStandaloneIndexInstallIdentity");
     __name(resolveSkillProjectionSurfaceHost, "resolveSkillProjectionSurfaceHost");
     __name(assertRegistry, "assertRegistry");
     assertRegistry();
@@ -43160,6 +43249,7 @@ function validatePlanActionCompleteness(plan, options = {}) {
         }
         if (production && externalMarketplace && dist.marketplaceSourceType === "standalone-index") {
           const params = action.parameters;
+          const bootstrap = dist.firstReleaseBootstrap === "manual-index-checkpoint";
           if (params) {
             if (!params.marketplaceIndexPath) {
               failures.push(
@@ -43174,6 +43264,38 @@ function validatePlanActionCompleteness(plan, options = {}) {
             if (!params.selectedEntry) {
               failures.push(
                 `unit "${unitId}", action "${action.id}": parameters.selectedEntry is required for production standalone-index`
+              );
+            }
+            if (bootstrap) {
+              if (params.firstReleaseBootstrap !== "manual-index-checkpoint") {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": parameters.firstReleaseBootstrap must be manual-index-checkpoint for a bootstrap distribution`
+                );
+              }
+              if (params.marketplaceIndexSha !== null) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": parameters.marketplaceIndexSha must remain null until the manual index checkpoint`
+                );
+              }
+              let expectedEntry = null;
+              try {
+                expectedEntry = buildExpectedStandaloneIndexInstallIdentity(platform, {
+                  name: plugin,
+                  version: targetVersion,
+                  repo: publicRepo,
+                  tag: expectedTag,
+                  sha: frozen?.commit
+                });
+              } catch {
+              }
+              if (!expectedEntry || canonicalJson2(params.selectedEntry) !== canonicalJson2(expectedEntry)) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": bootstrap selectedEntry does not match the frozen plugin repository, tag, commit, and version`
+                );
+              }
+            } else if (params.firstReleaseBootstrap !== void 0 || params.marketplaceIndexSha !== void 0) {
+              failures.push(
+                `unit "${unitId}", action "${action.id}": bootstrap-only fields are not allowed without firstReleaseBootstrap`
               );
             }
           }
@@ -43205,6 +43327,14 @@ function validatePlanActionCompleteness(plan, options = {}) {
             _checkRequired(action, "expected.ref", action.expected?.ref, action.parameters?.ref, unitId, failures);
             _checkRequired(action, "expected.marketplaceLocation", action.expected?.marketplaceLocation, "external", unitId, failures);
             _checkRequired(action, "expected.marketplaceCommitSha", action.expected?.marketplaceCommitSha, action.parameters?.marketplaceCommitSha, unitId, failures);
+            if (dist.firstReleaseBootstrap === "manual-index-checkpoint") {
+              _checkRequired(action, "expected.firstReleaseBootstrap", action.expected?.firstReleaseBootstrap, "manual-index-checkpoint", unitId, failures);
+              if (action.expected?.marketplaceIndexSha !== null) {
+                failures.push(
+                  `unit "${unitId}", action "${action.id}": expected.marketplaceIndexSha must be null until the manual index checkpoint`
+                );
+              }
+            }
           } else {
             _checkRequired(action, "expected.repo", action.expected?.repo, publicRepo, unitId, failures);
             _checkRequired(action, "expected.ref", action.expected?.ref, expectedTag, unitId, failures);
@@ -59992,7 +60122,7 @@ var require_entry_index = __commonJS({
     var {
       appendFile,
       mkdir: mkdir35,
-      readFile: readFile56,
+      readFile: readFile57,
       readdir: readdir34,
       rm: rm19,
       writeFile: writeFile16
@@ -60184,7 +60314,7 @@ ${hashEntry(stringified)}	${stringified}`);
     __name(ls, "ls");
     module.exports.bucketEntries = bucketEntries;
     async function bucketEntries(bucket, filter) {
-      const data = await readFile56(bucket, "utf8");
+      const data = await readFile57(bucket, "utf8");
       return _bucketEntries(data, filter);
     }
     __name(bucketEntries, "bucketEntries");
@@ -64494,7 +64624,7 @@ var require_verify = __commonJS({
     "use strict";
     var {
       mkdir: mkdir35,
-      readFile: readFile56,
+      readFile: readFile57,
       rm: rm19,
       stat: stat22,
       truncate,
@@ -64721,7 +64851,7 @@ var require_verify = __commonJS({
     __name(writeVerifile, "writeVerifile");
     module.exports.lastRun = lastRun;
     async function lastRun(cache) {
-      const data = await readFile56(path40.join(cache, "_lastverified"), { encoding: "utf8" });
+      const data = await readFile57(path40.join(cache, "_lastverified"), { encoding: "utf8" });
       return /* @__PURE__ */ new Date(+data);
     }
     __name(lastRun, "lastRun");
@@ -76643,11 +76773,11 @@ var require_normalize = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+package-json@7.0.5/node_modules/@npmcli/package-json/lib/read-package.js
 var require_read_package = __commonJS({
   "../../node_modules/.pnpm/@npmcli+package-json@7.0.5/node_modules/@npmcli/package-json/lib/read-package.js"(exports, module) {
-    var { readFile: readFile56 } = __require("fs/promises");
+    var { readFile: readFile57 } = __require("fs/promises");
     var parseJSON = require_lib33();
     async function read(filename) {
       try {
-        const data = await readFile56(filename, "utf8");
+        const data = await readFile57(filename, "utf8");
         return data;
       } catch (err) {
         err.message = `Could not read package.json: ${err}`;
@@ -76780,7 +76910,7 @@ var require_sort2 = __commonJS({
 // ../../node_modules/.pnpm/@npmcli+package-json@7.0.5/node_modules/@npmcli/package-json/lib/index.js
 var require_lib40 = __commonJS({
   "../../node_modules/.pnpm/@npmcli+package-json@7.0.5/node_modules/@npmcli/package-json/lib/index.js"(exports, module) {
-    var { readFile: readFile56, writeFile: writeFile16 } = __require("node:fs/promises");
+    var { readFile: readFile57, writeFile: writeFile16 } = __require("node:fs/promises");
     var { resolve: resolve42 } = __require("node:path");
     var parseJSON = require_lib33();
     var updateDeps = require_update_dependencies();
@@ -76906,7 +77036,7 @@ var require_lib40 = __commonJS({
           const indexFile = resolve42(this.path, "index.js");
           let indexFileContent;
           try {
-            indexFileContent = await readFile56(indexFile, "utf8");
+            indexFileContent = await readFile57(indexFile, "utf8");
           } catch (err) {
             throw parseErr;
           }
@@ -89207,7 +89337,7 @@ var require_dist16 = __commonJS({
 var require_provenance = __commonJS({
   "../../node_modules/.pnpm/libnpmpublish@11.2.0/node_modules/libnpmpublish/lib/provenance.js"(exports, module) {
     var sigstore = require_dist16();
-    var { readFile: readFile56 } = __require("node:fs/promises");
+    var { readFile: readFile57 } = __require("node:fs/promises");
     var ci = require_ci_info();
     var { env } = process;
     var INTOTO_PAYLOAD_TYPE = "application/vnd.in-toto+json";
@@ -89399,7 +89529,7 @@ var require_provenance = __commonJS({
     var verifyProvenance = /* @__PURE__ */ __name(async (subject, provenancePath) => {
       let provenanceBundle;
       try {
-        provenanceBundle = JSON.parse(await readFile56(provenancePath));
+        provenanceBundle = JSON.parse(await readFile57(provenancePath));
       } catch (err) {
         err.message = `Invalid provenance provided: ${err.message}`;
         throw err;
@@ -99484,7 +99614,7 @@ var require_entry_index2 = __commonJS({
     var {
       appendFile,
       mkdir: mkdir35,
-      readFile: readFile56,
+      readFile: readFile57,
       readdir: readdir34,
       rm: rm19,
       writeFile: writeFile16
@@ -99676,7 +99806,7 @@ ${hashEntry(stringified)}	${stringified}`);
     __name(ls, "ls");
     module.exports.bucketEntries = bucketEntries;
     async function bucketEntries(bucket, filter) {
-      const data = await readFile56(bucket, "utf8");
+      const data = await readFile57(bucket, "utf8");
       return _bucketEntries(data, filter);
     }
     __name(bucketEntries, "bucketEntries");
@@ -105365,7 +105495,7 @@ var require_verify3 = __commonJS({
     "use strict";
     var {
       mkdir: mkdir35,
-      readFile: readFile56,
+      readFile: readFile57,
       rm: rm19,
       stat: stat22,
       truncate,
@@ -105592,7 +105722,7 @@ var require_verify3 = __commonJS({
     __name(writeVerifile, "writeVerifile");
     module.exports.lastRun = lastRun;
     async function lastRun(cache) {
-      const data = await readFile56(path40.join(cache, "_lastverified"), { encoding: "utf8" });
+      const data = await readFile57(path40.join(cache, "_lastverified"), { encoding: "utf8" });
       return /* @__PURE__ */ new Date(+data);
     }
     __name(lastRun, "lastRun");
@@ -112391,6 +112521,136 @@ async function verifyPublicSourceAuthorityReceiptOffline({ plan, root }) {
 function defaultClock() {
   return (/* @__PURE__ */ new Date()).toISOString();
 }
+function parseMarketplaceHead(stdout) {
+  if (typeof stdout !== "string") return null;
+  let sha = null;
+  let defaultBranch = null;
+  for (const line of stdout.trim().split("\n").filter(Boolean)) {
+    const tab = line.indexOf("	");
+    if (tab < 0) continue;
+    const left = line.slice(0, tab);
+    const right = line.slice(tab + 1);
+    if (right !== "HEAD") continue;
+    if (left.startsWith("ref: refs/heads/")) defaultBranch = left.slice("ref: refs/heads/".length);
+    else if (EXTERNAL_MARKETPLACE_SHA_RE2.test(left)) sha = left;
+  }
+  return sha && defaultBranch ? { sha, defaultBranch } : null;
+}
+async function defaultObserveMarketplaceHead(repo, { githubHost = "github.com" } = {}) {
+  try {
+    const { stdout } = await execFile6("git", [
+      "ls-remote",
+      "--symref",
+      `https://${githubHost}/${repo}.git`,
+      "HEAD"
+    ], { shell: false, encoding: "utf8", timeout: 3e4 });
+    const parsed = parseMarketplaceHead(stdout);
+    return parsed ? { status: "observed", ...parsed } : { status: "unknown", error: "could not resolve marketplace HEAD" };
+  } catch (error) {
+    return { status: "unknown", error: error.message };
+  }
+}
+function decodeMarketplaceIndex(content) {
+  if (typeof content !== "string") return null;
+  try {
+    return JSON.parse(Buffer.from(content.replace(/\s/g, ""), "base64").toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+async function defaultFetchMarketplaceIndex(repo, path40, ref, { githubHost = "github.com" } = {}) {
+  try {
+    const { stdout } = await execFile6("gh", [
+      "api",
+      `repos/${repo}/contents/${path40}?ref=${ref}`,
+      "--jq",
+      ".content"
+    ], {
+      shell: false,
+      encoding: "utf8",
+      timeout: 3e4,
+      env: { ...process.env, GH_HOST: githubHost }
+    });
+    const index = decodeMarketplaceIndex(stdout);
+    return index && typeof index === "object" ? { status: "fetched", index } : { status: "unknown", error: "could not decode marketplace index" };
+  } catch (error) {
+    return { status: "unknown", error: error.message };
+  }
+}
+async function verifyFirstReleaseBootstrapIndexes({
+  actions,
+  plan,
+  evidence,
+  observeHeadFn,
+  fetchIndexFn
+}) {
+  const bindings = /* @__PURE__ */ new Map();
+  for (const action of actions) {
+    if (action.parameters?.firstReleaseBootstrap !== FIRST_RELEASE_BOOTSTRAP_MODE) continue;
+    const params = action.parameters;
+    const githubHost = params.githubHost ?? "github.com";
+    const failDeferred = /* @__PURE__ */ __name(async (reason, observed2 = null) => {
+      await evidence.append({
+        phase: "verify-marketplace-bootstrap-index",
+        actionId: action.id,
+        actionType: action.type,
+        status: "needs-input",
+        reason,
+        ...observed2 ? { observed: observed2 } : {}
+      });
+      throw new ReleaseError(
+        CONSUMER_VERIFICATION_DEFERRED,
+        `first-release bootstrap marketplace index is not an exact match for action "${action.id}"; complete the manual index checkpoint and retry verify with the same plan`,
+        { actionId: action.id, reason, observed: observed2, nextState: "NEEDS_MANUAL_ATTESTATIONS" }
+      );
+    }, "failDeferred");
+    const observed = await observeHeadFn(params.repo, { githubHost });
+    if (observed?.status !== "observed" || !EXTERNAL_MARKETPLACE_SHA_RE2.test(observed.sha ?? "") || !observed.defaultBranch) {
+      await failDeferred(`could not observe current marketplace HEAD: ${observed?.error ?? "unknown"}`, observed);
+    }
+    const path40 = params.marketplaceIndexPath;
+    const fetched = await fetchIndexFn(params.repo, path40, observed.sha, { githubHost });
+    if (fetched?.status !== "fetched" || !fetched.index || typeof fetched.index !== "object") {
+      await failDeferred(`could not read marketplace index at ${observed.sha}: ${fetched?.error ?? "unknown"}`, observed);
+    }
+    const index = fetched.index;
+    if (index.name !== params.marketplaceName) {
+      await failDeferred(`marketplace name mismatch: expected ${params.marketplaceName}, got ${index.name}`, { ...observed, name: index.name });
+    }
+    if (!Array.isArray(index.plugins)) {
+      await failDeferred("marketplace index plugins must be an array", { ...observed, pluginsType: typeof index.plugins });
+    }
+    const entries = index.plugins.filter((entry) => entry && entry.name === params.plugin);
+    let projectedEntry = null;
+    if (entries.length === 1) {
+      try {
+        projectedEntry = projectObservedStandaloneIndexInstallIdentity(params.consumer, entries[0]);
+      } catch {
+        projectedEntry = null;
+      }
+    }
+    if (entries.length !== 1 || !projectedEntry || canonicalJson2(projectedEntry) !== canonicalJson2(params.selectedEntry)) {
+      await failDeferred("marketplace selectedEntry is missing, duplicated, or does not exactly match the plan-bound expected entry", {
+        ...observed,
+        entryCount: entries.length,
+        selectedEntry: projectedEntry ?? entries[0] ?? null
+      });
+    }
+    bindings.set(action.id, {
+      marketplaceIndexSha: observed.sha,
+      marketplaceIndexRef: action.type === "claude-marketplace-install" ? observed.defaultBranch : observed.sha
+    });
+    await evidence.append({
+      phase: "verify-marketplace-bootstrap-index",
+      actionId: action.id,
+      actionType: action.type,
+      status: "observed",
+      marketplaceIndexSha: observed.sha,
+      marketplaceIndexRef: action.type === "claude-marketplace-install" ? observed.defaultBranch : observed.sha
+    });
+  }
+  return bindings;
+}
 function isValidDigest2(digest3) {
   return typeof digest3 === "string" && /^[a-f0-9]{64}$/.test(digest3);
 }
@@ -112925,7 +113185,9 @@ async function verifyRelease(options) {
     previousVerifyRun,
     execFn,
     configPath: configPathOpt,
-    runPluginVerificationFn
+    runPluginVerificationFn,
+    observeFirstReleaseMarketplaceHeadFn,
+    fetchFirstReleaseMarketplaceIndexFn
   } = options ?? {};
   const clockFn = typeof clockOpt === "function" ? clockOpt : defaultClock;
   if (!sourceRunPath) {
@@ -113139,6 +113401,13 @@ async function verifyRelease(options) {
     const consumerGateResults = [];
     const consumerVerificationReceipts = [];
     const actions = plan.externalActions ?? [];
+    const bootstrapIndexBindings = await verifyFirstReleaseBootstrapIndexes({
+      actions,
+      plan,
+      evidence,
+      observeHeadFn: observeFirstReleaseMarketplaceHeadFn ?? defaultObserveMarketplaceHead,
+      fetchIndexFn: fetchFirstReleaseMarketplaceIndexFn ?? defaultFetchMarketplaceIndex
+    });
     const trustedVerifyRuns = [];
     const planDir = dirname10(planPath);
     const releaseDir = basename9(planDir) === "plans" ? dirname10(planDir) : planDir;
@@ -113335,10 +113604,21 @@ async function verifyRelease(options) {
           root,
           runDir
         };
+        const bootstrapBinding = bootstrapIndexBindings.get(action.id) ?? null;
         const actionInput = {
           actionType: adapterActionType,
           ...action.parameters
         };
+        if (bootstrapBinding) {
+          actionInput.marketplaceCommitSha = bootstrapBinding.marketplaceIndexSha;
+          actionInput.marketplaceIndexSha = bootstrapBinding.marketplaceIndexSha;
+          actionInput.ref = bootstrapBinding.marketplaceIndexRef;
+          actionInput.sourceDescriptor = {
+            ...actionInput.sourceDescriptor,
+            marketplaceCommitSha: bootstrapBinding.marketplaceIndexSha,
+            ref: bootstrapBinding.marketplaceIndexRef
+          };
+        }
         const unit = (plan.units ?? []).find((u) => u.id === action.unitId);
         const typeToDist = {
           "claude-marketplace-install": "claude-plugin",
@@ -113392,6 +113672,7 @@ async function verifyRelease(options) {
               actionType: action.type,
               status: VERIFICATION_RESOLVED_TYPES.NOT_REQUIRED_UNCHANGED,
               installationContractDigest: currentDigest,
+              ...bootstrapBinding ? { marketplaceIndexSha: bootstrapBinding.marketplaceIndexSha, marketplaceIndexRef: bootstrapBinding.marketplaceIndexRef } : {},
               reason: "\u5B89\u88C5\u5951\u7EA6\u6458\u8981\u672A\u53D8\u5316\uFF0C\u8DF3\u8FC7\u9A8C\u8BC1"
             });
             consumerVerificationReceipts.push({
@@ -113409,7 +113690,8 @@ async function verifyRelease(options) {
               actionId: action.id,
               actionType: action.type,
               status: VERIFICATION_RESOLVED_TYPES.NOT_REQUIRED_UNCHANGED,
-              installationContractDigest: currentDigest
+              installationContractDigest: currentDigest,
+              ...bootstrapBinding ? { marketplaceIndexSha: bootstrapBinding.marketplaceIndexSha, marketplaceIndexRef: bootstrapBinding.marketplaceIndexRef } : {}
             });
             return;
           }
@@ -113428,8 +113710,14 @@ async function verifyRelease(options) {
             { actionId: action.id }
           );
         }
+        const expectedInput = bootstrapBinding ? {
+          ...action.expected,
+          marketplaceCommitSha: bootstrapBinding.marketplaceIndexSha,
+          marketplaceIndexSha: bootstrapBinding.marketplaceIndexSha,
+          ref: bootstrapBinding.marketplaceIndexRef
+        } : action.expected;
         const verifyResult = await adapter.verify(
-          { ...actionInput, expected: action.expected },
+          { ...actionInput, expected: expectedInput },
           marketplaceContext
         );
         const isHumanConfirmed = verifyResult.observation?.humanConfirmed === true;
@@ -113440,6 +113728,7 @@ async function verifyRelease(options) {
           status: resolvedStatus,
           observation: verifyResult.observation,
           error: verifyResult.error,
+          ...bootstrapBinding ? { marketplaceIndexSha: bootstrapBinding.marketplaceIndexSha, marketplaceIndexRef: bootstrapBinding.marketplaceIndexRef } : {},
           ...dist?.installationContractDigest ? { installationContractDigest: dist.installationContractDigest } : {}
         };
         adapterChecks.push(check);
@@ -113459,7 +113748,8 @@ async function verifyRelease(options) {
           phase: "verify-marketplace",
           actionId: action.id,
           actionType: action.type,
-          status: check.status
+          status: check.status,
+          ...bootstrapBinding ? { marketplaceIndexSha: bootstrapBinding.marketplaceIndexSha, marketplaceIndexRef: bootstrapBinding.marketplaceIndexRef } : {}
         });
         if (check.status === "FAILED") {
           throw new ReleaseError(
@@ -113899,7 +114189,7 @@ async function verifyRelease(options) {
     throw err;
   }
 }
-var execFile6, VERIFICATION_RESOLVED_TYPES, ADAPTER_ACTION_TYPE_MAP2, defaultNpmExecutor;
+var execFile6, VERIFICATION_RESOLVED_TYPES, ADAPTER_ACTION_TYPE_MAP2, FIRST_RELEASE_BOOTSTRAP_MODE, EXTERNAL_MARKETPLACE_SHA_RE2, defaultNpmExecutor;
 var init_verify = __esm({
   async "src/commands/verify.mjs"() {
     init_src2();
@@ -113918,6 +114208,7 @@ var init_verify = __esm({
     init_frozen_marker();
     await init_foundation_plugin_verification();
     init_public_path();
+    init_digest();
     init_npm();
     init_verification_gates();
     await init_skill_resource_closure();
@@ -113948,6 +114239,13 @@ var init_verify = __esm({
       "codebuddy-marketplace-install": "codebuddy-marketplace-install"
     };
     __name(defaultClock, "defaultClock");
+    FIRST_RELEASE_BOOTSTRAP_MODE = "manual-index-checkpoint";
+    EXTERNAL_MARKETPLACE_SHA_RE2 = /^[0-9a-f]{40}$/;
+    __name(parseMarketplaceHead, "parseMarketplaceHead");
+    __name(defaultObserveMarketplaceHead, "defaultObserveMarketplaceHead");
+    __name(decodeMarketplaceIndex, "decodeMarketplaceIndex");
+    __name(defaultFetchMarketplaceIndex, "defaultFetchMarketplaceIndex");
+    __name(verifyFirstReleaseBootstrapIndexes, "verifyFirstReleaseBootstrapIndexes");
     __name(isValidDigest2, "isValidDigest");
     __name(collectMissingManualAttestations, "collectMissingManualAttestations");
     __name(matchesSubset2, "matchesSubset");
@@ -121372,6 +121670,17 @@ function extractManifestSkillNames(skills) {
 function findSkillNames(content, manifestSkillNames) {
   return manifestSkillNames.filter((name) => content.includes(name));
 }
+function hasInstallCommand(content) {
+  if (/npm\s+install|npx\s+release-skill|npm\s+i\s+release-skill/i.test(content)) {
+    return true;
+  }
+  const codeBlocks = [
+    ...[...content.matchAll(/```[^\n]*\n([\s\S]*?)```/g)].map((match) => match[1]),
+    ...[...content.matchAll(/`([^`\n]+)`/g)].map((match) => match[1])
+  ];
+  const pluginInstall = /^(?:[$>]\s*)?(?:codex\s+plugin\s+add|claude\s+plugin\s+install)\s+\S+/i;
+  return codeBlocks.some((block) => block.split("\n").some((line) => pluginInstall.test(line.trim())));
+}
 async function evaluateReadme({ snapshotDir, pluginManifest }) {
   const findings = [];
   const enPath = path39.join(snapshotDir, "README.md");
@@ -121412,7 +121721,7 @@ async function evaluateReadme({ snapshotDir, pluginManifest }) {
     safeFirstCommand: enMarkers.has("safe-first-command")
   };
   const readabilityChecks = {
-    hasInstall: enContent ? /npm\s+install|npx\s+release-skill|npm\s+i\s+release-skill/i.test(enContent) : false,
+    hasInstall: enContent ? hasInstallCommand(enContent) : false,
     hasMinimalExample: enContent ? /```[\s\S]*?(release-skill|assess|prepare|help)[\s\S]*?```/i.test(enContent) : false,
     hasFailureDiagnosis: enContent ? /CONFIG_INVALID|PARTIAL|GATE_FAILED|if.*fail|如果.*失败|故障|troubleshoot/i.test(enContent) : false,
     hasNextSteps: enContent ? /next.*step|下一步|后续|see.*also|参阅|进一步/i.test(enContent) : false
@@ -121472,6 +121781,7 @@ var init_contract2 = __esm({
     __name(resolveSkillName, "resolveSkillName");
     __name(extractManifestSkillNames, "extractManifestSkillNames");
     __name(findSkillNames, "findSkillNames");
+    __name(hasInstallCommand, "hasInstallCommand");
     __name(evaluateReadme, "evaluateReadme");
   }
 });
@@ -127335,6 +127645,7 @@ __export(prepare_exports, {
   decodeExternalMarketplaceIndex: () => decodeExternalMarketplaceIndex,
   observeOriginAhead: () => observeOriginAhead,
   parseExternalMarketplaceLsRemote: () => parseExternalMarketplaceLsRemote,
+  parseFirstReleasePluginRepositoryRefs: () => parseFirstReleasePluginRepositoryRefs,
   prepareRelease: () => prepareRelease,
   readHeadCommitTimestamp: () => readHeadCommitTimestamp,
   readLatestFrozenPlan: () => readLatestFrozenPlan,
@@ -128204,7 +128515,7 @@ function parseExternalMarketplaceLsRemote(stdout) {
     if (right !== "HEAD") continue;
     if (left.startsWith("ref: refs/heads/")) {
       defaultBranch = left.slice("ref: refs/heads/".length);
-    } else if (EXTERNAL_MARKETPLACE_SHA_RE2.test(left)) {
+    } else if (EXTERNAL_MARKETPLACE_SHA_RE3.test(left)) {
       sha = left;
     }
   }
@@ -128259,13 +128570,74 @@ async function defaultFetchExternalMarketplaceIndex(repo, manifestPath, ref, { g
     return { status: "unknown", error: error.message };
   }
 }
+function parseFirstReleasePluginRepositoryRefs(stdout, tag) {
+  if (typeof stdout !== "string" || typeof tag !== "string" || tag.length === 0) {
+    return { hasRefs: false, tagExists: false };
+  }
+  const refs = [];
+  let hasRefs = false;
+  for (const line of stdout.trim().split("\n").filter(Boolean)) {
+    const tabIndex = line.indexOf("	");
+    if (tabIndex < 0) continue;
+    const sha = line.slice(0, tabIndex);
+    const ref = line.slice(tabIndex + 1);
+    if (EXTERNAL_MARKETPLACE_SHA_RE3.test(sha)) {
+      hasRefs = true;
+      if (ref && ref !== "HEAD") refs.push(ref);
+    }
+  }
+  const target = `refs/tags/${tag}`;
+  return {
+    hasRefs,
+    tagExists: refs.includes(target) || refs.includes(`${target}^{}`)
+  };
+}
+async function defaultObserveFirstReleasePluginRepository(repo, tag, { githubHost = "github.com" } = {}) {
+  const url = `https://${githubHost}/${repo}.git`;
+  let repositoryRefs;
+  try {
+    const { stdout } = await execFile9(
+      "git",
+      ["ls-remote", "--symref", url],
+      { shell: false, encoding: "utf8", timeout: 3e4 }
+    );
+    repositoryRefs = parseFirstReleasePluginRepositoryRefs(String(stdout ?? ""), tag);
+  } catch (error) {
+    return { status: "unknown", error: error.message };
+  }
+  let releaseExists = false;
+  try {
+    await execFile9(
+      "gh",
+      ["api", `repos/${repo}/releases/tags/${tag}`],
+      {
+        shell: false,
+        encoding: "utf8",
+        timeout: 3e4,
+        env: { ...process.env, GH_HOST: githubHost }
+      }
+    );
+    releaseExists = true;
+  } catch (error) {
+    const diagnostic = `${error?.stderr ?? ""} ${error?.message ?? ""}`;
+    if (!/\b404\b|not found/i.test(diagnostic)) {
+      return { status: "unknown", error: error.message };
+    }
+  }
+  return { status: repositoryRefs.hasRefs ? "non-empty" : "empty", tagExists: repositoryRefs.tagExists, releaseExists };
+}
+function isFirstReleaseBootstrap(dist) {
+  return dist?.firstReleaseBootstrap === FIRST_RELEASE_BOOTSTRAP_MODE2;
+}
 async function resolveExternalMarketplaceFreezes({
   unitResults,
   resolvedVersions,
   offline,
   evidence,
   observeHeadFn,
-  fetchIndexFn
+  fetchIndexFn,
+  productionAssets = null,
+  observePluginRepositoryFn = defaultObserveFirstReleasePluginRepository
 }) {
   const freezes = /* @__PURE__ */ new Map();
   for (let index = 0; index < unitResults.length; index += 1) {
@@ -128273,8 +128645,24 @@ async function resolveExternalMarketplaceFreezes({
     const version = resolvedVersions[index];
     const githubHost = unit.production?.githubHost ?? "github.com";
     for (const dist of unit.distributions ?? []) {
+      if (isFirstReleaseBootstrap(dist) && dist.marketplaceSourceType !== "standalone-index") {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" ${dist.type} first-release bootstrap requires marketplaceSourceType standalone-index`,
+          { unitId: unit.id, distributionType: dist.type }
+        );
+      }
       if (dist.marketplaceSourceType !== "standalone-index") continue;
-      if (!dist.marketplaceRepo) continue;
+      if (!dist.marketplaceRepo) {
+        if (isFirstReleaseBootstrap(dist)) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}" ${dist.type} first-release bootstrap requires marketplaceRepo`,
+            { unitId: unit.id, distributionType: dist.type }
+          );
+        }
+        continue;
+      }
       const platform = PLATFORMS.find((p) => p.distributionType === dist.type);
       if (!platform) {
         throw new ReleaseError(
@@ -128290,8 +128678,15 @@ async function resolveExternalMarketplaceFreezes({
           { unitId: unit.id, marketplaceSourceType: dist.marketplaceSourceType }
         );
       }
+      if (isFirstReleaseBootstrap(dist) && dist.type !== "claude-plugin" && dist.type !== "codex-plugin") {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" ${dist.type} first-release bootstrap is supported only for claude-plugin or codex-plugin standalone-index distributions`,
+          { unitId: unit.id, distributionType: dist.type }
+        );
+      }
       const observed = await observeHeadFn(dist.marketplaceRepo, { githubHost });
-      if (observed.status !== "observed" || !EXTERNAL_MARKETPLACE_SHA_RE2.test(observed.sha ?? "") || !observed.defaultBranch) {
+      if (observed.status !== "observed" || !EXTERNAL_MARKETPLACE_SHA_RE3.test(observed.sha ?? "") || !observed.defaultBranch) {
         throw new ReleaseError(
           GATE_FAILED,
           `unit "${unit.id}" could not freeze external marketplace "${dist.marketplaceRepo}" HEAD: ${observed.error ?? "unknown"}`,
@@ -128323,20 +128718,60 @@ async function resolveExternalMarketplaceFreezes({
           { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo }
         );
       }
-      const pluginEntries = Array.isArray(marketplaceIndex.plugins) ? marketplaceIndex.plugins.filter((entry) => entry && entry.name === dist.plugin) : [];
-      if (pluginEntries.length !== 1) {
+      if (!Array.isArray(marketplaceIndex.plugins)) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" ${dist.type} external marketplace index plugins must be an array`,
+          { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo }
+        );
+      }
+      const pluginEntries = marketplaceIndex.plugins.filter((entry) => entry && entry.name === dist.plugin);
+      if (isFirstReleaseBootstrap(dist) && pluginEntries.length > 0) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `unit "${unit.id}" first-release bootstrap requires the marketplace entry to be absent, found ${pluginEntries.length} matching entries`,
+          { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo }
+        );
+      }
+      if (pluginEntries.length !== 1 && !isFirstReleaseBootstrap(dist)) {
         throw new ReleaseError(
           GATE_FAILED,
           `unit "${unit.id}" external marketplace index must contain exactly one plugin entry named "${dist.plugin}", found ${pluginEntries.length}`,
           { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo }
         );
       }
-      if (platform.marketplaceEntryCarriesVersion && pluginEntries[0].version !== version) {
+      let selectedEntry = pluginEntries[0];
+      if (!isFirstReleaseBootstrap(dist) && platform.marketplaceEntryCarriesVersion && selectedEntry.version !== version) {
         throw new ReleaseError(
           GATE_FAILED,
           `unit "${unit.id}" external marketplace index entry version "${pluginEntries[0].version}" does not match target version "${version}"`,
           { unitId: unit.id, marketplaceRepo: dist.marketplaceRepo }
         );
+      }
+      if (isFirstReleaseBootstrap(dist)) {
+        const asset = productionAssets?.[index];
+        if (!asset || !EXTERNAL_MARKETPLACE_SHA_RE3.test(asset.commit ?? "") || !asset.tag) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}" first-release bootstrap requires a frozen plugin tag and commit`,
+            { unitId: unit.id, distributionType: dist.type }
+          );
+        }
+        const pluginState = await observePluginRepositoryFn(unit.publicRepo, asset.tag, { githubHost });
+        if (pluginState?.status !== "empty" || pluginState.tagExists !== false || pluginState.releaseExists !== false) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}" first-release bootstrap requires an empty plugin repository without the target tag or release`,
+            { unitId: unit.id, publicRepo: unit.publicRepo, tag: asset.tag, observed: pluginState }
+          );
+        }
+        selectedEntry = buildExpectedStandaloneIndexInstallIdentity(platform, {
+          name: dist.plugin,
+          repo: unit.publicRepo,
+          tag: asset.tag,
+          sha: asset.commit,
+          version
+        });
       }
       const marketplaceRef = platform.marketplaceRefForm === "name" ? observed.defaultBranch : sha;
       freezes.set(`${unit.id} ${dist.type}`, {
@@ -128350,7 +128785,8 @@ async function resolveExternalMarketplaceFreezes({
         marketplaceRef,
         marketplaceIndexPath: manifestPath,
         marketplaceName: marketplaceIndex.name,
-        selectedEntry: pluginEntries[0]
+        selectedEntry,
+        ...isFirstReleaseBootstrap(dist) ? { firstReleaseBootstrap: FIRST_RELEASE_BOOTSTRAP_MODE2, marketplaceIndexSha: null } : {}
       });
       await evidence.append({
         phase: "external-marketplace-freeze",
@@ -128362,7 +128798,8 @@ async function resolveExternalMarketplaceFreezes({
         marketplaceRef,
         marketplaceIndexPath: manifestPath,
         marketplaceName: marketplaceIndex.name,
-        selectedEntry: pluginEntries[0],
+        selectedEntry,
+        ...isFirstReleaseBootstrap(dist) ? { firstReleaseBootstrap: FIRST_RELEASE_BOOTSTRAP_MODE2, marketplaceIndexSha: null } : {},
         defaultBranch: observed.defaultBranch
       });
     }
@@ -128697,7 +129134,11 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
           ...externalMarketplace && freeze ? {
             marketplaceIndexPath: freeze.marketplaceIndexPath,
             marketplaceName: freeze.marketplaceName,
-            selectedEntry: freeze.selectedEntry
+            selectedEntry: freeze.selectedEntry,
+            ...freeze.firstReleaseBootstrap ? {
+              firstReleaseBootstrap: freeze.firstReleaseBootstrap,
+              marketplaceIndexSha: null
+            } : {}
           } : {}
         },
         expected: {
@@ -128712,7 +129153,11 @@ function buildExternalActions(unitResults, resolvedVersions, productionAssets, e
           entrySkill: dist.entrySkill,
           entrySkillFound: true,
           manifestDigest: asset.manifestDigest,
-          ...externalMarketplace ? { marketplaceLocation: "external", marketplaceCommitSha: freeze.marketplaceCommitSha } : {}
+          ...externalMarketplace ? { marketplaceLocation: "external", marketplaceCommitSha: freeze.marketplaceCommitSha } : {},
+          ...externalMarketplace && freeze?.firstReleaseBootstrap ? {
+            firstReleaseBootstrap: freeze.firstReleaseBootstrap,
+            marketplaceIndexSha: null
+          } : {}
         },
         status: "PENDING"
       });
@@ -130340,13 +130785,26 @@ async function prepareRelease(options) {
       skipSkillResourceClosure,
       workflow
     });
+    for (const { unit } of unitResults) {
+      for (const dist of unit.distributions ?? []) {
+        if (isFirstReleaseBootstrap(dist) && (!production || offline)) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}" ${dist.type} first-release bootstrap requires online production prepare`,
+            { unitId: unit.id, distributionType: dist.type }
+          );
+        }
+      }
+    }
     const externalMarketplaceFreezes = production ? await resolveExternalMarketplaceFreezes({
       unitResults,
       resolvedVersions,
       offline,
       evidence,
       observeHeadFn: options.observeExternalMarketplaceHeadFn ?? defaultObserveExternalMarketplaceHead,
-      fetchIndexFn: options.fetchExternalMarketplaceIndexFn ?? defaultFetchExternalMarketplaceIndex
+      fetchIndexFn: options.fetchExternalMarketplaceIndexFn ?? defaultFetchExternalMarketplaceIndex,
+      productionAssets,
+      observePluginRepositoryFn: options.observeFirstReleasePluginRepositoryFn ?? defaultObserveFirstReleasePluginRepository
     }) : /* @__PURE__ */ new Map();
     const units = await Promise.all(unitResults.map(async ({ unit, manifest }, idx) => {
       const unitVersion = resolvedVersions[idx];
@@ -130426,6 +130884,10 @@ async function prepareRelease(options) {
             frozenDist.marketplaceIndexPath = freeze.marketplaceIndexPath;
             frozenDist.marketplaceName = freeze.marketplaceName;
             frozenDist.selectedEntry = freeze.selectedEntry;
+            if (freeze.firstReleaseBootstrap) {
+              frozenDist.firstReleaseBootstrap = freeze.firstReleaseBootstrap;
+              frozenDist.marketplaceIndexSha = null;
+            }
           }
         }
         return frozenDist;
@@ -130795,7 +131257,7 @@ async function prepareRelease(options) {
     await lock.release();
   }
 }
-var execFile9, CONSUMER_INSTALL_RECIPE_VERSION2, HOOK_EXECUTION_ORDER, EXTERNAL_MARKETPLACE_SHA_RE2;
+var execFile9, CONSUMER_INSTALL_RECIPE_VERSION2, FIRST_RELEASE_BOOTSTRAP_MODE2, HOOK_EXECUTION_ORDER, EXTERNAL_MARKETPLACE_SHA_RE3;
 var init_prepare = __esm({
   async "src/commands/prepare.mjs"() {
     init_src2();
@@ -130836,6 +131298,7 @@ var init_prepare = __esm({
     init_bounded_output();
     execFile9 = promisify12(execFileCb12);
     CONSUMER_INSTALL_RECIPE_VERSION2 = "consumer-install-v1";
+    FIRST_RELEASE_BOOTSTRAP_MODE2 = "manual-index-checkpoint";
     __name(resolveUnitVersion, "resolveUnitVersion");
     __name(resolveAllUnitVersions, "resolveAllUnitVersions");
     HOOK_EXECUTION_ORDER = Object.freeze(["lint", "docs", "build", "test", "typecheck"]);
@@ -130854,11 +131317,14 @@ var init_prepare = __esm({
     __name(enumerateFrozenTagPaths, "enumerateFrozenTagPaths");
     __name(collectPostPublishCommandCandidates, "collectPostPublishCommandCandidates");
     __name(assertPrivateExecutionDeclarations, "assertPrivateExecutionDeclarations");
-    EXTERNAL_MARKETPLACE_SHA_RE2 = /^[0-9a-f]{40}$/;
+    EXTERNAL_MARKETPLACE_SHA_RE3 = /^[0-9a-f]{40}$/;
     __name(parseExternalMarketplaceLsRemote, "parseExternalMarketplaceLsRemote");
     __name(decodeExternalMarketplaceIndex, "decodeExternalMarketplaceIndex");
     __name(defaultObserveExternalMarketplaceHead, "defaultObserveExternalMarketplaceHead");
     __name(defaultFetchExternalMarketplaceIndex, "defaultFetchExternalMarketplaceIndex");
+    __name(parseFirstReleasePluginRepositoryRefs, "parseFirstReleasePluginRepositoryRefs");
+    __name(defaultObserveFirstReleasePluginRepository, "defaultObserveFirstReleasePluginRepository");
+    __name(isFirstReleaseBootstrap, "isFirstReleaseBootstrap");
     __name(resolveExternalMarketplaceFreezes, "resolveExternalMarketplaceFreezes");
     __name(buildExternalActions, "buildExternalActions");
     __name(computeSourceAuthorityClosure, "computeSourceAuthorityClosure");
@@ -130948,12 +131414,13 @@ var init_hooks2 = __esm({
 // src/commands/post-release-local.mjs
 var post_release_local_exports = {};
 __export(post_release_local_exports, {
+  assertLocalFinishRun: () => assertLocalFinishRun,
   assertVerifiedReleaseRun: () => assertVerifiedReleaseRun,
   derivePostReleaseChecklist: () => derivePostReleaseChecklist,
   unavailablePostReleaseChecklist: () => unavailablePostReleaseChecklist,
   updateLocalHostPlugins: () => updateLocalHostPlugins
 });
-import { access as access2 } from "node:fs/promises";
+import { access as access2, readFile as readFile36 } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join as join27, relative as relative27 } from "node:path";
 function attachFoundationFailure(error, { envelope, stdout }) {
@@ -131047,13 +131514,35 @@ function assertExecutableTarget(target) {
     throw new Error(`local host update requires the frozen public commit for unit ${target.unitId}`);
   }
 }
-function derivePostReleaseChecklist(plan) {
+function buildShipNextStep({ root, statePath, unitIds }) {
+  const argv = ["release-skill", "ship"];
+  if (typeof root === "string" && root.length > 0) argv.push("--root", root);
+  if (typeof statePath === "string" && statePath.length > 0) argv.push("--state", statePath);
+  if (Array.isArray(unitIds) && unitIds.length > 0) {
+    for (const unitId of unitIds) argv.push("--unit", unitId);
+  }
+  return {
+    code: "COMPLETE_POST_VERIFY",
+    message: "Complete the postVerify phase with ship before running post-release.",
+    argv
+  };
+}
+function derivePostReleaseChecklist(plan, {
+  runPath,
+  root,
+  statePath,
+  unitIds,
+  postVerifyComplete = false
+} = {}) {
   if (!plan || typeof plan !== "object" || typeof plan.digest !== "string") {
     throw new Error("a frozen release plan with digest is required");
   }
   const units = plan.units ?? [];
   const uncovered = units.filter((unit) => !BRANCH_ACTION_INCLUDED.has(unit.productionConfig?.branchStrategy));
   const targets = pluginTargets(plan);
+  const hasPendingPostVerify = postVerifyHooks(plan).length > 0 && !postVerifyComplete && targets.length > 0;
+  const hasStatePath = typeof statePath === "string" && statePath.length > 0;
+  const selectedUnitIds = Array.isArray(unitIds) ? unitIds : void 0;
   return {
     command: "post-release",
     status: "AWAITING_USER_DECISION",
@@ -131069,12 +131558,142 @@ function derivePostReleaseChecklist(plan) {
       }))
     },
     localHostUpdate: {
-      promptRequired: targets.length > 0,
-      available: targets.length > 0,
+      promptRequired: targets.length > 0 && !hasPendingPostVerify,
+      available: targets.length > 0 && !hasPendingPostVerify,
+      ...!hasPendingPostVerify && runPath ? { runPath } : {},
+      ...hasPendingPostVerify ? {
+        ...hasStatePath ? { nextSteps: [buildShipNextStep({ root, statePath, unitIds: selectedUnitIds })] } : {}
+      } : {},
       hosts: [...new Set(targets.map((target) => target.host))].sort(),
       targets
     }
   };
+}
+function postVerifyHooks(plan) {
+  if (plan?.planVersion === void 0) return [];
+  return normalizePostPublishView(plan).flatMap((declaration) => (declaration.hooks ?? []).filter((hook) => hook.phase === "postVerify").map((hook) => ({
+    actionId: postPublishActionId({ planVersion: plan.planVersion, unitId: declaration.unitId, localId: hook.id }),
+    hook,
+    unitId: declaration.unitId
+  })));
+}
+function localFinishEvidenceError(message, { cause, root, statePath, unitIds } = {}) {
+  const error = new Error(`local host update evidence is not ready: ${message}; next step: obtain approval if required, then complete the postVerify phase with ship before rerunning post-release`);
+  error.code = "LOCAL_FINISH_EVIDENCE_NOT_READY";
+  const hasStatePath = typeof statePath === "string" && statePath.length > 0;
+  error.details = {
+    cause: {
+      code: cause?.code ?? "LOCAL_FINISH_EVIDENCE_NOT_READY",
+      message: cause?.message ?? message
+    },
+    ...hasStatePath ? {
+      nextSteps: [buildShipNextStep({ root, statePath, unitIds })]
+    } : {}
+  };
+  return error;
+}
+async function updateLocalHostPlugins({
+  plan: _suppliedPlan,
+  planPath,
+  runPath,
+  runRecord: _suppliedRunRecord,
+  production: _suppliedProduction,
+  root = process.cwd(),
+  statePath,
+  unitIds,
+  ...options
+} = {}) {
+  if (!planPath || !runPath) {
+    throw localFinishEvidenceError(
+      "planPath and runPath are required before local host updates",
+      { root, statePath, unitIds }
+    );
+  }
+  let plan;
+  let runRecord;
+  try {
+    plan = JSON.parse(await readFile36(planPath, "utf8"));
+    runRecord = await loadRun(runPath, {
+      requireDigest: true,
+      authorityPlanPath: planPath
+    });
+  } catch (cause) {
+    throw localFinishEvidenceError(cause.message, { cause, root, statePath, unitIds });
+  }
+  await assertLocalFinishRun({
+    plan,
+    planPath,
+    runPath,
+    runRecord,
+    production: Boolean(plan.production),
+    root,
+    statePath,
+    unitIds
+  });
+  return updateLocalHostPluginsInternal({
+    plan,
+    root,
+    ...options
+  });
+}
+async function assertLocalFinishRun({
+  plan,
+  planPath,
+  runPath,
+  runRecord,
+  production = false,
+  root,
+  statePath,
+  unitIds
+} = {}) {
+  const hooks = postVerifyHooks(plan);
+  if (hooks.length === 0) {
+    try {
+      await validateRunLineage(runRecord, { plan, planPath, runPath, production });
+      assertVerifiedReleaseRun(plan, runRecord);
+    } catch (cause) {
+      throw localFinishEvidenceError(cause.message, { cause, root, statePath, unitIds, plan });
+    }
+    return { runPath, phase: "verify" };
+  }
+  if (runRecord?.command !== "postverify" || runRecord?.status !== "DISTRIBUTED") {
+    throw localFinishEvidenceError("the plan declares postVerify hooks, so the supplied verify run cannot authorize local-finish", { root, statePath, unitIds, plan });
+  }
+  if (runRecord.planDigest !== plan?.digest) {
+    throw localFinishEvidenceError("postVerify run is not bound to the frozen plan", { root, statePath, unitIds, plan });
+  }
+  if (typeof runRecord.sourceRunPath !== "string" || typeof runRecord.sourceRunId !== "string" || typeof runRecord.sourceRunDigest !== "string") {
+    throw localFinishEvidenceError("completed postVerify run has incomplete verify-run lineage", { root, statePath, unitIds, plan });
+  }
+  const checkpoints = Array.isArray(runRecord.checkpoints) ? runRecord.checkpoints : null;
+  const expectedIds = hooks.map(({ actionId }) => actionId);
+  const actualIds = checkpoints?.map((checkpoint) => checkpoint?.actionId) ?? [];
+  if (!checkpoints || actualIds.length !== expectedIds.length || new Set(actualIds).size !== actualIds.length || actualIds.some((id) => !expectedIds.includes(id)) || expectedIds.some((id) => !actualIds.includes(id)) || checkpoints.some((checkpoint) => checkpoint.actionType !== "postpublish-hook" || !["succeeded", "NO_CHANGE"].includes(checkpoint.status))) {
+    throw localFinishEvidenceError("postVerify checkpoints must match each declared hook exactly and be succeeded or NO_CHANGE", { root, statePath, unitIds, plan });
+  }
+  let sourceRun;
+  try {
+    sourceRun = await loadRun(runRecord.sourceRunPath, {
+      requireDigest: true,
+      authorityPlanPath: planPath
+    });
+  } catch (cause) {
+    throw localFinishEvidenceError(cause.message, { cause, root, statePath, unitIds, plan });
+  }
+  if (sourceRun.command !== "verify" || sourceRun.status !== "VERIFIED" || sourceRun.runId !== runRecord.sourceRunId || sourceRun.runDigest !== runRecord.sourceRunDigest || sourceRun.planDigest !== plan.digest) {
+    throw localFinishEvidenceError("postVerify lineage does not point to the same-plan VERIFIED run", { root, statePath, unitIds, plan });
+  }
+  try {
+    await validateRunLineage(sourceRun, {
+      plan,
+      planPath,
+      runPath: runRecord.sourceRunPath,
+      production
+    });
+  } catch (cause) {
+    throw localFinishEvidenceError(cause.message, { cause, root, statePath, unitIds, plan });
+  }
+  return { runPath, sourceRunPath: runRecord.sourceRunPath, phase: "postverify" };
 }
 function unavailablePostReleaseChecklist(plan, error) {
   return {
@@ -131101,7 +131720,11 @@ function hostEnvironment(host, { kimiHome } = {}) {
   env.HOME ??= homedir();
   env.PATH ??= "/usr/bin:/bin";
   env.GIT_TERMINAL_PROMPT = "0";
-  if (host === "workbuddy") env.CODEBUDDY_CONFIG_DIR = join27(env.HOME, ".workbuddy");
+  if (host === "codebuddy") env.CODEBUDDY_CONFIG_DIR = join27(env.HOME, ".codebuddy");
+  if (host === "workbuddy") {
+    env.CODEBUDDY_CONFIG_DIR = join27(env.HOME, ".workbuddy");
+    env.WORKBUDDY_CONFIG_DIR = join27(env.HOME, ".workbuddy");
+  }
   if (host === "kimi" && kimiHome) env.KIMI_CONFIG_DIR = kimiHome;
   return env;
 }
@@ -131152,11 +131775,16 @@ async function commandAvailable(command2, host, run6) {
   }
 }
 async function defaultDetect(host, run6 = defaultRun) {
-  if (host === "codebuddy" || host === "workbuddy") {
-    for (const command2 of ["codebuddy", "cbc", CODEBUDDY_MACOS_PATH]) {
+  if (host === "codebuddy") {
+    for (const command2 of ["codebuddy", "cbc"]) {
       if (await commandAvailable(command2, host, run6)) return { available: true, command: command2 };
     }
     return { available: false, reason: "CodeBuddy/WorkBuddy CLI not found" };
+  }
+  if (host === "workbuddy") {
+    if (process.platform !== "darwin") return { available: false, status: "SKIPPED_UNSUPPORTED_PLATFORM", reason: "WorkBuddy local update is supported only on macOS" };
+    if (await commandAvailable(CODEBUDDY_MACOS_PATH, host, run6)) return { available: true, command: CODEBUDDY_MACOS_PATH };
+    return { available: false, reason: "WorkBuddy embedded CLI not found" };
   }
   if (host === "kimi") {
     if (!await commandAvailable("kimi", host, run6)) return { available: false, reason: "kimi CLI not found" };
@@ -131690,7 +132318,7 @@ function failedHostResult(target, error) {
     ...publicDetails !== void 0 ? { details: publicDetails } : {}
   };
 }
-async function updateLocalHostPlugins({
+async function updateLocalHostPluginsInternal({
   plan,
   root = process.cwd(),
   confirmPlanDigest,
@@ -131701,7 +132329,7 @@ async function updateLocalHostPlugins({
   verifyInstalledPayload = verifyInstalledMarketplacePayload
 } = {}) {
   const effectiveKimiHome = kimiHome ?? process.env.KIMI_CONFIG_DIR ?? join27(homedir(), ".kimi-code");
-  const checklist = derivePostReleaseChecklist(plan);
+  const checklist = derivePostReleaseChecklist(plan, { postVerifyComplete: true });
   if (confirmPlanDigest !== plan.digest) {
     throw new Error("plan digest confirmation does not match the frozen release plan");
   }
@@ -131718,7 +132346,7 @@ async function updateLocalHostPlugins({
         results.push({
           host: target.host,
           unitId: target.unitId,
-          status: "SKIPPED_NOT_INSTALLED",
+          status: detected?.status ?? "SKIPPED_NOT_INSTALLED",
           reason: detected?.reason ?? "host unavailable"
         });
         continue;
@@ -131753,6 +132381,8 @@ var init_post_release_local = __esm({
     await init_registry2();
     init_codebuddy();
     await init_plugin_marketplace();
+    init_postpublish();
+    await init_run();
     HOSTS_BY_ACTION = Object.freeze({
       "claude-marketplace-install": ["claude"],
       "codex-marketplace-install": ["codex"],
@@ -131787,7 +132417,9 @@ var init_post_release_local = __esm({
       "NODE_EXTRA_CA_CERTS",
       "CLAUDE_CONFIG_DIR",
       "CODEX_HOME",
-      "KIMI_CONFIG_DIR"
+      "KIMI_CONFIG_DIR",
+      "CODEBUDDY_CONFIG_DIR",
+      "WORKBUDDY_CONFIG_DIR"
     ]);
     CODEBUDDY_PLUGIN_LIST_ARGS = Object.freeze(["plugin", "list", "--json"]);
     CODEBUDDY_MARKETPLACE_LIST_ARGS = Object.freeze(["plugin", "marketplace", "list"]);
@@ -131795,7 +132427,12 @@ var init_post_release_local = __esm({
     __name(actionTarget, "actionTarget");
     __name(pluginTargets, "pluginTargets");
     __name(assertExecutableTarget, "assertExecutableTarget");
+    __name(buildShipNextStep, "buildShipNextStep");
     __name(derivePostReleaseChecklist, "derivePostReleaseChecklist");
+    __name(postVerifyHooks, "postVerifyHooks");
+    __name(localFinishEvidenceError, "localFinishEvidenceError");
+    __name(updateLocalHostPlugins, "updateLocalHostPlugins");
+    __name(assertLocalFinishRun, "assertLocalFinishRun");
     __name(unavailablePostReleaseChecklist, "unavailablePostReleaseChecklist");
     __name(assertVerifiedReleaseRun, "assertVerifiedReleaseRun");
     __name(hostEnvironment, "hostEnvironment");
@@ -131825,7 +132462,7 @@ var init_post_release_local = __esm({
     __name(runKimiUpdate, "runKimiUpdate");
     __name(aggregateStatus, "aggregateStatus");
     __name(failedHostResult, "failedHostResult");
-    __name(updateLocalHostPlugins, "updateLocalHostPlugins");
+    __name(updateLocalHostPluginsInternal, "updateLocalHostPluginsInternal");
   }
 });
 
@@ -131835,7 +132472,7 @@ __export(approve_exports, {
   approvePlan: () => approvePlan,
   approvePostPublishHook: () => approvePostPublishHook
 });
-import { readFile as readFile36, writeFile as writeFile8 } from "node:fs/promises";
+import { readFile as readFile37, writeFile as writeFile8 } from "node:fs/promises";
 import { resolve as resolve33, dirname as dirname17, basename as basename13 } from "node:path";
 function defaultClock2() {
   return (/* @__PURE__ */ new Date()).toISOString();
@@ -131859,7 +132496,7 @@ async function approvePlan(options) {
   }
   let planRaw;
   try {
-    planRaw = await readFile36(planPath, "utf8");
+    planRaw = await readFile37(planPath, "utf8");
   } catch (err) {
     throw new ReleaseError(
       GATE_FAILED,
@@ -131987,7 +132624,7 @@ async function approvePlan(options) {
     await writeFile8(immutableApprovalPath, json, { encoding: "utf8", flag: "wx", mode: 384 });
   } catch (error) {
     if (error.code !== "EEXIST") throw error;
-    const existing = await readFile36(immutableApprovalPath, "utf8");
+    const existing = await readFile37(immutableApprovalPath, "utf8");
     if (existing !== json) {
       throw new ReleaseError(
         GATE_FAILED,
@@ -132038,7 +132675,7 @@ async function approvePostPublishHook(options) {
   }
   let planRaw;
   try {
-    planRaw = await readFile36(planPath, "utf8");
+    planRaw = await readFile37(planPath, "utf8");
   } catch (err) {
     throw new ReleaseError(GATE_FAILED, `cannot read release plan: ${err.message}`, { planPath, cause: err.code });
   }
@@ -132098,7 +132735,7 @@ async function approvePostPublishHook(options) {
     await writeFile8(immutableApprovalPath, json, { encoding: "utf8", flag: "wx", mode: 384 });
   } catch (error) {
     if (error.code !== "EEXIST") throw error;
-    const existing = await readFile36(immutableApprovalPath, "utf8");
+    const existing = await readFile37(immutableApprovalPath, "utf8");
     if (existing !== json) {
       throw new ReleaseError(
         GATE_FAILED,
@@ -132249,7 +132886,7 @@ __export(publish_exports, {
   classifyPreObservation: () => classifyPreObservation,
   publishRelease: () => publishRelease
 });
-import { readFile as readFile37, mkdir as mkdir22 } from "node:fs/promises";
+import { readFile as readFile38, mkdir as mkdir22 } from "node:fs/promises";
 import { isAbsolute as isAbsolute23, join as join28, relative as relative28 } from "node:path";
 function assertInsideAssetRoot(assetRoot, candidate, label) {
   const rel = relative28(assetRoot, candidate);
@@ -132482,7 +133119,7 @@ async function publishRelease(options) {
   const captureBaselineActual = typeof captureBaselineFn === "function" ? captureBaselineFn : captureBaseline;
   let planRaw;
   try {
-    planRaw = await readFile37(planPath, "utf8");
+    planRaw = await readFile38(planPath, "utf8");
   } catch (err) {
     throw new ReleaseError(GATE_FAILED, `cannot read release plan: ${err.message}`, { planPath, cause: err.code });
   }
@@ -132673,7 +133310,7 @@ async function publishRelease(options) {
     await evidence.append({ phase: "safety-gate", gate: "approval-load", status: "started" });
     let approvalRaw;
     try {
-      approvalRaw = await readFile37(approvalPath, "utf8");
+      approvalRaw = await readFile38(approvalPath, "utf8");
     } catch (err) {
       throw new ReleaseError(
         GATE_FAILED,
@@ -133310,7 +133947,7 @@ var reconcile_exports = {};
 __export(reconcile_exports, {
   reconcileRelease: () => reconcileRelease
 });
-import { readFile as readFile38, mkdir as mkdir23 } from "node:fs/promises";
+import { readFile as readFile39, mkdir as mkdir23 } from "node:fs/promises";
 import { join as join29 } from "node:path";
 function defaultClock5() {
   return (/* @__PURE__ */ new Date()).toISOString();
@@ -133339,7 +133976,7 @@ async function reconcileRelease(options) {
   }
   let planRaw;
   try {
-    planRaw = await readFile38(planPath, "utf8");
+    planRaw = await readFile39(planPath, "utf8");
   } catch (err) {
     throw new ReleaseError(GATE_FAILED, `cannot read release plan: ${err.message}`, { planPath, cause: err.code });
   }
@@ -133462,7 +134099,7 @@ async function reconcileRelease(options) {
           { sourceRunId: sourceRun.runId }
         );
       }
-      const sourceApprovalRaw = await readFile38(consumedApprovalPath, "utf8").catch((error) => {
+      const sourceApprovalRaw = await readFile39(consumedApprovalPath, "utf8").catch((error) => {
         throw new ReleaseError(GATE_FAILED, "source run approval authority is unavailable", {
           sourceRunId: sourceRun.runId,
           cause: error.code
@@ -133624,7 +134261,7 @@ async function reconcileRelease(options) {
     if (approvalPath) {
       let approvalRaw;
       try {
-        approvalRaw = await readFile38(approvalPath, "utf8");
+        approvalRaw = await readFile39(approvalPath, "utf8");
       } catch (err) {
         throw new ReleaseError(
           GATE_FAILED,
@@ -135090,7 +135727,7 @@ var init_notify_handoff = __esm({
 // src/core/proposal-inbox.mjs
 import { execFile as execFileCb14 } from "node:child_process";
 import { promisify as promisify14 } from "node:util";
-import { mkdir as mkdir26, mkdtemp as mkdtemp8, readFile as readFile39, rm as rm12, writeFile as writeFile11 } from "node:fs/promises";
+import { mkdir as mkdir26, mkdtemp as mkdtemp8, readFile as readFile40, rm as rm12, writeFile as writeFile11 } from "node:fs/promises";
 import { tmpdir as tmpdir6 } from "node:os";
 import { dirname as dirname19, join as join32 } from "node:path";
 function defaultExec2(command2, args2, options = {}) {
@@ -135270,7 +135907,7 @@ async function observeProposalInboxGitPush(params) {
     const targetPath2 = join32(cloneDir, proposalPath);
     let existing = null;
     try {
-      existing = await readFile39(targetPath2, "utf8");
+      existing = await readFile40(targetPath2, "utf8");
     } catch {
       existing = null;
     }
@@ -135431,7 +136068,7 @@ async function deliverProposalLocalFile(params) {
   const targetPath2 = join32(workspaceRealpath, proposalPath);
   let existing = null;
   try {
-    existing = await readFile39(targetPath2, "utf8");
+    existing = await readFile40(targetPath2, "utf8");
   } catch {
     existing = null;
   }
@@ -135928,7 +136565,7 @@ var init_preset_gitwrite = __esm({
 });
 
 // src/core/marketplace-registry-entry.mjs
-import { readFile as readFile40 } from "node:fs/promises";
+import { readFile as readFile41 } from "node:fs/promises";
 import { join as join34 } from "node:path";
 function updateRegistryEntry(registry, params) {
   const { entryKey, fieldsFromPlan, contextProjection } = params ?? {};
@@ -135994,7 +136631,7 @@ async function executeMarketplaceRegistryEntryHook(params) {
     const absoluteRegistry = join34(worktree, registryPath);
     let raw;
     try {
-      raw = await readFile40(absoluteRegistry, "utf8");
+      raw = await readFile41(absoluteRegistry, "utf8");
     } catch {
       throw new ReleaseError(
         REMOTE_CONFLICT,
@@ -136046,7 +136683,7 @@ var init_marketplace_registry_entry = __esm({
 });
 
 // src/core/docs-refresh-preset.mjs
-import { mkdir as mkdir27, readFile as readFile41, writeFile as writeFile12 } from "node:fs/promises";
+import { mkdir as mkdir27, readFile as readFile42, writeFile as writeFile12 } from "node:fs/promises";
 import { dirname as dirname20, isAbsolute as isAbsolute24, join as join35, relative as relative29, resolve as resolve34 } from "node:path";
 function resolvePayloadSource(payloadDir, from) {
   const sourcePath = resolve34(payloadDir, from);
@@ -136084,7 +136721,7 @@ async function executeDocsRefreshHook(params) {
   const mutate = /* @__PURE__ */ __name(async (worktree) => {
     for (const mapping of mappings) {
       const sourcePath = resolvePayloadSource(payloadDir, mapping.from);
-      let content = await readFile41(sourcePath).catch(() => null);
+      let content = await readFile42(sourcePath).catch(() => null);
       if (content === null) {
         throw new ReleaseError(
           GATE_FAILED,
@@ -136301,7 +136938,7 @@ __export(distribute_exports, {
 });
 import { execFile as execFileCb16 } from "node:child_process";
 import { promisify as promisify16 } from "node:util";
-import { realpath as realpath32, lstat as lstat43, mkdir as mkdir28, readFile as readFile42, rm as rm15 } from "node:fs/promises";
+import { realpath as realpath32, lstat as lstat43, mkdir as mkdir28, readFile as readFile43, rm as rm15 } from "node:fs/promises";
 import { mkdtemp as mkdtemp10 } from "node:fs/promises";
 import { tmpdir as tmpdir8 } from "node:os";
 import { isAbsolute as isAbsolute25, join as join36, relative as relative30, resolve as resolve35 } from "node:path";
@@ -136400,7 +137037,7 @@ async function distributeRelease(options) {
   const hookRunner = typeof runHookFn === "function" ? runHookFn : runHook;
   let planRaw;
   try {
-    planRaw = await readFile42(planPath, "utf8");
+    planRaw = await readFile43(planPath, "utf8");
   } catch (err) {
     throw new ReleaseError(GATE_FAILED, `cannot read release plan: ${err.message}`, { planPath, cause: err.code });
   }
@@ -136515,7 +137152,7 @@ async function distributeRelease(options) {
     await evidence.append({ phase: "safety-gate", gate: "approval-load", status: "started" });
     let approvalRaw;
     try {
-      approvalRaw = await readFile42(approvalPath, "utf8");
+      approvalRaw = await readFile43(approvalPath, "utf8");
     } catch (err) {
       throw new ReleaseError(GATE_FAILED, `cannot read approval record: ${err.message}`, { approvalPath, cause: err.code });
     }
@@ -136627,7 +137264,7 @@ async function distributeRelease(options) {
       for (const hookApprovalPath of hookApprovalPaths) {
         let hookApprovalRaw;
         try {
-          hookApprovalRaw = await readFile42(hookApprovalPath, "utf8");
+          hookApprovalRaw = await readFile43(hookApprovalPath, "utf8");
         } catch (err) {
           await failBlocked(new ReleaseError(
             GATE_FAILED,
@@ -137732,7 +138369,7 @@ __export(postverify_exports, {
 });
 import { execFile as execFileCb17 } from "node:child_process";
 import { promisify as promisify17 } from "node:util";
-import { mkdir as mkdir29, readFile as readFile43, realpath as realpath33, rm as rm16 } from "node:fs/promises";
+import { mkdir as mkdir29, readFile as readFile44, realpath as realpath33, rm as rm16 } from "node:fs/promises";
 import { mkdtemp as mkdtemp11 } from "node:fs/promises";
 import { tmpdir as tmpdir9 } from "node:os";
 import { join as join37 } from "node:path";
@@ -137765,7 +138402,7 @@ async function postVerifyRelease(options) {
   const hookRunner = typeof runHookFn === "function" ? runHookFn : runHook;
   let planRaw;
   try {
-    planRaw = await readFile43(planPath, "utf8");
+    planRaw = await readFile44(planPath, "utf8");
   } catch (err) {
     throw new ReleaseError(GATE_FAILED, `cannot read release plan: ${err.message}`, { planPath, cause: err.code });
   }
@@ -137799,7 +138436,7 @@ async function postVerifyRelease(options) {
   }
   let approvalRaw;
   try {
-    approvalRaw = await readFile43(approvalPath, "utf8");
+    approvalRaw = await readFile44(approvalPath, "utf8");
   } catch (err) {
     throw new ReleaseError(GATE_FAILED, `cannot read approval record: ${err.message}`, { approvalPath, cause: err.code });
   }
@@ -137872,16 +138509,16 @@ async function postVerifyRelease(options) {
     validatePostPublishDeclaration(declaration, { unitId: declaration.unitId });
     await verifyExecutionBundle({ planPath, postPublish: declaration });
     const declaredHooks = declaration.hooks ?? [];
-    const postVerifyHooks2 = declaredHooks.filter((hook) => (hook.phase ?? "distribute") === "postVerify");
-    prepared.push({ declaration, postVerifyHooks: postVerifyHooks2 });
+    const postVerifyHooks3 = declaredHooks.filter((hook) => (hook.phase ?? "distribute") === "postVerify");
+    prepared.push({ declaration, postVerifyHooks: postVerifyHooks3 });
   }
-  const postVerifyHooks = prepared.flatMap((prep) => prep.postVerifyHooks);
+  const postVerifyHooks2 = prepared.flatMap((prep) => prep.postVerifyHooks);
   const approvedHookIds = /* @__PURE__ */ new Set();
   const hookApprovalPaths = postpublishApprovalPaths ?? [];
   for (const hookApprovalPath of hookApprovalPaths) {
     let hookApprovalRaw;
     try {
-      hookApprovalRaw = await readFile43(hookApprovalPath, "utf8");
+      hookApprovalRaw = await readFile44(hookApprovalPath, "utf8");
     } catch (err) {
       throw new ReleaseError(
         GATE_FAILED,
@@ -138036,7 +138673,7 @@ async function postVerifyRelease(options) {
       status: "started",
       sourceVerifyRunId: verifyRun.runId,
       sourcePublishRunId: publishRun.runId,
-      hookCount: postVerifyHooks.length,
+      hookCount: postVerifyHooks2.length,
       dryRun: dryRun === true
     });
     await snapshot(DISTRIBUTING2);
@@ -138516,7 +139153,7 @@ var release_metadata_exports = {};
 __export(release_metadata_exports, {
   updatePreviousPublicBaselines: () => updatePreviousPublicBaselines
 });
-import { lstat as lstat44, readFile as readFile44 } from "node:fs/promises";
+import { lstat as lstat44, readFile as readFile45 } from "node:fs/promises";
 import { resolve as resolve36 } from "node:path";
 function assertOid(value, label) {
   if (typeof value !== "string" || !/^[a-f0-9]{40,64}$/.test(value)) {
@@ -138532,8 +139169,8 @@ async function updatePreviousPublicBaselines(options = {}) {
   let configStat;
   try {
     [plan, configRaw, configStat] = await Promise.all([
-      readFile44(planPath, "utf8").then(JSON.parse),
-      readFile44(configPath, "utf8"),
+      readFile45(planPath, "utf8").then(JSON.parse),
+      readFile45(configPath, "utf8"),
       lstat44(configPath)
     ]);
   } catch (error) {
@@ -138618,7 +139255,7 @@ var ship_exports = {};
 __export(ship_exports, {
   advanceShip: () => advanceShip
 });
-import { readFile as readFile45, lstat as lstat45, mkdir as mkdir30 } from "node:fs/promises";
+import { readFile as readFile46, lstat as lstat45, mkdir as mkdir30 } from "node:fs/promises";
 import { basename as basename14, dirname as dirname21, resolve as resolve37 } from "node:path";
 function normalizeNewShipUnitIds(releaseUnits, requestedUnitIds) {
   if (requestedUnitIds === void 0) return void 0;
@@ -138674,7 +139311,7 @@ function assertFrozenPlanUnitScope({ statePath, stateUnitIds, expectedUnitIds, p
 }
 async function readFrozenPlanForUnitScope(planPath, statePath, stateUnitIds) {
   try {
-    return JSON.parse(await readFile45(planPath, "utf8"));
+    return JSON.parse(await readFile46(planPath, "utf8"));
   } catch (error) {
     throw unitScopeMismatch(
       statePath,
@@ -138702,7 +139339,7 @@ async function readState(path40) {
     if (!stat22.isFile() || stat22.isSymbolicLink()) {
       throw new Error("ship state must be a regular non-symlink file");
     }
-    const state = JSON.parse(await readFile45(path40, "utf8"));
+    const state = JSON.parse(await readFile46(path40, "utf8"));
     const { stateDigest, ...body } = state;
     if (typeof stateDigest !== "string" || stateDigest !== sha256Hex(canonicalJson2(body)) || body.statePath !== path40) {
       throw new Error("ship state digest or authority path does not match");
@@ -138751,7 +139388,8 @@ async function defaultDependencies() {
     readMaxApprovalMs: /* @__PURE__ */ __name(() => MAX_APPROVAL_MS, "readMaxApprovalMs")
   };
 }
-function publicState2(state) {
+function publicState2(state, { postRelease } = {}) {
+  const visiblePostRelease = postRelease === void 0 ? state.postRelease : postRelease;
   return {
     command: "ship",
     status: state.status,
@@ -138776,7 +139414,7 @@ function publicState2(state) {
     ...state.requirements ? { requirements: state.requirements } : {},
     ...state.manualFollowUps ? { manualFollowUps: state.manualFollowUps } : {},
     ...state.metadataUpdate ? { metadataUpdate: state.metadataUpdate } : {},
-    ...state.postRelease ? { postRelease: state.postRelease } : {},
+    ...visiblePostRelease ? { postRelease: visiblePostRelease } : {},
     externalActionsIncludedInPlanApproval: true,
     verificationGatesIncludedInPlanApproval: true,
     postPublishCheckpointApprovalsIncludedInPlanApproval: false
@@ -138800,7 +139438,7 @@ function projectActionTarget(action) {
 }
 async function buildApprovalSummary(planPath, maxApprovalMs = MAX_APPROVAL_MS) {
   try {
-    const plan = JSON.parse(await readFile45(planPath, "utf8"));
+    const plan = JSON.parse(await readFile46(planPath, "utf8"));
     const approvalWindowHours = deriveApprovalWindowHours(maxApprovalMs);
     const actions = (plan.externalActions ?? []).map((action) => ({
       id: action.id,
@@ -138865,19 +139503,19 @@ async function buildApprovalSummary(planPath, maxApprovalMs = MAX_APPROVAL_MS) {
     );
   }
 }
-async function allUnclosedPostVerifyHooksUngated(state, postVerifyHooks, planVersion) {
-  if (!Array.isArray(postVerifyHooks) || postVerifyHooks.length === 0) return false;
-  let candidates = postVerifyHooks;
+async function allUnclosedPostVerifyHooksUngated(state, postVerifyHooks2, planVersion) {
+  if (!Array.isArray(postVerifyHooks2) || postVerifyHooks2.length === 0) return false;
+  let candidates = postVerifyHooks2;
   if (state.postVerify?.runPath) {
     try {
-      const record = JSON.parse(await readFile45(state.postVerify.runPath, "utf8"));
+      const record = JSON.parse(await readFile46(state.postVerify.runPath, "utf8"));
       const checkpoints = Array.isArray(record.checkpoints) ? record.checkpoints : [];
       const closedIds = new Set(
         checkpoints.filter((cp4) => cp4?.actionType === "postpublish-hook" && (cp4.status === "succeeded" || cp4.status === "NO_CHANGE")).map((cp4) => cp4.actionId)
       );
-      candidates = postVerifyHooks.filter(({ hook, unitId }) => !closedIds.has(postPublishActionId({ planVersion, unitId, localId: hook.id })));
+      candidates = postVerifyHooks2.filter(({ hook, unitId }) => !closedIds.has(postPublishActionId({ planVersion, unitId, localId: hook.id })));
     } catch {
-      candidates = postVerifyHooks;
+      candidates = postVerifyHooks2;
     }
   }
   if (candidates.length === 0) return false;
@@ -139021,7 +139659,7 @@ async function advanceShip(options = {}, injected = {}) {
     });
     let frozenPlan = null;
     if (Array.isArray(state.selectedUnitIds) || deps.preflightGitTransports) {
-      frozenPlan = Array.isArray(state.selectedUnitIds) ? await readFrozenPlanForUnitScope(prepared.planPath, statePath, state.selectedUnitIds) : JSON.parse(await readFile45(prepared.planPath, "utf8"));
+      frozenPlan = Array.isArray(state.selectedUnitIds) ? await readFrozenPlanForUnitScope(prepared.planPath, statePath, state.selectedUnitIds) : JSON.parse(await readFile46(prepared.planPath, "utf8"));
     }
     if (Array.isArray(state.selectedUnitIds)) {
       assertFrozenPlanUnitScope({
@@ -139118,7 +139756,7 @@ async function advanceShip(options = {}, injected = {}) {
   }
   let postVerifyRanThisCall = false;
   if (state.status === "PUBLISHED" || state.status === "NEEDS_MANUAL_ATTESTATIONS") {
-    const plan = JSON.parse(await readFile45(state.planPath, "utf8"));
+    const plan = JSON.parse(await readFile46(state.planPath, "utf8"));
     const hasDistributeWork = normalizePostPublishView(plan).some((declaration) => (declaration.targets?.length ?? 0) > 0 || (declaration.hooks?.length ?? 0) > 0);
     const needsDistribution = hasDistributeWork;
     if (needsDistribution && deps.distributeRelease) {
@@ -139173,15 +139811,6 @@ async function advanceShip(options = {}, injected = {}) {
         updatedAt: (/* @__PURE__ */ new Date()).toISOString()
       };
       await writeJsonAtomic(statePath, state);
-      if (verified.status === "VERIFIED") {
-        try {
-          state.postRelease = derivePostReleaseChecklist(plan);
-        } catch (error) {
-          state.postRelease = unavailablePostReleaseChecklist(plan, error);
-        }
-        state.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
-        await writeJsonAtomic(statePath, state);
-      }
     } catch (error) {
       if (error?.code !== CONSUMER_VERIFICATION_DEFERRED) throw error;
       state = {
@@ -139192,8 +139821,8 @@ async function advanceShip(options = {}, injected = {}) {
       };
       await writeJsonAtomic(statePath, state);
     }
-    const postVerifyHooks = normalizePostPublishView(plan).flatMap((declaration) => declaration.hooks ?? []).filter((hook) => hook.phase === "postVerify");
-    if (state.status === "VERIFIED" && postVerifyHooks.length > 0 && deps.postVerifyRelease) {
+    const postVerifyHooks2 = normalizePostPublishView(plan).flatMap((declaration) => declaration.hooks ?? []).filter((hook) => hook.phase === "postVerify");
+    if (state.status === "VERIFIED" && postVerifyHooks2.length > 0 && deps.postVerifyRelease) {
       postVerifyRanThisCall = true;
       let postVerifyOutcome;
       try {
@@ -139227,7 +139856,7 @@ async function advanceShip(options = {}, injected = {}) {
   }
   const reentryApprovalPaths = options.postpublishApprovalPaths ?? [];
   if (state.status === "VERIFIED" && deps.postVerifyRelease && !postVerifyRanThisCall && (!state.postVerify || state.postVerify.status !== "DISTRIBUTED")) {
-    const reentryPlan = JSON.parse(await readFile45(state.planPath, "utf8"));
+    const reentryPlan = JSON.parse(await readFile46(state.planPath, "utf8"));
     const reentryPostVerifyHooks = normalizePostPublishView(reentryPlan).flatMap((declaration) => (declaration.hooks ?? []).map((hook) => ({ hook, unitId: declaration.unitId }))).filter(({ hook }) => hook.phase === "postVerify");
     const approvallessRetryAllowed = reentryApprovalPaths.length === 0 && await allUnclosedPostVerifyHooksUngated(state, reentryPostVerifyHooks, reentryPlan.planVersion);
     if (reentryPostVerifyHooks.length > 0 && (reentryApprovalPaths.length > 0 || approvallessRetryAllowed)) {
@@ -139260,6 +139889,24 @@ async function advanceShip(options = {}, injected = {}) {
       };
       await writeJsonAtomic(statePath, state);
     }
+  }
+  if (state.status === "VERIFIED") {
+    const finalPlan = JSON.parse(await readFile46(state.planPath, "utf8"));
+    const hasPostVerify = normalizePostPublishView(finalPlan).some((declaration) => (declaration.hooks ?? []).some((hook) => hook.phase === "postVerify"));
+    const localFinishRunPath = hasPostVerify ? state.postVerify?.status === "DISTRIBUTED" ? state.postVerify.runPath : void 0 : state.verifyRunPath;
+    let postRelease;
+    try {
+      postRelease = derivePostReleaseChecklist(finalPlan, {
+        root,
+        statePath,
+        unitIds: state.selectedUnitIds,
+        runPath: localFinishRunPath,
+        postVerifyComplete: !hasPostVerify || state.postVerify?.status === "DISTRIBUTED"
+      });
+    } catch (error) {
+      postRelease = unavailablePostReleaseChecklist(finalPlan, error);
+    }
+    return publicState2(state, { postRelease });
   }
   return publicState2(state);
 }
@@ -140232,7 +140879,7 @@ var attest_exports = {};
 __export(attest_exports, {
   recordManualAttestation: () => recordManualAttestation
 });
-import { readFile as readFile46 } from "node:fs/promises";
+import { readFile as readFile47 } from "node:fs/promises";
 import { resolve as resolve38, join as join39 } from "node:path";
 async function validateInstalledConsumerClosure({
   root,
@@ -140250,7 +140897,7 @@ async function validateInstalledConsumerClosure({
   ]);
   let plan;
   try {
-    plan = JSON.parse(await readFile46(planPath, "utf8"));
+    plan = JSON.parse(await readFile47(planPath, "utf8"));
   } catch (error) {
     throw new ReleaseError(
       GATE_FAILED,
@@ -140324,7 +140971,7 @@ async function recordManualAttestation(options = {}, injected = {}) {
   const requirementPath = join39(authorityDir, descriptor.requirementFile);
   let requirement;
   try {
-    requirement = JSON.parse(await readFile46(requirementPath, "utf8"));
+    requirement = JSON.parse(await readFile47(requirementPath, "utf8"));
   } catch (error) {
     throw new ReleaseError(
       GATE_FAILED,
@@ -140408,7 +141055,7 @@ var init_attest = __esm({
 });
 
 // src/artifacts/policy.mjs
-import { readFile as readFile47 } from "node:fs/promises";
+import { readFile as readFile48 } from "node:fs/promises";
 import { join as join40 } from "node:path";
 import { createHash as createHash19 } from "node:crypto";
 function validateArtifactPolicy(policy) {
@@ -140508,7 +141155,7 @@ async function parseSafeYamlWithinRoot(root, policyPath) {
   const fullPath = join40(root, policyPath);
   let content;
   try {
-    content = await readFile47(fullPath, "utf8");
+    content = await readFile48(fullPath, "utf8");
   } catch (err) {
     throw new ReleaseError(
       ARTIFACT_POLICY_INVALID,
@@ -140619,7 +141266,7 @@ var init_policy = __esm({
 });
 
 // src/artifacts/entry.mjs
-import { lstat as lstat46, readdir as readdir30, readFile as readFile48 } from "node:fs/promises";
+import { lstat as lstat46, readdir as readdir30, readFile as readFile49 } from "node:fs/promises";
 import { join as join41 } from "node:path";
 import { promisify as promisify21 } from "node:util";
 import { execFile as execFile14 } from "node:child_process";
@@ -140664,7 +141311,7 @@ async function enumerateTreeEntries(root, dirPath, relBase) {
       const subEntries = await enumerateTreeEntries(root, absPath, relPath);
       entries.push(...subEntries);
     } else {
-      const content = await readFile48(absPath);
+      const content = await readFile49(absPath);
       entries.push(
         Object.freeze({
           path: relPath,
@@ -140727,7 +141374,7 @@ async function readEntry({ root, path: path40, source = "worktree" } = {}) {
       { path: path40, nlink: st.nlink }
     );
   }
-  const content = await readFile48(absPath);
+  const content = await readFile49(absPath);
   return Object.freeze({
     kind: "regular",
     path: path40,
@@ -140991,7 +141638,7 @@ var init_graph = __esm({
 });
 
 // src/artifacts/producer-registry.mjs
-import { readFile as readFile49, readdir as readdir31, stat as stat19, mkdir as mkdir32, writeFile as writeFile14, rm as rm18 } from "node:fs/promises";
+import { readFile as readFile50, readdir as readdir31, stat as stat19, mkdir as mkdir32, writeFile as writeFile14, rm as rm18 } from "node:fs/promises";
 import { join as join42 } from "node:path";
 import { mkdtemp as mkdtemp13 } from "node:fs/promises";
 import { tmpdir as tmpdir11 } from "node:os";
@@ -141023,7 +141670,7 @@ async function createBuiltInProducerRegistry() {
   const lockfilePath = join42(new URL("../../..", import.meta.url).pathname, "pnpm-lock.yaml");
   let lockfileBytes;
   try {
-    lockfileBytes = await readFile49(lockfilePath);
+    lockfileBytes = await readFile50(lockfilePath);
   } catch {
     lockfileBytes = Buffer.from("");
   }
@@ -141040,7 +141687,7 @@ async function createBuiltInProducerRegistry() {
     const allModuleBytes = await Promise.all(
       allModulePaths.map(async (p) => {
         try {
-          return await readFile49(p);
+          return await readFile50(p);
         } catch {
           return Buffer.from("");
         }
@@ -141066,7 +141713,7 @@ async function readDirEntries(dirPath, relBase = "") {
     if (st.isDirectory()) {
       entries.push(...await readDirEntries(absPath, relPath));
     } else {
-      const content = await readFile49(absPath);
+      const content = await readFile50(absPath);
       entries.push(Object.freeze({
         path: relPath,
         type: "blob",
@@ -141593,7 +142240,7 @@ var init_state = __esm({
 });
 
 // src/artifacts/artifact-plan.mjs
-import { writeFile as writeFile15, mkdir as mkdir33, readFile as readFile50, rename as rename5, open as open14 } from "node:fs/promises";
+import { writeFile as writeFile15, mkdir as mkdir33, readFile as readFile51, rename as rename5, open as open14 } from "node:fs/promises";
 import { dirname as dirname23 } from "node:path";
 function assemblePlan({
   operation,
@@ -142282,7 +142929,7 @@ var init_adoption = __esm({
 // src/artifacts/inspect.mjs
 import { promisify as promisify24 } from "node:util";
 import { execFile as execFile17 } from "node:child_process";
-import { readdir as readdir32, stat as stat20, readFile as readFile51 } from "node:fs/promises";
+import { readdir as readdir32, stat as stat20, readFile as readFile52 } from "node:fs/promises";
 import { join as join43 } from "node:path";
 async function hasNestedGitRoots(root) {
   try {
@@ -142554,7 +143201,7 @@ var init_inspect = __esm({
 });
 
 // src/artifacts/resolution.mjs
-import { mkdir as mkdir34, open as open15, readFile as readFile52, stat as stat21, lstat as lstat47, chmod as chmod6 } from "node:fs/promises";
+import { mkdir as mkdir34, open as open15, readFile as readFile53, stat as stat21, lstat as lstat47, chmod as chmod6 } from "node:fs/promises";
 import { join as join44, resolve as resolve39, relative as relative31, isAbsolute as isAbsolute27, basename as basename15 } from "node:path";
 function decodeBuffer(value, label) {
   if (value == null) return null;
@@ -142886,7 +143533,7 @@ async function submitResolution({
 async function readAndValidateResolvedFile(resolvedPath) {
   let content;
   try {
-    content = await readFile52(resolvedPath);
+    content = await readFile53(resolvedPath);
   } catch (err) {
     throw new ReleaseError(MISSING_PARAMETERS, `cannot read resolved file: ${err.message}`, { resolvedPath, cause: err.code });
   }
@@ -143054,7 +143701,7 @@ var artifacts_exports = {};
 __export(artifacts_exports, {
   runArtifactsCommand: () => runArtifactsCommand
 });
-import { readFile as readFile53 } from "node:fs/promises";
+import { readFile as readFile54 } from "node:fs/promises";
 import { join as join45 } from "node:path";
 async function runArtifactsCommand({ subcommand, args: args2, root } = {}) {
   if (!VALID_SUBCOMMANDS.has(subcommand)) {
@@ -143183,7 +143830,7 @@ async function handleAdopt({ args: args2, root }) {
       { subcommand: "adopt" }
     );
   }
-  const planRaw = await readFile53(planPath, "utf8");
+  const planRaw = await readFile54(planPath, "utf8");
   const plan = JSON.parse(planRaw);
   if (expectedDigest && plan.planDigest !== expectedDigest) {
     throw new ReleaseError(
@@ -143198,7 +143845,7 @@ async function handleAdopt({ args: args2, root }) {
     if (artifact.path) {
       const entry = await readEntry({ root, path: artifact.path, source: "worktree" });
       if (entry.kind === "regular") {
-        const bytes = await readFile53(join45(root, artifact.path));
+        const bytes = await readFile54(join45(root, artifact.path));
         currentEntries.set(artifact.id, Object.freeze({ ...entry, bytes, content: bytes }));
       } else {
         currentEntries.set(artifact.id, entry);
@@ -143263,7 +143910,7 @@ async function handleBootstrap({ args: args2, root }) {
       { subcommand: "bootstrap" }
     );
   }
-  const planRaw = await readFile53(planPath, "utf8");
+  const planRaw = await readFile54(planPath, "utf8");
   const adoptionPlan = JSON.parse(planRaw);
   const currentEntries = /* @__PURE__ */ new Map();
   for (const id of new Set((adoptionPlan.protectedHunks ?? []).map((h) => h.artifactId))) {
@@ -143275,12 +143922,12 @@ async function handleBootstrap({ args: args2, root }) {
     if (entry.kind !== "regular") {
       throw new ReleaseError("PLAN_STALE", `artifact is no longer a regular file: ${id}`, { id });
     }
-    const bytes = await readFile53(join45(root, artifactPath));
+    const bytes = await readFile54(join45(root, artifactPath));
     currentEntries.set(id, Object.freeze({ ...entry, bytes, content: bytes }));
   }
   let replacementBytes;
   if (action === "replace" && replacementPath) {
-    replacementBytes = await readFile53(replacementPath);
+    replacementBytes = await readFile54(replacementPath);
   }
   const updated = await discardBootstrapHunk({
     adoptionPlan,
@@ -143318,7 +143965,7 @@ async function handleResolve({ args: args2, root }) {
       { subcommand: "resolve" }
     );
   }
-  const planRaw = await readFile53(planPath, "utf8");
+  const planRaw = await readFile54(planPath, "utf8");
   const plan = JSON.parse(planRaw);
   if (plan.planDigest !== expectedDigest) {
     throw new ReleaseError(
@@ -144136,7 +144783,7 @@ __export(route_exports, {
   resolvePreviousReleaseCommit: () => resolvePreviousReleaseCommit
 });
 import { execFileSync } from "node:child_process";
-import { lstat as lstat48, readdir as readdir33, readFile as readFile54 } from "node:fs/promises";
+import { lstat as lstat48, readdir as readdir33, readFile as readFile55 } from "node:fs/promises";
 import { relative as relative32, resolve as resolve40, basename as basename16, dirname as dirname24, join as join46 } from "node:path";
 function classifyPath(path40) {
   if (typeof path40 !== "string" || path40.length === 0) return "ignore";
@@ -144223,7 +144870,7 @@ async function resolvePreviousReleaseCommit(root) {
       if (!file.endsWith(".json")) continue;
       let plan;
       try {
-        plan = JSON.parse(await readFile54(resolve40(plansDir, file), "utf8"));
+        plan = JSON.parse(await readFile55(resolve40(plansDir, file), "utf8"));
       } catch {
         continue;
       }
@@ -144349,7 +144996,7 @@ async function readRunRouting(root, options = {}) {
     let authorityMissing = false;
     let markerlessRunDebris = false;
     try {
-      await readFile54(runPath);
+      await readFile55(runPath);
       authorityExists = true;
     } catch (error) {
       if (error.code === "ENOENT") {
@@ -144504,7 +145151,7 @@ async function isMarkerlessRunDebris(runDirectory) {
     const evidenceFiles = await readDirectory(join46(runDirectory, "evidence", evidenceEntry.name));
     if (!evidenceFiles || evidenceFiles.length !== 1 || evidenceFiles[0].name !== "release-skill-install-evidence.json" || !evidenceFiles[0].isFile() || evidenceFiles[0].isSymbolicLink()) return false;
     try {
-      const evidenceRecord = JSON.parse(await readFile54(
+      const evidenceRecord = JSON.parse(await readFile55(
         join46(runDirectory, "evidence", evidenceEntry.name, evidenceFiles[0].name),
         "utf8"
       ));
@@ -144589,8 +145236,8 @@ async function isProvenPreAuthorityFailure(runDir, runName) {
   let summary;
   let events;
   try {
-    summary = JSON.parse(await readFile54(summaryPath, "utf8"));
-    events = (await readFile54(evidencePath, "utf8")).trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
+    summary = JSON.parse(await readFile55(summaryPath, "utf8"));
+    events = (await readFile55(evidencePath, "utf8")).trim().split("\n").filter(Boolean).map((line) => JSON.parse(line));
   } catch {
     return false;
   }
@@ -144675,7 +145322,7 @@ async function readLegacyPostverifyRecovery(runPath) {
     if (run6.command !== "postverify" || run6.status !== "DISTRIBUTED") {
       throw new ReleaseError(GATE_FAILED, "legacy postverify status is not terminal DISTRIBUTED");
     }
-    const planRaw = await readFile54(run6.planPath, "utf8");
+    const planRaw = await readFile55(run6.planPath, "utf8");
     const plan = JSON.parse(planRaw);
     validatePlan(plan);
     if (!plan.digest || plan.digest !== computePlanDigest(plan)) {
@@ -144706,7 +145353,7 @@ async function readLegacyPostverifyRecovery(runPath) {
       runPath: run6.sourceRunPath,
       production
     });
-    const summary = JSON.parse(await readFile54(join46(resolve40(runPath, ".."), "summary.json"), "utf8"));
+    const summary = JSON.parse(await readFile55(join46(resolve40(runPath, ".."), "summary.json"), "utf8"));
     if (!summary || summary.status !== run6.status) {
       throw new ReleaseError(GATE_FAILED, "legacy postverify summary status does not match its sealed run status");
     }
@@ -145080,7 +145727,7 @@ Workflow Profiles:
 });
 
 // bin/release-skill-cli.mjs
-import { readFile as readFile55 } from "node:fs/promises";
+import { readFile as readFile56 } from "node:fs/promises";
 import { basename as basename17, dirname as dirname25, join as join47, resolve as resolve41 } from "node:path";
 import { execFile as execFileCb22 } from "node:child_process";
 import { promisify as promisify26 } from "node:util";
@@ -145163,6 +145810,27 @@ async function exitAfterFlush(exitCode) {
   process.exit(exitCode);
 }
 __name(exitAfterFlush, "exitAfterFlush");
+function publicErrorDetails(error) {
+  const details = error?.details;
+  if (!details || typeof details !== "object" || Array.isArray(details)) return {};
+  const output = {};
+  if (details.cause && typeof details.cause === "object" && !Array.isArray(details.cause)) {
+    const cause = {};
+    if (typeof details.cause.code === "string") cause.code = details.cause.code;
+    if (typeof details.cause.message === "string") cause.message = details.cause.message;
+    if (Object.keys(cause).length > 0) output.cause = cause;
+  }
+  if (Array.isArray(details.nextSteps)) {
+    const nextSteps = details.nextSteps.filter((step) => step && typeof step === "object" && !Array.isArray(step)).map((step) => ({
+      ...typeof step.code === "string" ? { code: step.code } : {},
+      ...typeof step.message === "string" ? { message: step.message } : {},
+      ...Array.isArray(step.argv) && step.argv.every((arg) => typeof arg === "string") ? { argv: [...step.argv] } : {}
+    })).filter((step) => Object.keys(step).length > 0);
+    if (nextSteps.length > 0) output.nextSteps = nextSteps;
+  }
+  return output;
+}
+__name(publicErrorDetails, "publicErrorDetails");
 async function checkDependency(command2, versionArgs = ["--version"]) {
   try {
     const { stdout } = await execFile19(command2, versionArgs, {
@@ -145871,9 +146539,15 @@ if (command === "ship") {
         } else {
           console.log("Post-release: branch advancement was already included; skip the merge question.");
         }
-        if (result2.postRelease.localHostUpdate?.promptRequired) {
+        const localHostUpdate = result2.postRelease.localHostUpdate;
+        if (localHostUpdate?.available === true && typeof localHostUpdate.runPath === "string") {
           console.log(`Post-release: ask whether to update local host plugins (${result2.postRelease.localHostUpdate.hosts.join(", ")}).`);
-          console.log(`Post-release command: release-skill post-release --plan ${result2.planPath} --run ${result2.verifyRunPath}`);
+          console.log(`Post-release command: release-skill post-release --plan ${result2.planPath} --run ${localHostUpdate.runPath}`);
+          console.log("Choose --hosts before adding --update-local-hosts to perform a local update.");
+        } else {
+          for (const step of localHostUpdate?.nextSteps ?? []) {
+            console.log(`Next [${step.code}] ${step.message} (${step.argv.join(" ")})`);
+          }
         }
       }
       for (const followUp of result2.manualFollowUps ?? []) {
@@ -146217,55 +146891,68 @@ if (command === "post-release") {
   const planPath = value("--plan") ? resolve41(value("--plan")) : void 0;
   const runPath = value("--run") ? resolve41(value("--run")) : void 0;
   if (!planPath || !runPath) {
-    const message = "post-release requires --plan <path> and --run <verified-run-path>";
+    const message = "post-release requires --plan <path> and --run <verify-or-postverify-run-path>";
     if (hasJson) console.log(JSON.stringify({ error: "MISSING_PARAMETERS", message, exitCode: 1 }));
     else console.error(`Error: ${message}`);
     await exitAfterFlush(1);
   }
   try {
     const {
-      assertVerifiedReleaseRun: assertVerifiedReleaseRun2,
       derivePostReleaseChecklist: derivePostReleaseChecklist2,
       updateLocalHostPlugins: updateLocalHostPlugins2
     } = await init_post_release_local().then(() => post_release_local_exports);
     const { validatePlan: validatePlan2 } = await init_plan().then(() => plan_exports);
     const {
       loadRun: loadRun2,
-      resolveRunPath: resolveRunPath2,
-      validateRunLineage: validateRunLineage2
+      resolveRunPath: resolveRunPath2
     } = await init_run().then(() => run_exports);
-    const plan = JSON.parse(await readFile55(planPath, "utf8"));
+    const plan = JSON.parse(await readFile56(planPath, "utf8"));
     validatePlan2(plan);
+    const updateRequested = args.includes("--update-local-hosts");
     const resolvedRunPath = await resolveRunPath2(runPath);
     const runRecord = await loadRun2(resolvedRunPath, {
       requireDigest: true,
       authorityPlanPath: planPath
     });
-    await validateRunLineage2(runRecord, {
-      plan,
-      planPath,
-      runPath: resolvedRunPath,
-      production: Boolean(plan.production)
-    });
-    assertVerifiedReleaseRun2(plan, runRecord);
-    const updateRequested = args.includes("--update-local-hosts");
+    if (!updateRequested) {
+      const { assertLocalFinishRun: assertLocalFinishRun2 } = await init_post_release_local().then(() => post_release_local_exports);
+      await assertLocalFinishRun2({
+        plan,
+        planPath,
+        runPath: resolvedRunPath,
+        runRecord,
+        production: Boolean(plan.production),
+        root: resolve41(value("--root") ?? process.cwd())
+      });
+    }
     const hostsIndex = args.indexOf("--hosts");
     const rawHosts = hostsIndex !== -1 && args[hostsIndex + 1] && !args[hostsIndex + 1].startsWith("--") ? args[hostsIndex + 1] : "";
     const selectedHosts = rawHosts.split(",").map((host) => host.trim()).filter(Boolean);
     const result2 = updateRequested ? await updateLocalHostPlugins2({
-      plan,
+      planPath,
+      runPath: resolvedRunPath,
       root: resolve41(value("--root") ?? process.cwd()),
       confirmPlanDigest: value("--confirm-plan"),
       selectedHosts
-    }) : derivePostReleaseChecklist2(plan);
+    }) : derivePostReleaseChecklist2(plan, {
+      runPath: runRecord.command === "postverify" && runRecord.status === "DISTRIBUTED" ? resolvedRunPath : runRecord.command === "verify" ? resolvedRunPath : void 0,
+      root: resolve41(value("--root") ?? process.cwd()),
+      postVerifyComplete: runRecord.command === "postverify" && runRecord.status === "DISTRIBUTED"
+    });
     if (hasJson) {
       console.log(JSON.stringify(result2, null, 2));
     } else if (!updateRequested) {
       console.log(`Post-release status: ${result2.status}`);
       if (result2.merge.promptRequired) console.log("Ask whether the user wants to merge the remaining branch.");
       else console.log("Branch advancement was already included in the release workflow; skip the merge question.");
-      if (result2.localHostUpdate.promptRequired) {
+      if (result2.localHostUpdate.available === true && typeof result2.localHostUpdate.runPath === "string") {
         console.log(`Ask whether to update local host plugins: ${result2.localHostUpdate.hosts.join(", ")}`);
+        console.log(`Post-release command: release-skill post-release --plan ${planPath} --run ${result2.localHostUpdate.runPath}`);
+        console.log("Choose --hosts before adding --update-local-hosts to perform a local update.");
+      } else {
+        for (const step of result2.localHostUpdate.nextSteps ?? []) {
+          console.log(`Next [${step.code}] ${step.message} (${step.argv.join(" ")})`);
+        }
       }
     } else {
       console.log(`Local host update: ${result2.status}`);
@@ -146281,9 +146968,15 @@ if (command === "post-release") {
       console.log(JSON.stringify({
         error: err.code ?? "POST_RELEASE_FAILED",
         message: err.message,
+        details: publicErrorDetails(err),
         exitCode: err.exitCode ?? 1
       }));
-    } else console.error(`Error: ${err.message}`);
+    } else {
+      console.error(`Error: ${err.message}`);
+      for (const step of err.details?.nextSteps ?? []) {
+        console.error(`Next [${step.code}] ${step.message} (${step.argv.join(" ")})`);
+      }
+    }
     await exitAfterFlush(err.exitCode ?? 1);
   }
 }
@@ -146330,9 +147023,9 @@ if (command === "verify") {
         derivePostReleaseChecklist: derivePostReleaseChecklist2,
         unavailablePostReleaseChecklist: unavailablePostReleaseChecklist2
       } = await init_post_release_local().then(() => post_release_local_exports);
-      const plan = JSON.parse(await readFile55(planPath, "utf8"));
+      const plan = JSON.parse(await readFile56(planPath, "utf8"));
       try {
-        result2.postRelease = derivePostReleaseChecklist2(plan);
+        result2.postRelease = derivePostReleaseChecklist2(plan, { root, runPath: result2.runPath });
       } catch (error) {
         result2.postRelease = unavailablePostReleaseChecklist2(plan, error);
       }
@@ -146357,8 +147050,14 @@ if (command === "verify") {
       } else if (result2.postRelease?.merge.promptRequired) {
         console.log("Post-release: ask whether to merge the remaining branch.");
       }
-      if (result2.postRelease?.localHostUpdate.promptRequired) {
+      if (result2.postRelease?.localHostUpdate?.available === true && typeof result2.postRelease.localHostUpdate.runPath === "string") {
         console.log(`Post-release: ask whether to update local host plugins (${result2.postRelease.localHostUpdate.hosts.join(", ")}).`);
+        console.log(`Post-release command: release-skill post-release --plan ${planPath} --run ${result2.postRelease.localHostUpdate.runPath}`);
+        console.log("Choose --hosts before adding --update-local-hosts to perform a local update.");
+      } else {
+        for (const step of result2.postRelease?.localHostUpdate?.nextSteps ?? []) {
+          console.log(`Next [${step.code}] ${step.message} (${step.argv.join(" ")})`);
+        }
       }
     }
     await exitAfterFlush(result2.status === "VERIFIED" ? 0 : 1);
@@ -146367,6 +147066,7 @@ if (command === "verify") {
       const errOutput = {
         error: err.code ?? "UNKNOWN_ERROR",
         message: err.message,
+        details: err.details ?? {},
         exitCode: err.exitCode ?? 1
       };
       console.log(JSON.stringify(errOutput));

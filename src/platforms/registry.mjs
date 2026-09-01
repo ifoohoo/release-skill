@@ -438,6 +438,103 @@ export function getPlatform(id) {
   return platform;
 }
 
+const STANDALONE_SHA_RE = /^[0-9a-f]{40}$/u;
+
+function standaloneIdentityCore(platformOrId, fields) {
+  const platform = typeof platformOrId === 'string' ? getPlatform(platformOrId) : platformOrId;
+  const id = platform?.id;
+  if (id !== 'claude' && id !== 'codex') {
+    throw new Error(`standalone-index install identity is unsupported for platform "${id ?? '<unknown>'}"`);
+  }
+  const { name, source, version } = fields;
+  if (typeof name !== 'string' || name.length === 0
+    || !source || typeof source !== 'object' || Array.isArray(source)
+    || typeof source.source !== 'string'
+    || typeof source.ref !== 'string' || source.ref.length === 0
+    || typeof source.sha !== 'string' || !STANDALONE_SHA_RE.test(source.sha)) {
+    throw new Error(`${id} standalone-index install identity has invalid owned fields`);
+  }
+  if (id === 'claude') {
+    if (source.source !== 'github' || typeof source.repo !== 'string' || source.repo.length === 0
+      || typeof version !== 'string' || version.length === 0) {
+      throw new Error('Claude standalone-index install identity requires github repo, ref, sha, and version');
+    }
+    return {
+      name,
+      source: { source: 'github', repo: source.repo, ref: source.ref, sha: source.sha },
+      version,
+    };
+  }
+  if (source.source !== 'url' || typeof source.url !== 'string' || source.url.length === 0) {
+    throw new Error('Codex standalone-index install identity requires url, ref, and sha');
+  }
+  return {
+    name,
+    source: { source: 'url', url: source.url, ref: source.ref, sha: source.sha },
+  };
+}
+
+/** Build the expected install identity from the frozen plugin contract. */
+export function buildExpectedStandaloneIndexInstallIdentity(platformOrId, frozenIdentity = {}) {
+  const platform = typeof platformOrId === 'string' ? getPlatform(platformOrId) : platformOrId;
+  const id = platform?.id;
+  const { name, repo, tag, sha, version } = frozenIdentity;
+  if (typeof repo !== 'string' || repo.length === 0 || typeof tag !== 'string' || tag.length === 0) {
+    throw new Error('standalone-index expected identity requires a plugin repository and tag');
+  }
+  if (id === 'claude') {
+    return standaloneIdentityCore(platform, {
+      name,
+      version,
+      source: { source: 'github', repo, ref: tag, sha },
+    });
+  }
+  if (id === 'codex') {
+    return standaloneIdentityCore(platform, {
+      name,
+      source: { source: 'url', url: `https://github.com/${repo}.git`, ref: `refs/tags/${tag}`, sha },
+    });
+  }
+  return standaloneIdentityCore(platform, { name, source: {}, version });
+}
+
+/** Project only the actual remote entry; frozen plan fields are never accepted. */
+export function projectObservedStandaloneIndexInstallIdentity(platformOrId, entry) {
+  const platform = typeof platformOrId === 'string' ? getPlatform(platformOrId) : platformOrId;
+  const id = platform?.id;
+  if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+    throw new Error('standalone-index observed identity requires an entry object');
+  }
+  const source = entry.source;
+  if (!source || typeof source !== 'object' || Array.isArray(source)) {
+    throw new Error('standalone-index observed identity requires a source object');
+  }
+  if (id === 'claude') {
+    return standaloneIdentityCore(platform, {
+      name: entry.name,
+      version: entry.version,
+      source: {
+        source: source.source,
+        repo: source.repo,
+        ref: source.ref,
+        sha: source.sha,
+      },
+    });
+  }
+  if (id === 'codex') {
+    return standaloneIdentityCore(platform, {
+      name: entry.name,
+      source: {
+        source: source.source,
+        url: source.url,
+        ref: source.ref,
+        sha: source.sha,
+      },
+    });
+  }
+  return standaloneIdentityCore(platform, { name: entry.name, source });
+}
+
 /**
  * Resolve a declared skill projection surface to its public host name.
  * The host is always derived from the descriptor's authoritative
