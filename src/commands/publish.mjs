@@ -27,8 +27,8 @@
 
 import { readFile, mkdir } from 'node:fs/promises';
 import { isAbsolute, join, relative } from 'node:path';
-import { PLATFORMS } from '../platforms/registry.mjs';
-import { deriveSurfaceHostBinding, pluginRootFromManifestRelativePath } from '../core/surface-host-bindings.mjs';
+import { PLATFORMS, normalizeHostId } from '../platforms/registry.mjs';
+import { deriveSurfaceHostBinding, groupSurfaceHostBindings, pluginRootFromManifestRelativePath } from '../core/surface-host-bindings.mjs';
 
 import { assertImmutablePlanAuthority, computePlanDigest, validatePlan, validatePlanActionCompleteness } from '../core/plan.mjs';
 import {
@@ -48,6 +48,7 @@ import {
   assertSkillResourceClosureReceipt,
   checkSkillResourceClosure,
   createSkillResourceClosureReceipt,
+  evaluateDeclaredHostSurfaceCoverage,
 } from '../core/skill-resource-closure.mjs';
 import {
   ADAPTER_ACTION_TYPE_MAP,
@@ -672,10 +673,11 @@ export async function publishRelease(options) {
           });
           if (binding) surfaceHostBindings.push(binding);
         }
+        const { checkerBindings, coverageClaims } = groupSurfaceHostBindings(surfaceHostBindings);
         const closureResult = await checkSkillResourceClosure({
           snapshotDir,
           host: 'root',
-          surfaceHostBindings,
+          surfaceHostBindings: checkerBindings,
         });
         if (closureResult.findings.length > 0) {
           await evidence.append({
@@ -689,6 +691,31 @@ export async function publishRelease(options) {
             GATE_FAILED,
             `skill resource closure recheck failed for unit "${unitId}": ${closureResult.findings.length} finding(s)`,
             { unitId, findings: closureResult.findings },
+          );
+        }
+        const expectedHosts = [];
+        for (const distribution of frozenUnit?.distributions ?? []) {
+          const platform = PLATFORMS.find((item) => item.distributionType === distribution.type);
+          if (platform) expectedHosts.push(await normalizeHostId(platform.buildAdapter.name));
+        }
+        const hostCoverage = evaluateDeclaredHostSurfaceCoverage(
+          expectedHosts,
+          closureResult.surfaces,
+          coverageClaims,
+        );
+        if (!hostCoverage.passed) {
+          await evidence.append({
+            phase: 'safety-gate',
+            gate: 'skill-resource-closure',
+            status: 'failed',
+            unitId,
+            reason: 'declared-host-surface-missing',
+            missingHosts: hostCoverage.missing,
+          });
+          throw new ReleaseError(
+            GATE_FAILED,
+            `skill resource closure recheck failed for unit "${unitId}": declared host surface(s) missing or empty: ${hostCoverage.missing.map((item) => item.host).join(', ')}`,
+            { unitId, missingHosts: hostCoverage.missing },
           );
         }
         // G5: preparedAt/exitCode are record-layer fields frozen by prepare

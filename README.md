@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.6 -->
+<!-- release-skill:release-version: 0.9.7 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,34 +14,34 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.6** (2026-09-02)
+**0.9.7** (2026-09-02)
 
-0.9.6 is a local source candidate that adds a public `postverify` CLI for same-lineage postPublish hooks without ship state, and records host-added symlinks in Claude and Codex marketplace install trees without following them. It consumes the three Foundation packages at the exact 0.16.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.7 is a local source candidate that retains the 0.9.6 postverify and isolated install-tree safeguards and corrects verify's bundled-family install-root coordinate: when an adapter `installPath` is already the installed plugin root, manifest `skills` are interpreted relative to `.`. It consumes the three Foundation packages at the exact 0.16.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
 - `postverify` binds `planDigest`, the source `VERIFIED` run, each `hookId`, and its immutable hook approval; expired or mismatched approvals fail closed before hook execution, without adding a second state or authority.
 - Declared payload symlinks, frozen-source symlinks, and legacy install-tree symlinks continue to fail closed; host-added symlinks are recorded as raw targets only.
+- Missing paths, files, and symlinks continue to fail closed.
 - Any host plan remains a qualified frozen-plan path and requires a VERIFIED-run from the same release lineage before host acceptance; this source candidate does not provide that acceptance.
-
-**Added**
-
-- Add the public `postverify` command for phase-by-phase `prepare` → `approve` → `publish` → `distribute` → `verify` lineages that need to run approved postPublish hooks without a ship state or a second authority.
-- Record host-added symlinks in Claude and Codex marketplace install trees as paths and raw targets without following them, while keeping declared and frozen symlinks fail-closed.
 
 **Changed**
 
+- When an adapter `installPath` is already the installed plugin root, verify interprets the manifest's `skills` path relative to `.`. prepare and publish keep their frozen-snapshot coordinates unchanged.
+- Allow multiple frozen host manifests to share one non-empty canonical source Skill surface; closure scans that surface once while host coverage retains every declared host.
+- Before any external write, publish re-derives the frozen manifest claims and rechecks the closure.
+- Consumer install paths remain isolated by host realpath; overlapping realpaths fail closed.
+- Retain the public `postverify` path and the stable isolated install-tree record path; this candidate does not expand standalone-index or host acceptance support.
 - Use Foundation 0.16.0 `createFilesystemRootBinding` and `observeFilesystemTree` in record mode for Claude and Codex marketplace install-tree observation; ordinary files keep the existing comparison, directories stay out of extra installed paths, and the frozen `manifestDigest` remains unchanged.
-- Keep the narrow R-05 Hook cache v2 consumer path and the stable isolated install-tree record path; this candidate does not expand standalone-index or host acceptance support.
-- Retain the explicit CodeBuddy plugin entry (`marketplace: release-skill`) and `--root <project-root>` in release-finish local-finish examples.
+- Keep the narrow R-05 Hook cache v2 consumer path, the explicit CodeBuddy plugin entry (`marketplace: release-skill`), and `--root <project-root>` in release-finish local-finish examples.
 
 **Upgrade Notes**
 
-Prepare a new 0.9.6 plan when adopting these changes. The `postverify` command requires the same plan digest, a source `VERIFIED` run, and an immutable approval for each declared hook; an expired or mismatched approval stops before hook execution. Real-host acceptance still requires an officially published and VERIFIED release; the official 0.9.6 entry must be installed or reloaded first. A source candidate, an older installed entry, or the mere existence of plan and run files cannot complete real-host acceptance. Each selected host must complete a first successful update. On the second run, Claude, Kimi, CodeBuddy, and WorkBuddy must report `ALREADY_CURRENT`; Codex may report `UPDATED` only when it reinstalls the same exact 0.9.6 frozen reference, payload validation passes, and `restartRequired=true` is declared. This source candidate does not claim publication, GLAF4 acceptance, Hub postVerify, or consumer-installation verification.
+Prepare a new 0.9.7 plan when adopting this candidate. The `postverify` command requires the same plan digest, a source `VERIFIED` run, and an immutable approval for each declared hook; an expired or mismatched approval stops before hook execution. Real-host acceptance can begin only after 0.9.7 is officially published and VERIFIED; the official 0.9.7 entry must be installed or reloaded first. A source candidate, an older installed entry, or the mere existence of plan and run files cannot complete real-host acceptance. Each selected host must complete a first successful update. On the second run, Claude, Kimi, CodeBuddy, and WorkBuddy must report `ALREADY_CURRENT`; Codex may report `UPDATED` only when it reinstalls the same exact 0.9.7 frozen reference, payload validation passes, and `restartRequired=true` is declared. Before the official 0.9.7 release and VERIFIED result, do not claim that GLAF4 passed. After the official 0.9.7 release, the original GLAF4 0.5.4 immutable plan and PUBLISHED run can be reverified; GLAF4 does not need to be reissued. This source candidate does not claim publication, GLAF4 acceptance, or consumer-installation verification.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.6 is the current source candidate. This README
+> **Current boundary:** v0.9.7 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -65,7 +65,7 @@ Prepare a new 0.9.6 plan when adopting these changes. The `postverify` command r
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.6 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.7 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -94,7 +94,7 @@ checkpoints remain intact and use matching-version recovery. Evidence v1 stays
 read-only; v2 uses a closed top level with phase extensions in `details`.
 Summaries and recovery suggestions are diagnostic, never publication authority.
 
-The current 0.9.6 candidate includes the narrow R-05 Hook cache v2 consumer
+The current 0.9.7 candidate includes the narrow R-05 Hook cache v2 consumer
 path, the public `postverify` path, and the stable isolated install-tree record
 path (A2/A3). It still
 excludes R-02 safe full-tree inventory, R-10 historical-release verification

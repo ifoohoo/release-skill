@@ -186,3 +186,38 @@ export async function deriveSurfaceHostBinding({ manifest, pluginRoot, platform,
   const host = await normalizeHostId(platform.buildAdapter.name);
   return { surfaceId, host };
 }
+
+/**
+ * Group manifest-backed claims before invoking the closure checker.
+ *
+ * A shared canonical source surface is scanned once. Claims remain complete
+ * for host coverage, while checker overrides are passed only for an
+ * unshared surface; this keeps the checker fail-closed when called directly
+ * with conflicting host claims.
+ *
+ * @param {Array<{surfaceId: string, host: string}>} claims
+ * @returns {{ coverageClaims: Array<{surfaceId: string, host: string}>, checkerBindings: Array<{surfaceId: string, host: string}> }}
+ */
+export function groupSurfaceHostBindings(claims = []) {
+  if (!Array.isArray(claims)) {
+    throw new TypeError('surfaceHostBindings must be an array');
+  }
+  const bySurface = new Map();
+  for (const claim of claims) {
+    if (!claim || typeof claim !== 'object'
+        || typeof claim.surfaceId !== 'string' || typeof claim.host !== 'string') {
+      throw new TypeError('surfaceHostBindings entries must be objects with string surfaceId and host');
+    }
+    const existing = bySurface.get(claim.surfaceId) ?? [];
+    existing.push({ surfaceId: claim.surfaceId, host: claim.host });
+    bySurface.set(claim.surfaceId, existing);
+  }
+  const coverageClaims = [...bySurface.values()]
+    .flat()
+    .sort((left, right) => left.surfaceId.localeCompare(right.surfaceId) || left.host.localeCompare(right.host));
+  const checkerBindings = [...bySurface.values()]
+    .filter((surfaceClaims) => surfaceClaims.length === 1)
+    .map(([claim]) => claim)
+    .sort((left, right) => left.surfaceId.localeCompare(right.surfaceId) || left.host.localeCompare(right.host));
+  return { coverageClaims, checkerBindings };
+}

@@ -82,7 +82,7 @@ import {
   normalizeHostId,
   buildExpectedStandaloneIndexInstallIdentity,
 } from '../platforms/registry.mjs';
-import { deriveSurfaceHostBinding, pluginRootFromManifestRelativePath } from '../core/surface-host-bindings.mjs';
+import { deriveSurfaceHostBinding, groupSurfaceHostBindings, pluginRootFromManifestRelativePath } from '../core/surface-host-bindings.mjs';
 import { validateMarketplaceSourceSelection, MARKETPLACE_SOURCE_TYPES, resolvePluginManifestFromMarketplaceEntrySource, resolveMarketplaceRoot } from '../adapters/plugin-marketplace.mjs';
 import { buildInstallationContract, computeInstallationContractDigest, INSTALLATION_CONTRACT_ALGORITHM_VERSION } from '../core/installation-contract.mjs';
 import {
@@ -2818,10 +2818,11 @@ async function runPrepareSkillResourceClosureGate({
       if (binding) surfaceHostBindings.push(binding);
     }
 
+    const { checkerBindings, coverageClaims } = groupSurfaceHostBindings(surfaceHostBindings);
     const closureResult = await checkSkillResourceClosure({
       snapshotDir: manifest.outputDir,
       host: 'root',
-      surfaceHostBindings,
+      surfaceHostBindings: checkerBindings,
     });
 
     // G5: bind execution time + exit code into the frozen receipt.
@@ -2880,6 +2881,7 @@ async function runPrepareSkillResourceClosureGate({
     const hostCoverage = evaluateDeclaredHostSurfaceCoverage(
       expectedHosts,
       closureResult.surfaces,
+      coverageClaims,
     );
     if (!hostCoverage.passed) {
       await evidence.append({
@@ -2908,7 +2910,7 @@ async function runPrepareSkillResourceClosureGate({
     // 含一个技能（binding-surface existence）。G4 按宿主名覆盖，这里按
     // 绑定表面路径覆盖 —— 例如 manifest 指向 './adapters/claude/skills/'
     // 但 publicFiles 丢弃该目录时，绑定表面缺失必须失败关闭。
-    for (const binding of surfaceHostBindings) {
+    for (const binding of coverageClaims) {
       const boundSurface = closureResult.surfaces.find(
         (surface) => surface.id === binding.surfaceId,
       );

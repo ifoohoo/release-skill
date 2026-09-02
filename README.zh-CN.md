@@ -2,40 +2,40 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.6 -->
+<!-- release-skill:release-version: 0.9.7 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.6** (2026-09-02)
+**0.9.7** (2026-09-02)
 
-0.9.6 是当前本地源码候选，新增无需 ship 状态即可处理同一发布谱系 postPublish hook 的公开 `postverify` 命令，并在 Claude 和 Codex 市场安装树中记录宿主新增的 symlink，不跟随链接。三项 Foundation 依赖均精确消费已发布的 0.16.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.7 是保留 0.9.6 postverify 和隔离安装树安全边界、并修正 verify 的 bundled-family 安装根坐标的本地源码候选：当适配器的 `installPath` 已经是安装后的插件根目录时，manifest 的 `skills` 路径按 `.` 解释。三项 Foundation 依赖均精确消费已发布的 0.16.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
 - `postverify` 绑定 `planDigest`、源 `VERIFIED` run、每个 `hookId` 和对应的不可变 hook approval；批准过期或不匹配时，在执行 hook 前失败关闭，不增加第二状态或第二权威。
 - 声明载荷 symlink、冻结源码 symlink 和 legacy 安装树 symlink 继续失败关闭；宿主新增 symlink 只记录原始目标。
+- 缺失路径、文件和 symlink 继续失败关闭。
 - 任何宿主计划都必须是合格冻结计划，并要求同一发布谱系的 VERIFIED run 才能开始宿主验收；本源码候选不提供该验收。
-
-**新增**
-
-- 新增公开 `postverify` 命令，支持沿 `prepare` → `approve` → `publish` → `distribute` → `verify` 阶段谱系，在没有 ship 状态或第二权威的情况下执行已批准的 postPublish hook。
-- Claude 和 Codex 市场安装树记录宿主新增 symlink 的路径和原始目标，不跟随链接；声明载荷和冻结源码中的 symlink 仍失败关闭。
 
 **变更**
 
-- Claude 和 Codex 市场安装树使用 Foundation 0.16.0 的 `createFilesystemRootBinding` 与 record 模式 `observeFilesystemTree`；普通文件继续使用现有比较，目录不进入额外安装路径，冻结的 `manifestDigest` 保持不变。
-- 保留窄范围的 R-05 Hook cache v2 消费路径和稳定的隔离安装树记录路径；本候选不扩展 standalone-index 或宿主验收支持。
-- 保留 CodeBuddy 插件显式的 `marketplace: release-skill` 条目，以及 release-finish 本机收尾示例中的 `--root <project-root>`。
+- 当适配器的 `installPath` 已经是安装后的插件根目录时，verify 按 `.` 解释 manifest 的 `skills` 路径；prepare 和 publish 的冻结快照坐标保持不变。
+- 允许多份冻结 host manifest 共享同一个非空 canonical source Skill surface；closure 只扫描一次，host coverage 保留每个已声明宿主。
+- publish 在任何外部写入前按冻结 manifest 事实重新派生 claims 并重检 closure。
+- 消费者安装路径继续按宿主 realpath 隔离；realpath 重合时失败关闭。
+- 保留公开 `postverify` 路径和稳定的隔离安装树记录路径；本候选不扩展 standalone-index 或宿主验收支持。
+- Claude 和 Codex 市场安装树继续使用 Foundation 0.16.0 的 `createFilesystemRootBinding` 与 record 模式 `observeFilesystemTree`；普通文件继续使用现有比较，目录不进入额外安装路径，冻结的 `manifestDigest` 保持不变。
+- 保留窄范围的 R-05 Hook cache v2 消费路径、CodeBuddy 插件显式的 `marketplace: release-skill` 条目，以及 release-finish 本机收尾示例中的 `--root <project-root>`。
 
 **升级说明**
 
-采用这些改动时请重新准备 0.9.6 计划。`postverify` 要求同一计划摘要、源 `VERIFIED` run，以及每个已声明 hook 的不可变 approval；批准过期或不匹配时会在执行 hook 前停止。真实宿主验收仍要求正式发布并达到 VERIFIED；正式的 0.9.6 入口必须先安装或重载。源码候选、旧的已安装入口，或仅存在计划和运行文件，都不能完成真实宿主验收。每个选定宿主都必须先完成首次成功更新。第二次运行时，Claude、Kimi、CodeBuddy 和 WorkBuddy 必须返回 `ALREADY_CURRENT`；Codex 可以使用 `UPDATED`，但只有在重新安装同一精确 0.9.6 冻结引用、载荷验证通过并声明 `restartRequired=true` 时才允许这样返回。本源码候选不提供该验收，也不代表已经发布、完成 GLAF4 验收、完成 Hub postVerify 或完成消费者安装验证。
+采用本候选时请重新准备 0.9.7 计划。`postverify` 要求同一计划摘要、源 `VERIFIED` run，以及每个已声明 hook 的不可变 approval；批准过期或不匹配时会在执行 hook 前停止。真实宿主验收只有在 0.9.7 正式发布并达到 VERIFIED 后才能开始；必须先安装或重载正式的 0.9.7 入口。源码候选、旧的已安装入口，或仅存在计划和运行文件，都不能完成真实宿主验收。每个选定宿主都必须先完成首次成功更新。第二次运行时，Claude、Kimi、CodeBuddy 和 WorkBuddy 必须返回 `ALREADY_CURRENT`；Codex 可以使用 `UPDATED`，但只有在重新安装同一精确 0.9.7 冻结引用、载荷验证通过并声明 `restartRequired=true` 时才允许这样返回。在 0.9.7 正式发布并达到 VERIFIED 前，不宣称 GLAF4 已通过。0.9.7 正式发布后，可以复验原 GLAF4 0.5.4 不可变计划和 PUBLISHED run；无需重新发布 GLAF4。本源码候选不代表已经发布、完成 GLAF4 验收或完成消费者安装验证。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.6 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.7 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -51,7 +51,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.6 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.7 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -69,7 +69,7 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-当前 0.9.6 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify` 路径和稳定隔离安装树记录路径（A2/A3）。当前仍不包含 R-02 安全整树盘点、R-10 历史发布验证的产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录验证器。本范围说明不构成远端发布记录或消费者升级指引。
+当前 0.9.7 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify` 路径和稳定隔离安装树记录路径（A2/A3）。当前仍不包含 R-02 安全整树盘点、R-10 历史发布验证的产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录验证器。本范围说明不构成远端发布记录或消费者升级指引。
 
 Foundation 三包精确依赖已发布的 0.16.0。新生成的 Kimi/CodeBuddy 同仓计划在 verify 阶段调用正式 `runPluginVerification`，把完整冻结载荷交给 Foundation，并记录最小的 `install-only` 观察收据。Kimi 映射为 `kimi-code`，CodeBuddy 映射为兼容的 `workbuddy`。`observed` 与 `payloadMatches` 只表示机制观察结果，不代表远端已发布或 release-skill 已完成领域验证。独立市场来源、真实市场安装和宿主调用仍是人工后续任务。
 

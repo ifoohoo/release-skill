@@ -2052,11 +2052,12 @@ export async function verifyRelease(options) {
       await evidence.append({ phase: 'verify', step: 'skill-resource-closure', status: 'started' });
 
       // Collect install paths from marketplace adapter checks.
-      // R-13 P2 (ruling 6): the surface binding is derived from the frozen
-      // installation contract at the REAL install coordinates — the same
-      // derivation rule prepare and publish use, never a hard-coded '.'.
-      // Plans without a frozen installation contract (legacy) fall back to
-      // the plugin-root surface ('.') with the legacy permissive checks.
+      // R-13 P2 (ruling 6): prepare and publish derive surface bindings in
+      // frozen snapshot-root coordinates. An adapter observation is already
+      // rooted at the installed plugin, so verify derives the same manifest
+      // skills fact relative to '.' at that consumer coordinate. Plans
+      // without a frozen installation contract (legacy) fall back to the
+      // plugin-root surface ('.') with the legacy permissive checks.
       const installSurfaces = [];
       for (const check of adapterChecks) {
         const platform = PLATFORMS.find((p) => p.actionType === check.actionType);
@@ -2065,11 +2066,16 @@ export async function verifyRelease(options) {
         const unit = (plan.units ?? []).find((u) => u.id === unitId);
         const dist = unit?.distributions?.find((d) => d.type === platform.distributionType);
         let binding = null;
+        let frozenPluginRoot = null;
         const contract = dist?.installationContract;
         if (contract?.normalizedManifest) {
+          frozenPluginRoot = pluginRootFromManifestRelativePath(contract.manifestRelativePath);
           binding = await deriveSurfaceHostBinding({
             manifest: contract.normalizedManifest,
-            pluginRoot: pluginRootFromManifestRelativePath(contract.manifestRelativePath),
+            // Adapter observations are already rooted at the installed
+            // plugin. The frozen manifest's skills path is therefore
+            // relative to '.', not to the snapshot-root manifest path.
+            pluginRoot: '.',
             platform,
             snapshotDir: check.observation.installPath,
           });
@@ -2082,6 +2088,7 @@ export async function verifyRelease(options) {
           unitId,
           surfaceId: binding?.surfaceId ?? '.',
           binding,
+          frozenPluginRoot,
           unit,
         });
       }
@@ -2192,7 +2199,7 @@ export async function verifyRelease(options) {
           // publish's recheck uses.
           const pluginDistCount = (surface.unit?.distributions ?? [])
             .filter((d) => d.type !== 'npm').length;
-          if (pluginDistCount === 1) {
+          if (pluginDistCount === 1 && surface.frozenPluginRoot === '.') {
             const observedReceipt = createSkillResourceClosureReceipt(closureResult, {
               unitId: surface.unitId,
               preparedAt: expectedUnitReceipt.preparedAt ?? null,

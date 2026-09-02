@@ -1,5 +1,33 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.7 locale=en baseline=sha256:6e411cb3026241b30954e2f23e0eadc8674b3531927e8c5069c92b46749fdb01 -->
+## [0.9.7] - 2026-09-02
+
+0.9.7 is a local source candidate that retains the 0.9.6 postverify and isolated install-tree safeguards and corrects verify's bundled-family install-root coordinate: when an adapter `installPath` is already the installed plugin root, manifest `skills` are interpreted relative to `.`. It consumes the three Foundation packages at the exact 0.16.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- `postverify` binds `planDigest`, the source `VERIFIED` run, each `hookId`, and its immutable hook approval; expired or mismatched approvals fail closed before hook execution, without adding a second state or authority.
+- Declared payload symlinks, frozen-source symlinks, and legacy install-tree symlinks continue to fail closed; host-added symlinks are recorded as raw targets only.
+- Missing paths, files, and symlinks continue to fail closed.
+- Any host plan remains a qualified frozen-plan path and requires a VERIFIED-run from the same release lineage before host acceptance; this source candidate does not provide that acceptance.
+
+### Changed
+
+- When an adapter `installPath` is already the installed plugin root, verify interprets the manifest's `skills` path relative to `.`. prepare and publish keep their frozen-snapshot coordinates unchanged.
+- Allow multiple frozen host manifests to share one non-empty canonical source Skill surface; closure scans that surface once while host coverage retains every declared host.
+- Before any external write, publish re-derives the frozen manifest claims and rechecks the closure.
+- Consumer install paths remain isolated by host realpath; overlapping realpaths fail closed.
+- Retain the public `postverify` path and the stable isolated install-tree record path; this candidate does not expand standalone-index or host acceptance support.
+- Use Foundation 0.16.0 `createFilesystemRootBinding` and `observeFilesystemTree` in record mode for Claude and Codex marketplace install-tree observation; ordinary files keep the existing comparison, directories stay out of extra installed paths, and the frozen `manifestDigest` remains unchanged.
+- Keep the narrow R-05 Hook cache v2 consumer path, the explicit CodeBuddy plugin entry (`marketplace: release-skill`), and `--root <project-root>` in release-finish local-finish examples.
+
+### Upgrade Notes
+
+Prepare a new 0.9.7 plan when adopting this candidate. The `postverify` command requires the same plan digest, a source `VERIFIED` run, and an immutable approval for each declared hook; an expired or mismatched approval stops before hook execution. Real-host acceptance can begin only after 0.9.7 is officially published and VERIFIED; the official 0.9.7 entry must be installed or reloaded first. A source candidate, an older installed entry, or the mere existence of plan and run files cannot complete real-host acceptance. Each selected host must complete a first successful update. On the second run, Claude, Kimi, CodeBuddy, and WorkBuddy must report `ALREADY_CURRENT`; Codex may report `UPDATED` only when it reinstalls the same exact 0.9.7 frozen reference, payload validation passes, and `restartRequired=true` is declared. Before the official 0.9.7 release and VERIFIED result, do not claim that GLAF4 passed. After the official 0.9.7 release, the original GLAF4 0.5.4 immutable plan and PUBLISHED run can be reverified; GLAF4 does not need to be reissued. This source candidate does not claim publication, GLAF4 acceptance, or consumer-installation verification.
+<!-- release-skill:changelog:end version=0.9.7 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.6 locale=en baseline=sha256:cc19a29543385bc4fbb52ac576b2310bca4b6963121dce82ada0ac933e237bfd -->
 ## [0.9.6] - 2026-09-02
 

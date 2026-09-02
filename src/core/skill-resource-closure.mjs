@@ -742,9 +742,27 @@ export async function checkSkillResourceClosure({
  * @param {Array<{ id: string, host: string, skillCount: number }>} surfaces
  * @returns {{ passed: boolean, missing: Array<{ host: string, skillCount: number }> }}
  */
-export function evaluateDeclaredHostSurfaceCoverage(expectedHosts, surfaces) {
+export function evaluateDeclaredHostSurfaceCoverage(expectedHosts, surfaces, coverageClaims = []) {
   const missing = [];
+  const observedById = new Map((surfaces ?? []).map((surface) => [surface.id, surface]));
+  const claimsByHost = new Map();
+  for (const claim of coverageClaims ?? []) {
+    const hostClaims = claimsByHost.get(claim.host) ?? [];
+    hostClaims.push(claim);
+    claimsByHost.set(claim.host, hostClaims);
+  }
   for (const expectedHost of [...new Set(expectedHosts ?? [])].sort((a, b) => a.localeCompare(b))) {
+    const declaredClaims = claimsByHost.get(expectedHost) ?? [];
+    if (declaredClaims.length > 0) {
+      const missingClaim = declaredClaims.find((claim) => {
+        const surface = observedById.get(claim.surfaceId);
+        return !surface || !(surface.skillCount >= 1);
+      });
+      if (!missingClaim) continue;
+      const surface = observedById.get(missingClaim.surfaceId);
+      missing.push({ host: expectedHost, skillCount: surface?.skillCount ?? 0 });
+      continue;
+    }
     const surface = (surfaces ?? []).find((item) => item.host === expectedHost);
     if (!surface || !(surface.skillCount >= 1)) {
       missing.push({ host: expectedHost, skillCount: surface?.skillCount ?? 0 });

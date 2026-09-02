@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.6"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.7"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "8fd8e6c5f7796efe9e1f7153382b50c74d78a4b5f836f872837ff2f11e4daeb5";
+const __bundleSourceDigest = "938bc6828f17e2248a4fe167bcd3353b43848ec1a494dc17dc663d390847150c";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -109520,9 +109520,27 @@ async function checkSkillResourceClosure({
   result2.receiptDigest = digestDocument(receiptProjection(result2));
   return result2;
 }
-function evaluateDeclaredHostSurfaceCoverage(expectedHosts, surfaces) {
+function evaluateDeclaredHostSurfaceCoverage(expectedHosts, surfaces, coverageClaims = []) {
   const missing = [];
+  const observedById = new Map((surfaces ?? []).map((surface) => [surface.id, surface]));
+  const claimsByHost = /* @__PURE__ */ new Map();
+  for (const claim of coverageClaims ?? []) {
+    const hostClaims = claimsByHost.get(claim.host) ?? [];
+    hostClaims.push(claim);
+    claimsByHost.set(claim.host, hostClaims);
+  }
   for (const expectedHost of [...new Set(expectedHosts ?? [])].sort((a, b) => a.localeCompare(b))) {
+    const declaredClaims = claimsByHost.get(expectedHost) ?? [];
+    if (declaredClaims.length > 0) {
+      const missingClaim = declaredClaims.find((claim) => {
+        const surface3 = observedById.get(claim.surfaceId);
+        return !surface3 || !(surface3.skillCount >= 1);
+      });
+      if (!missingClaim) continue;
+      const surface2 = observedById.get(missingClaim.surfaceId);
+      missing.push({ host: expectedHost, skillCount: surface2?.skillCount ?? 0 });
+      continue;
+    }
     const surface = (surfaces ?? []).find((item) => item.host === expectedHost);
     if (!surface || !(surface.skillCount >= 1)) {
       missing.push({ host: expectedHost, skillCount: surface?.skillCount ?? 0 });
@@ -112496,6 +112514,23 @@ async function deriveSurfaceHostBinding({ manifest, pluginRoot, platform, snapsh
   const host = await normalizeHostId(platform.buildAdapter.name);
   return { surfaceId, host };
 }
+function groupSurfaceHostBindings(claims = []) {
+  if (!Array.isArray(claims)) {
+    throw new TypeError("surfaceHostBindings must be an array");
+  }
+  const bySurface = /* @__PURE__ */ new Map();
+  for (const claim of claims) {
+    if (!claim || typeof claim !== "object" || typeof claim.surfaceId !== "string" || typeof claim.host !== "string") {
+      throw new TypeError("surfaceHostBindings entries must be objects with string surfaceId and host");
+    }
+    const existing = bySurface.get(claim.surfaceId) ?? [];
+    existing.push({ surfaceId: claim.surfaceId, host: claim.host });
+    bySurface.set(claim.surfaceId, existing);
+  }
+  const coverageClaims = [...bySurface.values()].flat().sort((left, right) => left.surfaceId.localeCompare(right.surfaceId) || left.host.localeCompare(right.host));
+  const checkerBindings = [...bySurface.values()].filter((surfaceClaims) => surfaceClaims.length === 1).map(([claim]) => claim).sort((left, right) => left.surfaceId.localeCompare(right.surfaceId) || left.host.localeCompare(right.host));
+  return { coverageClaims, checkerBindings };
+}
 var SKILLS_NORMALIZERS;
 var init_surface_host_bindings = __esm({
   async "src/core/surface-host-bindings.mjs"() {
@@ -112513,6 +112548,7 @@ var init_surface_host_bindings = __esm({
     __name(pluginRootFromManifestRelativePath, "pluginRootFromManifestRelativePath");
     __name(assertDeclaredSkillsDirExists, "assertDeclaredSkillsDirExists");
     __name(deriveSurfaceHostBinding, "deriveSurfaceHostBinding");
+    __name(groupSurfaceHostBindings, "groupSurfaceHostBindings");
   }
 });
 
@@ -113943,11 +113979,16 @@ async function verifyRelease(options) {
         const unit = (plan.units ?? []).find((u) => u.id === unitId);
         const dist = unit?.distributions?.find((d) => d.type === platform.distributionType);
         let binding = null;
+        let frozenPluginRoot = null;
         const contract2 = dist?.installationContract;
         if (contract2?.normalizedManifest) {
+          frozenPluginRoot = pluginRootFromManifestRelativePath(contract2.manifestRelativePath);
           binding = await deriveSurfaceHostBinding({
             manifest: contract2.normalizedManifest,
-            pluginRoot: pluginRootFromManifestRelativePath(contract2.manifestRelativePath),
+            // Adapter observations are already rooted at the installed
+            // plugin. The frozen manifest's skills path is therefore
+            // relative to '.', not to the snapshot-root manifest path.
+            pluginRoot: ".",
             platform,
             snapshotDir: check.observation.installPath
           });
@@ -113960,6 +114001,7 @@ async function verifyRelease(options) {
           unitId,
           surfaceId: binding?.surfaceId ?? ".",
           binding,
+          frozenPluginRoot,
           unit
         });
       }
@@ -114042,7 +114084,7 @@ async function verifyRelease(options) {
             );
           }
           const pluginDistCount = (surface.unit?.distributions ?? []).filter((d) => d.type !== "npm").length;
-          if (pluginDistCount === 1) {
+          if (pluginDistCount === 1 && surface.frozenPluginRoot === ".") {
             const observedReceipt = createSkillResourceClosureReceipt(closureResult, {
               unitId: surface.unitId,
               preparedAt: expectedUnitReceipt.preparedAt ?? null,
@@ -129636,10 +129678,11 @@ async function runPrepareSkillResourceClosureGate({
       });
       if (binding) surfaceHostBindings.push(binding);
     }
+    const { checkerBindings, coverageClaims } = groupSurfaceHostBindings(surfaceHostBindings);
     const closureResult = await checkSkillResourceClosure({
       snapshotDir: manifest.outputDir,
       host: "root",
-      surfaceHostBindings
+      surfaceHostBindings: checkerBindings
     });
     const receipt = createSkillResourceClosureReceipt(closureResult, {
       unitId: unit.id,
@@ -129684,7 +129727,8 @@ async function runPrepareSkillResourceClosureGate({
     }
     const hostCoverage = evaluateDeclaredHostSurfaceCoverage(
       expectedHosts,
-      closureResult.surfaces
+      closureResult.surfaces,
+      coverageClaims
     );
     if (!hostCoverage.passed) {
       await evidence.append({
@@ -129708,7 +129752,7 @@ async function runPrepareSkillResourceClosureGate({
         }
       );
     }
-    for (const binding of surfaceHostBindings) {
+    for (const binding of coverageClaims) {
       const boundSurface = closureResult.surfaces.find(
         (surface) => surface.id === binding.surfaceId
       );
@@ -133318,10 +133362,11 @@ async function publishRelease(options) {
           });
           if (binding) surfaceHostBindings.push(binding);
         }
+        const { checkerBindings, coverageClaims } = groupSurfaceHostBindings(surfaceHostBindings);
         const closureResult = await checkSkillResourceClosure({
           snapshotDir,
           host: "root",
-          surfaceHostBindings
+          surfaceHostBindings: checkerBindings
         });
         if (closureResult.findings.length > 0) {
           await evidence.append({
@@ -133335,6 +133380,31 @@ async function publishRelease(options) {
             GATE_FAILED,
             `skill resource closure recheck failed for unit "${unitId}": ${closureResult.findings.length} finding(s)`,
             { unitId, findings: closureResult.findings }
+          );
+        }
+        const expectedHosts = [];
+        for (const distribution of frozenUnit?.distributions ?? []) {
+          const platform = PLATFORMS.find((item) => item.distributionType === distribution.type);
+          if (platform) expectedHosts.push(await normalizeHostId(platform.buildAdapter.name));
+        }
+        const hostCoverage = evaluateDeclaredHostSurfaceCoverage(
+          expectedHosts,
+          closureResult.surfaces,
+          coverageClaims
+        );
+        if (!hostCoverage.passed) {
+          await evidence.append({
+            phase: "safety-gate",
+            gate: "skill-resource-closure",
+            status: "failed",
+            unitId,
+            reason: "declared-host-surface-missing",
+            missingHosts: hostCoverage.missing
+          });
+          throw new ReleaseError(
+            GATE_FAILED,
+            `skill resource closure recheck failed for unit "${unitId}": declared host surface(s) missing or empty: ${hostCoverage.missing.map((item) => item.host).join(", ")}`,
+            { unitId, missingHosts: hostCoverage.missing }
           );
         }
         const observed = createSkillResourceClosureReceipt(closureResult, {
