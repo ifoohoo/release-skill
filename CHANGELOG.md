@@ -1,5 +1,32 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.6 locale=en baseline=sha256:cc19a29543385bc4fbb52ac576b2310bca4b6963121dce82ada0ac933e237bfd -->
+## [0.9.6] - 2026-09-02
+
+0.9.6 is a local source candidate that adds a public `postverify` CLI for same-lineage postPublish hooks without ship state, and records host-added symlinks in Claude and Codex marketplace install trees without following them. It consumes the three Foundation packages at the exact 0.16.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- `postverify` binds `planDigest`, the source `VERIFIED` run, each `hookId`, and its immutable hook approval; expired or mismatched approvals fail closed before hook execution, without adding a second state or authority.
+- Declared payload symlinks, frozen-source symlinks, and legacy install-tree symlinks continue to fail closed; host-added symlinks are recorded as raw targets only.
+- Any host plan remains a qualified frozen-plan path and requires a VERIFIED-run from the same release lineage before host acceptance; this source candidate does not provide that acceptance.
+
+### Added
+
+- Add the public `postverify` command for phase-by-phase `prepare` → `approve` → `publish` → `distribute` → `verify` lineages that need to run approved postPublish hooks without a ship state or a second authority.
+- Record host-added symlinks in Claude and Codex marketplace install trees as paths and raw targets without following them, while keeping declared and frozen symlinks fail-closed.
+
+### Changed
+
+- Use Foundation 0.16.0 `createFilesystemRootBinding` and `observeFilesystemTree` in record mode for Claude and Codex marketplace install-tree observation; ordinary files keep the existing comparison, directories stay out of extra installed paths, and the frozen `manifestDigest` remains unchanged.
+- Keep the narrow R-05 Hook cache v2 consumer path and the stable isolated install-tree record path; this candidate does not expand standalone-index or host acceptance support.
+- Retain the explicit CodeBuddy plugin entry (`marketplace: release-skill`) and `--root <project-root>` in release-finish local-finish examples.
+
+### Upgrade Notes
+
+Prepare a new 0.9.6 plan when adopting these changes. The `postverify` command requires the same plan digest, a source `VERIFIED` run, and an immutable approval for each declared hook; an expired or mismatched approval stops before hook execution. Real-host acceptance still requires an officially published and VERIFIED release; the official 0.9.6 entry must be installed or reloaded first. A source candidate, an older installed entry, or the mere existence of plan and run files cannot complete real-host acceptance. Each selected host must complete a first successful update. On the second run, Claude, Kimi, CodeBuddy, and WorkBuddy must report `ALREADY_CURRENT`; Codex may report `UPDATED` only when it reinstalls the same exact 0.9.6 frozen reference, payload validation passes, and `restartRequired=true` is declared. This source candidate does not claim publication, GLAF4 acceptance, Hub postVerify, or consumer-installation verification.
+<!-- release-skill:changelog:end version=0.9.6 locale=en -->
+
 <!-- release-skill:changelog:start version=0.9.5 locale=en baseline=sha256:21c87f71244641b1819ee77ca067f65fd29caa64e42229184cd552b82829d86b -->
 ## [0.9.5] - 2026-09-02
 

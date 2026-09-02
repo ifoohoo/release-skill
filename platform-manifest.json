@@ -2,11 +2,11 @@
   "schemaVersion": "1.0.0",
   "platformId": "release-skill",
   "platformName": "release-skill Plugin Platform",
-  "version": "0.9.5",
+  "version": "0.9.6",
   "logicalRoot": "skills-src/",
-  "logicalRootDigest": "3ead4305d76f86d100ca328e5051fceea9adc9fd308f2658b1bc24642b6af302",
-  "projectionDigest": "811660beafb951a5c2121128f3b142caf3dbe1fcf92a59183e6528983a5abfe8",
-  "projectionId": "release-skill:platform:0.9.5",
+  "logicalRootDigest": "4338c7c5a7efd38ca372049526e5bdd198087491f76702cd21d491741bfad835",
+  "projectionDigest": "c4d40afd481d78907d51ef9be1dc2238834d566b9a9792f1d25da19f57368d7d",
+  "projectionId": "release-skill:platform:0.9.6",
   "manifestRequired": true,
   "projectionSources": {
     "skills-src-root": {

@@ -35,6 +35,7 @@ import {
 } from '../core/installation-contract.mjs';
 
 import { createHash } from 'node:crypto';
+import { createFilesystemRootBinding, observeFilesystemTree } from 'skill-family-harness-node';
 import { computeFrozenSnapshot, resolveFrozenPath } from '../snapshot/frozen.mjs';
 import { PLATFORMS, getPlatform, resolvePlatformRoute, resolveCapabilityConflicts } from '../platforms/registry.mjs';
 import {
@@ -100,6 +101,41 @@ const PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE = 'external-marketplace-v1';
 const EXTRA_INSTALLED_PATHS_CAP = 200;
 /** Diagnostic cap: at most this many conflict paths are listed per error. */
 const PAYLOAD_CONFLICT_REPORT_CAP = 10;
+
+function foundationPayloadMembers(observation) {
+  return observation.members.map((member) => {
+    if (member.type === 'file') {
+      return {
+        path: member.path,
+        type: member.type,
+        mode: member.statMode & ~0o222,
+        size: member.bytes,
+        contentDigest: member.sha256,
+      };
+    }
+    if (member.type === 'directory') {
+      return { path: member.path, type: member.type, mode: member.statMode };
+    }
+    return {
+      path: member.path,
+      type: member.type,
+      mode: member.statMode,
+      size: member.bytes,
+      targetBase64: member.targetBase64,
+    };
+  });
+}
+
+async function observeMarketplaceInstallTree(installPath) {
+  const canonicalInstallPath = await realpath(installPath);
+  const rootBinding = await createFilesystemRootBinding(canonicalInstallPath);
+  const observation = await observeFilesystemTree({
+    root: canonicalInstallPath,
+    rootBinding,
+    symlinkPolicy: { mode: 'record' },
+  });
+  return foundationPayloadMembers(observation);
+}
 
 /** 消费端安装验证配方版本（与 prepare.mjs 一致）。 */
 const CONSUMER_INSTALL_RECIPE_VERSION = 'consumer-install-v1';
@@ -534,10 +570,10 @@ export async function verifyInstalledMarketplacePayload(action, context, install
     // containment semantics; they differ only in the authority subtree source
     // (declared-manifest reads the entry's declared source subpath; external
     // short-circuits to the whole tree '.').
-    const installedSnapshot = await computeFrozenSnapshot(installPath);
+    const installedMembers = await observeMarketplaceInstallTree(installPath);
     const authorityPayload = transportPayload(authorityEntries);
     const installedByPath = new Map(
-      transportPayload(installedSnapshot.entries).map((entry) => [entry.path, entry]),
+      installedMembers.map((entry) => [entry.path, entry]),
     );
     const conflicts = [];
     for (const authorityEntry of authorityPayload) {
@@ -567,15 +603,25 @@ export async function verifyInstalledMarketplacePayload(action, context, install
       );
     }
     const authorityPaths = new Set(authorityPayload.map((entry) => entry.path));
-    const extraPaths = installedSnapshot.entries
-      .map((entry) => entry.path)
-      .filter((path) => !authorityPaths.has(path));
+    const extraMembers = installedMembers
+      .filter((entry) => entry.type !== 'directory' && !authorityPaths.has(entry.path));
+    const extraPaths = extraMembers.map((entry) => entry.path);
     const extraInstalledPaths = extraPaths.slice(0, EXTRA_INSTALLED_PATHS_CAP);
+    const extraInstalledLinks = extraMembers
+      .filter((entry) => entry.type === 'symlink')
+      .slice(0, EXTRA_INSTALLED_PATHS_CAP)
+      .map((entry) => ({
+        path: entry.path,
+        targetBase64: entry.targetBase64,
+        bytes: entry.size,
+        statMode: entry.mode,
+      }));
     // This is not an expected-value backfill: the sealed authority digest was
     // revalidated above and every declared file was independently compared.
     return {
       manifestDigest: action.manifestDigest,
       extraInstalledPaths,
+      ...(extraInstalledLinks.length > 0 ? { extraInstalledLinks } : {}),
       ...(extraPaths.length > EXTRA_INSTALLED_PATHS_CAP
         ? { extraInstalledPathsTotal: extraPaths.length }
         : {}),
@@ -605,6 +651,9 @@ function extraInstalledPathsAudit(binding) {
   if (!binding || !Array.isArray(binding.extraInstalledPaths)) return {};
   return {
     extraInstalledPaths: binding.extraInstalledPaths,
+    ...(Array.isArray(binding.extraInstalledLinks) && binding.extraInstalledLinks.length > 0
+      ? { extraInstalledLinks: binding.extraInstalledLinks }
+      : {}),
     ...(binding.extraInstalledPathsTotal !== undefined
       ? { extraInstalledPathsTotal: binding.extraInstalledPathsTotal }
       : {}),

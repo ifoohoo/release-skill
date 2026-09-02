@@ -12,7 +12,7 @@ description: "Discoverable entry point for release-skill: dependency and environ
 ## 职责
 
 - 依赖和环境检查：Node.js >= 22、Git 决定本地准备就绪度；npm/gh 另行决定生产依赖就绪度
-- 能力说明：缺少配置时走 `help → setup → assess`；已有配置的安全默认路径是 `help → assess → prepare --offline`；日常生产发布优先使用可恢复的 `ship`，兼容的分阶段闭环仍是 `prepare --online --production → approve → publish → verify`。冻结计划批准是正常发布级流程的唯一批准门；声明 `requiresApproval: true` 的 postPublish hook 仍须等待独立 checkpoint 批准。若计划声明 `postVerify` hook，本机收尾必须等待 `ship` 产出的完成 postVerify run，不能把仅有 `VERIFIED` 的 verify run 当作本机收尾授权。核心发布流程跨平台，WorkBuddy 本机收尾仅支持 macOS
+- 能力说明：缺少配置时走 `help → setup → assess`；已有配置的安全默认路径是 `help → assess → prepare --offline`；日常生产发布优先使用可恢复的 `ship`，兼容的分阶段闭环仍是 `prepare --online --production → approve → publish → verify`。冻结计划批准是正常发布级流程的唯一批准门；声明 `requiresApproval: true` 的 postPublish hook 仍须等待独立 checkpoint 批准。若计划声明 `postVerify` hook，可用 `postverify` 直接执行独立收尾 run，也可由 `ship` 编排该阶段；本机收尾必须等待完成的 postVerify run，不能把仅有 `VERIFIED` 的 verify run 当作本机收尾授权。核心发布流程跨平台，WorkBuddy 本机收尾仅支持 macOS
 - 最小示例：展示从 release-help 到 release-assess 的最短路径
 - 只读诊断：运行 dry-run 检查，不修改任何文件
 - 故障引导：根据错误码指向对应的修复 Skill
@@ -51,6 +51,10 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" ship --root <path> --targe
 # 多发布单元项目显式选择本轮范围；未传 --unit 时仍为全部单元
 node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" ship --root <path> \
   --target-version <version> --unit <unit-a> --unit <unit-b> --json
+# 对已经 VERIFIED 的计划独立执行 postVerify hook；不读取或写入 ship state
+node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" postverify --root <path> \
+  --plan <plan-path> --approval <approval-path> --run <verified-run-path> \
+  --hook-approval <immutable-hook-approval-path> --json
 # 开发阶段执行声明 hooks 并生成 prepare 可复用的内容绑定收据
 # 配置时刻即授权（FM-16 处置 A）：hook 是任意本地进程、无隔离、触发前无确认点，
 # 命令调用本身即授权执行配置中的 hooks

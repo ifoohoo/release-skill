@@ -15,6 +15,11 @@ verify 是发布流程的最终验证阶段，是唯一能将状态提升到 `VE
 它执行远端状态重检、精确 npm 安装烟雾测试和消费者插件安装验证。
 verify 只接受 `PUBLISHED` 状态的源 run；`VERIFIED` 是终态，不会再次派生运行。
 
+计划声明 `postVerify` hook 时，`postverify` 命令负责执行独立的收尾阶段。它接收
+`VERIFIED` verify run、同一计划的 approval，以及逐个传入的 checkpoint approval，
+然后原样调用现有 `postVerifyRelease`。该命令产生独立的 `postverify` run，不读取或写入
+ship state；hook approval 缺失、错误或过期时，在 hook 执行前失败关闭。
+
 **注意**: distribute gate (W1) 已经实现并集成在标准 verify 流程中。verify 现在会检查 postPublish 分发状态（git mirror + marketplace index），只有当所有外部动作都完成并通过验证时才达到 VERIFIED。
 
 **工作流兼容性**: 
@@ -45,13 +50,17 @@ verify 只接受 `PUBLISHED` 状态的源 run；`VERIFIED` 是终态，不会再
 2. 使用插件根相对路径运行 CLI；命令调用本身即授权执行已配置的 verification gate 和 smoke process
 3. 检查 exit code 和结构化状态：`VERIFIED`（全部通过）/ 失败（具体错误）
 4. 只有 `VERIFIED` 才是发布 happy end
-5. 达到 `VERIFIED` 后先检查计划是否声明 `postVerify` hook：有未完成 hook 时，先按 approval 合同批准并通过 `ship` 完成 postVerify，再把最终 `DISTRIBUTED` postVerify run 路径交给 `release-finish`；没有 postVerify hook 时，才把当前 verify run 路径交给 `release-finish`。随后按清单主动询问分支合并和本机宿主插件更新；发布策略已包含分支动作时略过合并询问
+5. 达到 `VERIFIED` 后先检查计划是否声明 `postVerify` hook：直接收尾使用独立的 `postverify --plan --approval --run --hook-approval`，由该命令产生 `DISTRIBUTED` postVerify run；若仍由持久化 ship state 承担编排，则使用 `ship --hook-approval` 完成同一阶段，再把最终 run 路径交给 `release-finish`。没有 postVerify hook 时，把当前 verify run 路径交给 `release-finish`。随后按清单主动询问分支合并和本机宿主插件更新；发布策略已包含分支动作时略过合并询问
 
 ## 确定性脚本调用
 
 ```bash
 # 从插件根运行
 node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" verify --root <path> --plan <plan-path> --run <run-path> --json
+# 独立执行已 VERIFIED 计划的 postVerify hook；每个 requiresApproval hook 单独传入批准记录
+node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" postverify --root <path> \
+  --plan <plan-path> --approval <approval-path> --run <verified-run-path> \
+  --hook-approval <immutable-hook-approval-path> --json
 ```
 
 ## 验证步骤
@@ -62,6 +71,9 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" verify --root <path> --pla
 4. 对每个 npm distribution 执行隔离安装烟雾测试
 5. 对 Claude/Codex marketplace distribution 执行全新隔离消费者安装验证；收集 Kimi/CodeBuddy 的非阻塞 `manualFollowUps`
 6. 全部通过 → `VERIFIED`
+
+`postverify` 不属于上述远端验证步骤。它只处理已经达到 `VERIFIED` 的计划，并把
+`postVerify` 阶段的执行结果写入独立 run。
 
 ## 发布后收尾
 

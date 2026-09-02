@@ -5,7 +5,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
 import { parseNodeMajor, meetsMinimum, computeReadinessStatus } from '../src/core/node-version.mjs';
-import { registerPathRedactor } from '../src/core/errors.mjs';
+import { EXIT_CODE_MAP, MISSING_PARAMETERS, registerPathRedactor } from '../src/core/errors.mjs';
 import { redactSensitivePaths } from '../src/core/redact.mjs';
 
 // Process output errors can be emitted immediately after a large console
@@ -37,7 +37,7 @@ registerPathRedactor(redactSensitivePaths);
 
 const execFile = promisify(execFileCb);
 
-const COMMANDS = new Set(['help', 'setup', 'assess', 'prepare', 'approve', 'publish', 'reconcile', 'verify', 'ship', 'post-release', 'attest', 'hooks', 'artifacts', 'docs', 'distribute', 'route', 'lineage']);
+const COMMANDS = new Set(['help', 'setup', 'assess', 'prepare', 'approve', 'publish', 'reconcile', 'verify', 'postverify', 'ship', 'post-release', 'attest', 'hooks', 'artifacts', 'docs', 'distribute', 'route', 'lineage']);
 
 /**
  * Wait until writes already queued on a process output stream have reached
@@ -307,6 +307,11 @@ function getCapabilityMaturity() {
       mode: 'fresh consumer verification (protocol-tested; no OS/network sandbox)',
       description: 'Recheck remote state, exact npm installation, CLI help, and automated Claude/Codex installs before VERIFIED; Kimi/CodeBuddy remain unverified manual follow-ups',
     },
+    postverify: {
+      available: true,
+      mode: 'independent postVerify execution',
+      description: 'Run approved postVerify hooks from a VERIFIED run in an independent run; never reads or writes ship state',
+    },
     distribute: {
       available: true,
       mode: 'controlled production (protocol-tested; no OS/network sandbox)',
@@ -340,6 +345,7 @@ Commands:
   publish    Publish frozen GitHub/npm artifacts after approval
   reconcile  Resume PARTIAL state from evidence; conflicts require a human
   verify     Fresh remote and consumer verification; only this reaches VERIFIED
+  postverify Run approved postVerify hooks from a VERIFIED run in an independent run
   ship       Resume one durable prepare -> approve -> publish -> verify flow; completes a parked
              postVerify hook once its checkpoint approval is provided (--hook-approval)
   post-release Inspect optional local finishing work after VERIFIED; update installed host plugins
@@ -354,10 +360,10 @@ Commands:
 
 Options:
   --root <path>    Project root directory (default: cwd)
-  --plan <path>    Path to the release plan file
+  --plan <path>    Path to the release plan file (required for approve/publish/reconcile/verify/postverify)
   --run <path>     Path to the release run file, or a run directory whose release-run.json
-                   is resolved automatically (required for reconcile/verify)
-  --approval <path> Path to the approval record
+                   is resolved automatically (required for reconcile/verify/postverify)
+  --approval <path> Path to the release-level approval record (required for publish/postverify)
   --production     Prepare immutable Git/npm production artifacts
   --output <path>  Override prepare/approve output path (non-production only)
   --run-dir <path> Override prepare run directory; production requires one direct child of .release-skill/runs
@@ -394,7 +400,7 @@ Options:
   --install-path <path> Actual managed plugin path when closure verification requires it
   --install-channel <desktop|cli> CodeBuddy installation channel when required
   --approve         Approve the ship plan (boolean; plan digest is auto-resolved)
-  --hook-approval <path> Checkpoint approval for a requiresApproval postPublish hook (ship/distribute; repeatable)
+  --hook-approval <path> Checkpoint approval for one requiresApproval hook (ship/distribute/postverify; repeatable)
   --state <path>    Override the durable ship state file
   --update-local-hosts Update installed plugins for selected local hosts after VERIFIED
   --hosts <ids>     Comma-separated local hosts for post-release update. No local host is updated unless --hosts contains at least one id
@@ -1532,6 +1538,124 @@ if (command === 'verify') {
         exitCode: err.exitCode ?? 1,
       };
       console.log(JSON.stringify(errOutput));
+    } else {
+      console.error(`Error: ${err.message}`);
+    }
+    await exitAfterFlush(err.exitCode ?? 1);
+  }
+}
+
+// --- PostVerify command routing ---
+if (command === 'postverify') {
+  if (args.includes('--help') || args.includes('-h')) {
+    const helpText = `release-skill postverify - Run approved postVerify hooks from a VERIFIED run
+
+Usage:
+  release-skill postverify [--root <path>] --plan <path> --approval <path> --run <path> [options]
+
+Required options:
+  --plan <path>             Path to the release plan file
+  --approval <path>         Path to the release-level approval record
+  --run <path>              Path to the VERIFIED verify run file or directory
+
+Optional options:
+  --root <path>             Project root directory (default: cwd)
+  --hook-approval <path>    Checkpoint approval for a requiresApproval postVerify hook (repeatable)
+  --json                    Output results as JSON
+  -h, --help                Show this help message and exit
+
+This command creates an independent postVerify run and never reads or writes ship state.`;
+    if (hasJson) {
+      console.log(JSON.stringify({
+        command: 'postverify',
+        status: 'HELP',
+        usage: 'release-skill postverify [--root <path>] --plan <path> --approval <path> --run <path> [options]',
+        options: {
+          '--root': 'Project root directory (default: cwd)',
+          '--plan': 'Path to the release plan file (required)',
+          '--approval': 'Path to the release-level approval record (required)',
+          '--run': 'Path to the VERIFIED verify run file or directory (required)',
+          '--hook-approval': 'Checkpoint approval for a requiresApproval postVerify hook (repeatable)',
+          '--json': 'Output results as JSON',
+          '-h, --help': 'Show this help message and exit',
+        },
+        message: 'Creates an independent postVerify run and never reads or writes ship state.',
+      }, null, 2));
+    } else {
+      console.log(helpText);
+    }
+    await exitAfterFlush(0);
+  }
+
+  let malformedValuedFlag;
+  const value = (flag) => {
+    let firstValue;
+    for (let i = 0; i < args.length; i += 1) {
+      if (args[i] !== flag) continue;
+      const next = args[i + 1];
+      if (!next || next.startsWith('-')) {
+        malformedValuedFlag ??= flag;
+        continue;
+      }
+      firstValue ??= next;
+    }
+    return firstValue;
+  };
+  const root = resolve(value('--root') ?? process.cwd());
+  const planPath = value('--plan');
+  const approvalPath = value('--approval');
+  const runPath = value('--run');
+  const postpublishApprovalPaths = [];
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] === '--hook-approval') {
+      const next = args[i + 1];
+      if (!next || next.startsWith('-')) {
+        malformedValuedFlag ??= '--hook-approval';
+      } else {
+        postpublishApprovalPaths.push(resolve(next));
+      }
+    }
+  }
+
+  if (malformedValuedFlag || !planPath || !approvalPath || !runPath) {
+    const msg = 'postverify requires --plan <path>, --approval <path>, and --run <path>';
+    if (hasJson) {
+      console.log(JSON.stringify({ error: MISSING_PARAMETERS, message: msg, exitCode: EXIT_CODE_MAP[MISSING_PARAMETERS] }));
+    } else {
+      console.error(`Error: ${msg}`);
+    }
+    await exitAfterFlush(EXIT_CODE_MAP[MISSING_PARAMETERS]);
+  }
+
+  try {
+    const { postVerifyRelease } = await import('../src/commands/postverify.mjs');
+    const result = await postVerifyRelease({
+      planPath: resolve(planPath),
+      approvalPath: resolve(approvalPath),
+      sourceRunPath: resolve(runPath),
+      root,
+      ...(postpublishApprovalPaths.length > 0 ? { postpublishApprovalPaths } : {}),
+    });
+
+    if (hasJson) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log(`PostVerify status: ${result.status}`);
+      for (const cp of result.checkpoints ?? []) {
+        console.log(`  ${cp.actionId}: ${cp.status}`);
+      }
+      if (result.runPath) console.log(`PostVerify run: ${result.runPath}`);
+    }
+
+    await exitAfterFlush(result.status === 'DISTRIBUTED' ? 0 : 1);
+  } catch (err) {
+    if (hasJson) {
+      console.log(JSON.stringify({
+        error: err.code ?? 'UNKNOWN_ERROR',
+        message: err.message,
+        details: err.details ?? {},
+        exitCode: err.exitCode ?? 1,
+      }));
     } else {
       console.error(`Error: ${err.message}`);
     }

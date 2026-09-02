@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.5"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.6"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "cbcc967eb1306a8f2e88e404a9ffbdb8bfaf0ffb8863fe8c5521cbb4d44346c1";
+const __bundleSourceDigest = "8fd8e6c5f7796efe9e1f7153382b50c74d78a4b5f836f872837ff2f11e4daeb5";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -109640,6 +109640,39 @@ function transportPayload(entries) {
     contentDigest
   }));
 }
+function foundationPayloadMembers(observation) {
+  return observation.members.map((member) => {
+    if (member.type === "file") {
+      return {
+        path: member.path,
+        type: member.type,
+        mode: member.statMode & ~146,
+        size: member.bytes,
+        contentDigest: member.sha256
+      };
+    }
+    if (member.type === "directory") {
+      return { path: member.path, type: member.type, mode: member.statMode };
+    }
+    return {
+      path: member.path,
+      type: member.type,
+      mode: member.statMode,
+      size: member.bytes,
+      targetBase64: member.targetBase64
+    };
+  });
+}
+async function observeMarketplaceInstallTree(installPath) {
+  const canonicalInstallPath = await realpath22(installPath);
+  const rootBinding = await createFilesystemRootBinding(canonicalInstallPath);
+  const observation = await observeFilesystemTree({
+    root: canonicalInstallPath,
+    rootBinding,
+    symlinkPolicy: { mode: "record" }
+  });
+  return foundationPayloadMembers(observation);
+}
 function resolveMarketplaceRoot(platform, marketplaceIndexPath) {
   const defaultMarketplace = platform.manifestPaths.marketplace;
   if (!defaultMarketplace) {
@@ -109869,10 +109902,10 @@ async function verifyInstalledMarketplacePayload(action, context, installPath, c
     throw new Error(`unsupported marketplace payload contract: ${JSON.stringify(payloadContract)}`);
   }
   if (payloadContract === PAYLOAD_CONTRACT_DECLARED_MANIFEST || payloadContract === PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE) {
-    const installedSnapshot2 = await computeFrozenSnapshot(installPath);
+    const installedMembers = await observeMarketplaceInstallTree(installPath);
     const authorityPayload = transportPayload(authorityEntries);
     const installedByPath = new Map(
-      transportPayload(installedSnapshot2.entries).map((entry) => [entry.path, entry])
+      installedMembers.map((entry) => [entry.path, entry])
     );
     const conflicts = [];
     for (const authorityEntry of authorityPayload) {
@@ -109897,11 +109930,19 @@ async function verifyInstalledMarketplacePayload(action, context, installPath, c
       );
     }
     const authorityPaths = new Set(authorityPayload.map((entry) => entry.path));
-    const extraPaths = installedSnapshot2.entries.map((entry) => entry.path).filter((path40) => !authorityPaths.has(path40));
+    const extraMembers = installedMembers.filter((entry) => entry.type !== "directory" && !authorityPaths.has(entry.path));
+    const extraPaths = extraMembers.map((entry) => entry.path);
     const extraInstalledPaths = extraPaths.slice(0, EXTRA_INSTALLED_PATHS_CAP);
+    const extraInstalledLinks = extraMembers.filter((entry) => entry.type === "symlink").slice(0, EXTRA_INSTALLED_PATHS_CAP).map((entry) => ({
+      path: entry.path,
+      targetBase64: entry.targetBase64,
+      bytes: entry.size,
+      statMode: entry.mode
+    }));
     return {
       manifestDigest: action.manifestDigest,
       extraInstalledPaths,
+      ...extraInstalledLinks.length > 0 ? { extraInstalledLinks } : {},
       ...extraPaths.length > EXTRA_INSTALLED_PATHS_CAP ? { extraInstalledPathsTotal: extraPaths.length } : {}
     };
   }
@@ -109917,6 +109958,7 @@ function extraInstalledPathsAudit(binding) {
   if (!binding || !Array.isArray(binding.extraInstalledPaths)) return {};
   return {
     extraInstalledPaths: binding.extraInstalledPaths,
+    ...Array.isArray(binding.extraInstalledLinks) && binding.extraInstalledLinks.length > 0 ? { extraInstalledLinks: binding.extraInstalledLinks } : {},
     ...binding.extraInstalledPathsTotal !== void 0 ? { extraInstalledPathsTotal: binding.extraInstalledPathsTotal } : {}
   };
 }
@@ -112320,6 +112362,7 @@ var init_plugin_marketplace = __esm({
   async "src/adapters/plugin-marketplace.mjs"() {
     init_contract();
     init_installation_contract();
+    init_src2();
     init_frozen();
     await init_registry2();
     await init_kimi();
@@ -112332,6 +112375,8 @@ var init_plugin_marketplace = __esm({
     PAYLOAD_CONTRACT_EXTERNAL_MARKETPLACE = "external-marketplace-v1";
     EXTRA_INSTALLED_PATHS_CAP = 200;
     PAYLOAD_CONFLICT_REPORT_CAP = 10;
+    __name(foundationPayloadMembers, "foundationPayloadMembers");
+    __name(observeMarketplaceInstallTree, "observeMarketplaceInstallTree");
     CONSUMER_INSTALL_RECIPE_VERSION = "consumer-install-v1";
     __name(resolveMarketplaceRoot, "resolveMarketplaceRoot");
     __name(extractDeclaredPluginSource, "extractDeclaredPluginSource");
@@ -145779,7 +145824,7 @@ guardOutputStream(process.stdout);
 guardOutputStream(process.stderr);
 registerPathRedactor(redactSensitivePaths);
 var execFile19 = promisify26(execFileCb22);
-var COMMANDS = /* @__PURE__ */ new Set(["help", "setup", "assess", "prepare", "approve", "publish", "reconcile", "verify", "ship", "post-release", "attest", "hooks", "artifacts", "docs", "distribute", "route", "lineage"]);
+var COMMANDS = /* @__PURE__ */ new Set(["help", "setup", "assess", "prepare", "approve", "publish", "reconcile", "verify", "postverify", "ship", "post-release", "attest", "hooks", "artifacts", "docs", "distribute", "route", "lineage"]);
 function flushOutputStream(stream) {
   if (!stream?.writable || stream.destroyed || stream.writableEnded || outputStreamStates.get(stream)?.failed) {
     return Promise.resolve();
@@ -145970,6 +146015,11 @@ function getCapabilityMaturity() {
       mode: "fresh consumer verification (protocol-tested; no OS/network sandbox)",
       description: "Recheck remote state, exact npm installation, CLI help, and automated Claude/Codex installs before VERIFIED; Kimi/CodeBuddy remain unverified manual follow-ups"
     },
+    postverify: {
+      available: true,
+      mode: "independent postVerify execution",
+      description: "Run approved postVerify hooks from a VERIFIED run in an independent run; never reads or writes ship state"
+    },
     distribute: {
       available: true,
       mode: "controlled production (protocol-tested; no OS/network sandbox)",
@@ -146003,6 +146053,7 @@ Commands:
   publish    Publish frozen GitHub/npm artifacts after approval
   reconcile  Resume PARTIAL state from evidence; conflicts require a human
   verify     Fresh remote and consumer verification; only this reaches VERIFIED
+  postverify Run approved postVerify hooks from a VERIFIED run in an independent run
   ship       Resume one durable prepare -> approve -> publish -> verify flow; completes a parked
              postVerify hook once its checkpoint approval is provided (--hook-approval)
   post-release Inspect optional local finishing work after VERIFIED; update installed host plugins
@@ -146017,10 +146068,10 @@ Commands:
 
 Options:
   --root <path>    Project root directory (default: cwd)
-  --plan <path>    Path to the release plan file
+  --plan <path>    Path to the release plan file (required for approve/publish/reconcile/verify/postverify)
   --run <path>     Path to the release run file, or a run directory whose release-run.json
-                   is resolved automatically (required for reconcile/verify)
-  --approval <path> Path to the approval record
+                   is resolved automatically (required for reconcile/verify/postverify)
+  --approval <path> Path to the release-level approval record (required for publish/postverify)
   --production     Prepare immutable Git/npm production artifacts
   --output <path>  Override prepare/approve output path (non-production only)
   --run-dir <path> Override prepare run directory; production requires one direct child of .release-skill/runs
@@ -146057,7 +146108,7 @@ Options:
   --install-path <path> Actual managed plugin path when closure verification requires it
   --install-channel <desktop|cli> CodeBuddy installation channel when required
   --approve         Approve the ship plan (boolean; plan digest is auto-resolved)
-  --hook-approval <path> Checkpoint approval for a requiresApproval postPublish hook (ship/distribute; repeatable)
+  --hook-approval <path> Checkpoint approval for one requiresApproval hook (ship/distribute/postverify; repeatable)
   --state <path>    Override the durable ship state file
   --update-local-hosts Update installed plugins for selected local hosts after VERIFIED
   --hosts <ids>     Comma-separated local hosts for post-release update. No local host is updated unless --hosts contains at least one id
@@ -147070,6 +147121,117 @@ if (command === "verify") {
         exitCode: err.exitCode ?? 1
       };
       console.log(JSON.stringify(errOutput));
+    } else {
+      console.error(`Error: ${err.message}`);
+    }
+    await exitAfterFlush(err.exitCode ?? 1);
+  }
+}
+if (command === "postverify") {
+  if (args.includes("--help") || args.includes("-h")) {
+    const helpText = `release-skill postverify - Run approved postVerify hooks from a VERIFIED run
+
+Usage:
+  release-skill postverify [--root <path>] --plan <path> --approval <path> --run <path> [options]
+
+Required options:
+  --plan <path>             Path to the release plan file
+  --approval <path>         Path to the release-level approval record
+  --run <path>              Path to the VERIFIED verify run file or directory
+
+Optional options:
+  --root <path>             Project root directory (default: cwd)
+  --hook-approval <path>    Checkpoint approval for a requiresApproval postVerify hook (repeatable)
+  --json                    Output results as JSON
+  -h, --help                Show this help message and exit
+
+This command creates an independent postVerify run and never reads or writes ship state.`;
+    if (hasJson) {
+      console.log(JSON.stringify({
+        command: "postverify",
+        status: "HELP",
+        usage: "release-skill postverify [--root <path>] --plan <path> --approval <path> --run <path> [options]",
+        options: {
+          "--root": "Project root directory (default: cwd)",
+          "--plan": "Path to the release plan file (required)",
+          "--approval": "Path to the release-level approval record (required)",
+          "--run": "Path to the VERIFIED verify run file or directory (required)",
+          "--hook-approval": "Checkpoint approval for a requiresApproval postVerify hook (repeatable)",
+          "--json": "Output results as JSON",
+          "-h, --help": "Show this help message and exit"
+        },
+        message: "Creates an independent postVerify run and never reads or writes ship state."
+      }, null, 2));
+    } else {
+      console.log(helpText);
+    }
+    await exitAfterFlush(0);
+  }
+  let malformedValuedFlag;
+  const value = /* @__PURE__ */ __name((flag) => {
+    let firstValue;
+    for (let i = 0; i < args.length; i += 1) {
+      if (args[i] !== flag) continue;
+      const next = args[i + 1];
+      if (!next || next.startsWith("-")) {
+        malformedValuedFlag ??= flag;
+        continue;
+      }
+      firstValue ??= next;
+    }
+    return firstValue;
+  }, "value");
+  const root = resolve41(value("--root") ?? process.cwd());
+  const planPath = value("--plan");
+  const approvalPath = value("--approval");
+  const runPath = value("--run");
+  const postpublishApprovalPaths = [];
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] === "--hook-approval") {
+      const next = args[i + 1];
+      if (!next || next.startsWith("-")) {
+        malformedValuedFlag ??= "--hook-approval";
+      } else {
+        postpublishApprovalPaths.push(resolve41(next));
+      }
+    }
+  }
+  if (malformedValuedFlag || !planPath || !approvalPath || !runPath) {
+    const msg = "postverify requires --plan <path>, --approval <path>, and --run <path>";
+    if (hasJson) {
+      console.log(JSON.stringify({ error: MISSING_PARAMETERS, message: msg, exitCode: EXIT_CODE_MAP[MISSING_PARAMETERS] }));
+    } else {
+      console.error(`Error: ${msg}`);
+    }
+    await exitAfterFlush(EXIT_CODE_MAP[MISSING_PARAMETERS]);
+  }
+  try {
+    const { postVerifyRelease: postVerifyRelease2 } = await init_postverify().then(() => postverify_exports);
+    const result2 = await postVerifyRelease2({
+      planPath: resolve41(planPath),
+      approvalPath: resolve41(approvalPath),
+      sourceRunPath: resolve41(runPath),
+      root,
+      ...postpublishApprovalPaths.length > 0 ? { postpublishApprovalPaths } : {}
+    });
+    if (hasJson) {
+      console.log(JSON.stringify(result2, null, 2));
+    } else {
+      console.log(`PostVerify status: ${result2.status}`);
+      for (const cp4 of result2.checkpoints ?? []) {
+        console.log(`  ${cp4.actionId}: ${cp4.status}`);
+      }
+      if (result2.runPath) console.log(`PostVerify run: ${result2.runPath}`);
+    }
+    await exitAfterFlush(result2.status === "DISTRIBUTED" ? 0 : 1);
+  } catch (err) {
+    if (hasJson) {
+      console.log(JSON.stringify({
+        error: err.code ?? "UNKNOWN_ERROR",
+        message: err.message,
+        details: err.details ?? {},
+        exitCode: err.exitCode ?? 1
+      }));
     } else {
       console.error(`Error: ${err.message}`);
     }
