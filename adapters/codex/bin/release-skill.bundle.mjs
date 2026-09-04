@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.8"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.9"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "7fa9e4b55133e888e3f3ace288f0194eb1ac063c0616252d2dda8e58be7eee21";
+const __bundleSourceDigest = "ef2ec274a982afcf48acdbccdf32439d199dd1d79b4a39b1aeaef23195fadbfb";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -132339,7 +132339,7 @@ proc cleanScreen {value} {
 proc compactScreen {value} {
   set value [cleanScreen $value]
   regsub -all {[[:space:]]+} $value {} value
-  return [string tolower $value]
+  return $value
 }
 
 proc extractPluginTrustDialog {value} {
@@ -132352,6 +132352,22 @@ proc extractPluginTrustDialog {value} {
   }
   if {$dialogStart < 0} { return "" }
   return [string range $cleaned $dialogStart end]
+}
+
+proc extractPluginTrustIdentity {value} {
+  set cleaned [cleanScreen $value]
+  set lowered [string tolower $cleaned]
+  set identityStart -1
+  foreach marker {"install third-party plugin " "trust and install from "} {
+    set markerStart [string last $marker $lowered]
+    if {$markerStart >= 0 && $markerStart + [string length $marker] > $identityStart} {
+      set identityStart [expr {$markerStart + [string length $marker]}]
+    }
+  }
+  if {$identityStart < 0} { return "" }
+  set identityEnd [string first "?" $cleaned $identityStart]
+  if {$identityEnd < 0} { return "" }
+  return [string range $cleaned $identityStart [expr {$identityEnd - 1}]]
 }
 
 proc failTimeout {state timeoutCode unknownCode} {
@@ -132425,12 +132441,14 @@ if {$dialog eq ""} {
   puts stderr "KIMI_TUI_STATE:plugin-trust:dialog-unknown"
   exit 113
 }
-set compactDialog [compactScreen $dialog]
-if {[string first [string tolower [compactScreen $expectedRepo]] $compactDialog] < 0} {
-  puts stderr "KIMI_TUI_STATE:plugin-trust:repo-mismatch"
-  exit 111
-}
-if {[string first [string tolower [compactScreen $expectedTag]] $compactDialog] < 0} {
+set identity [extractPluginTrustIdentity $dialog]
+set compactIdentity [compactScreen $identity]
+if {$identity eq "" || $compactIdentity ne [compactScreen $installUrl]} {
+  set expectedRepoPrefix "[compactScreen $expectedRepo]/releases/tag/"
+  if {[string first $expectedRepoPrefix $compactIdentity] != 0} {
+    puts stderr "KIMI_TUI_STATE:plugin-trust:repo-mismatch"
+    exit 111
+  }
   puts stderr "KIMI_TUI_STATE:plugin-trust:tag-mismatch"
   exit 112
 }

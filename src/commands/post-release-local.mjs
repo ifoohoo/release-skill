@@ -1010,7 +1010,7 @@ proc cleanScreen {value} {
 proc compactScreen {value} {
   set value [cleanScreen $value]
   regsub -all {[[:space:]]+} $value {} value
-  return [string tolower $value]
+  return $value
 }
 
 proc extractPluginTrustDialog {value} {
@@ -1023,6 +1023,22 @@ proc extractPluginTrustDialog {value} {
   }
   if {$dialogStart < 0} { return "" }
   return [string range $cleaned $dialogStart end]
+}
+
+proc extractPluginTrustIdentity {value} {
+  set cleaned [cleanScreen $value]
+  set lowered [string tolower $cleaned]
+  set identityStart -1
+  foreach marker {"install third-party plugin " "trust and install from "} {
+    set markerStart [string last $marker $lowered]
+    if {$markerStart >= 0 && $markerStart + [string length $marker] > $identityStart} {
+      set identityStart [expr {$markerStart + [string length $marker]}]
+    }
+  }
+  if {$identityStart < 0} { return "" }
+  set identityEnd [string first "?" $cleaned $identityStart]
+  if {$identityEnd < 0} { return "" }
+  return [string range $cleaned $identityStart [expr {$identityEnd - 1}]]
 }
 
 proc failTimeout {state timeoutCode unknownCode} {
@@ -1096,12 +1112,14 @@ if {$dialog eq ""} {
   puts stderr "KIMI_TUI_STATE:plugin-trust:dialog-unknown"
   exit 113
 }
-set compactDialog [compactScreen $dialog]
-if {[string first [string tolower [compactScreen $expectedRepo]] $compactDialog] < 0} {
-  puts stderr "KIMI_TUI_STATE:plugin-trust:repo-mismatch"
-  exit 111
-}
-if {[string first [string tolower [compactScreen $expectedTag]] $compactDialog] < 0} {
+set identity [extractPluginTrustIdentity $dialog]
+set compactIdentity [compactScreen $identity]
+if {$identity eq "" || $compactIdentity ne [compactScreen $installUrl]} {
+  set expectedRepoPrefix "[compactScreen $expectedRepo]/releases/tag/"
+  if {[string first $expectedRepoPrefix $compactIdentity] != 0} {
+    puts stderr "KIMI_TUI_STATE:plugin-trust:repo-mismatch"
+    exit 111
+  }
   puts stderr "KIMI_TUI_STATE:plugin-trust:tag-mismatch"
   exit 112
 }
