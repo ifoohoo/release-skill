@@ -1,6 +1,6 @@
 ---
 name: release-finish
-description: 发布达到 VERIFIED 后处理可选的本地收尾：按发布分支策略决定是否询问合并，并在用户确认后更新本机 Claude、Codex、Kimi、CodeBuddy/WorkBuddy 插件
+description: 发布达到 VERIFIED 后处理发布收尾：确认 postVerify 提案送达边界，按发布分支策略决定是否询问合并，并在用户确认后更新本机 Claude、Codex、Kimi、CodeBuddy/WorkBuddy 插件
 ---
 
 > **Codex 安装入口解析协议**：在调用 CLI 前，Agent 必须从宿主当前已加载技能的元数据中取得本 `SKILL.md` 的实际绝对路径，并将该字面量记为 `SKILL_FILE`。
@@ -20,7 +20,7 @@ description: 发布达到 VERIFIED 后处理可选的本地收尾：按发布分
 
 这是发布后的独立收尾，不属于 `prepare → approve → publish → verify` 状态机。它不能把本机更新结果写成新的发布状态，也不能因为本机更新失败而降低 `VERIFIED`。
 
-默认只读取冻结计划和 verify 或 postVerify run。没有用户明确同意，不合并分支，不更新插件，不接受 Kimi 的安装信任提示。
+默认只读取冻结计划和 verify 或 postVerify run。没有用户明确同意，不合并分支，不更新插件。Kimi 只在插件信任界面中的仓库和标签都与冻结目标一致时确认安装；目录信任不自动确认。
 
 ## 先生成收尾清单
 
@@ -44,6 +44,14 @@ node "$RELEASE_SKILL_LOCAL_FINISH_ENTRY" \
 2. `merge.promptRequired=true` 时，向用户说明尚未覆盖的发布分支，并询问是否需要合并。用户同意后，先只读核对源分支、目标分支、工作区状态和项目既有合并方式，再用明确的分支名执行；本脚本不猜分支，也不自动推送。
 3. `localHostUpdate.promptRequired=true` 时，列出计划覆盖的宿主，询问是否更新本机插件。两个问题可以一次问完。
 
+## postVerify 提案送达边界
+
+`proposal-inbox` postVerify hook 只负责把冻结提案送到配置的接收端，并在 hook checkpoint 中记录送达结果。送达成功不表示提案已经应用，也不表示接收端完成了渲染或公开同步。
+
+接收端按照自己的 runbook 和治理要求审阅、应用、渲染并公开同步。release-finish 不内置某个接收端的仓库、命令或推送步骤，也不增加另一套收据、账本、Schema、状态机或 hook。
+
+本机宿主是否依赖某个市场，只根据冻结计划记录的真实安装来源判断。提案送达或某个接收端的处理结果不是所有宿主更新的统一前置条件；只有宿主的冻结安装来源确实指向该接收端产物时，才按接收端自己的 runbook 完成必要处理。
+
 ## 用户同意更新本机宿主
 
 把用户选择的宿主和清单返回的精确 `planDigest` 传回脚本：
@@ -61,8 +69,8 @@ node "$RELEASE_SKILL_LOCAL_FINISH_ENTRY" \
 
 只传用户选择且计划声明的宿主。宿主 CLI 不存在时返回 `SKIPPED_NOT_INSTALLED`。各宿主按以下规则处理：
 
-- Claude 先重新绑定冻结市场，再重新观察安装状态；旧插件若仍存在，才调用正式更新命令。Codex 继续按正式市场协议移除并安装冻结的 Git 引用。两者都在安装后核对插件、市场、版本和市场检出提交。
-- Kimi 的精确当前安装会在返回 `ALREADY_CURRENT` 前核对真实载荷；发生安装或迁移时，只在操作完成后核对结果。包名、版本、发布标签、已安装修订号和受管安装根必须与冻结计划一致；`.git` 只提供附加诊断，不是通过条件。旧的本地路径安装会在同一个受控终端交互界面（TUI）会话中先移除，再按发布标签安装、确认信任并重新加载。
+- Claude 或 Codex 只有在市场需要重绑时，才会在该宿主第一条写命令之前只读查询冻结的市场仓库、引用和提交。远端不可达、引用缺失或提交不一致时返回 `MANUAL_REQUIRED`，该宿主不执行市场或插件写入；其他已选宿主继续处理。精确当前安装仍核对真实载荷，但不强制联网。
+- Kimi 的精确当前安装会在返回 `ALREADY_CURRENT` 前核对真实载荷；发生安装或迁移时，只在操作完成后核对结果。配置根依次取显式 `kimiHome`、`KIMI_CODE_HOME`、用户主目录下的 `.kimi-code`，TUI 与安装后观察使用同一根。release-finish 当前只采用并验证 Kimi Code 的受控终端交互界面（TUI）路径：清理 ANSI/OSC 控制序列和软换行后，在插件信任对话框内分别核对冻结仓库与标签，确认选中 `Trust and install` 后才提交，再重新加载。出现 `Trust this folder?`、未知界面、超时、提前退出，或无法确认身份和选中项时返回 `MANUAL_REQUIRED` 或失败结果，不确认目录信任，也不继续安装。包名、版本、发布标签、已安装修订号和受管安装根必须与冻结计划一致；`.git` 只提供附加诊断，不是通过条件。旧的本地路径安装会在同一 TUI 会话中先移除，再按发布标签安装。
 - CodeBuddy/WorkBuddy 只处理同一 bundled-family 插件和市场。CodeBuddy 仅探测全局 `codebuddy`/`cbc`，由收尾脚本把 `CODEBUDDY_CONFIG_DIR` 固定为有效 `HOME`（环境未提供时取操作系统用户主目录）下名为 `.codebuddy` 的目录；WorkBuddy 仅在 macOS 探测 WorkBuddy 应用内嵌 CLI，由收尾脚本把 `CODEBUDDY_CONFIG_DIR` 与 `WORKBUDDY_CONFIG_DIR` 同时固定为有效 `HOME` 下名为 `.workbuddy` 的目录，绝不把两者互作回退。只有冻结标签与计划声明的可变分支都从同一远端解析到冻结提交时，才调用正式市场更新和插件更新命令；完成后重新读取安装列表，并精确核对唯一条目的市场、版本和修订号。目标未安装、来源不符、远端不可访问或身份不一致时返回 `MANUAL_REQUIRED`，不修改宿主。非 macOS 的 WorkBuddy 返回 `SKIPPED_UNSUPPORTED_PLATFORM`。
 
 任何宿主失败都保留其他宿主的实际结果，不回滚，也不把失败冒充成功。

@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.7 -->
+<!-- release-skill:release-version: 0.9.8 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,34 +14,33 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.7** (2026-09-02)
+**0.9.8** (2026-09-04)
 
-0.9.7 is a local source candidate that retains the 0.9.6 postverify and isolated install-tree safeguards and corrects verify's bundled-family install-root coordinate: when an adapter `installPath` is already the installed plugin root, manifest `skills` are interpreted relative to `.`. It consumes the three Foundation packages at the exact 0.16.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.8 is a local source candidate that makes release-finish safe across receiver boundaries and current local hosts. It removes Hub-specific work from the public finishing flow, verifies frozen Claude and Codex marketplace identities before rebind writes, supports the Kimi Code 0.40.1 TUI, and skips empty distribute runs for plans that contain only postVerify hooks. It consumes the three Foundation packages at the exact 0.16.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- `postverify` binds `planDigest`, the source `VERIFIED` run, each `hookId`, and its immutable hook approval; expired or mismatched approvals fail closed before hook execution, without adding a second state or authority.
-- Declared payload symlinks, frozen-source symlinks, and legacy install-tree symlinks continue to fail closed; host-added symlinks are recorded as raw targets only.
-- Missing paths, files, and symlinks continue to fail closed.
+- Claude and Codex verify the frozen marketplace repository, ref, and commit before the first marketplace or plugin write when a rebind is required. An unreachable remote, missing ref, or commit mismatch returns `MANUAL_REQUIRED` for that host with zero host writes; other selected hosts continue.
+- Kimi Code plugin trust proceeds only when the dialog contains the frozen repository and tag and the selected row is confirmed as `Trust and install`. A `Trust this folder?` dialog, an unknown screen, timeout, EOF, or mismatched identity fails closed before unintended confirmation.
+- Kimi Code reports success only after the TUI displays its install-finished result and the installed registry, package version, tag, revision, managed root, and payload all match the frozen plan.
 - Any host plan remains a qualified frozen-plan path and requires a VERIFIED-run from the same release lineage before host acceptance; this source candidate does not provide that acceptance.
 
 **Changed**
 
-- When an adapter `installPath` is already the installed plugin root, verify interprets the manifest's `skills` path relative to `.`. prepare and publish keep their frozen-snapshot coordinates unchanged.
-- Allow multiple frozen host manifests to share one non-empty canonical source Skill surface; closure scans that surface once while host coverage retains every declared host.
-- Before any external write, publish re-derives the frozen manifest claims and rechecks the closure.
-- Consumer install paths remain isolated by host realpath; overlapping realpaths fail closed.
-- Retain the public `postverify` path and the stable isolated install-tree record path; this candidate does not expand standalone-index or host acceptance support.
-- Use Foundation 0.16.0 `createFilesystemRootBinding` and `observeFilesystemTree` in record mode for Claude and Codex marketplace install-tree observation; ordinary files keep the existing comparison, directories stay out of extra installed paths, and the frozen `manifestDigest` remains unchanged.
-- Keep the narrow R-05 Hook cache v2 consumer path, the explicit CodeBuddy plugin entry (`marketplace: release-skill`), and `--root <project-root>` in release-finish local-finish examples.
+- The public release-finish flow treats a `proposal-inbox` postVerify hook as proposal delivery plus delivery evidence. The receiver applies, renders, and synchronizes the proposal under its own runbook and governance; no Hub repository or push sequence is built into the public Skill.
+- Local-host ordering follows each host's frozen installation source. Receiver completion is not a universal prerequisite for updating unrelated hosts.
+- Kimi Code resolves its effective configuration root from explicit `kimiHome`, then `KIMI_CODE_HOME`, then `~/.kimi-code`; the TUI process and post-install observation use the same root.
+- The Kimi Code 0.40.1 TUI path normalizes ANSI/OSC control sequences and soft-wrapped URLs, uses a wide pseudo-terminal, submits commands through bracketed paste plus CSI Enter, and waits for explicit prompt, trust, install-result, reload, and exit states.
+- A single phase-aware postPublish predicate now requires distribute only for targets, explicit distribute hooks, or hooks whose omitted phase defaults to distribute. A plan containing only postVerify hooks moves from PUBLISHED directly to verify and runs postVerify independently after VERIFIED.
+- The current 0.9.8 candidate includes the narrow R-05 Hook cache v2 consumer path, keeps the CodeBuddy plugin entry explicit as `marketplace: release-skill`, and keeps `--root <project-root>` in release-finish local-finish examples. Foundation dependencies are pinned to the three released 0.16.0 packages.
 
 **Upgrade Notes**
 
-Prepare a new 0.9.7 plan when adopting this candidate. The `postverify` command requires the same plan digest, a source `VERIFIED` run, and an immutable approval for each declared hook; an expired or mismatched approval stops before hook execution. Real-host acceptance can begin only after 0.9.7 is officially published and VERIFIED; the official 0.9.7 entry must be installed or reloaded first. A source candidate, an older installed entry, or the mere existence of plan and run files cannot complete real-host acceptance. Each selected host must complete a first successful update. On the second run, Claude, Kimi, CodeBuddy, and WorkBuddy must report `ALREADY_CURRENT`; Codex may report `UPDATED` only when it reinstalls the same exact 0.9.7 frozen reference, payload validation passes, and `restartRequired=true` is declared. Before the official 0.9.7 release and VERIFIED result, do not claim that GLAF4 passed. After the official 0.9.7 release, the original GLAF4 0.5.4 immutable plan and PUBLISHED run can be reverified; GLAF4 does not need to be reissued. This source candidate does not claim publication, GLAF4 acceptance, or consumer-installation verification.
+Prepare and approve a new 0.9.8 production plan for these changes. After verify reaches `VERIFIED`, complete every declared postVerify hook with its own immutable checkpoint approval before running release-finish. Real-host acceptance can begin only after 0.9.8 is officially published and VERIFIED; the official 0.9.8 entry must be installed or reloaded first. A source candidate, an older installed entry, or the mere existence of plan and run files cannot complete real-host acceptance. Each selected host must complete a first successful update. On the second run, Claude, Kimi, CodeBuddy, and WorkBuddy must report `ALREADY_CURRENT`; Codex may report `UPDATED` only when it reinstalls the same exact 0.9.8 frozen reference, payload validation passes, and `restartRequired=true` is declared. The local updater uses the Kimi Code TUI path verified for 0.40.1; it does not switch to a web or REST installation path. Confirm the frozen repository and tag shown by the plugin trust dialog, and never approve a folder-trust dialog as part of plugin installation. This candidate does not claim that 0.9.8 has already been published or VERIFIED.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.7 is the current source candidate. This README
+> **Current boundary:** v0.9.8 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -65,7 +64,7 @@ Prepare a new 0.9.7 plan when adopting this candidate. The `postverify` command 
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.7 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.8 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -142,13 +141,11 @@ This scope summary is not a remote publication record or a consumer upgrade inst
 > `proposal-inbox`, `marketplace-registry-entry`, `docs-refresh`, and
 > `notify-handoff` (declared in `hooks` form). `proposal-inbox` delivers a
 > machine-readable update proposal through a git-push or local-file transport
-> for autonomous downstream consumption; without a target it degrades to
+> and records the delivery result. The receiver applies, renders, and publicly
+> synchronizes the proposal under the receiver's own runbook and governance;
+> delivery does not prove those receiver-side steps. Without a target it degrades to
 > `notify-handoff` behavior instead of failing. `notify-handoff` is the
 > zero-write floor: it only renders a deterministic manual sync checklist.
-> release-skill dogfoods this capability: this repository's own project
-> configuration declares a `proposal-inbox` (git-push) hub-entry proposal
-> toward the public `skill-family-hub` repository, to be delivered during the
-> v0.7.0 release in the postVerify phase under its own checkpoint approval.
 <!-- release-skill:capability:postpublish-presets -->
 
 <!-- release-skill:capability:postverify-stage -->
@@ -255,8 +252,9 @@ marketplace `ifoohoo/release-skill`:
 > `/plugin marketplace add https://github.com/ifoohoo/release-skill` — or set
 > `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1`.
 
-**Kimi Code:** Kimi Code has no marketplace install API. Install manually from a
-pinned release tag — see [INSTALL.md](INSTALL.md#install-as-a-kimi-code-plugin).
+**Kimi Code:** release-skill currently invokes no scriptable install API for
+Kimi Code. It uses the version-pinned interactive TUI path described in
+[INSTALL.md](INSTALL.md#install-as-a-kimi-code-plugin).
 
 See [INSTALL.md](INSTALL.md) for CodeBuddy, Codex, and Kimi Code commands.
 
@@ -754,7 +752,7 @@ closures. A release unit declares what reaches users via `distributions`:
 | `npm` | npm package with CLI entry | `npm install -g release-skill` |
 | `claude-plugin` | self-contained closure under `adapters/claude/` | automated marketplace checkpoint |
 | `codex-plugin` | self-contained closure under `adapters/codex/` | automated marketplace checkpoint |
-| `kimi-plugin` | self-contained closure (no scriptable install API) | non-blocking post-release manual task |
+| `kimi-plugin` | self-contained closure (release-skill invokes no scriptable install API) | non-blocking post-release manual task |
 | `codebuddy-plugin` | generated `adapters/workbuddy/` with `.codebuddy-plugin/plugin.json` | non-blocking post-release manual task |
 
 Each adapter closure bundles its own CLI, skills, and schemas for zero external
@@ -765,11 +763,18 @@ verification is automated. Kimi Code and CodeBuddy/WorkBuddy are returned as
 condition for the automated release to reach `VERIFIED`.
 
 After `VERIFIED`, the optional `release-finish` workflow can update Claude and
-Codex from the frozen marketplace identity, migrate or update Kimi through one
-controlled TUI session and verify its real managed payload, or update an existing
+Codex from the frozen marketplace identity. When either marketplace needs
+rebinding, a read-only remote check must prove the frozen repository, ref, and
+commit before that host's first write; a failed check leaves that host unchanged
+without stopping other selected hosts. The workflow can also migrate or update
+Kimi through one controlled TUI session and verify its real managed payload, or update an existing
 bundled-family CodeBuddy/WorkBuddy entry when the frozen tag and mutable branch
 both resolve to the frozen commit. It requires explicit user confirmation and
-does not change release status. Missing, standalone, inaccessible, or ambiguous
+does not change release status. Kimi uses one effective configuration root:
+explicit `kimiHome`, then `KIMI_CODE_HOME`, then `~/.kimi-code`. The TUI and
+post-operation observation share that root. A `Trust this folder?` prompt,
+unknown interface, timeout, early exit, or unprovable plugin identity returns a
+manual or failed result without confirming folder trust. Missing, standalone, inaccessible, or ambiguous
 CodeBuddy/WorkBuddy targets remain manual and receive no host mutation.
 WorkBuddy local updates are macOS-only; on other platforms they are skipped as
 unsupported. When a plan declares postVerify hooks, release-finish must receive

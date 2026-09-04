@@ -2,40 +2,39 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.7 -->
+<!-- release-skill:release-version: 0.9.8 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.7** (2026-09-02)
+**0.9.8** (2026-09-04)
 
-0.9.7 是保留 0.9.6 postverify 和隔离安装树安全边界、并修正 verify 的 bundled-family 安装根坐标的本地源码候选：当适配器的 `installPath` 已经是安装后的插件根目录时，manifest 的 `skills` 路径按 `.` 解释。三项 Foundation 依赖均精确消费已发布的 0.16.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.8 是修正 release-finish 接收端边界和当前本机宿主安全性的本地源码候选。它从公共收尾流程移除 Hub 专属操作，在 Claude 和 Codex 重绑市场前验证冻结身份，支持 Kimi Code 0.40.1 TUI，并让只有 postVerify hook 的计划跳过空 distribute。三项 Foundation 依赖均精确消费已发布的 0.16.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- `postverify` 绑定 `planDigest`、源 `VERIFIED` run、每个 `hookId` 和对应的不可变 hook approval；批准过期或不匹配时，在执行 hook 前失败关闭，不增加第二状态或第二权威。
-- 声明载荷 symlink、冻结源码 symlink 和 legacy 安装树 symlink 继续失败关闭；宿主新增 symlink 只记录原始目标。
-- 缺失路径、文件和 symlink 继续失败关闭。
+- Claude 和 Codex 仅在确实需要重绑时，于第一条市场或插件写命令前验证冻结的 marketplace 仓库、ref 和 commit。远端不可达、ref 缺失或 commit 不一致时，该宿主以零写入返回 `MANUAL_REQUIRED`，其他已选宿主继续。
+- Kimi Code 只有在插件信任对话框包含冻结 repo 和 tag，且选中项确认为 `Trust and install` 时才继续。出现 `Trust this folder?`、未知界面、超时、EOF 或身份不一致时，在意外确认前失败关闭。
+- Kimi Code 只有在 TUI 显示安装完成，而且安装登记、package version、tag、revision、受管根和载荷都与冻结计划一致后才报告成功。
 - 任何宿主计划都必须是合格冻结计划，并要求同一发布谱系的 VERIFIED run 才能开始宿主验收；本源码候选不提供该验收。
 
 **变更**
 
-- 当适配器的 `installPath` 已经是安装后的插件根目录时，verify 按 `.` 解释 manifest 的 `skills` 路径；prepare 和 publish 的冻结快照坐标保持不变。
-- 允许多份冻结 host manifest 共享同一个非空 canonical source Skill surface；closure 只扫描一次，host coverage 保留每个已声明宿主。
-- publish 在任何外部写入前按冻结 manifest 事实重新派生 claims 并重检 closure。
-- 消费者安装路径继续按宿主 realpath 隔离；realpath 重合时失败关闭。
-- 保留公开 `postverify` 路径和稳定的隔离安装树记录路径；本候选不扩展 standalone-index 或宿主验收支持。
-- Claude 和 Codex 市场安装树继续使用 Foundation 0.16.0 的 `createFilesystemRootBinding` 与 record 模式 `observeFilesystemTree`；普通文件继续使用现有比较，目录不进入额外安装路径，冻结的 `manifestDigest` 保持不变。
-- 保留窄范围的 R-05 Hook cache v2 消费路径、CodeBuddy 插件显式的 `marketplace: release-skill` 条目，以及 release-finish 本机收尾示例中的 `--root <project-root>`。
+- 公共 release-finish 只把 `proposal-inbox` postVerify hook 定义为提案送达和送达证据。接收端按自身 runbook 和治理应用、渲染与同步提案；公共 Skill 不再内置 Hub 仓库或推送顺序。
+- 本机宿主顺序按各宿主在冻结计划中的真实安装来源决定。接收端完成不是更新无关宿主的统一前置条件。
+- Kimi Code 有效配置根依次取显式 `kimiHome`、`KIMI_CODE_HOME` 和 `~/.kimi-code`；TUI 进程与安装后观察使用同一根目录。
+- Kimi Code 0.40.1 TUI 路径会归一 ANSI/OSC 控制序列和 URL 软换行，使用宽伪终端，以 bracketed paste 加 CSI Enter 提交命令，并显式等待提示符、插件信任、安装结果、重载与退出状态。
+- 统一的 phase-aware postPublish 判定只在存在 target、显式 distribute hook，或 hook 缺省 phase 按既有规则属于 distribute 时要求 distribute。只有 postVerify hook 的计划从 PUBLISHED 直接进入 verify，并在 VERIFIED 后独立执行 postVerify。
+- 当前 0.9.8 候选包含窄范围的 R-05 Hook cache v2 消费路径，保留 CodeBuddy 插件显式的 `marketplace: release-skill` 条目，并在 release-finish 本机收尾示例中保留 `--root <project-root>`。Foundation 三包精确依赖已发布的 0.16.0。
 
 **升级说明**
 
-采用本候选时请重新准备 0.9.7 计划。`postverify` 要求同一计划摘要、源 `VERIFIED` run，以及每个已声明 hook 的不可变 approval；批准过期或不匹配时会在执行 hook 前停止。真实宿主验收只有在 0.9.7 正式发布并达到 VERIFIED 后才能开始；必须先安装或重载正式的 0.9.7 入口。源码候选、旧的已安装入口，或仅存在计划和运行文件，都不能完成真实宿主验收。每个选定宿主都必须先完成首次成功更新。第二次运行时，Claude、Kimi、CodeBuddy 和 WorkBuddy 必须返回 `ALREADY_CURRENT`；Codex 可以使用 `UPDATED`，但只有在重新安装同一精确 0.9.7 冻结引用、载荷验证通过并声明 `restartRequired=true` 时才允许这样返回。在 0.9.7 正式发布并达到 VERIFIED 前，不宣称 GLAF4 已通过。0.9.7 正式发布后，可以复验原 GLAF4 0.5.4 不可变计划和 PUBLISHED run；无需重新发布 GLAF4。本源码候选不代表已经发布、完成 GLAF4 验收或完成消费者安装验证。
+采用这些修复时，应准备并批准新的 0.9.8 production plan。verify 达到 `VERIFIED` 后，先用各 hook 独立的不可变 checkpoint approval 完成所有已声明 postVerify，再运行 release-finish。真实宿主验收只有在 0.9.8 正式发布并达到 VERIFIED 后才能开始；必须先安装或重载正式的 0.9.8 入口。源码候选、旧的已安装入口，或仅存在计划和运行文件，都不能完成真实宿主验收。每个已选宿主都必须完成首次成功更新。第二次运行时，Claude、Kimi、CodeBuddy 和 WorkBuddy 必须返回 `ALREADY_CURRENT`；Codex 可以返回 `UPDATED`，但只有在重新安装同一精确 0.9.8 冻结引用、载荷验证通过并声明 `restartRequired=true` 时才允许这样返回。本机 updater 采用已针对 Kimi Code 0.40.1 验证的 TUI 路径，不切换到 Web 或 REST 安装路径。插件信任界面显示的仓库与 tag 必须和冻结目标一致；插件安装过程中不得批准目录信任界面。本候选不宣称 0.9.8 已经发布或达到 VERIFIED。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.7 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.8 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -51,7 +50,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.7 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.8 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -101,12 +100,10 @@ Foundation 三包精确依赖已发布的 0.16.0。新生成的 Kimi/CodeBuddy �
 > `marketplace-index-render`（以 `targets` 形态声明），以及
 > `proposal-inbox`、`marketplace-registry-entry`、`docs-refresh`、
 > `notify-handoff`（以 `hooks` 形态声明）。`proposal-inbox` 通过 git-push 或
-> local-file 传输投递机器可读更新提案，供下游自治消费；未声明 target 时
+> local-file 传输投递机器可读更新提案，并记录送达结果。接收端按照接收端自己的 runbook
+> 和治理要求应用、渲染并公开同步；送达成功不证明这些接收端步骤已经完成。未声明 target 时
 > 退化为 `notify-handoff` 行为而非报错。`notify-handoff` 是零写地板：
-> 只渲染确定性的人工同步清单。release-skill 自己也在使用该能力：本仓库的
-> 项目配置声明了一个 `proposal-inbox`（git-push）hub 提案，指向公开仓
-> `skill-family-hub`，将在 v0.7.0 发布的 postVerify 阶段经自身的
-> checkpoint 批准投递。
+> 只渲染确定性的人工同步清单。
 <!-- release-skill:capability:postpublish-presets -->
 
 <!-- release-skill:capability:postverify-stage -->
@@ -203,8 +200,8 @@ Claude Code、CodeBuddy、WorkBuddy 和 Codex 从 bundled-family 市场
 > `/plugin marketplace add https://github.com/ifoohoo/release-skill`——
 > 或设置 `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1`。
 
-**Kimi Code：** Kimi Code 没有市场安装接口，需手动安装并钉死到特定 release
-tag——见 [INSTALL.zh-CN.md](INSTALL.zh-CN.md#安装为-kimi-code-插件)。
+**Kimi Code：** release-skill 当前无可脚本化安装接口接入，只采用钉死版本的交互式
+TUI 路径，见 [INSTALL.zh-CN.md](INSTALL.zh-CN.md#安装为-kimi-code-插件)。
 
 CodeBuddy、Codex 和 Kimi Code 的完整命令见 [INSTALL.zh-CN.md](INSTALL.zh-CN.md)。
 
@@ -642,16 +639,21 @@ release-skill ship --root "$PROJECT" --hook-approval "$HOOK_APPROVAL_PATH" --jso
 | `npm` | 带 CLI 入口的 npm 包 | `npm install -g release-skill` |
 | `claude-plugin` | `adapters/claude/` 下的自包含闭包 | 自动化 marketplace 检查点 |
 | `codex-plugin` | `adapters/codex/` 下的自包含闭包 | 自动化 marketplace 检查点 |
-| `kimi-plugin` | 自包含闭包（无可脚本化安装接口） | 发布后非阻塞人工任务 |
+| `kimi-plugin` | 自包含闭包（release-skill 无可脚本化安装接口接入） | 发布后非阻塞人工任务 |
 | `codebuddy-plugin` | 生成的 `adapters/workbuddy/`，带 `.codebuddy-plugin/plugin.json` | 发布后非阻塞人工任务 |
 
 每个适配器闭包都自带 CLI、skills 和 schemas 副本，安装后无需外部依赖即可运行。Claude/Codex 验证是自动化的；Kimi Code 和 CodeBuddy/WorkBuddy 以 `manualFollowUps` 返回并标记 `verifiedBySystem: false`，其完成情况不阻塞自动发布进入 `VERIFIED`。
 
 发布达到 `VERIFIED` 后，可选的 `release-finish` 工作流可以按冻结市场身份更新 Claude
-和 Codex，也可以在同一个受控 TUI 会话中迁移或更新 Kimi，并核对真实受管载荷。
+和 Codex。任一市场需要重绑时，必须在该宿主第一条写命令前只读证明冻结仓库、引用和
+提交；预检失败时不修改该宿主，也不阻止其他已选宿主继续。流程也可以在同一个受控
+TUI 会话中迁移或更新 Kimi，并核对真实受管载荷。
 对于已有的 bundled-family CodeBuddy/WorkBuddy 条目，只有冻结标签与可变分支都解析到
 冻结提交时才允许更新。该流程要求用户明确同意，且不改变发布状态。目标缺失、使用
 standalone 来源、远端不可访问或身份含糊时仍转人工处理，不修改宿主。
+Kimi 的有效配置根依次取显式 `kimiHome`、`KIMI_CODE_HOME`、`~/.kimi-code`，TUI 与
+操作后观察使用同一根。出现 `Trust this folder?`、未知界面、超时、提前退出，或无法
+证明插件身份时，流程返回人工处理或失败结果，不确认目录信任。
 WorkBuddy 本机更新仅支持 macOS；其他平台返回不支持并跳过。计划声明 postVerify hook 时，
 release-finish 必须接收 `ship` 产出的已完成 postVerify run，不能直接使用较早的
 verify run；核心 prepare、publish、verify 流程仍跨平台。

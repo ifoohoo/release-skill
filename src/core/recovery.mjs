@@ -33,7 +33,12 @@ import { validatePlan, computePlanDigest, assertImmutablePlanAuthority } from '.
 import { validateApproval, validateApprovalRecordSchema, assertImmutableApprovalAuthority, computeApprovalDigest } from './approval.mjs';
 import { isMarketplaceAction } from './checkpoints.mjs';
 import { ReleaseError, GATE_FAILED } from './errors.mjs';
-import { effectiveHookRequiresApproval, normalizePostPublishView, postPublishActionId } from './postpublish.mjs';
+import {
+  effectiveHookRequiresApproval,
+  normalizePostPublishView,
+  postPublishActionId,
+  requiresPostPublishDistribution,
+} from './postpublish.mjs';
 import { assertPostPublishApprovalAuthority, validatePostPublishApproval } from './postpublish-approval.mjs';
 
 /** Remote errors alone are insufficient to select a safe recovery phase. */
@@ -274,11 +279,8 @@ export async function readRunRecovery(runPath, options = {}) {
       }
     } else if (['publish', 'reconcile'].includes(command)) {
       if (run.status === 'PUBLISHED') {
-        // §4.3 unified normalization: v3 empty arrays mean no distribute work
-        // at all; only declarations carrying targets or hooks require the
-        // distribution phase.
-        const needsDistribution = normalizePostPublishView(plan).some((declaration) =>
-          (declaration.targets?.length ?? 0) > 0 || (declaration.hooks?.length ?? 0) > 0);
+        // phase:postVerify hooks do not create an empty distribute predecessor.
+        const needsDistribution = requiresPostPublishDistribution(plan);
         code = needsDistribution ? 'DISTRIBUTE' : 'VERIFY';
       } else if (run.status === 'PARTIAL') {
         code = 'RECONCILE';

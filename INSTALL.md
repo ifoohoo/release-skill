@@ -2,7 +2,7 @@
 
 [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.7 -->
+<!-- release-skill:release-version: 0.9.8 -->
 ## Prerequisites
 
 - Node.js 22.0.0 or later
@@ -41,7 +41,7 @@ Claude Code, CodeBuddy, WorkBuddy, and Codex install release-skill from the
 bundled-family marketplace [ifoohoo/release-skill](https://github.com/ifoohoo/release-skill).
 The plugin repository itself carries the marketplace manifest
 (`.claude-plugin/marketplace.json`), so no external marketplace is required.
-Kimi Code has no marketplace install API — see the
+release-skill currently invokes no scriptable install API for Kimi Code — see the
 [Kimi Code section](#install-as-a-kimi-code-plugin). Add the marketplace once,
 then install the plugin:
 
@@ -78,9 +78,9 @@ Then install `release-skill` from the interactive `/plugins` browser.
 
 **Kimi Code** (interactive session):
 
-Kimi Code has no marketplace install API. Installation is a post-release manual
-task pinned to a specific release tag. release-skill reports the task but does
-not verify its completion.
+release-skill currently uses the version-pinned interactive TUI path for Kimi
+Code. The release state machine reports installation as a post-release manual
+task and does not verify its completion.
 
 ### Alternative: direct repository install (advanced)
 
@@ -103,8 +103,8 @@ Kimi Code plugin manifest lives at `.kimi-plugin/plugin.json`, mirroring
 `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json`, and the package
 ships `adapters/kimi/` next to `adapters/claude/` and `adapters/codex/`.
 
-Kimi Code has an interactive plugin marketplace but **no scriptable,
-non-interactive install API**. For new release plans, `publish` completes the
+release-skill currently uses and verifies only Kimi Code's interactive TUI path;
+it invokes **no scriptable, non-interactive install API**. For new release plans, `publish` completes the
 automated remote writes and returns a non-blocking `manualFollowUps` entry with
 the pinned install URL. `verify` does not install or inspect Kimi and reports
 `verifiedBySystem: false`; the task does not block `VERIFIED`.
@@ -114,7 +114,7 @@ tag pinned to the exact version (never the bare repository URL, which installs
 the latest release or default branch), confirm the trust prompt, then reload:
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.7
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.8
    /plugins reload
    ```
 
@@ -129,7 +129,15 @@ installation or migration, release-finish re-reads Kimi's managed installation r
 rather than reusing the pre-operation observation, then verifies the final identity
 and actual payload. If the existing entry is a legacy local-path
 install, release-finish removes it and installs the pinned release tag in the
-same TUI session before accepting the trust prompt and reloading. This local
+same TUI session before accepting the plugin trust prompt and reloading.
+
+The effective configuration root is explicit `kimiHome`, then
+`KIMI_CODE_HOME`, then `~/.kimi-code`. The TUI process and post-operation
+observation use that same root. release-finish strips ANSI/OSC control sequences
+and soft wrapping before it checks the frozen repository, tag, and selected
+`Trust and install` action inside the plugin trust dialog. A `Trust this folder?`
+prompt, unknown interface, timeout, early exit, or identity mismatch stops the
+flow without confirming folder trust or continuing installation. This local
 check is not part of `verify` and does not alter the `VERIFIED` release state.
 
 No receipt or attestation is required. The `attest` command remains available

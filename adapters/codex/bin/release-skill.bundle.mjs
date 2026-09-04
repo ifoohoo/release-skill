@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.7"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.8"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "938bc6828f17e2248a4fe167bcd3353b43848ec1a494dc17dc663d390847150c";
+const __bundleSourceDigest = "7fa9e4b55133e888e3f3ace288f0194eb1ac063c0616252d2dda8e58be7eee21";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -45592,6 +45592,9 @@ function normalizePostPublishView(plan) {
     { planVersion: version }
   );
 }
+function requiresPostPublishDistribution(plan) {
+  return normalizePostPublishView(plan).some((declaration) => (declaration.targets?.length ?? 0) > 0 || (declaration.hooks ?? []).some((hook) => hook.phase === void 0 || hook.phase === "distribute"));
+}
 function validatePostPublishHookIdUniqueness(declarations) {
   const explicitHookIdOwner = /* @__PURE__ */ new Map();
   for (const declaration of declarations ?? []) {
@@ -45759,6 +45762,7 @@ var init_postpublish = __esm({
     __name(validatePostPublishHookEntry, "validatePostPublishHookEntry");
     __name(validatePostPublishDeclaration, "validatePostPublishDeclaration");
     __name(normalizePostPublishView, "normalizePostPublishView");
+    __name(requiresPostPublishDistribution, "requiresPostPublishDistribution");
     __name(validatePostPublishHookIdUniqueness, "validatePostPublishHookIdUniqueness");
     __name(postPublishActionId, "postPublishActionId");
     __name(orderTargetsByDependency, "orderTargetsByDependency");
@@ -113357,8 +113361,7 @@ async function verifyRelease(options) {
         { sourceRunStatus: sourceRun.status }
       );
     }
-    const postPublishDeclarations = normalizePostPublishView(plan);
-    const requiresDistribution = postPublishDeclarations.some((declaration) => (declaration.targets?.length ?? 0) > 0 || (declaration.hooks?.length ?? 0) > 0);
+    const requiresDistribution = requiresPostPublishDistribution(plan);
     if (requiresDistribution) {
       await evidence.append({ phase: "verify", step: "distribute-run-discovery", status: "started" });
       const distributeCandidates = await discoverDistributeRuns({ planPath, plan }) ?? [];
@@ -114547,7 +114550,7 @@ async function readRunRecovery(runPath, options = {}) {
       }
     } else if (["publish", "reconcile"].includes(command2)) {
       if (run6.status === "PUBLISHED") {
-        const needsDistribution = normalizePostPublishView(plan).some((declaration) => (declaration.targets?.length ?? 0) > 0 || (declaration.hooks?.length ?? 0) > 0);
+        const needsDistribution = requiresPostPublishDistribution(plan);
         code = needsDistribution ? "DISTRIBUTE" : "VERIFY";
       } else if (run6.status === "PARTIAL") {
         code = "RECONCILE";
@@ -131814,7 +131817,7 @@ function hostEnvironment(host, { kimiHome } = {}) {
     env.CODEBUDDY_CONFIG_DIR = join27(env.HOME, ".workbuddy");
     env.WORKBUDDY_CONFIG_DIR = join27(env.HOME, ".workbuddy");
   }
-  if (host === "kimi" && kimiHome) env.KIMI_CONFIG_DIR = kimiHome;
+  if (host === "kimi" && kimiHome) env.KIMI_CODE_HOME = kimiHome;
   return env;
 }
 async function defaultRun(command2, args2, options = {}) {
@@ -131990,6 +131993,64 @@ function exactPluginObservation(target, stdout) {
 }
 function normalizeGitSource(source) {
   return String(source ?? "").replace(/^git\+/, "").replace(/^https:\/\/github\.com\//, "").replace(/^git@github\.com:/, "").replace(/\.git$/u, "").replace(/\/$/u, "");
+}
+function parseFrozenRemoteRef(target, stdout) {
+  const directRefs = /* @__PURE__ */ new Map();
+  const peeledRefs = /* @__PURE__ */ new Map();
+  const expected = target.marketplaceRef;
+  const allowedDirect = expected.startsWith("refs/") ? /* @__PURE__ */ new Set([expected]) : /* @__PURE__ */ new Set([`refs/heads/${expected}`, `refs/tags/${expected}`]);
+  for (const line of String(stdout ?? "").split(/\r?\n/u)) {
+    if (line.length === 0) continue;
+    const match = /^([a-f0-9]{40})\t([^\s]+)$/u.exec(line);
+    if (!match) throw new Error("git ls-remote returned an invalid line");
+    const [, commit, remoteRef] = match;
+    const peeled = remoteRef.endsWith("^{}");
+    const direct = peeled ? remoteRef.slice(0, -3) : remoteRef;
+    if (!allowedDirect.has(direct)) {
+      throw new Error(`git ls-remote returned an unexpected ref ${remoteRef}`);
+    }
+    const destination = peeled ? peeledRefs : directRefs;
+    const previous = destination.get(direct);
+    if (previous && previous !== commit) {
+      throw new Error(`git ls-remote returned conflicting values for ${remoteRef}`);
+    }
+    destination.set(direct, commit);
+  }
+  const resolved = [...allowedDirect].filter((remoteRef) => directRefs.has(remoteRef) || peeledRefs.has(remoteRef)).map((remoteRef) => peeledRefs.get(remoteRef) ?? directRefs.get(remoteRef));
+  return {
+    found: resolved.length > 0,
+    exact: resolved.length > 0 && resolved.every((commit) => commit === target.marketplaceCommit)
+  };
+}
+async function preflightStructuredMarketplace(target, env, run6) {
+  try {
+    const observed = await run6("git", [
+      "ls-remote",
+      "--exit-code",
+      `https://${target.githubHost}/${target.marketplaceRepo}.git`,
+      target.marketplaceRef,
+      `${target.marketplaceRef}^{}`
+    ], { env, timeout: 3e4 });
+    const remote = parseFrozenRemoteRef(target, observed.stdout);
+    if (!remote.found) {
+      return {
+        ok: false,
+        reason: `${target.host} frozen marketplace ref ${target.marketplaceRef} is missing`
+      };
+    }
+    if (!remote.exact) {
+      return {
+        ok: false,
+        reason: `${target.host} frozen marketplace ref ${target.marketplaceRef} does not resolve to ${target.marketplaceCommit}`
+      };
+    }
+    return { ok: true };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: `${target.host} could not prove the frozen marketplace ref: ${error?.message ?? String(error)}`
+    };
+  }
 }
 async function observeMarketplace(target, command2, env, run6) {
   const listed = await run6(command2, ["plugin", "marketplace", "list", "--json"], { env });
@@ -132176,6 +132237,10 @@ async function runStructuredUpdate(target, detected, run6, {
     });
     return { status: "ALREADY_CURRENT", version: target.version };
   }
+  if (!before.marketplace.exact) {
+    const preflight = await preflightStructuredMarketplace(target, env, run6);
+    if (!preflight.ok) return { status: "MANUAL_REQUIRED", reason: preflight.reason };
+  }
   const marketplaceRebound = await bindStructuredMarketplace(target, command2, env, run6, before);
   const current = target.host === "claude" && marketplaceRebound ? await observeStructuredTarget(target, command2, env, run6) : before;
   const platform = getPlatform(target.host);
@@ -132229,48 +132294,204 @@ function parseCodeBuddyRemoteObservation(target, stdout) {
   };
 }
 function kimiExpectProgram({ removePlugin } = {}) {
-  const removeCommand = removePlugin ? `send -- "/plugins remove $removePlugin\\r"
+  const removeCommand = removePlugin ? `submitCommand "/plugins remove $removePlugin"
 expect {
   -nocase -re {(remove|delete|uninstall).*(confirm|sure)|(confirm|sure).*(remove|delete|uninstall)} {
     expect {
-      -ex $removePlugin { send -- "\\033\\[B\\r" }
-      timeout { exit 95 }
-      eof { exit 96 }
+      -ex $removePlugin {
+        send -- "\\033\\[B"
+        send -- "\\033\\[13u"
+      }
+      timeout { failTimeout remove-confirmation 125 127 }
+      eof { failEof remove-confirmation 126 }
     }
-    expect -re $promptPattern
+    expect {
+      -nocase -re {Trust this folder\\?} { directoryTrust }
+      -re $promptPattern {}
+      timeout { failTimeout remove-prompt 128 130 }
+      eof { failEof remove-prompt 129 }
+    }
   }
   -re $promptPattern {}
-  timeout { exit 93 }
-  eof { exit 94 }
+  -nocase -re {Trust this folder\\?} { directoryTrust }
+  timeout { failTimeout remove-dialog 122 124 }
+  eof { failEof remove-dialog 123 }
 }
 ` : "";
-  return `set timeout 180
-foreach variable {RELEASE_SKILL_KIMI_COMMAND RELEASE_SKILL_KIMI_INSTALL_URL RELEASE_SKILL_KIMI_REMOVE_PLUGIN} {
+  return `set timeout 240
+foreach variable {RELEASE_SKILL_KIMI_COMMAND RELEASE_SKILL_KIMI_INSTALL_URL RELEASE_SKILL_KIMI_REMOVE_PLUGIN RELEASE_SKILL_KIMI_EXPECTED_REPO RELEASE_SKILL_KIMI_EXPECTED_TAG} {
   if {![info exists env($variable)]} { exit 90 }
 }
 set kimiCommand $env(RELEASE_SKILL_KIMI_COMMAND)
 set installUrl $env(RELEASE_SKILL_KIMI_INSTALL_URL)
 set removePlugin $env(RELEASE_SKILL_KIMI_REMOVE_PLUGIN)
-set promptPattern {(?:(?:^|\\r|\\n)> |(?:^|\\r|\\n)(?:\\033\\[[0-9;?]*[ -/]*[@-~])*\u2502[ \\t]*>[ \\t]*\u2502(?:\\033\\[[0-9;?]*[ -/]*[@-~])*)(?![^\\n]|\\n)}
-spawn $kimiCommand
-expect -re $promptPattern
-${removeCommand}send -- "/plugins install $installUrl\\r"
-expect {
-  -nocase -re {trust and install} {
-    expect {
-      -ex $installUrl { send -- "\\033\\[B\\r" }
-      timeout { exit 97 }
-      eof { exit 98 }
-    }
-  }
-  timeout { exit 91 }
-  eof { exit 92 }
+set expectedRepo $env(RELEASE_SKILL_KIMI_EXPECTED_REPO)
+set expectedTag $env(RELEASE_SKILL_KIMI_EXPECTED_TAG)
+set promptPattern {(?:(?:^|\\r|\\n)> (?:\\r*\\n|$)|(?:^|\\r|\\n)(?:(?:\\033\\[[0-9;?]*[ -/]*[@-~])|\\033\\][^\\x07]*\\x07|[ \\t])*\u2502[^\\r\\n]*>[^\\r\\n]*\u2502(?:(?:\\033\\[[0-9;?]*[ -/]*[@-~])|\\033\\][^\\x07]*\\x07|[ \\t])*(?:\\r*\\n|$))}
+
+proc cleanScreen {value} {
+  regsub -all {\\033\\[[0-9;?]*[ -/]*[@-~]} $value {} value
+  regsub -all {\\033\\][^\\x07]*\\x07} $value {} value
+  regsub -all {\\r} $value {} value
+  return $value
 }
-expect -re $promptPattern
-send -- "/reload\\r"
-expect -re $promptPattern
-send -- "/exit\\r"
-expect eof
+
+proc compactScreen {value} {
+  set value [cleanScreen $value]
+  regsub -all {[[:space:]]+} $value {} value
+  return [string tolower $value]
+}
+
+proc extractPluginTrustDialog {value} {
+  set cleaned [cleanScreen $value]
+  set lowered [string tolower $cleaned]
+  set dialogStart -1
+  foreach marker {"install third-party plugin " "trust and install from "} {
+    set markerStart [string last $marker $lowered]
+    if {$markerStart > $dialogStart} { set dialogStart $markerStart }
+  }
+  if {$dialogStart < 0} { return "" }
+  return [string range $cleaned $dialogStart end]
+}
+
+proc failTimeout {state timeoutCode unknownCode} {
+  global expect_out
+  set buffer ""
+  if {[info exists expect_out(buffer)]} { set buffer [string trim [cleanScreen $expect_out(buffer)]] }
+  if {$buffer ne ""} {
+    puts stderr "KIMI_TUI_STATE:$state:unknown"
+    exit $unknownCode
+  }
+  puts stderr "KIMI_TUI_STATE:$state:timeout"
+  exit $timeoutCode
+}
+
+proc failEof {state code} {
+  puts stderr "KIMI_TUI_STATE:$state:eof"
+  exit $code
+}
+
+proc directoryTrust {} {
+  puts stderr "KIMI_TUI_STATE:directory-trust:manual-required"
+  exit 80
+}
+
+proc submitCommand {command} {
+  send -- "\\033\\[200~"
+  send -- $command
+  send -- "\\033\\[201~"
+  send -- "\\033\\[13u"
+}
+
+spawn $kimiCommand
+if {[catch {exec stty columns 240 rows 60 < $spawn_out(slave,name)} resizeError]} {
+  puts stderr "KIMI_TUI_STATE:terminal-size:failed"
+  exit 131
+}
+expect {
+  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -re $promptPattern {}
+  timeout { failTimeout initial-prompt 101 103 }
+  eof { failEof initial-prompt 102 }
+}
+${removeCommand}submitCommand "/plugins install $installUrl"
+set dialogBuffer ""
+expect {
+  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -nocase -re {(?:Install third-party plugin|Trust and install from)[ \\t]} {
+    append dialogBuffer $expect_out(buffer)
+  }
+  timeout { failTimeout plugin-trust-anchor 104 106 }
+  eof { failEof plugin-trust-anchor 105 }
+}
+expect {
+  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -nocase -re {\u276F[^\\r\\n]*(?:Exit|Cancel|Trust and install)} {
+    append dialogBuffer $expect_out(buffer)
+  }
+  -re {\u276F[^\\r\\n]*\\r*\\n} {
+    puts stderr "KIMI_TUI_STATE:plugin-trust-selected-row:unknown"
+    exit 134
+  }
+  timeout {
+    puts stderr "KIMI_TUI_STATE:plugin-trust-selected-row:timeout"
+    exit 132
+  }
+  eof { failEof plugin-trust-selected-row 133 }
+}
+
+set dialog [extractPluginTrustDialog $dialogBuffer]
+if {$dialog eq ""} {
+  puts stderr "KIMI_TUI_STATE:plugin-trust:dialog-unknown"
+  exit 113
+}
+set compactDialog [compactScreen $dialog]
+if {[string first [string tolower [compactScreen $expectedRepo]] $compactDialog] < 0} {
+  puts stderr "KIMI_TUI_STATE:plugin-trust:repo-mismatch"
+  exit 111
+}
+if {[string first [string tolower [compactScreen $expectedTag]] $compactDialog] < 0} {
+  puts stderr "KIMI_TUI_STATE:plugin-trust:tag-mismatch"
+  exit 112
+}
+if {[regexp -nocase {(^|\\n)[^\\n]*\u276F[^\\n]*trust and install} $dialog]} {
+  send -- "\\033\\[13u"
+} elseif {[regexp -nocase {(^|\\n)[^\\n]*\u276F[^\\n]*(cancel|exit)} $dialog]} {
+  send -- "\\033\\[B"
+  expect {
+    -nocase -re {Trust this folder\\?} { directoryTrust }
+    -nocase -re {\u276F[^\\r\\n]*Trust and install} {}
+    -re {\u276F[^\\r\\n]*\\r*\\n} {
+      puts stderr "KIMI_TUI_STATE:plugin-trust-confirm-selection:unknown"
+      exit 109
+    }
+    timeout { failTimeout plugin-trust-confirm-selection 107 109 }
+    eof { failEof plugin-trust-confirm-selection 108 }
+  }
+  send -- "\\033\\[13u"
+} else {
+  puts stderr "KIMI_TUI_STATE:plugin-trust:selection-unknown"
+  exit 113
+}
+
+expect {
+  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -nocase -re {Install finished[^\\r\\n]*see details below\\.} {}
+  -nocase -re {Installing plugin from[^\\r\\n]*(?:\\r|\\n)} {
+    exp_continue -continue_timer
+  }
+  -nocase -re {Install failed:[^\\r\\n]*} {
+    puts stderr "KIMI_TUI_STATE:install-result:failed"
+    exit 135
+  }
+  -nocase -re {(^|\\r|\\n)Install[^\\r\\n]*\\r*\\n} {
+    puts stderr "KIMI_TUI_STATE:install-result:unknown"
+    exit 138
+  }
+  timeout {
+    puts stderr "KIMI_TUI_STATE:install-result:timeout"
+    exit 136
+  }
+  eof { failEof install-result 137 }
+}
+expect {
+  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -re $promptPattern {}
+  timeout { failTimeout post-install-prompt 114 116 }
+  eof { failEof post-install-prompt 115 }
+}
+submitCommand "/reload"
+expect {
+  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -re $promptPattern {}
+  timeout { failTimeout reload-prompt 117 119 }
+  eof { failEof reload-prompt 118 }
+}
+submitCommand "/exit"
+expect {
+  eof { puts stderr "KIMI_TUI_STATE:exit-eof:eof" }
+  timeout { failTimeout exit-eof 120 121 }
+}
 `;
 }
 async function observeKimiTarget(target, kimiHome, run6) {
@@ -132338,7 +132559,7 @@ async function runKimiUpdate(target, detected, run6, kimiHome, {
     });
     return { status: "ALREADY_CURRENT", version: target.version };
   }
-  await withTemporaryWorkspace(async (workspace) => {
+  const tuiOutcome = await withTemporaryWorkspace(async (workspace) => {
     const checkout = join27(workspace.root, "plugin");
     await run6("git", [
       "clone",
@@ -132359,18 +132580,31 @@ async function runKimiUpdate(target, detected, run6, kimiHome, {
     }
     const installUrl = `https://github.com/${target.pluginRepo}/releases/tag/${target.pluginTag}`;
     const removePlugin = before.source === "legacy" ? target.plugin : "";
-    await run6(detected.expectCommand, ["-c", kimiExpectProgram({
-      ...removePlugin ? { removePlugin } : {}
-    })], {
-      timeout: 24e4,
-      env: {
-        ...env,
-        RELEASE_SKILL_KIMI_COMMAND: detected.command,
-        RELEASE_SKILL_KIMI_INSTALL_URL: installUrl,
-        RELEASE_SKILL_KIMI_REMOVE_PLUGIN: removePlugin
+    try {
+      await run6(detected.expectCommand, ["-c", kimiExpectProgram({
+        ...removePlugin ? { removePlugin } : {}
+      })], {
+        timeout: Math.max(3e5, target.timeoutMs),
+        env: {
+          ...env,
+          RELEASE_SKILL_KIMI_COMMAND: detected.command,
+          RELEASE_SKILL_KIMI_INSTALL_URL: installUrl,
+          RELEASE_SKILL_KIMI_REMOVE_PLUGIN: removePlugin,
+          RELEASE_SKILL_KIMI_EXPECTED_REPO: `https://github.com/${target.pluginRepo}`,
+          RELEASE_SKILL_KIMI_EXPECTED_TAG: target.pluginTag
+        }
+      });
+    } catch (error) {
+      if (error?.exitStatus === 80) {
+        return {
+          status: "MANUAL_REQUIRED",
+          reason: "Kimi requires folder trust; release-finish did not confirm the folder or continue installation"
+        };
       }
-    });
+      throw error;
+    }
   }, { prefix: "release-skill-kimi-update-" });
+  if (tuiOutcome) return tuiOutcome;
   const after = await observeKimiTarget(target, kimiHome, run6);
   if (!after.exact) throw new Error("Kimi did not report the frozen plugin identity after TUI installation");
   await verifyStructuredInstalledPayload({
@@ -132417,7 +132651,7 @@ async function updateLocalHostPluginsInternal({
   kimiHome,
   verifyInstalledPayload = verifyInstalledMarketplacePayload
 } = {}) {
-  const effectiveKimiHome = kimiHome ?? process.env.KIMI_CONFIG_DIR ?? join27(homedir(), ".kimi-code");
+  const effectiveKimiHome = kimiHome ?? process.env.KIMI_CODE_HOME ?? join27(homedir(), ".kimi-code");
   const checklist = derivePostReleaseChecklist(plan, { postVerifyComplete: true });
   if (confirmPlanDigest !== plan.digest) {
     throw new Error("plan digest confirmation does not match the frozen release plan");
@@ -132506,7 +132740,7 @@ var init_post_release_local = __esm({
       "NODE_EXTRA_CA_CERTS",
       "CLAUDE_CONFIG_DIR",
       "CODEX_HOME",
-      "KIMI_CONFIG_DIR",
+      "KIMI_CODE_HOME",
       "CODEBUDDY_CONFIG_DIR",
       "WORKBUDDY_CONFIG_DIR"
     ]);
@@ -132539,6 +132773,8 @@ var init_post_release_local = __esm({
     __name(observeCodeBuddyMarketplaceAfterResidual, "observeCodeBuddyMarketplaceAfterResidual");
     __name(exactPluginObservation, "exactPluginObservation");
     __name(normalizeGitSource, "normalizeGitSource");
+    __name(parseFrozenRemoteRef, "parseFrozenRemoteRef");
+    __name(preflightStructuredMarketplace, "preflightStructuredMarketplace");
     __name(observeMarketplace, "observeMarketplace");
     __name(observeStructuredTarget, "observeStructuredTarget");
     __name(bindStructuredMarketplace, "bindStructuredMarketplace");
@@ -139872,8 +140108,7 @@ async function advanceShip(options = {}, injected = {}) {
   let postVerifyRanThisCall = false;
   if (state.status === "PUBLISHED" || state.status === "NEEDS_MANUAL_ATTESTATIONS") {
     const plan = JSON.parse(await readFile46(state.planPath, "utf8"));
-    const hasDistributeWork = normalizePostPublishView(plan).some((declaration) => (declaration.targets?.length ?? 0) > 0 || (declaration.hooks?.length ?? 0) > 0);
-    const needsDistribution = hasDistributeWork;
+    const needsDistribution = requiresPostPublishDistribution(plan);
     if (needsDistribution && deps.distributeRelease) {
       state.status = "DISTRIBUTING";
       await writeJsonAtomic(statePath, state);

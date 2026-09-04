@@ -8,6 +8,7 @@ import {
   effectiveHookRequiresApproval,
   normalizePostPublishView,
   postPublishActionId,
+  requiresPostPublishDistribution,
 } from '../core/postpublish.mjs';
 import {
   derivePostReleaseChecklist,
@@ -652,13 +653,10 @@ export async function advanceShip(options = {}, injected = {}) {
 
   if (state.status === 'PUBLISHED' || state.status === 'NEEDS_MANUAL_ATTESTATIONS') {
     // Step 1: Check if postPublish requires distribution.
-    // Hooks-only declarations (no targets) still route through distribute.
-    // §4.3 unified normalization: v3 empty arrays carry no distribute work;
-    // legacy absent postPublish resolves to the same empty view.
+    // Only targets and distribute-phase hooks route through distribute;
+    // phase:postVerify hooks belong to their independent post-VERIFIED run.
     const plan = JSON.parse(await readFile(state.planPath, 'utf8'));
-    const hasDistributeWork = normalizePostPublishView(plan).some((declaration) =>
-      (declaration.targets?.length ?? 0) > 0 || (declaration.hooks?.length ?? 0) > 0);
-    const needsDistribution = hasDistributeWork;
+    const needsDistribution = requiresPostPublishDistribution(plan);
     if (needsDistribution && deps.distributeRelease) {
       state.status = 'DISTRIBUTING';
       await writeJsonAtomic(statePath, state);

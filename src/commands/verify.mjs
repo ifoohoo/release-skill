@@ -23,7 +23,11 @@ import { resolveContained } from 'skill-family-harness-node';
 const execFile = promisify(execFileCb);
 
 import { validatePlan, computePlanDigest, validatePlanActionCompleteness } from '../core/plan.mjs';
-import { normalizePostPublishView, postPublishActionId } from '../core/postpublish.mjs';
+import {
+  normalizePostPublishView,
+  postPublishActionId,
+  requiresPostPublishDistribution,
+} from '../core/postpublish.mjs';
 import { createEvidenceWriter } from '../core/evidence.mjs';
 import { readRunRecovery } from '../core/recovery.mjs';
 import {
@@ -1230,15 +1234,11 @@ export async function verifyRelease(options) {
 
     // =======================================================================
     // Step 2b: Check for postPublish distribution requirement.
-    // v0.6.3 R1: the gate triggers on targets OR hooks declarations, and a
-    // PARTIAL distribute run passes only through the blocksVerified:false
+    // The gate triggers only when targets or distribute-phase hooks exist.
+    // A PARTIAL distribute run passes only through the blocksVerified:false
     // exemption path (evaluateDistributeGateRun) — warned, never silent.
     // =======================================================================
-    // §4.3 unified normalization: v3 empty arrays mean no distribution
-    // requirement; legacy absent postPublish resolves to the same empty view.
-    const postPublishDeclarations = normalizePostPublishView(plan);
-    const requiresDistribution = postPublishDeclarations.some((declaration) =>
-      (declaration.targets?.length ?? 0) > 0 || (declaration.hooks?.length ?? 0) > 0);
+    const requiresDistribution = requiresPostPublishDistribution(plan);
     if (requiresDistribution) {
       await evidence.append({ phase: 'verify', step: 'distribute-run-discovery', status: 'started' });
 

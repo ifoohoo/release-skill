@@ -2,7 +2,7 @@
 
 [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.7 -->
+<!-- release-skill:release-version: 0.9.8 -->
 ## 前置条件
 
 - Node.js 22.0.0 或更高版本
@@ -37,8 +37,8 @@ release-skill help
 Claude Code、CodeBuddy、WorkBuddy 和 Codex 从 bundled-family 市场
 [ifoohoo/release-skill](https://github.com/ifoohoo/release-skill)
 安装 release-skill。插件仓库自身携带市场清单
-（`.claude-plugin/marketplace.json`），无需外部市场。Kimi Code 没有市场安装
-接口——见 [Kimi Code 小节](#安装为-kimi-code-插件)。先添加一次市场，再安装
+（`.claude-plugin/marketplace.json`），无需外部市场。release-skill 当前没有接入
+Kimi Code 的可脚本化安装接口，见 [Kimi Code 小节](#安装为-kimi-code-插件)。先添加一次市场，再安装
 插件：
 
 > **前置条件：GitHub 访问。** `owner/repo` 简写会让 Claude Code 通过
@@ -73,8 +73,8 @@ codex plugin marketplace add ifoohoo/release-skill
 
 **Kimi Code**（交互会话中）：
 
-Kimi Code 没有市场安装接口，发布后需手动安装并钉死到特定 release tag。
-release-skill 会返回待办，但不核验其完成结果。
+release-skill 当前对 Kimi Code 采用钉死版本的交互式 TUI 路径。发布状态机会把安装
+列为发布后人工待办，不核验其完成结果。
 
 ### 备选：直接从仓库安装（进阶）
 
@@ -95,8 +95,8 @@ Kimi Code 是与 Claude Code 和 Codex 并列的受支持插件宿主。Kimi Cod
 `.codex-plugin/plugin.json` 对应；包内同时提供 `adapters/kimi/`，与
 `adapters/claude/`、`adapters/codex/` 并列。
 
-Kimi Code 有交互式插件市场，但**没有可脚本化的非交互安装接口**。因此
-新发布计划中，`publish` 完成自动化远端写入后返回非阻塞的
+release-skill 当前只采用并验证 Kimi Code 的交互式 TUI 路径，**无可脚本化安装接口
+接入**。因此新发布计划中，`publish` 完成自动化远端写入后返回非阻塞的
 `manualFollowUps`，其中含钉死的安装 URL；`verify` 不安装也不检查 Kimi，返回
 `verifiedBySystem: false`，该待办不阻塞 `VERIFIED`。
 
@@ -104,7 +104,7 @@ Kimi Code 有交互式插件市场，但**没有可脚本化的非交互安装�
 （切勿使用裸仓库地址，它会安装最新 release 或默认分支），确认信任提示后重新加载：
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.7
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.8
    /plugins reload
    ```
 
@@ -114,7 +114,13 @@ Kimi Code 有交互式插件市场，但**没有可脚本化的非交互安装�
 完成后核对结果。`.git` 目录只提供附加诊断，不是通过条件。发生安装或迁移后，
 release-finish 会重新读取 Kimi 的受管安装根，不复用操作前的观察；随后核对最终身份与
 真实载荷。若现有条目来自旧的本地路径安装，release-finish 会在同一个 TUI 会话中先
-移除，再按发布标签安装、确认信任并重新加载。这个本机检查不属于 `verify`，也不会改变
+移除，再按发布标签安装、确认插件信任并重新加载。
+
+有效配置根依次取显式 `kimiHome`、`KIMI_CODE_HOME`、`~/.kimi-code`，TUI 进程和
+操作后观察使用同一根。release-finish 会先清理 ANSI/OSC 控制序列和软换行，再在插件
+信任对话框内核对冻结仓库、标签和当前选中的 `Trust and install`。出现
+`Trust this folder?`、未知界面、超时、提前退出或身份不一致时，流程停止，不确认目录
+信任，也不继续安装。这个本机检查不属于 `verify`，也不会改变
 已经完成的 `VERIFIED` 发布状态。
 
 新计划无需收据或人工证明。`attest` 命令仅兼容缺少

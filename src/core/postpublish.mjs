@@ -548,6 +548,30 @@ export function normalizePostPublishView(plan) {
 }
 
 /**
+ * Decide whether a frozen plan has work for the distribute phase.
+ *
+ * A declaration requires distribute when it contains at least one legacy
+ * target, an explicit phase:distribute hook, or a hook whose omitted phase
+ * keeps the existing distribute default. phase:postVerify hooks belong only
+ * to the independent postVerify run and must not allocate an empty
+ * distribute predecessor.
+ *
+ * This is the single release-domain authority used by ship, verify, and
+ * recovery. Shape compatibility remains owned by normalizePostPublishView.
+ *
+ * @param {object} plan - Frozen release plan.
+ * @returns {boolean} Whether distribute must precede verify.
+ */
+export function requiresPostPublishDistribution(plan) {
+  return normalizePostPublishView(plan).some((declaration) => (
+    (declaration.targets?.length ?? 0) > 0
+    || (declaration.hooks ?? []).some((hook) => (
+      hook.phase === undefined || hook.phase === 'distribute'
+    ))
+  ));
+}
+
+/**
  * Array-level domain validation: every EXPLICIT hooks[].id must be unique
  * across the whole declaration array (multi-release-unit postPublish v3,
  * design §9.2 rule 3; rework R-02). The (planDigest, hookId) approval
