@@ -2,37 +2,33 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.9 -->
+<!-- release-skill:release-version: 0.9.10 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.9** (2026-09-04)
+**0.9.10** (2026-09-04)
 
-0.9.9 是修正 Kimi Code 插件信任身份精确比较的本地源码候选。三项 Foundation 依赖均精确消费已发布的 0.16.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.10 是删除 release-skill 自有市场、统一以 Skill Family Hub 为市场来源的本地源码候选，三项 Foundation 依赖均精确使用已发布的 0.16.0。发布验证完成后，发布工作区会通过 GitHub Git Data API 更新 Hub 条目及七文件公开快照。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- Kimi Code 会从插件信任对话框提取完整安装身份，清除 ANSI/OSC 控制序列并归一软换行，再与冻结安装 URL 精确比较。相似仓库名、tag 前缀或 tag 后缀均失败关闭。
-- Claude 和 Codex 继续在确实需要重绑时，于第一条市场或插件写命令前验证冻结的 marketplace 仓库、ref 和 commit。远端不可达、ref 缺失或 commit 不一致时，该宿主以零写入返回 `MANUAL_REQUIRED`，其他已选宿主继续。
-- Kimi Code 只有在选中项确认为 `Trust and install` 时才继续。出现 `Trust this folder?`、未知界面、超时、EOF 或身份不一致时，在意外确认前失败关闭。
-- 任何宿主计划都必须是合格冻结计划，并要求同一发布谱系的 VERIFIED run 才能开始宿主验收；本源码候选不提供该验收。
+- Hub 分支更新以已观察的 main commit 做比较后写入，禁止强推；并发漂移会失败关闭。若私有 Hub 已提交而公开 Hub 失败，则保留可恢复的 PARTIAL 状态，不回滚、不覆盖。
 
 **变更**
 
-- 中英文 README 的范围说明统一把 0.9.9 标为当前源码候选。
-- 公共 release-finish 继续只把 `proposal-inbox` postVerify hook 定义为提案送达和送达证据。接收端按自身 runbook 和治理应用、渲染与同步提案；公共 Skill 不内置 Hub 仓库或推送顺序。
-- Kimi Code 有效配置根继续依次取显式 `kimiHome`、`KIMI_CODE_HOME` 和 `~/.kimi-code`；TUI 进程与安装后观察使用同一根目录。
-- 当前 0.9.9 候选保留窄范围的 R-05 Hook cache v2 消费路径，保留 CodeBuddy 插件显式的 `marketplace: release-skill` 条目，并在 release-finish 本机收尾示例中保留 `--root <project-root>`。Foundation 三包继续精确依赖已发布的 0.16.0。
+- 从 release-skill 包中删除 Claude、Codex 及适配器内的自有市场索引；插件清单继续保留，由 Skill Family Hub 提供安装入口。
+- Claude Code、Codex、CodeBuddy 和 WorkBuddy 的安装说明统一改为 `ifoohoo/skill-family-hub` 与 `release-skill@skill-family-hub`。
+- 发布达到 VERIFIED 后，项目私有的 postVerify hook 会调用 Hub 自身接收器应用提案，只运行一次 Hub 发布门禁，再通过 GitHub Git Data API 发布 Hub 私有真源和公开快照。
 
 **升级说明**
 
-采用这些修复时，应准备并批准新的 0.9.9 production plan。verify 达到 `VERIFIED` 后，先用各 hook 独立的不可变 checkpoint approval 完成所有已声明 postVerify，再运行 release-finish。真实宿主验收只有在 0.9.9 正式发布并达到 VERIFIED 后才能开始；必须先安装或重载正式的 0.9.9 入口。源码候选、旧的已安装入口，或仅存在计划和运行文件，都不能完成真实宿主验收。每个已选宿主都必须完成首次成功更新。第二次运行时，Claude、Kimi、CodeBuddy 和 WorkBuddy 必须返回 `ALREADY_CURRENT`；Codex 可以返回 `UPDATED`，但只有在重新安装同一精确 0.9.9 冻结引用、载荷验证通过并声明 `restartRequired=true` 时才允许这样返回。本机 updater 采用已针对 Kimi Code 0.40.1 验证的 TUI 路径，不切换到 Web 或 REST 安装路径。插件信任界面显示的完整冻结安装 URL 必须精确一致；插件安装过程中不得批准目录信任界面。本候选不宣称 0.9.9 已经发布或达到 VERIFIED。
+在各宿主删除独立的 `release-skill` 市场登记，添加或更新 `ifoohoo/skill-family-hub`，再安装 `release-skill@skill-family-hub`。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.9 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.10 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -48,7 +44,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.9 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.10 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -66,9 +62,18 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-当前 0.9.9 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify` 路径和稳定隔离安装树记录路径（A2/A3）。当前仍不包含 R-02 安全整树盘点、R-10 历史发布验证的产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录验证器。本范围说明不构成远端发布记录或消费者升级指引。
+当前 0.9.10 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
+路径和稳定隔离安装树记录路径（A2/A3），并删除仓库自有市场索引，统一以
+Skill Family Hub 为市场来源。当前仍不包含 R-02 安全整树盘点、R-10 历史发布验证
+的产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录
+验证器。本范围说明不构成远端发布记录或消费者升级指引。
 
-Foundation 三包精确依赖已发布的 0.16.0。新生成的 Kimi/CodeBuddy 同仓计划在 verify 阶段调用正式 `runPluginVerification`，把完整冻结载荷交给 Foundation，并记录最小的 `install-only` 观察收据。Kimi 映射为 `kimi-code`，CodeBuddy 映射为兼容的 `workbuddy`。`observed` 与 `payloadMatches` 只表示机制观察结果，不代表远端已发布或 release-skill 已完成领域验证。独立市场来源、真实市场安装和宿主调用仍是人工后续任务。
+Foundation 三包精确依赖已发布的 0.16.0。仍采用 bundled-family 分发形态的
+Kimi/CodeBuddy 计划会在 verify 阶段调用正式 `runPluginVerification`，把完整冻结载荷
+交给 Foundation，并记录最小的 `install-only` 观察收据。Kimi 映射为 `kimi-code`，
+CodeBuddy 映射为兼容的 `workbuddy`。`observed` 与 `payloadMatches` 只表示机制观察结果，
+不代表远端已发布或 release-skill 已完成领域验证。真实市场安装和宿主调用仍是发布后
+宿主操作。
 
 <!-- release-skill:maturity:distribute-v1 -->
 <!-- release-skill:capability:distribute -->
@@ -185,17 +190,16 @@ npx release-skill help
 
 **插件（Claude Code / CodeBuddy / WorkBuddy / Codex）：**
 
-Claude Code、CodeBuddy、WorkBuddy 和 Codex 从 bundled-family 市场
-`ifoohoo/release-skill` 安装：
+Claude Code、CodeBuddy、WorkBuddy 和 Codex 从统一的 Skill Family Hub 市场安装：
 
 ```
-/plugin marketplace add ifoohoo/release-skill
-/plugin install release-skill@release-skill
+/plugin marketplace add ifoohoo/skill-family-hub
+/plugin install release-skill@skill-family-hub
 ```
 
 > **前置条件：GitHub 访问。** `owner/repo` 简写会让 Claude Code 通过 SSH 克隆。
 > 如不使用 SSH，可传完整 HTTPS 地址——
-> `/plugin marketplace add https://github.com/ifoohoo/release-skill`——
+> `/plugin marketplace add https://github.com/ifoohoo/skill-family-hub`——
 > 或设置 `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1`。
 
 **Kimi Code：** release-skill 当前无可脚本化安装接口接入，只采用钉死版本的交互式

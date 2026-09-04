@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.9"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.10"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "ef2ec274a982afcf48acdbccdf32439d199dd1d79b4a39b1aeaef23195fadbfb";
+const __bundleSourceDigest = "b5ea47eca1374c2a893a3a56dd274973673ff0fe4e424564f55e6646b7763b3a";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -42134,8 +42134,7 @@ var init_registry2 = __esm({
         name: "claude",
         pluginDirName: ".claude-plugin",
         templateFileName: "plugin.json",
-        marketplaceFileName: "marketplace.json",
-        hasMarketplace: true
+        hasMarketplace: false
       }),
       strategy: Object.freeze({
         parseListOutput: claudeParseListOutput,

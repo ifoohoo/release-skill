@@ -1,5 +1,26 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.10 locale=en baseline=sha256:4cd32926b3d8e0da10ec909f58268636c3e6025f59cd7f24d313460cf5524b7b -->
+## [0.9.10] - 2026-09-04
+
+0.9.10 is a local source candidate that removes release-skill's private marketplace and makes Skill Family Hub the single marketplace source. It consumes the three Foundation packages at the exact 0.16.0 release. The release workspace publishes a verified entry and the Hub's seven-file public snapshot through GitHub's Git Data API after verification. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Hub branch updates are compare-and-swap writes against the observed main commit. Concurrent movement fails closed; a public-Hub failure after the private commit is retained as a recoverable partial result and is never rolled back or force-pushed.
+
+### Changed
+
+- Removed the bundled Claude, Codex, and adapter marketplace indexes from the release-skill package. Plugin manifests remain available for installation through Skill Family Hub.
+- Installation guidance now uses `ifoohoo/skill-family-hub` and `release-skill@skill-family-hub` for Claude Code, Codex, CodeBuddy, and WorkBuddy.
+- After a release reaches VERIFIED, the project-private postVerify hook applies the proposal with the Hub's own receiver, runs the Hub release gate once, and publishes the private and public Hub commits through GitHub's Git Data API with non-forced branch updates.
+
+### Upgrade Notes
+
+Remove any `release-skill` standalone marketplace registration from each host, add or update `ifoohoo/skill-family-hub`, and install `release-skill@skill-family-hub`.
+<!-- release-skill:changelog:end version=0.9.10 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.9 locale=en baseline=sha256:44d7cba7d5e4cbe182157c8b200e3a2d9b494d61a9555cd5af5c62c97a60fb37 -->
 ## [0.9.9] - 2026-09-04
 

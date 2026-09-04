@@ -199,8 +199,8 @@ export function computeBuildAdaptersDigest(sourceBytes) {
 
 // Platform definitions, derived from the platform registry (the single source
 // of platform knowledge). The build shape mirrors the legacy inline table
-// byte-for-byte: marketplaceFileName is present only when the platform
-// co-locates a marketplace manifest in its plugin dir (claude).
+// marketplaceFileName is present only when a platform adapter is itself a
+// marketplace. Plugin payload adapters do not create private marketplaces.
 //
 // The build adapter NAME defaults to the platform id, but a platform may keep a
 // historical directory name distinct from its pipeline id via

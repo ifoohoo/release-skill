@@ -2,7 +2,7 @@
 
 [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.9 -->
+<!-- release-skill:release-version: 0.9.10 -->
 ## Prerequisites
 
 - Node.js 22.0.0 or later
@@ -35,12 +35,11 @@ release-skill help
 
 You should see the version number and the list of available commands.
 
-## Install as a plugin (bundled-family marketplace — recommended)
+## Install as a plugin (Skill Family Hub — recommended)
 
 Claude Code, CodeBuddy, WorkBuddy, and Codex install release-skill from the
-bundled-family marketplace [ifoohoo/release-skill](https://github.com/ifoohoo/release-skill).
-The plugin repository itself carries the marketplace manifest
-(`.claude-plugin/marketplace.json`), so no external marketplace is required.
+central [Skill Family Hub](https://github.com/ifoohoo/skill-family-hub).
+The release-skill repository carries plugin manifests but no marketplace index.
 release-skill currently invokes no scriptable install API for Kimi Code — see the
 [Kimi Code section](#install-as-a-kimi-code-plugin). Add the marketplace once,
 then install the plugin:
@@ -48,21 +47,21 @@ then install the plugin:
 > **Prerequisite: GitHub access.** The `owner/repo` shorthand makes Claude Code
 > clone via `git@github.com:...` (SSH), which requires a GitHub public key
 > configured on this machine. If you do not use SSH, either pass the full HTTPS
-> URL — `/plugin marketplace add https://github.com/ifoohoo/release-skill` — or
+> URL — `/plugin marketplace add https://github.com/ifoohoo/skill-family-hub` — or
 > set `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1`.
 
 **Claude Code** (interactive session):
 
 ```
-/plugin marketplace add ifoohoo/release-skill
-/plugin install release-skill@release-skill
+/plugin marketplace add ifoohoo/skill-family-hub
+/plugin install release-skill@skill-family-hub
 ```
 
 **CodeBuddy / WorkBuddy:**
 
 ```bash
-codebuddy plugin marketplace add ifoohoo/release-skill
-codebuddy plugin install release-skill@release-skill
+codebuddy plugin marketplace add ifoohoo/skill-family-hub
+codebuddy plugin install release-skill@skill-family-hub
 ```
 
 WorkBuddy desktop installs only through a registered marketplace: after the
@@ -71,7 +70,7 @@ WorkBuddy desktop installs only through a registered marketplace: after the
 **OpenAI Codex:**
 
 ```bash
-codex plugin marketplace add ifoohoo/release-skill
+codex plugin marketplace add ifoohoo/skill-family-hub
 ```
 
 Then install `release-skill` from the interactive `/plugins` browser.
@@ -84,15 +83,12 @@ task and does not verify its completion.
 
 ### Alternative: direct repository install (advanced)
 
-The unified marketplace above is the supported primary path. Direct
-installation from the release repository remains available for advanced
-scenarios:
+The Hub marketplace above is the supported primary path. Direct installation
+remains available only where the host supports a repository URL:
 
-- Claude Code: `/plugin marketplace add ifoohoo/release-skill`, then
-  `/plugin install release-skill@release-skill`.
 - Kimi Code: the version-pinned `/plugins install <release-tag URL>` documented
   in the [Kimi Code section](#install-as-a-kimi-code-plugin) below.
-- CodeBuddy: single-session use directly from a source checkout via
+- CodeBuddy: single-session use from a source checkout via
   `--plugin-dir <path>/adapters/workbuddy` (see the
   [CodeBuddy/WorkBuddy section](#install-as-a-codebuddyworkbuddy-plugin)).
 
@@ -114,7 +110,7 @@ tag pinned to the exact version (never the bare repository URL, which installs
 the latest release or default branch), confirm the trust prompt, then reload:
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.9
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.10
    /plugins reload
    ```
 

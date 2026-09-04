@@ -187,8 +187,7 @@ const CLAUDE = Object.freeze({
     name: 'claude',
     pluginDirName: '.claude-plugin',
     templateFileName: 'plugin.json',
-    marketplaceFileName: 'marketplace.json',
-    hasMarketplace: true,
+    hasMarketplace: false,
   }),
   strategy: Object.freeze({
     parseListOutput: claudeParseListOutput,

@@ -2,7 +2,7 @@
 
 [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.9 -->
+<!-- release-skill:release-version: 0.9.10 -->
 ## 前置条件
 
 - Node.js 22.0.0 或更高版本
@@ -32,32 +32,31 @@ release-skill help
 
 输出中应包含版本号和可用命令列表。
 
-## 安装为插件（bundled-family 市场——推荐）
+## 安装为插件（Skill Family Hub——推荐）
 
-Claude Code、CodeBuddy、WorkBuddy 和 Codex 从 bundled-family 市场
-[ifoohoo/release-skill](https://github.com/ifoohoo/release-skill)
-安装 release-skill。插件仓库自身携带市场清单
-（`.claude-plugin/marketplace.json`），无需外部市场。release-skill 当前没有接入
+Claude Code、CodeBuddy、WorkBuddy 和 Codex 从统一的
+[Skill Family Hub](https://github.com/ifoohoo/skill-family-hub)
+安装 release-skill。release-skill 仓库只携带插件清单，不再携带市场索引。当前没有接入
 Kimi Code 的可脚本化安装接口，见 [Kimi Code 小节](#安装为-kimi-code-插件)。先添加一次市场，再安装
 插件：
 
 > **前置条件：GitHub 访问。** `owner/repo` 简写会让 Claude Code 通过
 > `git@github.com:...`（SSH）克隆，需要本机配置 GitHub 公钥。如不使用 SSH，
-> 可传完整 HTTPS 地址——`/plugin marketplace add https://github.com/ifoohoo/release-skill`——
+> 可传完整 HTTPS 地址——`/plugin marketplace add https://github.com/ifoohoo/skill-family-hub`——
 > 或设置 `CLAUDE_CODE_PLUGIN_PREFER_HTTPS=1`。
 
 **Claude Code**（交互会话中）：
 
 ```
-/plugin marketplace add ifoohoo/release-skill
-/plugin install release-skill@release-skill
+/plugin marketplace add ifoohoo/skill-family-hub
+/plugin install release-skill@skill-family-hub
 ```
 
 **CodeBuddy / WorkBuddy：**
 
 ```bash
-codebuddy plugin marketplace add ifoohoo/release-skill
-codebuddy plugin install release-skill@release-skill
+codebuddy plugin marketplace add ifoohoo/skill-family-hub
+codebuddy plugin install release-skill@skill-family-hub
 ```
 
 WorkBuddy 桌面端只能通过已注册的市场安装：执行上面的 `marketplace add`
@@ -66,7 +65,7 @@ WorkBuddy 桌面端只能通过已注册的市场安装：执行上面的 `marke
 **OpenAI Codex：**
 
 ```bash
-codex plugin marketplace add ifoohoo/release-skill
+codex plugin marketplace add ifoohoo/skill-family-hub
 ```
 
 然后在交互式 `/plugins` 浏览器中安装 `release-skill`。
@@ -78,10 +77,8 @@ release-skill 当前对 Kimi Code 采用钉死版本的交互式 TUI 路径。�
 
 ### 备选：直接从仓库安装（进阶）
 
-上面的统一市场是受支持的主路径。直接从发布仓库安装仍可用于进阶场景：
+上面的 Hub 市场是受支持的主路径。只有宿主支持仓库 URL 时，才能直接安装：
 
-- Claude Code：`/plugin marketplace add ifoohoo/release-skill`，然后
-  `/plugin install release-skill@release-skill`。
 - Kimi Code：下文 [Kimi Code 小节](#安装为-kimi-code-插件)中版本钉死的
   `/plugins install <release-tag URL>`。
 - CodeBuddy：源码检出后通过 `--plugin-dir <path>/adapters/workbuddy`
@@ -104,7 +101,7 @@ release-skill 当前只采用并验证 Kimi Code 的交互式 TUI 路径，**无
 （切勿使用裸仓库地址，它会安装最新 release 或默认分支），确认信任提示后重新加载：
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.9
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.10
    /plugins reload
    ```
 
