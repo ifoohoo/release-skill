@@ -18,6 +18,15 @@
       },
       "category": "DevOps",
       "description": "Safe preparation and frozen GitHub/npm production publishing with full happy end verification"
+    },
+    {
+      "name": "foundation-adoption-review",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/ifoohoo/foundation-adoption-review.git",
+        "ref": "refs/tags/foundation-adoption-review-v0.1.0",
+        "sha": "7e8032735f7589dbbeecc1012c8f6a1f32390ada"
+      }
     }
   ]
 }
