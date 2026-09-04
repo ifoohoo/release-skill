@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.11"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.12"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "42faaeb2d272e94efd6075f39b6553540afc307ce64a853a8021eb474fdb380b";
+const __bundleSourceDigest = "e6659bd85e866fd7a2780e48de7c89324b9211503d1029a94ce271384f0678b7";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -136313,6 +136313,49 @@ var init_notify_handoff = __esm({
   }
 });
 
+// src/core/proposal-document.mjs
+function proposalFileName(unitId, version) {
+  if (typeof unitId !== "string" || unitId.length === 0 || typeof version !== "string" || version.length === 0) {
+    throw new ReleaseError(GATE_FAILED, "proposal file name requires unitId and version", { unitId, version });
+  }
+  return `incoming/${unitId}-${version}.json`;
+}
+function buildProposalDocument(context) {
+  const required = ["unitId", "version", "tag", "commit", "planDigest", "runId"];
+  for (const field of required) {
+    if (typeof context?.[field] !== "string" || context[field].length === 0) {
+      throw new ReleaseError(GATE_FAILED, `proposal document requires context field "${field}"`, { field });
+    }
+  }
+  const { unitId, version, tag, commit, tree, manifestDigest, planDigest, runId, publishedAt, verifyEvidence } = context;
+  return {
+    schemaVersion: PROPOSAL_SCHEMA_VERSION,
+    kind: PROPOSAL_KIND,
+    unitId,
+    version,
+    tag,
+    sha: commit,
+    commit,
+    ...typeof tree === "string" && tree.length > 0 ? { tree } : {},
+    ...typeof manifestDigest === "string" && manifestDigest.length > 0 ? { manifestDigest } : {},
+    planDigest,
+    runId,
+    ...publishedAt !== void 0 ? { publishedAt } : {},
+    ...verifyEvidence !== void 0 ? { verifyEvidence } : {},
+    changeSummary: `release ${unitId} ${version} (tag ${tag}, commit ${commit})`
+  };
+}
+var PROPOSAL_SCHEMA_VERSION, PROPOSAL_KIND;
+var init_proposal_document = __esm({
+  "src/core/proposal-document.mjs"() {
+    init_errors3();
+    PROPOSAL_SCHEMA_VERSION = 1;
+    PROPOSAL_KIND = "release-skill/update-proposal";
+    __name(proposalFileName, "proposalFileName");
+    __name(buildProposalDocument, "buildProposalDocument");
+  }
+});
+
 // src/core/proposal-inbox.mjs
 import { execFile as execFileCb14 } from "node:child_process";
 import { promisify as promisify14 } from "node:util";
@@ -136388,37 +136431,6 @@ function parseLsRemote(stdout) {
     }
   }
   return refs;
-}
-function proposalFileName(unitId, version) {
-  if (typeof unitId !== "string" || unitId.length === 0 || typeof version !== "string" || version.length === 0) {
-    throw new ReleaseError(GATE_FAILED, "proposal file name requires unitId and version", { unitId, version });
-  }
-  return `incoming/${unitId}-${version}.json`;
-}
-function buildProposalDocument(context) {
-  const required = ["unitId", "version", "tag", "commit", "planDigest", "runId"];
-  for (const field of required) {
-    if (typeof context?.[field] !== "string" || context[field].length === 0) {
-      throw new ReleaseError(GATE_FAILED, `proposal document requires context field "${field}"`, { field });
-    }
-  }
-  const { unitId, version, tag, commit, tree, manifestDigest, planDigest, runId, publishedAt, verifyEvidence } = context;
-  return {
-    schemaVersion: PROPOSAL_SCHEMA_VERSION,
-    kind: PROPOSAL_KIND,
-    unitId,
-    version,
-    tag,
-    sha: commit,
-    commit,
-    ...typeof tree === "string" && tree.length > 0 ? { tree } : {},
-    ...typeof manifestDigest === "string" && manifestDigest.length > 0 ? { manifestDigest } : {},
-    planDigest,
-    runId,
-    ...publishedAt !== void 0 ? { publishedAt } : {},
-    ...verifyEvidence !== void 0 ? { verifyEvidence } : {},
-    changeSummary: `release ${unitId} ${version} (tag ${tag}, commit ${commit})`
-  };
 }
 function buildManualSyncPrompt({ remoteUrl, proposalPath, branch }) {
   const safeRemoteUrl = redactUrlCredentialsIfPresent(remoteUrl);
@@ -136729,15 +136741,15 @@ async function executeProposalInboxLocalFileHook(params) {
     })
   };
 }
-var execFileAsync3, PROPOSAL_SCHEMA_VERSION, PROPOSAL_KIND, PROBE_TIMEOUT_MS, GIT_TIMEOUT_MS, TRANSFER_TIMEOUT_MS, TMP_PREFIX, SAFE_BRANCH_RE, SHA_RE2, NEVER_PROMPT_ENV, AUTH_FAILURE_PATTERNS, TRANSPORT_FAILURE_PATTERNS;
+var execFileAsync3, PROBE_TIMEOUT_MS, GIT_TIMEOUT_MS, TRANSFER_TIMEOUT_MS, TMP_PREFIX, SAFE_BRANCH_RE, SHA_RE2, NEVER_PROMPT_ENV, AUTH_FAILURE_PATTERNS, TRANSPORT_FAILURE_PATTERNS;
 var init_proposal_inbox = __esm({
   "src/core/proposal-inbox.mjs"() {
     init_errors3();
     init_presets();
     init_git_url_policy();
+    init_proposal_document();
+    init_proposal_document();
     execFileAsync3 = promisify14(execFileCb14);
-    PROPOSAL_SCHEMA_VERSION = 1;
-    PROPOSAL_KIND = "release-skill/update-proposal";
     PROBE_TIMEOUT_MS = 3e4;
     GIT_TIMEOUT_MS = 12e4;
     TRANSFER_TIMEOUT_MS = 3e5;
@@ -136779,8 +136791,6 @@ var init_proposal_inbox = __esm({
     __name(stderrTail, "stderrTail");
     __name(classifyNetFailure, "classifyNetFailure");
     __name(parseLsRemote, "parseLsRemote");
-    __name(proposalFileName, "proposalFileName");
-    __name(buildProposalDocument, "buildProposalDocument");
     __name(buildManualSyncPrompt, "buildManualSyncPrompt");
     __name(crossCheckPushedCommit, "crossCheckPushedCommit");
     __name(observeProposalInboxGitPush, "observeProposalInboxGitPush");

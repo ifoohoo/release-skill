@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.11 -->
+<!-- release-skill:release-version: 0.9.12 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,30 +14,26 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.11** (2026-09-04)
+**0.9.12** (2026-09-04)
 
-0.9.11 is a local source candidate that makes first-release verification advance its public baseline and permits an explicit empty distribution list for GitHub-only plugin releases. It consumes the three Foundation packages at the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.12 is a local source candidate that fixes the frozen postVerify execution closure used to publish verified releases into Skill Family Hub. It retains the 0.9.11 first-release baseline and GitHub-only distribution changes, with the three Foundation dependencies still pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- First-release baseline advancement runs only after immutable publication verification succeeds. Configuration writes are validated and atomic; restoration failures retain their phase and publication-state details in verification evidence without changing a successful publication result.
-- An empty distribution list does not skip the GitHub snapshot, tag, or GitHub Release actions, and it does not grant a marketplace registration.
-- Hub branch updates use compare-and-swap against the observed branch head. A partial Hub publication is retained for recovery and is never rolled back or force-pushed.
+- The repair does not weaken the frozen execution-bundle boundary: the hook still runs from the verified tag plus the digest-bound private script. Hub branch updates remain compare-and-swap operations; a partial Hub publication is retained for recovery and is never rolled back or force-pushed.
 
-**Changed**
+**Fixed**
 
-- After a release reaches VERIFIED, a unit whose previous public baseline is `mode: none` is advanced to a bound baseline with the resolved repository and ref plus the exact frozen commit, tree, and manifest digest. Mixed plans and custom in-root config paths use the same existing atomic update path, preserve an explicit GitHub host, and report only units that changed.
-- `releaseUnits[].distributions` remains required but may now be an explicit empty list. Such a unit still freezes and publishes its GitHub snapshot, tag, and GitHub Release, while npm and marketplace actions are omitted; postPublish and postVerify hooks remain independent.
-- Pinned `skill-family-contracts`, `skill-family-harness-node`, and `skill-family-engineering-kit` dependencies were upgraded from 0.16.0 to the exact published 0.17.0 versions.
-- Skill Family Hub remains the single marketplace source. After verification, the project-private postVerify hook applies the Hub proposal and publishes its private entry and public snapshot through GitHub's Git Data API.
+- The Hub postVerify hook now imports proposal projection from a dependency-free public module. A detached frozen-tag worktree can load the module without node_modules, while runtime proposal transports continue to use the same implementation through a compatibility re-export.
+- The project-private postVerify hook continues to publish verified entries and public snapshots to Skill Family Hub through GitHub's Git Data API.
 
 **Upgrade Notes**
 
-Remove any `release-skill` standalone marketplace registration, add or update `ifoohoo/skill-family-hub`, and use `release-skill@skill-family-hub`. Use `distributions: []` only when the release unit is intentionally GitHub-only and marketplace registration is handled by an independent verified workflow. Existing non-empty distribution lists keep their behavior. After installing or reloading the official 0.9.11 release, a historical first release may be reverified without republishing; confirm that its configured previous public baseline changed from `none` to the verified frozen coordinates.
+Upgrade from 0.9.11 before relying on the bundled `hub-api-publish` postVerify hook. Remove any `release-skill` standalone marketplace registration, add or update `ifoohoo/skill-family-hub`, and use `release-skill@skill-family-hub`. Releases that do not use this hook are unaffected.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.11 is the current source candidate. This README
+> **Current boundary:** v0.9.12 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -61,7 +57,7 @@ Remove any `release-skill` standalone marketplace registration, add or update `i
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.11 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.12 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -90,7 +86,7 @@ checkpoints remain intact and use matching-version recovery. Evidence v1 stays
 read-only; v2 uses a closed top level with phase extensions in `details`.
 Summaries and recovery suggestions are diagnostic, never publication authority.
 
-The current 0.9.11 candidate includes the narrow R-05 Hook cache v2 consumer
+The current 0.9.12 candidate includes the narrow R-05 Hook cache v2 consumer
 path, the public `postverify` path, and the stable isolated install-tree record
 path (A2/A3). It also removes the repository's own marketplace indexes and
 uses Skill Family Hub as the single marketplace source. It still

@@ -53,12 +53,16 @@ import {
   describeGitRemoteUrlFailure,
   redactUrlCredentialsIfPresent,
 } from './git-url-policy.mjs';
+import { buildProposalDocument, proposalFileName } from './proposal-document.mjs';
+
+export {
+  PROPOSAL_SCHEMA_VERSION,
+  PROPOSAL_KIND,
+  buildProposalDocument,
+  proposalFileName,
+} from './proposal-document.mjs';
 
 const execFileAsync = promisify(execFileCb);
-
-/** Proposal document identity. */
-export const PROPOSAL_SCHEMA_VERSION = 1;
-export const PROPOSAL_KIND = 'release-skill/update-proposal';
 
 const PROBE_TIMEOUT_MS = 30_000;
 const GIT_TIMEOUT_MS = 120_000;
@@ -186,54 +190,6 @@ function parseLsRemote(stdout) {
 // ---------------------------------------------------------------------------
 // Proposal document (deterministic projection of the §2.3 context)
 // ---------------------------------------------------------------------------
-
-/** Proposal file location inside the downstream repository. */
-export function proposalFileName(unitId, version) {
-  if (typeof unitId !== 'string' || unitId.length === 0
-    || typeof version !== 'string' || version.length === 0) {
-    throw new ReleaseError(GATE_FAILED, 'proposal file name requires unitId and version', { unitId, version });
-  }
-  return `incoming/${unitId}-${version}.json`;
-}
-
-/**
- * Build the proposal document from the §2.3 context projection. Pure and
- * deterministic. Deliberately EXCLUDES payloadDir (a local materialization
- * path has no place in a downstream-facing document), and optional frozen
- * fields are ABSENT rather than null when the plan did not freeze them.
- *
- * Field set suffices to backfill a missing downstream hub entry:
- * unitId/version/tag/sha/commit/tree/manifestDigest/planDigest/runId/
- * publishedAt/verifyEvidence/changeSummary.
- *
- * @param {object} context - The §2.3 context projection.
- * @returns {object} The proposal document.
- */
-export function buildProposalDocument(context) {
-  const required = ['unitId', 'version', 'tag', 'commit', 'planDigest', 'runId'];
-  for (const field of required) {
-    if (typeof context?.[field] !== 'string' || context[field].length === 0) {
-      throw new ReleaseError(GATE_FAILED, `proposal document requires context field "${field}"`, { field });
-    }
-  }
-  const { unitId, version, tag, commit, tree, manifestDigest, planDigest, runId, publishedAt, verifyEvidence } = context;
-  return {
-    schemaVersion: PROPOSAL_SCHEMA_VERSION,
-    kind: PROPOSAL_KIND,
-    unitId,
-    version,
-    tag,
-    sha: commit,
-    commit,
-    ...(typeof tree === 'string' && tree.length > 0 ? { tree } : {}),
-    ...(typeof manifestDigest === 'string' && manifestDigest.length > 0 ? { manifestDigest } : {}),
-    planDigest,
-    runId,
-    ...(publishedAt !== undefined ? { publishedAt } : {}),
-    ...(verifyEvidence !== undefined ? { verifyEvidence } : {}),
-    changeSummary: `release ${unitId} ${version} (tag ${tag}, commit ${commit})`,
-  };
-}
 
 /**
  * Deterministic manual-sync prompt (closure semantics): delivery success plus

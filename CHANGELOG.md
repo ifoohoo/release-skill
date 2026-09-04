@@ -1,5 +1,25 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.12 locale=en baseline=sha256:c2511de86192c1798c17e579bed689c57c450516b10bd85d6a508b0b6e5e19b1 -->
+## [0.9.12] - 2026-09-04
+
+0.9.12 is a local source candidate that fixes the frozen postVerify execution closure used to publish verified releases into Skill Family Hub. It retains the 0.9.11 first-release baseline and GitHub-only distribution changes, with the three Foundation dependencies still pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- The repair does not weaken the frozen execution-bundle boundary: the hook still runs from the verified tag plus the digest-bound private script. Hub branch updates remain compare-and-swap operations; a partial Hub publication is retained for recovery and is never rolled back or force-pushed.
+
+### Fixed
+
+- The Hub postVerify hook now imports proposal projection from a dependency-free public module. A detached frozen-tag worktree can load the module without node_modules, while runtime proposal transports continue to use the same implementation through a compatibility re-export.
+- The project-private postVerify hook continues to publish verified entries and public snapshots to Skill Family Hub through GitHub's Git Data API.
+
+### Upgrade Notes
+
+Upgrade from 0.9.11 before relying on the bundled `hub-api-publish` postVerify hook. Remove any `release-skill` standalone marketplace registration, add or update `ifoohoo/skill-family-hub`, and use `release-skill@skill-family-hub`. Releases that do not use this hook are unaffected.
+<!-- release-skill:changelog:end version=0.9.12 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.11 locale=en baseline=sha256:c8015d6a26b39a9056c121425b8758a108048d78815476e7bf3d2711cec6ee25 -->
 ## [0.9.11] - 2026-09-04
 
