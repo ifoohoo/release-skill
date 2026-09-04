@@ -1,5 +1,5 @@
 import { lstat, readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 import YAML from 'yaml';
 import { replaceFileAtomic } from 'skill-family-harness-node';
 
@@ -20,7 +20,20 @@ function assertOid(value, label) {
 export async function updatePreviousPublicBaselines(options = {}) {
   const root = resolve(options.root ?? process.cwd());
   const planPath = resolve(options.planPath ?? '');
-  const configPath = resolve(root, '.release-skill', 'project.yaml');
+  const configPath = isAbsolute(options.configPath ?? '')
+    ? resolve(options.configPath)
+    : resolve(root, options.configPath ?? '.release-skill/project.yaml');
+  const configRelativePath = relative(root, configPath);
+  if (
+    configRelativePath === '..'
+    || configRelativePath.startsWith(`..${sep}`)
+    || isAbsolute(configRelativePath)
+  ) {
+    throw new ReleaseError(CONFIG_INVALID, 'project config must stay within the project root', {
+      root,
+      configPath,
+    });
+  }
   let plan;
   let configRaw;
   let configStat;
@@ -69,6 +82,7 @@ export async function updatePreviousPublicBaselines(options = {}) {
     const old = configUnit.get('previousPublicBaseline', true)?.toJSON?.() ?? {};
     const next = {
       mode: 'bound',
+      ...(typeof old.githubHost === 'string' ? { githubHost: old.githubHost } : {}),
       repo: old.repo ?? unit.publicRepo,
       ref: old.ref ?? `refs/heads/${frozen.branch}`,
       commit: frozen.commit,
@@ -78,6 +92,15 @@ export async function updatePreviousPublicBaselines(options = {}) {
     if (!next.repo || !next.ref) {
       throw new ReleaseError(GATE_FAILED, `unit "${unit.id}" cannot derive its next public baseline identity`);
     }
+    const changed = [
+      'mode',
+      'repo',
+      'ref',
+      'commit',
+      'tree',
+      'manifestDigest',
+    ].some((field) => old[field] !== next[field]);
+    if (!changed) continue;
     configUnit.set('previousPublicBaseline', next);
     updates.push({
       id: unit.id,
@@ -86,16 +109,41 @@ export async function updatePreviousPublicBaselines(options = {}) {
     });
   }
 
+  if (updates.length === 0) {
+    return { status: 'UNCHANGED', configPath, units: [] };
+  }
   const nextRaw = doc.toString();
   if (nextRaw === configRaw) {
     return { status: 'UNCHANGED', configPath, units: updates };
   }
   try {
-    await replaceFileAtomic(root, '.release-skill/project.yaml', nextRaw, {
+    await replaceFileAtomic(root, configRelativePath, nextRaw, {
       mode: configStat.mode & 0o777,
     });
   } catch (error) {
     throw new ReleaseError(CONFIG_INVALID, `cannot update project release metadata: ${error.message}`, error.details);
+  }
+  if (typeof options.validateFn === 'function') {
+    try {
+      await options.validateFn(configPath);
+    } catch (error) {
+      try {
+        await replaceFileAtomic(root, configRelativePath, configRaw, {
+          mode: configStat.mode & 0o777,
+        });
+      } catch (restoreError) {
+        throw new ReleaseError(
+          CONFIG_INVALID,
+          `cannot restore project release metadata after validation failed: ${restoreError.message}`,
+          { validationError: error.message, restoreError: restoreError.details },
+        );
+      }
+      throw new ReleaseError(
+        GATE_FAILED,
+        `baseline advance reverted: rewritten config failed validation: ${error.message}`,
+        { configPath, cause: error.message },
+      );
+    }
   }
   return { status: 'UPDATED', configPath, units: updates };
 }

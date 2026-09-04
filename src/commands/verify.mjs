@@ -64,6 +64,7 @@ import {
   isWorktreeFileClean,
   commitBaselineAdvance,
 } from '../core/baseline-advance.mjs';
+import { updatePreviousPublicBaselines } from '../core/release-metadata.mjs';
 import { loadProjectConfig } from '../core/config.mjs';
 import { assertTransition, PUBLISHED, VERIFIED } from '../core/state-machine.mjs';
 import { clearFrozenMarker } from '../core/frozen-marker.mjs';
@@ -2330,17 +2331,41 @@ export async function verifyRelease(options) {
     // =======================================================================
     let baselineAdvance = null;
     const baselineAdvances = deriveBaselineAdvances(plan);
-    if (baselineAdvances.length > 0) {
+    const hasFirstReleaseBaseline = (plan.units ?? [])
+      .some((unit) => unit?.previousPublicBaseline?.mode === 'none');
+    if (hasFirstReleaseBaseline || baselineAdvances.length > 0) {
       try {
         const configAbs = configPathOpt
           ? (isAbsolute(configPathOpt) ? configPathOpt : join(root, configPathOpt))
           : join(root, '.release-skill/project.yaml');
         const cleanBefore = await isWorktreeFileClean({ root, filePath: configAbs, execFn });
-        const applyResult = await applyBaselineAdvances({
-          configPath: configAbs,
-          advances: baselineAdvances,
-          validateFn: async () => { await loadProjectConfig({ root, configPath: configAbs }); },
-        });
+        // A first-release plan must convert mode=none to a fully bound
+        // baseline. The metadata updater processes the whole plan, so mixed
+        // none+bound plans take this branch exclusively and do not omit or
+        // double-write their already-bound units. Pure bound plans retain
+        // the existing derive/apply path unchanged.
+        let applyResult;
+        if (hasFirstReleaseBaseline) {
+          await loadProjectConfig({ root, configPath: configAbs });
+          const metadataResult = await updatePreviousPublicBaselines({
+            root,
+            planPath,
+            configPath: configAbs,
+            validateFn: async () => { await loadProjectConfig({ root, configPath: configAbs }); },
+          });
+          applyResult = {
+            changed: metadataResult.status === 'UPDATED',
+            updatedUnits: metadataResult.status === 'UPDATED'
+              ? metadataResult.units.map((unit) => unit.id)
+              : [],
+          };
+        } else {
+          applyResult = await applyBaselineAdvances({
+            configPath: configAbs,
+            advances: baselineAdvances,
+            validateFn: async () => { await loadProjectConfig({ root, configPath: configAbs }); },
+          });
+        }
         baselineAdvance = { ...applyResult, committed: false };
         if (applyResult.changed && cleanBefore) {
           const versionLabel = (plan.units ?? [])
@@ -2362,12 +2387,25 @@ export async function verifyRelease(options) {
           committed: baselineAdvance.committed,
         });
       } catch (err) {
-        baselineAdvance = { failed: true, error: err.message };
+        const errorDetails = err instanceof ReleaseError
+          ? err.toJSON().details
+          : undefined;
+        baselineAdvance = {
+          failed: true,
+          error: err.message,
+          ...(errorDetails ? { details: errorDetails } : {}),
+        };
         await evidence.append({
           phase: 'verify',
-          step: 'baseline-advance',
           status: 'failed',
-          error: { code: err.code, message: err.message },
+          error: {
+            code: err.code,
+            message: err.message,
+          },
+          details: {
+            step: 'baseline-advance',
+            ...(errorDetails ? { errorDetails } : {}),
+          },
         });
       }
     }

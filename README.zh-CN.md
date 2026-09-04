@@ -2,33 +2,36 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.10 -->
+<!-- release-skill:release-version: 0.9.11 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.10** (2026-09-04)
+**0.9.11** (2026-09-04)
 
-0.9.10 是删除 release-skill 自有市场、统一以 Skill Family Hub 为市场来源的本地源码候选，三项 Foundation 依赖均精确使用已发布的 0.16.0。发布验证完成后，发布工作区会通过 GitHub Git Data API 更新 Hub 条目及七文件公开快照。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.11 是修复首次发布验证后基线推进、并允许 GitHub-only 插件发布显式使用空分发列表的本地源码候选，三项 Foundation 依赖均精确升级到已发布的 0.17.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- Hub 分支更新以已观察的 main commit 做比较后写入，禁止强推；并发漂移会失败关闭。若私有 Hub 已提交而公开 Hub 失败，则保留可恢复的 PARTIAL 状态，不回滚、不覆盖。
+- 首次发布基线只在不可变发布内容验证成功后推进。配置写入会先验证并采用原子更新；若恢复失败，验证证据会保留阶段与发布状态详情，同时不把已经成功的发布结果降级。
+- 空分发列表不会跳过 GitHub 快照、tag 或 GitHub Release，也不会自动获得市场登记。
+- Hub 分支更新以已观察的分支头做比较后写入。Hub 局部发布会保留为可恢复状态，不回滚、不覆盖，也不强推。
 
 **变更**
 
-- 从 release-skill 包中删除 Claude、Codex 及适配器内的自有市场索引；插件清单继续保留，由 Skill Family Hub 提供安装入口。
-- Claude Code、Codex、CodeBuddy 和 WorkBuddy 的安装说明统一改为 `ifoohoo/skill-family-hub` 与 `release-skill@skill-family-hub`。
-- 发布达到 VERIFIED 后，项目私有的 postVerify hook 会调用 Hub 自身接收器应用提案，只运行一次 Hub 发布门禁，再通过 GitHub Git Data API 发布 Hub 私有真源和公开快照。
+- 发布达到 VERIFIED 后，`previousPublicBaseline` 为 `mode: none` 的单元会转为 bound 基线，写入解析后的仓库与 ref，以及本次冻结的精确 commit、tree 和 manifest digest。混合计划与根目录内的自定义配置路径复用既有原子更新路径，保留显式 GitHub host，并且只报告实际发生变化的单元。
+- `releaseUnits[].distributions` 仍为必填字段，但现在可以显式设置为空列表。该单元仍会冻结并发布 GitHub 快照、tag 和 GitHub Release，只省略 npm 与市场动作；postPublish 和 postVerify hook 继续独立执行。
+- 精确固定的 `skill-family-contracts`、`skill-family-harness-node` 和 `skill-family-engineering-kit` 依赖从 0.16.0 升级到已发布的 0.17.0。
+- Skill Family Hub 继续作为唯一市场来源。验证完成后，项目私有的 postVerify hook 会应用 Hub 提案，并通过 GitHub Git Data API 发布 Hub 私有条目和公开快照。
 
 **升级说明**
 
-在各宿主删除独立的 `release-skill` 市场登记，添加或更新 `ifoohoo/skill-family-hub`，再安装 `release-skill@skill-family-hub`。
+删除各宿主中独立的 `release-skill` 市场登记，添加或更新 `ifoohoo/skill-family-hub`，并使用 `release-skill@skill-family-hub`。仅在发布单元有意采用 GitHub-only 发布、且市场登记由独立的已验证流程处理时使用 `distributions: []`。既有非空分发列表的行为不变。安装或重新加载正式发布并已验证的 0.9.11 后，可以直接重新验证历史首次发布，无需重复发布；随后应确认配置中的上一公开基线已从 `none` 更新为本次验证的精确冻结坐标。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.10 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.11 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -44,7 +47,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.10 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.11 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -62,13 +65,13 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-当前 0.9.10 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
+当前 0.9.11 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
 路径和稳定隔离安装树记录路径（A2/A3），并删除仓库自有市场索引，统一以
 Skill Family Hub 为市场来源。当前仍不包含 R-02 安全整树盘点、R-10 历史发布验证
 的产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录
 验证器。本范围说明不构成远端发布记录或消费者升级指引。
 
-Foundation 三包精确依赖已发布的 0.16.0。仍采用 bundled-family 分发形态的
+Foundation 三包精确依赖已发布的 0.17.0。仍采用 bundled-family 分发形态的
 Kimi/CodeBuddy 计划会在 verify 阶段调用正式 `runPluginVerification`，把完整冻结载荷
 交给 Foundation，并记录最小的 `install-only` 观察收据。Kimi 映射为 `kimi-code`，
 CodeBuddy 映射为兼容的 `workbuddy`。`observed` 与 `payloadMatches` 只表示机制观察结果，
@@ -436,6 +439,12 @@ releaseUnits:
       branchTemplate: release/{tag}
       branchStrategy: create-release-branch
 ```
+
+`distributions` 是必填字段，但可以显式设为空数组。使用
+`distributions: []` 时，release-skill 只发布该单元的 GitHub 快照、标签和
+GitHub Release，不生成 npm 发布或市场消费者动作。单元的 `postPublish` 声明仍会
+生效，包括 phase 为 `postVerify` 的 hook。这种配置适用于先把发布验证到
+`VERIFIED`，再登记到中央 Hub 的插件。
 
 `version.source` 相对于该发布单元的 `source` 目录解析（`version.source` is resolved relative to that release unit's `source` directory）。monorepo 中 npm 和插件分开发布时定义多个发布单元：
 

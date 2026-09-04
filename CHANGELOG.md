@@ -1,5 +1,29 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.11 locale=en baseline=sha256:c8015d6a26b39a9056c121425b8758a108048d78815476e7bf3d2711cec6ee25 -->
+## [0.9.11] - 2026-09-04
+
+0.9.11 is a local source candidate that makes first-release verification advance its public baseline and permits an explicit empty distribution list for GitHub-only plugin releases. It consumes the three Foundation packages at the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- First-release baseline advancement runs only after immutable publication verification succeeds. Configuration writes are validated and atomic; restoration failures retain their phase and publication-state details in verification evidence without changing a successful publication result.
+- An empty distribution list does not skip the GitHub snapshot, tag, or GitHub Release actions, and it does not grant a marketplace registration.
+- Hub branch updates use compare-and-swap against the observed branch head. A partial Hub publication is retained for recovery and is never rolled back or force-pushed.
+
+### Changed
+
+- After a release reaches VERIFIED, a unit whose previous public baseline is `mode: none` is advanced to a bound baseline with the resolved repository and ref plus the exact frozen commit, tree, and manifest digest. Mixed plans and custom in-root config paths use the same existing atomic update path, preserve an explicit GitHub host, and report only units that changed.
+- `releaseUnits[].distributions` remains required but may now be an explicit empty list. Such a unit still freezes and publishes its GitHub snapshot, tag, and GitHub Release, while npm and marketplace actions are omitted; postPublish and postVerify hooks remain independent.
+- Pinned `skill-family-contracts`, `skill-family-harness-node`, and `skill-family-engineering-kit` dependencies were upgraded from 0.16.0 to the exact published 0.17.0 versions.
+- Skill Family Hub remains the single marketplace source. After verification, the project-private postVerify hook applies the Hub proposal and publishes its private entry and public snapshot through GitHub's Git Data API.
+
+### Upgrade Notes
+
+Remove any `release-skill` standalone marketplace registration, add or update `ifoohoo/skill-family-hub`, and use `release-skill@skill-family-hub`. Use `distributions: []` only when the release unit is intentionally GitHub-only and marketplace registration is handled by an independent verified workflow. Existing non-empty distribution lists keep their behavior. After installing or reloading the official 0.9.11 release, a historical first release may be reverified without republishing; confirm that its configured previous public baseline changed from `none` to the verified frozen coordinates.
+<!-- release-skill:changelog:end version=0.9.11 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.10 locale=en baseline=sha256:4cd32926b3d8e0da10ec909f58268636c3e6025f59cd7f24d313460cf5524b7b -->
 ## [0.9.10] - 2026-09-04
 

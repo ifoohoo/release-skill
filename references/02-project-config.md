@@ -42,7 +42,7 @@ releaseUnits:               # 发布单元数组，至少 1 个
     version:
       source: <string>      # 版本来源，如 "package.json"
       tagTemplate: <string> # tag 模板，如 "artifact-graph-v{version}"
-    distributions:          # 分发渠道数组
+    distributions:          # 必填；分发渠道数组，也可显式设为 []
       - type: <string>      # "npm" | "claude-plugin" | "codex-plugin"
         package: <string>   # npm 包名（type 为 npm 时必填）
         # 插件渠道（claude-plugin/codex-plugin/kimi-plugin/codebuddy-plugin）
@@ -111,6 +111,12 @@ policy:                     # 可选，安全策略
   forbiddenPaths: [<string>]
   forbiddenContentPatterns: [<string>]
 ```
+
+`distributions: []` 表示该发布单元不生成 npm 或插件市场动作，不表示跳过公开发布。
+生产模式的 `prepare` 仍会冻结 GitHub 快照，并生成 `push-snapshot`、`create-tag` 和
+`github-release`。该单元的 `postPublish` 声明保持独立生效，其中 phase 为
+`postVerify` 的 hook 也不受影响。因此纯插件可以先验证公开 GitHub Release，再向中央
+Hub 投递登记提案。
 
 `publicSourceAuthorityReceipt` 只适用于 production prepare。`coordinatorUnitId`
 指定承载该文件的 GitHub Release；`subjectUnitIds` 必须引用现有 release unit，且每个

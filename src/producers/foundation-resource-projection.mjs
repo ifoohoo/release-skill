@@ -55,9 +55,9 @@ import { digestBytes, publishFileOrReplace, readFileStrict, withTemporaryWorkspa
 import { canonicalJson } from '../core/digest.mjs';
 
 export const FOUNDATION_PACKAGES = Object.freeze({
-  'skill-family-contracts': '0.16.0',
-  'skill-family-engineering-kit': '0.16.0',
-  'skill-family-harness-node': '0.16.0',
+  'skill-family-contracts': '0.17.0',
+  'skill-family-engineering-kit': '0.17.0',
+  'skill-family-harness-node': '0.17.0',
 });
 
 export const BINDING_RECORD_PATH = 'bin/foundation-resource-binding.json';

@@ -5,6 +5,11 @@
   "displayName": "CodeBuddy",
   "support": "manual",
   "maturity": "manual",
+  "verification": {
+    "driverId": "codebuddy-print-v1",
+    "authStrategy": "existing-user-state",
+    "credentialMutation": "host-managed"
+  },
   "sourceAliases": [],
   "pathCategories": [],
   "probeCapabilities": [

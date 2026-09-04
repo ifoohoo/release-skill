@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "skill-family.contracts.rules",
-  "contractsVersion": "1.15.0",
+  "contractsVersion": "1.16.0",
   "budget": {
     "firstVersionMax": 20,
     "absoluteMax": 30,
