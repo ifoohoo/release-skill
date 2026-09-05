@@ -188,7 +188,17 @@ releaseUnits:
         - id: notify-downstream
           command: [node, scripts/notify-downstream.mjs]
           phase: postVerify
+      localHostUpdate:
+        plugin: postpublish-example
+        hosts: [claude, codex, kimi, codebuddy, workbuddy]
+        hub:
+          name: example-hub
+          githubHost: github.com
+          repo: example/example-hub
+          ref: refs/heads/main
 ```
+
+`localHostUpdate` 只声明 `postVerify` 完成后的本机更新候选。`plugin` 必须与冻结公开快照中的插件 manifest 身份一致，`hosts` 只能使用现有的五个 local-finish 宿主 ID，`hub.repo` 使用 `owner/repo`，`hub.ref` 必须是完整的 `refs/heads/...` 引用。声明该字段时，同一 `postPublish` 块至少要有一个 `phase: postVerify` Hook。prepare 只校验冻结声明和插件身份，不访问 Hub，也不要求 Hub 预先存在目标版本。
 
 ---
 

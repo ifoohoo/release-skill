@@ -2,33 +2,36 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.13 -->
+<!-- release-skill:release-version: 0.9.14 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.13** (2026-09-05)
+**0.9.14** (2026-09-05)
 
-0.9.13 是阻止新的 CodeBuddy 发布配置静默继承其他产品线市场的本地源码候选，并把 README 黑盒场景中的候选版本交给现有版本同步命令统一维护。三项 Foundation 依赖仍精确固定在已发布的 0.17.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.14 是限制 production prepare 历史 run 保留数量、并在发布后验证完成后给出 Hub-backed 宿主操作提示的本地源码候选。三项 Foundation 依赖仍精确固定在已发布的 0.17.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- 已经冻结且未携带 `marketplace` 的历史计划仍按旧语义执行，以便确定性地恢复发布。新的配置校验不放宽冻结计划身份、批准、发布、验证或恢复检查。Skill Family Hub 更新继续采用比较后写入；Hub 局部发布不回滚、不覆盖，也不强推，release-skill 中没有增加第二套 Hub Registry 或状态机。
+- run 清理复用 Foundation 的路径收容能力，以及现有计划与 run 谱系校验。清理会删除整个 run 目录，保留无法确定的证据；清理失败不会导致 prepare 失败。
+- Hub-backed 提示不运行 Git、GitHub、Hub 或宿主命令，也不探测本机安装状态。插件身份必须与冻结的公开清单一致，Hub-backed 目标不会传给 `updateLocalHostPlugins()`。
+- Skill Family Hub 更新继续根据已观察的分支头比较后写入。Hub 局部发布不回滚、不覆盖，也不强推。
 
-**修复**
+**新增**
 
-- 新的 `codebuddy-plugin` 分发必须显式声明 `marketplace`。每个项目据此选择自己的 Hub，不再继承旧的 `artifact-skill-set` 默认值。
-- 首次使用者与安全审阅者的 README 黑盒提示词现在通过 `sync-version` 接收候选版本，避免其中的断言落后于包版本。
+- production prepare 现在会在现有项目锁内清理旧 run。它保留本轮、最近一条经过验证的完整终态谱系，以及所有非终态、部分成功、损坏、身份含糊或校验失败的 run。只有被更新完成谱系取代的旧目录，以及没有外部写入证据的 sealed failed prepare，才会进入尽力删除范围。
+- 发布单元可以通过 `postPublish.localHostUpdate` 声明插件身份、目标宿主，以及项目自行选择的 Hub 仓库与 ref。prepare 会把声明冻结进不可变计划，并由 `planDigest` 绑定。
+- postVerify 达到 `DISTRIBUTED` 后，CLI 和 `release-finish` 会按宿主显示 Hub-backed 人工安装或升级提示。只有 Hub-backed 目标时，自动本机更新入口仍不可用。
 - 项目私有的 postVerify hook 继续通过 GitHub Git Data API，把已验证的 release-skill 条目和公开快照发布到 Skill Family Hub。
 
 **升级说明**
 
-准备新的 CodeBuddy 发布配置前，应从 0.9.12 升级到本版本，并在每个 `codebuddy-plugin` 分发的 `marketplace` 字段中填写目标 Hub。删除各宿主中独立的 `release-skill` 市场登记，添加或更新 `ifoohoo/skill-family-hub`，并使用 `release-skill@skill-family-hub`。已经冻结的历史计划仍可恢复，其他分发类型不受影响。
+从 0.9.13 升级到本版本后，production prepare 会限制已完成 run 的保留数量，发布后验证完成时也会显示 Hub-backed 宿主操作提示。需要该提示的发布单元应各自声明 `localHostUpdate`。删除各宿主中独立的 `release-skill` 市场登记，添加或更新 `ifoohoo/skill-family-hub`，并使用 `release-skill@skill-family-hub`。现有 `externalActions` 可执行目标继续使用原更新路径；0.9.14 的 Hub-backed 目标仍由维护者人工处理。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.13 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.14 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -44,7 +47,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.13 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.14 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -62,7 +65,7 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-当前 0.9.13 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
+当前 0.9.14 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
 路径和稳定隔离安装树记录路径（A2/A3），并删除仓库自有市场索引，统一以
 Skill Family Hub 为市场来源。当前仍不包含 R-02 安全整树盘点、R-10 历史发布验证
 的产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录
@@ -665,6 +668,19 @@ Kimi 的有效配置根依次取显式 `kimiHome`、`KIMI_CODE_HOME`、`~/.kimi-
 WorkBuddy 本机更新仅支持 macOS；其他平台返回不支持并跳过。计划声明 postVerify hook 时，
 release-finish 必须接收 `ship` 产出的已完成 postVerify run，不能直接使用较早的
 verify run；核心 prepare、publish、verify 流程仍跨平台。
+
+如果插件由项目选定的 Hub 通过 `postVerify` Hook 交付，发布单元还可以声明
+`postPublish.localHostUpdate`。Hook 达到 `DISTRIBUTED` 后，`ship`、`verify`、
+`post-release` 和 `release-finish` 会显示声明中的 Hub、插件和宿主。0.9.14 对这类
+目标只提供人工入口（`promptRequired: true`、`available: false`）：提示不会访问 Hub、
+探测宿主或运行宿主命令。Claude 和 Codex 使用各自已有的 marketplace 管理入口；Kimi
+使用冻结 GitHub Release 和现有人工确认路径；CodeBuddy 与 WorkBuddy 因无法固定 Hub
+ref 而继续人工处理。由冻结插件安装动作派生的原有可执行目标不受影响。
+
+生产 prepare 还会在本轮运行证据建立后、高成本快照和 Hook 之前执行一次尽力清理。
+它只删除已被更新完整谱系取代的终态运行目录，以及没有有效计划或外部写入迹象的封口
+失败 prepare。当前计划、最近完整谱系，以及所有非终态、部分成功、损坏、含糊或越界
+谱系都受保护。清理失败不会改变 prepare 结果。
 
 新的 `codebuddy-plugin` 项目配置必须显式声明 `marketplace`，避免不同产品线误用同一市场；`marketplaceSource`（消费者添加市场所用的 URL）仍可按需声明。只有已经冻结、且未携带该字段的历史计划会继续按旧规则解释为 `artifact-skill-set`，以保证 reconcile 可以重放原计划。
 

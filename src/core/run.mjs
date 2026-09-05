@@ -484,6 +484,15 @@ function validateSourceRunEdge(child, parent) {
       );
     }
   }
+  if (child.command === 'postverify') {
+    if (parent.command !== 'verify' || parent.status !== 'VERIFIED') {
+      throw new ReleaseError(
+        GATE_FAILED,
+        'postverify lineage must reference a VERIFIED verify run',
+        { childCommand: child.command, parentCommand: parent.command, parentStatus: parent.status },
+      );
+    }
+  }
 }
 
 /**
@@ -501,7 +510,7 @@ export async function validateRunLineage(run, options = {}) {
   await validateStatePredecessorChain(run, runPath, { production, planPath });
   validateRunPlanDigest(run, plan, { planPath });
   if (run.command === 'publish') return;
-  if (!['reconcile', 'verify'].includes(run.command)) {
+  if (!['reconcile', 'verify', 'postverify'].includes(run.command)) {
     throw new ReleaseError(GATE_FAILED, `unsupported run command in lineage: ${run.command}`);
   }
   if (!run.sourceRunPath || !run.sourceRunId || !run.sourceRunDigest) {

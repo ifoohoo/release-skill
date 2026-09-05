@@ -1,5 +1,29 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.14 locale=en baseline=sha256:48b2f41bd292f3357b3cf7433de1a2191b84d86a5074c9786ac952f62d4279be -->
+## [0.9.14] - 2026-09-05
+
+0.9.14 is a local source candidate that bounds retained production prepare runs and adds explicit Hub-backed host follow-ups after post-verification. The three Foundation dependencies remain pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Retention reuses Foundation path containment and existing plan and run lineage checks. It deletes whole run directories, preserves uncertain evidence, and never turns a cleanup failure into a prepare failure.
+- Hub-backed guidance does not run Git, GitHub, Hub, or host commands and does not probe local installation state. Plugin identity must match the frozen public manifests, and Hub-backed targets are not passed to `updateLocalHostPlugins()`.
+- Skill Family Hub updates remain compare-and-swap operations against the observed branch head. A partial Hub publication is never rolled back or force-pushed.
+
+### Added
+
+- Production prepare now runs retention under the existing project lock. It keeps the current run, the newest verified complete lineage, and every non-terminal, partial, damaged, ambiguous, or validation-failing run; only superseded complete lineages and sealed failed prepares without external-write evidence are eligible for best-effort removal.
+- A release unit may declare `postPublish.localHostUpdate` with the plugin identity, target hosts, and project-selected Hub repository and ref. Prepare freezes that declaration into the immutable plan and binds it through `planDigest`.
+- After postVerify reaches `DISTRIBUTED`, the CLI and `release-finish` show host-specific manual installation or upgrade guidance for Hub-backed targets. Hub-only targets remain unavailable to the automatic local updater.
+- The project-private postVerify hook continues to publish the verified release-skill entry and public snapshot to Skill Family Hub through GitHub's Git Data API.
+
+### Upgrade Notes
+
+Upgrade from 0.9.13 to bound completed production run history and receive post-verification Hub-backed host guidance. Declare `localHostUpdate` independently for each release unit that needs it. Remove any release-skill standalone marketplace registration, add or update `ifoohoo/skill-family-hub`, and use `release-skill@skill-family-hub`. Existing executable `externalActions` targets retain their current update path; Hub-backed targets remain manual in 0.9.14.
+<!-- release-skill:changelog:end version=0.9.14 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.13 locale=en baseline=sha256:86e8ee0d0aeb161c7fc652f85976b300b649ee6da04d29f9274ebcc69a8eab10 -->
 ## [0.9.13] - 2026-09-05
 

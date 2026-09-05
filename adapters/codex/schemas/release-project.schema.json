@@ -1008,7 +1008,47 @@
             "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
           },
           "uniqueItems": true
+        },
+        "localHostUpdate": {
+          "$ref": "#/definitions/localHostUpdate"
         }
+      },
+      "allOf": [{
+        "if": { "required": ["localHostUpdate"] },
+        "then": {
+          "required": ["hooks"],
+          "properties": {
+            "hooks": {
+              "contains": { "type": "object", "required": ["phase"], "properties": { "phase": { "const": "postVerify" } } }
+            }
+          }
+        }
+      }]
+    },
+    "localHostUpdate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plugin", "hosts", "hub"],
+      "properties": {
+        "plugin": { "type": "string", "minLength": 1, "pattern": ".*\\S.*" },
+        "hosts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["claude", "codex", "kimi", "codebuddy", "workbuddy"] }
+        },
+        "hub": { "$ref": "#/definitions/localHostHub" }
+      }
+    },
+    "localHostHub": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "repo", "ref"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "pattern": ".*\\S.*" },
+        "githubHost": { "type": "string", "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$" },
+        "repo": { "type": "string", "pattern": "^[A-Za-z0-9._-]+\\/[A-Za-z0-9._-]+$" },
+        "ref": { "type": "string", "pattern": "^refs\\/heads\\/[A-Za-z0-9][A-Za-z0-9._-]*(?:\\/[A-Za-z0-9][A-Za-z0-9._-]*)*$" }
       }
     },
     "postPublishHook": {

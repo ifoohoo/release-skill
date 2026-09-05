@@ -35,7 +35,7 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill-local-finish.mjs" \
 
 1. `merge.promptRequired=false` 时，发布工作流已经推进或初始化目标分支，不再询问合并。
 2. `merge.promptRequired=true` 时，向用户说明尚未覆盖的发布分支，并询问是否需要合并。用户同意后，先只读核对源分支、目标分支、工作区状态和项目既有合并方式，再用明确的分支名执行；本脚本不猜分支，也不自动推送。
-3. `localHostUpdate.promptRequired=true` 时，列出计划覆盖的宿主，询问是否更新本机插件。两个问题可以一次问完。
+3. `localHostUpdate.promptRequired=true` 时，列出计划覆盖的宿主，询问是否更新本机插件。Hub-backed 目标必须显示其声明的 Hub、插件和宿主，并明确这是人工安装/升级入口，不运行本机命令；Claude/Codex 使用现有 marketplace 管理入口，Kimi 使用冻结 GitHub Release 和现有人工确认路径，CodeBuddy/WorkBuddy 明确人工处理且不能固定 Hub ref。后续“用户同意更新”段仅适用于 `available=true` 的 executable externalActions 目标；Hub-backed 始终人工入口。两个问题可以一次问完。
 
 ## postVerify 提案送达边界
 

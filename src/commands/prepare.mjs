@@ -77,6 +77,7 @@ import { acquireProjectLock } from '../artifacts/project-lock.mjs';
 import { observePreviousPublicBaseline } from '../core/previous-public-baseline.mjs';
 import { verifyFrozenNpmTarballContract } from '../adapters/npm.mjs';
 import { createProductionPrepareRunDir } from '../core/run.mjs';
+import { cleanupRunRetention } from '../core/run-retention.mjs';
 import {
   PLATFORMS,
   normalizeHostId,
@@ -893,6 +894,32 @@ async function processSnapshots(config, root, evidence, runDir, production = fal
   }
 
   return { unitResults, snapshotDigests };
+}
+
+/** Validate Hub-backed plugin identities against the already frozen snapshot. */
+async function validateFrozenLocalHostUpdatePlugins(unitResults) {
+  for (const { unit, manifest } of unitResults) {
+    const declaration = unit.postPublish?.localHostUpdate;
+    if (!declaration) continue;
+    const manifestEntries = (manifest.entries ?? [])
+      .filter((entry) => /(?:^|\/)\.(?:claude|codex|kimi|codebuddy)-plugin\/plugin\.json$/u.test(entry.path));
+    const identities = new Set();
+    for (const entry of manifestEntries) {
+      try {
+        const parsed = JSON.parse(await readFile(resolve(manifest.outputDir, entry.path), 'utf8'));
+        if (typeof parsed?.name === 'string' && parsed.name.trim().length > 0) identities.add(parsed.name);
+      } catch (cause) {
+        throw new ReleaseError(GATE_FAILED, `unit "${unit.id}" localHostUpdate plugin manifest is unreadable`, {
+          unitId: unit.id, path: entry.path, cause: cause.code ?? cause.message,
+        });
+      }
+    }
+    if (identities.size === 0 || identities.size !== 1 || !identities.has(declaration.plugin)) {
+      throw new ReleaseError(GATE_FAILED, `unit "${unit.id}" localHostUpdate.plugin "${declaration.plugin}" does not match a frozen public plugin manifest`, {
+        unitId: unit.id, plugin: declaration.plugin, frozenPlugins: [...identities].sort(),
+      });
+    }
+  }
 }
 
 function resolveProductionBranch(unit, version) {
@@ -3326,6 +3353,34 @@ export async function prepareRelease(options) {
   const evidence = createEvidenceWriter({ runDir, command: 'prepare', clock });
 
   try {
+    // R14-01: production prepare performs one best-effort retention pass only
+    // after the current run/evidence authority exists and before high-cost
+    // config, snapshot, and hook work begins. It never blocks prepare.
+    if (production) {
+      try {
+        const retention = await (options.runRetentionFn ?? cleanupRunRetention)({
+          releaseDir,
+          currentRunDir: runDir,
+        });
+        await evidence.append({
+          phase: 'run-retention',
+          status: 'completed',
+          scanned: retention.scanned,
+          deleted: retention.deleted,
+          errors: retention.errors,
+        });
+      } catch (error) {
+        await evidence.append({
+          phase: 'run-retention',
+          status: 'warning',
+          scanned: 0,
+          deleted: 0,
+          errors: 1,
+          error: { code: error?.code ?? 'RUN_RETENTION_FAILED', message: error?.message ?? String(error) },
+        });
+      }
+    }
+
     // --- Step 1: Load and validate config ---
     await evidence.append({ phase: 'config', status: 'started' });
 
@@ -4212,6 +4267,7 @@ export async function prepareRelease(options) {
     const { unitResults, snapshotDigests } = await processSnapshots(
       selectedConfig, realRoot, evidence, runDir, production,
     );
+    await validateFrozenLocalHostUpdatePlugins(unitResults);
 
     // Snapshot gates always run on disposable writable copies. The public
     // snapshot authority is re-digested after every gate and is never exposed

@@ -157,6 +157,74 @@ function pluginTargets(plan) {
   ));
 }
 
+function hubTargets(plan) {
+  if (plan?.planVersion === undefined) return [];
+  return normalizePostPublishView(plan).flatMap((declaration) => {
+    const local = declaration.localHostUpdate;
+    if (!local) return [];
+    const hub = { ...local.hub, githubHost: local.hub.githubHost ?? 'github.com' };
+    const unit = (plan.units ?? []).find((candidate) => candidate.id === declaration.unitId);
+    const tag = (plan.externalActions ?? []).find((action) => action.type === 'create-tag' && action.unitId === declaration.unitId)?.parameters?.tag;
+    const manualInstruction = {
+      claude: 'Use Claude’s existing marketplace management entry.',
+      codex: 'Use Codex’s existing marketplace management entry.',
+      kimi: `Use the frozen GitHub Release${tag ? ` (${tag})` : ''} and the existing manual confirmation path; Kimi has no marketplace index.`,
+      codebuddy: 'Handle manually; CodeBuddy cannot pin a Hub ref in this flow.',
+      workbuddy: 'Handle manually; WorkBuddy cannot pin a Hub ref in this flow (it follows the CodeBuddy manual boundary).',
+    };
+    return local.hosts.map((host) => ({
+      targetKind: 'hub-backed',
+      executionMode: 'manual',
+      unitId: declaration.unitId,
+      host,
+      plugin: local.plugin,
+      hub,
+      message: `${manualInstruction[host]} Install or upgrade ${local.plugin} from Hub ${hub.name}; release-skill does not execute or probe this action.`,
+      ...(unit?.publicRepo ? { publicRepo: unit.publicRepo } : {}),
+      ...(tag ? { frozenTag: tag } : {}),
+    }));
+  });
+}
+
+function mergePostReleaseTargets(executableTargets, manualTargets) {
+  const byIdentity = new Map();
+  for (const target of [...executableTargets, ...manualTargets]) {
+    const key = `${target.unitId}\u0000${target.host}\u0000${target.plugin}`;
+    const existing = byIdentity.get(key);
+    if (existing && existing.targetKind === 'hub-backed' && target.targetKind === 'hub-backed') {
+      const sameHub = ['name', 'githubHost', 'repo', 'ref'].every((field) => existing.hub[field] === target.hub[field]);
+      if (!sameHub) throw new Error(`post-release target identity conflict for ${target.unitId}/${target.host}/${target.plugin}`);
+      continue;
+    }
+    const hubMatchesExecutable = (hub, executable) => executable.marketplace === hub.name
+      && executable.marketplaceRepo === hub.repo
+      && executable.marketplaceRef === hub.ref
+      && executable.githubHost === hub.githubHost;
+    // When the same frozen plugin is available through both sources, the
+    // executable action wins only when both frozen source identities agree.
+    if (existing && existing.targetKind !== 'hub-backed' && target.targetKind === 'hub-backed') {
+      if (!hubMatchesExecutable(target.hub, existing)) {
+        throw new Error(`post-release target identity conflict for ${target.unitId}/${target.host}/${target.plugin}`);
+      }
+      continue;
+    }
+    if (existing && existing.targetKind === 'hub-backed' && target.targetKind !== 'hub-backed') {
+      if (!hubMatchesExecutable(existing.hub, target)) {
+        throw new Error(`post-release target identity conflict for ${target.unitId}/${target.host}/${target.plugin}`);
+      }
+      byIdentity.set(key, target);
+      continue;
+    }
+    if (existing && existing.actionId !== target.actionId) {
+      throw new Error(`post-release target identity conflict for ${target.unitId}/${target.host}/${target.plugin}`);
+    }
+    if (!existing) byIdentity.set(key, target);
+  }
+  return [...byIdentity.values()].sort((left, right) => (
+    left.host.localeCompare(right.host) || left.unitId.localeCompare(right.unitId) || left.plugin.localeCompare(right.plugin)
+  ));
+}
+
 function assertExecutableTarget(target) {
   for (const field of [
     'actionId', 'unitId', 'plugin', 'version',
@@ -200,7 +268,9 @@ export function derivePostReleaseChecklist(plan, {
   const uncovered = units.filter((unit) => (
     !BRANCH_ACTION_INCLUDED.has(unit.productionConfig?.branchStrategy)
   ));
-  const targets = pluginTargets(plan);
+  const executableTargets = pluginTargets(plan);
+  const manualTargets = hubTargets(plan);
+  const targets = mergePostReleaseTargets(executableTargets, manualTargets);
   const hasPendingPostVerify = postVerifyHooks(plan).length > 0 && !postVerifyComplete && targets.length > 0;
   const hasStatePath = typeof statePath === 'string' && statePath.length > 0;
   const selectedUnitIds = Array.isArray(unitIds) ? unitIds : undefined;
@@ -220,7 +290,7 @@ export function derivePostReleaseChecklist(plan, {
     },
     localHostUpdate: {
       promptRequired: targets.length > 0 && !hasPendingPostVerify,
-      available: targets.length > 0 && !hasPendingPostVerify,
+      available: executableTargets.length > 0 && !hasPendingPostVerify,
       ...(!hasPendingPostVerify && runPath ? { runPath } : {}),
       ...(hasPendingPostVerify ? {
         ...(hasStatePath ? { nextSteps: [buildShipNextStep({ root, statePath, unitIds: selectedUnitIds })] } : {}),
@@ -1359,7 +1429,7 @@ async function updateLocalHostPluginsInternal({
   const selected = new Set(Array.isArray(selectedHosts) ? selectedHosts : []);
   const unknown = [...selected].filter((host) => !checklist.localHostUpdate.hosts.includes(host));
   if (unknown.length > 0) throw new Error(`selected hosts are not declared by the plan: ${unknown.join(', ')}`);
-  const targets = checklist.localHostUpdate.targets.filter((item) => selected.has(item.host));
+  const targets = pluginTargets(plan).filter((item) => selected.has(item.host));
   for (const target of targets) assertExecutableTarget(target);
 
   const results = [];

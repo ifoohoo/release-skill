@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.13 -->
+<!-- release-skill:release-version: 0.9.14 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,27 +14,30 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.13** (2026-09-05)
+**0.9.14** (2026-09-05)
 
-0.9.13 is a local source candidate that prevents new CodeBuddy release configurations from silently inheriting another product family's marketplace. It also brings the README black-box scenario versions under the existing version synchronization command. The three Foundation dependencies remain pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.14 is a local source candidate that bounds retained production prepare runs and adds explicit Hub-backed host follow-ups after post-verification. The three Foundation dependencies remain pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- Already-frozen historical plans without `marketplace` retain the legacy interpretation for deterministic reconcile. New configuration validation changes do not weaken frozen-plan identity, approval, publish, verification, or recovery checks. Skill Family Hub updates remain compare-and-swap operations; a partial Hub publication is never rolled back or force-pushed, and release-skill does not introduce a second Hub registry or state machine.
+- Retention reuses Foundation path containment and existing plan and run lineage checks. It deletes whole run directories, preserves uncertain evidence, and never turns a cleanup failure into a prepare failure.
+- Hub-backed guidance does not run Git, GitHub, Hub, or host commands and does not probe local installation state. Plugin identity must match the frozen public manifests, and Hub-backed targets are not passed to `updateLocalHostPlugins()`.
+- Skill Family Hub updates remain compare-and-swap operations against the observed branch head. A partial Hub publication is never rolled back or force-pushed.
 
-**Fixed**
+**Added**
 
-- New `codebuddy-plugin` distributions must declare `marketplace` explicitly, so each project selects its own Hub instead of inheriting the legacy `artifact-skill-set` default.
-- The first-user and security-reviewer README black-box prompts now receive their candidate version from `sync-version`, preventing their assertions from drifting behind the package version.
+- Production prepare now runs retention under the existing project lock. It keeps the current run, the newest verified complete lineage, and every non-terminal, partial, damaged, ambiguous, or validation-failing run; only superseded complete lineages and sealed failed prepares without external-write evidence are eligible for best-effort removal.
+- A release unit may declare `postPublish.localHostUpdate` with the plugin identity, target hosts, and project-selected Hub repository and ref. Prepare freezes that declaration into the immutable plan and binds it through `planDigest`.
+- After postVerify reaches `DISTRIBUTED`, the CLI and `release-finish` show host-specific manual installation or upgrade guidance for Hub-backed targets. Hub-only targets remain unavailable to the automatic local updater.
 - The project-private postVerify hook continues to publish the verified release-skill entry and public snapshot to Skill Family Hub through GitHub's Git Data API.
 
 **Upgrade Notes**
 
-Upgrade from 0.9.12 before preparing a new CodeBuddy release configuration. Add the intended Hub name to every new `codebuddy-plugin` distribution through its `marketplace` field. Remove any release-skill standalone marketplace registration, add or update `ifoohoo/skill-family-hub`, and use `release-skill@skill-family-hub`. Existing frozen plans remain recoverable, and other distribution types are unaffected.
+Upgrade from 0.9.13 to bound completed production run history and receive post-verification Hub-backed host guidance. Declare `localHostUpdate` independently for each release unit that needs it. Remove any release-skill standalone marketplace registration, add or update `ifoohoo/skill-family-hub`, and use `release-skill@skill-family-hub`. Existing executable `externalActions` targets retain their current update path; Hub-backed targets remain manual in 0.9.14.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.13 is the current source candidate. This README
+> **Current boundary:** v0.9.14 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -58,7 +61,7 @@ Upgrade from 0.9.12 before preparing a new CodeBuddy release configuration. Add 
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.13 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.14 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -87,7 +90,7 @@ checkpoints remain intact and use matching-version recovery. Evidence v1 stays
 read-only; v2 uses a closed top level with phase extensions in `details`.
 Summaries and recovery suggestions are diagnostic, never publication authority.
 
-The current 0.9.13 candidate includes the narrow R-05 Hook cache v2 consumer
+The current 0.9.14 candidate includes the narrow R-05 Hook cache v2 consumer
 path, the public `postverify` path, and the stable isolated install-tree record
 path (A2/A3). It also removes the repository's own marketplace indexes and
 uses Skill Family Hub as the single marketplace source. It still
@@ -783,6 +786,25 @@ WorkBuddy local updates are macOS-only; on other platforms they are skipped as
 unsupported. When a plan declares postVerify hooks, release-finish must receive
 the completed postVerify run produced by `ship`, rather than the earlier verify
 run. The core prepare, publish, and verify workflow remains cross-platform.
+
+A release unit may also declare `postPublish.localHostUpdate` for a plugin that
+is delivered through a project-selected Hub by a `postVerify` hook. After that
+hook reaches `DISTRIBUTED`, `ship`, `verify`, `post-release`, and
+`release-finish` display the declared Hub, plugin, and hosts. These Hub-backed
+targets are manual in 0.9.14 (`promptRequired: true`, `available: false`): the
+prompt does not query the Hub, inspect the host, or run host commands. Claude
+and Codex use their existing marketplace management entry; Kimi uses the
+frozen GitHub Release and its existing confirmation path; CodeBuddy and
+WorkBuddy remain manual because this flow cannot pin a Hub ref. Existing
+executable targets derived from frozen plugin-install actions remain available.
+
+Production `prepare` also performs one best-effort retention pass after its new
+run evidence exists and before expensive snapshot and hook work. It removes
+only superseded complete run lineages and sealed failed prepare directories
+that have no valid plan or external-write trace. The current plan, the newest
+complete lineage, and every non-terminal, partial, corrupt, ambiguous, or
+out-of-bounds lineage remain protected. Retention failures never change the
+prepare result.
 
 New `codebuddy-plugin` project configurations must declare `marketplace`
 explicitly so product families cannot silently inherit another family's Hub.

@@ -42,6 +42,9 @@ const SAFE_ID_RE = /^[a-z0-9][a-z0-9._-]*$/;
 
 /** Branch pattern (leading alphanumeric blocks option-like names). */
 const BRANCH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
+const LOCAL_HOSTS = new Set(['claude', 'codex', 'kimi', 'codebuddy', 'workbuddy']);
+const HUB_HOST_RE = /^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$/u;
+const HUB_REF_RE = /^refs\/heads\/[A-Za-z0-9][A-Za-z0-9._-]*(?:\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/u;
 
 /** Frozen payload source binding: payload only ever comes from the tag worktree. */
 export const PAYLOAD_SOURCE_TAG_WORKTREE = 'tag-worktree';
@@ -476,6 +479,54 @@ export function validatePostPublishDeclaration(postPublish, options = {}) {
   if (postPublish.assertMainVersionAhead !== undefined
     && typeof postPublish.assertMainVersionAhead !== 'boolean') {
     fail(`${unitLabel}assertMainVersionAhead must be a boolean`);
+  }
+
+  const localHostUpdate = postPublish.localHostUpdate;
+  if (localHostUpdate !== undefined) {
+    if (!localHostUpdate || typeof localHostUpdate !== 'object' || Array.isArray(localHostUpdate)) {
+      fail(`${unitLabel}localHostUpdate must be a non-null object`);
+    }
+    if (typeof localHostUpdate.plugin !== 'string' || localHostUpdate.plugin.trim().length === 0) {
+      fail(`${unitLabel}localHostUpdate.plugin must be a non-empty string`);
+    }
+    if (!Array.isArray(localHostUpdate.hosts) || localHostUpdate.hosts.length === 0) {
+      fail(`${unitLabel}localHostUpdate.hosts must be a non-empty array`);
+    }
+    const hosts = new Set();
+    for (const host of localHostUpdate.hosts) {
+      if (typeof host !== 'string' || !LOCAL_HOSTS.has(host)) {
+        fail(`${unitLabel}localHostUpdate.hosts contains unsupported host ${JSON.stringify(host)}`);
+      }
+      if (hosts.has(host)) fail(`${unitLabel}localHostUpdate.hosts contains duplicate host "${host}"`);
+      hosts.add(host);
+    }
+    const hub = localHostUpdate.hub;
+    if (!hub || typeof hub !== 'object' || Array.isArray(hub)) {
+      fail(`${unitLabel}localHostUpdate.hub must be a non-null object`);
+    }
+    for (const field of ['name', 'repo', 'ref']) {
+      if (typeof hub[field] !== 'string' || hub[field].trim().length === 0) {
+        fail(`${unitLabel}localHostUpdate.hub.${field} must be a non-empty string`);
+      }
+    }
+    if (hub.githubHost !== undefined && (typeof hub.githubHost !== 'string' || !HUB_HOST_RE.test(hub.githubHost))) {
+      fail(`${unitLabel}localHostUpdate.hub.githubHost must be a non-empty string when provided`);
+    }
+    if (!/^[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/u.test(hub.repo)) {
+      fail(`${unitLabel}localHostUpdate.hub.repo must be owner/repo`);
+    }
+    if (!HUB_REF_RE.test(hub.ref)) {
+      fail(`${unitLabel}localHostUpdate.hub.ref must be a refs/heads/... reference`);
+    }
+    if (!(postPublish.hooks ?? []).some((hook) => hook.phase === 'postVerify')) {
+      fail(`${unitLabel}localHostUpdate requires at least one postVerify hook`);
+    }
+    if (typeof options.expectedPlugin === 'string' && localHostUpdate.plugin !== options.expectedPlugin) {
+      fail(`${unitLabel}localHostUpdate.plugin must match the frozen public plugin manifest`, {
+        expectedPlugin: options.expectedPlugin,
+        plugin: localHostUpdate.plugin,
+      });
+    }
   }
 
   return postPublish;

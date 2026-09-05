@@ -1465,6 +1465,9 @@
           "const": "tag-worktree",
           "description": "时序契约：载荷只能来自 tagCommit 处的 detached worktree，绝不读取工作区状态"
         },
+        "localHostUpdate": {
+          "$ref": "#/definitions/planLocalHostUpdate"
+        },
         "executionBundle": {
           "type": "object",
           "description": "冻结的私有执行包（F-01/T1）：closure 直接采用 Foundation computeResourceClosure() 的返回（排序、去重、受收容读取与摘要均由 Foundation 完成），publicFiles 是从发布单元投影的公开映射。计划是该执行包的唯一事实源：随整个 plan digest 绑定，不维护平行 manifest，也不另造 bundle digest。字节写入计划权威 .release-skill 的 postpublish-bundles/<closure.digest>/<resource.path>；distribute/postVerify 在任何 hook/外部写之前经 Foundation 严格复验并重算闭包，任何不一致即失败。",
@@ -1598,7 +1601,44 @@
             }
           }
         }
-      ]
+      ],
+      "allOf": [{
+        "if": { "required": ["localHostUpdate"] },
+        "then": {
+          "required": ["hooks"],
+          "properties": {
+            "hooks": {
+              "contains": { "type": "object", "required": ["phase"], "properties": { "phase": { "const": "postVerify" } } }
+            }
+          }
+        }
+      }]
+    },
+    "planLocalHostUpdate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plugin", "hosts", "hub"],
+      "properties": {
+        "plugin": { "type": "string", "minLength": 1, "pattern": ".*\\S.*" },
+        "hosts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["claude", "codex", "kimi", "codebuddy", "workbuddy"] }
+        },
+        "hub": { "$ref": "#/definitions/planLocalHostHub" }
+      }
+    },
+    "planLocalHostHub": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "repo", "ref"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "pattern": ".*\\S.*" },
+        "githubHost": { "type": "string", "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$" },
+        "repo": { "type": "string", "pattern": "^[A-Za-z0-9._-]+\\/[A-Za-z0-9._-]+$" },
+        "ref": { "type": "string", "pattern": "^refs\\/heads\\/[A-Za-z0-9][A-Za-z0-9._-]*(?:\\/[A-Za-z0-9][A-Za-z0-9._-]*)*$" }
+      }
     },
     "planPostPublishHook": {
       "type": "object",

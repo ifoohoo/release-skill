@@ -39,6 +39,14 @@ const execFile = promisify(execFileCb);
 
 const COMMANDS = new Set(['help', 'setup', 'assess', 'prepare', 'approve', 'publish', 'reconcile', 'verify', 'postverify', 'ship', 'post-release', 'attest', 'hooks', 'artifacts', 'docs', 'distribute', 'route', 'lineage']);
 
+function printHubManualTargets(targets = []) {
+  for (const target of targets) {
+    if (target.targetKind === 'hub-backed') {
+      console.log(`Manual host update: ${target.plugin} via Hub ${target.hub.name} (${target.host}). ${target.message}`);
+    }
+  }
+}
+
 /**
  * Wait until writes already queued on a process output stream have reached
  * the underlying destination. Stream failures do not replace the command's
@@ -943,10 +951,13 @@ if (command === 'ship') {
           console.log('Post-release: branch advancement was already included; skip the merge question.');
         }
         const localHostUpdate = result.postRelease.localHostUpdate;
-        if (localHostUpdate?.available === true && typeof localHostUpdate.runPath === 'string') {
+        if (localHostUpdate?.promptRequired === true) {
           console.log(`Post-release: ask whether to update local host plugins (${result.postRelease.localHostUpdate.hosts.join(', ')}).`);
-          console.log(`Post-release command: release-skill post-release --plan ${result.planPath} --run ${localHostUpdate.runPath}`);
-          console.log('Choose --hosts before adding --update-local-hosts to perform a local update.');
+          if (localHostUpdate.available === true && typeof localHostUpdate.runPath === 'string') {
+            console.log(`Post-release command: release-skill post-release --plan ${result.planPath} --run ${localHostUpdate.runPath}`);
+            console.log('Choose --hosts before adding --update-local-hosts to perform a local update.');
+          }
+          printHubManualTargets(localHostUpdate.targets);
         } else {
           for (const step of localHostUpdate?.nextSteps ?? []) {
             console.log(`Next [${step.code}] ${step.message} (${step.argv.join(' ')})`);
@@ -1404,10 +1415,13 @@ if (command === 'post-release') {
       console.log(`Post-release status: ${result.status}`);
       if (result.merge.promptRequired) console.log('Ask whether the user wants to merge the remaining branch.');
       else console.log('Branch advancement was already included in the release workflow; skip the merge question.');
-      if (result.localHostUpdate.available === true && typeof result.localHostUpdate.runPath === 'string') {
+      if (result.localHostUpdate.promptRequired === true) {
         console.log(`Ask whether to update local host plugins: ${result.localHostUpdate.hosts.join(', ')}`);
-        console.log(`Post-release command: release-skill post-release --plan ${planPath} --run ${result.localHostUpdate.runPath}`);
-        console.log('Choose --hosts before adding --update-local-hosts to perform a local update.');
+        if (result.localHostUpdate.available === true && typeof result.localHostUpdate.runPath === 'string') {
+          console.log(`Post-release command: release-skill post-release --plan ${planPath} --run ${result.localHostUpdate.runPath}`);
+          console.log('Choose --hosts before adding --update-local-hosts to perform a local update.');
+        }
+        printHubManualTargets(result.localHostUpdate.targets);
       } else {
         for (const step of result.localHostUpdate.nextSteps ?? []) {
           console.log(`Next [${step.code}] ${step.message} (${step.argv.join(' ')})`);
@@ -1516,11 +1530,13 @@ if (command === 'verify') {
       } else if (result.postRelease?.merge.promptRequired) {
         console.log('Post-release: ask whether to merge the remaining branch.');
       }
-      if (result.postRelease?.localHostUpdate?.available === true
-        && typeof result.postRelease.localHostUpdate.runPath === 'string') {
+      if (result.postRelease?.localHostUpdate?.promptRequired === true) {
         console.log(`Post-release: ask whether to update local host plugins (${result.postRelease.localHostUpdate.hosts.join(', ')}).`);
-        console.log(`Post-release command: release-skill post-release --plan ${planPath} --run ${result.postRelease.localHostUpdate.runPath}`);
-        console.log('Choose --hosts before adding --update-local-hosts to perform a local update.');
+        if (result.postRelease.localHostUpdate.available === true && typeof result.postRelease.localHostUpdate.runPath === 'string') {
+          console.log(`Post-release command: release-skill post-release --plan ${planPath} --run ${result.postRelease.localHostUpdate.runPath}`);
+          console.log('Choose --hosts before adding --update-local-hosts to perform a local update.');
+        }
+        printHubManualTargets(result.postRelease.localHostUpdate.targets);
       } else {
         for (const step of result.postRelease?.localHostUpdate?.nextSteps ?? []) {
           console.log(`Next [${step.code}] ${step.message} (${step.argv.join(' ')})`);
