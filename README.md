@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.12 -->
+<!-- release-skill:release-version: 0.9.13 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,26 +14,27 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.12** (2026-09-04)
+**0.9.13** (2026-09-05)
 
-0.9.12 is a local source candidate that fixes the frozen postVerify execution closure used to publish verified releases into Skill Family Hub. It retains the 0.9.11 first-release baseline and GitHub-only distribution changes, with the three Foundation dependencies still pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.13 is a local source candidate that prevents new CodeBuddy release configurations from silently inheriting another product family's marketplace. It also brings the README black-box scenario versions under the existing version synchronization command. The three Foundation dependencies remain pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- The repair does not weaken the frozen execution-bundle boundary: the hook still runs from the verified tag plus the digest-bound private script. Hub branch updates remain compare-and-swap operations; a partial Hub publication is retained for recovery and is never rolled back or force-pushed.
+- Already-frozen historical plans without `marketplace` retain the legacy interpretation for deterministic reconcile. New configuration validation changes do not weaken frozen-plan identity, approval, publish, verification, or recovery checks. Skill Family Hub updates remain compare-and-swap operations; a partial Hub publication is never rolled back or force-pushed, and release-skill does not introduce a second Hub registry or state machine.
 
 **Fixed**
 
-- The Hub postVerify hook now imports proposal projection from a dependency-free public module. A detached frozen-tag worktree can load the module without node_modules, while runtime proposal transports continue to use the same implementation through a compatibility re-export.
-- The project-private postVerify hook continues to publish verified entries and public snapshots to Skill Family Hub through GitHub's Git Data API.
+- New `codebuddy-plugin` distributions must declare `marketplace` explicitly, so each project selects its own Hub instead of inheriting the legacy `artifact-skill-set` default.
+- The first-user and security-reviewer README black-box prompts now receive their candidate version from `sync-version`, preventing their assertions from drifting behind the package version.
+- The project-private postVerify hook continues to publish the verified release-skill entry and public snapshot to Skill Family Hub through GitHub's Git Data API.
 
 **Upgrade Notes**
 
-Upgrade from 0.9.11 before relying on the bundled `hub-api-publish` postVerify hook. Remove any `release-skill` standalone marketplace registration, add or update `ifoohoo/skill-family-hub`, and use `release-skill@skill-family-hub`. Releases that do not use this hook are unaffected.
+Upgrade from 0.9.12 before preparing a new CodeBuddy release configuration. Add the intended Hub name to every new `codebuddy-plugin` distribution through its `marketplace` field. Remove any release-skill standalone marketplace registration, add or update `ifoohoo/skill-family-hub`, and use `release-skill@skill-family-hub`. Existing frozen plans remain recoverable, and other distribution types are unaffected.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.12 is the current source candidate. This README
+> **Current boundary:** v0.9.13 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -57,7 +58,7 @@ Upgrade from 0.9.11 before relying on the bundled `hub-api-publish` postVerify h
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.12 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.13 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -86,7 +87,7 @@ checkpoints remain intact and use matching-version recovery. Evidence v1 stays
 read-only; v2 uses a closed top level with phase extensions in `details`.
 Summaries and recovery suggestions are diagnostic, never publication authority.
 
-The current 0.9.12 candidate includes the narrow R-05 Hook cache v2 consumer
+The current 0.9.13 candidate includes the narrow R-05 Hook cache v2 consumer
 path, the public `postverify` path, and the stable isolated install-tree record
 path (A2/A3). It also removes the repository's own marketplace indexes and
 uses Skill Family Hub as the single marketplace source. It still
@@ -783,10 +784,11 @@ unsupported. When a plan declares postVerify hooks, release-finish must receive
 the completed postVerify run produced by `ship`, rather than the earlier verify
 run. The core prepare, publish, and verify workflow remains cross-platform.
 
-A `codebuddy-plugin` distribution may optionally declare `marketplace` (and
-`marketplaceSource`, the URL consumers use to add the marketplace) to override
-the default unified marketplace `artifact-skill-set`; undeclared distributions
-keep the default and produce byte-identical frozen plans.
+New `codebuddy-plugin` project configurations must declare `marketplace`
+explicitly so product families cannot silently inherit another family's Hub.
+`marketplaceSource`, the URL consumers use to add that marketplace, remains
+optional. Only already-frozen historical plans that lack `marketplace` retain
+the legacy `artifact-skill-set` interpretation so reconcile can replay them.
 
 For every npm distribution, `prepare` statically checks the exact packed
 tarball against concrete `package.json` entry targets. `publish` and

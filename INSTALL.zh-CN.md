@@ -2,7 +2,7 @@
 
 [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.12 -->
+<!-- release-skill:release-version: 0.9.13 -->
 ## 前置条件
 
 - Node.js 22.0.0 或更高版本
@@ -101,7 +101,7 @@ release-skill 当前只采用并验证 Kimi Code 的交互式 TUI 路径，**无
 （切勿使用裸仓库地址，它会安装最新 release 或默认分支），确认信任提示后重新加载：
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.12
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.13
    /plugins reload
    ```
 

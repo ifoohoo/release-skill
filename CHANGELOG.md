@@ -1,5 +1,26 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.13 locale=en baseline=sha256:86e8ee0d0aeb161c7fc652f85976b300b649ee6da04d29f9274ebcc69a8eab10 -->
+## [0.9.13] - 2026-09-05
+
+0.9.13 is a local source candidate that prevents new CodeBuddy release configurations from silently inheriting another product family's marketplace. It also brings the README black-box scenario versions under the existing version synchronization command. The three Foundation dependencies remain pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Already-frozen historical plans without `marketplace` retain the legacy interpretation for deterministic reconcile. New configuration validation changes do not weaken frozen-plan identity, approval, publish, verification, or recovery checks. Skill Family Hub updates remain compare-and-swap operations; a partial Hub publication is never rolled back or force-pushed, and release-skill does not introduce a second Hub registry or state machine.
+
+### Fixed
+
+- New `codebuddy-plugin` distributions must declare `marketplace` explicitly, so each project selects its own Hub instead of inheriting the legacy `artifact-skill-set` default.
+- The first-user and security-reviewer README black-box prompts now receive their candidate version from `sync-version`, preventing their assertions from drifting behind the package version.
+- The project-private postVerify hook continues to publish the verified release-skill entry and public snapshot to Skill Family Hub through GitHub's Git Data API.
+
+### Upgrade Notes
+
+Upgrade from 0.9.12 before preparing a new CodeBuddy release configuration. Add the intended Hub name to every new `codebuddy-plugin` distribution through its `marketplace` field. Remove any release-skill standalone marketplace registration, add or update `ifoohoo/skill-family-hub`, and use `release-skill@skill-family-hub`. Existing frozen plans remain recoverable, and other distribution types are unaffected.
+<!-- release-skill:changelog:end version=0.9.13 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.12 locale=en baseline=sha256:c2511de86192c1798c17e579bed689c57c450516b10bd85d6a508b0b6e5e19b1 -->
 ## [0.9.12] - 2026-09-04
 

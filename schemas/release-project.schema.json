@@ -352,6 +352,7 @@
                   "then": {
                     "required": [
                       "plugin",
+                      "marketplace",
                       "entrySkill"
                     ]
                   }

@@ -2,32 +2,33 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.12 -->
+<!-- release-skill:release-version: 0.9.13 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.12** (2026-09-04)
+**0.9.13** (2026-09-05)
 
-0.9.12 是修复冻结 postVerify 执行闭包的本地源码候选，用于把已验证版本发布到 Skill Family Hub；它保留 0.9.11 的首次发布基线与 GitHub-only 分发能力，三项 Foundation 依赖仍精确固定在已发布的 0.17.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.13 是阻止新的 CodeBuddy 发布配置静默继承其他产品线市场的本地源码候选，并把 README 黑盒场景中的候选版本交给现有版本同步命令统一维护。三项 Foundation 依赖仍精确固定在已发布的 0.17.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- 本次修复不放宽冻结执行包边界：hook 仍由已验证标签与摘要绑定的私有脚本共同执行。Hub 分支更新继续采用比较后写入；Hub 局部发布会保留为可恢复状态，不回滚、不覆盖，也不强推。
+- 已经冻结且未携带 `marketplace` 的历史计划仍按旧语义执行，以便确定性地恢复发布。新的配置校验不放宽冻结计划身份、批准、发布、验证或恢复检查。Skill Family Hub 更新继续采用比较后写入；Hub 局部发布不回滚、不覆盖，也不强推，release-skill 中没有增加第二套 Hub Registry 或状态机。
 
 **修复**
 
-- Hub postVerify hook 现在从无包依赖的公开模块导入提案投影。detached 冻结标签工作树无需 node_modules 即可加载；运行时提案传输仍通过兼容转出复用同一实现。
-- 项目私有的 postVerify hook 继续通过 GitHub Git Data API，把已验证条目和公开快照发布到 Skill Family Hub。
+- 新的 `codebuddy-plugin` 分发必须显式声明 `marketplace`。每个项目据此选择自己的 Hub，不再继承旧的 `artifact-skill-set` 默认值。
+- 首次使用者与安全审阅者的 README 黑盒提示词现在通过 `sync-version` 接收候选版本，避免其中的断言落后于包版本。
+- 项目私有的 postVerify hook 继续通过 GitHub Git Data API，把已验证的 release-skill 条目和公开快照发布到 Skill Family Hub。
 
 **升级说明**
 
-依赖内置 `hub-api-publish` postVerify hook 前，应从 0.9.11 升级到本版本。删除各宿主中独立的 `release-skill` 市场登记，添加或更新 `ifoohoo/skill-family-hub`，并使用 `release-skill@skill-family-hub`；未使用该 hook 的发布不受影响。
+准备新的 CodeBuddy 发布配置前，应从 0.9.12 升级到本版本，并在每个 `codebuddy-plugin` 分发的 `marketplace` 字段中填写目标 Hub。删除各宿主中独立的 `release-skill` 市场登记，添加或更新 `ifoohoo/skill-family-hub`，并使用 `release-skill@skill-family-hub`。已经冻结的历史计划仍可恢复，其他分发类型不受影响。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.12 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.13 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -43,7 +44,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.12 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.13 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -61,7 +62,7 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-当前 0.9.12 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
+当前 0.9.13 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
 路径和稳定隔离安装树记录路径（A2/A3），并删除仓库自有市场索引，统一以
 Skill Family Hub 为市场来源。当前仍不包含 R-02 安全整树盘点、R-10 历史发布验证
 的产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录
@@ -665,7 +666,7 @@ WorkBuddy 本机更新仅支持 macOS；其他平台返回不支持并跳过。�
 release-finish 必须接收 `ship` 产出的已完成 postVerify run，不能直接使用较早的
 verify run；核心 prepare、publish、verify 流程仍跨平台。
 
-`codebuddy-plugin` 分发可以可选地声明 `marketplace`（以及 `marketplaceSource`，即消费者添加市场所用的 URL）来覆盖默认统一市场 `artifact-skill-set`；未声明的分发保持默认值，冻结计划字节不变。
+新的 `codebuddy-plugin` 项目配置必须显式声明 `marketplace`，避免不同产品线误用同一市场；`marketplaceSource`（消费者添加市场所用的 URL）仍可按需声明。只有已经冻结、且未携带该字段的历史计划会继续按旧规则解释为 `artifact-skill-set`，以保证 reconcile 可以重放原计划。
 
 每个 npm 分发在 `prepare` 时都会针对精确封装的 tarball 静态校验
 `package.json` 声明的具体入口。`publish` 与 `reconcile` 在任何远端动作前对同一
