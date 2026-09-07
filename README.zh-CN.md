@@ -2,36 +2,39 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.14 -->
+<!-- release-skill:release-version: 0.9.15 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.14** (2026-09-05)
+**0.9.15** (2026-09-07)
 
-0.9.14 是限制 production prepare 历史 run 保留数量、并在发布后验证完成后给出 Hub-backed 宿主操作提示的本地源码候选。三项 Foundation 依赖仍精确固定在已发布的 0.17.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.15 是一个本地源码候选。本版本让发布准备复用项目已有评估、刷新、聚焦检查和正式 prepare 入口，并让 prepare 帮助在业务执行前返回。三项 Foundation 依赖仍精确固定在已发布的 0.17.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- run 清理复用 Foundation 的路径收容能力，以及现有计划与 run 谱系校验。清理会删除整个 run 目录，保留无法确定的证据；清理失败不会导致 prepare 失败。
-- Hub-backed 提示不运行 Git、GitHub、Hub 或宿主命令，也不探测本机安装状态。插件身份必须与冻结的公开清单一致，Hub-backed 目标不会传给 `updateLocalHostPlugins()`。
-- Skill Family Hub 更新继续根据已观察的分支头比较后写入。Hub 局部发布不回滚、不覆盖，也不强推。
+- 本次编排调整不新增执行引擎、Hook 类型、缓存键、批准状态或外部写入。环境变量白名单仍只转发调用环境中已存在的同名值，非法的小写名称继续按配置错误处理。
+- 已冻结候选保留原有验收边界。新生成的候选必须针对自身字节验证，不得复用变更前的验收证据。
+- Skill Family Hub 更新继续通过 GitHub Git Data API，根据已观察的分支头比较后写入。Hub 局部发布不回滚、不覆盖，也不强推。
 
-**新增**
+**变更**
 
-- production prepare 现在会在现有项目锁内清理旧 run。它保留本轮、最近一条经过验证的完整终态谱系，以及所有非终态、部分成功、损坏、身份含糊或校验失败的 run。只有被更新完成谱系取代的旧目录，以及没有外部写入证据的 sealed failed prepare，才会进入尽力删除范围。
-- 发布单元可以通过 `postPublish.localHostUpdate` 声明插件身份、目标宿主，以及项目自行选择的 Hub 仓库与 ref。prepare 会把声明冻结进不可变计划，并由 `planDigest` 绑定。
-- postVerify 达到 `DISTRIBUTED` 后，CLI 和 `release-finish` 会按宿主显示 Hub-backed 人工安装或升级提示。只有 Hub-backed 目标时，自动本机更新入口仍不可用。
-- 项目私有的 postVerify hook 继续通过 GitHub Git Data API，把已验证的 release-skill 条目和公开快照发布到 Skill Family Hub。
+- release-prepare Skill 现在先读取项目合同和授权，通过项目已有入口处理发布文档与生成物新鲜度，修复后运行聚焦检查，并把完整验证交给正式 prepare Hook 路径。
+- 一次失败后，release-prepare 会集中处理直接相关的修复再重试，默认不增加同目的的完整测试。用户明确要求的独立完整验收仍保留；项目没有有效缓存证据时，完整 Hook 仍会执行。
+- 0.9.14 的 production run 保留策略和 Hub-backed 发布后验证宿主提示继续可用。项目私有的 postVerify Hook 继续通过 GitHub Git Data API，把已验证的 release-skill 条目和公开快照发布到 Skill Family Hub。
+
+**修复**
+
+- `prepare --help` 和 `prepare -h` 现在会在项目根目录解析、配置读取、锁获取、run 清理、Hook 执行、快照构建或计划写入前返回。JSON 帮助返回 `command: prepare` 和 `status: HELP`；没有帮助参数的 prepare 保留原有业务路径。
 
 **升级说明**
 
-从 0.9.13 升级到本版本后，production prepare 会限制已完成 run 的保留数量，发布后验证完成时也会显示 Hub-backed 宿主操作提示。需要该提示的发布单元应各自声明 `localHostUpdate`。删除各宿主中独立的 `release-skill` 市场登记，添加或更新 `ifoohoo/skill-family-hub`，并使用 `release-skill@skill-family-hub`。现有 `externalActions` 可执行目标继续使用原更新路径；0.9.14 的 Hub-backed 目标仍由维护者人工处理。
+从 0.9.14 升级后，可使用收敛后的 release-prepare 流程和无业务副作用的 prepare 帮助。项目配置无需迁移；项目专属的生成和前提检查仍通过已审阅入口执行。删除各宿主中独立的 `release-skill` 市场登记，添加或更新 `ifoohoo/skill-family-hub`，并使用 `release-skill@skill-family-hub`。现有 `externalActions` 可执行目标继续使用原更新路径；0.9.15 的 Hub-backed 目标仍由维护者人工处理。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.14 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.15 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -47,7 +50,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.14 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.15 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -65,9 +68,11 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-当前 0.9.14 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
-路径和稳定隔离安装树记录路径（A2/A3），并删除仓库自有市场索引，统一以
-Skill Family Hub 为市场来源。当前仍不包含 R-02 安全整树盘点、R-10 历史发布验证
+当前 0.9.15 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
+路径和稳定隔离安装树记录路径（A2/A3），继续以 Skill Family Hub 为唯一市场来源。
+`release-prepare` Skill 现在会组织项目已有的评估、刷新、聚焦检查和 prepare 入口，不新增执行引擎。
+`prepare --help` 和 `prepare -h` 会在配置、锁、run 或 Hook 观察请求之前返回。当前仍不包含
+R-02 安全整树盘点、R-10 历史发布验证
 的产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录
 验证器。本范围说明不构成远端发布记录或消费者升级指引。
 
@@ -636,7 +641,7 @@ release-skill ship --root "$PROJECT" --hook-approval "$HOOK_APPROVAL_PATH" --jso
 - `release-help`：环境检查和下一步引导。
 - `release-setup`：首次接入的只读发现、人工校准、create-once 配置创建和只读接入评估（`setup --assess-adoption`）。
 - `release-assess`：只读发布就绪度报告。
-- `release-prepare`：本地快照和可审阅发布计划。
+- `release-prepare`：组织项目已有前提和聚焦修复，再通过正式 prepare 入口冻结本地快照和可审阅发布计划。
 - `release-publish`：经批准的冻结 GitHub+npm 发布；内部摘要由系统自动校验。
 - `release-reconcile`：基于证据恢复 PARTIAL；冲突时人工介入。
 - `release-verify`：发布后验证；只有 `VERIFIED` 才是 happy end。

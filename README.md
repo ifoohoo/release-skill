@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.14 -->
+<!-- release-skill:release-version: 0.9.15 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,30 +14,33 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.14** (2026-09-05)
+**0.9.15** (2026-09-07)
 
-0.9.14 is a local source candidate that bounds retained production prepare runs and adds explicit Hub-backed host follow-ups after post-verification. The three Foundation dependencies remain pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.15 is a local source candidate that makes release preparation use the project's existing assessment, refresh, focused-check, and formal prepare entry points, and makes prepare help return before business execution. The three Foundation dependencies remain pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- Retention reuses Foundation path containment and existing plan and run lineage checks. It deletes whole run directories, preserves uncertain evidence, and never turns a cleanup failure into a prepare failure.
-- Hub-backed guidance does not run Git, GitHub, Hub, or host commands and does not probe local installation state. Plugin identity must match the frozen public manifests, and Hub-backed targets are not passed to `updateLocalHostPlugins()`.
-- Skill Family Hub updates remain compare-and-swap operations against the observed branch head. A partial Hub publication is never rolled back or force-pushed.
+- The orchestration change adds no execution engine, Hook type, cache key, approval state, or external write. Environment allowlists still forward only values already present in the invoking environment, and invalid lowercase names remain configuration errors.
+- Frozen candidates keep their existing acceptance boundary. A newly generated candidate requires validation against its own bytes; earlier acceptance evidence is not reused for changed output.
+- Skill Family Hub updates continue to use compare-and-swap against the observed branch head through GitHub's Git Data API. A partial Hub publication is never rolled back or force-pushed, and existing remote state is never overwritten.
 
-**Added**
+**Changed**
 
-- Production prepare now runs retention under the existing project lock. It keeps the current run, the newest verified complete lineage, and every non-terminal, partial, damaged, ambiguous, or validation-failing run; only superseded complete lineages and sealed failed prepares without external-write evidence are eligible for best-effort removal.
-- A release unit may declare `postPublish.localHostUpdate` with the plugin identity, target hosts, and project-selected Hub repository and ref. Prepare freezes that declaration into the immutable plan and binds it through `planDigest`.
-- After postVerify reaches `DISTRIBUTED`, the CLI and `release-finish` show host-specific manual installation or upgrade guidance for Hub-backed targets. Hub-only targets remain unavailable to the automatic local updater.
-- The project-private postVerify hook continues to publish the verified release-skill entry and public snapshot to Skill Family Hub through GitHub's Git Data API.
+- The release-prepare Skill now reads the current project contract and authorization, resolves required release-document and generated-artifact freshness work through existing project entry points, runs focused checks after repairs, and leaves complete validation to the formal prepare Hook path.
+- After a failure, release-prepare groups directly related fixes before retrying and does not add a same-purpose full test run by default. Explicitly requested independent full acceptance remains part of the workflow, and projects without valid cache evidence still execute their complete Hooks.
+- Existing 0.9.14 production-run retention and Hub-backed post-verification host guidance remain available. The project-private postVerify Hook continues to publish the verified release-skill entry and public snapshot to Skill Family Hub through GitHub's Git Data API.
+
+**Fixed**
+
+- `prepare --help` and `prepare -h` now return before project-root resolution, configuration loading, lock acquisition, run cleanup, Hook execution, snapshot construction, or plan writes. JSON help returns `command: prepare` with `status: HELP`; prepare without a help flag keeps its existing business path.
 
 **Upgrade Notes**
 
-Upgrade from 0.9.13 to bound completed production run history and receive post-verification Hub-backed host guidance. Declare `localHostUpdate` independently for each release unit that needs it. Remove any release-skill standalone marketplace registration, add or update `ifoohoo/skill-family-hub`, and use `release-skill@skill-family-hub`. Existing executable `externalActions` targets retain their current update path; Hub-backed targets remain manual in 0.9.14.
+Upgrade from 0.9.14 to use the consolidated release-prepare workflow and side-effect-free prepare help. No project configuration migration is required. Keep project-specific generation and prerequisite checks in their existing reviewed entry points. Remove any release-skill standalone marketplace registration, add or update `ifoohoo/skill-family-hub`, and use `release-skill@skill-family-hub`. Existing executable `externalActions` targets retain their current update path; Hub-backed targets remain manual in 0.9.15.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.14 is the current source candidate. This README
+> **Current boundary:** v0.9.15 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -61,7 +64,7 @@ Upgrade from 0.9.13 to bound completed production run history and receive post-v
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.14 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.15 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -90,10 +93,13 @@ checkpoints remain intact and use matching-version recovery. Evidence v1 stays
 read-only; v2 uses a closed top level with phase extensions in `details`.
 Summaries and recovery suggestions are diagnostic, never publication authority.
 
-The current 0.9.14 candidate includes the narrow R-05 Hook cache v2 consumer
+The current 0.9.15 candidate includes the narrow R-05 Hook cache v2 consumer
 path, the public `postverify` path, and the stable isolated install-tree record
-path (A2/A3). It also removes the repository's own marketplace indexes and
-uses Skill Family Hub as the single marketplace source. It still
+path (A2/A3). It keeps Skill Family Hub as the single marketplace source. It
+also makes the `release-prepare` Skill organize existing assessment, refresh,
+focused-check, and prepare entry points without adding another execution
+engine. `prepare --help` and `prepare -h` now return before configuration,
+locks, runs, or hooks can observe the request. This candidate still
 excludes R-02 safe full-tree inventory, R-10 historical-release verification
 implementation, real Kimi/WorkBuddy public-marketplace installation and
 invocation gates, and an Audit public offline release-record verifier.
@@ -743,7 +749,7 @@ append-only incremental flow is described in the setup step above and in
 - `release-help`: environment check and next-step guidance.
 - `release-setup`: read-only discovery, human calibration, create-once configuration, and read-only adoption assessment (`setup --assess-adoption`).
 - `release-assess`: read-only release readiness report.
-- `release-prepare`: local snapshot and reviewable release plan.
+- `release-prepare`: organizes existing project prerequisites and focused repairs, then freezes a local snapshot and reviewable release plan through the formal prepare entry.
 - `release-publish`: approved frozen GitHub+npm publishing; the internal digest is checked automatically.
 - `release-reconcile`: evidence-based PARTIAL recovery with human intervention on conflicts.
 - `release-verify`: post-publish verification; only `VERIFIED` is the happy end.

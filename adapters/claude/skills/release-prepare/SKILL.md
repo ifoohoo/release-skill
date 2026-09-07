@@ -25,17 +25,45 @@ description: Freeze an immutable release plan with local configuration, document
 
 **不确定性停止**: 遇到无法确定的配置项或版本冲突时，Agent 必须停止并上报用户。
 
+**候选与授权边界**: 先确认本轮操作的是未冻结工作树，还是已经冻结并取得验收的候选。候选已经冻结时，未经授权不得运行会改写候选的生成命令或 Hook。保留原候选时，原有验收继续绑定原候选。若要生成新候选，先说明哪些计划、批准和验收需要重新绑定；禁止把旧候选的验收用于新候选。
+
+**项目事实来源**: 依赖关系、生成入口、聚焦检查和环境前提只能来自用户请求、项目权威指引、配置及现有脚本。Skill 必须在授权范围内实际执行已确认的入口，不能只建议主会话“统一刷新”。现有事实不足以证明顺序或副作用时，报告缺少的具体事实并停止，不创建通用依赖图、前提检查脚本或配置迁移。
+
 **发布文档新鲜度门**: 配置了 `releaseDocuments` 的单元在 hook 授权门前先执行同一只读规划器：`clean` 继续；`changes` 抛 `RELEASE_DOCS_STALE`，详情列出相对路径、语种、`refreshDigest` 和精确演练/写入参数数组。prepare 只检查、不写工作树。正式 prepare 前先运行只读演练；有变化时向用户展示文件/语种/版本/`refreshDigest`，只有在用户明确授权"本地发布文档写入"后，才执行带 `--write --confirm-refresh <refreshDigest> --ack-local-document-write` 三项绑定的写入，随后运行聚焦校验，要求维护者审阅并提交刷新结果，再重新 prepare。该授权不扩展为 hook、提交、push 或 publish 授权。
 
 **显式发布范围**: 只有用户已经指出本轮要发布哪些单元时，才把这些 ID 逐个传给 `--unit`。release-skill 不根据失败自动排除单元。选择命中 `publicSourceAuthorityReceipt` 的 coordinator 或 subject 时，必须包含收据声明的完整单元闭包；缺少单元时按命令返回的精确 argv 重新选择，不自动扩选。成功后展示 `releaseScope.selectedUnitIds`、`releaseScope.deferredUnitIds` 和批准摘要。延期仅表示没有进入本轮计划，不表示通过或失败。
 
 ## 正向执行路径
 
-1. 使用插件根相对路径运行 CLI：`CLI="node ${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs"`
-2. 配置含 `releaseDocuments` 时，先运行只读演练 `${CLI} docs refresh --unit <id> --json`；`status: "changes"` 时展示逐文件路径/语种/版本/`refreshDigest`，取得"本地发布文档写入"明确授权后才执行 `nextCommand.argv` 写入，审阅并提交刷新结果后再继续；`status: "clean"` 时直接进入 prepare
-3. 运行 `${CLI} prepare --root <path> --offline --json`；用户已明确选择范围时，为每个单元追加一个 `--unit <id>`
-4. 检查 exit code 0，读取 JSON 返回的 immutable `planPath=plans/<planDigest>.json`，再从该文件读取 `status`、`units`、`externalActions`
-5. 向用户展示可读的 `approvalSummary`：版本、公开仓库、分支策略、branch/tag、npm 与 GitHub Release 目标、全部外部动作、例外，以及需要独立 checkpoint 批准的 postPublish hook。`planDigest` 仅作为内部绑定字段，不要求用户复制或确认。后续 approve/publish 只能使用该 immutable planPath，等待确认后再 approve。计划批准不包含受限 postPublish hook 的 checkpoint 批准
+1. 使用插件根相对路径运行 CLI：`CLI="node ${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs"`。读取用户请求、项目权威指引和 `.release-skill/project.yaml`，固定目标版本、单元范围、候选状态和本轮写入授权。
+2. 配置首次接入或本轮发生变化时，运行只读评估 `${CLI} assess --root <path> --offline --json`；配置未变且已有对应检查证据时不重复评估。读取 `status` 和 `gaps[]` 并逐项分类，不能把整体 `ASSESSED` 当作生成前置，也不能只凭退出码宣布发布条件齐备：
+   - `CONFIG_INVALID` 必须先按结构化错误定位字段。只有已知合法值和本轮授权同时具备时才修复，随后复跑 assess；在此之前不得生成或运行完整测试，也不得放宽 schema 或猜值。
+   - 明确发布范围内的 missing/stale gap，如果能由项目已有且获授权的生成入口或发布文档协议解决，保留原 gap 并进入后续刷新链。配置本身未变时，使用刷新和聚焦检查的新证据继续，不为形式完整重复 assess。
+   - gap 需要用户输入，或缺少写入授权、权威入口或必要项目事实时，停在 `NEEDS_INPUT`，报告缺少的具体条件。
+   - 按发布单元保留 gap 归属。延期单元的问题不能证明已选单元通过，也不能据此自动增删范围。assess 的整体状态也不能单独阻断已选范围；最终结果由正式 prepare 的完整配置、新鲜度和 Hook 门禁裁决。
+3. 配置含 `releaseDocuments` 时，运行只读演练 `${CLI} docs refresh --unit <id> --json`。`status: "changes"` 时展示逐文件路径、语种、版本和 `refreshDigest`；取得“本地发布文档写入”明确授权后才执行 `nextCommand.argv`。审阅并提交刷新结果后再继续；`status: "clean"` 时进入下一步。
+4. 根据项目权威指引列出从配置到最终派生物的完整依赖链，并确认唯一生成责任。此时只选择现有入口，不开始生成：
+   - 项目已有外部完整生成入口时，记录该入口及对应聚焦检查。后续 build Hook 不得重复生成同一批输出。
+   - 可达的 `hooks.build` 已承担完整生成流程时，不在 prepare 外重复生成。必须从现有 Hook 命令确认它会刷新完整依赖链并执行所需聚焦检查；前置新鲜度门会先阻断时，不能期待 build Hook 修复输入。
+   - `releaseDocuments` 仍按上一步的专用刷新协议处理，不能改由 build Hook 绕过。
+5. 在首次生成、写候选或完整验证之前，核对项目合同中已知的环境前提。`envAllowlist` 只转发调用环境中已经存在的同名变量，不会生成值或证明值正确：
+   - 项目已有廉价前提检查时，先在当前环境原样运行同一入口。检查失败后保留原始错误，且不得开始生成、Hook 或昂贵测试。
+   - 只有项目合同给出合法值且本轮已经授权修正时，才修正后续命令环境；随后复跑同一廉价检查。没有值或授权时停在 `NEEDS_INPUT`。
+   - 项目没有廉价入口时，说明尚未验证的前提，再由正式 Hook 的实际结果裁决。不得临时编写检查脚本或把 assess 当成环境值检查。
+6. 外部生成入口承担责任时，在授权写集内运行一次该入口，再运行一次项目指定的聚焦检查。build Hook 承担责任时跳过本步，留给 prepare 执行；不得先手工调用同一生成流程。
+7. 普通路径不额外运行手动完整测试或 `hooks validate`。直接运行 `${CLI} prepare --root <path> --offline --json`，由 prepare 执行已声明 Hook 和完整验证；用户已明确选择范围时，为每个单元追加一个 `--unit <id>`。用户明确要求独立完整验收时保留该要求，即使正式 prepare 会再次运行完整 Hook。
+8. 检查 CLI exit code 0 和结构化状态 `PREPARED`。读取返回的不可变 `planPath=plans/<planDigest>.json`，再从该文件读取 `status`、`units` 和 `externalActions`。build Hook 承担生成时，还要从 Hook 输出及 evidence 确认完整依赖链和聚焦检查各执行一次。聚焦检查通过、Hook 通过和 `PREPARED` 是不同结果，不得互相代替。
+9. 向用户展示可读的 `approvalSummary`：版本、公开仓库、分支策略、branch/tag、npm 与 GitHub Release 目标、全部外部动作、例外，以及需要独立 checkpoint 批准的 postPublish hook。`planDigest` 仅作为内部绑定字段，不要求用户复制或确认。后续 approve/publish 只能使用该 immutable planPath，等待确认后再 approve。计划批准不包含受限 postPublish hook 的 checkpoint 批准。
+
+报告调用次数时，以本轮请求开始到取得结果或停止为计数窗口。分别列出生成命令、聚焦检查、正式 Hook 前提检查和昂贵测试。`prepare` 不是生成命令；一次 Hook 启动也不能证明昂贵测试已经进入测试体。优先使用工具转录、项目夹具输出和 CLI evidence，不能用模型自报替代实际记录。
+
+## 修复与重试
+
+一次失败后，集中核对该失败及其直接依赖。统一完成已授权修复，再运行现有聚焦检查；修复收敛后才重新尝试 prepare，不用完整门禁逐项寻找下一项问题。
+
+命令、目录、参数或环境错误由当前职责修正。环境改变后重新验证受影响的廉价入口和正式入口，过去的手动成功不能证明新环境。需要单独诊断 Hook 时可以使用 `hooks validate`，但须说明它会执行全部已声明 Hook，并可能写文件或访问网络。它不是每次 prepare 的固定前置步骤；缺少有效 cache 时，随后 prepare 会再次执行 Hook。
+
+同类产品失败连续两次时停止原样重试，检查依赖和入口是否选错。保留原始错误和输出；新诊断替换旧猜测，但不得覆盖已有日志或另建整改状态。
 
 若用户明确要求 GitHub+npm 生产发布，加入 `--production`。该模式还会封存独立
 Git commit/tree 和 npm tarball，并把路径、SHA/integrity、branch/tag 写入计划。
@@ -93,9 +121,7 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" prepare --root <path> --onlin
 | RELEASE_DOCS_STALE | 文档相对说明源已陈旧；按详情运行只读演练，展示文件/语种/版本/摘要，经用户授权“本地发布文档写入”后执行写入，审阅提交再重新 prepare |
 | RELEASE_DOCS_INVALID / TRANSLATION_MISSING / CONFLICT / REFRESH_STALE | 修复配置/说明源/目标或重新演练取得新 `refreshDigest`；不得扩大写入范围绕过 |
 | SECRET_DETECTED | 移除密钥并更新 allowlist |
-| CONFIG_INVALID | 检查 version.source、package.json，以及 `--unit` 是否为空、重复或不在 `releaseUnits[]` 中 |
-
-重试时只保留最新结构化错误码和失败门，不沿用早期猜测；重跑确定性命令获得新证据。
+| CONFIG_INVALID | 先用 assess 定位结构化配置错误；检查 version.source、package.json、环境白名单是否为合法大写名称，以及 `--unit` 是否为空、重复或不在 `releaseUnits[]` 中。修复须使用已知合法值和明确写入授权 |
 
 ## 后续引导
 

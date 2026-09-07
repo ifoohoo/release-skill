@@ -1,5 +1,32 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.15 locale=en baseline=sha256:caaa3680d940673edb3421512224623f618d8bff4ab159be60c797620ea3851f -->
+## [0.9.15] - 2026-09-07
+
+0.9.15 is a local source candidate that makes release preparation use the project's existing assessment, refresh, focused-check, and formal prepare entry points, and makes prepare help return before business execution. The three Foundation dependencies remain pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- The orchestration change adds no execution engine, Hook type, cache key, approval state, or external write. Environment allowlists still forward only values already present in the invoking environment, and invalid lowercase names remain configuration errors.
+- Frozen candidates keep their existing acceptance boundary. A newly generated candidate requires validation against its own bytes; earlier acceptance evidence is not reused for changed output.
+- Skill Family Hub updates continue to use compare-and-swap against the observed branch head through GitHub's Git Data API. A partial Hub publication is never rolled back or force-pushed, and existing remote state is never overwritten.
+
+### Changed
+
+- The release-prepare Skill now reads the current project contract and authorization, resolves required release-document and generated-artifact freshness work through existing project entry points, runs focused checks after repairs, and leaves complete validation to the formal prepare Hook path.
+- After a failure, release-prepare groups directly related fixes before retrying and does not add a same-purpose full test run by default. Explicitly requested independent full acceptance remains part of the workflow, and projects without valid cache evidence still execute their complete Hooks.
+- Existing 0.9.14 production-run retention and Hub-backed post-verification host guidance remain available. The project-private postVerify Hook continues to publish the verified release-skill entry and public snapshot to Skill Family Hub through GitHub's Git Data API.
+
+### Fixed
+
+- `prepare --help` and `prepare -h` now return before project-root resolution, configuration loading, lock acquisition, run cleanup, Hook execution, snapshot construction, or plan writes. JSON help returns `command: prepare` with `status: HELP`; prepare without a help flag keeps its existing business path.
+
+### Upgrade Notes
+
+Upgrade from 0.9.14 to use the consolidated release-prepare workflow and side-effect-free prepare help. No project configuration migration is required. Keep project-specific generation and prerequisite checks in their existing reviewed entry points. Remove any release-skill standalone marketplace registration, add or update `ifoohoo/skill-family-hub`, and use `release-skill@skill-family-hub`. Existing executable `externalActions` targets retain their current update path; Hub-backed targets remain manual in 0.9.15.
+<!-- release-skill:changelog:end version=0.9.15 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.14 locale=en baseline=sha256:48b2f41bd292f3357b3cf7433de1a2191b84d86a5074c9786ac952f62d4279be -->
 ## [0.9.14] - 2026-09-05
 

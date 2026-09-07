@@ -595,6 +595,65 @@ if (!COMMANDS.has(command)) {
   await exitAfterFlush(2);
 }
 
+// Prepare help must stop before project-root resolution, config loading, lock
+// acquisition, run cleanup, or importing the prepare implementation. This
+// keeps help usable in empty and invalid projects and prevents declared hooks
+// from observing a help-only invocation.
+if (command === 'prepare' && (args.includes('--help') || args.includes('-h'))) {
+  const helpText = `release-skill prepare - Freeze a release plan
+
+Usage:
+  release-skill prepare [--root <path>] [--target-version <version>] [options]
+
+Options:
+  --root <path>                         Project root directory (default: cwd)
+  --target-version <version>            Specify the target version (--version is an alias)
+  --unit <id>                           Select a release unit (repeatable)
+  --workflow <full|docs|config|marketplace>  Workflow profile (default: full)
+  --production                          Freeze immutable production artifacts
+  --offline                             Do not query remote state (default)
+  --online                              Observe the configured previous public baseline
+  --output <path>                       Override the plan path (non-production only)
+  --run-dir <path>                      Override the prepare run directory
+  --test-selection <full|incremental>   Freeze-time test selection (only full is accepted)
+  --no-hook-cache                       Run declared hooks without cache reuse
+  --acknowledge-hook-side-effects       Deprecated no-op compatibility input
+  --acknowledge-gate-side-effects       Deprecated no-op compatibility input
+  --json                                Output results as JSON
+  -h, --help                            Show this help message and exit
+
+Invoking prepare authorizes configured hook and gate execution; the deprecated
+acknowledgement flags do not add a separate authorization step.`;
+  if (hasJson) {
+    console.log(JSON.stringify({
+      command: 'prepare',
+      status: 'HELP',
+      usage: 'release-skill prepare [--root <path>] [--target-version <version>] [options]',
+      options: {
+        '--root': 'Project root directory (default: cwd)',
+        '--target-version': 'Specify the target version (--version is an alias)',
+        '--unit': 'Select a release unit (repeatable)',
+        '--workflow': 'Workflow profile: full, docs, config, or marketplace (default: full)',
+        '--production': 'Freeze immutable production artifacts',
+        '--offline': 'Do not query remote state (default)',
+        '--online': 'Observe the configured previous public baseline',
+        '--output': 'Override the plan path (non-production only)',
+        '--run-dir': 'Override the prepare run directory',
+        '--test-selection': 'Freeze-time test selection: only full is accepted',
+        '--no-hook-cache': 'Run declared hooks without cache reuse',
+        '--acknowledge-hook-side-effects': 'Deprecated no-op compatibility input',
+        '--acknowledge-gate-side-effects': 'Deprecated no-op compatibility input',
+        '--json': 'Output results as JSON',
+        '-h, --help': 'Show this help message and exit',
+      },
+      message: 'Invoking prepare authorizes configured hook and gate execution; deprecated acknowledgement flags do not add a separate authorization step.',
+    }, null, 2));
+  } else {
+    console.log(helpText);
+  }
+  await exitAfterFlush(0);
+}
+
 // Ship help is intentionally handled before resolving a project root or
 // importing adapters. It must remain usable in an empty, invalid, or
 // read-only directory and must not touch config, locks, or ship state.
