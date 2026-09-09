@@ -1,5 +1,36 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.16 locale=en baseline=sha256:ea8288d2ffcedf02008eb0bc10280d52bc6ddd2e383f072913340eb64cb7ca63 -->
+## [0.9.16] - 2026-09-09
+
+0.9.16 is a local source candidate that connects verified releases to explicit source-branch checks, host-aware setup continuation, and postVerify finish guidance. The three Foundation dependencies remain pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- The source-branch reminder runs only `git branch --show-current` and `git status --short --branch`; it never fetches, switches, merges, rebases, stashes, resets, cleans, or pushes. Setup names are matched as skill metadata and are never executed as shell text.
+- Skill Family Hub updates bind the observed branch head with compare-and-swap semantics. Partial Hub publication is never rolled back or force-pushed, and remote state is never overwritten.
+
+### Added
+
+- Projects may configure `releaseFinish.sourceBranchCheck` as `remind` or `skip` and may name a loaded setup entry through `releaseFinish.setupSkill`. The release-finish workflow keeps the publishing workspace separate from an explicitly selected consumer project and reports setup as pending when the target directory, loaded plugin version, or callable host is not established.
+- Source checks use read-only Git commands and report the current branch, worktree changes, upstream summary, and any decision that still belongs to the maintainer. A project can select `release-setup` when it wants the release-finish workflow to continue into release-skill setup.
+
+### Changed
+
+- After a successful postVerify run reaches `DISTRIBUTED`, both JSON and text CLI output now expose the same Hub-backed local-host finish guidance used by the release-finish workflow. The guidance remains diagnostic and never invokes a host command on its own.
+- Host updates and setup checks remain local follow-up work and do not change the immutable release plan or the `VERIFIED` publication result. Shared project readiness may be checked once only when the plugin version, consumer directory, and runtime environment are the same; host-specific installation and loading remain separate checks.
+- Skill Family Hub publication continues through the project-private postVerify hook and GitHub Git Data API. The Hub update remains a separately approved compare-and-swap write against the observed branch head.
+
+### Fixed
+
+- A completed postVerify delivery now keeps `DISTRIBUTED` even when the optional finish checklist cannot reread its plan. The CLI returns an explicit unavailable diagnostic without rewriting the successful delivery checkpoint.
+
+### Upgrade Notes
+
+Upgrade from 0.9.15 to receive postVerify finish guidance and optional source-branch and setup continuation. Add a top-level `releaseFinish` block only when the project wants to select a setup entry or change the default reminder policy. Remove any release-skill standalone marketplace registration, add or update `ifoohoo/skill-family-hub`, and use `release-skill@skill-family-hub`. Restart an updated host before treating the new plugin version or setup entry as loaded.
+<!-- release-skill:changelog:end version=0.9.16 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.15 locale=en baseline=sha256:caaa3680d940673edb3421512224623f618d8bff4ab159be60c797620ea3851f -->
 ## [0.9.15] - 2026-09-07
 

@@ -44,6 +44,24 @@
         }
       }
     },
+    "releaseFinish": {
+      "type": "object",
+      "description": "Optional local post-release finish settings. Omitted sourceBranchCheck defaults to remind.",
+      "additionalProperties": false,
+      "properties": {
+        "sourceBranchCheck": {
+          "type": "string",
+          "enum": [
+            "remind",
+            "skip"
+          ]
+        },
+        "setupSkill": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*(?::[a-z0-9][a-z0-9-]*)?$"
+        }
+      }
+    },
     "publicSourceAuthorityReceipt": {
       "type": "object",
       "description": "Optional public source-authority receipt uploaded to one coordinator GitHub Release after all subject npm tarballs are frozen.",

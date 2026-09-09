@@ -1711,6 +1711,23 @@ This command creates an independent postVerify run and never reads or writes shi
       root,
       ...(postpublishApprovalPaths.length > 0 ? { postpublishApprovalPaths } : {}),
     });
+    if (result.status === 'DISTRIBUTED') {
+      const {
+        derivePostReleaseChecklist,
+        unavailablePostReleaseChecklist,
+      } = await import('../src/commands/post-release-local.mjs');
+      let plan;
+      try {
+        plan = JSON.parse(await readFile(resolve(planPath), 'utf8'));
+        result.postRelease = derivePostReleaseChecklist(plan, {
+          root,
+          runPath: result.runPath,
+          postVerifyComplete: true,
+        });
+      } catch (error) {
+        result.postRelease = unavailablePostReleaseChecklist(plan, error);
+      }
+    }
 
     if (hasJson) {
       console.log(JSON.stringify(result, null, 2));
@@ -1720,6 +1737,17 @@ This command creates an independent postVerify run and never reads or writes shi
         console.log(`  ${cp.actionId}: ${cp.status}`);
       }
       if (result.runPath) console.log(`PostVerify run: ${result.runPath}`);
+      if (result.postRelease?.status === 'UNAVAILABLE') {
+        console.warn(`Post-release checklist unavailable: ${result.postRelease.diagnostic?.message ?? 'unknown error'}`);
+      } else if (result.postRelease?.localHostUpdate?.promptRequired === true) {
+        const localHostUpdate = result.postRelease.localHostUpdate;
+        console.log(`Post-release: ask whether to update local host plugins (${localHostUpdate.hosts.join(', ')}).`);
+        if (localHostUpdate.available === true && typeof localHostUpdate.runPath === 'string') {
+          console.log(`Post-release command: release-skill post-release --plan ${resolve(planPath)} --run ${localHostUpdate.runPath}`);
+          console.log('Choose --hosts before adding --update-local-hosts to perform a local update.');
+        }
+        printHubManualTargets(localHostUpdate.targets);
+      }
     }
 
     await exitAfterFlush(result.status === 'DISTRIBUTED' ? 0 : 1);

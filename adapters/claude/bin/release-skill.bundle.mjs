@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.15"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.16"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "e47969ed810fa0edbed7073f13df855be95feed7ffecc40f72dd887cab52ff97";
+const __bundleSourceDigest = "ba44ad70cebc1cc077887bdf71bf36d78b9073c8aeabd0074aac2eb0d5caffea";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -148166,6 +148166,23 @@ This command creates an independent postVerify run and never reads or writes shi
       root,
       ...postpublishApprovalPaths.length > 0 ? { postpublishApprovalPaths } : {}
     });
+    if (result2.status === "DISTRIBUTED") {
+      const {
+        derivePostReleaseChecklist: derivePostReleaseChecklist2,
+        unavailablePostReleaseChecklist: unavailablePostReleaseChecklist2
+      } = await init_post_release_local().then(() => post_release_local_exports);
+      let plan;
+      try {
+        plan = JSON.parse(await readFile57(resolve42(planPath), "utf8"));
+        result2.postRelease = derivePostReleaseChecklist2(plan, {
+          root,
+          runPath: result2.runPath,
+          postVerifyComplete: true
+        });
+      } catch (error) {
+        result2.postRelease = unavailablePostReleaseChecklist2(plan, error);
+      }
+    }
     if (hasJson) {
       console.log(JSON.stringify(result2, null, 2));
     } else {
@@ -148174,6 +148191,17 @@ This command creates an independent postVerify run and never reads or writes shi
         console.log(`  ${cp4.actionId}: ${cp4.status}`);
       }
       if (result2.runPath) console.log(`PostVerify run: ${result2.runPath}`);
+      if (result2.postRelease?.status === "UNAVAILABLE") {
+        console.warn(`Post-release checklist unavailable: ${result2.postRelease.diagnostic?.message ?? "unknown error"}`);
+      } else if (result2.postRelease?.localHostUpdate?.promptRequired === true) {
+        const localHostUpdate = result2.postRelease.localHostUpdate;
+        console.log(`Post-release: ask whether to update local host plugins (${localHostUpdate.hosts.join(", ")}).`);
+        if (localHostUpdate.available === true && typeof localHostUpdate.runPath === "string") {
+          console.log(`Post-release command: release-skill post-release --plan ${resolve42(planPath)} --run ${localHostUpdate.runPath}`);
+          console.log("Choose --hosts before adding --update-local-hosts to perform a local update.");
+        }
+        printHubManualTargets(localHostUpdate.targets);
+      }
     }
     await exitAfterFlush(result2.status === "DISTRIBUTED" ? 0 : 1);
   } catch (err) {

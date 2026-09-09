@@ -2,39 +2,43 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.15 -->
+<!-- release-skill:release-version: 0.9.16 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.15** (2026-09-07)
+**0.9.16** (2026-09-09)
 
-0.9.15 是一个本地源码候选。本版本让发布准备复用项目已有评估、刷新、聚焦检查和正式 prepare 入口，并让 prepare 帮助在业务执行前返回。三项 Foundation 依赖仍精确固定在已发布的 0.17.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.16 是把已验证发布衔接到显式源码分支检查、宿主感知 setup 续接和 postVerify 收尾提示的本地源码候选。三项 Foundation 依赖仍精确固定在已发布的 0.17.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- 本次编排调整不新增执行引擎、Hook 类型、缓存键、批准状态或外部写入。环境变量白名单仍只转发调用环境中已存在的同名值，非法的小写名称继续按配置错误处理。
-- 已冻结候选保留原有验收边界。新生成的候选必须针对自身字节验证，不得复用变更前的验收证据。
-- Skill Family Hub 更新继续通过 GitHub Git Data API，根据已观察的分支头比较后写入。Hub 局部发布不回滚、不覆盖，也不强推。
+- 源码分支提醒只运行 `git branch --show-current` 和 `git status --short --branch`，不会 fetch、切换、合并、rebase、stash、reset、clean 或 push。setup 名只作为技能元数据匹配，不会按 shell 文本执行。
+- Skill Family Hub 更新以已观察的分支头为基础比较后写入。Hub 局部发布不回滚、不覆盖，也不强推。
+
+**新增**
+
+- 项目可以把 `releaseFinish.sourceBranchCheck` 配置为 `remind` 或 `skip`，并通过 `releaseFinish.setupSkill` 指定已加载的 setup 入口。release-finish 会区分发布工作区和用户明确选择的消费项目；目标目录、新版插件加载状态或可调用宿主不能确认时，只报告 setup 待执行。
+- 源码检查只运行只读 Git 命令，报告当前分支、工作区改动、上游摘要，以及仍需维护者决定的事项。项目需要让 release-finish 继续进入 release-skill setup 时，可以选择 `release-setup`。
 
 **变更**
 
-- release-prepare Skill 现在先读取项目合同和授权，通过项目已有入口处理发布文档与生成物新鲜度，修复后运行聚焦检查，并把完整验证交给正式 prepare Hook 路径。
-- 一次失败后，release-prepare 会集中处理直接相关的修复再重试，默认不增加同目的的完整测试。用户明确要求的独立完整验收仍保留；项目没有有效缓存证据时，完整 Hook 仍会执行。
-- 0.9.14 的 production run 保留策略和 Hub-backed 发布后验证宿主提示继续可用。项目私有的 postVerify Hook 继续通过 GitHub Git Data API，把已验证的 release-skill 条目和公开快照发布到 Skill Family Hub。
+- postVerify 成功进入 `DISTRIBUTED` 后，JSON 和文本 CLI 输出都会显示与 release-finish 一致的 Hub-backed 本机宿主收尾提示。提示只用于诊断，不会自行调用宿主命令。
+- 宿主更新和 setup 检查仍属于本地后续工作，不改写不可变发布计划，也不改变 `VERIFIED` 发布结果。只有插件版本、消费目录和运行环境都相同时，才可复用一次项目就绪检查；各宿主仍分别检查安装与加载状态。
+- Skill Family Hub 继续通过项目私有的 postVerify hook 和 GitHub Git Data API 发布。Hub 更新仍需单独批准，并根据已观察的分支头比较后写入。
 
 **修复**
 
-- `prepare --help` 和 `prepare -h` 现在会在项目根目录解析、配置读取、锁获取、run 清理、Hook 执行、快照构建或计划写入前返回。JSON 帮助返回 `command: prepare` 和 `status: HELP`；没有帮助参数的 prepare 保留原有业务路径。
+- postVerify 已完成分发后，即使可选收尾清单无法重新读取计划，也会保留 `DISTRIBUTED`。CLI 会返回明确的不可用诊断，不会改写已成功的分发检查点。
 
 **升级说明**
 
-从 0.9.14 升级后，可使用收敛后的 release-prepare 流程和无业务副作用的 prepare 帮助。项目配置无需迁移；项目专属的生成和前提检查仍通过已审阅入口执行。删除各宿主中独立的 `release-skill` 市场登记，添加或更新 `ifoohoo/skill-family-hub`，并使用 `release-skill@skill-family-hub`。现有 `externalActions` 可执行目标继续使用原更新路径；0.9.15 的 Hub-backed 目标仍由维护者人工处理。
+从 0.9.15 升级后，可获得 postVerify 收尾提示，以及可选的源码分支与 setup 续接。只有需要指定 setup 入口或修改默认提醒策略时，才增加顶层 `releaseFinish` 配置。删除各宿主中独立的 `release-skill` 市场登记，添加或更新 `ifoohoo/skill-family-hub`，并使用 `release-skill@skill-family-hub`。宿主更新后需先重启，才能把新版插件或 setup 入口视为已加载。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.15 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.16 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -50,7 +54,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.15 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.16 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -68,10 +72,11 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-当前 0.9.15 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
+当前 0.9.16 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
 路径和稳定隔离安装树记录路径（A2/A3），继续以 Skill Family Hub 为唯一市场来源。
 `release-prepare` Skill 现在会组织项目已有的评估、刷新、聚焦检查和 prepare 入口，不新增执行引擎。
-`prepare --help` 和 `prepare -h` 会在配置、锁、run 或 Hook 观察请求之前返回。当前仍不包含
+`prepare --help` 和 `prepare -h` 会在配置、锁、run 或 Hook 观察请求之前返回。
+所选宿主加载已发布插件后，`release-finish` Skill 还可以报告源码分支，并继续执行已配置的 setup 入口。当前仍不包含
 R-02 安全整树盘点、R-10 历史发布验证
 的产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录
 验证器。本范围说明不构成远端发布记录或消费者升级指引。
@@ -415,6 +420,9 @@ project:
   name: my-project
   defaultBranch: main
   sourceRepository: owner/my-workspace
+releaseFinish:
+  sourceBranchCheck: remind
+  setupSkill: release-setup
 releaseUnits:
   - id: my-project
     source: .
@@ -444,6 +452,10 @@ releaseUnits:
       branchTemplate: release/{tag}
       branchStrategy: create-release-branch
 ```
+
+`releaseFinish` 只控制本地发布收尾。`sourceBranchCheck` 缺省为 `remind`；设为
+`skip` 时关闭只读源码分支提醒。`setupSkill` 可省略，填写时指定已经安装并加载的 setup
+入口，例如 `release-setup` 或 `plugin:skill`；它不会作为 shell 命令执行。两个配置彼此独立。
 
 `distributions` 是必填字段，但可以显式设为空数组。使用
 `distributions: []` 时，release-skill 只发布该单元的 GitHub 快照、标签和

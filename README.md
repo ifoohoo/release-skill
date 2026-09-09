@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.15 -->
+<!-- release-skill:release-version: 0.9.16 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,33 +14,37 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.15** (2026-09-07)
+**0.9.16** (2026-09-09)
 
-0.9.15 is a local source candidate that makes release preparation use the project's existing assessment, refresh, focused-check, and formal prepare entry points, and makes prepare help return before business execution. The three Foundation dependencies remain pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.16 is a local source candidate that connects verified releases to explicit source-branch checks, host-aware setup continuation, and postVerify finish guidance. The three Foundation dependencies remain pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- The orchestration change adds no execution engine, Hook type, cache key, approval state, or external write. Environment allowlists still forward only values already present in the invoking environment, and invalid lowercase names remain configuration errors.
-- Frozen candidates keep their existing acceptance boundary. A newly generated candidate requires validation against its own bytes; earlier acceptance evidence is not reused for changed output.
-- Skill Family Hub updates continue to use compare-and-swap against the observed branch head through GitHub's Git Data API. A partial Hub publication is never rolled back or force-pushed, and existing remote state is never overwritten.
+- The source-branch reminder runs only `git branch --show-current` and `git status --short --branch`; it never fetches, switches, merges, rebases, stashes, resets, cleans, or pushes. Setup names are matched as skill metadata and are never executed as shell text.
+- Skill Family Hub updates bind the observed branch head with compare-and-swap semantics. Partial Hub publication is never rolled back or force-pushed, and remote state is never overwritten.
+
+**Added**
+
+- Projects may configure `releaseFinish.sourceBranchCheck` as `remind` or `skip` and may name a loaded setup entry through `releaseFinish.setupSkill`. The release-finish workflow keeps the publishing workspace separate from an explicitly selected consumer project and reports setup as pending when the target directory, loaded plugin version, or callable host is not established.
+- Source checks use read-only Git commands and report the current branch, worktree changes, upstream summary, and any decision that still belongs to the maintainer. A project can select `release-setup` when it wants the release-finish workflow to continue into release-skill setup.
 
 **Changed**
 
-- The release-prepare Skill now reads the current project contract and authorization, resolves required release-document and generated-artifact freshness work through existing project entry points, runs focused checks after repairs, and leaves complete validation to the formal prepare Hook path.
-- After a failure, release-prepare groups directly related fixes before retrying and does not add a same-purpose full test run by default. Explicitly requested independent full acceptance remains part of the workflow, and projects without valid cache evidence still execute their complete Hooks.
-- Existing 0.9.14 production-run retention and Hub-backed post-verification host guidance remain available. The project-private postVerify Hook continues to publish the verified release-skill entry and public snapshot to Skill Family Hub through GitHub's Git Data API.
+- After a successful postVerify run reaches `DISTRIBUTED`, both JSON and text CLI output now expose the same Hub-backed local-host finish guidance used by the release-finish workflow. The guidance remains diagnostic and never invokes a host command on its own.
+- Host updates and setup checks remain local follow-up work and do not change the immutable release plan or the `VERIFIED` publication result. Shared project readiness may be checked once only when the plugin version, consumer directory, and runtime environment are the same; host-specific installation and loading remain separate checks.
+- Skill Family Hub publication continues through the project-private postVerify hook and GitHub Git Data API. The Hub update remains a separately approved compare-and-swap write against the observed branch head.
 
 **Fixed**
 
-- `prepare --help` and `prepare -h` now return before project-root resolution, configuration loading, lock acquisition, run cleanup, Hook execution, snapshot construction, or plan writes. JSON help returns `command: prepare` with `status: HELP`; prepare without a help flag keeps its existing business path.
+- A completed postVerify delivery now keeps `DISTRIBUTED` even when the optional finish checklist cannot reread its plan. The CLI returns an explicit unavailable diagnostic without rewriting the successful delivery checkpoint.
 
 **Upgrade Notes**
 
-Upgrade from 0.9.14 to use the consolidated release-prepare workflow and side-effect-free prepare help. No project configuration migration is required. Keep project-specific generation and prerequisite checks in their existing reviewed entry points. Remove any release-skill standalone marketplace registration, add or update `ifoohoo/skill-family-hub`, and use `release-skill@skill-family-hub`. Existing executable `externalActions` targets retain their current update path; Hub-backed targets remain manual in 0.9.15.
+Upgrade from 0.9.15 to receive postVerify finish guidance and optional source-branch and setup continuation. Add a top-level `releaseFinish` block only when the project wants to select a setup entry or change the default reminder policy. Remove any release-skill standalone marketplace registration, add or update `ifoohoo/skill-family-hub`, and use `release-skill@skill-family-hub`. Restart an updated host before treating the new plugin version or setup entry as loaded.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.15 is the current source candidate. This README
+> **Current boundary:** v0.9.16 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -64,7 +68,7 @@ Upgrade from 0.9.14 to use the consolidated release-prepare workflow and side-ef
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.15 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.16 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -93,13 +97,15 @@ checkpoints remain intact and use matching-version recovery. Evidence v1 stays
 read-only; v2 uses a closed top level with phase extensions in `details`.
 Summaries and recovery suggestions are diagnostic, never publication authority.
 
-The current 0.9.15 candidate includes the narrow R-05 Hook cache v2 consumer
+The current 0.9.16 candidate includes the narrow R-05 Hook cache v2 consumer
 path, the public `postverify` path, and the stable isolated install-tree record
 path (A2/A3). It keeps Skill Family Hub as the single marketplace source. It
 also makes the `release-prepare` Skill organize existing assessment, refresh,
 focused-check, and prepare entry points without adding another execution
 engine. `prepare --help` and `prepare -h` now return before configuration,
-locks, runs, or hooks can observe the request. This candidate still
+locks, runs, or hooks can observe the request. The `release-finish` Skill can
+also report the source branch and continue into a configured setup entry after
+the selected host has loaded the released plugin. This candidate still
 excludes R-02 safe full-tree inventory, R-10 historical-release verification
 implementation, real Kimi/WorkBuddy public-marketplace installation and
 invocation gates, and an Audit public offline release-record verifier.
@@ -496,6 +502,9 @@ project:
   name: my-project
   defaultBranch: main
   sourceRepository: owner/my-workspace
+releaseFinish:
+  sourceBranchCheck: remind
+  setupSkill: release-setup
 releaseUnits:
   - id: my-project
     source: .
@@ -525,6 +534,12 @@ releaseUnits:
       branchTemplate: release/{tag}
       branchStrategy: create-release-branch
 ```
+
+`releaseFinish` controls only local post-release work. `sourceBranchCheck`
+defaults to `remind`; set it to `skip` to suppress the read-only source-branch
+reminder. `setupSkill` is optional and names an already installed and loaded
+setup entry such as `release-setup` or `plugin:skill`; it is never executed as
+a shell command. The two settings are independent.
 
 `distributions` is required but may be an explicit empty array. Use
 `distributions: []` when release-skill should publish only the unit's GitHub
@@ -797,7 +812,7 @@ A release unit may also declare `postPublish.localHostUpdate` for a plugin that
 is delivered through a project-selected Hub by a `postVerify` hook. After that
 hook reaches `DISTRIBUTED`, `ship`, `verify`, `post-release`, and
 `release-finish` display the declared Hub, plugin, and hosts. These Hub-backed
-targets are manual in 0.9.14 (`promptRequired: true`, `available: false`): the
+targets are manual in 0.9.16 (`promptRequired: true`, `available: false`): the
 prompt does not query the Hub, inspect the host, or run host commands. Claude
 and Codex use their existing marketplace management entry; Kimi uses the
 frozen GitHub Release and its existing confirmation path; CodeBuddy and

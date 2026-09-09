@@ -27,6 +27,10 @@ project:
   defaultBranch: <string>        # workspace 远端默认分支，必填；不限定为 main
   sourceRepository: <owner/repo> # workspace 源仓库；生产发布必填
 
+releaseFinish:                   # 可选；仅控制本地发布收尾
+  sourceBranchCheck: remind      # remind（缺省）或 skip
+  setupSkill: <plugin:skill>     # 可选；已加载目标插件提供的 setup 入口
+
 publicSourceAuthorityReceipt:    # 可选；把源码坐标与多个 npm tarball 绑定为公开 Release asset
   coordinatorUnitId: <release-unit-id>
   subjectUnitIds: [<release-unit-id>]
@@ -113,6 +117,18 @@ policy:                     # 可选，安全策略
 ```
 
 `distributions: []` 表示该发布单元不生成 npm 或插件市场动作，不表示跳过公开发布。
+
+### 2.1 本地发布收尾
+
+`releaseFinish` 只控制 `release-finish` 的本地收尾，不改写冻结计划、发布状态或宿主范围。
+`sourceBranchCheck` 缺省为 `remind`。该值要求收尾时读取当前分支和工作区摘要；设为 `skip`
+时关闭这项提醒。`setupSkill` 可省略；填写时必须是技能入口名，例如 `release-setup` 或
+`skill-family-docs:skill-family-docs-setup`。它只用于匹配已安装并加载的目标插件入口，不能作为
+shell 命令执行。
+
+`releaseFinish` 保持闭合。未知字段、`sourceBranchCheck` 的其他值，以及空值、路径、带参数或
+shell 语法的 `setupSkill` 都是配置错误。两个字段彼此独立：关闭分支提醒不会关闭已配置的 setup。
+
 生产模式的 `prepare` 仍会冻结 GitHub 快照，并生成 `push-snapshot`、`create-tag` 和
 `github-release`。该单元的 `postPublish` 声明保持独立生效，其中 phase 为
 `postVerify` 的 hook 也不受影响。因此纯插件可以先验证公开 GitHub Release，再向中央
