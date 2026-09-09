@@ -37,11 +37,11 @@ registerPathRedactor(redactSensitivePaths);
 
 const execFile = promisify(execFileCb);
 
-const COMMANDS = new Set(['help', 'setup', 'assess', 'prepare', 'approve', 'publish', 'reconcile', 'verify', 'postverify', 'ship', 'post-release', 'attest', 'hooks', 'artifacts', 'docs', 'distribute', 'route', 'lineage']);
+const COMMANDS = new Set(['help', 'setup', 'assess', 'prepare', 'approve', 'publish', 'reconcile', 'verify', 'verify-records', 'postverify', 'ship', 'post-release', 'attest', 'hooks', 'artifacts', 'docs', 'distribute', 'route', 'lineage']);
 
 function printHubManualTargets(targets = []) {
   for (const target of targets) {
-    if (target.targetKind === 'hub-backed') {
+    if (target.targetKind === 'hub-backed' && target.executionMode === 'manual') {
       console.log(`Manual host update: ${target.plugin} via Hub ${target.hub.name} (${target.host}). ${target.message}`);
     }
   }
@@ -270,6 +270,13 @@ async function performEnvironmentChecks() {
     usage: '仅供发布后的人工安装使用；release-skill 不核验 CodeBuddy/WorkBuddy 安装',
   };
 
+  const qoderCheck = await checkDependency('qoder', ['--version']);
+  checks.qoder = {
+    ...qoderCheck,
+    required: false,
+    usage: '仅供发布后的可选 Qoder 本机更新使用；不影响生产发布就绪度',
+  };
+
   return checks;
 }
 
@@ -303,7 +310,7 @@ function getCapabilityMaturity() {
     publish: {
       available: true,
       mode: 'controlled production (protocol-tested; no OS/network sandbox)',
-      description: 'Publishes frozen GitHub/npm artifacts after one readable-plan approval, runs automated Claude/Codex checkpoints, and emits non-blocking Kimi/CodeBuddy manual follow-ups',
+      description: 'Publishes frozen GitHub/npm artifacts after one readable-plan approval, runs automated Claude/Codex checkpoints, and emits non-blocking Kimi/CodeBuddy manual follow-ups plus the optional Qoder post-release update',
     },
     reconcile: {
       available: true,
@@ -313,7 +320,12 @@ function getCapabilityMaturity() {
     verify: {
       available: true,
       mode: 'fresh consumer verification (protocol-tested; no OS/network sandbox)',
-      description: 'Recheck remote state, exact npm installation, CLI help, and automated Claude/Codex installs before VERIFIED; Kimi/CodeBuddy remain unverified manual follow-ups',
+      description: 'Recheck remote state, exact npm installation, CLI help, and automated Claude/Codex installs before VERIFIED; Kimi/CodeBuddy remain unverified manual follow-ups and Qoder remains optional post-release local work',
+    },
+    verifyRecords: {
+      available: true,
+      mode: 'offline explicit-input verification',
+      description: 'Verify caller-supplied plan, approval, and release-run bytes without record discovery, remote access, process execution, or state changes',
     },
     postverify: {
       available: true,
@@ -353,6 +365,7 @@ Commands:
   publish    Publish frozen GitHub/npm artifacts after approval
   reconcile  Resume PARTIAL state from evidence; conflicts require a human
   verify     Fresh remote and consumer verification; only this reaches VERIFIED
+  verify-records Verify explicitly supplied historical plan, approval, and run records offline
   postverify Run approved postVerify hooks from a VERIFIED run in an independent run
   ship       Resume one durable prepare -> approve -> publish -> verify flow; completes a parked
              postVerify hook once its checkpoint approval is provided (--hook-approval)
@@ -371,6 +384,8 @@ Options:
   --plan <path>    Path to the release plan file (required for approve/publish/reconcile/verify/postverify)
   --run <path>     Path to the release run file, or a run directory whose release-run.json
                    is resolved automatically (required for reconcile/verify/postverify)
+  --target-run <path> Target release-run.json for verify-records
+  --source-run <path> Explicit predecessor release-run.json for verify-records (repeatable)
   --approval <path> Path to the release-level approval record (required for publish/postverify)
   --production     Prepare immutable Git/npm production artifacts
   --output <path>  Override prepare/approve output path (non-production only)
@@ -399,6 +414,7 @@ Options:
   --select-hooks <ids> Comma-separated proposal ids to adopt (propose-hooks mode)
   --foundation-profile <path> Explicit foundation postPublish profile JSON (proposal input only; never auto-applied)
   --unit <id>      Select a release unit for prepare/ship (repeatable); docs refresh accepts one unit
+  --target-version <version> Expected release unit version for prepare/ship/verify-records
   --confirm-refresh <sha256:...> Confirm the exact dry-run refreshDigest before any document write
   --ack-local-document-write Acknowledge the explicit local release-document write (docs refresh --write)
   --platform <id>   Legacy attestation platform: kimi or codebuddy
@@ -411,7 +427,7 @@ Options:
   --hook-approval <path> Checkpoint approval for one requiresApproval hook (ship/distribute/postverify; repeatable)
   --state <path>    Override the durable ship state file
   --update-local-hosts Update installed plugins for selected local hosts after VERIFIED
-  --hosts <ids>     Comma-separated local hosts for post-release update. No local host is updated unless --hosts contains at least one id
+  --hosts <ids>     Comma-separated local hosts for post-release update: claude,codex,kimi,codebuddy,workbuddy,qoder. No local host is updated unless --hosts contains at least one id
   --confirm-plan <digest> Confirm the exact VERIFIED plan before local host mutation
   --no-hook-cache  Force every prepare hook to run in full; neither read nor write the hook cache
   --json           Output results as JSON
@@ -424,6 +440,7 @@ Safety:
   The ship command runs configured hooks and gates automatically. Frozen plan approval is the only
   normal release-level approval; requiresApproval postPublish hooks keep independent checkpoint approvals.
   Kimi/CodeBuddy installations are non-blocking manual follow-up tasks (not verified by system).
+  Qoder is an optional post-release local update; it never becomes a release distribution checkpoint.
   prepare copies current public files into a local snapshot; it does not rewrite source files.
   - Default mode is offline (release-skill pipeline does no remote writes)
   - prepare output goes to .release-skill/ directory only
@@ -432,6 +449,7 @@ Safety:
   - docs refresh --write rewrites only declared README managed regions and the current CHANGELOG entry after exact refreshDigest confirmation; it never commits, pushes, tags, publishes, or installs.
   - publish requires explicit approval; plan digest is auto-read from the plan file
   - post-release local host updates are optional local mutations and never change VERIFIED
+  - verify-records reads only the paths named on its command line; it never discovers records, contacts remotes, or changes release state
   - publish consumes frozen Git/npm artifacts, never the live workspace
   - existing remote objects and uncertain checks stop for human intervention
   - production-equivalent protocol sandbox is verified; a real remote canary is not
@@ -520,6 +538,7 @@ if (!command || command === 'help') {
             codex: '声明 codex-plugin distribution 时必须可用',
             kimi: '发布后人工安装待办；不影响生产发布就绪度，系统不核验',
             codebuddy: '发布后人工安装待办；不影响生产发布就绪度，系统不核验',
+            qoder: '发布后可选本机更新；不影响生产发布就绪度，不是 release distribution checkpoint',
           },
         },
       },
@@ -533,7 +552,7 @@ if (!command || command === 'help') {
         onlinePrepare: 'previous-public-baseline observation available; production mode freezes publish artifacts and fails closed on drift or unknown state',
         publish: 'GitHub/npm plus automated Claude/Codex consumer checkpoints are protocol-tested without an OS/network sandbox; one approval is required and the internal plan digest is checked automatically',
         reconcile: 'PARTIAL recovery is protocol-tested without an OS/network sandbox; remote conflicts require human intervention',
-        verify: 'fresh exact npm and Claude/Codex consumer installation checks are protocol-tested without an OS/network sandbox; Kimi/CodeBuddy are unverified manual follow-ups; command invocation authorizes configured gates',
+        verify: 'fresh exact npm and Claude/Codex consumer installation checks are protocol-tested without an OS/network sandbox; Kimi/CodeBuddy are unverified manual follow-ups and Qoder is optional post-release local work; command invocation authorizes configured gates',
       },
       recommendations: [],
     };
@@ -686,6 +705,105 @@ Repeat the same command to resume from the same state.
 For parallel or cross-session versions, use .release-skill/ships/<version>.json.`);
   }
   await exitAfterFlush(0);
+}
+
+// Offline record verification help stops before reading any caller path or
+// importing the domain verifier. The command always emits one JSON document;
+// --json remains mandatory so consumers cannot accidentally parse prose.
+if (command === 'verify-records' && (args.includes('--help') || args.includes('-h'))) {
+  console.log(`release-skill verify-records - Verify explicit historical release records offline
+
+Usage:
+  release-skill verify-records --plan <path> --approval <path> --target-run <path> --source-run <path>... --unit <id> --target-version <version> --json
+
+Options:
+  --plan <path>              Explicit release-plan JSON file
+  --approval <path>          Explicit approval-record JSON file
+  --target-run <path>        Explicit target release-run JSON file
+  --source-run <path>        Explicit predecessor release-run JSON file (repeatable)
+  --unit <id>                Expected release unit id
+  --target-version <version> Expected release unit version
+  --json                     Required; output one JSON result
+  -h, --help                 Show this help message and exit
+
+The command reads only these explicit paths. It never scans .release-skill,
+follows paths carried inside records, contacts a remote, writes a file, or
+changes release state.`);
+  await exitAfterFlush(0);
+}
+
+if (command === 'verify-records') {
+  const value = (flag) => {
+    const index = args.indexOf(flag);
+    return index !== -1 && args[index + 1] && !args[index + 1].startsWith('--')
+      ? args[index + 1]
+      : undefined;
+  };
+  const values = (flag) => {
+    const selected = [];
+    for (let index = 0; index < args.length; index += 1) {
+      if (args[index] === flag && args[index + 1] && !args[index + 1].startsWith('--')) {
+        selected.push(args[index + 1]);
+      }
+    }
+    return selected;
+  };
+  const planPath = value('--plan');
+  const approvalPath = value('--approval');
+  const targetRunPath = value('--target-run');
+  const sourceRunPaths = values('--source-run');
+  const unitId = value('--unit');
+  const targetVersion = value('--target-version');
+
+  if (!hasJson) {
+    console.log(JSON.stringify({
+      status: 'INSUFFICIENT',
+      unitId: unitId ?? null,
+      targetVersion: targetVersion ?? null,
+      historicalTerminalStatus: null,
+      inputs: {},
+      digests: {},
+      findings: [{
+        code: 'INPUT_MISSING',
+        role: 'cli',
+        message: '--json is required for verify-records',
+      }],
+    }));
+    await exitAfterFlush(2);
+  }
+
+  // A failed explicit read is represented as a missing input. Passing the
+  // original path only as a source label lets the verifier reduce it to the
+  // basename and prevents filesystem details from entering stdout.
+  const readInput = async (path) => {
+    if (!path) return undefined;
+    try {
+      return { bytes: await readFile(path), source: path };
+    } catch {
+      return { source: path };
+    }
+  };
+
+  const [plan, approval, targetRun, ...sourceRuns] = await Promise.all([
+    readInput(planPath),
+    readInput(approvalPath),
+    readInput(targetRunPath),
+    ...sourceRunPaths.map((path) => readInput(path)),
+  ]);
+  const {
+    VERIFY_RECORDS_EXIT_CODES,
+    verifyReleaseRecords,
+  } = await import('../src/commands/verify-records.mjs');
+  const result = verifyReleaseRecords({
+    plan,
+    approval,
+    targetRun,
+    sourceRuns,
+    unitId,
+    targetVersion,
+  });
+  console.log(JSON.stringify(result));
+  await exitAfterFlush(VERIFY_RECORDS_EXIT_CODES[result.status]);
 }
 
 // --- Setup command routing ---

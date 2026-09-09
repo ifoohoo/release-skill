@@ -2,43 +2,42 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.16 -->
+<!-- release-skill:release-version: 0.9.17 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.16** (2026-09-09)
+**0.9.17** (2026-09-09)
 
-0.9.16 是把已验证发布衔接到显式源码分支检查、宿主感知 setup 续接和 postVerify 收尾提示的本地源码候选。三项 Foundation 依赖仍精确固定在已发布的 0.17.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.17 是一个本地源码候选。本版本增加显式的历史发布记录离线核验入口和自包含 Qoder 投影，并保留 setup 根目录与 Kimi 初始目录信任修复。三项 Foundation 依赖仍精确固定在已发布的 0.17.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收，也不代表 Hub 已接纳。
 
 **安全**
 
-- 源码分支提醒只运行 `git branch --show-current` 和 `git status --short --branch`，不会 fetch、切换、合并、rebase、stash、reset、clean 或 push。setup 名只作为技能元数据匹配，不会按 shell 文本执行。
-- Skill Family Hub 更新以已观察的分支头为基础比较后写入。Hub 局部发布不回滚、不覆盖，也不强推。
+- 离线核验只读取命令行显式提供的路径，并从 JSON 结果中隐去本机路径细节。历史材料一致不代表记录是全局最新，也不证明远端对象仍然存在。
+- Qoder 不进入 release distribution 和发布检查点。更新入口不会添加市场、首次安装、卸载或重新加载当前会话；`UPDATED` 也不代表新版插件已经加载。
+- 后续如需发布到中央 Skill Family Hub，仍通过既有 GitHub Git Data API 执行比较后写入。Hub 部分发布保持可恢复，系统不会自动回滚；即不回滚、不覆盖已经成功的远端步骤。
 
 **新增**
 
-- 项目可以把 `releaseFinish.sourceBranchCheck` 配置为 `remind` 或 `skip`，并通过 `releaseFinish.setupSkill` 指定已加载的 setup 入口。release-finish 会区分发布工作区和用户明确选择的消费项目；目标目录、新版插件加载状态或可调用宿主不能确认时，只报告 setup 待执行。
-- 源码检查只运行只读 Git 命令，报告当前分支、工作区改动、上游摘要，以及仍需维护者决定的事项。项目需要让 release-finish 继续进入 release-skill setup 时，可以选择 `release-setup`。
+- 新增公共命令 `release-skill verify-records`，核验调用者显式提供的计划、批准、目标 run 和前驱 run 字节。命令返回 `CONSISTENT`、`CONTRADICTED` 或 `INSUFFICIENT`，不会扫描 `.release-skill`、跟随记录中的路径、访问远端、写文件或改变发布状态。
+- npm 包增加 `.qoder-plugin/plugin.json` 和自包含的 `adapters/qoder/` 投影。现有发布后更新入口只在所选 Hub 来源与冻结载荷一致时，更新已经存在的用户范围 Qoder 插件。
 
 **变更**
 
-- postVerify 成功进入 `DISTRIBUTED` 后，JSON 和文本 CLI 输出都会显示与 release-finish 一致的 Hub-backed 本机宿主收尾提示。提示只用于诊断，不会自行调用宿主命令。
-- 宿主更新和 setup 检查仍属于本地后续工作，不改写不可变发布计划，也不改变 `VERIFIED` 发布结果。只有插件版本、消费目录和运行环境都相同时，才可复用一次项目就绪检查；各宿主仍分别检查安装与加载状态。
-- Skill Family Hub 继续通过项目私有的 postVerify hook 和 GitHub Git Data API 发布。Hub 更新仍需单独批准，并根据已观察的分支头比较后写入。
+- release-finish 的 setup 续接直接使用当前 `--root` 发布项目，不再询问第二个项目路径。项目级就绪检查与各宿主的加载检查仍分别判断。
 
 **修复**
 
-- postVerify 已完成分发后，即使可选收尾清单无法重新读取计划，也会保留 `DISTRIBUTED`。CLI 会返回明确的不可用诊断，不会改写已成功的分发检查点。
+- 已授权的 Kimi 更新可以先确认当前发布项目的标准初始 `Trust this folder?` 界面，再继续插件操作。未知行、未知选中项、重复信任界面、超时或提前退出仍会停止该宿主。
 
 **升级说明**
 
-从 0.9.15 升级后，可获得 postVerify 收尾提示，以及可选的源码分支与 setup 续接。只有需要指定 setup 入口或修改默认提醒策略时，才增加顶层 `releaseFinish` 配置。删除各宿主中独立的 `release-skill` 市场登记，添加或更新 `ifoohoo/skill-family-hub`，并使用 `release-skill@skill-family-hub`。宿主更新后需先重启，才能把新版插件或 setup 入口视为已加载。
+从 0.9.16 升级后，可使用 `release-skill verify-records`、Qoder 包投影及 setup/Kimi 修复。请移除独立的 `release-skill` 市场，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub。中央 Skill Family Hub 必须先接纳 Qoder 条目，才能开始市场安装。真实 Qoder 与 Kimi 的安装、重载和业务调用仍是需要单独授权的后续工作。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.16 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.17 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -54,7 +53,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.16 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.17 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -72,14 +71,14 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-当前 0.9.16 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
-路径和稳定隔离安装树记录路径（A2/A3），继续以 Skill Family Hub 为唯一市场来源。
+当前 0.9.17 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
+路径和稳定隔离安装树记录路径（A2/A3），并增加只接受显式输入的 `verify-records`
+命令和自包含 Qoder 投影。Skill Family Hub 仍是唯一市场来源。
 `release-prepare` Skill 现在会组织项目已有的评估、刷新、聚焦检查和 prepare 入口，不新增执行引擎。
 `prepare --help` 和 `prepare -h` 会在配置、锁、run 或 Hook 观察请求之前返回。
-所选宿主加载已发布插件后，`release-finish` Skill 还可以报告源码分支，并继续执行已配置的 setup 入口。当前仍不包含
-R-02 安全整树盘点、R-10 历史发布验证
-的产品实现、真实 Kimi/WorkBuddy 公开市场安装与调用门禁或 Audit 公开离线发布记录
-验证器。本范围说明不构成远端发布记录或消费者升级指引。
+所选宿主加载已发布插件后，`release-finish` Skill 还可以报告源码分支，并继续执行已配置的 setup 入口。
+当前仍不包含 R-02 安全整树盘点和真实 Kimi/WorkBuddy/Qoder 市场安装与调用门禁；中央 Hub
+尚未接纳 release-skill 的 Qoder 条目。本范围说明不构成远端发布记录或消费者升级指引。
 
 Foundation 三包精确依赖已发布的 0.17.0。仍采用 bundled-family 分发形态的
 Kimi/CodeBuddy 计划会在 verify 阶段调用正式 `runPluginVerification`，把完整冻结载荷
@@ -218,7 +217,25 @@ Claude Code、CodeBuddy、WorkBuddy 和 Codex 从统一的 Skill Family Hub 市�
 **Kimi Code：** release-skill 当前无可脚本化安装接口接入，只采用钉死版本的交互式
 TUI 路径，见 [INSTALL.zh-CN.md](INSTALL.zh-CN.md#安装为-kimi-code-插件)。
 
-CodeBuddy、Codex 和 Kimi Code 的完整命令见 [INSTALL.zh-CN.md](INSTALL.zh-CN.md)。
+**Qoder：** 包内提供 `.qoder-plugin/plugin.json` 和自包含的 `adapters/qoder/` 投影。
+只有中央 Hub 的根 `marketplace.json` 已接纳 release-skill 的 Qoder 条目后，才能执行
+用户范围的市场安装；生成适配器本身不能证明 Hub 消费成立。安装与发布后更新边界见
+[INSTALL.zh-CN.md](INSTALL.zh-CN.md#安装为-qoder-插件)。
+
+CodeBuddy、Codex、Kimi Code 和 Qoder 的完整命令见 [INSTALL.zh-CN.md](INSTALL.zh-CN.md)。
+
+### 离线核验历史发布记录
+
+消费者已经持有明确的计划、批准、目标 run 和该目标引用的全部前驱 run 时，可以运行：
+
+```text
+release-skill verify-records --plan <path> --approval <path> --target-run <path> --source-run <path>... --unit <id> --target-version <version> --json
+```
+
+该命令只读取这些路径，并输出一个 JSON 对象。`CONSISTENT` 的退出码是 0，
+`CONTRADICTED` 的退出码是 1，`INSUFFICIENT` 的退出码是 2。它不会扫描
+`.release-skill`、跟随记录内嵌路径、访问远端、写文件或推进发布状态。历史链一致也不能
+证明这些记录是全局最新，或远端对象仍然存在。
 
 ### 主流程
 
@@ -455,7 +472,9 @@ releaseUnits:
 
 `releaseFinish` 只控制本地发布收尾。`sourceBranchCheck` 缺省为 `remind`；设为
 `skip` 时关闭只读源码分支提醒。`setupSkill` 可省略，填写时指定已经安装并加载的 setup
-入口，例如 `release-setup` 或 `plugin:skill`；它不会作为 shell 命令执行。两个配置彼此独立。
+入口，例如 `release-setup` 或 `plugin:skill`；它不会作为 shell 命令执行。宿主更新后，
+release-finish 在 `--root` 指定的当前发布项目根目录调用该入口，不再要求另行提供项目目录。
+两个配置彼此独立。
 
 `distributions` 是必填字段，但可以显式设为空数组。使用
 `distributions: []` 时，release-skill 只发布该单元的 GitHub 快照、标签和
@@ -670,6 +689,10 @@ release-skill ship --root "$PROJECT" --hook-approval "$HOOK_APPROVAL_PATH" --jso
 | `kimi-plugin` | 自包含闭包（release-skill 无可脚本化安装接口接入） | 发布后非阻塞人工任务 |
 | `codebuddy-plugin` | 生成的 `adapters/workbuddy/`，带 `.codebuddy-plugin/plugin.json` | 发布后非阻塞人工任务 |
 
+Qoder 不属于上表的 `distributions` 类型。它是 `adapters/qoder/` 下的 build-only
+公开投影，根清单为 `.qoder-plugin/plugin.json`；发布计划不会因此新增 `qoder-plugin`
+类型，也不会新增自动 publish、reconcile 或 verify 检查点。
+
 每个适配器闭包都自带 CLI、skills 和 schemas 副本，安装后无需外部依赖即可运行。Claude/Codex 验证是自动化的；Kimi Code 和 CodeBuddy/WorkBuddy 以 `manualFollowUps` 返回并标记 `verifiedBySystem: false`，其完成情况不阻塞自动发布进入 `VERIFIED`。
 
 发布达到 `VERIFIED` 后，可选的 `release-finish` 工作流可以按冻结市场身份更新 Claude
@@ -677,11 +700,18 @@ release-skill ship --root "$PROJECT" --hook-approval "$HOOK_APPROVAL_PATH" --jso
 提交；预检失败时不修改该宿主，也不阻止其他已选宿主继续。流程也可以在同一个受控
 TUI 会话中迁移或更新 Kimi，并核对真实受管载荷。
 对于已有的 bundled-family CodeBuddy/WorkBuddy 条目，只有冻结标签与可变分支都解析到
-冻结提交时才允许更新。该流程要求用户明确同意，且不改变发布状态。目标缺失、使用
+冻结提交时才允许更新。用户显式选择 Qoder 后，流程只有在确认 Hub 来源、冻结载荷和
+既有用户范围安装后才更新；它不会添加市场，也不会执行首次安装。安装结果为 `UPDATED`
+不等于新版已加载：必须重新加载或新开 Qoder 会话，再完成一次只读 release-skill 业务
+调用，才能宣称新版已生效。该流程要求用户明确同意，且不改变发布状态。目标缺失、使用
 standalone 来源、远端不可访问或身份含糊时仍转人工处理，不修改宿主。
 Kimi 的有效配置根依次取显式 `kimiHome`、`KIMI_CODE_HOME`、`~/.kimi-code`，TUI 与
-操作后观察使用同一根。出现 `Trust this folder?`、未知界面、超时、提前退出，或无法
-证明插件身份时，流程返回人工处理或失败结果，不确认目录信任。
+操作后观察使用同一根，TUI 工作目录固定为 `--root` 指定的当前发布项目。用户确认冻结
+计划并显式选择更新 Kimi 后，release-finish 只接受初始标准 `Trust this folder?` 界面：
+当前必须选中 `No, exit`，且存在 `Trust this folder` 目标行。流程移动到目标行，重新确认
+选中项，再提交并等待已知命令提示符。出现未知行或选中项、移动后无法确认、超时、提前
+退出，或者插件命令发出后再次出现目录信任时，该宿主失败并停止。冻结插件身份和
+`Trust and install` 的核对保持不变。
 WorkBuddy 本机更新仅支持 macOS；其他平台返回不支持并跳过。计划声明 postVerify hook 时，
 release-finish 必须接收 `ship` 产出的已完成 postVerify run，不能直接使用较早的
 verify run；核心 prepare、publish、verify 流程仍跨平台。
@@ -689,8 +719,9 @@ verify run；核心 prepare、publish、verify 流程仍跨平台。
 如果插件由项目选定的 Hub 通过 `postVerify` Hook 交付，发布单元还可以声明
 `postPublish.localHostUpdate`。Hook 达到 `DISTRIBUTED` 后，`ship`、`verify`、
 `post-release` 和 `release-finish` 会显示声明中的 Hub、插件和宿主。0.9.14 对这类
-目标只提供人工入口（`promptRequired: true`、`available: false`）：提示不会访问 Hub、
-探测宿主或运行宿主命令。Claude 和 Codex 使用各自已有的 marketplace 管理入口；Kimi
+目标保留各自声明的执行模式。只有用户已选择 Qoder，且冻结计划、Hub 来源、既有用户
+范围安装和载荷核对全部通过时，Qoder 才进入可执行分支；其他 Hub-backed 目标仍为人工
+入口。人工提示不会访问 Hub、探测宿主或运行宿主命令。Claude 和 Codex 使用各自已有的 marketplace 管理入口；Kimi
 使用冻结 GitHub Release 和现有人工确认路径；CodeBuddy 与 WorkBuddy 因无法固定 Hub
 ref 而继续人工处理。由冻结插件安装动作派生的原有可执行目标不受影响。
 
@@ -709,13 +740,13 @@ ref 而继续人工处理。由冻结插件安装动作派生的原有可执行�
 静态门禁会阻断，直到入口声明收窄为具体目标。
 
 <!-- release-skill:capability:unsupported-scope -->
-- **当前版本不含：** 消费者安装整树盘点（R-02）——当前版本只处理声明的公开表面和稳定隔离安装树记录；真实宿主（Kimi/WorkBuddy）验证门禁——宿主验证仍是非阻断的人工后续任务，不产生 `PASS` 或 `VERIFIED` 证据；
+- **当前版本不含：** 消费者安装整树盘点（R-02）——当前版本只处理声明的公开表面和稳定隔离安装树记录；真实宿主（Kimi/WorkBuddy/Qoder）验证门禁——宿主验证和 Qoder 加载确认均不产生发布 `PASS` 或 `VERIFIED` 证据；
 - 不自动生成 README，不覆盖项目源文件；
 - 不自动合并冲突，也不要求回滚工作流；
 - 不声称已经替项目完成真实生产 canary，不声称已完成真实插件市场验证；
 - `prepare --online` 只观察 bound 前序基线；目标唯一性由 publish 全局预检完成；
 - 不覆盖已有 branch/tag/Release，不 unpublish npm；
-- 发布状态机不提供 Kimi 或 CodeBuddy/WorkBuddy marketplace 安装检查点——可选的 release-finish 可以在本机驱动并复查 Kimi，也可以在严格核对冻结身份后更新已有 CodeBuddy/WorkBuddy 条目，但这些结果不构成发布证据；
+- 发布状态机不提供 Kimi、CodeBuddy/WorkBuddy 或 Qoder marketplace 安装检查点——可选的 release-finish 可以在本机驱动并复查 Kimi，也可以在严格核对冻结身份后更新已有 CodeBuddy/WorkBuddy 条目，或在核对同等来源和载荷后更新已有的用户范围 Qoder 条目，但这些结果不构成发布证据；
 - 不承诺 Windows 或广泛的跨平台原生写入；
 - 不会隐藏地 commit、push、打 tag、创建 Release 或发布包。
 

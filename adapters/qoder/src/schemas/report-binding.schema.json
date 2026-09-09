@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/report-binding.json",
+  "title": "ReportBinding",
+  "description": "Binds one canonical rendered report to its report model and source machine result: the run identity, sha256 digests of the model, result, and report bytes, and the exact renderer version. Verification requires all three documents, re-renders the model, and recomputes every digest; any mismatch is SFC3001. A binding carries no prose and no facts of its own.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "runId", "modelDigest", "resultDigest", "reportDigest", "rendererVersion"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.report-binding"
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+      "description": "The run identity the bound report and machine result share; a mismatch with either side is never a valid binding."
+    },
+    "resultDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "sha256 hex digest over the canonical JSON of the bound machine result document."
+    },
+    "modelDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "sha256 hex digest over the canonical JSON of the bound report-model document."
+    },
+    "reportDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "sha256 hex digest over the exact rendered report bytes."
+    },
+    "rendererVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Exact semver of the renderer that produced the bound report; no ranges."
+    }
+  }
+}

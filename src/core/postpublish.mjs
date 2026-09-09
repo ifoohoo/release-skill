@@ -42,7 +42,7 @@ const SAFE_ID_RE = /^[a-z0-9][a-z0-9._-]*$/;
 
 /** Branch pattern (leading alphanumeric blocks option-like names). */
 const BRANCH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
-const LOCAL_HOSTS = new Set(['claude', 'codex', 'kimi', 'codebuddy', 'workbuddy']);
+const LOCAL_HOSTS = new Set(['claude', 'codex', 'kimi', 'codebuddy', 'workbuddy', 'qoder']);
 const HUB_HOST_RE = /^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$/u;
 const HUB_REF_RE = /^refs\/heads\/[A-Za-z0-9][A-Za-z0-9._-]*(?:\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/u;
 

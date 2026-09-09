@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "skill-family.licensing-profile-registry",
+  "title": "Skill Family Licensing Profile Registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "profiles"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.licensing-profile-registry"
+    },
+    "profiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/profile"
+      }
+    }
+  },
+  "$defs": {
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "kind",
+        "profile",
+        "licensing",
+        "identity",
+        "preservation",
+        "commercial"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "kind": {
+          "const": "skill-family.licensing-profile"
+        },
+        "profile": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name",
+            "variant"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "variant": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+            }
+          }
+        },
+        "licensing": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "spdx",
+            "noticeRequired",
+            "copyrightStrategy",
+            "copyrightYear"
+          ],
+          "properties": {
+            "spdx": {
+              "enum": [
+                "Apache-2.0",
+                "MIT"
+              ]
+            },
+            "noticeRequired": {
+              "type": "boolean"
+            },
+            "copyrightStrategy": {
+              "enum": [
+                "company",
+                "contributors",
+                "company-and-contributors"
+              ]
+            },
+            "copyrightYear": {
+              "type": "integer",
+              "minimum": 2000,
+              "maximum": 9999
+            }
+          }
+        },
+        "identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "authors",
+            "displayValue",
+            "ownerSeparation"
+          ],
+          "properties": {
+            "authors": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "displayName",
+                  "role"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "role": {
+                    "enum": [
+                      "author",
+                      "contributor"
+                    ]
+                  }
+                }
+              }
+            },
+            "displayValue": {
+              "type": "string",
+              "minLength": 1
+            },
+            "ownerSeparation": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "required",
+                "deriveOwnerFromAuthor"
+              ],
+              "properties": {
+                "required": {
+                  "const": true
+                },
+                "deriveOwnerFromAuthor": {
+                  "const": false
+                }
+              }
+            }
+          }
+        },
+        "preservation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "notice",
+            "thirdPartyLicenses",
+            "historicalCopyright",
+            "unresolvedHistoricalAction"
+          ],
+          "properties": {
+            "notice": {
+              "const": "preserve"
+            },
+            "thirdPartyLicenses": {
+              "const": "preserve"
+            },
+            "historicalCopyright": {
+              "const": "preserve"
+            },
+            "unresolvedHistoricalAction": {
+              "const": "report-only"
+            }
+          }
+        },
+        "commercial": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "triggerCondition"
+          ],
+          "properties": {
+            "enabled": {
+              "const": false
+            },
+            "triggerCondition": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -3,11 +3,11 @@
  *
  * Reads skill metadata from skills-src/ and plugin.json templates,
  * generates self-contained adapter directories for each platform
- * (claude, codex, kimi, and the build-only workbuddy adapter).
+ * (claude, codex, kimi, workbuddy, and the build-only qoder adapter).
  *
  * Each adapter root contains:
- * - Plugin manifest (.claude-plugin/, .codex-plugin/, .kimi-plugin/, or
- *   .codebuddy-plugin/)
+ * - Plugin manifest (.claude-plugin/, .codex-plugin/, .kimi-plugin/,
+ *   .codebuddy-plugin/, or .qoder-plugin/)
  * - Skills with host-specific root resolution
  * - bin/release-skill.mjs (wrapper) + bin/release-skill.bundle.mjs (self-contained bundle)
  * - schemas/ (JSON Schema files)
@@ -227,16 +227,20 @@ const REGISTRY_PLATFORMS = PLATFORM_REGISTRY.map((platform) => ({
  * until then a build-only entry lets the build emit an installable adapter
  * tree without fabricating an unverified install protocol.
  *
- * Currently EMPTY: every platform the build emits now has a full registry
- * descriptor. workbuddy (the CodeBuddy/WorkBuddy plugin, manifest
+ * workbuddy (the CodeBuddy/WorkBuddy plugin, manifest
  * `.codebuddy-plugin/plugin.json`, `${CODEBUDDY_PLUGIN_ROOT}` expanded inline
  * in skill content) moved into the registry as the `codebuddy` platform with
  * `buildAdapter.name = 'workbuddy'`, so its adapter tree is still produced —
- * byte-for-byte unchanged — via REGISTRY_PLATFORMS. This constant is retained
- * (still exported and consumed below) for future build-only hosts that have an
- * installable adapter tree but no verified install protocol yet.
+ * byte-for-byte unchanged — via REGISTRY_PLATFORMS. Qoder remains build-only:
+ * its installable projection is public, while release plans intentionally do
+ * not gain a qoder distribution type or publish checkpoint.
  */
-export const BUILD_ONLY_ADAPTERS = Object.freeze([]);
+export const BUILD_ONLY_ADAPTERS = Object.freeze([Object.freeze({
+  name: 'qoder',
+  pluginDirName: '.qoder-plugin',
+  templateFileName: 'plugin.json',
+  hasMarketplace: false,
+})]);
 
 export const PLATFORMS = Object.freeze([...REGISTRY_PLATFORMS, ...BUILD_ONLY_ADAPTERS]);
 
@@ -345,19 +349,34 @@ const KIMI_PREAMBLE = `\
 `;
 
 /**
+ * Qoder exposes the absolute location of the skill it loaded. The generated
+ * adapter uses that host-provided location to derive its self-contained root;
+ * Qoder does not expand Claude's plugin-root placeholder.
+ */
+const QODER_PREAMBLE = `\
+> **Qoder 安装入口解析协议**：在调用 CLI 前，Agent 必须从宿主当前已加载技能的元数据中取得本 \`SKILL.md\` 的实际绝对路径，并将该字面量记为 \`SKILL_FILE\`。\n\
+> \`SKILL_FILE\` 不是环境变量；禁止从工作目录、可执行搜索路径、源码仓库或 shell 调用上下文猜测。若宿主未提供该绝对路径，立即停止并报告安装定位失败。\n\
+> 对 \`SKILL_FILE\` 执行 \`realpath\`，取其目录向上两级得到 \`PLUGIN_ROOT\`；校验真实技能路径匹配 \`PLUGIN_ROOT/skills/*/SKILL.md\` 且仍位于插件根内（路径包含检查）。\n\
+> 令 \`RELEASE_SKILL_ENTRY=PLUGIN_ROOT/bin/release-skill.mjs\`，对入口执行 \`realpath\` containment、\`lstat\` 非符号链接且为普通文件校验。\n\
+> 每一次 shell 工具调用都必须在同一个调用中用上述已验证绝对值设置 \`RELEASE_SKILL_ENTRY\`，然后执行 \`node "$RELEASE_SKILL_ENTRY" ...\`；不得依赖前一次 shell 的变量。\n\
+>\n\
+`;
+
+/**
  * Render SKILL.md content for a specific platform.
  *
  * - Claude: verbatim copy (uses ${CLAUDE_PLUGIN_ROOT})
  * - Codex: replaces the Claude-only path with $RELEASE_SKILL_ENTRY,
  *   and prepends the path resolution protocol preamble.
  * - Kimi: same substitution as Codex, with the Kimi Code preamble.
+ * - Qoder: same substitution, with a host-loaded-path preamble.
  * - WorkBuddy: pure variable substitution (${CLAUDE_PLUGIN_ROOT} ->
  *   ${CODEBUDDY_PLUGIN_ROOT}); CodeBuddy expands the variable inline in
  *   skill content (official plugin reference), the same mechanism Claude
  *   uses, so no entry-resolution preamble is needed.
  *
  * @param {string} content - Canonical SKILL.md content.
- * @param {string} platformName - 'claude', 'codex', 'kimi', or 'workbuddy'.
+ * @param {string} platformName - 'claude', 'codex', 'kimi', 'workbuddy', or 'qoder'.
  * @returns {string}
  */
 function renderSkillForPlatform(content, platformName) {
@@ -367,9 +386,13 @@ function renderSkillForPlatform(content, platformName) {
     return content.replaceAll('${CLAUDE_PLUGIN_ROOT}', '${CODEBUDDY_PLUGIN_ROOT}');
   }
 
-  if (platformName === 'codex' || platformName === 'kimi') {
-    const hostLabel = platformName === 'codex' ? 'Codex' : 'Kimi';
-    const preamble = platformName === 'codex' ? CODEX_PREAMBLE : KIMI_PREAMBLE;
+  if (platformName === 'codex' || platformName === 'kimi' || platformName === 'qoder') {
+    const hostLabel = { codex: 'Codex', kimi: 'Kimi', qoder: 'Qoder' }[platformName];
+    const preamble = {
+      codex: CODEX_PREAMBLE,
+      kimi: KIMI_PREAMBLE,
+      qoder: QODER_PREAMBLE,
+    }[platformName];
     let rendered = content.replaceAll(
       '${CLAUDE_PLUGIN_ROOT}/bin/release-skill-local-finish.mjs',
       '$RELEASE_SKILL_LOCAL_FINISH_ENTRY',

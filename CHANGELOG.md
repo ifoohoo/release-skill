@@ -1,5 +1,35 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.17 locale=en baseline=sha256:83fe967a104a1b324ea1b704cfc6ee67d6a2999f3d6c0e2d92411435fa6986a2 -->
+## [0.9.17] - 2026-09-09
+
+0.9.17 is a local source candidate that adds explicit offline verification of historical release records and a self-contained Qoder projection, while preserving the setup-root and Kimi initial-directory trust fixes. The three Foundation dependencies remain pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance; it also does not establish Hub acceptance.
+
+### Security
+
+- Offline verification reads only paths explicitly supplied on the command line and redacts local path details from its JSON result. Historical consistency does not prove that records are globally latest or that remote objects still exist.
+- Qoder remains outside release distributions and publication checkpoints. The updater does not add a marketplace, perform a first install, uninstall, or reload the current session; `UPDATED` does not mean the new plugin has been loaded.
+- Any later central Skill Family Hub publication uses the existing Git Data API with compare-and-swap. A partial Hub publication remains recoverable and is never rolled back or force-pushed automatically.
+
+### Added
+
+- The public `release-skill verify-records` CLI checks caller-supplied plan, approval, target-run, and predecessor-run bytes. It reports `CONSISTENT`, `CONTRADICTED`, or `INSUFFICIENT` without scanning `.release-skill`, following paths from records, contacting remotes, writing files, or changing release state.
+- The npm package now includes `.qoder-plugin/plugin.json` and a self-contained `adapters/qoder/` projection. The existing post-release updater can update an already installed user-scope Qoder plugin only after the selected Hub source and frozen payload match.
+
+### Changed
+
+- The release-finish setup continuation uses the current `--root` release project directly. It no longer asks for a second project path, while project-level readiness and host-specific loading checks remain distinct.
+
+### Fixed
+
+- An authorized Kimi update can confirm the standard initial `Trust this folder?` dialog for the current release project before continuing. Unknown rows, selections, repeated trust dialogs, timeout, or early exit still stop that host.
+
+### Upgrade Notes
+
+Upgrade from 0.9.16 to use `release-skill verify-records`, the Qoder package projection, and the setup/Kimi fixes. Remove the old release-skill standalone marketplace; use the ifoohoo/skill-family-hub repository and Hub-qualified plugin id release-skill@skill-family-hub. The central Skill Family Hub must accept the Qoder entry before marketplace installation can begin. Real Qoder and Kimi installation, reload, and business invocation remain separate authorized follow-up work.
+<!-- release-skill:changelog:end version=0.9.17 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.16 locale=en baseline=sha256:ea8288d2ffcedf02008eb0bc10280d52bc6ddd2e383f072913340eb64cb7ca63 -->
 ## [0.9.16] - 2026-09-09
 

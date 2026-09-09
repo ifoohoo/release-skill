@@ -2,11 +2,11 @@
   "schemaVersion": "1.0.0",
   "platformId": "release-skill",
   "platformName": "release-skill Plugin Platform",
-  "version": "0.9.16",
+  "version": "0.9.17",
   "logicalRoot": "skills-src/",
-  "logicalRootDigest": "751140ca01cdd95484041547885e6f07fe9c0c496f6eb62f94710105a9f46e50",
-  "projectionDigest": "b62f3e4eca6586d899a328debc515a8cd49bf0cf456ac343539c63fb20b14f3c",
-  "projectionId": "release-skill:platform:0.9.16",
+  "logicalRootDigest": "e3837ce0b5efbddaf866f26f2183d73ef7d9ffd3e872ad091e5bc416d3281567",
+  "projectionDigest": "5d08bf677260e2edafeea1d5553056c8fae7d6706cef97512d107d39258d0f22",
+  "projectionId": "release-skill:platform:0.9.17",
   "manifestRequired": true,
   "projectionSources": {
     "skills-src-root": {
@@ -139,6 +139,28 @@
         "adapters/workbuddy/skills/release-setup/SKILL.md",
         "adapters/workbuddy/skills/release-verify/SKILL.md"
       ]
+    },
+    {
+      "name": "adapters-qoder-skills",
+      "type": "adapter-skill-projection",
+      "targetPath": "adapters/qoder/skills",
+      "generator": "scripts/build-adapters.mjs",
+      "generatorDescription": "qoder 平台适配器投影（build-only）：由 skills-src/ 经 build-adapters 产出。",
+      "relationship": "projection",
+      "projectionNotes": "adapters/*/skills/ 是各平台适配投影，由 build-adapters 产出；修改必须回到 skills-src/。",
+      "artifacts": [
+        "adapters/qoder/skills/release-assess/SKILL.md",
+        "adapters/qoder/skills/release-config/SKILL.md",
+        "adapters/qoder/skills/release-docs/SKILL.md",
+        "adapters/qoder/skills/release-finish/SKILL.md",
+        "adapters/qoder/skills/release-help/SKILL.md",
+        "adapters/qoder/skills/release-marketplace/SKILL.md",
+        "adapters/qoder/skills/release-prepare/SKILL.md",
+        "adapters/qoder/skills/release-publish/SKILL.md",
+        "adapters/qoder/skills/release-reconcile/SKILL.md",
+        "adapters/qoder/skills/release-setup/SKILL.md",
+        "adapters/qoder/skills/release-verify/SKILL.md"
+      ]
     }
   ],
   "logicalMappings": [
@@ -153,6 +175,10 @@
     {
       "logicalName": "release-assess",
       "path": "adapters/kimi/skills/release-assess/SKILL.md"
+    },
+    {
+      "logicalName": "release-assess",
+      "path": "adapters/qoder/skills/release-assess/SKILL.md"
     },
     {
       "logicalName": "release-assess",
@@ -176,6 +202,10 @@
     },
     {
       "logicalName": "release-config",
+      "path": "adapters/qoder/skills/release-config/SKILL.md"
+    },
+    {
+      "logicalName": "release-config",
       "path": "adapters/workbuddy/skills/release-config/SKILL.md"
     },
     {
@@ -193,6 +223,10 @@
     {
       "logicalName": "release-docs",
       "path": "adapters/kimi/skills/release-docs/SKILL.md"
+    },
+    {
+      "logicalName": "release-docs",
+      "path": "adapters/qoder/skills/release-docs/SKILL.md"
     },
     {
       "logicalName": "release-docs",
@@ -216,6 +250,10 @@
     },
     {
       "logicalName": "release-finish",
+      "path": "adapters/qoder/skills/release-finish/SKILL.md"
+    },
+    {
+      "logicalName": "release-finish",
       "path": "adapters/workbuddy/skills/release-finish/SKILL.md"
     },
     {
@@ -233,6 +271,10 @@
     {
       "logicalName": "release-help",
       "path": "adapters/kimi/skills/release-help/SKILL.md"
+    },
+    {
+      "logicalName": "release-help",
+      "path": "adapters/qoder/skills/release-help/SKILL.md"
     },
     {
       "logicalName": "release-help",
@@ -256,6 +298,10 @@
     },
     {
       "logicalName": "release-marketplace",
+      "path": "adapters/qoder/skills/release-marketplace/SKILL.md"
+    },
+    {
+      "logicalName": "release-marketplace",
       "path": "adapters/workbuddy/skills/release-marketplace/SKILL.md"
     },
     {
@@ -273,6 +319,10 @@
     {
       "logicalName": "release-prepare",
       "path": "adapters/kimi/skills/release-prepare/SKILL.md"
+    },
+    {
+      "logicalName": "release-prepare",
+      "path": "adapters/qoder/skills/release-prepare/SKILL.md"
     },
     {
       "logicalName": "release-prepare",
@@ -296,6 +346,10 @@
     },
     {
       "logicalName": "release-publish",
+      "path": "adapters/qoder/skills/release-publish/SKILL.md"
+    },
+    {
+      "logicalName": "release-publish",
       "path": "adapters/workbuddy/skills/release-publish/SKILL.md"
     },
     {
@@ -313,6 +367,10 @@
     {
       "logicalName": "release-reconcile",
       "path": "adapters/kimi/skills/release-reconcile/SKILL.md"
+    },
+    {
+      "logicalName": "release-reconcile",
+      "path": "adapters/qoder/skills/release-reconcile/SKILL.md"
     },
     {
       "logicalName": "release-reconcile",
@@ -336,6 +394,10 @@
     },
     {
       "logicalName": "release-setup",
+      "path": "adapters/qoder/skills/release-setup/SKILL.md"
+    },
+    {
+      "logicalName": "release-setup",
       "path": "adapters/workbuddy/skills/release-setup/SKILL.md"
     },
     {
@@ -353,6 +415,10 @@
     {
       "logicalName": "release-verify",
       "path": "adapters/kimi/skills/release-verify/SKILL.md"
+    },
+    {
+      "logicalName": "release-verify",
+      "path": "adapters/qoder/skills/release-verify/SKILL.md"
     },
     {
       "logicalName": "release-verify",

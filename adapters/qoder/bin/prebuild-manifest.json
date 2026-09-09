@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.filesystem-bound-read-prebuild-manifest",
+  "status": "stable",
+  "entries": [
+    {
+      "platformKey": "darwin-arm64",
+      "os": "darwin",
+      "arch": "arm64",
+      "libc": "none",
+      "binary": "prebuilds/darwin-arm64/bound_read.darwin-arm64.node",
+      "mode": 420,
+      "sha256": "19ce71026b737ba6b56da78ffabca4bb25f21249c30b545d68633d4b77547fde",
+      "napi": 10,
+      "exports": [
+        "closeParentDirectory",
+        "observeFilesystemTreeNative",
+        "openParentDirectory",
+        "platform",
+        "readFileBoundNative",
+        "renameDirectoryNoReplace"
+      ]
+    },
+    {
+      "platformKey": "darwin-x64",
+      "os": "darwin",
+      "arch": "x64",
+      "libc": "none",
+      "binary": "prebuilds/darwin-x64/bound_read.darwin-x64.node",
+      "mode": 420,
+      "sha256": "e01e4a1df3554da857189f483174d0480eb36063ce17b5857a23fa8a02f4a664",
+      "napi": 10,
+      "exports": [
+        "closeParentDirectory",
+        "observeFilesystemTreeNative",
+        "openParentDirectory",
+        "platform",
+        "readFileBoundNative",
+        "renameDirectoryNoReplace"
+      ]
+    },
+    {
+      "platformKey": "linux-arm64-gnu",
+      "os": "linux",
+      "arch": "arm64",
+      "libc": "glibc",
+      "binary": "prebuilds/linux-arm64-gnu/bound_read.linux-arm64-gnu.node",
+      "mode": 420,
+      "sha256": "7b7fd1188d2bbf356fe8c44690fd80bc7fb02e9f6f9dc7ee1c10834bf1c519b1",
+      "napi": 10,
+      "exports": [
+        "closeParentDirectory",
+        "observeFilesystemTreeNative",
+        "openParentDirectory",
+        "platform",
+        "readFileBoundNative",
+        "renameDirectoryNoReplace"
+      ]
+    },
+    {
+      "platformKey": "linux-x64-gnu",
+      "os": "linux",
+      "arch": "x64",
+      "libc": "glibc",
+      "binary": "prebuilds/linux-x64-gnu/bound_read.linux-x64-gnu.node",
+      "mode": 420,
+      "sha256": "749b69ba1b7da3496e59f92f2ca8d04800031b2479c13b3ca63555ee69671acc",
+      "napi": 10,
+      "exports": [
+        "closeParentDirectory",
+        "observeFilesystemTreeNative",
+        "openParentDirectory",
+        "platform",
+        "readFileBoundNative",
+        "renameDirectoryNoReplace"
+      ]
+    }
+  ]
+}

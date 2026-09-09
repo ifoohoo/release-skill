@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://release-skill.dev/schemas/postpublish-approval-record/v1",
+  "title": "PostPublish Hook Approval Record",
+  "description": "Schema for checkpoint-level approval of a requiresApproval postPublish hook (v0.6.3 R1, design §2.7 ruling 2). Binds the approval to (planDigest, hookId); the plan-level approval-record schema is untouched. runId is audit-only and never participates in binding or validation semantics.",
+  "type": "object",
+  "required": [
+    "planDigest",
+    "hookId",
+    "actor",
+    "approvedAt",
+    "expiresAt"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "planDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 digest of the frozen release plan whose postPublish hooks block this approval binds to"
+    },
+    "hookId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+      "description": "id of the requiresApproval postPublish hook being approved (must be declared in the frozen plan)"
+    },
+    "actor": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identity of the approver"
+    },
+    "approvedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when approval was granted"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when approval expires (max 24h after approvedAt; 5-minute clock skew tolerated at validation)"
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Audit-only identifier of the distribute run present when approval was granted; never a binding"
+    }
+  }
+}

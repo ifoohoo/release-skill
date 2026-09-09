@@ -129,6 +129,9 @@ shell 命令执行。
 `releaseFinish` 保持闭合。未知字段、`sourceBranchCheck` 的其他值，以及空值、路径、带参数或
 shell 语法的 `setupSkill` 都是配置错误。两个字段彼此独立：关闭分支提醒不会关闭已配置的 setup。
 
+release-finish 在 `--root` 指定的当前发布项目根目录调用 `setupSkill`。该流程不再接收另一个项目目录，
+也不要求维护者额外指定 setup 目标。
+
 生产模式的 `prepare` 仍会冻结 GitHub 快照，并生成 `push-snapshot`、`create-tag` 和
 `github-release`。该单元的 `postPublish` 声明保持独立生效，其中 phase 为
 `postVerify` 的 hook 也不受影响。因此纯插件可以先验证公开 GitHub Release，再向中央
@@ -206,7 +209,7 @@ releaseUnits:
           phase: postVerify
       localHostUpdate:
         plugin: postpublish-example
-        hosts: [claude, codex, kimi, codebuddy, workbuddy]
+        hosts: [claude, codex, kimi, codebuddy, workbuddy, qoder]
         hub:
           name: example-hub
           githubHost: github.com
@@ -214,7 +217,11 @@ releaseUnits:
           ref: refs/heads/main
 ```
 
-`localHostUpdate` 只声明 `postVerify` 完成后的本机更新候选。`plugin` 必须与冻结公开快照中的插件 manifest 身份一致，`hosts` 只能使用现有的五个 local-finish 宿主 ID，`hub.repo` 使用 `owner/repo`，`hub.ref` 必须是完整的 `refs/heads/...` 引用。声明该字段时，同一 `postPublish` 块至少要有一个 `phase: postVerify` Hook。prepare 只校验冻结声明和插件身份，不访问 Hub，也不要求 Hub 预先存在目标版本。
+`localHostUpdate` 只声明 `postVerify` 完成后的本机更新候选。`plugin` 必须与冻结公开快照中的插件 manifest 身份一致。`hosts` 只能使用六个 local-finish 宿主 ID：`claude`、`codex`、`kimi`、`codebuddy`、`workbuddy`、`qoder`。
+
+`hub.repo` 使用 `owner/repo`，`hub.ref` 必须是完整的 `refs/heads/...` 引用。声明该字段时，同一 `postPublish` 块至少要有一个 `phase: postVerify` Hook。prepare 只校验冻结声明和插件身份，不访问 Hub，也不要求 Hub 预先存在目标版本。
+
+Qoder 保持 build-only 分发边界，不新增发布计划内的 distribution 或安装检查点。本机收尾更新 Qoder 有四个前提：冻结计划已声明、用户显式选择、Hub 来源匹配、既有用户范围安装核对通过。流程不会添加市场或首次安装。更新完成只表示安装载荷变化，不表示当前会话已加载新版。后续仍须重新加载或新开会话，并完成一次真实的只读业务调用。
 
 ---
 

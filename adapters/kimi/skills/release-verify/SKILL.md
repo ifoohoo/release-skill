@@ -29,9 +29,9 @@ ship state；hook approval 缺失、错误或过期时，在 hook 执行前失�
 
 **注意**: distribute gate (W1) 已经实现并集成在标准 verify 流程中。verify 现在会检查 postPublish 分发状态（git mirror + marketplace index），只有当所有外部动作都完成并通过验证时才达到 VERIFIED。
 
-**工作流兼容性**: 
+**工作流兼容性**:
 - `docs-only`: consumer-verify preserved (步骤⑧)
-- `config-only`: scene B completes full chain including verify  
+- `config-only`: scene B completes full chain including verify
 - `marketplace-only`: delegates to workspace's exclusive skill for final verification
 - `full-happy-end`: standard complete path with all gates
 

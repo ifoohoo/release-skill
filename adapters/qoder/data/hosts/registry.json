@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.host-registry",
+  "hosts": [
+    "claude",
+    "codex",
+    "kimi-code",
+    "workbuddy",
+    "codebuddy",
+    "qoder",
+    "deepseek-harness"
+  ]
+}

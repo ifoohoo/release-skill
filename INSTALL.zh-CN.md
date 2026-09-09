@@ -2,7 +2,7 @@
 
 [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.16 -->
+<!-- release-skill:release-version: 0.9.17 -->
 ## 前置条件
 
 - Node.js 22.0.0 或更高版本
@@ -37,7 +37,9 @@ release-skill help
 Claude Code、CodeBuddy、WorkBuddy 和 Codex 从统一的
 [Skill Family Hub](https://github.com/ifoohoo/skill-family-hub)
 安装 release-skill。release-skill 仓库只携带插件清单，不再携带市场索引。当前没有接入
-Kimi Code 的可脚本化安装接口，见 [Kimi Code 小节](#安装为-kimi-code-插件)。先添加一次市场，再安装
+Kimi Code 的可脚本化安装接口，见 [Kimi Code 小节](#安装为-kimi-code-插件)。Qoder
+只有在 Hub 根 `marketplace.json` 已接纳 release-skill 条目后才使用同一市场，见
+[Qoder 小节](#安装为-qoder-插件)。先添加一次市场，再安装
 插件：
 
 > **前置条件：GitHub 访问。** `owner/repo` 简写会让 Claude Code 通过
@@ -75,6 +77,14 @@ codex plugin marketplace add ifoohoo/skill-family-hub
 release-skill 当前对 Kimi Code 采用钉死版本的交互式 TUI 路径。发布状态机会把安装
 列为发布后人工待办，不核验其完成结果。
 
+**Qoder：** 中央 Hub 已接纳 release-skill 的 Qoder 条目，且本机已配置该市场后执行：
+
+```bash
+qoder plugins install release-skill@skill-family-hub --scope user --json
+```
+
+本地适配器存在或候选校验成功，都不能单独证明 Hub 市场安装成立。
+
 ### 备选：直接从仓库安装（进阶）
 
 上面的 Hub 市场是受支持的主路径。只有宿主支持仓库 URL 时，才能直接安装：
@@ -84,6 +94,8 @@ release-skill 当前对 Kimi Code 采用钉死版本的交互式 TUI 路径。�
 - CodeBuddy：源码检出后通过 `--plugin-dir <path>/adapters/workbuddy`
   单会话使用（见
   [CodeBuddy/WorkBuddy 小节](#安装为-codebuddyworkbuddy-插件)）。
+- Qoder：执行 `qoder plugins validate <path>/adapters/qoder --json --strict`
+  校验生成候选；该结果不等于市场安装，也不等于真实 Skill 调用。
 
 ## 安装为 Kimi Code 插件
 
@@ -101,7 +113,7 @@ release-skill 当前只采用并验证 Kimi Code 的交互式 TUI 路径，**无
 （切勿使用裸仓库地址，它会安装最新 release 或默认分支），确认信任提示后重新加载：
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.16
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.17
    /plugins reload
    ```
 
@@ -114,10 +126,13 @@ release-finish 会重新读取 Kimi 的受管安装根，不复用操作前的�
 移除，再按发布标签安装、确认插件信任并重新加载。
 
 有效配置根依次取显式 `kimiHome`、`KIMI_CODE_HOME`、`~/.kimi-code`，TUI 进程和
-操作后观察使用同一根。release-finish 会先清理 ANSI/OSC 控制序列和软换行，再在插件
-信任对话框内核对冻结仓库、标签和当前选中的 `Trust and install`。出现
-`Trust this folder?`、未知界面、超时、提前退出或身份不一致时，流程停止，不确认目录
-信任，也不继续安装。这个本机检查不属于 `verify`，也不会改变
+操作后观察使用同一根，TUI 工作目录固定为 `--root` 指定的当前发布项目。用户确认冻结
+计划并显式选择更新 Kimi 后，release-finish 只接受初始标准 `Trust this folder?` 界面：
+当前必须选中 `No, exit`，且存在 `Trust this folder` 目标行。流程移动到目标行，重新确认
+选中项，再提交并等待已知命令提示符。出现未知行或选中项、移动后无法确认、超时、提前
+退出，或者插件命令发出后再次出现目录信任时，该宿主失败并停止。release-finish 仍会先
+清理 ANSI/OSC 控制序列和软换行，再在插件信任对话框内核对冻结仓库、标签和当前选中的
+`Trust and install`。这个本机检查不属于 `verify`，也不会改变
 已经完成的 `VERIFIED` 发布状态。
 
 新计划无需收据或人工证明。`attest` 命令仅兼容缺少
@@ -151,6 +166,28 @@ codebuddy CLI 可以添加市场并安装插件，但 **`plugin marketplace add`
 
 源码检出后也可以用 `--plugin-dir <path>/adapters/workbuddy` 把 CodeBuddy 指向
 生成的插件目录做单会话使用；适配器不引用自身目录之外的任何文件。
+
+## 安装为 Qoder 插件
+
+npm 包内提供 `.qoder-plugin/plugin.json` 和生成的自包含 `adapters/qoder/` 目录。
+Qoder 只是 build-only 投影，不新增 `qoder-plugin` 分发类型，也不新增 publish、
+reconcile 或 verify 安装检查点。
+
+中央 Hub 根 `marketplace.json` 必须先接纳 release-skill 条目，且该条目的来源要解析到
+本插件的 Qoder 投影。条目存在并已配置 `skill-family-hub` 后，执行用户范围安装：
+
+```bash
+qoder plugins install release-skill@skill-family-hub --scope user --json
+```
+
+可选的 `release-finish` 只更新用户已选择、冻结计划已声明且已经存在的用户范围 Qoder
+安装。写入前先核对 Hub 名称和仓库；刷新市场后，再核对来源与冻结载荷。流程可以更新
+指定市场，再执行 `qoder plugins update release-skill@skill-family-hub --scope user`；
+不会添加市场、首次安装插件、删除市场，也不会卸载后重装。
+
+`UPDATED` 只证明安装载荷已更新，不代表当前 Qoder 会话已经加载新版。必须重新加载插件
+或新开会话，再由真实发现的 release-skill 完成一次只读发布业务调用，才能宣称新版已
+生效。这些本机结果不会改变 `VERIFIED`。
 
 ## 消费端安装验证边界
 

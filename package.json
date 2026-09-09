@@ -1,6 +1,6 @@
 {
   "name": "release-skill",
-  "version": "0.9.16",
+  "version": "0.9.17",
   "description": "Safe preparation and frozen GitHub/npm production publishing with full happy end verification",
   "author": {
     "name": "广州市风荷科技有限公司"
@@ -27,6 +27,7 @@
     ".codebuddy-plugin/",
     ".codex-plugin/",
     ".kimi-plugin/",
+    ".qoder-plugin/",
     "bin/",
     "data/",
     "src/",
@@ -97,7 +98,8 @@
     "skill",
     "claude-code",
     "codex",
-    "kimi-code"
+    "kimi-code",
+    "qoder"
   ],
   "license": "Apache-2.0"
 }

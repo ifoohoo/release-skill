@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.16"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.17"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "ba44ad70cebc1cc077887bdf71bf36d78b9073c8aeabd0074aac2eb0d5caffea";
+const __bundleSourceDigest = "8d2e6384871f9dee0d333c03e859296020ef69fc38efddb196fd7aecf76511d7";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -36109,6 +36109,13 @@ var require_dist3 = __commonJS({
   }
 });
 
+// src/core/foundation-inflight.mjs
+var init_foundation_inflight = __esm({
+  "src/core/foundation-inflight.mjs"() {
+    init_src2();
+  }
+});
+
 // src/core/digest.mjs
 function canonicalJson2(obj) {
   const normalized = normalizeLenient(obj);
@@ -36157,13 +36164,6 @@ var init_digest = __esm({
     __name(canonicalJson2, "canonicalJson");
     __name(sha256Hex, "sha256Hex");
     __name(normalizeLenient, "normalizeLenient");
-  }
-});
-
-// src/core/foundation-inflight.mjs
-var init_foundation_inflight = __esm({
-  "src/core/foundation-inflight.mjs"() {
-    init_src2();
   }
 });
 
@@ -43519,604 +43519,11 @@ var init_plan = __esm({
   }
 });
 
-// src/core/run.mjs
-var run_exports = {};
-__export(run_exports, {
-  appendRunState: () => appendRunState,
-  assertImmutableRunAuthority: () => assertImmutableRunAuthority,
-  computeRunDigest: () => computeRunDigest,
-  createProductionPrepareRunDir: () => createProductionPrepareRunDir,
-  createProductionRunDir: () => createProductionRunDir,
-  loadRun: () => loadRun,
-  resolveDefaultRunDir: () => resolveDefaultRunDir,
-  resolveRunPath: () => resolveRunPath,
-  validateRun: () => validateRun,
-  validateRunCheckpointMapping: () => validateRunCheckpointMapping,
-  validateRunLineage: () => validateRunLineage,
-  validateRunPlanDigest: () => validateRunPlanDigest,
-  writeRunAtomic: () => writeRunAtomic
-});
-import { lstat as lstat27, mkdir as mkdir10, readFile as readFile18, stat as stat10 } from "node:fs/promises";
-import { realpathSync as realpathSync3 } from "node:fs";
-import { dirname as dirname4, join as join7, resolve as resolve8, basename as basename4, relative as relative7, isAbsolute as isAbsolute5 } from "node:path";
-function resolveDefaultRunDir(planPath, command2, runId = `${command2}-${Date.now()}`) {
-  const absolute2 = resolve8(planPath);
-  const fileName = basename4(absolute2);
-  const parentDir = dirname4(absolute2);
-  if (fileName === "release-plan.json") {
-    return `${parentDir}/runs/${runId}`;
-  }
-  if (basename4(parentDir) === "plans") {
-    const releaseDir = dirname4(parentDir);
-    return join7(releaseDir, "runs", runId);
-  }
-  return `${parentDir}/runs/${runId}`;
-}
-function validateRun(run6, options = {}) {
-  const valid = validateRunSchema(run6);
-  if (!valid) {
-    const errors = validateRunSchema.errors ?? [];
-    const summary = errors.map((e) => `${e.instancePath || "/"}: ${e.message}`).join("; ");
-    throw new ReleaseError(
-      GATE_FAILED,
-      `release run schema validation failed: ${summary}`,
-      { validationErrors: errors }
-    );
-  }
-  const actionIds = /* @__PURE__ */ new Set();
-  for (const checkpoint of run6.checkpoints ?? []) {
-    if (actionIds.has(checkpoint.actionId)) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `release run has duplicate checkpoint for action "${checkpoint.actionId}"`,
-        { actionId: checkpoint.actionId }
-      );
-    }
-    actionIds.add(checkpoint.actionId);
-  }
-  if (options.requireDigest === true && !run6.runDigest) {
-    throw new ReleaseError(GATE_FAILED, "release run is missing required runDigest");
-  }
-  if (run6.runDigest && run6.runDigest !== computeRunDigest(run6)) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      "release run digest does not match its content",
-      { expected: computeRunDigest(run6), actual: run6.runDigest }
-    );
-  }
-}
-async function resolveRunPath(runPath) {
-  let stats;
-  try {
-    stats = await lstat27(runPath);
-  } catch (err) {
-    if (err?.code === "ENOENT") return runPath;
-    throw new ReleaseError(
-      GATE_FAILED,
-      `cannot inspect release run path: ${err.message}`,
-      { runPath, cause: err.code }
-    );
-  }
-  if (stats.isFile()) return runPath;
-  if (stats.isSymbolicLink()) {
-    let targetStats;
-    try {
-      targetStats = await stat10(runPath);
-    } catch (err) {
-      if (err?.code === "ENOENT") return runPath;
-      throw new ReleaseError(
-        GATE_FAILED,
-        `cannot inspect release run path: ${err.message}`,
-        { runPath, cause: err.code }
-      );
-    }
-    if (targetStats.isDirectory()) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        "release run path is a symlinked directory; pass the run file (release-run.json) or the real run directory",
-        { runPath }
-      );
-    }
-    return runPath;
-  }
-  if (stats.isDirectory()) {
-    const candidate = join7(runPath, "release-run.json");
-    try {
-      const candidateStats = await lstat27(candidate);
-      if (!candidateStats.isFile()) {
-        throw new ReleaseError(
-          GATE_FAILED,
-          `release run directory does not contain a regular release-run.json: ${runPath}`,
-          { runPath, expected: "release-run.json" }
-        );
-      }
-    } catch (err) {
-      if (err instanceof ReleaseError) throw err;
-      throw new ReleaseError(
-        GATE_FAILED,
-        `release run directory must contain release-run.json: ${err.message}`,
-        { runPath, expected: "release-run.json", cause: err.code }
-      );
-    }
-    return candidate;
-  }
-  return runPath;
-}
-async function loadRun(runPath, options = {}) {
-  const resolvedRunPath = await resolveRunPath(runPath);
-  let raw;
-  try {
-    raw = await readFile18(resolvedRunPath, "utf8");
-  } catch (err) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `cannot read release run: ${err.message}`,
-      { runPath: resolvedRunPath, cause: err.code }
-    );
-  }
-  let run6;
-  try {
-    run6 = JSON.parse(raw);
-  } catch (err) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `release run is not valid JSON: ${err.message}`,
-      { runPath: resolvedRunPath }
-    );
-  }
-  validateRun(run6, options);
-  if (options.authorityPlanPath) {
-    assertImmutableRunAuthority(resolvedRunPath, options.authorityPlanPath, run6);
-  }
-  return run6;
-}
-function assertImmutableRunAuthority(runPath, planPath, run6) {
-  const absolutePlan = realpathSync3(resolve8(planPath));
-  const planDir = dirname4(absolutePlan);
-  if (basename4(planDir) !== "plans") {
-    throw new ReleaseError(GATE_FAILED, "run authority requires an immutable plans/<digest>.json plan path");
-  }
-  let authorityRoot = dirname4(planDir);
-  let cursor = planDir;
-  while (dirname4(cursor) !== cursor) {
-    if (basename4(cursor) === ".release-skill") {
-      authorityRoot = cursor;
-      break;
-    }
-    cursor = dirname4(cursor);
-  }
-  const runsDir = join7(authorityRoot, "runs");
-  const absoluteRun = realpathSync3(resolve8(runPath));
-  const rel = relative7(runsDir, absoluteRun);
-  if (isAbsolute5(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
-    throw new ReleaseError(GATE_FAILED, "production run authority must be inside the plan sibling runs/ directory");
-  }
-  const fileName = basename4(absoluteRun);
-  const isFinal = fileName === "release-run.json";
-  const isState = /^\d{6}\.json$/.test(fileName) && basename4(dirname4(absoluteRun)) === "states" && run6.stateSequence === Number(fileName.slice(0, 6));
-  if (!isFinal && !isState) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      "production run authority must be release-run.json or a bound states/<sequence>.json snapshot",
-      { runPath }
-    );
-  }
-}
-async function createProductionRunDir(runDir, planPath) {
-  const absolutePlan = realpathSync3(resolve8(planPath));
-  const planDir = dirname4(absolutePlan);
-  if (basename4(planDir) !== "plans") {
-    throw new ReleaseError(GATE_FAILED, "production run directory requires an immutable plans/<digest>.json authority");
-  }
-  const authorityRoot = dirname4(planDir);
-  return createProductionRunDirWithinAuthority(runDir, authorityRoot);
-}
-async function createProductionPrepareRunDir(runDir, releaseDir) {
-  const authorityRoot = resolve8(releaseDir);
-  let authorityStat;
-  try {
-    authorityStat = await lstat27(authorityRoot);
-  } catch (error) {
-    throw new ReleaseError(GATE_FAILED, "cannot inspect production .release-skill authority root", {
-      releaseDir: authorityRoot,
-      cause: error.code
-    });
-  }
-  if (authorityStat.isSymbolicLink() || !authorityStat.isDirectory()) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      "production .release-skill authority root must be a real directory, not a symlink or special file",
-      { releaseDir: authorityRoot }
-    );
-  }
-  const physicalAuthorityRoot = realpathSync3(authorityRoot);
-  if (physicalAuthorityRoot !== authorityRoot) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      "production .release-skill authority root physical identity does not match the project authority",
-      { releaseDir: authorityRoot, physicalReleaseDir: physicalAuthorityRoot }
-    );
-  }
-  return createProductionRunDirWithinAuthority(runDir, physicalAuthorityRoot);
-}
-async function createProductionRunDirWithinAuthority(runDir, authorityRoot) {
-  const runsDir = join7(authorityRoot, "runs");
-  let runsStat;
-  try {
-    runsStat = await lstat27(runsDir);
-  } catch (error) {
-    if (error.code !== "ENOENT") {
-      throw new ReleaseError(GATE_FAILED, "cannot inspect production runs authority root", {
-        runsDir,
-        cause: error.code
-      });
-    }
-    try {
-      await mkdir10(runsDir, { mode: 448 });
-    } catch (mkdirError) {
-      if (mkdirError.code !== "EEXIST") {
-        throw new ReleaseError(GATE_FAILED, "cannot create production runs authority root", {
-          runsDir,
-          cause: mkdirError.code
-        });
-      }
-    }
-    runsStat = await lstat27(runsDir);
-  }
-  if (runsStat.isSymbolicLink() || !runsStat.isDirectory()) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      "production .release-skill/runs authority root must be a real directory, not a symlink or special file",
-      { runsDir }
-    );
-  }
-  const physicalRunsDir = realpathSync3(runsDir);
-  if (physicalRunsDir !== runsDir) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      "production .release-skill/runs authority root physical identity does not match the plan authority",
-      { runsDir, physicalRunsDir }
-    );
-  }
-  const requested = resolve8(runDir);
-  let physicalParent;
-  try {
-    physicalParent = realpathSync3(dirname4(requested));
-  } catch (error) {
-    throw new ReleaseError(GATE_FAILED, "production run directory parent is unavailable", {
-      runDir,
-      cause: error.code
-    });
-  }
-  if (physicalParent !== physicalRunsDir || basename4(requested) === "" || basename4(requested) === "." || basename4(requested) === "..") {
-    throw new ReleaseError(
-      GATE_FAILED,
-      "production run directory must be a fresh direct child of the immutable .release-skill/runs authority",
-      { runDir, runsDir: physicalRunsDir }
-    );
-  }
-  try {
-    await lstat27(requested);
-    throw new ReleaseError(GATE_FAILED, "production run directory already exists; authority directories cannot be reused", { runDir });
-  } catch (error) {
-    if (error instanceof ReleaseError) throw error;
-    if (error.code !== "ENOENT") {
-      throw new ReleaseError(GATE_FAILED, "cannot establish fresh production run directory", {
-        runDir,
-        cause: error.code
-      });
-    }
-  }
-  try {
-    await mkdir10(requested, { mode: 448 });
-  } catch (error) {
-    throw new ReleaseError(GATE_FAILED, "cannot exclusively create production run directory", {
-      runDir,
-      cause: error.code
-    });
-  }
-  const physicalRunDir = realpathSync3(requested);
-  if (dirname4(physicalRunDir) !== physicalRunsDir) {
-    throw new ReleaseError(GATE_FAILED, "production run directory escaped its immutable authority after creation", { runDir });
-  }
-  return physicalRunDir;
-}
-async function validateStatePredecessorChain(run6, runPath, options = {}) {
-  if (run6.stateSequence === void 0) {
-    if (run6.previousStateDigest !== void 0) {
-      throw new ReleaseError(GATE_FAILED, "non-state run cannot claim previousStateDigest");
-    }
-    return;
-  }
-  let current = run6;
-  let currentPath = realpathSync3(resolve8(runPath));
-  let traversed = 0;
-  while (true) {
-    const sequence = current.stateSequence;
-    const expectedName = `${String(sequence).padStart(6, "0")}.json`;
-    if (!Number.isSafeInteger(sequence) || sequence < 0 || basename4(currentPath) !== expectedName || basename4(dirname4(currentPath)) !== "states") {
-      throw new ReleaseError(GATE_FAILED, "run state sequence is not bound to its immutable states/<sequence>.json slot");
-    }
-    if (sequence === 0) {
-      if (current.previousStateDigest !== void 0) {
-        throw new ReleaseError(GATE_FAILED, "initial run state must not claim a predecessor digest");
-      }
-      return;
-    }
-    if (!current.previousStateDigest) {
-      throw new ReleaseError(GATE_FAILED, "run state is missing previousStateDigest");
-    }
-    traversed += 1;
-    if (traversed > 1e5) {
-      throw new ReleaseError(GATE_FAILED, "run state predecessor chain exceeds maximum depth");
-    }
-    const previousPath = join7(dirname4(currentPath), `${String(sequence - 1).padStart(6, "0")}.json`);
-    const previous = await loadRun(previousPath, {
-      requireDigest: true,
-      ...options.production ? { authorityPlanPath: options.planPath } : {}
-    });
-    if (previous.stateSequence !== sequence - 1 || previous.runId !== current.runId || previous.command !== current.command || previous.planDigest !== current.planDigest) {
-      throw new ReleaseError(GATE_FAILED, "run state predecessor does not belong to the same monotonic authority chain");
-    }
-    if (current.previousStateDigest !== previous.runDigest) {
-      throw new ReleaseError(GATE_FAILED, "run state previousStateDigest does not match the immutable predecessor bytes");
-    }
-    current = previous;
-    currentPath = realpathSync3(previousPath);
-  }
-}
-function validateSourceRunEdge(child, parent) {
-  if (child.command === "reconcile") {
-    if (!["publish", "reconcile"].includes(parent.command) || parent.status !== "PARTIAL") {
-      throw new ReleaseError(
-        GATE_FAILED,
-        "reconcile lineage must reference a PARTIAL publish or reconcile run",
-        { childCommand: child.command, parentCommand: parent.command, parentStatus: parent.status }
-      );
-    }
-    return;
-  }
-  if (child.command === "verify") {
-    if (!["publish", "reconcile"].includes(parent.command) || parent.status !== "PUBLISHED") {
-      throw new ReleaseError(
-        GATE_FAILED,
-        "verify lineage must reference a PUBLISHED publish or reconcile run",
-        { childCommand: child.command, parentCommand: parent.command, parentStatus: parent.status }
-      );
-    }
-  }
-  if (child.command === "postverify") {
-    if (parent.command !== "verify" || parent.status !== "VERIFIED") {
-      throw new ReleaseError(
-        GATE_FAILED,
-        "postverify lineage must reference a VERIFIED verify run",
-        { childCommand: child.command, parentCommand: parent.command, parentStatus: parent.status }
-      );
-    }
-  }
-}
-async function validateRunLineage(run6, options = {}) {
-  const { plan, planPath, runPath, production = false, maxDepth = 16 } = options;
-  if (maxDepth < 0) {
-    throw new ReleaseError(GATE_FAILED, "release run lineage exceeds maximum depth");
-  }
-  validateRun(run6, { requireDigest: production });
-  if (production) assertImmutableRunAuthority(runPath, planPath, run6);
-  await validateStatePredecessorChain(run6, runPath, { production, planPath });
-  validateRunPlanDigest(run6, plan, { planPath });
-  if (run6.command === "publish") return;
-  if (!["reconcile", "verify", "postverify"].includes(run6.command)) {
-    throw new ReleaseError(GATE_FAILED, `unsupported run command in lineage: ${run6.command}`);
-  }
-  if (!run6.sourceRunPath || !run6.sourceRunId || !run6.sourceRunDigest) {
-    throw new ReleaseError(GATE_FAILED, `${run6.command} run is missing complete source run lineage`);
-  }
-  const parent = await loadRun(run6.sourceRunPath, {
-    requireDigest: true,
-    ...production ? { authorityPlanPath: planPath } : {}
-  });
-  if (parent.runId !== run6.sourceRunId || parent.runDigest !== run6.sourceRunDigest) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      "source run lineage id/digest does not match referenced immutable run bytes",
-      { sourceRunPath: run6.sourceRunPath }
-    );
-  }
-  validateSourceRunEdge(run6, parent);
-  await validateRunLineage(parent, {
-    plan,
-    planPath,
-    runPath: run6.sourceRunPath,
-    production,
-    maxDepth: maxDepth - 1
-  });
-}
-function validateRunPlanDigest(run6, plan, options = {}) {
-  const requirePresence = options.requirePresence !== false;
-  const expectedDigest = computePlanDigest(plan);
-  if (options.planPath) assertImmutablePlanAuthority(options.planPath, plan);
-  if (!run6.planDigest) {
-    if (requirePresence) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        "source run is missing required planDigest field",
-        { runId: run6.runId }
-      );
-    }
-    return;
-  }
-  if (run6.planDigest !== expectedDigest) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      `run planDigest mismatch: run says ${String(run6.planDigest).slice(0, 16)}..., plan is ${expectedDigest.slice(0, 16)}...`,
-      { runDigest: run6.planDigest, planDigest: expectedDigest }
-    );
-  }
-  if (plan.production && run6.planPath && options.planPath && resolve8(run6.planPath) !== resolve8(options.planPath)) {
-    throw new ReleaseError(
-      GATE_FAILED,
-      "source run immutable plan path does not match the supplied plan authority",
-      { runPlanPath: run6.planPath, suppliedPlanPath: options.planPath }
-    );
-  }
-}
-function validateRunCheckpointMapping(run6, planActions) {
-  const seenPlanActionIds = /* @__PURE__ */ new Set();
-  for (const action of planActions) {
-    if (seenPlanActionIds.has(action.id)) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `release plan has duplicate action id "${action.id}"`,
-        { actionId: action.id }
-      );
-    }
-    seenPlanActionIds.add(action.id);
-  }
-  const planActionIds = new Set(planActions.map((a) => a.id));
-  const planActionsById = new Map(planActions.map((action) => [action.id, action]));
-  const seenCheckpointIds = /* @__PURE__ */ new Set();
-  for (const cp4 of run6.checkpoints) {
-    if (seenCheckpointIds.has(cp4.actionId)) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `source run has duplicate checkpoint for action "${cp4.actionId}"`,
-        { actionId: cp4.actionId }
-      );
-    }
-    seenCheckpointIds.add(cp4.actionId);
-  }
-  const runCheckpointIds = new Set(run6.checkpoints.map((cp4) => cp4.actionId));
-  for (const action of planActions) {
-    if (!runCheckpointIds.has(action.id)) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `source run missing checkpoint for plan action "${action.id}"`,
-        { actionId: action.id }
-      );
-    }
-  }
-  for (const cp4 of run6.checkpoints) {
-    if (!planActionIds.has(cp4.actionId)) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `source run has checkpoint for unknown action "${cp4.actionId}"`,
-        { actionId: cp4.actionId }
-      );
-    }
-    const action = planActionsById.get(cp4.actionId);
-    if (cp4.actionType !== action.type) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        `source run checkpoint actionType mismatch for action "${cp4.actionId}": run says "${cp4.actionType}", plan says "${action.type}"`,
-        { actionId: cp4.actionId, runActionType: cp4.actionType, planActionType: action.type }
-      );
-    }
-  }
-}
-function computeRunDigest(run6) {
-  const { runDigest: _, ...rest } = run6;
-  return sha256Hex(JSON.stringify(rest, null, 2));
-}
-function sealRun(run6) {
-  const sealed = { ...run6 };
-  sealed.runDigest = computeRunDigest(sealed);
-  validateRun(sealed, { requireDigest: true });
-  return sealed;
-}
-async function writeRunAtomic(runPath, run6) {
-  const sealed = sealRun(run6);
-  const json = JSON.stringify(sealed, null, 2);
-  const dir = dirname4(runPath);
-  await mkdir10(dir, { recursive: true });
-  try {
-    await publishFileExclusive(dir, basename4(runPath), json, { mode: 384 });
-  } catch (cause) {
-    if (cause?.details?.kind === HARNESS_ERROR_KINDS.EXCLUSIVE_PUBLISH_CONFLICT) {
-      const existing = await readFile18(runPath, "utf8").catch(() => null);
-      if (existing === json) return Object.freeze(sealed);
-      throw new ReleaseError(
-        GATE_FAILED,
-        "run file already exists with different bytes; exclusive-create rejected overwrite",
-        { runPath }
-      );
-    }
-    throw new ReleaseError(
-      GATE_FAILED,
-      `run file write failed: ${cause?.message ?? String(cause)}`,
-      { runPath }
-    );
-  }
-  return Object.freeze(sealed);
-}
-async function appendRunState(runDir, sequence, run6) {
-  if (!Number.isSafeInteger(sequence) || sequence < 0) {
-    throw new ReleaseError(GATE_FAILED, "run state sequence must be a non-negative integer");
-  }
-  const statesDir = join7(runDir, "states");
-  let previousStateDigest;
-  if (sequence > 0) {
-    const previousPath = join7(statesDir, `${String(sequence - 1).padStart(6, "0")}.json`);
-    const previous = await loadRun(previousPath, { requireDigest: true });
-    if (previous.stateSequence !== sequence - 1 || previous.runId !== run6.runId || previous.command !== run6.command || previous.planDigest !== run6.planDigest) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        "run state predecessor does not belong to the same monotonic authority chain",
-        { sequence, previousPath }
-      );
-    }
-    previousStateDigest = previous.runDigest;
-  }
-  const { previousStateDigest: _discarded, ...nextRun } = run6;
-  const state = sealRun({
-    ...nextRun,
-    stateSequence: sequence,
-    ...previousStateDigest ? { previousStateDigest } : {}
-  });
-  const statePath = join7(statesDir, `${String(sequence).padStart(6, "0")}.json`);
-  await writeRunAtomic(statePath, state);
-  return Object.freeze({ state, statePath });
-}
-var import_ajv4, import_ajv_formats2, RELEASE_RUN_SCHEMA, ajv2, validateRunSchema;
-var init_run = __esm({
-  async "src/core/run.mjs"() {
-    import_ajv4 = __toESM(require_ajv(), 1);
-    import_ajv_formats2 = __toESM(require_dist3(), 1);
-    await init_plan();
-    init_digest();
-    init_errors3();
-    init_trusted_resource();
-    init_foundation_inflight();
-    RELEASE_RUN_SCHEMA = JSON.parse((await readTrustedPackageResource(
-      "schemas/release-run.schema.json"
-    )).toString("utf8"));
-    __name(resolveDefaultRunDir, "resolveDefaultRunDir");
-    ajv2 = new import_ajv4.default({ allErrors: true, strict: false });
-    (0, import_ajv_formats2.default)(ajv2);
-    validateRunSchema = ajv2.compile(RELEASE_RUN_SCHEMA);
-    __name(validateRun, "validateRun");
-    __name(resolveRunPath, "resolveRunPath");
-    __name(loadRun, "loadRun");
-    __name(assertImmutableRunAuthority, "assertImmutableRunAuthority");
-    __name(createProductionRunDir, "createProductionRunDir");
-    __name(createProductionPrepareRunDir, "createProductionPrepareRunDir");
-    __name(createProductionRunDirWithinAuthority, "createProductionRunDirWithinAuthority");
-    __name(validateStatePredecessorChain, "validateStatePredecessorChain");
-    __name(validateSourceRunEdge, "validateSourceRunEdge");
-    __name(validateRunLineage, "validateRunLineage");
-    __name(validateRunPlanDigest, "validateRunPlanDigest");
-    __name(validateRunCheckpointMapping, "validateRunCheckpointMapping");
-    __name(computeRunDigest, "computeRunDigest");
-    __name(sealRun, "sealRun");
-    __name(writeRunAtomic, "writeRunAtomic");
-    __name(appendRunState, "appendRunState");
-  }
-});
-
 // src/core/baseline.mjs
 import { execFile as execFileCb2 } from "node:child_process";
 import { promisify as promisify2 } from "node:util";
 import { createHash as createHash9 } from "node:crypto";
-import { lstat as lstat28, open as open9, readlink as readlink3 } from "node:fs/promises";
+import { lstat as lstat27, open as open9, readlink as readlink3 } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import path38 from "node:path";
 function isControlPlanePath(p) {
@@ -44200,7 +43607,7 @@ async function computeWorkspaceDigest(root) {
           `Refusing to read path outside repository root: ${relPath} resolves to ${absPath}`
         );
       }
-      const stat22 = await lstat28(absPath);
+      const stat22 = await lstat27(absPath);
       let type;
       if (stat22.isSymbolicLink()) {
         type = "symlink";
@@ -44323,8 +43730,8 @@ var init_baseline2 = __esm({
 });
 
 // src/core/approval.mjs
-import { readFile as readFile19 } from "node:fs/promises";
-import { basename as basename5, dirname as dirname5, join as join8, resolve as resolve9 } from "node:path";
+import { readFile as readFile18 } from "node:fs/promises";
+import { basename as basename4, dirname as dirname4, join as join7, resolve as resolve8 } from "node:path";
 function validateApprovalRecordSchema(approval) {
   if (validateApprovalSchema(approval)) return;
   const errors = validateApprovalSchema.errors ?? [];
@@ -44398,9 +43805,9 @@ function assertImmutableApprovalAuthority(approvalPath, plan, rawApproval) {
   if (!plan?.production) return;
   const planDigest = computePlanDigest(plan);
   const approvalDigest = computeApprovalDigest(rawApproval);
-  const absolute2 = resolve9(approvalPath);
-  const planDirectory = dirname5(absolute2);
-  if (basename5(absolute2) !== `${approvalDigest}.json` || basename5(planDirectory) !== planDigest || basename5(dirname5(planDirectory)) !== "approvals") {
+  const absolute2 = resolve8(approvalPath);
+  const planDirectory = dirname4(absolute2);
+  if (basename4(absolute2) !== `${approvalDigest}.json` || basename4(planDirectory) !== planDigest || basename4(dirname4(planDirectory)) !== "approvals") {
     throw new ReleaseError(
       GATE_FAILED,
       "production commands require approvals/<planDigest>/<approvalDigest>.json immutable authority",
@@ -44586,21 +43993,21 @@ function validateApproval(plan, approval, options = {}) {
     requireUnexpired: options.requireUnexpired
   });
 }
-var import_ajv5, import_ajv_formats3, approvalSchema, approvalAjv, validateApprovalSchema, MAX_APPROVAL_MS, CLOCK_SKEW_TOLERANCE_MS;
+var import_ajv4, import_ajv_formats2, approvalSchema, approvalAjv, validateApprovalSchema, MAX_APPROVAL_MS, CLOCK_SKEW_TOLERANCE_MS;
 var init_approval = __esm({
   async "src/core/approval.mjs"() {
     init_errors3();
     await init_plan();
     init_src2();
-    import_ajv5 = __toESM(require_ajv(), 1);
-    import_ajv_formats3 = __toESM(require_dist3(), 1);
+    import_ajv4 = __toESM(require_ajv(), 1);
+    import_ajv_formats2 = __toESM(require_dist3(), 1);
     init_baseline2();
     init_trusted_resource();
     approvalSchema = JSON.parse((await readTrustedPackageResource(
       "schemas/approval-record.schema.json"
     )).toString("utf8"));
-    approvalAjv = new import_ajv5.default({ allErrors: true, strict: false });
-    (0, import_ajv_formats3.default)(approvalAjv);
+    approvalAjv = new import_ajv4.default({ allErrors: true, strict: false });
+    (0, import_ajv_formats2.default)(approvalAjv);
     validateApprovalSchema = approvalAjv.compile(approvalSchema);
     __name(validateApprovalRecordSchema, "validateApprovalRecordSchema");
     __name(computeApprovalDigest, "computeApprovalDigest");
@@ -44704,6 +44111,977 @@ var init_checkpoints = __esm({
     ]);
     __name(isRemoteWriteAction, "isRemoteWriteAction");
     __name(isMarketplaceAction, "isMarketplaceAction");
+  }
+});
+
+// src/core/run.mjs
+var run_exports = {};
+__export(run_exports, {
+  appendRunState: () => appendRunState,
+  assertImmutableRunAuthority: () => assertImmutableRunAuthority,
+  computeRunDigest: () => computeRunDigest,
+  createProductionPrepareRunDir: () => createProductionPrepareRunDir,
+  createProductionRunDir: () => createProductionRunDir,
+  loadRun: () => loadRun,
+  resolveDefaultRunDir: () => resolveDefaultRunDir,
+  resolveRunPath: () => resolveRunPath,
+  validateRun: () => validateRun,
+  validateRunCheckpointMapping: () => validateRunCheckpointMapping,
+  validateRunLineage: () => validateRunLineage,
+  validateRunPlanDigest: () => validateRunPlanDigest,
+  validateSourceRunEdge: () => validateSourceRunEdge,
+  writeRunAtomic: () => writeRunAtomic
+});
+import { lstat as lstat28, mkdir as mkdir10, readFile as readFile19, stat as stat10 } from "node:fs/promises";
+import { realpathSync as realpathSync3 } from "node:fs";
+import { dirname as dirname5, join as join8, resolve as resolve9, basename as basename5, relative as relative7, isAbsolute as isAbsolute5 } from "node:path";
+function resolveDefaultRunDir(planPath, command2, runId = `${command2}-${Date.now()}`) {
+  const absolute2 = resolve9(planPath);
+  const fileName = basename5(absolute2);
+  const parentDir = dirname5(absolute2);
+  if (fileName === "release-plan.json") {
+    return `${parentDir}/runs/${runId}`;
+  }
+  if (basename5(parentDir) === "plans") {
+    const releaseDir = dirname5(parentDir);
+    return join8(releaseDir, "runs", runId);
+  }
+  return `${parentDir}/runs/${runId}`;
+}
+function validateRun(run6, options = {}) {
+  const valid = validateRunSchema(run6);
+  if (!valid) {
+    const errors = validateRunSchema.errors ?? [];
+    const summary = errors.map((e) => `${e.instancePath || "/"}: ${e.message}`).join("; ");
+    throw new ReleaseError(
+      GATE_FAILED,
+      `release run schema validation failed: ${summary}`,
+      { validationErrors: errors }
+    );
+  }
+  const actionIds = /* @__PURE__ */ new Set();
+  for (const checkpoint of run6.checkpoints ?? []) {
+    if (actionIds.has(checkpoint.actionId)) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `release run has duplicate checkpoint for action "${checkpoint.actionId}"`,
+        { actionId: checkpoint.actionId }
+      );
+    }
+    actionIds.add(checkpoint.actionId);
+  }
+  if (options.requireDigest === true && !run6.runDigest) {
+    throw new ReleaseError(GATE_FAILED, "release run is missing required runDigest");
+  }
+  if (run6.runDigest && run6.runDigest !== computeRunDigest(run6)) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "release run digest does not match its content",
+      { expected: computeRunDigest(run6), actual: run6.runDigest }
+    );
+  }
+}
+async function resolveRunPath(runPath) {
+  let stats;
+  try {
+    stats = await lstat28(runPath);
+  } catch (err) {
+    if (err?.code === "ENOENT") return runPath;
+    throw new ReleaseError(
+      GATE_FAILED,
+      `cannot inspect release run path: ${err.message}`,
+      { runPath, cause: err.code }
+    );
+  }
+  if (stats.isFile()) return runPath;
+  if (stats.isSymbolicLink()) {
+    let targetStats;
+    try {
+      targetStats = await stat10(runPath);
+    } catch (err) {
+      if (err?.code === "ENOENT") return runPath;
+      throw new ReleaseError(
+        GATE_FAILED,
+        `cannot inspect release run path: ${err.message}`,
+        { runPath, cause: err.code }
+      );
+    }
+    if (targetStats.isDirectory()) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        "release run path is a symlinked directory; pass the run file (release-run.json) or the real run directory",
+        { runPath }
+      );
+    }
+    return runPath;
+  }
+  if (stats.isDirectory()) {
+    const candidate = join8(runPath, "release-run.json");
+    try {
+      const candidateStats = await lstat28(candidate);
+      if (!candidateStats.isFile()) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          `release run directory does not contain a regular release-run.json: ${runPath}`,
+          { runPath, expected: "release-run.json" }
+        );
+      }
+    } catch (err) {
+      if (err instanceof ReleaseError) throw err;
+      throw new ReleaseError(
+        GATE_FAILED,
+        `release run directory must contain release-run.json: ${err.message}`,
+        { runPath, expected: "release-run.json", cause: err.code }
+      );
+    }
+    return candidate;
+  }
+  return runPath;
+}
+async function loadRun(runPath, options = {}) {
+  const resolvedRunPath = await resolveRunPath(runPath);
+  let raw;
+  try {
+    raw = await readFile19(resolvedRunPath, "utf8");
+  } catch (err) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `cannot read release run: ${err.message}`,
+      { runPath: resolvedRunPath, cause: err.code }
+    );
+  }
+  let run6;
+  try {
+    run6 = JSON.parse(raw);
+  } catch (err) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `release run is not valid JSON: ${err.message}`,
+      { runPath: resolvedRunPath }
+    );
+  }
+  validateRun(run6, options);
+  if (options.authorityPlanPath) {
+    assertImmutableRunAuthority(resolvedRunPath, options.authorityPlanPath, run6);
+  }
+  return run6;
+}
+function assertImmutableRunAuthority(runPath, planPath, run6) {
+  const absolutePlan = realpathSync3(resolve9(planPath));
+  const planDir = dirname5(absolutePlan);
+  if (basename5(planDir) !== "plans") {
+    throw new ReleaseError(GATE_FAILED, "run authority requires an immutable plans/<digest>.json plan path");
+  }
+  let authorityRoot = dirname5(planDir);
+  let cursor = planDir;
+  while (dirname5(cursor) !== cursor) {
+    if (basename5(cursor) === ".release-skill") {
+      authorityRoot = cursor;
+      break;
+    }
+    cursor = dirname5(cursor);
+  }
+  const runsDir = join8(authorityRoot, "runs");
+  const absoluteRun = realpathSync3(resolve9(runPath));
+  const rel = relative7(runsDir, absoluteRun);
+  if (isAbsolute5(rel) || rel === ".." || rel.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`)) {
+    throw new ReleaseError(GATE_FAILED, "production run authority must be inside the plan sibling runs/ directory");
+  }
+  const fileName = basename5(absoluteRun);
+  const isFinal = fileName === "release-run.json";
+  const isState = /^\d{6}\.json$/.test(fileName) && basename5(dirname5(absoluteRun)) === "states" && run6.stateSequence === Number(fileName.slice(0, 6));
+  if (!isFinal && !isState) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "production run authority must be release-run.json or a bound states/<sequence>.json snapshot",
+      { runPath }
+    );
+  }
+}
+async function createProductionRunDir(runDir, planPath) {
+  const absolutePlan = realpathSync3(resolve9(planPath));
+  const planDir = dirname5(absolutePlan);
+  if (basename5(planDir) !== "plans") {
+    throw new ReleaseError(GATE_FAILED, "production run directory requires an immutable plans/<digest>.json authority");
+  }
+  const authorityRoot = dirname5(planDir);
+  return createProductionRunDirWithinAuthority(runDir, authorityRoot);
+}
+async function createProductionPrepareRunDir(runDir, releaseDir) {
+  const authorityRoot = resolve9(releaseDir);
+  let authorityStat;
+  try {
+    authorityStat = await lstat28(authorityRoot);
+  } catch (error) {
+    throw new ReleaseError(GATE_FAILED, "cannot inspect production .release-skill authority root", {
+      releaseDir: authorityRoot,
+      cause: error.code
+    });
+  }
+  if (authorityStat.isSymbolicLink() || !authorityStat.isDirectory()) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "production .release-skill authority root must be a real directory, not a symlink or special file",
+      { releaseDir: authorityRoot }
+    );
+  }
+  const physicalAuthorityRoot = realpathSync3(authorityRoot);
+  if (physicalAuthorityRoot !== authorityRoot) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "production .release-skill authority root physical identity does not match the project authority",
+      { releaseDir: authorityRoot, physicalReleaseDir: physicalAuthorityRoot }
+    );
+  }
+  return createProductionRunDirWithinAuthority(runDir, physicalAuthorityRoot);
+}
+async function createProductionRunDirWithinAuthority(runDir, authorityRoot) {
+  const runsDir = join8(authorityRoot, "runs");
+  let runsStat;
+  try {
+    runsStat = await lstat28(runsDir);
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      throw new ReleaseError(GATE_FAILED, "cannot inspect production runs authority root", {
+        runsDir,
+        cause: error.code
+      });
+    }
+    try {
+      await mkdir10(runsDir, { mode: 448 });
+    } catch (mkdirError) {
+      if (mkdirError.code !== "EEXIST") {
+        throw new ReleaseError(GATE_FAILED, "cannot create production runs authority root", {
+          runsDir,
+          cause: mkdirError.code
+        });
+      }
+    }
+    runsStat = await lstat28(runsDir);
+  }
+  if (runsStat.isSymbolicLink() || !runsStat.isDirectory()) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "production .release-skill/runs authority root must be a real directory, not a symlink or special file",
+      { runsDir }
+    );
+  }
+  const physicalRunsDir = realpathSync3(runsDir);
+  if (physicalRunsDir !== runsDir) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "production .release-skill/runs authority root physical identity does not match the plan authority",
+      { runsDir, physicalRunsDir }
+    );
+  }
+  const requested = resolve9(runDir);
+  let physicalParent;
+  try {
+    physicalParent = realpathSync3(dirname5(requested));
+  } catch (error) {
+    throw new ReleaseError(GATE_FAILED, "production run directory parent is unavailable", {
+      runDir,
+      cause: error.code
+    });
+  }
+  if (physicalParent !== physicalRunsDir || basename5(requested) === "" || basename5(requested) === "." || basename5(requested) === "..") {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "production run directory must be a fresh direct child of the immutable .release-skill/runs authority",
+      { runDir, runsDir: physicalRunsDir }
+    );
+  }
+  try {
+    await lstat28(requested);
+    throw new ReleaseError(GATE_FAILED, "production run directory already exists; authority directories cannot be reused", { runDir });
+  } catch (error) {
+    if (error instanceof ReleaseError) throw error;
+    if (error.code !== "ENOENT") {
+      throw new ReleaseError(GATE_FAILED, "cannot establish fresh production run directory", {
+        runDir,
+        cause: error.code
+      });
+    }
+  }
+  try {
+    await mkdir10(requested, { mode: 448 });
+  } catch (error) {
+    throw new ReleaseError(GATE_FAILED, "cannot exclusively create production run directory", {
+      runDir,
+      cause: error.code
+    });
+  }
+  const physicalRunDir = realpathSync3(requested);
+  if (dirname5(physicalRunDir) !== physicalRunsDir) {
+    throw new ReleaseError(GATE_FAILED, "production run directory escaped its immutable authority after creation", { runDir });
+  }
+  return physicalRunDir;
+}
+async function validateStatePredecessorChain(run6, runPath, options = {}) {
+  if (run6.stateSequence === void 0) {
+    if (run6.previousStateDigest !== void 0) {
+      throw new ReleaseError(GATE_FAILED, "non-state run cannot claim previousStateDigest");
+    }
+    return;
+  }
+  let current = run6;
+  let currentPath = realpathSync3(resolve9(runPath));
+  let traversed = 0;
+  while (true) {
+    const sequence = current.stateSequence;
+    const expectedName = `${String(sequence).padStart(6, "0")}.json`;
+    if (!Number.isSafeInteger(sequence) || sequence < 0 || basename5(currentPath) !== expectedName || basename5(dirname5(currentPath)) !== "states") {
+      throw new ReleaseError(GATE_FAILED, "run state sequence is not bound to its immutable states/<sequence>.json slot");
+    }
+    if (sequence === 0) {
+      if (current.previousStateDigest !== void 0) {
+        throw new ReleaseError(GATE_FAILED, "initial run state must not claim a predecessor digest");
+      }
+      return;
+    }
+    if (!current.previousStateDigest) {
+      throw new ReleaseError(GATE_FAILED, "run state is missing previousStateDigest");
+    }
+    traversed += 1;
+    if (traversed > 1e5) {
+      throw new ReleaseError(GATE_FAILED, "run state predecessor chain exceeds maximum depth");
+    }
+    const previousPath = join8(dirname5(currentPath), `${String(sequence - 1).padStart(6, "0")}.json`);
+    const previous = await loadRun(previousPath, {
+      requireDigest: true,
+      ...options.production ? { authorityPlanPath: options.planPath } : {}
+    });
+    if (previous.stateSequence !== sequence - 1 || previous.runId !== current.runId || previous.command !== current.command || previous.planDigest !== current.planDigest) {
+      throw new ReleaseError(GATE_FAILED, "run state predecessor does not belong to the same monotonic authority chain");
+    }
+    if (current.previousStateDigest !== previous.runDigest) {
+      throw new ReleaseError(GATE_FAILED, "run state previousStateDigest does not match the immutable predecessor bytes");
+    }
+    current = previous;
+    currentPath = realpathSync3(previousPath);
+  }
+}
+function validateSourceRunEdge(child, parent) {
+  if (child.command === "reconcile") {
+    if (!["publish", "reconcile"].includes(parent.command) || parent.status !== "PARTIAL") {
+      throw new ReleaseError(
+        GATE_FAILED,
+        "reconcile lineage must reference a PARTIAL publish or reconcile run",
+        { childCommand: child.command, parentCommand: parent.command, parentStatus: parent.status }
+      );
+    }
+    return;
+  }
+  if (child.command === "verify") {
+    if (!["publish", "reconcile"].includes(parent.command) || parent.status !== "PUBLISHED") {
+      throw new ReleaseError(
+        GATE_FAILED,
+        "verify lineage must reference a PUBLISHED publish or reconcile run",
+        { childCommand: child.command, parentCommand: parent.command, parentStatus: parent.status }
+      );
+    }
+  }
+  if (child.command === "postverify") {
+    if (parent.command !== "verify" || parent.status !== "VERIFIED") {
+      throw new ReleaseError(
+        GATE_FAILED,
+        "postverify lineage must reference a VERIFIED verify run",
+        { childCommand: child.command, parentCommand: parent.command, parentStatus: parent.status }
+      );
+    }
+  }
+}
+async function validateRunLineage(run6, options = {}) {
+  const { plan, planPath, runPath, production = false, maxDepth = 16 } = options;
+  if (maxDepth < 0) {
+    throw new ReleaseError(GATE_FAILED, "release run lineage exceeds maximum depth");
+  }
+  validateRun(run6, { requireDigest: production });
+  if (production) assertImmutableRunAuthority(runPath, planPath, run6);
+  await validateStatePredecessorChain(run6, runPath, { production, planPath });
+  validateRunPlanDigest(run6, plan, { planPath });
+  if (run6.command === "publish") return;
+  if (!["reconcile", "verify", "postverify"].includes(run6.command)) {
+    throw new ReleaseError(GATE_FAILED, `unsupported run command in lineage: ${run6.command}`);
+  }
+  if (!run6.sourceRunPath || !run6.sourceRunId || !run6.sourceRunDigest) {
+    throw new ReleaseError(GATE_FAILED, `${run6.command} run is missing complete source run lineage`);
+  }
+  const parent = await loadRun(run6.sourceRunPath, {
+    requireDigest: true,
+    ...production ? { authorityPlanPath: planPath } : {}
+  });
+  if (parent.runId !== run6.sourceRunId || parent.runDigest !== run6.sourceRunDigest) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "source run lineage id/digest does not match referenced immutable run bytes",
+      { sourceRunPath: run6.sourceRunPath }
+    );
+  }
+  validateSourceRunEdge(run6, parent);
+  await validateRunLineage(parent, {
+    plan,
+    planPath,
+    runPath: run6.sourceRunPath,
+    production,
+    maxDepth: maxDepth - 1
+  });
+}
+function validateRunPlanDigest(run6, plan, options = {}) {
+  const requirePresence = options.requirePresence !== false;
+  const expectedDigest = computePlanDigest(plan);
+  if (options.planPath) assertImmutablePlanAuthority(options.planPath, plan);
+  if (!run6.planDigest) {
+    if (requirePresence) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        "source run is missing required planDigest field",
+        { runId: run6.runId }
+      );
+    }
+    return;
+  }
+  if (run6.planDigest !== expectedDigest) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      `run planDigest mismatch: run says ${String(run6.planDigest).slice(0, 16)}..., plan is ${expectedDigest.slice(0, 16)}...`,
+      { runDigest: run6.planDigest, planDigest: expectedDigest }
+    );
+  }
+  if (plan.production && run6.planPath && options.planPath && resolve9(run6.planPath) !== resolve9(options.planPath)) {
+    throw new ReleaseError(
+      GATE_FAILED,
+      "source run immutable plan path does not match the supplied plan authority",
+      { runPlanPath: run6.planPath, suppliedPlanPath: options.planPath }
+    );
+  }
+}
+function validateRunCheckpointMapping(run6, planActions) {
+  const seenPlanActionIds = /* @__PURE__ */ new Set();
+  for (const action of planActions) {
+    if (seenPlanActionIds.has(action.id)) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `release plan has duplicate action id "${action.id}"`,
+        { actionId: action.id }
+      );
+    }
+    seenPlanActionIds.add(action.id);
+  }
+  const planActionIds = new Set(planActions.map((a) => a.id));
+  const planActionsById = new Map(planActions.map((action) => [action.id, action]));
+  const seenCheckpointIds = /* @__PURE__ */ new Set();
+  for (const cp4 of run6.checkpoints) {
+    if (seenCheckpointIds.has(cp4.actionId)) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `source run has duplicate checkpoint for action "${cp4.actionId}"`,
+        { actionId: cp4.actionId }
+      );
+    }
+    seenCheckpointIds.add(cp4.actionId);
+  }
+  const runCheckpointIds = new Set(run6.checkpoints.map((cp4) => cp4.actionId));
+  for (const action of planActions) {
+    if (!runCheckpointIds.has(action.id)) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `source run missing checkpoint for plan action "${action.id}"`,
+        { actionId: action.id }
+      );
+    }
+  }
+  for (const cp4 of run6.checkpoints) {
+    if (!planActionIds.has(cp4.actionId)) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `source run has checkpoint for unknown action "${cp4.actionId}"`,
+        { actionId: cp4.actionId }
+      );
+    }
+    const action = planActionsById.get(cp4.actionId);
+    if (cp4.actionType !== action.type) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        `source run checkpoint actionType mismatch for action "${cp4.actionId}": run says "${cp4.actionType}", plan says "${action.type}"`,
+        { actionId: cp4.actionId, runActionType: cp4.actionType, planActionType: action.type }
+      );
+    }
+  }
+}
+function computeRunDigest(run6) {
+  const { runDigest: _, ...rest } = run6;
+  return sha256Hex(JSON.stringify(rest, null, 2));
+}
+function sealRun(run6) {
+  const sealed = { ...run6 };
+  sealed.runDigest = computeRunDigest(sealed);
+  validateRun(sealed, { requireDigest: true });
+  return sealed;
+}
+async function writeRunAtomic(runPath, run6) {
+  const sealed = sealRun(run6);
+  const json = JSON.stringify(sealed, null, 2);
+  const dir = dirname5(runPath);
+  await mkdir10(dir, { recursive: true });
+  try {
+    await publishFileExclusive(dir, basename5(runPath), json, { mode: 384 });
+  } catch (cause) {
+    if (cause?.details?.kind === HARNESS_ERROR_KINDS.EXCLUSIVE_PUBLISH_CONFLICT) {
+      const existing = await readFile19(runPath, "utf8").catch(() => null);
+      if (existing === json) return Object.freeze(sealed);
+      throw new ReleaseError(
+        GATE_FAILED,
+        "run file already exists with different bytes; exclusive-create rejected overwrite",
+        { runPath }
+      );
+    }
+    throw new ReleaseError(
+      GATE_FAILED,
+      `run file write failed: ${cause?.message ?? String(cause)}`,
+      { runPath }
+    );
+  }
+  return Object.freeze(sealed);
+}
+async function appendRunState(runDir, sequence, run6) {
+  if (!Number.isSafeInteger(sequence) || sequence < 0) {
+    throw new ReleaseError(GATE_FAILED, "run state sequence must be a non-negative integer");
+  }
+  const statesDir = join8(runDir, "states");
+  let previousStateDigest;
+  if (sequence > 0) {
+    const previousPath = join8(statesDir, `${String(sequence - 1).padStart(6, "0")}.json`);
+    const previous = await loadRun(previousPath, { requireDigest: true });
+    if (previous.stateSequence !== sequence - 1 || previous.runId !== run6.runId || previous.command !== run6.command || previous.planDigest !== run6.planDigest) {
+      throw new ReleaseError(
+        GATE_FAILED,
+        "run state predecessor does not belong to the same monotonic authority chain",
+        { sequence, previousPath }
+      );
+    }
+    previousStateDigest = previous.runDigest;
+  }
+  const { previousStateDigest: _discarded, ...nextRun } = run6;
+  const state = sealRun({
+    ...nextRun,
+    stateSequence: sequence,
+    ...previousStateDigest ? { previousStateDigest } : {}
+  });
+  const statePath = join8(statesDir, `${String(sequence).padStart(6, "0")}.json`);
+  await writeRunAtomic(statePath, state);
+  return Object.freeze({ state, statePath });
+}
+var import_ajv5, import_ajv_formats3, RELEASE_RUN_SCHEMA, ajv2, validateRunSchema;
+var init_run = __esm({
+  async "src/core/run.mjs"() {
+    import_ajv5 = __toESM(require_ajv(), 1);
+    import_ajv_formats3 = __toESM(require_dist3(), 1);
+    await init_plan();
+    init_digest();
+    init_errors3();
+    init_trusted_resource();
+    init_foundation_inflight();
+    RELEASE_RUN_SCHEMA = JSON.parse((await readTrustedPackageResource(
+      "schemas/release-run.schema.json"
+    )).toString("utf8"));
+    __name(resolveDefaultRunDir, "resolveDefaultRunDir");
+    ajv2 = new import_ajv5.default({ allErrors: true, strict: false });
+    (0, import_ajv_formats3.default)(ajv2);
+    validateRunSchema = ajv2.compile(RELEASE_RUN_SCHEMA);
+    __name(validateRun, "validateRun");
+    __name(resolveRunPath, "resolveRunPath");
+    __name(loadRun, "loadRun");
+    __name(assertImmutableRunAuthority, "assertImmutableRunAuthority");
+    __name(createProductionRunDir, "createProductionRunDir");
+    __name(createProductionPrepareRunDir, "createProductionPrepareRunDir");
+    __name(createProductionRunDirWithinAuthority, "createProductionRunDirWithinAuthority");
+    __name(validateStatePredecessorChain, "validateStatePredecessorChain");
+    __name(validateSourceRunEdge, "validateSourceRunEdge");
+    __name(validateRunLineage, "validateRunLineage");
+    __name(validateRunPlanDigest, "validateRunPlanDigest");
+    __name(validateRunCheckpointMapping, "validateRunCheckpointMapping");
+    __name(computeRunDigest, "computeRunDigest");
+    __name(sealRun, "sealRun");
+    __name(writeRunAtomic, "writeRunAtomic");
+    __name(appendRunState, "appendRunState");
+  }
+});
+
+// src/commands/verify-records.mjs
+var verify_records_exports = {};
+__export(verify_records_exports, {
+  VERIFY_RECORDS_EXIT_CODES: () => VERIFY_RECORDS_EXIT_CODES,
+  verifyReleaseRecords: () => verifyReleaseRecords
+});
+function sourceLabel(source) {
+  if (typeof source !== "string" || source.length === 0) return null;
+  return source.replaceAll("\\", "/").split("/").filter(Boolean).at(-1) ?? null;
+}
+function parseInput(input, role, addFinding) {
+  const summary = { role, source: sourceLabel(input?.source) };
+  if (!input || input.bytes === void 0 || input.bytes === null) {
+    addFinding("INPUT_MISSING", role, `required ${role} input was not provided`, "INSUFFICIENT");
+    return { summary, digest: null, document: null, bytes: null, usable: false };
+  }
+  let bytes;
+  try {
+    bytes = Buffer.isBuffer(input.bytes) ? Buffer.from(input.bytes) : Buffer.from(input.bytes);
+  } catch {
+    addFinding("INPUT_DAMAGED", role, `${role} input is not byte-compatible`);
+    return { summary, digest: null, document: null, bytes: null, usable: false };
+  }
+  const bytesSha256 = digestBytes(bytes);
+  try {
+    const document2 = JSON.parse(bytes.toString("utf8"));
+    if (!document2 || typeof document2 !== "object" || Array.isArray(document2)) {
+      addFinding("INPUT_DAMAGED", role, `${role} input must be a JSON object`);
+      return {
+        summary,
+        digest: { bytesSha256, carriedDomainDigest: null, recomputedDomainDigest: null },
+        document: null,
+        bytes,
+        usable: false
+      };
+    }
+    return {
+      summary,
+      digest: { bytesSha256, carriedDomainDigest: null, recomputedDomainDigest: null },
+      document: document2,
+      bytes,
+      usable: true
+    };
+  } catch {
+    addFinding("INPUT_DAMAGED", role, `${role} input is not valid JSON`);
+    return {
+      summary,
+      digest: { bytesSha256, carriedDomainDigest: null, recomputedDomainDigest: null },
+      document: null,
+      bytes,
+      usable: false
+    };
+  }
+}
+function sameStringSet(left, right) {
+  return JSON.stringify([...new Set(left)].sort()) === JSON.stringify([...new Set(right)].sort());
+}
+function commandStatusIsValid(run6) {
+  if (run6.command === "publish" || run6.command === "reconcile") {
+    return run6.status === "PARTIAL" || run6.status === "PUBLISHED";
+  }
+  return run6.command === "verify" && run6.status === "VERIFIED";
+}
+function checkpointStatusIsValid(run6) {
+  if (run6.status === "VERIFIED") {
+    return run6.checkpoints.every((checkpoint) => ["succeeded", "skipped"].includes(checkpoint.status));
+  }
+  if (run6.status === "PUBLISHED") {
+    return run6.checkpoints.every((checkpoint) => isRemoteWriteAction(checkpoint.actionType) ? ["succeeded", "skipped"].includes(checkpoint.status) : isMarketplaceAction(checkpoint.actionType) ? ["succeeded", "skipped", "deferred", "failed"].includes(checkpoint.status) : true);
+  }
+  if (run6.status === "PARTIAL") {
+    return run6.checkpoints.some((checkpoint) => !["succeeded", "skipped", "deferred"].includes(checkpoint.status));
+  }
+  return false;
+}
+function verifyReleaseRecords(request = {}) {
+  const findings = [];
+  const addFinding = /* @__PURE__ */ __name((code, role, message, outcome = "CONTRADICTED") => {
+    findings.push({ code, role, message, _outcome: outcome });
+  }, "addFinding");
+  const planInput = parseInput(request.plan, "plan", addFinding);
+  const approvalInput = parseInput(request.approval, "approval", addFinding);
+  const targetInput = parseInput(request.targetRun, "targetRun", addFinding);
+  const sourceInputs = Array.isArray(request.sourceRuns) ? request.sourceRuns.map((input, index) => parseInput(input, `sourceRun[${index}]`, addFinding)) : [];
+  const plan = planInput.document;
+  const approval = approvalInput.document;
+  const targetRun = targetInput.document;
+  let planSupported = false;
+  if (planInput.usable) {
+    if (!SUPPORTED_PLAN_VERSIONS.has(plan?.planVersion)) {
+      addFinding("FORMAT_UNSUPPORTED", "plan", `unsupported release plan version: ${String(plan?.planVersion)}`, "INSUFFICIENT");
+    } else {
+      planSupported = true;
+      try {
+        validatePlan(plan);
+      } catch (error) {
+        addFinding("INPUT_DAMAGED", "plan", error.message);
+        planSupported = false;
+      }
+      const recomputed = computePlanDigest(plan);
+      planInput.digest.carriedDomainDigest = plan?.digest ?? null;
+      planInput.digest.recomputedDomainDigest = recomputed;
+      if (!plan?.digest || plan.digest !== recomputed) {
+        addFinding("PLAN_DIGEST_MISMATCH", "plan", "plan digest does not match its binding content");
+      }
+    }
+  }
+  let approvalSupported = false;
+  let approvalDigest = null;
+  if (approvalInput.usable) {
+    approvalDigest = computeApprovalDigest(approvalInput.bytes);
+    approvalInput.digest.recomputedDomainDigest = approvalDigest;
+    try {
+      validateApprovalRecordSchema(approval);
+      approvalSupported = true;
+    } catch (error) {
+      addFinding("INPUT_DAMAGED", "approval", error.message);
+    }
+    if (approvalSupported) {
+      try {
+        validateApprovalTimeWindow(approval, {
+          clock: /* @__PURE__ */ __name(() => approval.approvedAt, "clock"),
+          requireUnexpired: false
+        });
+      } catch (error) {
+        addFinding("INPUT_DAMAGED", "approval", error.message);
+        approvalSupported = false;
+      }
+    }
+  }
+  const runEntries = [
+    { input: targetInput, role: "targetRun", isTarget: true },
+    ...sourceInputs.map((input, index) => ({ input, role: `sourceRun[${index}]`, isTarget: false }))
+  ];
+  const usableRuns = [];
+  let trustedTargetTerminalStatus = null;
+  for (const entry of runEntries) {
+    const run6 = entry.input.document;
+    if (!entry.input.usable) continue;
+    entry.input.digest.carriedDomainDigest = run6?.runDigest ?? null;
+    entry.input.digest.recomputedDomainDigest = computeRunDigest(run6);
+    if (!SUPPORTED_RUN_COMMANDS.has(run6?.command) || !SUPPORTED_TERMINAL_STATUSES.has(run6?.status)) {
+      addFinding(
+        "FORMAT_UNSUPPORTED",
+        entry.role,
+        `unsupported release run command/status: ${String(run6?.command)}/${String(run6?.status)}`,
+        "INSUFFICIENT"
+      );
+      continue;
+    }
+    const { runDigest: _runDigest, ...unsignedRun } = run6;
+    try {
+      validateRun(unsignedRun);
+    } catch (error) {
+      addFinding("INPUT_DAMAGED", entry.role, error.message);
+      continue;
+    }
+    const digestMatches = Boolean(run6.runDigest) && run6.runDigest === entry.input.digest.recomputedDomainDigest;
+    const transitionIsValid = commandStatusIsValid(run6);
+    const terminalCheckpointsAreValid = checkpointStatusIsValid(run6);
+    if (!digestMatches) {
+      addFinding("RUN_DIGEST_MISMATCH", entry.role, "run digest does not match its content");
+    }
+    if (!transitionIsValid) {
+      addFinding("TRANSITION_MISMATCH", entry.role, `run command ${run6.command} cannot terminate as ${run6.status}`);
+    }
+    if (!terminalCheckpointsAreValid) {
+      addFinding("CHECKPOINT_MISMATCH", entry.role, `checkpoint results do not support terminal status ${run6.status}`);
+    }
+    if (entry.isTarget && digestMatches && transitionIsValid && terminalCheckpointsAreValid) {
+      trustedTargetTerminalStatus = run6.status;
+    }
+    usableRuns.push({ ...entry, run: run6 });
+  }
+  if (planSupported && typeof request.unitId === "string" && typeof request.targetVersion === "string") {
+    const expectedUnit = (plan.units ?? []).find((unit) => unit.id === request.unitId);
+    if (!expectedUnit || expectedUnit.targetVersion !== request.targetVersion) {
+      addFinding("IDENTITY_MISMATCH", "plan", "expected release unit and version do not match the plan");
+    }
+  } else if (typeof request.unitId !== "string" || typeof request.targetVersion !== "string") {
+    addFinding("INPUT_MISSING", "identity", "unitId and targetVersion are required", "INSUFFICIENT");
+  }
+  if (planSupported && approvalSupported) {
+    const planDigest = computePlanDigest(plan);
+    if (approval.planDigest !== planDigest) {
+      addFinding("PLAN_BINDING_MISMATCH", "approval", "approval planDigest does not match the supplied plan");
+    }
+    const expectedUnitVersions = Object.fromEntries((plan.units ?? []).map((unit) => [unit.id, unit.targetVersion]));
+    const approvedUnitVersions = approval.unitVersions ?? ((plan.units ?? []).length === 1 ? { [plan.units[0].id]: approval.targetVersion } : {});
+    const identityMatches = sameStringSet(Object.keys(expectedUnitVersions), Object.keys(approvedUnitVersions)) && Object.entries(expectedUnitVersions).every(([unitId, version]) => approvedUnitVersions[unitId] === version) && (approval.targetVersion === void 0 || new Set(Object.values(expectedUnitVersions)).size !== 1 || approval.targetVersion === Object.values(expectedUnitVersions)[0]);
+    if (!identityMatches) {
+      addFinding("IDENTITY_MISMATCH", "approval", "approval unit/version identity does not match the plan");
+    }
+    const planActions = (plan.externalActions ?? []).map((action) => action.id);
+    if (!sameStringSet(approval.approvedActions ?? [], planActions)) {
+      addFinding("APPROVAL_ACTION_MISMATCH", "approval", "approved actions do not exactly match the plan actions");
+    }
+    try {
+      validateApproval(plan, approval, {
+        clock: /* @__PURE__ */ __name(() => approval.approvedAt, "clock"),
+        requireUnexpired: false
+      });
+    } catch (error) {
+      const alreadyRepresented = /planDigest/i.test(error.message) && findings.some((finding) => finding.role === "approval" && finding.code === "PLAN_BINDING_MISMATCH") || /version|unitVersions/i.test(error.message) && findings.some((finding) => finding.role === "approval" && finding.code === "IDENTITY_MISMATCH") || /approved|action/i.test(error.message) && findings.some((finding) => finding.role === "approval" && finding.code === "APPROVAL_ACTION_MISMATCH");
+      if (!alreadyRepresented) {
+        addFinding("INPUT_DAMAGED", "approval", error.message);
+      }
+    }
+  }
+  if (planSupported) {
+    for (const entry of usableRuns) {
+      try {
+        validateRunPlanDigest(entry.run, plan);
+      } catch (error) {
+        addFinding("PLAN_BINDING_MISMATCH", entry.role, error.message);
+      }
+      try {
+        validateRunCheckpointMapping(entry.run, plan.externalActions ?? []);
+      } catch (error) {
+        addFinding("CHECKPOINT_MISMATCH", entry.role, error.message);
+      }
+    }
+  }
+  if (approvalDigest) {
+    for (const entry of usableRuns) {
+      if (!entry.run.approvalDigest) {
+        addFinding("INPUT_MISSING", entry.role, "run does not carry the approval digest needed to bind the supplied approval", "INSUFFICIENT");
+      } else if (entry.run.approvalDigest !== approvalDigest) {
+        addFinding("APPROVAL_DIGEST_MISMATCH", entry.role, "run approvalDigest does not match the supplied approval bytes");
+      }
+    }
+  }
+  const supportingRuns = usableRuns.filter((entry) => !entry.isTarget);
+  const chain = [];
+  let lineageComplete = false;
+  if (targetRun && usableRuns.some((entry) => entry.isTarget)) {
+    let current = usableRuns.find((entry) => entry.isTarget);
+    const visited = /* @__PURE__ */ new Set();
+    for (let depth = 0; depth <= 16 && current; depth += 1) {
+      chain.push(current.run);
+      const visitKey = `${current.run.runId}:${current.run.runDigest}`;
+      if (visited.has(visitKey)) {
+        addFinding("RUN_LINEAGE_MISMATCH", current.role, "release run lineage contains a cycle");
+        break;
+      }
+      visited.add(visitKey);
+      if (current.run.command === "publish") {
+        lineageComplete = true;
+        break;
+      }
+      if (!current.run.sourceRunId || !current.run.sourceRunDigest || !current.run.sourceRunPath) {
+        addFinding("INPUT_MISSING", current.role, "run is missing complete source-run lineage fields", "INSUFFICIENT");
+        break;
+      }
+      const exactParent = supportingRuns.find((candidate) => candidate.run.runId === current.run.sourceRunId && candidate.run.runDigest === current.run.sourceRunDigest);
+      if (!exactParent) {
+        const sameId = supportingRuns.find((candidate) => candidate.run.runId === current.run.sourceRunId);
+        if (sameId) {
+          addFinding("RUN_LINEAGE_MISMATCH", current.role, "source run id is present but its digest does not match");
+        } else {
+          addFinding("INPUT_MISSING", current.role, "explicit source run required by lineage was not supplied", "INSUFFICIENT");
+        }
+        break;
+      }
+      try {
+        validateSourceRunEdge(current.run, exactParent.run);
+      } catch (error) {
+        addFinding("TRANSITION_MISMATCH", current.role, error.message);
+        break;
+      }
+      current = exactParent;
+    }
+    if (!lineageComplete && chain.length > 16) {
+      addFinding("RUN_LINEAGE_MISMATCH", "targetRun", "release run lineage exceeds maximum depth");
+    }
+  }
+  for (const entry of usableRuns) {
+    const run6 = entry.run;
+    if (run6.stateSequence === void 0) {
+      if (run6.previousStateDigest !== void 0) {
+        addFinding("RUN_LINEAGE_MISMATCH", entry.role, "non-state run claims a previous state digest");
+      }
+      continue;
+    }
+    if (run6.stateSequence === 0) {
+      if (run6.previousStateDigest !== void 0) {
+        addFinding("RUN_LINEAGE_MISMATCH", entry.role, "initial state run claims a previous state digest");
+      }
+      continue;
+    }
+    const predecessor = supportingRuns.find((candidate) => candidate.run.runId === run6.runId && candidate.run.stateSequence === run6.stateSequence - 1);
+    if (!predecessor) {
+      addFinding("INPUT_MISSING", entry.role, "explicit predecessor state snapshot was not supplied", "INSUFFICIENT");
+    } else if (predecessor.run.runDigest !== run6.previousStateDigest || predecessor.run.command !== run6.command || predecessor.run.planDigest !== run6.planDigest) {
+      addFinding("RUN_LINEAGE_MISMATCH", entry.role, "state predecessor identity or digest does not match");
+    }
+  }
+  if (approvalSupported) {
+    const executionRun = [...chain].reverse().find((run6) => ["publish", "reconcile"].includes(run6.command) && (run6.checkpoints ?? []).some((checkpoint) => isRemoteWriteAction(checkpoint.actionType)));
+    if (!lineageComplete || !executionRun?.startedAt || !executionRun?.finishedAt) {
+      addFinding("HISTORICAL_TIME_MISSING", "approval", "historical publish execution interval cannot be proven", "INSUFFICIENT");
+    } else {
+      const approvedAt = Date.parse(approval.approvedAt);
+      const expiresAt = Date.parse(approval.expiresAt);
+      const startedAt = Date.parse(executionRun.startedAt);
+      const finishedAt = Date.parse(executionRun.finishedAt);
+      if (!Number.isFinite(startedAt) || !Number.isFinite(finishedAt) || startedAt < approvedAt || finishedAt > expiresAt || finishedAt < startedAt) {
+        addFinding("HISTORICAL_TIME_OUTSIDE_WINDOW", "approval", "publish execution interval is outside the approval window");
+      }
+    }
+  }
+  findings.sort((left, right) => (FINDING_RANK.get(left.code) ?? 999) - (FINDING_RANK.get(right.code) ?? 999) || left.role.localeCompare(right.role) || left.message.localeCompare(right.message));
+  const hasContradiction = findings.some((finding) => finding._outcome === "CONTRADICTED");
+  const hasInsufficient = findings.some((finding) => finding._outcome === "INSUFFICIENT");
+  const status = hasContradiction ? "CONTRADICTED" : hasInsufficient ? "INSUFFICIENT" : "CONSISTENT";
+  return {
+    status,
+    unitId: typeof request.unitId === "string" ? request.unitId : null,
+    targetVersion: typeof request.targetVersion === "string" ? request.targetVersion : null,
+    historicalTerminalStatus: trustedTargetTerminalStatus,
+    inputs: {
+      plan: planInput.summary,
+      approval: approvalInput.summary,
+      targetRun: targetInput.summary,
+      sourceRuns: sourceInputs.map((input) => input.summary)
+    },
+    digests: {
+      plan: planInput.digest,
+      approval: approvalInput.digest,
+      targetRun: targetInput.digest,
+      sourceRuns: sourceInputs.map((input) => input.digest)
+    },
+    findings: findings.map(({ _outcome, ...finding }) => finding)
+  };
+}
+var VERIFY_RECORDS_EXIT_CODES, SUPPORTED_PLAN_VERSIONS, SUPPORTED_RUN_COMMANDS, SUPPORTED_TERMINAL_STATUSES, FINDING_ORDER, FINDING_RANK;
+var init_verify_records = __esm({
+  async "src/commands/verify-records.mjs"() {
+    init_src2();
+    await init_approval();
+    init_checkpoints();
+    await init_plan();
+    await init_run();
+    VERIFY_RECORDS_EXIT_CODES = Object.freeze({
+      CONSISTENT: 0,
+      CONTRADICTED: 1,
+      INSUFFICIENT: 2
+    });
+    SUPPORTED_PLAN_VERSIONS = /* @__PURE__ */ new Set([1, 2, 3]);
+    SUPPORTED_RUN_COMMANDS = /* @__PURE__ */ new Set(["publish", "reconcile", "verify"]);
+    SUPPORTED_TERMINAL_STATUSES = /* @__PURE__ */ new Set(["PARTIAL", "PUBLISHED", "VERIFIED"]);
+    FINDING_ORDER = Object.freeze([
+      "INPUT_MISSING",
+      "INPUT_DAMAGED",
+      "FORMAT_UNSUPPORTED",
+      "PLAN_DIGEST_MISMATCH",
+      "APPROVAL_DIGEST_MISMATCH",
+      "RUN_DIGEST_MISMATCH",
+      "IDENTITY_MISMATCH",
+      "PLAN_BINDING_MISMATCH",
+      "APPROVAL_ACTION_MISMATCH",
+      "RUN_LINEAGE_MISMATCH",
+      "TRANSITION_MISMATCH",
+      "CHECKPOINT_MISMATCH",
+      "HISTORICAL_TIME_MISSING",
+      "HISTORICAL_TIME_OUTSIDE_WINDOW"
+    ]);
+    FINDING_RANK = new Map(FINDING_ORDER.map((code, index) => [code, index]));
+    __name(sourceLabel, "sourceLabel");
+    __name(parseInput, "parseInput");
+    __name(sameStringSet, "sameStringSet");
+    __name(commandStatusIsValid, "commandStatusIsValid");
+    __name(checkpointStatusIsValid, "checkpointStatusIsValid");
+    __name(verifyReleaseRecords, "verifyReleaseRecords");
   }
 });
 
@@ -45854,7 +46232,7 @@ var init_postpublish = __esm({
     ENV_KEY_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
     SAFE_ID_RE2 = /^[a-z0-9][a-z0-9._-]*$/;
     BRANCH_RE2 = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
-    LOCAL_HOSTS = /* @__PURE__ */ new Set(["claude", "codex", "kimi", "codebuddy", "workbuddy"]);
+    LOCAL_HOSTS = /* @__PURE__ */ new Set(["claude", "codex", "kimi", "codebuddy", "workbuddy", "qoder"]);
     HUB_HOST_RE = /^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$/u;
     HUB_REF_RE = /^refs\/heads\/[A-Za-z0-9][A-Za-z0-9._-]*(?:\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/u;
     PAYLOAD_SOURCE_TAG_WORKTREE = "tag-worktree";
@@ -132187,17 +132565,38 @@ function hubTargets(plan) {
       codebuddy: "Handle manually; CodeBuddy cannot pin a Hub ref in this flow.",
       workbuddy: "Handle manually; WorkBuddy cannot pin a Hub ref in this flow (it follows the CodeBuddy manual boundary)."
     };
-    return local.hosts.map((host) => ({
-      targetKind: "hub-backed",
-      executionMode: "manual",
-      unitId: declaration.unitId,
-      host,
-      plugin: local.plugin,
-      hub,
-      message: `${manualInstruction[host]} Install or upgrade ${local.plugin} from Hub ${hub.name}; release-skill does not execute or probe this action.`,
-      ...unit?.publicRepo ? { publicRepo: unit.publicRepo } : {},
-      ...tag ? { frozenTag: tag } : {}
-    }));
+    return local.hosts.map((host) => {
+      if (host === "qoder") {
+        return {
+          targetKind: "hub-backed",
+          executionMode: "executable",
+          unitId: declaration.unitId,
+          host,
+          plugin: local.plugin,
+          marketplace: hub.name,
+          hub,
+          version: unit?.targetVersion,
+          pluginRepo: unit?.publicRepo,
+          pluginCommit: unit?.frozenSnapshot?.commit,
+          snapshotPath: unit?.frozenSnapshot?.path,
+          manifestDigest: unit?.frozenSnapshot?.manifestDigest,
+          timeoutMs: 3e5,
+          message: `Update ${local.plugin} from Qoder Hub ${hub.name}; a new session or /plugins reload is required before treating the updated plugin as loaded.`,
+          ...tag ? { frozenTag: tag } : {}
+        };
+      }
+      return {
+        targetKind: "hub-backed",
+        executionMode: "manual",
+        unitId: declaration.unitId,
+        host,
+        plugin: local.plugin,
+        hub,
+        message: `${manualInstruction[host]} Install or upgrade ${local.plugin} from Hub ${hub.name}; release-skill does not execute or probe this action.`,
+        ...unit?.publicRepo ? { publicRepo: unit.publicRepo } : {},
+        ...tag ? { frozenTag: tag } : {}
+      };
+    });
   });
 }
 function mergePostReleaseTargets(executableTargets, manualTargets) {
@@ -132252,6 +132651,28 @@ function assertExecutableTarget(target) {
     throw new Error(`local host update requires the frozen public commit for unit ${target.unitId}`);
   }
 }
+function assertQoderExecutableTarget(target) {
+  for (const field of [
+    "unitId",
+    "plugin",
+    "marketplace",
+    "version",
+    "pluginRepo",
+    "pluginCommit",
+    "snapshotPath",
+    "manifestDigest"
+  ]) {
+    if (typeof target[field] !== "string" || target[field].length === 0) {
+      throw new Error(`Qoder local host update target is missing ${field}`);
+    }
+  }
+  if (!/^[a-f0-9]{40}$/u.test(target.pluginCommit)) {
+    throw new Error(`Qoder local host update requires the frozen public commit for unit ${target.unitId}`);
+  }
+  if (!/^[a-f0-9]{64}$/u.test(target.manifestDigest)) {
+    throw new Error(`Qoder local host update requires the frozen snapshot digest for unit ${target.unitId}`);
+  }
+}
 function buildShipNextStep({ root, statePath, unitIds }) {
   const argv = ["release-skill", "ship"];
   if (typeof root === "string" && root.length > 0) argv.push("--root", root);
@@ -132277,8 +132698,12 @@ function derivePostReleaseChecklist(plan, {
   }
   const units = plan.units ?? [];
   const uncovered = units.filter((unit) => !BRANCH_ACTION_INCLUDED.has(unit.productionConfig?.branchStrategy));
-  const executableTargets = pluginTargets(plan);
-  const manualTargets = hubTargets(plan);
+  const declaredHubTargets = hubTargets(plan);
+  const executableTargets = [
+    ...pluginTargets(plan),
+    ...declaredHubTargets.filter((target) => target.executionMode === "executable")
+  ];
+  const manualTargets = declaredHubTargets.filter((target) => target.executionMode === "manual");
   const targets = mergePostReleaseTargets(executableTargets, manualTargets);
   const hasPendingPostVerify = postVerifyHooks(plan).length > 0 && !postVerifyComplete && targets.length > 0;
   const hasStatePath = typeof statePath === "string" && statePath.length > 0;
@@ -132642,6 +133067,184 @@ function exactPluginObservation(target, stdout) {
 function normalizeGitSource(source) {
   return String(source ?? "").replace(/^git\+/, "").replace(/^https:\/\/github\.com\//, "").replace(/^git@github\.com:/, "").replace(/\.git$/u, "").replace(/\/$/u, "");
 }
+function normalizeHubGitSource(source, githubHost) {
+  return String(source ?? "").replace(/^git\+/, "").replace(new RegExp(`^https://${String(githubHost).replaceAll(".", "\\.").replaceAll("-", "\\-")}/`), "").replace(new RegExp(`^git@${String(githubHost).replaceAll(".", "\\.").replaceAll("-", "\\-")}:`), "").replace(/\.git$/u, "").replace(/\/$/u, "");
+}
+async function observeQoderMarketplace(target, command2, env, run6) {
+  const listed = await run6(command2, [...QODER_MARKETPLACE_LIST_ARGS], {
+    env,
+    timeout: target.timeoutMs
+  });
+  const parsed = parseJson2(listed.stdout, "qoder marketplace list");
+  if (!Array.isArray(parsed)) throw new Error("qoder marketplace list did not return an array");
+  const matches = parsed.filter((entry) => entry?.name === target.marketplace);
+  if (matches.length === 0) return { installed: false };
+  if (matches.length !== 1) {
+    throw new Error(`qoder marketplace list returned conflicting entries for ${target.marketplace}`);
+  }
+  const [found] = matches;
+  if (found.source?.source !== "git" || normalizeHubGitSource(found.source.url, target.hub.githubHost) !== target.hub.repo) {
+    throw new Error(`qoder marketplace ${target.marketplace} does not point to ${target.hub.repo}`);
+  }
+  if (typeof found.installLocation !== "string" || found.installLocation.length === 0) {
+    throw new Error(`qoder marketplace ${target.marketplace} has no observable checkout root`);
+  }
+  const [remote, branch] = await Promise.all([
+    run6("git", ["-C", found.installLocation, "remote", "get-url", "origin"], {
+      env,
+      timeout: 3e4
+    }),
+    run6("git", ["-C", found.installLocation, "symbolic-ref", "-q", "HEAD"], {
+      env,
+      timeout: 3e4
+    })
+  ]);
+  if (normalizeHubGitSource(remote.stdout.trim(), target.hub.githubHost) !== target.hub.repo || branch.stdout.trim() !== target.hub.ref) {
+    throw new Error(`qoder marketplace ${target.marketplace} checkout does not match the frozen Hub source`);
+  }
+  return { installed: true, root: found.installLocation, found };
+}
+async function observeQoderPlugin(target, command2, env, run6) {
+  const listed = await run6(command2, [...QODER_PLUGIN_LIST_ARGS], {
+    env,
+    timeout: target.timeoutMs
+  });
+  const parsed = parseJson2(listed.stdout, "qoder plugin list");
+  if (!Array.isArray(parsed)) throw new Error("qoder plugin list did not return an array");
+  const selector = `${target.plugin}@${target.marketplace}`;
+  const matches = parsed.filter((entry) => entry?.id === selector);
+  if (matches.length === 0) return { installed: false };
+  if (matches.length !== 1) {
+    throw new Error(`qoder plugin list returned conflicting entries for ${selector}`);
+  }
+  const [found] = matches;
+  if (found.name !== target.plugin || found.source !== selector || found.scope !== "user" || typeof found.installPath !== "string" || found.installPath.length === 0) {
+    throw new Error(`qoder plugin ${selector} does not match its frozen user-scope identity`);
+  }
+  return {
+    installed: true,
+    exact: found.version === target.version,
+    installPath: found.installPath,
+    found
+  };
+}
+async function readQoderManifest(root, label) {
+  const manifest = parseJson2(
+    await readFileContained(root, ".qoder-plugin/plugin.json", { encoding: "utf8" }),
+    label
+  );
+  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
+    throw new Error(`${label} did not return an object`);
+  }
+  return manifest;
+}
+function assertQoderPluginManifest(target, manifest, label) {
+  if (manifest.name !== target.plugin || manifest.version !== target.version || manifest.skills !== "./adapters/qoder/skills/") {
+    throw new Error(`${label} does not match the frozen Qoder plugin identity and projection path`);
+  }
+}
+async function assertFrozenQoderManifest(target, root) {
+  const { snapshotDir: snapshotRoot } = await verifyFrozenSnapshot({
+    root,
+    snapshotPath: target.snapshotPath,
+    expectedDigest: target.manifestDigest
+  });
+  const manifest = await readQoderManifest(snapshotRoot, "frozen Qoder plugin manifest");
+  assertQoderPluginManifest(target, manifest, "frozen Qoder plugin manifest");
+}
+async function assertQoderHubEntry(target, marketplaceRoot) {
+  const marketplace = parseJson2(
+    await readFileContained(marketplaceRoot, "marketplace.json", { encoding: "utf8" }),
+    "Qoder Hub marketplace manifest"
+  );
+  if (marketplace?.name !== target.marketplace || !Array.isArray(marketplace.plugins)) {
+    throw new Error("Qoder Hub marketplace manifest does not match the frozen marketplace");
+  }
+  const matches = marketplace.plugins.filter((entry) => entry?.name === target.plugin);
+  if (matches.length !== 1) {
+    throw new Error(`Qoder Hub marketplace manifest must contain exactly one ${target.plugin} entry`);
+  }
+  const source = matches[0]?.source;
+  if (source?.source !== "url" || normalizeHubGitSource(source.url, target.hub.githubHost) !== target.pluginRepo || source.sha !== target.pluginCommit) {
+    throw new Error("Qoder Hub entry does not match the frozen public source identity");
+  }
+}
+async function verifyQoderInstalledPayload({
+  target,
+  root,
+  installPath,
+  verifyInstalledPayload
+}) {
+  const manifest = await readQoderManifest(installPath, "installed Qoder plugin manifest");
+  assertQoderPluginManifest(target, manifest, "installed Qoder plugin manifest");
+  await verifyInstalledPayload({
+    snapshotPath: target.snapshotPath,
+    manifestDigest: target.manifestDigest,
+    payloadContract: QODER_PAYLOAD_CONTRACT,
+    marketplaceLocation: "external"
+  }, { root }, installPath, "qoder");
+}
+async function runQoderUpdate(target, detected, run6, {
+  root,
+  verifyInstalledPayload
+}) {
+  const env = hostEnvironment("qoder");
+  await assertFrozenQoderManifest(target, root);
+  const marketplace = await observeQoderMarketplace(target, detected.command, env, run6);
+  if (!marketplace.installed) {
+    return {
+      status: "MANUAL_REQUIRED",
+      reason: `qoder marketplace ${target.marketplace} is not installed; no marketplace was added`
+    };
+  }
+  const before = await observeQoderPlugin(target, detected.command, env, run6);
+  if (!before.installed) {
+    return {
+      status: "MANUAL_REQUIRED",
+      reason: "qoder target plugin is not installed; no initial installation was performed"
+    };
+  }
+  if (before.exact) {
+    await assertQoderHubEntry(target, marketplace.root);
+    await verifyQoderInstalledPayload({
+      target,
+      root,
+      installPath: before.installPath,
+      verifyInstalledPayload
+    });
+    return { status: "ALREADY_CURRENT", version: target.version };
+  }
+  await run6(detected.command, ["plugins", "marketplace", "update", target.marketplace], {
+    env,
+    timeout: target.timeoutMs
+  });
+  const refreshed = await observeQoderMarketplace(target, detected.command, env, run6);
+  if (!refreshed.installed) {
+    throw new Error(`qoder marketplace ${target.marketplace} disappeared after refresh`);
+  }
+  await assertQoderHubEntry(target, refreshed.root);
+  await run6(detected.command, [
+    "plugins",
+    "update",
+    `${target.plugin}@${target.marketplace}`,
+    "--scope",
+    "user"
+  ], { env, timeout: target.timeoutMs });
+  const after = await observeQoderPlugin(target, detected.command, env, run6);
+  if (!after.exact) throw new Error("qoder did not update to the frozen plugin version");
+  await verifyQoderInstalledPayload({
+    target,
+    root,
+    installPath: after.installPath,
+    verifyInstalledPayload
+  });
+  return {
+    status: "UPDATED",
+    version: target.version,
+    restartRequired: true,
+    reloadInstruction: "Start a new Qoder session or run /plugins reload before checking the loaded version."
+  };
+}
 function parseFrozenRemoteRef(target, stdout) {
   const directRefs = /* @__PURE__ */ new Map();
   const peeledRefs = /* @__PURE__ */ new Map();
@@ -132954,14 +133557,14 @@ expect {
       eof { failEof remove-confirmation 126 }
     }
     expect {
-      -nocase -re {Trust this folder\\?} { directoryTrust }
+      -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
       -re $promptPattern {}
       timeout { failTimeout remove-prompt 128 130 }
       eof { failEof remove-prompt 129 }
     }
   }
   -re $promptPattern {}
-  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
   timeout { failTimeout remove-dialog 122 124 }
   eof { failEof remove-dialog 123 }
 }
@@ -133035,9 +133638,62 @@ proc failEof {state code} {
   exit $code
 }
 
-proc directoryTrust {} {
-  puts stderr "KIMI_TUI_STATE:directory-trust:manual-required"
-  exit 80
+proc unexpectedDirectoryTrust {} {
+  puts stderr "KIMI_TUI_STATE:directory-trust:unexpected"
+  exit 147
+}
+
+proc confirmInitialDirectoryTrust {} {
+  global expect_out promptPattern
+  set dialogBuffer $expect_out(buffer)
+  expect {
+    -nocase -re {\u276F[^\\r\\n]*No,[ \\t]*exit} {
+      append dialogBuffer $expect_out(buffer)
+    }
+    -re {\u276F[^\\r\\n]*\\r*\\n} {
+      puts stderr "KIMI_TUI_STATE:directory-trust:selection-unknown"
+      exit 143
+    }
+    timeout {
+      puts stderr "KIMI_TUI_STATE:directory-trust-selected-row:timeout"
+      exit 140
+    }
+    eof { failEof directory-trust-selected-row 141 }
+  }
+  expect {
+    -nocase -re {(?:^|\\r|\\n)[ \\t]+Trust this folder[ \\t]*\\r*\\n} {
+      append dialogBuffer $expect_out(buffer)
+    }
+    -re {(?:^|\\r|\\n)[^\\r\\n]*\\r*\\n} {
+      puts stderr "KIMI_TUI_STATE:directory-trust:selection-unknown"
+      exit 143
+    }
+    timeout { failTimeout directory-trust-target-row 148 150 }
+    eof { failEof directory-trust-target-row 149 }
+  }
+  set dialog [cleanScreen $dialogBuffer]
+  if {![regexp -nocase {(^|\\n)[^\\n]*\u276F[^\\n]*No,[ \\t]*exit} $dialog]
+      || ![regexp -nocase {(^|\\n)[ \\t]+Trust this folder[ \\t]*($|\\n)} $dialog]} {
+    puts stderr "KIMI_TUI_STATE:directory-trust:selection-unknown"
+    exit 143
+  }
+  send -- "\\033\\[B"
+  expect {
+    -nocase -re {\u276F[^\\r\\n]*Trust this folder} {}
+    -re {\u276F[^\\r\\n]*\\r*\\n} {
+      puts stderr "KIMI_TUI_STATE:directory-trust-confirm-selection:unknown"
+      exit 146
+    }
+    timeout { failTimeout directory-trust-confirm-selection 144 146 }
+    eof { failEof directory-trust-confirm-selection 145 }
+  }
+  send -- "\\033\\[13u"
+  expect {
+    -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
+    -re $promptPattern {}
+    timeout { failTimeout directory-trust-prompt 151 153 }
+    eof { failEof directory-trust-prompt 152 }
+  }
 }
 
 proc submitCommand {command} {
@@ -133053,7 +133709,7 @@ if {[catch {exec stty columns 240 rows 60 < $spawn_out(slave,name)} resizeError]
   exit 131
 }
 expect {
-  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -nocase -re {Trust this folder\\?} { confirmInitialDirectoryTrust }
   -re $promptPattern {}
   timeout { failTimeout initial-prompt 101 103 }
   eof { failEof initial-prompt 102 }
@@ -133061,7 +133717,7 @@ expect {
 ${removeCommand}submitCommand "/plugins install $installUrl"
 set dialogBuffer ""
 expect {
-  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
   -nocase -re {(?:Install third-party plugin|Trust and install from)[ \\t]} {
     append dialogBuffer $expect_out(buffer)
   }
@@ -133069,7 +133725,7 @@ expect {
   eof { failEof plugin-trust-anchor 105 }
 }
 expect {
-  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
   -nocase -re {\u276F[^\\r\\n]*(?:Exit|Cancel|Trust and install)} {
     append dialogBuffer $expect_out(buffer)
   }
@@ -133105,7 +133761,7 @@ if {[regexp -nocase {(^|\\n)[^\\n]*\u276F[^\\n]*trust and install} $dialog]} {
 } elseif {[regexp -nocase {(^|\\n)[^\\n]*\u276F[^\\n]*(cancel|exit)} $dialog]} {
   send -- "\\033\\[B"
   expect {
-    -nocase -re {Trust this folder\\?} { directoryTrust }
+    -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
     -nocase -re {\u276F[^\\r\\n]*Trust and install} {}
     -re {\u276F[^\\r\\n]*\\r*\\n} {
       puts stderr "KIMI_TUI_STATE:plugin-trust-confirm-selection:unknown"
@@ -133121,7 +133777,7 @@ if {[regexp -nocase {(^|\\n)[^\\n]*\u276F[^\\n]*trust and install} $dialog]} {
 }
 
 expect {
-  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
   -nocase -re {Install finished[^\\r\\n]*see details below\\.} {}
   -nocase -re {Installing plugin from[^\\r\\n]*(?:\\r|\\n)} {
     exp_continue -continue_timer
@@ -133141,14 +133797,14 @@ expect {
   eof { failEof install-result 137 }
 }
 expect {
-  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
   -re $promptPattern {}
   timeout { failTimeout post-install-prompt 114 116 }
   eof { failEof post-install-prompt 115 }
 }
 submitCommand "/reload"
 expect {
-  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
   -re $promptPattern {}
   timeout { failTimeout reload-prompt 117 119 }
   eof { failEof reload-prompt 118 }
@@ -133246,29 +133902,20 @@ async function runKimiUpdate(target, detected, run6, kimiHome, {
     }
     const installUrl = `https://github.com/${target.pluginRepo}/releases/tag/${target.pluginTag}`;
     const removePlugin = before.source === "legacy" ? target.plugin : "";
-    try {
-      await run6(detected.expectCommand, ["-c", kimiExpectProgram({
-        ...removePlugin ? { removePlugin } : {}
-      })], {
-        timeout: Math.max(3e5, target.timeoutMs),
-        env: {
-          ...env,
-          RELEASE_SKILL_KIMI_COMMAND: detected.command,
-          RELEASE_SKILL_KIMI_INSTALL_URL: installUrl,
-          RELEASE_SKILL_KIMI_REMOVE_PLUGIN: removePlugin,
-          RELEASE_SKILL_KIMI_EXPECTED_REPO: `https://github.com/${target.pluginRepo}`,
-          RELEASE_SKILL_KIMI_EXPECTED_TAG: target.pluginTag
-        }
-      });
-    } catch (error) {
-      if (error?.exitStatus === 80) {
-        return {
-          status: "MANUAL_REQUIRED",
-          reason: "Kimi requires folder trust; release-finish did not confirm the folder or continue installation"
-        };
+    await run6(detected.expectCommand, ["-c", kimiExpectProgram({
+      ...removePlugin ? { removePlugin } : {}
+    })], {
+      cwd: root,
+      timeout: Math.max(3e5, target.timeoutMs),
+      env: {
+        ...env,
+        RELEASE_SKILL_KIMI_COMMAND: detected.command,
+        RELEASE_SKILL_KIMI_INSTALL_URL: installUrl,
+        RELEASE_SKILL_KIMI_REMOVE_PLUGIN: removePlugin,
+        RELEASE_SKILL_KIMI_EXPECTED_REPO: `https://github.com/${target.pluginRepo}`,
+        RELEASE_SKILL_KIMI_EXPECTED_TAG: target.pluginTag
       }
-      throw error;
-    }
+    });
   }, { prefix: "release-skill-kimi-update-" });
   if (tuiOutcome) return tuiOutcome;
   const after = await observeKimiTarget(target, kimiHome, run6);
@@ -133325,8 +133972,11 @@ async function updateLocalHostPluginsInternal({
   const selected = new Set(Array.isArray(selectedHosts) ? selectedHosts : []);
   const unknown = [...selected].filter((host) => !checklist.localHostUpdate.hosts.includes(host));
   if (unknown.length > 0) throw new Error(`selected hosts are not declared by the plan: ${unknown.join(", ")}`);
-  const targets = pluginTargets(plan).filter((item) => selected.has(item.host));
-  for (const target of targets) assertExecutableTarget(target);
+  const targets = checklist.localHostUpdate.targets.filter((item) => item.executionMode !== "manual" && selected.has(item.host));
+  for (const target of targets) {
+    if (target.host === "qoder") assertQoderExecutableTarget(target);
+    else assertExecutableTarget(target);
+  }
   const results = [];
   for (const target of targets) {
     try {
@@ -133342,6 +133992,9 @@ async function updateLocalHostPluginsInternal({
       }
       const outcome = target.host === "kimi" ? await runKimiUpdate(target, detected, run6, effectiveKimiHome, {
         plan,
+        root,
+        verifyInstalledPayload
+      }) : target.host === "qoder" ? await runQoderUpdate(target, detected, run6, {
         root,
         verifyInstalledPayload
       }) : await runStructuredUpdate(target, detected, run6, {
@@ -133363,7 +134016,7 @@ async function updateLocalHostPluginsInternal({
     releaseStatusChanged: false
   };
 }
-var HOSTS_BY_ACTION, DISTRIBUTION_BY_ACTION, BRANCH_ACTION_INCLUDED, CODEBUDDY_MACOS_PATH, SAFE_ENV_KEYS, CODEBUDDY_PLUGIN_LIST_ARGS, CODEBUDDY_MARKETPLACE_LIST_ARGS;
+var HOSTS_BY_ACTION, DISTRIBUTION_BY_ACTION, BRANCH_ACTION_INCLUDED, CODEBUDDY_MACOS_PATH, SAFE_ENV_KEYS, CODEBUDDY_PLUGIN_LIST_ARGS, CODEBUDDY_MARKETPLACE_LIST_ARGS, QODER_PLUGIN_LIST_ARGS, QODER_MARKETPLACE_LIST_ARGS, QODER_PAYLOAD_CONTRACT;
 var init_post_release_local = __esm({
   async "src/commands/post-release-local.mjs"() {
     init_src2();
@@ -133372,6 +134025,7 @@ var init_post_release_local = __esm({
     await init_plugin_marketplace();
     init_postpublish();
     await init_run();
+    init_frozen();
     HOSTS_BY_ACTION = Object.freeze({
       "claude-marketplace-install": ["claude"],
       "codex-marketplace-install": ["codex"],
@@ -133412,12 +134066,16 @@ var init_post_release_local = __esm({
     ]);
     CODEBUDDY_PLUGIN_LIST_ARGS = Object.freeze(["plugin", "list", "--json"]);
     CODEBUDDY_MARKETPLACE_LIST_ARGS = Object.freeze(["plugin", "marketplace", "list"]);
+    QODER_PLUGIN_LIST_ARGS = Object.freeze(["plugins", "list", "--json"]);
+    QODER_MARKETPLACE_LIST_ARGS = Object.freeze(["plugins", "marketplace", "list", "--json"]);
+    QODER_PAYLOAD_CONTRACT = "external-marketplace-v1";
     __name(attachFoundationFailure, "attachFoundationFailure");
     __name(actionTarget, "actionTarget");
     __name(pluginTargets, "pluginTargets");
     __name(hubTargets, "hubTargets");
     __name(mergePostReleaseTargets, "mergePostReleaseTargets");
     __name(assertExecutableTarget, "assertExecutableTarget");
+    __name(assertQoderExecutableTarget, "assertQoderExecutableTarget");
     __name(buildShipNextStep, "buildShipNextStep");
     __name(derivePostReleaseChecklist, "derivePostReleaseChecklist");
     __name(postVerifyHooks, "postVerifyHooks");
@@ -133441,6 +134099,15 @@ var init_post_release_local = __esm({
     __name(observeCodeBuddyMarketplaceAfterResidual, "observeCodeBuddyMarketplaceAfterResidual");
     __name(exactPluginObservation, "exactPluginObservation");
     __name(normalizeGitSource, "normalizeGitSource");
+    __name(normalizeHubGitSource, "normalizeHubGitSource");
+    __name(observeQoderMarketplace, "observeQoderMarketplace");
+    __name(observeQoderPlugin, "observeQoderPlugin");
+    __name(readQoderManifest, "readQoderManifest");
+    __name(assertQoderPluginManifest, "assertQoderPluginManifest");
+    __name(assertFrozenQoderManifest, "assertFrozenQoderManifest");
+    __name(assertQoderHubEntry, "assertQoderHubEntry");
+    __name(verifyQoderInstalledPayload, "verifyQoderInstalledPayload");
+    __name(runQoderUpdate, "runQoderUpdate");
     __name(parseFrozenRemoteRef, "parseFrozenRemoteRef");
     __name(preflightStructuredMarketplace, "preflightStructuredMarketplace");
     __name(observeMarketplace, "observeMarketplace");
@@ -146705,10 +147372,10 @@ guardOutputStream(process.stdout);
 guardOutputStream(process.stderr);
 registerPathRedactor(redactSensitivePaths);
 var execFile19 = promisify26(execFileCb22);
-var COMMANDS = /* @__PURE__ */ new Set(["help", "setup", "assess", "prepare", "approve", "publish", "reconcile", "verify", "postverify", "ship", "post-release", "attest", "hooks", "artifacts", "docs", "distribute", "route", "lineage"]);
+var COMMANDS = /* @__PURE__ */ new Set(["help", "setup", "assess", "prepare", "approve", "publish", "reconcile", "verify", "verify-records", "postverify", "ship", "post-release", "attest", "hooks", "artifacts", "docs", "distribute", "route", "lineage"]);
 function printHubManualTargets(targets = []) {
   for (const target of targets) {
-    if (target.targetKind === "hub-backed") {
+    if (target.targetKind === "hub-backed" && target.executionMode === "manual") {
       console.log(`Manual host update: ${target.plugin} via Hub ${target.hub.name} (${target.host}). ${target.message}`);
     }
   }
@@ -146864,6 +147531,12 @@ async function performEnvironmentChecks() {
     required: false,
     usage: "\u4EC5\u4F9B\u53D1\u5E03\u540E\u7684\u4EBA\u5DE5\u5B89\u88C5\u4F7F\u7528\uFF1Brelease-skill \u4E0D\u6838\u9A8C CodeBuddy/WorkBuddy \u5B89\u88C5"
   };
+  const qoderCheck = await checkDependency("qoder", ["--version"]);
+  checks.qoder = {
+    ...qoderCheck,
+    required: false,
+    usage: "\u4EC5\u4F9B\u53D1\u5E03\u540E\u7684\u53EF\u9009 Qoder \u672C\u673A\u66F4\u65B0\u4F7F\u7528\uFF1B\u4E0D\u5F71\u54CD\u751F\u4EA7\u53D1\u5E03\u5C31\u7EEA\u5EA6"
+  };
   return checks;
 }
 __name(performEnvironmentChecks, "performEnvironmentChecks");
@@ -146892,7 +147565,7 @@ function getCapabilityMaturity() {
     publish: {
       available: true,
       mode: "controlled production (protocol-tested; no OS/network sandbox)",
-      description: "Publishes frozen GitHub/npm artifacts after one readable-plan approval, runs automated Claude/Codex checkpoints, and emits non-blocking Kimi/CodeBuddy manual follow-ups"
+      description: "Publishes frozen GitHub/npm artifacts after one readable-plan approval, runs automated Claude/Codex checkpoints, and emits non-blocking Kimi/CodeBuddy manual follow-ups plus the optional Qoder post-release update"
     },
     reconcile: {
       available: true,
@@ -146902,7 +147575,12 @@ function getCapabilityMaturity() {
     verify: {
       available: true,
       mode: "fresh consumer verification (protocol-tested; no OS/network sandbox)",
-      description: "Recheck remote state, exact npm installation, CLI help, and automated Claude/Codex installs before VERIFIED; Kimi/CodeBuddy remain unverified manual follow-ups"
+      description: "Recheck remote state, exact npm installation, CLI help, and automated Claude/Codex installs before VERIFIED; Kimi/CodeBuddy remain unverified manual follow-ups and Qoder remains optional post-release local work"
+    },
+    verifyRecords: {
+      available: true,
+      mode: "offline explicit-input verification",
+      description: "Verify caller-supplied plan, approval, and release-run bytes without record discovery, remote access, process execution, or state changes"
     },
     postverify: {
       available: true,
@@ -146942,6 +147620,7 @@ Commands:
   publish    Publish frozen GitHub/npm artifacts after approval
   reconcile  Resume PARTIAL state from evidence; conflicts require a human
   verify     Fresh remote and consumer verification; only this reaches VERIFIED
+  verify-records Verify explicitly supplied historical plan, approval, and run records offline
   postverify Run approved postVerify hooks from a VERIFIED run in an independent run
   ship       Resume one durable prepare -> approve -> publish -> verify flow; completes a parked
              postVerify hook once its checkpoint approval is provided (--hook-approval)
@@ -146960,6 +147639,8 @@ Options:
   --plan <path>    Path to the release plan file (required for approve/publish/reconcile/verify/postverify)
   --run <path>     Path to the release run file, or a run directory whose release-run.json
                    is resolved automatically (required for reconcile/verify/postverify)
+  --target-run <path> Target release-run.json for verify-records
+  --source-run <path> Explicit predecessor release-run.json for verify-records (repeatable)
   --approval <path> Path to the release-level approval record (required for publish/postverify)
   --production     Prepare immutable Git/npm production artifacts
   --output <path>  Override prepare/approve output path (non-production only)
@@ -146988,6 +147669,7 @@ Options:
   --select-hooks <ids> Comma-separated proposal ids to adopt (propose-hooks mode)
   --foundation-profile <path> Explicit foundation postPublish profile JSON (proposal input only; never auto-applied)
   --unit <id>      Select a release unit for prepare/ship (repeatable); docs refresh accepts one unit
+  --target-version <version> Expected release unit version for prepare/ship/verify-records
   --confirm-refresh <sha256:...> Confirm the exact dry-run refreshDigest before any document write
   --ack-local-document-write Acknowledge the explicit local release-document write (docs refresh --write)
   --platform <id>   Legacy attestation platform: kimi or codebuddy
@@ -147000,7 +147682,7 @@ Options:
   --hook-approval <path> Checkpoint approval for one requiresApproval hook (ship/distribute/postverify; repeatable)
   --state <path>    Override the durable ship state file
   --update-local-hosts Update installed plugins for selected local hosts after VERIFIED
-  --hosts <ids>     Comma-separated local hosts for post-release update. No local host is updated unless --hosts contains at least one id
+  --hosts <ids>     Comma-separated local hosts for post-release update: claude,codex,kimi,codebuddy,workbuddy,qoder. No local host is updated unless --hosts contains at least one id
   --confirm-plan <digest> Confirm the exact VERIFIED plan before local host mutation
   --no-hook-cache  Force every prepare hook to run in full; neither read nor write the hook cache
   --json           Output results as JSON
@@ -147013,6 +147695,7 @@ Safety:
   The ship command runs configured hooks and gates automatically. Frozen plan approval is the only
   normal release-level approval; requiresApproval postPublish hooks keep independent checkpoint approvals.
   Kimi/CodeBuddy installations are non-blocking manual follow-up tasks (not verified by system).
+  Qoder is an optional post-release local update; it never becomes a release distribution checkpoint.
   prepare copies current public files into a local snapshot; it does not rewrite source files.
   - Default mode is offline (release-skill pipeline does no remote writes)
   - prepare output goes to .release-skill/ directory only
@@ -147021,6 +147704,7 @@ Safety:
   - docs refresh --write rewrites only declared README managed regions and the current CHANGELOG entry after exact refreshDigest confirmation; it never commits, pushes, tags, publishes, or installs.
   - publish requires explicit approval; plan digest is auto-read from the plan file
   - post-release local host updates are optional local mutations and never change VERIFIED
+  - verify-records reads only the paths named on its command line; it never discovers records, contacts remotes, or changes release state
   - publish consumes frozen Git/npm artifacts, never the live workspace
   - existing remote objects and uncertain checks stop for human intervention
   - production-equivalent protocol sandbox is verified; a real remote canary is not
@@ -147092,7 +147776,8 @@ if (!command || command === "help") {
             claude: "\u58F0\u660E claude-plugin distribution \u65F6\u5FC5\u987B\u53EF\u7528",
             codex: "\u58F0\u660E codex-plugin distribution \u65F6\u5FC5\u987B\u53EF\u7528",
             kimi: "\u53D1\u5E03\u540E\u4EBA\u5DE5\u5B89\u88C5\u5F85\u529E\uFF1B\u4E0D\u5F71\u54CD\u751F\u4EA7\u53D1\u5E03\u5C31\u7EEA\u5EA6\uFF0C\u7CFB\u7EDF\u4E0D\u6838\u9A8C",
-            codebuddy: "\u53D1\u5E03\u540E\u4EBA\u5DE5\u5B89\u88C5\u5F85\u529E\uFF1B\u4E0D\u5F71\u54CD\u751F\u4EA7\u53D1\u5E03\u5C31\u7EEA\u5EA6\uFF0C\u7CFB\u7EDF\u4E0D\u6838\u9A8C"
+            codebuddy: "\u53D1\u5E03\u540E\u4EBA\u5DE5\u5B89\u88C5\u5F85\u529E\uFF1B\u4E0D\u5F71\u54CD\u751F\u4EA7\u53D1\u5E03\u5C31\u7EEA\u5EA6\uFF0C\u7CFB\u7EDF\u4E0D\u6838\u9A8C",
+            qoder: "\u53D1\u5E03\u540E\u53EF\u9009\u672C\u673A\u66F4\u65B0\uFF1B\u4E0D\u5F71\u54CD\u751F\u4EA7\u53D1\u5E03\u5C31\u7EEA\u5EA6\uFF0C\u4E0D\u662F release distribution checkpoint"
           }
         }
       },
@@ -147106,7 +147791,7 @@ if (!command || command === "help") {
         onlinePrepare: "previous-public-baseline observation available; production mode freezes publish artifacts and fails closed on drift or unknown state",
         publish: "GitHub/npm plus automated Claude/Codex consumer checkpoints are protocol-tested without an OS/network sandbox; one approval is required and the internal plan digest is checked automatically",
         reconcile: "PARTIAL recovery is protocol-tested without an OS/network sandbox; remote conflicts require human intervention",
-        verify: "fresh exact npm and Claude/Codex consumer installation checks are protocol-tested without an OS/network sandbox; Kimi/CodeBuddy are unverified manual follow-ups; command invocation authorizes configured gates"
+        verify: "fresh exact npm and Claude/Codex consumer installation checks are protocol-tested without an OS/network sandbox; Kimi/CodeBuddy are unverified manual follow-ups and Qoder is optional post-release local work; command invocation authorizes configured gates"
       },
       recommendations: []
     };
@@ -147237,6 +147922,92 @@ Repeat the same command to resume from the same state.
 For parallel or cross-session versions, use .release-skill/ships/<version>.json.`);
   }
   await exitAfterFlush(0);
+}
+if (command === "verify-records" && (args.includes("--help") || args.includes("-h"))) {
+  console.log(`release-skill verify-records - Verify explicit historical release records offline
+
+Usage:
+  release-skill verify-records --plan <path> --approval <path> --target-run <path> --source-run <path>... --unit <id> --target-version <version> --json
+
+Options:
+  --plan <path>              Explicit release-plan JSON file
+  --approval <path>          Explicit approval-record JSON file
+  --target-run <path>        Explicit target release-run JSON file
+  --source-run <path>        Explicit predecessor release-run JSON file (repeatable)
+  --unit <id>                Expected release unit id
+  --target-version <version> Expected release unit version
+  --json                     Required; output one JSON result
+  -h, --help                 Show this help message and exit
+
+The command reads only these explicit paths. It never scans .release-skill,
+follows paths carried inside records, contacts a remote, writes a file, or
+changes release state.`);
+  await exitAfterFlush(0);
+}
+if (command === "verify-records") {
+  const value = /* @__PURE__ */ __name((flag) => {
+    const index = args.indexOf(flag);
+    return index !== -1 && args[index + 1] && !args[index + 1].startsWith("--") ? args[index + 1] : void 0;
+  }, "value");
+  const values = /* @__PURE__ */ __name((flag) => {
+    const selected = [];
+    for (let index = 0; index < args.length; index += 1) {
+      if (args[index] === flag && args[index + 1] && !args[index + 1].startsWith("--")) {
+        selected.push(args[index + 1]);
+      }
+    }
+    return selected;
+  }, "values");
+  const planPath = value("--plan");
+  const approvalPath = value("--approval");
+  const targetRunPath = value("--target-run");
+  const sourceRunPaths = values("--source-run");
+  const unitId = value("--unit");
+  const targetVersion = value("--target-version");
+  if (!hasJson) {
+    console.log(JSON.stringify({
+      status: "INSUFFICIENT",
+      unitId: unitId ?? null,
+      targetVersion: targetVersion ?? null,
+      historicalTerminalStatus: null,
+      inputs: {},
+      digests: {},
+      findings: [{
+        code: "INPUT_MISSING",
+        role: "cli",
+        message: "--json is required for verify-records"
+      }]
+    }));
+    await exitAfterFlush(2);
+  }
+  const readInput = /* @__PURE__ */ __name(async (path40) => {
+    if (!path40) return void 0;
+    try {
+      return { bytes: await readFile57(path40), source: path40 };
+    } catch {
+      return { source: path40 };
+    }
+  }, "readInput");
+  const [plan, approval, targetRun, ...sourceRuns] = await Promise.all([
+    readInput(planPath),
+    readInput(approvalPath),
+    readInput(targetRunPath),
+    ...sourceRunPaths.map((path40) => readInput(path40))
+  ]);
+  const {
+    VERIFY_RECORDS_EXIT_CODES: VERIFY_RECORDS_EXIT_CODES2,
+    verifyReleaseRecords: verifyReleaseRecords2
+  } = await init_verify_records().then(() => verify_records_exports);
+  const result2 = verifyReleaseRecords2({
+    plan,
+    approval,
+    targetRun,
+    sourceRuns,
+    unitId,
+    targetVersion
+  });
+  console.log(JSON.stringify(result2));
+  await exitAfterFlush(VERIFY_RECORDS_EXIT_CODES2[result2.status]);
 }
 if (command === "setup") {
   const rootIdx = args.indexOf("--root");

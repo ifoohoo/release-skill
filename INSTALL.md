@@ -2,7 +2,7 @@
 
 [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.16 -->
+<!-- release-skill:release-version: 0.9.17 -->
 ## Prerequisites
 
 - Node.js 22.0.0 or later
@@ -41,7 +41,9 @@ Claude Code, CodeBuddy, WorkBuddy, and Codex install release-skill from the
 central [Skill Family Hub](https://github.com/ifoohoo/skill-family-hub).
 The release-skill repository carries plugin manifests but no marketplace index.
 release-skill currently invokes no scriptable install API for Kimi Code — see the
-[Kimi Code section](#install-as-a-kimi-code-plugin). Add the marketplace once,
+[Kimi Code section](#install-as-a-kimi-code-plugin). Qoder uses the same Hub only
+after its root `marketplace.json` has accepted the release-skill entry; see the
+[Qoder section](#install-as-a-qoder-plugin). Add the marketplace once,
 then install the plugin:
 
 > **Prerequisite: GitHub access.** The `owner/repo` shorthand makes Claude Code
@@ -81,6 +83,16 @@ release-skill currently uses the version-pinned interactive TUI path for Kimi
 Code. The release state machine reports installation as a post-release manual
 task and does not verify its completion.
 
+**Qoder:** after the central Hub has accepted the release-skill Qoder entry and
+that marketplace is configured locally:
+
+```bash
+qoder plugins install release-skill@skill-family-hub --scope user --json
+```
+
+Do not treat the local adapter or a successful validation alone as proof of a
+Hub marketplace install.
+
 ### Alternative: direct repository install (advanced)
 
 The Hub marketplace above is the supported primary path. Direct installation
@@ -91,6 +103,9 @@ remains available only where the host supports a repository URL:
 - CodeBuddy: single-session use from a source checkout via
   `--plugin-dir <path>/adapters/workbuddy` (see the
   [CodeBuddy/WorkBuddy section](#install-as-a-codebuddyworkbuddy-plugin)).
+- Qoder: validate the generated candidate with
+  `qoder plugins validate <path>/adapters/qoder --json --strict`; validation is
+  not marketplace installation or a real Skill call.
 
 ## Install as a Kimi Code plugin
 
@@ -110,7 +125,7 @@ tag pinned to the exact version (never the bare repository URL, which installs
 the latest release or default branch), confirm the trust prompt, then reload:
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.16
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.17
    /plugins reload
    ```
 
@@ -129,12 +144,17 @@ same TUI session before accepting the plugin trust prompt and reloading.
 
 The effective configuration root is explicit `kimiHome`, then
 `KIMI_CODE_HOME`, then `~/.kimi-code`. The TUI process and post-operation
-observation use that same root. release-finish strips ANSI/OSC control sequences
-and soft wrapping before it checks the frozen repository, tag, and selected
-`Trust and install` action inside the plugin trust dialog. A `Trust this folder?`
-prompt, unknown interface, timeout, early exit, or identity mismatch stops the
-flow without confirming folder trust or continuing installation. This local
-check is not part of `verify` and does not alter the `VERIFIED` release state.
+observation use that same root. The TUI working directory is the resolved release
+project root passed through `--root`. After explicit confirmation of the frozen
+plan and selection of Kimi for update, release-finish accepts only the initial
+standard `Trust this folder?` dialog with `No, exit` selected and
+`Trust this folder` available. It moves to that row, verifies the new selection,
+confirms it, and waits for the known command prompt. Unknown rows or selections,
+a failed move, timeout, early exit, or a folder-trust dialog after the plugin
+command fails closed. release-finish still strips ANSI/OSC control sequences and
+soft wrapping before it checks the frozen repository, tag, and selected
+`Trust and install` action inside the plugin trust dialog. This local check is
+not part of `verify` and does not alter the `VERIFIED` release state.
 
 No receipt or attestation is required. The `attest` command remains available
 only for frozen plans created by older versions that lack the
@@ -177,6 +197,34 @@ modifying the host.
 For a single session from a source checkout you can also point CodeBuddy at the
 generated plugin directory with `--plugin-dir <path>/adapters/workbuddy`; the
 adapter never references files outside its own directory.
+
+## Install as a Qoder plugin
+
+The npm package ships `.qoder-plugin/plugin.json` and a generated,
+self-contained `adapters/qoder/` tree. Qoder is a build-only projection: it does
+not add a `qoder-plugin` distribution type or a publish/reconcile/verify install
+checkpoint.
+
+The central Hub root `marketplace.json` must first contain an accepted
+release-skill entry whose source resolves to this Qoder projection. Once that
+entry is present and `skill-family-hub` is configured, install at user scope:
+
+```bash
+qoder plugins install release-skill@skill-family-hub --scope user --json
+```
+
+The optional `release-finish` path updates only an existing user-scope Qoder
+installation selected by the user and declared in the frozen plan. Before any
+write it matches the Hub name and repository, then rechecks the refreshed source
+and frozen payload. It may run the named marketplace update followed by
+`qoder plugins update release-skill@skill-family-hub --scope user`; it never
+adds a marketplace, first-installs the plugin, removes a marketplace, or
+uninstalls and reinstalls the plugin.
+
+An `UPDATED` result proves installed bytes, not what the current Qoder session
+has loaded. Reload the plugin or start a new session, then use the discovered
+release-skill to complete one read-only release task before claiming the new
+version is active. These local results do not change `VERIFIED`.
 
 ## Consumer verification boundaries
 

@@ -14,6 +14,7 @@ import { resolveCodeBuddyMarketplace } from '../platforms/codebuddy.mjs';
 import { verifyInstalledMarketplacePayload } from '../adapters/plugin-marketplace.mjs';
 import { normalizePostPublishView, postPublishActionId } from '../core/postpublish.mjs';
 import { loadRun, validateRunLineage } from '../core/run.mjs';
+import { verifyFrozenSnapshot } from '../snapshot/frozen.mjs';
 
 const HOSTS_BY_ACTION = Object.freeze({
   'claude-marketplace-install': ['claude'],
@@ -40,6 +41,9 @@ const SAFE_ENV_KEYS = Object.freeze([
 ]);
 const CODEBUDDY_PLUGIN_LIST_ARGS = Object.freeze(['plugin', 'list', '--json']);
 const CODEBUDDY_MARKETPLACE_LIST_ARGS = Object.freeze(['plugin', 'marketplace', 'list']);
+const QODER_PLUGIN_LIST_ARGS = Object.freeze(['plugins', 'list', '--json']);
+const QODER_MARKETPLACE_LIST_ARGS = Object.freeze(['plugins', 'marketplace', 'list', '--json']);
+const QODER_PAYLOAD_CONTRACT = 'external-marketplace-v1';
 
 function attachFoundationFailure(error, { envelope, stdout }) {
   Object.defineProperties(error, {
@@ -172,17 +176,38 @@ function hubTargets(plan) {
       codebuddy: 'Handle manually; CodeBuddy cannot pin a Hub ref in this flow.',
       workbuddy: 'Handle manually; WorkBuddy cannot pin a Hub ref in this flow (it follows the CodeBuddy manual boundary).',
     };
-    return local.hosts.map((host) => ({
-      targetKind: 'hub-backed',
-      executionMode: 'manual',
-      unitId: declaration.unitId,
-      host,
-      plugin: local.plugin,
-      hub,
-      message: `${manualInstruction[host]} Install or upgrade ${local.plugin} from Hub ${hub.name}; release-skill does not execute or probe this action.`,
-      ...(unit?.publicRepo ? { publicRepo: unit.publicRepo } : {}),
-      ...(tag ? { frozenTag: tag } : {}),
-    }));
+    return local.hosts.map((host) => {
+      if (host === 'qoder') {
+        return {
+          targetKind: 'hub-backed',
+          executionMode: 'executable',
+          unitId: declaration.unitId,
+          host,
+          plugin: local.plugin,
+          marketplace: hub.name,
+          hub,
+          version: unit?.targetVersion,
+          pluginRepo: unit?.publicRepo,
+          pluginCommit: unit?.frozenSnapshot?.commit,
+          snapshotPath: unit?.frozenSnapshot?.path,
+          manifestDigest: unit?.frozenSnapshot?.manifestDigest,
+          timeoutMs: 300_000,
+          message: `Update ${local.plugin} from Qoder Hub ${hub.name}; a new session or /plugins reload is required before treating the updated plugin as loaded.`,
+          ...(tag ? { frozenTag: tag } : {}),
+        };
+      }
+      return {
+        targetKind: 'hub-backed',
+        executionMode: 'manual',
+        unitId: declaration.unitId,
+        host,
+        plugin: local.plugin,
+        hub,
+        message: `${manualInstruction[host]} Install or upgrade ${local.plugin} from Hub ${hub.name}; release-skill does not execute or probe this action.`,
+        ...(unit?.publicRepo ? { publicRepo: unit.publicRepo } : {}),
+        ...(tag ? { frozenTag: tag } : {}),
+      };
+    });
   });
 }
 
@@ -240,6 +265,23 @@ function assertExecutableTarget(target) {
   }
 }
 
+function assertQoderExecutableTarget(target) {
+  for (const field of [
+    'unitId', 'plugin', 'marketplace', 'version', 'pluginRepo',
+    'pluginCommit', 'snapshotPath', 'manifestDigest',
+  ]) {
+    if (typeof target[field] !== 'string' || target[field].length === 0) {
+      throw new Error(`Qoder local host update target is missing ${field}`);
+    }
+  }
+  if (!/^[a-f0-9]{40}$/u.test(target.pluginCommit)) {
+    throw new Error(`Qoder local host update requires the frozen public commit for unit ${target.unitId}`);
+  }
+  if (!/^[a-f0-9]{64}$/u.test(target.manifestDigest)) {
+    throw new Error(`Qoder local host update requires the frozen snapshot digest for unit ${target.unitId}`);
+  }
+}
+
 function buildShipNextStep({ root, statePath, unitIds }) {
   const argv = ['release-skill', 'ship'];
   if (typeof root === 'string' && root.length > 0) argv.push('--root', root);
@@ -268,8 +310,12 @@ export function derivePostReleaseChecklist(plan, {
   const uncovered = units.filter((unit) => (
     !BRANCH_ACTION_INCLUDED.has(unit.productionConfig?.branchStrategy)
   ));
-  const executableTargets = pluginTargets(plan);
-  const manualTargets = hubTargets(plan);
+  const declaredHubTargets = hubTargets(plan);
+  const executableTargets = [
+    ...pluginTargets(plan),
+    ...declaredHubTargets.filter((target) => target.executionMode === 'executable'),
+  ];
+  const manualTargets = declaredHubTargets.filter((target) => target.executionMode === 'manual');
   const targets = mergePostReleaseTargets(executableTargets, manualTargets);
   const hasPendingPostVerify = postVerifyHooks(plan).length > 0 && !postVerifyComplete && targets.length > 0;
   const hasStatePath = typeof statePath === 'string' && statePath.length > 0;
@@ -717,6 +763,215 @@ function normalizeGitSource(source) {
     .replace(/\/$/u, '');
 }
 
+function normalizeHubGitSource(source, githubHost) {
+  return String(source ?? '')
+    .replace(/^git\+/, '')
+    .replace(new RegExp(`^https://${String(githubHost).replaceAll('.', '\\.').replaceAll('-', '\\-')}/`), '')
+    .replace(new RegExp(`^git@${String(githubHost).replaceAll('.', '\\.').replaceAll('-', '\\-')}:`), '')
+    .replace(/\.git$/u, '')
+    .replace(/\/$/u, '');
+}
+
+async function observeQoderMarketplace(target, command, env, run) {
+  const listed = await run(command, [...QODER_MARKETPLACE_LIST_ARGS], {
+    env,
+    timeout: target.timeoutMs,
+  });
+  const parsed = parseJson(listed.stdout, 'qoder marketplace list');
+  if (!Array.isArray(parsed)) throw new Error('qoder marketplace list did not return an array');
+  const matches = parsed.filter((entry) => entry?.name === target.marketplace);
+  if (matches.length === 0) return { installed: false };
+  if (matches.length !== 1) {
+    throw new Error(`qoder marketplace list returned conflicting entries for ${target.marketplace}`);
+  }
+  const [found] = matches;
+  if (
+    found.source?.source !== 'git'
+    || normalizeHubGitSource(found.source.url, target.hub.githubHost) !== target.hub.repo
+  ) {
+    throw new Error(`qoder marketplace ${target.marketplace} does not point to ${target.hub.repo}`);
+  }
+  if (typeof found.installLocation !== 'string' || found.installLocation.length === 0) {
+    throw new Error(`qoder marketplace ${target.marketplace} has no observable checkout root`);
+  }
+  const [remote, branch] = await Promise.all([
+    run('git', ['-C', found.installLocation, 'remote', 'get-url', 'origin'], {
+      env,
+      timeout: 30_000,
+    }),
+    run('git', ['-C', found.installLocation, 'symbolic-ref', '-q', 'HEAD'], {
+      env,
+      timeout: 30_000,
+    }),
+  ]);
+  if (
+    normalizeHubGitSource(remote.stdout.trim(), target.hub.githubHost) !== target.hub.repo
+    || branch.stdout.trim() !== target.hub.ref
+  ) {
+    throw new Error(`qoder marketplace ${target.marketplace} checkout does not match the frozen Hub source`);
+  }
+  return { installed: true, root: found.installLocation, found };
+}
+
+async function observeQoderPlugin(target, command, env, run) {
+  const listed = await run(command, [...QODER_PLUGIN_LIST_ARGS], {
+    env,
+    timeout: target.timeoutMs,
+  });
+  const parsed = parseJson(listed.stdout, 'qoder plugin list');
+  if (!Array.isArray(parsed)) throw new Error('qoder plugin list did not return an array');
+  const selector = `${target.plugin}@${target.marketplace}`;
+  const matches = parsed.filter((entry) => entry?.id === selector);
+  if (matches.length === 0) return { installed: false };
+  if (matches.length !== 1) {
+    throw new Error(`qoder plugin list returned conflicting entries for ${selector}`);
+  }
+  const [found] = matches;
+  if (
+    found.name !== target.plugin
+    || found.source !== selector
+    || found.scope !== 'user'
+    || typeof found.installPath !== 'string'
+    || found.installPath.length === 0
+  ) {
+    throw new Error(`qoder plugin ${selector} does not match its frozen user-scope identity`);
+  }
+  return {
+    installed: true,
+    exact: found.version === target.version,
+    installPath: found.installPath,
+    found,
+  };
+}
+
+async function readQoderManifest(root, label) {
+  const manifest = parseJson(
+    await readFileContained(root, '.qoder-plugin/plugin.json', { encoding: 'utf8' }),
+    label,
+  );
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    throw new Error(`${label} did not return an object`);
+  }
+  return manifest;
+}
+
+function assertQoderPluginManifest(target, manifest, label) {
+  if (
+    manifest.name !== target.plugin
+    || manifest.version !== target.version
+    || manifest.skills !== './adapters/qoder/skills/'
+  ) {
+    throw new Error(`${label} does not match the frozen Qoder plugin identity and projection path`);
+  }
+}
+
+async function assertFrozenQoderManifest(target, root) {
+  const { snapshotDir: snapshotRoot } = await verifyFrozenSnapshot({
+    root,
+    snapshotPath: target.snapshotPath,
+    expectedDigest: target.manifestDigest,
+  });
+  const manifest = await readQoderManifest(snapshotRoot, 'frozen Qoder plugin manifest');
+  assertQoderPluginManifest(target, manifest, 'frozen Qoder plugin manifest');
+}
+
+async function assertQoderHubEntry(target, marketplaceRoot) {
+  const marketplace = parseJson(
+    await readFileContained(marketplaceRoot, 'marketplace.json', { encoding: 'utf8' }),
+    'Qoder Hub marketplace manifest',
+  );
+  if (marketplace?.name !== target.marketplace || !Array.isArray(marketplace.plugins)) {
+    throw new Error('Qoder Hub marketplace manifest does not match the frozen marketplace');
+  }
+  const matches = marketplace.plugins.filter((entry) => entry?.name === target.plugin);
+  if (matches.length !== 1) {
+    throw new Error(`Qoder Hub marketplace manifest must contain exactly one ${target.plugin} entry`);
+  }
+  const source = matches[0]?.source;
+  if (
+    source?.source !== 'url'
+    || normalizeHubGitSource(source.url, target.hub.githubHost) !== target.pluginRepo
+    || source.sha !== target.pluginCommit
+  ) {
+    throw new Error('Qoder Hub entry does not match the frozen public source identity');
+  }
+}
+
+async function verifyQoderInstalledPayload({
+  target,
+  root,
+  installPath,
+  verifyInstalledPayload,
+}) {
+  const manifest = await readQoderManifest(installPath, 'installed Qoder plugin manifest');
+  assertQoderPluginManifest(target, manifest, 'installed Qoder plugin manifest');
+  await verifyInstalledPayload({
+    snapshotPath: target.snapshotPath,
+    manifestDigest: target.manifestDigest,
+    payloadContract: QODER_PAYLOAD_CONTRACT,
+    marketplaceLocation: 'external',
+  }, { root }, installPath, 'qoder');
+}
+
+async function runQoderUpdate(target, detected, run, {
+  root,
+  verifyInstalledPayload,
+}) {
+  const env = hostEnvironment('qoder');
+  await assertFrozenQoderManifest(target, root);
+  const marketplace = await observeQoderMarketplace(target, detected.command, env, run);
+  if (!marketplace.installed) {
+    return {
+      status: 'MANUAL_REQUIRED',
+      reason: `qoder marketplace ${target.marketplace} is not installed; no marketplace was added`,
+    };
+  }
+  const before = await observeQoderPlugin(target, detected.command, env, run);
+  if (!before.installed) {
+    return {
+      status: 'MANUAL_REQUIRED',
+      reason: 'qoder target plugin is not installed; no initial installation was performed',
+    };
+  }
+  if (before.exact) {
+    await assertQoderHubEntry(target, marketplace.root);
+    await verifyQoderInstalledPayload({
+      target,
+      root,
+      installPath: before.installPath,
+      verifyInstalledPayload,
+    });
+    return { status: 'ALREADY_CURRENT', version: target.version };
+  }
+
+  await run(detected.command, ['plugins', 'marketplace', 'update', target.marketplace], {
+    env,
+    timeout: target.timeoutMs,
+  });
+  const refreshed = await observeQoderMarketplace(target, detected.command, env, run);
+  if (!refreshed.installed) {
+    throw new Error(`qoder marketplace ${target.marketplace} disappeared after refresh`);
+  }
+  await assertQoderHubEntry(target, refreshed.root);
+  await run(detected.command, [
+    'plugins', 'update', `${target.plugin}@${target.marketplace}`, '--scope', 'user',
+  ], { env, timeout: target.timeoutMs });
+  const after = await observeQoderPlugin(target, detected.command, env, run);
+  if (!after.exact) throw new Error('qoder did not update to the frozen plugin version');
+  await verifyQoderInstalledPayload({
+    target,
+    root,
+    installPath: after.installPath,
+    verifyInstalledPayload,
+  });
+  return {
+    status: 'UPDATED',
+    version: target.version,
+    restartRequired: true,
+    reloadInstruction: 'Start a new Qoder session or run /plugins reload before checking the loaded version.',
+  };
+}
+
 function parseFrozenRemoteRef(target, stdout) {
   const directRefs = new Map();
   const peeledRefs = new Map();
@@ -1046,14 +1301,14 @@ expect {
       eof { failEof remove-confirmation 126 }
     }
     expect {
-      -nocase -re {Trust this folder\\?} { directoryTrust }
+      -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
       -re $promptPattern {}
       timeout { failTimeout remove-prompt 128 130 }
       eof { failEof remove-prompt 129 }
     }
   }
   -re $promptPattern {}
-  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
   timeout { failTimeout remove-dialog 122 124 }
   eof { failEof remove-dialog 123 }
 }
@@ -1128,9 +1383,62 @@ proc failEof {state code} {
   exit $code
 }
 
-proc directoryTrust {} {
-  puts stderr "KIMI_TUI_STATE:directory-trust:manual-required"
-  exit 80
+proc unexpectedDirectoryTrust {} {
+  puts stderr "KIMI_TUI_STATE:directory-trust:unexpected"
+  exit 147
+}
+
+proc confirmInitialDirectoryTrust {} {
+  global expect_out promptPattern
+  set dialogBuffer $expect_out(buffer)
+  expect {
+    -nocase -re {❯[^\\r\\n]*No,[ \\t]*exit} {
+      append dialogBuffer $expect_out(buffer)
+    }
+    -re {❯[^\\r\\n]*\\r*\\n} {
+      puts stderr "KIMI_TUI_STATE:directory-trust:selection-unknown"
+      exit 143
+    }
+    timeout {
+      puts stderr "KIMI_TUI_STATE:directory-trust-selected-row:timeout"
+      exit 140
+    }
+    eof { failEof directory-trust-selected-row 141 }
+  }
+  expect {
+    -nocase -re {(?:^|\\r|\\n)[ \\t]+Trust this folder[ \\t]*\\r*\\n} {
+      append dialogBuffer $expect_out(buffer)
+    }
+    -re {(?:^|\\r|\\n)[^\\r\\n]*\\r*\\n} {
+      puts stderr "KIMI_TUI_STATE:directory-trust:selection-unknown"
+      exit 143
+    }
+    timeout { failTimeout directory-trust-target-row 148 150 }
+    eof { failEof directory-trust-target-row 149 }
+  }
+  set dialog [cleanScreen $dialogBuffer]
+  if {![regexp -nocase {(^|\\n)[^\\n]*❯[^\\n]*No,[ \\t]*exit} $dialog]
+      || ![regexp -nocase {(^|\\n)[ \\t]+Trust this folder[ \\t]*($|\\n)} $dialog]} {
+    puts stderr "KIMI_TUI_STATE:directory-trust:selection-unknown"
+    exit 143
+  }
+  send -- "\\033\\[B"
+  expect {
+    -nocase -re {❯[^\\r\\n]*Trust this folder} {}
+    -re {❯[^\\r\\n]*\\r*\\n} {
+      puts stderr "KIMI_TUI_STATE:directory-trust-confirm-selection:unknown"
+      exit 146
+    }
+    timeout { failTimeout directory-trust-confirm-selection 144 146 }
+    eof { failEof directory-trust-confirm-selection 145 }
+  }
+  send -- "\\033\\[13u"
+  expect {
+    -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
+    -re $promptPattern {}
+    timeout { failTimeout directory-trust-prompt 151 153 }
+    eof { failEof directory-trust-prompt 152 }
+  }
 }
 
 proc submitCommand {command} {
@@ -1146,7 +1454,7 @@ if {[catch {exec stty columns 240 rows 60 < $spawn_out(slave,name)} resizeError]
   exit 131
 }
 expect {
-  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -nocase -re {Trust this folder\\?} { confirmInitialDirectoryTrust }
   -re $promptPattern {}
   timeout { failTimeout initial-prompt 101 103 }
   eof { failEof initial-prompt 102 }
@@ -1154,7 +1462,7 @@ expect {
 ${removeCommand}submitCommand "/plugins install $installUrl"
 set dialogBuffer ""
 expect {
-  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
   -nocase -re {(?:Install third-party plugin|Trust and install from)[ \\t]} {
     append dialogBuffer $expect_out(buffer)
   }
@@ -1162,7 +1470,7 @@ expect {
   eof { failEof plugin-trust-anchor 105 }
 }
 expect {
-  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
   -nocase -re {❯[^\\r\\n]*(?:Exit|Cancel|Trust and install)} {
     append dialogBuffer $expect_out(buffer)
   }
@@ -1198,7 +1506,7 @@ if {[regexp -nocase {(^|\\n)[^\\n]*❯[^\\n]*trust and install} $dialog]} {
 } elseif {[regexp -nocase {(^|\\n)[^\\n]*❯[^\\n]*(cancel|exit)} $dialog]} {
   send -- "\\033\\[B"
   expect {
-    -nocase -re {Trust this folder\\?} { directoryTrust }
+    -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
     -nocase -re {❯[^\\r\\n]*Trust and install} {}
     -re {❯[^\\r\\n]*\\r*\\n} {
       puts stderr "KIMI_TUI_STATE:plugin-trust-confirm-selection:unknown"
@@ -1214,7 +1522,7 @@ if {[regexp -nocase {(^|\\n)[^\\n]*❯[^\\n]*trust and install} $dialog]} {
 }
 
 expect {
-  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
   -nocase -re {Install finished[^\\r\\n]*see details below\\.} {}
   -nocase -re {Installing plugin from[^\\r\\n]*(?:\\r|\\n)} {
     exp_continue -continue_timer
@@ -1234,14 +1542,14 @@ expect {
   eof { failEof install-result 137 }
 }
 expect {
-  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
   -re $promptPattern {}
   timeout { failTimeout post-install-prompt 114 116 }
   eof { failEof post-install-prompt 115 }
 }
 submitCommand "/reload"
 expect {
-  -nocase -re {Trust this folder\\?} { directoryTrust }
+  -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
   -re $promptPattern {}
   timeout { failTimeout reload-prompt 117 119 }
   eof { failEof reload-prompt 118 }
@@ -1343,29 +1651,20 @@ async function runKimiUpdate(target, detected, run, kimiHome, {
     }
     const installUrl = `https://github.com/${target.pluginRepo}/releases/tag/${target.pluginTag}`;
     const removePlugin = before.source === 'legacy' ? target.plugin : '';
-    try {
-      await run(detected.expectCommand, ['-c', kimiExpectProgram({
-        ...(removePlugin ? { removePlugin } : {}),
-      })], {
-        timeout: Math.max(300_000, target.timeoutMs),
-        env: {
-          ...env,
-          RELEASE_SKILL_KIMI_COMMAND: detected.command,
-          RELEASE_SKILL_KIMI_INSTALL_URL: installUrl,
-          RELEASE_SKILL_KIMI_REMOVE_PLUGIN: removePlugin,
-          RELEASE_SKILL_KIMI_EXPECTED_REPO: `https://github.com/${target.pluginRepo}`,
-          RELEASE_SKILL_KIMI_EXPECTED_TAG: target.pluginTag,
-        },
-      });
-    } catch (error) {
-      if (error?.exitStatus === 80) {
-        return {
-          status: 'MANUAL_REQUIRED',
-          reason: 'Kimi requires folder trust; release-finish did not confirm the folder or continue installation',
-        };
-      }
-      throw error;
-    }
+    await run(detected.expectCommand, ['-c', kimiExpectProgram({
+      ...(removePlugin ? { removePlugin } : {}),
+    })], {
+      cwd: root,
+      timeout: Math.max(300_000, target.timeoutMs),
+      env: {
+        ...env,
+        RELEASE_SKILL_KIMI_COMMAND: detected.command,
+        RELEASE_SKILL_KIMI_INSTALL_URL: installUrl,
+        RELEASE_SKILL_KIMI_REMOVE_PLUGIN: removePlugin,
+        RELEASE_SKILL_KIMI_EXPECTED_REPO: `https://github.com/${target.pluginRepo}`,
+        RELEASE_SKILL_KIMI_EXPECTED_TAG: target.pluginTag,
+      },
+    });
   }, { prefix: 'release-skill-kimi-update-' });
   if (tuiOutcome) return tuiOutcome;
   const after = await observeKimiTarget(target, kimiHome, run);
@@ -1429,8 +1728,13 @@ async function updateLocalHostPluginsInternal({
   const selected = new Set(Array.isArray(selectedHosts) ? selectedHosts : []);
   const unknown = [...selected].filter((host) => !checklist.localHostUpdate.hosts.includes(host));
   if (unknown.length > 0) throw new Error(`selected hosts are not declared by the plan: ${unknown.join(', ')}`);
-  const targets = pluginTargets(plan).filter((item) => selected.has(item.host));
-  for (const target of targets) assertExecutableTarget(target);
+  const targets = checklist.localHostUpdate.targets.filter((item) => (
+    item.executionMode !== 'manual' && selected.has(item.host)
+  ));
+  for (const target of targets) {
+    if (target.host === 'qoder') assertQoderExecutableTarget(target);
+    else assertExecutableTarget(target);
+  }
 
   const results = [];
   for (const target of targets) {
@@ -1451,7 +1755,12 @@ async function updateLocalHostPluginsInternal({
           root,
           verifyInstalledPayload,
         })
-        : await runStructuredUpdate(target, detected, run, {
+        : target.host === 'qoder'
+          ? await runQoderUpdate(target, detected, run, {
+            root,
+            verifyInstalledPayload,
+          })
+          : await runStructuredUpdate(target, detected, run, {
           plan,
           root,
           verifyInstalledPayload,

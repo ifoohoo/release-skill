@@ -1053,7 +1053,7 @@
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "type": "string", "enum": ["claude", "codex", "kimi", "codebuddy", "workbuddy"] }
+          "items": { "type": "string", "enum": ["claude", "codex", "kimi", "codebuddy", "workbuddy", "qoder"] }
         },
         "hub": { "$ref": "#/definitions/localHostHub" }
       }

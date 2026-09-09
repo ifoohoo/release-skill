@@ -1,0 +1,777 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://release-skill.dev/schemas/release-run/v1",
+  "title": "Release Run",
+  "description": "Schema for a release run record capturing execution checkpoints",
+  "type": "object",
+  "required": [
+    "runId",
+    "command",
+    "planDigest",
+    "planPath",
+    "status",
+    "checkpoints"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "runId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for this run (UUID)"
+    },
+    "runDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 digest of the final run state, excluding this field"
+    },
+    "stateSequence": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Monotonic sequence of an immutable in-flight run state snapshot"
+    },
+    "previousStateDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Digest of the immediately preceding stateSequence snapshot"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PUBLISHING",
+        "PUBLISHED",
+        "VERIFIED",
+        "PARTIAL",
+        "BLOCKED",
+        "DISTRIBUTING",
+        "DISTRIBUTED",
+        "NEEDS_INPUT"
+      ],
+      "description": "Current status of the run"
+    },
+    "command": {
+      "type": "string",
+      "enum": [
+        "assess",
+        "prepare",
+        "publish",
+        "reconcile",
+        "verify",
+        "distribute",
+        "postverify"
+      ],
+      "description": "The command that initiated this run"
+    },
+    "sourceRunId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Run ID of the source run (for reconcile runs)"
+    },
+    "sourceRunDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Digest of the immutable source run consumed by reconcile or verify"
+    },
+    "sourceRunPath": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Path of the immutable source run authority consumed by reconcile or verify"
+    },
+    "planDigest": {
+      "type": "string",
+      "description": "SHA-256 digest of the release plan used"
+    },
+    "planPath": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Immutable digest-addressed plan authority used by this run"
+    },
+    "approvalDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Digest of the immutable approval authority consumed by publish/reconcile"
+    },
+    "approvalPath": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Immutable digest-addressed approval authority consumed by publish/reconcile"
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the run started"
+    },
+    "finishedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the run finished"
+    },
+    "checkpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "actionId",
+          "actionType",
+          "status"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "actionId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Identifier of the external action"
+          },
+          "actionType": {
+            "type": "string",
+            "enum": [
+              "push-commit",
+              "push-snapshot",
+              "create-tag",
+              "npm-publish",
+              "github-release",
+              "claude-marketplace-install",
+              "codex-marketplace-install",
+              "kimi-marketplace-install",
+              "codebuddy-marketplace-install",
+              "set-default-branch",
+              "distribute-probe",
+              "distribute-mirror",
+              "postpublish-hook"
+            ],
+            "description": "Type of external action"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "failed",
+              "skipped",
+              "pending",
+              "uncertain",
+              "deferred",
+              "PASSED_AUTOMATIC",
+              "PASSED_MANUAL",
+              "NOT_REQUIRED_UNCHANGED",
+              "NO_CHANGE",
+              "AWAITING_APPROVAL"
+            ],
+            "description": "Result status of this checkpoint (uncertain = started, result unknown; deferred = marketplace action postponed to verify phase; PASSED_AUTOMATIC/PASSED_MANUAL/NOT_REQUIRED_UNCHANGED 为验证阶段专用状态; NO_CHANGE = distribute 目标暂存差异为空，未产生 commit/tag/push; AWAITING_APPROVAL = requiresApproval postPublish hook 尚无 checkpoint 批准，v0.6.3 R1)"
+          },
+          "preObserve": {
+            "type": "string",
+            "enum": [
+              "CONSISTENT",
+              "MISSING",
+              "CONFLICTING"
+            ],
+            "description": "Remote state before execution"
+          },
+          "postObserve": {
+            "type": "string",
+            "enum": [
+              "CONSISTENT",
+              "MISSING",
+              "CONFLICTING"
+            ],
+            "description": "Remote state after execution"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "remoteRef": {
+            "type": "object",
+            "description": "Remote resource identifiers (commit, tag, version, URL)",
+            "additionalProperties": false,
+            "properties": {
+              "commit": {
+                "type": "string"
+              },
+              "tag": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              },
+              "integrity": {
+                "type": "string",
+                "pattern": "^sha512-[A-Za-z0-9+/]{86}==$",
+                "description": "Observed npm dist.integrity when an already-consistent npm publish is skipped"
+              }
+            }
+          },
+          "error": {
+            "type": "object",
+            "description": "Error details when status is failed",
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "CONFIG_INVALID",
+                  "BASELINE_CHANGED",
+                  "DIRTY_SCOPE_CONFLICT",
+                  "GATE_FAILED",
+                  "AUTH_MISSING",
+                  "REMOTE_CONFLICT",
+                  "REMOTE_UNAVAILABLE",
+                  "HOOK_TIMEOUT",
+                  "PARTIAL_RELEASE",
+                  "POST_PUBLISH_VERIFY_FAILED"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          },
+          "reason": {
+            "type": "string",
+            "description": "Stable reason code for deferred checkpoints (e.g. CONSUMER_VERIFICATION_DEFERRED)"
+          },
+          "phase": {
+            "type": "string",
+            "description": "Phase identifier for deferred checkpoints (e.g. post-publish-verification)"
+          },
+          "remoteUrl": {
+            "type": "string",
+            "description": "distribute 目标远端 URL"
+          },
+          "branch": {
+            "type": "string",
+            "description": "distribute 目标分支"
+          },
+          "tag": {
+            "type": "string",
+            "description": "distribute 分发 tag"
+          },
+          "tagCommit": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{40}$",
+            "description": "冻结的 create-tag 预期 commit"
+          },
+          "previousHead": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{40}$",
+            "description": "执行前目标分支 tip"
+          },
+          "pushedCommit": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{40}$",
+            "description": "实际推送的 commit（与 ls-remote 交叉核对）"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "pushed",
+              "no-change",
+              "dry-run"
+            ],
+            "description": "distribute 执行模式"
+          },
+          "executor": {
+            "type": "string",
+            "description": "执行者标识"
+          },
+          "payloadFileCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "写入目标的载荷文件数"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "remoteRef": {
+                  "type": "object",
+                  "required": [
+                    "integrity"
+                  ]
+                }
+              },
+              "required": [
+                "remoteRef"
+              ]
+            },
+            "then": {
+              "properties": {
+                "actionType": {
+                  "const": "npm-publish"
+                },
+                "status": {
+                  "const": "skipped"
+                },
+                "preObserve": {
+                  "const": "CONSISTENT"
+                }
+              },
+              "required": [
+                "actionType",
+                "status",
+                "preObserve"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "sourceAuthorityReceipts": {
+      "type": "array",
+      "description": "Source authority content closure receipts: one per publish run proving remote content matches frozen inputs",
+      "items": {
+        "type": "object",
+        "required": [
+          "sourceRepository",
+          "defaultBranch",
+          "inputDigest",
+          "algorithmVersion",
+          "entryCount",
+          "planDigest",
+          "verifiedAt",
+          "result"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "sourceRepository": {
+            "type": "string",
+            "minLength": 1
+          },
+          "defaultBranch": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inputDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "algorithmVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "entryCount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "planDigest": {
+            "type": "string",
+            "minLength": 1
+          },
+          "verifiedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "CONSISTENT",
+              "MISMATCH"
+            ]
+          },
+          "observedCommit": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{40,64}$"
+          },
+          "mismatchedPaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "consumerVerificationReceipts": {
+      "type": "array",
+      "description": "消费端验证收据，每个 marketplace action 一条记录",
+      "items": {
+        "type": "object",
+        "required": [
+          "actionId",
+          "unitId",
+          "platform",
+          "result",
+          "installationContractDigest",
+          "algorithmVersion",
+          "planDigest",
+          "verifiedAt"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "actionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "unitId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "platform": {
+            "type": "string",
+            "minLength": 1
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "PASSED_AUTOMATIC",
+              "PASSED_MANUAL",
+              "NOT_REQUIRED_UNCHANGED"
+            ]
+          },
+          "installationContractDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "algorithmVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "planDigest": {
+            "type": "string",
+            "minLength": 1
+          },
+          "verifiedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "gateResults": {
+      "type": "array",
+      "description": "Consumer verification gate results bound to this verify run",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "phase",
+          "unitId",
+          "distribution",
+          "gateDigest",
+          "inputDigest",
+          "status",
+          "startedAt",
+          "finishedAt",
+          "exitCode",
+          "stdoutBytes",
+          "stdoutSha256",
+          "stderrBytes",
+          "stderrSha256"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "phase": {
+            "const": "consumer-verify"
+          },
+          "unitId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "distribution": {
+            "type": "string",
+            "enum": [
+              "npm",
+              "claude-plugin",
+              "codex-plugin"
+            ]
+          },
+          "gateDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "inputDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "SHA-256 digest of the exact installed consumer tree immediately before gate execution"
+          },
+          "status": {
+            "const": "passed"
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "exitCode": {
+            "const": 0
+          },
+          "stdoutBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "stdoutSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "stderrBytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "stderrSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      }
+    },
+    "manualFollowUps": {
+      "type": "array",
+      "description": "Non-blocking marketplace installation and invocation follow-ups for Kimi/CodeBuddy. Under foundationPayloadThenManualFollowUps, the frozen payload was observed first but these real-host tasks remain unverified.",
+      "items": {
+        "type": "object",
+        "required": [
+          "actionId",
+          "platform",
+          "plugin",
+          "verifiedBySystem"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "actionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "kimi",
+              "codebuddy"
+            ]
+          },
+          "plugin": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "unitId": {
+            "type": "string"
+          },
+          "verifiedBySystem": {
+            "const": false,
+            "description": "Always false — these tasks are not verified by the system"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "foundationPluginVerificationReceipts": {
+      "type": "array",
+      "description": "Foundation complete-plugin local payload observations bound to verify actions. These receipts do not prove marketplace installation or host invocation.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "planDigest",
+          "actionId",
+          "unitId",
+          "requestDigest",
+          "hostId",
+          "goal",
+          "sourceType",
+          "foundationStatus",
+          "payloadMatches",
+          "observationDigest",
+          "observedAt"
+        ],
+        "properties": {
+          "planDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "actionId": { "type": "string", "minLength": 1 },
+          "unitId": { "type": "string", "minLength": 1 },
+          "requestDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "hostId": { "enum": ["kimi-code", "workbuddy"] },
+          "goal": { "const": "install-only" },
+          "sourceType": { "const": "local-staged" },
+          "foundationStatus": { "const": "observed" },
+          "payloadMatches": { "const": true },
+          "observationDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "observedAt": { "type": "string", "format": "date-time" },
+          "extraInstalledPaths": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*\\/\\/)(?!.*\\u0000)(?!.*\\/$).+$"
+            }
+          },
+          "extraInstalledLinks": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "targetBase64", "bytes", "statMode"],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*\\/\\/)(?!.*\\u0000)(?!.*\\/$).+$"
+                },
+                "targetBase64": {
+                  "type": "string",
+                  "minLength": 4,
+                  "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+                },
+                "bytes": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "statMode": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 65535
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "skillResourceClosureReceipts": {
+      "type": "array",
+      "description": "Per-surface skill resource closure verification receipts from verify phase",
+      "items": {
+        "type": "object",
+        "required": [
+          "host",
+          "distribution",
+          "unitId",
+          "checkerVersion",
+          "inputDigest",
+          "surfaceCount",
+          "skillCount",
+          "referenceCount",
+          "sourceOnlyCount",
+          "findingCount",
+          "receiptDigest",
+          "checkedAt",
+          "exitCode"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "host": {
+            "type": "string",
+            "minLength": 1
+          },
+          "unitId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "distribution": {
+            "type": "string",
+            "enum": [
+              "npm",
+              "claude-plugin",
+              "codex-plugin",
+              "kimi-plugin",
+              "codebuddy-plugin"
+            ]
+          },
+          "actionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "checkerVersion": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inputDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "surfaceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "skillCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "referenceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "sourceOnlyCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "findingCount": {
+            "const": 0
+          },
+          "receiptDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "checkedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "exitCode": {
+            "const": 0
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "enum": [
+              "reconcile",
+              "verify",
+              "distribute",
+              "postverify"
+            ]
+          }
+        },
+        "required": [
+          "command"
+        ]
+      },
+      "then": {
+        "required": [
+          "sourceRunId",
+          "sourceRunDigest",
+          "sourceRunPath"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "stateSequence": {
+            "minimum": 1
+          }
+        },
+        "required": [
+          "stateSequence"
+        ]
+      },
+      "then": {
+        "required": [
+          "previousStateDigest"
+        ]
+      }
+    }
+  ]
+}

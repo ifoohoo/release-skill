@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.host-descriptor",
+  "hostId": "claude",
+  "displayName": "Claude Code",
+  "support": "supported",
+  "maturity": "stable",
+  "sourceAliases": [
+    "claude-code"
+  ],
+  "driverId": "claude-version-v1",
+  "adapterFormat": "skill-directory-v1",
+  "verification": {
+    "driverId": "claude-code-print-v1",
+    "authStrategy": "existing-user-state",
+    "credentialMutation": "host-managed"
+  },
+  "pathCategories": [
+    {
+      "id": "claude-user-skills",
+      "role": "skill-root",
+      "scope": "user",
+      "anchor": "user-home",
+      "relPath": ".claude/skills"
+    },
+    {
+      "id": "claude-project-skills",
+      "role": "skill-root",
+      "scope": "project",
+      "anchor": "project-root",
+      "relPath": ".claude/skills"
+    }
+  ],
+  "probeCapabilities": [
+    "cli",
+    "version",
+    "payload",
+    "registry",
+    "discover",
+    "enabled",
+    "reload",
+    "smoke",
+    "uninstall"
+  ]
+}

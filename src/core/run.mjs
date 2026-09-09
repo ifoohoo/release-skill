@@ -464,7 +464,7 @@ async function validateStatePredecessorChain(run, runPath, options = {}) {
   }
 }
 
-function validateSourceRunEdge(child, parent) {
+export function validateSourceRunEdge(child, parent) {
   if (child.command === 'reconcile') {
     if (!['publish', 'reconcile'].includes(parent.command) || parent.status !== 'PARTIAL') {
       throw new ReleaseError(

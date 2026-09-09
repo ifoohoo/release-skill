@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.16 -->
+<!-- release-skill:release-version: 0.9.17 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,37 +14,36 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.16** (2026-09-09)
+**0.9.17** (2026-09-09)
 
-0.9.16 is a local source candidate that connects verified releases to explicit source-branch checks, host-aware setup continuation, and postVerify finish guidance. The three Foundation dependencies remain pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.17 is a local source candidate that adds explicit offline verification of historical release records and a self-contained Qoder projection, while preserving the setup-root and Kimi initial-directory trust fixes. The three Foundation dependencies remain pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance; it also does not establish Hub acceptance.
 
 **Security**
 
-- The source-branch reminder runs only `git branch --show-current` and `git status --short --branch`; it never fetches, switches, merges, rebases, stashes, resets, cleans, or pushes. Setup names are matched as skill metadata and are never executed as shell text.
-- Skill Family Hub updates bind the observed branch head with compare-and-swap semantics. Partial Hub publication is never rolled back or force-pushed, and remote state is never overwritten.
+- Offline verification reads only paths explicitly supplied on the command line and redacts local path details from its JSON result. Historical consistency does not prove that records are globally latest or that remote objects still exist.
+- Qoder remains outside release distributions and publication checkpoints. The updater does not add a marketplace, perform a first install, uninstall, or reload the current session; `UPDATED` does not mean the new plugin has been loaded.
+- Any later central Skill Family Hub publication uses the existing Git Data API with compare-and-swap. A partial Hub publication remains recoverable and is never rolled back or force-pushed automatically.
 
 **Added**
 
-- Projects may configure `releaseFinish.sourceBranchCheck` as `remind` or `skip` and may name a loaded setup entry through `releaseFinish.setupSkill`. The release-finish workflow keeps the publishing workspace separate from an explicitly selected consumer project and reports setup as pending when the target directory, loaded plugin version, or callable host is not established.
-- Source checks use read-only Git commands and report the current branch, worktree changes, upstream summary, and any decision that still belongs to the maintainer. A project can select `release-setup` when it wants the release-finish workflow to continue into release-skill setup.
+- The public `release-skill verify-records` CLI checks caller-supplied plan, approval, target-run, and predecessor-run bytes. It reports `CONSISTENT`, `CONTRADICTED`, or `INSUFFICIENT` without scanning `.release-skill`, following paths from records, contacting remotes, writing files, or changing release state.
+- The npm package now includes `.qoder-plugin/plugin.json` and a self-contained `adapters/qoder/` projection. The existing post-release updater can update an already installed user-scope Qoder plugin only after the selected Hub source and frozen payload match.
 
 **Changed**
 
-- After a successful postVerify run reaches `DISTRIBUTED`, both JSON and text CLI output now expose the same Hub-backed local-host finish guidance used by the release-finish workflow. The guidance remains diagnostic and never invokes a host command on its own.
-- Host updates and setup checks remain local follow-up work and do not change the immutable release plan or the `VERIFIED` publication result. Shared project readiness may be checked once only when the plugin version, consumer directory, and runtime environment are the same; host-specific installation and loading remain separate checks.
-- Skill Family Hub publication continues through the project-private postVerify hook and GitHub Git Data API. The Hub update remains a separately approved compare-and-swap write against the observed branch head.
+- The release-finish setup continuation uses the current `--root` release project directly. It no longer asks for a second project path, while project-level readiness and host-specific loading checks remain distinct.
 
 **Fixed**
 
-- A completed postVerify delivery now keeps `DISTRIBUTED` even when the optional finish checklist cannot reread its plan. The CLI returns an explicit unavailable diagnostic without rewriting the successful delivery checkpoint.
+- An authorized Kimi update can confirm the standard initial `Trust this folder?` dialog for the current release project before continuing. Unknown rows, selections, repeated trust dialogs, timeout, or early exit still stop that host.
 
 **Upgrade Notes**
 
-Upgrade from 0.9.15 to receive postVerify finish guidance and optional source-branch and setup continuation. Add a top-level `releaseFinish` block only when the project wants to select a setup entry or change the default reminder policy. Remove any release-skill standalone marketplace registration, add or update `ifoohoo/skill-family-hub`, and use `release-skill@skill-family-hub`. Restart an updated host before treating the new plugin version or setup entry as loaded.
+Upgrade from 0.9.16 to use `release-skill verify-records`, the Qoder package projection, and the setup/Kimi fixes. Remove the old release-skill standalone marketplace; use the ifoohoo/skill-family-hub repository and Hub-qualified plugin id release-skill@skill-family-hub. The central Skill Family Hub must accept the Qoder entry before marketplace installation can begin. Real Qoder and Kimi installation, reload, and business invocation remain separate authorized follow-up work.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.16 is the current source candidate. This README
+> **Current boundary:** v0.9.17 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -68,7 +67,7 @@ Upgrade from 0.9.15 to receive postVerify finish guidance and optional source-br
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.16 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.17 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -97,18 +96,20 @@ checkpoints remain intact and use matching-version recovery. Evidence v1 stays
 read-only; v2 uses a closed top level with phase extensions in `details`.
 Summaries and recovery suggestions are diagnostic, never publication authority.
 
-The current 0.9.16 candidate includes the narrow R-05 Hook cache v2 consumer
+The current 0.9.17 candidate includes the narrow R-05 Hook cache v2 consumer
 path, the public `postverify` path, and the stable isolated install-tree record
-path (A2/A3). It keeps Skill Family Hub as the single marketplace source. It
+path (A2/A3). It also adds the explicit-input `verify-records` command and a
+self-contained Qoder projection. Skill Family Hub remains the single
+marketplace source. The candidate
 also makes the `release-prepare` Skill organize existing assessment, refresh,
 focused-check, and prepare entry points without adding another execution
 engine. `prepare --help` and `prepare -h` now return before configuration,
 locks, runs, or hooks can observe the request. The `release-finish` Skill can
 also report the source branch and continue into a configured setup entry after
-the selected host has loaded the released plugin. This candidate still
-excludes R-02 safe full-tree inventory, R-10 historical-release verification
-implementation, real Kimi/WorkBuddy public-marketplace installation and
-invocation gates, and an Audit public offline release-record verifier.
+the selected host has loaded the released plugin. This candidate still excludes
+R-02 safe full-tree inventory and real Kimi/WorkBuddy/Qoder marketplace
+installation and invocation gates. The central Hub has not yet accepted the
+release-skill Qoder entry.
 Foundation dependencies are pinned to the three released 0.17.0 packages.
 For Kimi/CodeBuddy plans that still use the bundled-family distribution form,
 verify calls the released
@@ -267,7 +268,29 @@ Skill Family Hub marketplace:
 Kimi Code. It uses the version-pinned interactive TUI path described in
 [INSTALL.md](INSTALL.md#install-as-a-kimi-code-plugin).
 
-See [INSTALL.md](INSTALL.md) for CodeBuddy, Codex, and Kimi Code commands.
+**Qoder:** the package ships `.qoder-plugin/plugin.json` and the self-contained
+`adapters/qoder/` projection. A user-scope marketplace install is available only
+after the central Hub's root `marketplace.json` has accepted the release-skill
+Qoder entry; the generated adapter alone does not prove Hub consumption. See
+[INSTALL.md](INSTALL.md#install-as-a-qoder-plugin) for the bounded install and
+post-release update contract.
+
+See [INSTALL.md](INSTALL.md) for CodeBuddy, Codex, Kimi Code, and Qoder commands.
+
+### Offline historical record verification
+
+Use the public command below when a consumer already has an explicit plan,
+approval, target run, and every predecessor run referenced by that target:
+
+```text
+release-skill verify-records --plan <path> --approval <path> --target-run <path> --source-run <path>... --unit <id> --target-version <version> --json
+```
+
+The command reads only those paths and emits one JSON object. `CONSISTENT`
+exits 0, `CONTRADICTED` exits 1, and `INSUFFICIENT` exits 2. It does not scan
+`.release-skill`, follow paths embedded in a record, contact a remote, write a
+file, or advance release state. A consistent historical chain does not prove
+that its records are globally latest or that remote objects still exist.
 
 ### Main workflow
 
@@ -539,7 +562,9 @@ releaseUnits:
 defaults to `remind`; set it to `skip` to suppress the read-only source-branch
 reminder. `setupSkill` is optional and names an already installed and loaded
 setup entry such as `release-setup` or `plugin:skill`; it is never executed as
-a shell command. The two settings are independent.
+a shell command. After host updates, release-finish runs that setup entry
+against the current release project root passed through `--root`; it does not
+request a separate project directory. The two settings are independent.
 
 `distributions` is required but may be an explicit empty array. Use
 `distributions: []` when release-skill should publish only the unit's GitHub
@@ -782,6 +807,11 @@ closures. A release unit declares what reaches users via `distributions`:
 | `kimi-plugin` | self-contained closure (release-skill invokes no scriptable install API) | non-blocking post-release manual task |
 | `codebuddy-plugin` | generated `adapters/workbuddy/` with `.codebuddy-plugin/plugin.json` | non-blocking post-release manual task |
 
+Qoder is intentionally outside this `distributions` table: it is a build-only
+public projection at `adapters/qoder/`, with root manifest
+`.qoder-plugin/plugin.json`. It does not add a `qoder-plugin` plan type or an
+automated publish, reconcile, or verify checkpoint.
+
 Each adapter closure bundles its own CLI, skills, and schemas for zero external
 dependency after installation. `publish` only publishes frozen Git objects and
 npm tarballs, then checks remote commit/tree/tag integrity. Claude/Codex
@@ -796,12 +826,23 @@ commit before that host's first write; a failed check leaves that host unchanged
 without stopping other selected hosts. The workflow can also migrate or update
 Kimi through one controlled TUI session and verify its real managed payload, or update an existing
 bundled-family CodeBuddy/WorkBuddy entry when the frozen tag and mutable branch
-both resolve to the frozen commit. It requires explicit user confirmation and
+both resolve to the frozen commit. For an explicitly selected Qoder host, it can
+update only an existing user-scope installation after proving the configured Hub
+source and frozen payload; it never adds a marketplace or performs first install.
+An `UPDATED` installation is not treated as loaded: reload or start a new Qoder
+session, then complete one read-only release-skill business call before claiming
+the new version is active. It requires explicit user confirmation and
 does not change release status. Kimi uses one effective configuration root:
 explicit `kimiHome`, then `KIMI_CODE_HOME`, then `~/.kimi-code`. The TUI and
-post-operation observation share that root. A `Trust this folder?` prompt,
-unknown interface, timeout, early exit, or unprovable plugin identity returns a
-manual or failed result without confirming folder trust. Missing, standalone, inaccessible, or ambiguous
+post-operation observation share that root, and the TUI working directory is the
+resolved release project root passed through `--root`. After the user confirms
+the frozen plan and explicitly selects Kimi for update, release-finish accepts
+only the initial standard `Trust this folder?` dialog with `No, exit` selected
+and `Trust this folder` available. It moves to that target, verifies the new
+selection, confirms it, and waits for the known command prompt before sending
+the plugin command. An unknown row or selection, a failed move, timeout, early
+exit, or any folder-trust dialog after the plugin command fails closed. The
+frozen plugin identity and `Trust and install` checks remain unchanged. Missing, standalone, inaccessible, or ambiguous
 CodeBuddy/WorkBuddy targets remain manual and receive no host mutation.
 WorkBuddy local updates are macOS-only; on other platforms they are skipped as
 unsupported. When a plan declares postVerify hooks, release-finish must receive
@@ -812,8 +853,10 @@ A release unit may also declare `postPublish.localHostUpdate` for a plugin that
 is delivered through a project-selected Hub by a `postVerify` hook. After that
 hook reaches `DISTRIBUTED`, `ship`, `verify`, `post-release`, and
 `release-finish` display the declared Hub, plugin, and hosts. These Hub-backed
-targets are manual in 0.9.16 (`promptRequired: true`, `available: false`): the
-prompt does not query the Hub, inspect the host, or run host commands. Claude
+targets retain their declared execution mode. Qoder is executable only when it
+was selected and all frozen-plan, Hub-source, existing user-scope installation,
+and payload checks pass; other Hub-backed targets remain manual. Manual prompts
+do not query the Hub, inspect the host, or run host commands. Claude
 and Codex use their existing marketplace management entry; Kimi uses the
 frozen GitHub Release and its existing confirmation path; CodeBuddy and
 WorkBuddy remain manual because this flow cannot pin a Hub ref. Existing
@@ -844,7 +887,7 @@ the first minimal semantic boundary, so the static gate fails closed until the
 declaration is narrowed to concrete targets.
 
 <!-- release-skill:capability:unsupported-scope -->
-- **not in the current version:** full consumer install-tree scanning (R-02) — the current implementation handles only the declared public surface and the stable isolated install-tree record; and a real-host (Kimi/WorkBuddy) verification gate — host verification stays a non-blocking manual follow-up and does not produce `PASS`/`VERIFIED` evidence;
+- **not in the current version:** full consumer install-tree scanning (R-02) — the current implementation handles only the declared public surface and the stable isolated install-tree record; and a real-host (Kimi/WorkBuddy/Qoder) verification gate — host verification and Qoder activation stay outside release `PASS`/`VERIFIED` evidence;
 - no automatic README generation or source-file overwrite;
 - no automatic conflict merge or rollback workflow;
 - no claim that a real production canary has run for marketplace verification;
@@ -853,10 +896,11 @@ declaration is narrowed to concrete targets.
 - no overwrite of branches/tags/releases or npm unpublish; create-only refs use
   `--force-with-lease=<ref>:` solely as an atomic compare-and-set assertion that
   the ref is absent, while existing branches use an ordinary non-force push;
-- no Kimi or CodeBuddy/WorkBuddy marketplace install checkpoint in the release
+- no Kimi, CodeBuddy/WorkBuddy, or Qoder marketplace install checkpoint in the release
   state machine — optional release-finish can drive and re-check Kimi locally,
   or update an existing CodeBuddy/WorkBuddy entry under strict frozen-identity
-  checks, but those results do not become publication evidence;
+  checks, or update an existing user-scope Qoder entry after equivalent source
+  and payload checks, but those results do not become publication evidence;
 - no promise of Windows or broad multi-platform native write support;
 - no hidden commit, push, tag, release, or package publication.
 
