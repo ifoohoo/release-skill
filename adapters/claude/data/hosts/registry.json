@@ -4,6 +4,7 @@
   "hosts": [
     "claude",
     "codex",
+    "cursor",
     "kimi-code",
     "workbuddy",
     "codebuddy",

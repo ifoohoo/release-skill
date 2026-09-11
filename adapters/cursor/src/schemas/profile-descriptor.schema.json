@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/profile-descriptor.json",
+  "title": "ProfileDescriptor",
+  "description": "Declares one profile: identity, the contracts base it extends, its finite declared differences from the base, and the stable SPI implementations it provides. The common core must not depend on concrete profiles.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "profile", "base"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.profile-descriptor"
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "version"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "Stable kebab-case profile identifier."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        }
+      }
+    },
+    "base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contractsVersion"],
+      "properties": {
+        "contractsVersion": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+          "description": "Contracts version this profile extends."
+        }
+      }
+    },
+    "differences": {
+      "type": "array",
+      "description": "Finite declared differences from the base contracts.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "target"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+          },
+          "kind": {
+            "enum": ["adds", "overrides", "removes"]
+          },
+          "target": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What the difference applies to (structure name, file role, or extension point)."
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "spi": {
+      "type": "array",
+      "description": "Stable SPI implementations provided by this profile.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "version", "entrypoint"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "entrypoint": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$",
+            "description": "Relative POSIX path of the SPI entrypoint module."
+          }
+        }
+      }
+    }
+  }
+}

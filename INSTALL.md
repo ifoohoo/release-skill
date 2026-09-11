@@ -2,7 +2,7 @@
 
 [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.17 -->
+<!-- release-skill:release-version: 0.9.18 -->
 ## Prerequisites
 
 - Node.js 22.0.0 or later
@@ -125,7 +125,7 @@ tag pinned to the exact version (never the bare repository URL, which installs
 the latest release or default branch), confirm the trust prompt, then reload:
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.17
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.18
    /plugins reload
    ```
 
@@ -146,13 +146,22 @@ The effective configuration root is explicit `kimiHome`, then
 `KIMI_CODE_HOME`, then `~/.kimi-code`. The TUI process and post-operation
 observation use that same root. The TUI working directory is the resolved release
 project root passed through `--root`. After explicit confirmation of the frozen
-plan and selection of Kimi for update, release-finish accepts only the initial
-standard `Trust this folder?` dialog with `No, exit` selected and
-`Trust this folder` available. It moves to that row, verifies the new selection,
-confirms it, and waits for the known command prompt. Unknown rows or selections,
-a failed move, timeout, early exit, or a folder-trust dialog after the plugin
-command fails closed. release-finish still strips ANSI/OSC control sequences and
-soft wrapping before it checks the frozen repository, tag, and selected
+plan and selection of Kimi for update, release-finish reads the complete initial
+`Trust this folder?` dialog and requires exactly one positive
+`Trust this folder` action and exactly one selected action. If the positive action
+is already selected, it confirms without sending a direction key. If a known
+rejection action is selected, it moves once according to the action's position,
+reads the complete dialog again, and verifies the positive selection before
+confirming. Unknown or duplicate actions, a missing or duplicate positive action,
+an unverifiable selection, a failed move, timeout, early exit, or a folder-trust
+dialog after the plugin command fails closed. When a later Kimi version presents
+a new reproducible blocking layout, capture the Kimi version, visible actions,
+selected action, and their relationship first. Add the nearest regression and
+continue compatibility work when those facts uniquely identify the current
+directory, positive trust action, and selection result; stop and escalate when
+directory identity or action semantics remain ambiguous. release-finish still
+strips ANSI/OSC control sequences and soft wrapping before it checks the frozen
+repository, tag, and selected
 `Trust and install` action inside the plugin trust dialog. This local check is
 not part of `verify` and does not alter the `VERIFIED` release state.
 
@@ -197,6 +206,44 @@ modifying the host.
 For a single session from a source checkout you can also point CodeBuddy at the
 generated plugin directory with `--plugin-dir <path>/adapters/workbuddy`; the
 adapter never references files outside its own directory.
+
+## Install as a Cursor Local plugin
+
+`adapters/cursor/` contains `.cursor-plugin/plugin.json`, all public Skills and a
+self-contained runtime. Skills resolve the plugin from the absolute `SKILL.md`
+path supplied by Cursor and validate the root manifest; no plugin-root environment
+variable is required.
+
+Declare `cursor` in `postPublish.localHostUpdate.hosts` and set
+`cursor.sourcePath: adapters/cursor`. The directory and manifest identity are
+frozen with the public snapshot. Optional `cursor.dependencyInstall:
+npm-ci-ignore-scripts` installs lockfile dependencies in a candidate outside the
+scanner root.
+
+On macOS, quit Cursor and run the installed finishing entry. Supply the real
+absolute plugins root, commonly `.cursor/plugins` inside the user directory:
+
+```bash
+node <installed-plugin-root>/bin/release-skill-local-finish.mjs \
+  --root <release-project-root> --plan <frozen-plan-path> --run <completed-run-path> \
+  --update-local-hosts --hosts cursor --confirm-plan <planDigest> \
+  --cursor-plugins-root <absolute-cursor-plugins-root> --json
+```
+
+The command verifies the plan, run lineage and frozen snapshot before installing
+the complete plugin at `<cursor-plugins-root>/local/<plugin>`. First installation
+never overwrites an existing directory. Upgrades atomically exchange whole
+directories and retain the old version at `backups/<plugin>/release-*/plugin`.
+An identical version and full closure returns `ALREADY_CURRENT`; a completed
+write returns `UPDATED` with restart instructions. Indeterminate exchanges retain
+both sides for manual inspection; do not retry blindly. If backup relocation
+fails while the exchanged mapping remains provable, the script restores the old
+directory and reports failure.
+
+Restart Cursor or run Reload Window, then verify the Local source, version,
+public Skills and a real business invocation separately. Installation does not
+prove loading and never changes `VERIFIED`. Other operating systems, a running
+Cursor process or unavailable process observation return `MANUAL_REQUIRED`.
 
 ## Install as a Qoder plugin
 

@@ -25,7 +25,7 @@ import { promisify } from 'node:util';
 
 const execFile = promisify(execFileCb);
 
-import { classifyPathInput, writeFileAtomic, withTemporaryWorkspace } from 'skill-family-harness-node';
+import { classifyPathInput, writeFileAtomic, withTemporaryWorkspace, resolveContained, readFileStrict } from 'skill-family-harness-node';
 import { loadProjectConfig } from '../core/config.mjs';
 import { captureBaseline } from '../core/baseline.mjs';
 import { runHook } from '../core/hooks.mjs';
@@ -63,6 +63,7 @@ import {
   assertSelfBootstrapFacts,
 } from '../core/derived-artifact-gates.mjs';
 import { isFoundationPluginVerificationEligible } from '../core/foundation-plugin-verification.mjs';
+import { assertCursorHostScenario } from '../core/foundation-host-verification.mjs';
 import { PKG_ROOT } from '../core/pkg-root.mjs';
 import { writeFrozenMarker, FROZEN_MARKER_FILENAME } from '../core/frozen-marker.mjs';
 import {
@@ -897,12 +898,21 @@ async function processSnapshots(config, root, evidence, runDir, production = fal
 }
 
 /** Validate Hub-backed plugin identities against the already frozen snapshot. */
-async function validateFrozenLocalHostUpdatePlugins(unitResults) {
-  for (const { unit, manifest } of unitResults) {
+async function validateFrozenLocalHostUpdatePlugins(unitResults, resolvedVersions) {
+  for (const [index, { unit, manifest }] of unitResults.entries()) {
     const declaration = unit.postPublish?.localHostUpdate;
     if (!declaration) continue;
+    if (declaration.hosts.includes('cursor')) {
+      const source = await resolveContained(manifest.outputDir, declaration.cursor.sourcePath);
+      const receipt = await readFileStrict(source, '.cursor-plugin/plugin.json', { encoding: 'utf8' });
+      const cursor = JSON.parse(receipt.content);
+      if (typeof cursor.name !== 'string' || !/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/u.test(cursor.name)
+        || cursor.name !== declaration.plugin || cursor.version !== resolvedVersions[index]) {
+        throw new ReleaseError(GATE_FAILED, `unit "${unit.id}" Cursor local plugin manifest must match the frozen plugin name and target version`);
+      }
+    }
     const manifestEntries = (manifest.entries ?? [])
-      .filter((entry) => /(?:^|\/)\.(?:claude|codex|kimi|codebuddy)-plugin\/plugin\.json$/u.test(entry.path));
+      .filter((entry) => /(?:^|\/)\.(?:claude|codex|kimi|codebuddy|qoder|cursor)-plugin\/plugin\.json$/u.test(entry.path));
     const identities = new Set();
     for (const entry of manifestEntries) {
       try {
@@ -1884,6 +1894,7 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
       // Undeclared stays absent so legacy frozen plans remain byte-identical.
       const frozenUnitDists = frozenDistributions?.get(unit.id) ?? null;
       for (const platform of PLATFORMS) {
+        if (platform.actionType === null) continue;
         const dist = frozenUnitDists
           ? frozenUnitDists.find((d) => d.type === platform.distributionType)
           : (unit.distributions ?? []).find((d) => d.type === platform.distributionType);
@@ -1896,6 +1907,10 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
         // but no frozen ref/marketplaceCommitSha (production-only bindings),
         // keeping the two loops' shapes aligned for plan completeness.
         const externalMarketplace = dist.marketplaceRepo !== undefined && dist.marketplaceRepo !== null;
+        const marketplaceSource = dist.marketplaceSource
+          ?? (platform.id === 'qoder' && externalMarketplace
+            ? `https://github.com/${dist.marketplaceRepo}.git`
+            : undefined);
         // Normalized marketplace form: explicit mutually exclusive declaration.
         // bundled-family: marketplace and plugin live in the same repo.
         // standalone-index: external marketplace repo indexes a separate plugin repo.
@@ -1937,7 +1952,7 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
             consumer: platform.id,
             plugin: dist.plugin,
             ...(dist.marketplace !== undefined ? { marketplace: dist.marketplace } : {}),
-            ...(dist.marketplaceSource !== undefined ? { marketplaceSource: dist.marketplaceSource } : {}),
+            ...(marketplaceSource !== undefined ? { marketplaceSource } : {}),
             repo: externalMarketplace ? dist.marketplaceRepo : unit.publicRepo,
             version,
             entrySkill: dist.entrySkill,
@@ -1965,7 +1980,7 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
             installed: true,
             plugin: dist.plugin,
             ...(dist.marketplace !== undefined ? { marketplace: dist.marketplace } : {}),
-            ...(dist.marketplaceSource !== undefined ? { marketplaceSource: dist.marketplaceSource } : {}),
+            ...(marketplaceSource !== undefined ? { marketplaceSource } : {}),
             version,
             entrySkill: dist.entrySkill,
             ...(externalMarketplace ? { marketplaceLocation: 'external', repo: dist.marketplaceRepo } : {}),
@@ -2127,6 +2142,7 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
     // entrySkillFound/manifestDigest expected). Marketplace identity follows
     // the distribution declaration, same as the non-production loop.
     for (const platform of PLATFORMS) {
+      if (platform.actionType === null) continue;
       const dist = frozenUnitDists
         ? frozenUnitDists.find((d) => d.type === platform.distributionType)
         : (unit.distributions ?? []).find((d) => d.type === platform.distributionType);
@@ -2143,6 +2159,10 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
       // bind this unit's own frozen snapshot — the payload authority is the unit
       // snapshot, unchanged. Inline form (no marketplaceRepo) is byte-identical.
       const externalMarketplace = dist.marketplaceRepo !== undefined && dist.marketplaceRepo !== null;
+      const marketplaceSource = dist.marketplaceSource
+        ?? (platform.id === 'qoder' && externalMarketplace
+          ? `https://github.com/${dist.marketplaceRepo}.git`
+          : undefined);
       const freeze = externalMarketplace ? externalFreezes.get(`${unit.id} ${dist.type}`) : null;
       // Normalized marketplace form: explicit mutually exclusive declaration.
       // All four platforms carry marketplaceForm and sourceDescriptor.
@@ -2181,7 +2201,7 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
           consumer: platform.id,
           plugin: dist.plugin,
           ...(dist.marketplace !== undefined ? { marketplace: dist.marketplace } : {}),
-          ...(dist.marketplaceSource !== undefined ? { marketplaceSource: dist.marketplaceSource } : {}),
+          ...(marketplaceSource !== undefined ? { marketplaceSource } : {}),
           repo: externalMarketplace ? dist.marketplaceRepo : unit.publicRepo,
           ref: externalMarketplace ? freeze.ref : resolvedTag,
           version: unitVersion,
@@ -2225,7 +2245,7 @@ export function buildExternalActions(unitResults, resolvedVersions, productionAs
           consumer: platform.id,
           plugin: dist.plugin,
           ...(dist.marketplace !== undefined ? { marketplace: dist.marketplace } : {}),
-          ...(dist.marketplaceSource !== undefined ? { marketplaceSource: dist.marketplaceSource } : {}),
+          ...(marketplaceSource !== undefined ? { marketplaceSource } : {}),
           repo: externalMarketplace ? dist.marketplaceRepo : unit.publicRepo,
           version: unitVersion,
           ref: externalMarketplace ? freeze.ref : resolvedTag,
@@ -2613,6 +2633,35 @@ async function resolveDistributionManifestFacts(unitResults, resolvedVersions) {
       if (!platform || dist.type === 'npm') continue;
       const key = `${unit.id} ${dist.type}`;
 
+      if (platform.installMethod === 'foundation-host-verification') {
+        assertCursorHostScenario(dist.hostVerification);
+        const entrySkillPath = resolve(snapshotDir, 'skills', dist.entrySkill, 'SKILL.md');
+        let entrySkillStat;
+        try {
+          entrySkillStat = await lstat(entrySkillPath);
+        } catch (err) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}" ${dist.type} entry skill "${dist.entrySkill}" is absent from the frozen payload`,
+            { unitId: unit.id, distributionType: dist.type, cause: err.code },
+          );
+        }
+        if (!entrySkillStat.isFile() || entrySkillStat.isSymbolicLink()) {
+          throw new ReleaseError(
+            GATE_FAILED,
+            `unit "${unit.id}" ${dist.type} entry skill must be a regular non-symlink SKILL.md`,
+            { unitId: unit.id, distributionType: dist.type },
+          );
+        }
+        distributionFacts.set(key, {
+          kind: 'host-verification',
+          platform,
+          entrySkill: dist.entrySkill,
+          entrySkillRelativePath: `skills/${dist.entrySkill}/SKILL.md`,
+        });
+        continue;
+      }
+
       // 校验 marketplaceSourceType：从配置读取，不允许硬编码默认值
       const sourceTypeResult = validateMarketplaceSourceSelection(platform.id, dist, dist);
       if (!sourceTypeResult.valid) {
@@ -2829,6 +2878,7 @@ async function runPrepareSkillResourceClosureGate({
         (p) => p.distributionType === distribution.type,
       );
       if (!platform) continue;
+      if (platform.installMethod === 'foundation-host-verification') continue;
       const frozenManifest = frozenManifestByDist.get(
         `${unit.id} ${distribution.type}`,
       );
@@ -2903,6 +2953,7 @@ async function runPrepareSkillResourceClosureGate({
         (p) => p.distributionType === distribution.type,
       );
       if (!platform) continue;
+      if (platform.installMethod === 'foundation-host-verification') continue;
       expectedHosts.push(await normalizeHostId(platform.buildAdapter.name));
     }
     const hostCoverage = evaluateDeclaredHostSurfaceCoverage(
@@ -4267,7 +4318,7 @@ export async function prepareRelease(options) {
     const { unitResults, snapshotDigests } = await processSnapshots(
       selectedConfig, realRoot, evidence, runDir, production,
     );
-    await validateFrozenLocalHostUpdatePlugins(unitResults);
+    await validateFrozenLocalHostUpdatePlugins(unitResults, resolvedVersions);
 
     // Snapshot gates always run on disposable writable copies. The public
     // snapshot authority is re-digested after every gate and is never exposed
@@ -4488,6 +4539,20 @@ export async function prepareRelease(options) {
         if (!platform || dist.type === 'npm') return dist;
         const key = `${unit.id} ${dist.type}`;
         const facts = distributionFacts.get(key);
+        if (facts?.kind === 'host-verification') {
+          const { hostVerification, ...frozenDistribution } = dist;
+          return {
+            ...frozenDistribution,
+            hostVerificationContract: {
+              contractVersion: 1,
+              scenario: structuredClone(hostVerification),
+              hostId: facts.platform.id,
+              payloadDigest: productionAssets?.[idx]?.manifestDigest ?? manifest.snapshotDigest,
+              manifestRelativePath: facts.entrySkillRelativePath,
+              entrySkill: facts.entrySkill,
+            },
+          };
+        }
 
         // includeMarketplaceEntry 代表"契约实际包含一条市场条目"，
         // 不能只代表平台理论上支持市场条目。

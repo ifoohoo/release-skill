@@ -220,6 +220,7 @@ const ACTION_TARGET_FIELDS = Object.freeze({
   'codex-marketplace-install': Object.freeze(['consumer', 'plugin', 'marketplace', 'repo', 'ref', 'version', 'entrySkill']),
   'kimi-marketplace-install': Object.freeze(['consumer', 'plugin', 'repo', 'ref', 'version', 'entrySkill']),
   'codebuddy-marketplace-install': Object.freeze(['consumer', 'plugin', 'repo', 'ref', 'version', 'entrySkill']),
+  'qoder-marketplace-install': Object.freeze(['consumer', 'plugin', 'marketplace', 'repo', 'ref', 'version', 'entrySkill']),
   'set-default-branch': Object.freeze(['repo', 'oldBranch', 'newBranch', 'expectedNewBranchCommit']),
 });
 
@@ -705,6 +706,7 @@ export async function advanceShip(options = {}, injected = {}) {
         adapterRegistry: options.adapterRegistry,
         root,
         verificationGatesAuthorized: state.verificationGatesAuthorized === true,
+        cursorHostRuntime: options.cursorHostRuntime,
       });
       state = {
         ...state,

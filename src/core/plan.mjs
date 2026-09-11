@@ -413,7 +413,9 @@ function buildExpectedAdapterMap() {
     'create-tag': 'git-github',
     'github-release': 'github',
     'npm-publish': 'npm',
-    ...Object.fromEntries(PLATFORMS.map((p) => [p.actionType, p.adapter])),
+    ...Object.fromEntries(PLATFORMS
+      .filter((platform) => platform.actionType !== null)
+      .map((platform) => [platform.actionType, platform.adapter])),
     'set-default-branch': 'git-github',
   };
 }
@@ -857,6 +859,22 @@ export function validatePlanActionCompleteness(plan, options = {}) {
     for (const platform of PLATFORMS) {
       const dist = distributions.find((d) => d.type === platform.distributionType);
       if (!dist) continue;
+      if (platform.actionType === null) {
+        if (!dist.entrySkill) {
+          failures.push(`unit "${unitId}": ${platform.distributionType} distribution requires entrySkill`);
+        }
+        const contract = dist.hostVerificationContract;
+        if (
+          !contract
+          || contract.hostId !== platform.id
+          || contract.entrySkill !== dist.entrySkill
+          || contract.manifestRelativePath !== `skills/${dist.entrySkill}/SKILL.md`
+          || contract.payloadDigest !== frozen?.manifestDigest
+        ) {
+          failures.push(`unit "${unitId}": ${platform.distributionType} distribution host verification contract does not match the frozen payload`);
+        }
+        continue;
+      }
       const plugin = dist.plugin;
       const marketplace = dist.marketplace;
       const entrySkill = dist.entrySkill;

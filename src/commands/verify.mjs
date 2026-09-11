@@ -72,6 +72,7 @@ import {
   isFoundationPluginVerificationEligible,
   verifyFrozenPluginWithFoundation,
 } from '../core/foundation-plugin-verification.mjs';
+import { verifyFrozenCursorSkillWithFoundation } from '../core/foundation-host-verification.mjs';
 import { resolveUnitScopedPath } from '../snapshot/public-path.mjs';
 import { canonicalJson } from '../core/digest.mjs';
 import {
@@ -130,6 +131,53 @@ export const VERIFICATION_RESOLVED_TYPES = Object.freeze({
   NOT_REQUIRED_UNCHANGED: 'NOT_REQUIRED_UNCHANGED',
 });
 
+/** Verify actionless Cursor distributions through their frozen host contract. */
+export async function verifyCursorHostDistributions({
+  plan,
+  root,
+  cursorHostRuntime,
+  runHostVerificationFn,
+  clock = defaultClock,
+  evidence,
+} = {}) {
+  const checks = [];
+  for (const unit of plan?.units ?? []) {
+    const cursorDistribution = (unit.distributions ?? []).find(
+      (distribution) => distribution.type === 'cursor-plugin',
+    );
+    if (!cursorDistribution) continue;
+    const result = await verifyFrozenCursorSkillWithFoundation({
+      plan,
+      unitId: unit.id,
+      root,
+      cursorHostRuntime,
+      ...(runHostVerificationFn ? { runHostVerificationFn } : {}),
+      clock,
+    });
+    checks.push({
+      actionId: `cursor-host-verification-${unit.id}`,
+      actionType: 'cursor-host-verification',
+      unitId: unit.id,
+      distributionType: cursorDistribution.type,
+      status: VERIFICATION_RESOLVED_TYPES.PASSED_AUTOMATIC,
+      observation: result,
+    });
+    await evidence?.append({
+      phase: 'verify-host',
+      unitId: unit.id,
+      distributionType: cursorDistribution.type,
+      status: VERIFICATION_RESOLVED_TYPES.PASSED_AUTOMATIC,
+      hostId: result.hostId,
+      driverId: result.driverId,
+      requestDigest: result.requestDigest,
+      payloadDigest: result.payloadDigest,
+      entrySkill: result.entrySkill,
+      observation: result,
+    });
+  }
+  return checks;
+}
+
 /** Re-read every frozen subject tarball before consuming the public receipt. */
 export async function verifyPublicSourceAuthorityReceiptOffline({ plan, root }) {
   const descriptor = plan.publicSourceAuthorityReceipt;
@@ -179,6 +227,7 @@ const ADAPTER_ACTION_TYPE_MAP = {
   'codex-marketplace-install': 'codex-marketplace-install',
   'kimi-marketplace-install': 'kimi-marketplace-install',
   'codebuddy-marketplace-install': 'codebuddy-marketplace-install',
+  'qoder-marketplace-install': 'qoder-marketplace-install',
 };
 
 // ---------------------------------------------------------------------------
@@ -349,6 +398,7 @@ async function collectMissingManualAttestations({
   const manual = actions.filter((action) => (
     action.type === 'kimi-marketplace-install'
     || action.type === 'codebuddy-marketplace-install'
+    || action.type === 'qoder-marketplace-install'
   ));
   if (manual.length === 0) return [];
 
@@ -1097,6 +1147,8 @@ export async function verifyRelease(options) {
     execFn,
     configPath: configPathOpt,
     runPluginVerificationFn,
+    runHostVerificationFn,
+    cursorHostRuntime,
     observeFirstReleaseMarketplaceHeadFn,
     fetchFirstReleaseMarketplaceIndexFn,
   } = options ?? {};
@@ -1576,6 +1628,20 @@ export async function verifyRelease(options) {
     const manualFollowUps = [];
     const foundationPluginVerificationReceipts = [];
 
+    // Cursor has no marketplace action or publish checkpoint. Verify each
+    // declared Cursor distribution directly from its frozen unit contract,
+    // using explicit runtime roots that never enter the release run record.
+    // Plans without Cursor distributions do not enter
+    // this branch and retain their existing action-only behavior.
+    adapterChecks.push(...await verifyCursorHostDistributions({
+      plan,
+      root,
+      cursorHostRuntime,
+      runHostVerificationFn,
+      clock: clockFn,
+      evidence,
+    }));
+
     // Every action is identity-bound and adapters receive read-only or
     // per-action isolated consumer paths. Run independent checks concurrently;
     // the evidence writer serializes append operations and result arrays are
@@ -1710,6 +1776,7 @@ export async function verifyRelease(options) {
           'codex-marketplace-install': 'codex-plugin',
           'kimi-marketplace-install': 'kimi-plugin',
           'codebuddy-marketplace-install': 'codebuddy-plugin',
+          'qoder-marketplace-install': 'qoder-plugin',
         };
         const dist = unit?.distributions?.find((d) => d.type === typeToDist[action.type]);
 
@@ -1896,6 +1963,8 @@ export async function verifyRelease(options) {
             ? 'codex-plugin'
             : action.type === 'codebuddy-marketplace-install'
               ? 'codebuddy-plugin'
+              : action.type === 'qoder-marketplace-install'
+                ? 'qoder-plugin'
               : 'kimi-plugin';
         const installPath = verifyResult.observation?.installPath;
         consumerGateResults.push(...await runConsumerVerificationGates({
@@ -1919,6 +1988,10 @@ export async function verifyRelease(options) {
                 ? {
                     HOME: resolve(runDir, 'consumers', `codebuddy-${action.parameters.plugin}`),
                   }
+                : action.type === 'qoder-marketplace-install'
+                  ? {
+                      HOME: resolve(runDir, 'consumers', `qoder-${action.parameters.plugin}`),
+                    }
                 : {
                     HOME: resolve(runDir, 'consumers', `kimi-${action.parameters.plugin}`),
                   },

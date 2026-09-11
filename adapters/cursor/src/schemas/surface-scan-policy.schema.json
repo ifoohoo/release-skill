@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/surface-scan-policy.json",
+  "title": "SurfaceScanPolicy",
+  "description": "Declarative policy for the generic strategy-driven surface scanner. Consumers provide forbidden path patterns, forbidden content patterns and the list of intended uses; the scanner applies pathPatterns and contentPatterns only. Foundation does not interpret any private identity, path, or the meaning of allowedUses: every pattern hit fails closed, and the interpretation or exemption of allowed uses belongs to the consumer. Policy pattern strings are compiled as RegExp sources by the harness and a compile failure is a fail-closed scan-policy-invalid result. This schema is the consumer-facing policy of the generic surface scanner (scanSurface); the workspace-private leak-policy.json instance document is not a subset, not isomorphic and not a migration target of this schema — the two documents share rule vocabulary and fail-closed semantics by design, but their byte-level shapes are independent and must not be compared for compatibility. scanSurface is the execution-core generalization projection: the public, consumer-parameterized form of the same mechanism family, without any private identity, path, or approval-list interpretation of its own.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "pathPatterns",
+    "contentPatterns",
+    "allowedUses"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.surface-scan-policy" },
+    "pathPatterns": {
+      "type": "array",
+      "maxItems": 200,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+    },
+    "contentPatterns": {
+      "type": "array",
+      "maxItems": 200,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+    },
+    "allowedUses": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 200,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 200 }
+    }
+  },
+  "anyOf": [
+    { "properties": { "pathPatterns": { "type": "array", "minItems": 1 } } },
+    { "properties": { "contentPatterns": { "type": "array", "minItems": 1 } } }
+  ]
+}

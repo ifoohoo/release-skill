@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.host-descriptor",
+  "hostId": "cursor",
+  "displayName": "Cursor",
+  "support": "manual",
+  "maturity": "developer-preview",
+  "sourceAliases": [],
+  "verification": {
+    "driverId": "cursor-agent-print-v1",
+    "authStrategy": "existing-user-state",
+    "credentialMutation": "host-managed"
+  },
+  "pathCategories": [
+    {
+      "id": "cursor-project-skills",
+      "role": "skill-root",
+      "scope": "project",
+      "anchor": "project-root",
+      "relPath": ".cursor/skills"
+    }
+  ],
+  "probeCapabilities": [
+    "cli",
+    "version",
+    "payload",
+    "registry",
+    "discover",
+    "enabled",
+    "reload",
+    "smoke",
+    "uninstall"
+  ]
+}

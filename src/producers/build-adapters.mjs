@@ -3,7 +3,8 @@
  *
  * Reads skill metadata from skills-src/ and plugin.json templates,
  * generates self-contained adapter directories for each platform
- * (claude, codex, kimi, workbuddy, and the build-only qoder adapter).
+ * enabled by the platform registry (currently claude, codex, kimi,
+ * workbuddy, and qoder).
  *
  * Each adapter root contains:
  * - Plugin manifest (.claude-plugin/, .codex-plugin/, .kimi-plugin/,
@@ -208,7 +209,9 @@ export function computeBuildAdaptersDigest(sourceBytes) {
 // tree (adapters/workbuddy/, manifest .codebuddy-plugin/plugin.json). This is
 // what lets codebuddy join the publish pipeline WITHOUT changing a single byte
 // of the generated workbuddy adapter (the former BUILD_ONLY workbuddy entry).
-const REGISTRY_PLATFORMS = PLATFORM_REGISTRY.map((platform) => ({
+const REGISTRY_PLATFORMS = PLATFORM_REGISTRY
+  .filter((platform) => platform.buildAdapter.enabled)
+  .map((platform) => ({
   name: platform.buildAdapter?.name ?? platform.id,
   pluginDirName: platform.buildAdapter.pluginDirName,
   templateFileName: platform.buildAdapter.templateFileName,
@@ -216,31 +219,14 @@ const REGISTRY_PLATFORMS = PLATFORM_REGISTRY.map((platform) => ({
     ? { marketplaceFileName: platform.buildAdapter.marketplaceFileName }
     : {}),
   hasMarketplace: platform.buildAdapter.hasMarketplace,
-}));
+  }));
 
 /**
- * Build-only distribution adapters: generated, self-contained plugin trees
- * that are NOT wired into the automated publish/reconcile/verify pipeline —
- * no registry PLATFORMS membership, no distributionType/actionType in the
- * plan schemas, no automated install checkpoint. A host joins the pipeline
- * only with a full registry descriptor (strategy, CLI protocol, schema enum);
- * until then a build-only entry lets the build emit an installable adapter
- * tree without fabricating an unverified install protocol.
- *
- * workbuddy (the CodeBuddy/WorkBuddy plugin, manifest
- * `.codebuddy-plugin/plugin.json`, `${CODEBUDDY_PLUGIN_ROOT}` expanded inline
- * in skill content) moved into the registry as the `codebuddy` platform with
- * `buildAdapter.name = 'workbuddy'`, so its adapter tree is still produced —
- * byte-for-byte unchanged — via REGISTRY_PLATFORMS. Qoder remains build-only:
- * its installable projection is public, while release plans intentionally do
- * not gain a qoder distribution type or publish checkpoint.
+ * Compatibility export retained for callers that still import the historical
+ * build-only list. Every generated adapter now derives from the registry's
+ * buildAdapter.enabled flag, so this list must remain empty.
  */
-export const BUILD_ONLY_ADAPTERS = Object.freeze([Object.freeze({
-  name: 'qoder',
-  pluginDirName: '.qoder-plugin',
-  templateFileName: 'plugin.json',
-  hasMarketplace: false,
-})]);
+export const BUILD_ONLY_ADAPTERS = Object.freeze([]);
 
 export const PLATFORMS = Object.freeze([...REGISTRY_PLATFORMS, ...BUILD_ONLY_ADAPTERS]);
 
@@ -362,6 +348,11 @@ const QODER_PREAMBLE = `\
 >\n\
 `;
 
+const CURSOR_PREAMBLE = CODEX_PREAMBLE.replaceAll('Codex', 'Cursor').replace(
+  '> 令 `RELEASE_SKILL_ENTRY',
+  '> 校验 `PLUGIN_ROOT/.cursor-plugin/plugin.json` 是根内的普通文件，且名称为 `release-skill`；清单缺失或不一致时停止。Cursor 不保证注入插件根变量。\n> 令 `RELEASE_SKILL_ENTRY',
+);
+
 /**
  * Render SKILL.md content for a specific platform.
  *
@@ -386,12 +377,13 @@ function renderSkillForPlatform(content, platformName) {
     return content.replaceAll('${CLAUDE_PLUGIN_ROOT}', '${CODEBUDDY_PLUGIN_ROOT}');
   }
 
-  if (platformName === 'codex' || platformName === 'kimi' || platformName === 'qoder') {
-    const hostLabel = { codex: 'Codex', kimi: 'Kimi', qoder: 'Qoder' }[platformName];
+  if (platformName === 'codex' || platformName === 'kimi' || platformName === 'qoder' || platformName === 'cursor') {
+    const hostLabel = { codex: 'Codex', kimi: 'Kimi', qoder: 'Qoder', cursor: 'Cursor' }[platformName];
     const preamble = {
       codex: CODEX_PREAMBLE,
       kimi: KIMI_PREAMBLE,
       qoder: QODER_PREAMBLE,
+      cursor: CURSOR_PREAMBLE,
     }[platformName];
     let rendered = content.replaceAll(
       '${CLAUDE_PLUGIN_ROOT}/bin/release-skill-local-finish.mjs',
@@ -405,6 +397,9 @@ function renderSkillForPlatform(content, platformName) {
         .replaceAll('RELEASE_SKILL_ENTRY', 'RELEASE_SKILL_LOCAL_FINISH_ENTRY')
         .replaceAll('release-skill.mjs', 'release-skill-local-finish.mjs')
       : preamble;
+    if (platformName === 'cursor' && /\$\{(?:CLAUDE|CURSOR|CODEBUDDY|KIMI)[A-Z_]*\}/u.test(rendered)) {
+      throw new Error('Cursor rendering contains a residual host-specific placeholder');
+    }
     // A remaining bare host-root reference has no safe path-derived equivalent.
     if (rendered.includes('${CLAUDE_PLUGIN_ROOT}')) {
       throw new Error(`${hostLabel} rendering found an unsupported bare CLAUDE_PLUGIN_ROOT reference`);

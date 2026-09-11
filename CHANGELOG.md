@@ -1,9 +1,43 @@
 # Changelog
 
-<!-- release-skill:changelog:start version=0.9.17 locale=en baseline=sha256:83fe967a104a1b324ea1b704cfc6ee67d6a2999f3d6c0e2d92411435fa6986a2 -->
+<!-- release-skill:changelog:start version=0.9.18 locale=en baseline=sha256:486d52ac38ecb11f043c79661728004fb1c1593089915741867cdc0f449be275 -->
+## [0.9.18] - 2026-09-11
+
+0.9.18 is a local source candidate that adds first-class Cursor packaging, Foundation-backed host verification, and a final local distribution path for Claude, Codex, Kimi, CodeBuddy, WorkBuddy, Qoder, and Cursor. The three Foundation dependencies remain pinned to the exact 0.21.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Cursor must be closed before its plugin tree is scanned or replaced. Failed upgrades preserve or restore a complete old or new directory instead of publishing a mixed tree.
+- Host verification receives only caller-declared roots and records mechanism observations separately from release-domain publication and verification state.
+- Hub publication remains a compare-and-swap operation. A partial Hub publication is never rolled back or force-pushed automatically.
+
+### Added
+
+- The npm package now includes `.cursor-plugin/plugin.json` and a self-contained `adapters/cursor/` projection with all release-skill Skills and runtime resources.
+- Release verification can invoke Foundation 0.21.0 host verification with explicit executable and user-state roots, including Cursor project-level plugin verification.
+- The final local updater can distribute the verified release to the declared Claude, Codex, Kimi, CodeBuddy, WorkBuddy, Qoder, and Cursor installations.
+- Skill Family Hub remains the central marketplace. Its release entry is published through the existing Git Data API after release verification.
+
+### Changed
+
+- Local host updates verify the frozen snapshot and manifest identity before installation, and Cursor updates use Foundation fixed-set publication for first install and atomic full-directory replacement for upgrades.
+- Platform generation, public-file projection, package allowlists, schemas, and release-finish guidance now treat Cursor as a declared host and adapter.
+
+### Fixed
+
+- Cursor plugin names reject underscores so generated local plugin directories remain compatible with Cursor's manifest requirements.
+- The package's native prebuild allowlist and fixed resource-closure checks now include every generated adapter, including Cursor.
+
+### Upgrade Notes
+
+Upgrade from 0.9.17 to obtain Cursor packaging and local installation, the Foundation-backed host verification bridge, and the unified seven-host local finish path. Remove the old release-skill standalone marketplace; use the ifoohoo/skill-family-hub repository and Hub-qualified plugin id release-skill@skill-family-hub. Reload each host after updating; an `UPDATED` filesystem result alone does not prove that the running host loaded the new version.
+<!-- release-skill:changelog:end version=0.9.18 locale=en -->
+
+
+<!-- release-skill:changelog:start version=0.9.17 locale=en baseline=sha256:b7b382ee18c66d75612df7c83aa80439100237bf7d1ce3e36dc0cf1a038ed051 -->
 ## [0.9.17] - 2026-09-09
 
-0.9.17 is a local source candidate that adds explicit offline verification of historical release records and a self-contained Qoder projection, while preserving the setup-root and Kimi initial-directory trust fixes. The three Foundation dependencies remain pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance; it also does not establish Hub acceptance.
+0.9.17 is a local source candidate that adds explicit offline verification of historical release records and a self-contained Qoder projection, while preserving the setup-root and Kimi initial-directory trust fixes. The three Foundation dependencies are pinned to the exact 0.21.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance; it also does not establish Hub acceptance.
 
 ### Security
 

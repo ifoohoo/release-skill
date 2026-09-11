@@ -91,6 +91,7 @@ export function normalizeGenericSkillsRel(skillsRaw) {
 const SKILLS_NORMALIZERS = {
   claude: normalizeGenericSkillsRel,
   codex: normalizeGenericSkillsRel,
+  qoder: normalizeGenericSkillsRel,
   kimi: normalizeKimiSkillsRel,
   codebuddy: normalizeCodeBuddySkillsRel,
 };

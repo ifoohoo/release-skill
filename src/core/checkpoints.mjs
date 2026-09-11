@@ -34,6 +34,7 @@ export const CHECKPOINT_ORDER = [
   'codex-marketplace-install',
   'kimi-marketplace-install',
   'codebuddy-marketplace-install',
+  'qoder-marketplace-install',
 ];
 
 /**
@@ -54,6 +55,7 @@ export const ADAPTER_ACTION_TYPE_MAP = {
   'codex-marketplace-install': 'codex-marketplace-install',
   'kimi-marketplace-install': 'kimi-marketplace-install',
   'codebuddy-marketplace-install': 'codebuddy-marketplace-install',
+  'qoder-marketplace-install': 'qoder-marketplace-install',
 };
 
 /**
@@ -68,7 +70,7 @@ export const ADAPTER_ACTION_TYPE_MAP = {
  *   placed in Tier 1 only for conservative scheduling.
  * - Tier 2 `github-release` depends on Tier 1 `create-tag` (release `--verify-tag`).
  *
- * Marketplace actions (claude/codex/kimi/codebuddy-marketplace-install) are
+ * Marketplace actions (claude/codex/kimi/codebuddy/qoder-marketplace-install) are
  * included in the tier table for ADAPTER_ACTION_TYPE_MAP lookup but are
  * filtered out before tier grouping in both publish and reconcile. They are
  * recorded as DEFERRED with CONSUMER_VERIFICATION_DEFERRED reason and never
@@ -82,7 +84,7 @@ export const TIER_TABLE = [
   ['push-commit', 'push-snapshot'],                                              // Tier 0
   ['set-default-branch', 'create-tag', 'npm-publish'],                          // Tier 1
   ['github-release', 'claude-marketplace-install', 'codex-marketplace-install'], // Tier 2
-  ['kimi-marketplace-install', 'codebuddy-marketplace-install'],                // Tier 3
+  ['kimi-marketplace-install', 'codebuddy-marketplace-install', 'qoder-marketplace-install'], // Tier 3
 ];
 
 /** Fast reverse lookup: action type -> tier index (-1 when unknown). */
@@ -170,6 +172,7 @@ export const MARKETPLACE_ACTION_TYPES = new Set([
   'codex-marketplace-install',
   'kimi-marketplace-install',
   'codebuddy-marketplace-install',
+  'qoder-marketplace-install',
 ]);
 
 /**

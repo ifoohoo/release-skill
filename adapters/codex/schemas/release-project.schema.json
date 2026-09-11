@@ -188,7 +188,9 @@
                     "claude-plugin",
                     "codex-plugin",
                     "kimi-plugin",
-                    "codebuddy-plugin"
+                    "codebuddy-plugin",
+                    "qoder-plugin",
+                    "cursor-plugin"
                   ]
                 },
                 "package": {
@@ -265,7 +267,7 @@
                   "type": "integer",
                   "minimum": 30000,
                   "maximum": 900000,
-                  "description": "Timeout in milliseconds for plugin marketplace install commands (claude-plugin, codex-plugin). Kimi Code has no scriptable install command, so for kimi-plugin this bounds the read-only observation/verification only, not an install command. CodeBuddy/WorkBuddy has no scriptable install command that can pin a frozen ref, so for codebuddy-plugin this likewise bounds the read-only observation/verification only. Only valid for claude-plugin, codex-plugin, kimi-plugin, and codebuddy-plugin distributions."
+                  "description": "Maximum time in milliseconds for plugin installation or host verification. Kimi Code has no scriptable install command that can pin the frozen ref, nor does CodeBuddy; for these hosts this bounds read-only observation or read-only verification only. Cursor uses this limit for its frozen single-Skill invocation."
                 },
                 "marketplaceSourceType": {
                   "type": "string",
@@ -287,6 +289,9 @@
                   "minLength": 1,
                   "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$",
                   "description": "Bundled marketplace index relative path override；仅插件 distribution 允许"
+                },
+                "hostVerification": {
+                  "$ref": "#/definitions/cursorHostScenario"
                 }
               },
               "allOf": [
@@ -319,7 +324,9 @@
                           "claude-plugin",
                           "codex-plugin",
                           "kimi-plugin",
-                          "codebuddy-plugin"
+                          "codebuddy-plugin",
+                          "qoder-plugin",
+                          "cursor-plugin"
                         ]
                       }
                     }
@@ -331,7 +338,8 @@
                       "type": {
                         "enum": [
                           "claude-plugin",
-                          "codex-plugin"
+                          "codex-plugin",
+                          "qoder-plugin"
                         ]
                       }
                     }
@@ -363,6 +371,55 @@
                   "if": {
                     "properties": {
                       "type": {
+                        "const": "cursor-plugin"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "entrySkill",
+                      "hostVerification"
+                    ],
+                    "not": {
+                      "anyOf": [
+                        {
+                          "required": [
+                            "marketplace"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "marketplaceSource"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "marketplaceRepo"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "marketplaceSourceType"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "marketplaceIndexPath"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "firstReleaseBootstrap"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
                         "const": "codebuddy-plugin"
                       }
                     }
@@ -383,7 +440,8 @@
                           "claude-plugin",
                           "codex-plugin",
                           "kimi-plugin",
-                          "codebuddy-plugin"
+                          "codebuddy-plugin",
+                          "qoder-plugin"
                         ]
                       }
                     }
@@ -402,34 +460,8 @@
                           "claude-plugin",
                           "codex-plugin",
                           "kimi-plugin",
-                          "codebuddy-plugin"
-                        ]
-                      },
-                      "marketplaceSourceType": {
-                        "const": "bundled-family"
-                      }
-                    },
-                    "required": [
-                      "marketplaceSourceType"
-                    ]
-                  },
-                  "then": {
-                    "not": {
-                      "required": [
-                        "marketplaceRepo"
-                      ]
-                    }
-                  }
-                },
-                {
-                  "if": {
-                    "properties": {
-                      "type": {
-                        "enum": [
-                          "claude-plugin",
-                          "codex-plugin",
-                          "kimi-plugin",
-                          "codebuddy-plugin"
+                          "codebuddy-plugin",
+                          "qoder-plugin"
                         ]
                       },
                       "marketplaceSourceType": {
@@ -456,7 +488,36 @@
                           "claude-plugin",
                           "codex-plugin",
                           "kimi-plugin",
-                          "codebuddy-plugin"
+                          "codebuddy-plugin",
+                          "qoder-plugin"
+                        ]
+                      },
+                      "marketplaceSourceType": {
+                        "const": "bundled-family"
+                      }
+                    },
+                    "required": [
+                      "marketplaceSourceType"
+                    ]
+                  },
+                  "then": {
+                    "not": {
+                      "required": [
+                        "marketplaceRepo"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
+                          "kimi-plugin",
+                          "codebuddy-plugin",
+                          "qoder-plugin"
                         ]
                       },
                       "marketplaceSourceType": {
@@ -529,6 +590,20 @@
                     "required": [
                       "smokeBin"
                     ]
+                  }
+                },
+                {
+                  "if": {
+                    "required": [
+                      "hostVerification"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "type": {
+                        "const": "cursor-plugin"
+                      }
+                    }
                   }
                 }
               ]
@@ -1031,42 +1106,111 @@
           "$ref": "#/definitions/localHostUpdate"
         }
       },
-      "allOf": [{
-        "if": { "required": ["localHostUpdate"] },
-        "then": {
-          "required": ["hooks"],
-          "properties": {
-            "hooks": {
-              "contains": { "type": "object", "required": ["phase"], "properties": { "phase": { "const": "postVerify" } } }
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "localHostUpdate"
+            ]
+          },
+          "then": {
+            "required": [
+              "hooks"
+            ],
+            "properties": {
+              "hooks": {
+                "contains": {
+                  "type": "object",
+                  "required": [
+                    "phase"
+                  ],
+                  "properties": {
+                    "phase": {
+                      "const": "postVerify"
+                    }
+                  }
+                }
+              }
             }
           }
         }
-      }]
+      ]
     },
     "localHostUpdate": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["plugin", "hosts", "hub"],
+      "required": [
+        "plugin",
+        "hosts",
+        "hub"
+      ],
       "properties": {
-        "plugin": { "type": "string", "minLength": 1, "pattern": ".*\\S.*" },
+        "plugin": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": ".*\\S.*"
+        },
         "hosts": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "type": "string", "enum": ["claude", "codex", "kimi", "codebuddy", "workbuddy", "qoder"] }
+          "items": {
+            "type": "string",
+            "enum": [
+              "claude",
+              "codex",
+              "kimi",
+              "codebuddy",
+              "workbuddy",
+              "qoder",
+              "cursor"
+            ]
+          }
         },
-        "hub": { "$ref": "#/definitions/localHostHub" }
+        "hub": {
+          "$ref": "#/definitions/localHostHub"
+        },
+        "cursor": {
+          "$ref": "#/definitions/cursorLocalPlugin"
+        }
+      },
+      "allOf": [{ "if": { "properties": { "hosts": { "contains": { "const": "cursor" } } } }, "then": { "required": ["cursor"], "properties": { "plugin": { "pattern": "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$" } } }, "else": { "not": { "required": ["cursor"] } } }]
+    },
+    "cursorLocalPlugin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourcePath"],
+      "properties": {
+        "sourcePath": { "type": "string", "pattern": "^(?!/)(?!.*\\\\)(?!.*:)(?!.*\\u0000)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)(?!.*\\/$).+$" },
+        "dependencyInstall": { "const": "npm-ci-ignore-scripts" }
       }
     },
     "localHostHub": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "repo", "ref"],
+      "required": [
+        "name",
+        "repo",
+        "ref"
+      ],
       "properties": {
-        "name": { "type": "string", "minLength": 1, "pattern": ".*\\S.*" },
-        "githubHost": { "type": "string", "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$" },
-        "repo": { "type": "string", "pattern": "^[A-Za-z0-9._-]+\\/[A-Za-z0-9._-]+$" },
-        "ref": { "type": "string", "pattern": "^refs\\/heads\\/[A-Za-z0-9][A-Za-z0-9._-]*(?:\\/[A-Za-z0-9][A-Za-z0-9._-]*)*$" }
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": ".*\\S.*"
+        },
+        "githubHost": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$"
+        },
+        "repo": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+\\/[A-Za-z0-9._-]+$"
+        },
+        "ref": {
+          "type": "string",
+          "pattern": "^refs\\/heads\\/[A-Za-z0-9][A-Za-z0-9._-]*(?:\\/[A-Za-z0-9][A-Za-z0-9._-]*)*$"
+        }
       }
     },
     "postPublishHook": {
@@ -1528,7 +1672,8 @@
                 "claude-plugin",
                 "codex-plugin",
                 "kimi-plugin",
-                "codebuddy-plugin"
+                "codebuddy-plugin",
+                "qoder-plugin"
               ]
             }
           }
@@ -1608,6 +1753,63 @@
           }
         }
       ]
+    },
+    "cursorHostScenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workloadDocument",
+        "fixtureFiles",
+        "protectedWorkspaceFiles",
+        "platformManifest",
+        "effectivePrompt",
+        "expectedResult"
+      ],
+      "properties": {
+        "workloadDocument": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fixtureFiles": {
+          "$ref": "#/definitions/cursorScenarioFiles"
+        },
+        "protectedWorkspaceFiles": {
+          "$ref": "#/definitions/cursorScenarioFiles"
+        },
+        "platformManifest": {
+          "type": "object"
+        },
+        "effectivePrompt": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000]*$"
+        },
+        "expectedResult": {
+          "type": "string"
+        }
+      }
+    },
+    "cursorScenarioFiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "content"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*\\\\)(?!.*:)(?!.*\\u0000)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*(?:^|/)\\.cursor(?:/|$))(?!.*//)(?!.*\\/$).+$"
+          },
+          "content": {
+            "type": "string"
+          }
+        }
+      }
     }
   }
 }

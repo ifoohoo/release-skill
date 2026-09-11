@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.17 -->
+<!-- release-skill:release-version: 0.9.18 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,36 +14,40 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.17** (2026-09-09)
+**0.9.18** (2026-09-11)
 
-0.9.17 is a local source candidate that adds explicit offline verification of historical release records and a self-contained Qoder projection, while preserving the setup-root and Kimi initial-directory trust fixes. The three Foundation dependencies remain pinned to the exact 0.17.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance; it also does not establish Hub acceptance.
+0.9.18 is a local source candidate that adds first-class Cursor packaging, Foundation-backed host verification, and a final local distribution path for Claude, Codex, Kimi, CodeBuddy, WorkBuddy, Qoder, and Cursor. The three Foundation dependencies remain pinned to the exact 0.21.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- Offline verification reads only paths explicitly supplied on the command line and redacts local path details from its JSON result. Historical consistency does not prove that records are globally latest or that remote objects still exist.
-- Qoder remains outside release distributions and publication checkpoints. The updater does not add a marketplace, perform a first install, uninstall, or reload the current session; `UPDATED` does not mean the new plugin has been loaded.
-- Any later central Skill Family Hub publication uses the existing Git Data API with compare-and-swap. A partial Hub publication remains recoverable and is never rolled back or force-pushed automatically.
+- Cursor must be closed before its plugin tree is scanned or replaced. Failed upgrades preserve or restore a complete old or new directory instead of publishing a mixed tree.
+- Host verification receives only caller-declared roots and records mechanism observations separately from release-domain publication and verification state.
+- Hub publication remains a compare-and-swap operation. A partial Hub publication is never rolled back or force-pushed automatically.
 
 **Added**
 
-- The public `release-skill verify-records` CLI checks caller-supplied plan, approval, target-run, and predecessor-run bytes. It reports `CONSISTENT`, `CONTRADICTED`, or `INSUFFICIENT` without scanning `.release-skill`, following paths from records, contacting remotes, writing files, or changing release state.
-- The npm package now includes `.qoder-plugin/plugin.json` and a self-contained `adapters/qoder/` projection. The existing post-release updater can update an already installed user-scope Qoder plugin only after the selected Hub source and frozen payload match.
+- The npm package now includes `.cursor-plugin/plugin.json` and a self-contained `adapters/cursor/` projection with all release-skill Skills and runtime resources.
+- Release verification can invoke Foundation 0.21.0 host verification with explicit executable and user-state roots, including Cursor project-level plugin verification.
+- The final local updater can distribute the verified release to the declared Claude, Codex, Kimi, CodeBuddy, WorkBuddy, Qoder, and Cursor installations.
+- Skill Family Hub remains the central marketplace. Its release entry is published through the existing Git Data API after release verification.
 
 **Changed**
 
-- The release-finish setup continuation uses the current `--root` release project directly. It no longer asks for a second project path, while project-level readiness and host-specific loading checks remain distinct.
+- Local host updates verify the frozen snapshot and manifest identity before installation, and Cursor updates use Foundation fixed-set publication for first install and atomic full-directory replacement for upgrades.
+- Platform generation, public-file projection, package allowlists, schemas, and release-finish guidance now treat Cursor as a declared host and adapter.
 
 **Fixed**
 
-- An authorized Kimi update can confirm the standard initial `Trust this folder?` dialog for the current release project before continuing. Unknown rows, selections, repeated trust dialogs, timeout, or early exit still stop that host.
+- Cursor plugin names reject underscores so generated local plugin directories remain compatible with Cursor's manifest requirements.
+- The package's native prebuild allowlist and fixed resource-closure checks now include every generated adapter, including Cursor.
 
 **Upgrade Notes**
 
-Upgrade from 0.9.16 to use `release-skill verify-records`, the Qoder package projection, and the setup/Kimi fixes. Remove the old release-skill standalone marketplace; use the ifoohoo/skill-family-hub repository and Hub-qualified plugin id release-skill@skill-family-hub. The central Skill Family Hub must accept the Qoder entry before marketplace installation can begin. Real Qoder and Kimi installation, reload, and business invocation remain separate authorized follow-up work.
+Upgrade from 0.9.17 to obtain Cursor packaging and local installation, the Foundation-backed host verification bridge, and the unified seven-host local finish path. Remove the old release-skill standalone marketplace; use the ifoohoo/skill-family-hub repository and Hub-qualified plugin id release-skill@skill-family-hub. Reload each host after updating; an `UPDATED` filesystem result alone does not prove that the running host loaded the new version.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.17 is the current source candidate. This README
+> **Current boundary:** v0.9.18 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -67,7 +71,7 @@ Upgrade from 0.9.16 to use `release-skill verify-records`, the Qoder package pro
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.17 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.18 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -96,10 +100,11 @@ checkpoints remain intact and use matching-version recovery. Evidence v1 stays
 read-only; v2 uses a closed top level with phase extensions in `details`.
 Summaries and recovery suggestions are diagnostic, never publication authority.
 
-The current 0.9.17 candidate includes the narrow R-05 Hook cache v2 consumer
+The current 0.9.18 candidate includes the narrow R-05 Hook cache v2 consumer
 path, the public `postverify` path, and the stable isolated install-tree record
 path (A2/A3). It also adds the explicit-input `verify-records` command and a
-self-contained Qoder projection. Skill Family Hub remains the single
+self-contained Qoder projection, first-class Cursor packaging, and the
+Foundation-backed host verification bridge. Skill Family Hub remains the single
 marketplace source. The candidate
 also makes the `release-prepare` Skill organize existing assessment, refresh,
 focused-check, and prepare entry points without adding another execution
@@ -107,10 +112,10 @@ engine. `prepare --help` and `prepare -h` now return before configuration,
 locks, runs, or hooks can observe the request. The `release-finish` Skill can
 also report the source branch and continue into a configured setup entry after
 the selected host has loaded the released plugin. This candidate still excludes
-R-02 safe full-tree inventory and real Kimi/WorkBuddy/Qoder marketplace
-installation and invocation gates. The central Hub has not yet accepted the
-release-skill Qoder entry.
-Foundation dependencies are pinned to the three released 0.17.0 packages.
+R-02 safe full-tree inventory. Marketplace installation and live invocation
+remain host-level post-release checks; Cursor is distributed through its
+supported local-plugin directory rather than a Hub marketplace entry.
+Foundation dependencies are pinned to the three released 0.21.0 packages.
 For Kimi/CodeBuddy plans that still use the bundled-family distribution form,
 verify calls the released
 `runPluginVerification` entry with the complete frozen payload and records a
@@ -275,7 +280,13 @@ Qoder entry; the generated adapter alone does not prove Hub consumption. See
 [INSTALL.md](INSTALL.md#install-as-a-qoder-plugin) for the bounded install and
 post-release update contract.
 
-See [INSTALL.md](INSTALL.md) for CodeBuddy, Codex, Kimi Code, and Qoder commands.
+**Cursor:** `adapters/cursor/` is a complete Local plugin. After release verification,
+`release-finish` can install or atomically upgrade its frozen tree on macOS while
+Cursor is closed. It requires an explicit `--cursor-plugins-root` and preserves
+the displaced version outside `local/`. Restart and real Skill invocation remain
+separate checks. See [the Cursor instructions](INSTALL.md#install-as-a-cursor-local-plugin).
+
+See [INSTALL.md](INSTALL.md) for CodeBuddy, Codex, Kimi Code, Qoder, and Cursor commands.
 
 ### Offline historical record verification
 

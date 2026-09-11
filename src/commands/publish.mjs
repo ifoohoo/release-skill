@@ -662,6 +662,7 @@ export async function publishRelease(options) {
         for (const dist of frozenUnit?.distributions ?? []) {
           const platform = PLATFORMS.find((p) => p.distributionType === dist.type);
           if (!platform) continue;
+          if (platform.installMethod === 'foundation-host-verification') continue;
           const contract = dist.installationContract;
           if (!contract?.normalizedManifest) continue;
           const pluginRoot = pluginRootFromManifestRelativePath(contract.manifestRelativePath);
@@ -696,7 +697,9 @@ export async function publishRelease(options) {
         const expectedHosts = [];
         for (const distribution of frozenUnit?.distributions ?? []) {
           const platform = PLATFORMS.find((item) => item.distributionType === distribution.type);
-          if (platform) expectedHosts.push(await normalizeHostId(platform.buildAdapter.name));
+          if (platform && platform.installMethod !== 'foundation-host-verification') {
+            expectedHosts.push(await normalizeHostId(platform.buildAdapter.name));
+          }
         }
         const hostCoverage = evaluateDeclaredHostSurfaceCoverage(
           expectedHosts,

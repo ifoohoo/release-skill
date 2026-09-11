@@ -7,33 +7,46 @@ description: "Discoverable entry point for release-skill: dependency and environ
 
 ## 触发
 
-用户询问如何使用 release-skill、发布流程是什么、或请求只读诊断和 dry-run 安全检查。
+询问用法、发布流程、只读诊断或 dry-run 时使用。
 
 ## 职责
 
 - 依赖和环境检查：Node.js >= 22、Git 决定本地准备就绪度；npm/gh 另行决定生产依赖就绪度
-- 能力说明：缺少配置时走 `help → setup → assess`；已有配置的安全默认路径是 `help → assess → prepare --offline`；日常生产发布优先使用可恢复的 `ship`，兼容的分阶段闭环仍是 `prepare --online --production → approve → publish → verify`。冻结计划批准是正常发布级流程的唯一批准门；声明 `requiresApproval: true` 的 postPublish hook 仍须等待独立 checkpoint 批准。若计划声明 `postVerify` hook，可用 `postverify` 直接执行独立收尾 run，也可由 `ship` 编排该阶段；本机收尾必须等待完成的 postVerify run，不能把仅有 `VERIFIED` 的 verify run 当作本机收尾授权。核心发布流程跨平台，WorkBuddy 本机收尾仅支持 macOS
-- 最小示例：展示从 release-help 到 release-assess 的最短路径
-- 只读诊断：运行 dry-run 检查，不修改任何文件
-- 故障引导：根据错误码指向对应的修复 Skill
+- 能力说明：缺配置走 `help → setup → assess`；已有配置默认走 `help → assess → prepare --offline`。生产发布优先用可恢复的 `ship`，也支持 `prepare --online --production → approve → publish → verify`。冻结计划批准是发布级唯一批准门；`requiresApproval: true` 的 postPublish hook 另需 checkpoint 批准。声明的 `postVerify` hook 可由 `postverify` 独立执行或由 `ship` 编排；本机收尾须等待完成的 postVerify run，仅有 `VERIFIED` 不构成授权。核心流程跨平台，WorkBuddy 本机收尾仅支持 macOS
+- 示例与诊断：引导至 `release-assess`；dry-run 不改文件，失败按错误码路由
 
-## 0.9.17 候选边界
+## 0.9.18 候选边界
 
-当前源码候选允许多发布单元项目在计划冻结前显式选择本轮范围。`prepare` 和新建的 `ship` 状态支持重复传入 `--unit <id>`；未传时继续选择全部配置单元。成功选择会列出选中与延期单元。延期单元不进入本轮计划，也不获得发布状态。
+多单元项目可在冻结前通过 `prepare` 或新建 `ship` 状态重复传入 `--unit <id>`，不传则选全部。输出列出选中与延期单元；延期单元不进入计划、不获得发布状态。
 
-选择只影响按单元绑定的检查与动作。完整配置、生成物新鲜度和顶层 Hook 仍覆盖整个项目。`publicSourceAuthorityReceipt` 涉及的 coordinator 和 subjects 必须作为完整闭包共同选择，系统不会自动扩选。计划冻结后，`plan.units` 是唯一范围权威；publish、reconcile、verify 和 distribute 不接受 `--unit`。
+选择只影响单元检查与动作；完整配置、生成物新鲜度和顶层 Hook 仍覆盖全项目。`publicSourceAuthorityReceipt` 的 coordinator 和 subjects 必须共同选择，不自动扩选。冻结后以 `plan.units` 为唯一范围；publish、reconcile、verify、distribute 不接受 `--unit`。
 
-0.9.3 引入的四项工作流保护、Hook cache v2 和稳定隔离安装树记录在后续版本继续保留。当前 0.9.17 候选精确消费 Foundation 0.17.0 的公开包根 API。Hook cache 只复用绝对路径或经真实 cwd 校验的 cwd-relative executable identity；裸 PATH、PATHEXT、Windows 和观察不可用时，Hook 仍冷执行，缓存复用失败关闭且不写入 v2 cache。缓存没有 TTL。
+0.9.3 引入的四项工作流保护、Hook cache v2 和稳定隔离安装树记录在后续版本继续保留。当前 0.9.18 候选精确消费 Foundation 0.21.0 的公开包根 API。Hook cache 只复用绝对路径或经真实 cwd 校验的 cwd-relative executable identity；裸 PATH、PATHEXT、Windows 和观察不可用时，Hook 仍冷执行，缓存复用失败关闭且不写入 v2 cache。缓存没有 TTL。
 
-稳定隔离安装树记录只在宿主命令退出、目录已隔离且扫描期间没有并发写入时执行；宿主附加链接只记录、不跟随，声明载荷中的 symlink 失败关闭，legacy 全树语义保持不变。0.9.17 仍是源码候选，不能从本说明推断已批准、发布或验证。
+稳定隔离安装树记录只在宿主命令退出、目录已隔离且扫描期间没有并发写入时执行；宿主附加链接只记录、不跟随，声明载荷中的 symlink 失败关闭，legacy 全树语义保持不变。0.9.18 仍是源码候选，不能从本说明推断已批准、发布或验证。
 
-**阶段通过规则**: `status` 与 `readiness.localPreparation.status` 只判断本地 help/assess/prepare；其充要条件是 `READY` 且 exit code 为 0。`missingRequired` 列出缺失的 Node/Git。生产发布必须另外读取 `readiness.productionPublish`：缺少 npm/gh 时为 `NOT_READY`，依赖存在时仍是 `AUTH_CHECK_REQUIRED`，因为 help 不访问网络、不验证认证。Agent 无权把本地就绪解释为生产就绪。
+**阶段通过规则**：本地 help/assess/prepare 通过须同时满足 `READY` 和 exit code 0；读取 `status`、`readiness.localPreparation.status`，缺失 Node/Git 见 `missingRequired`。生产另看 `readiness.productionPublish`：缺 npm/gh 为 `NOT_READY`，存在也只到 `AUTH_CHECK_REQUIRED`。help 不联网、不检查认证，本地就绪不等于生产就绪。
 
-**边界**: help 不修改文件系统、不执行外部写操作、不生成发布计划。优先探测 PATH 上的全局安装命令 `release-skill`，不可用时回退到源码路径。每个 unit 必须配置 `previousPublicBaseline`：首次发布且确认无前序版本用 none，已有版本用 bound + repo/ref/commit；none 不是绕过 publish 唯一性预检的开关。v0.1.1 已完成 GitHub/npm 真实生产发布、冻结 Git ref 的 Claude/Codex 消费者安装、精确 npm 安装 smoke 与最终 VERIFIED；生产等价本地协议套件继续覆盖 fake gh/npm/Claude/Codex 和本地 bare Git。测试未做 OS 级禁网，且一次成功发布不能证明其他项目的认证、权限、限流或最终一致性行为；每个项目的首次生产发布仍应作为受监控 canary。
+**边界**：help 不改文件、不执行外部写入、不生成计划；优先用 PATH 上的 `release-skill`，不可用才回退源码。每个 unit 必填 `previousPublicBaseline`：确认无前序版本才用 none，否则用 bound + repo/ref/commit；none 不绕过 publish 唯一性预检。v0.1.1 已完成 GitHub/npm 真实发布、冻结 Git ref 的 Claude/Codex 安装、精确 npm 安装 smoke 和 VERIFIED；本地协议套件覆盖 fake gh/npm/Claude/Codex 与 bare Git，未做 OS 级禁网。该历史结果不证明其他项目的认证、权限、限流或最终一致性；各项目首次发布仍须监控 canary。
+
+## Cursor 消费项目验证
+
+消费项目的 `cursor-plugin` 必填 `entrySkill` 和 `hostVerification`。场景含 UTF-8 `workloadDocument`、非空 `fixtureFiles` 与 `protectedWorkspaceFiles`、JSON 对象 `platformManifest`、提示词 `effectivePrompt` 和预期字符串 `expectedResult`。文件格式为 `{path, content}`；路径须安全、相对，不得重复、互为父子或指向 `.cursor`。场景进入公开冻结计划，禁止含凭证。`timeoutMs` 限制验证时长，默认 300000 毫秒。
+
+`prepare` 冻结到 `hostVerificationContract.scenario`；`verify` 复验冻结单 Skill 载荷后，由 Foundation 0.21.0 准备并执行 Cursor 调用。仅当宿主成功且 `result` 严格等于 `expectedResult` 时自动通过；不证明完整插件安装或团队市场分发。
+
+每次运行 `verify` 或通过 `ship` 进入验证阶段，都须传入以下两个绝对目录：
+
+- `--cursor-executable-root <absolute-directory>`：包含 `cursor-agent` 的受控目录。
+- `--cursor-user-state-root <absolute-directory>`：本次获准使用的现有 Cursor 用户状态目录。
+
+目录不写入计划、ship 状态或公开收据，恢复时须重传，不从 `PATH`/`HOME` 推断。须有用户状态使用权限；宿主可能刷新该状态。
+
+成功、失败或拒绝后读取证据并清理临时目录；结果不确定则保留现场，返回 `CONSUMER_VERIFICATION_DEFERRED` 和临时目录名 `sceneId`。人工检查进程与现场后才重试，并用新目录；不确定结果不构成 Cursor 发布检查点或 `PARTIAL`。
 
 ## 正向执行路径
 
-1. 使用插件根相对路径运行 CLI：`node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" help --json`
+1. 从插件根运行下节的 `help --json` 命令
 2. 检查 `readiness.localPreparation`；需要生产发布时再检查 `readiness.productionPublish`
 3. 若环境就绪且缺少 `.release-skill/project.yaml`，先路由 `release-setup`；配置已存在才运行 `release-assess`
 4. 默认在审阅本地计划和快照后停止；只有用户明确要求且完成摘要审批时才进入 `release-publish`。已持有合法批准的 production plan 时，publish 自行完成权威校验，不把 route 当作授权门
@@ -48,9 +61,6 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" assess --root <path> --offlin
 # 日常发布快速路径：发布前确认可读计划摘要，状态文件可恢复。
 # 受限 postPublish hook 的 checkpoint 批准与计划批准分开。
 node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" ship --root <path> --target-version <version> --json
-# 多发布单元项目显式选择本轮范围；未传 --unit 时仍为全部单元
-node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" ship --root <path> \
-  --target-version <version> --unit <unit-a> --unit <unit-b> --json
 # 对已经 VERIFIED 的计划独立执行 postVerify hook；不读取或写入 ship state
 node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" postverify --root <path> \
   --plan <plan-path> --approval <approval-path> --run <verified-run-path> \
@@ -72,14 +82,14 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" docs refresh --unit <id> \
 
 ## 发布文档刷新（docs refresh）
 
-发布单元配置 `releaseDocuments` 后，一份结构化双语说明源可确定性刷新 README 受管区域、唯一版本标记的机器值和 CHANGELOG 当前版本受管条目。核心 CLI 不联网、不调用大模型、不自动翻译；只改写声明过的受管区域、版本标记机器值和当前受管条目，区域外字节逐字保留。`prepare` 只检查新鲜度，不写工作树。
+配置 `releaseDocuments` 后，双语说明源可刷新 README 受管区域、唯一版本标记机器值及 CHANGELOG 当前受管条目。CLI 不联网、不调用大模型、不翻译；只写声明的上述目标，其余字节保留。`prepare` 只查新鲜度、不写工作树。
 
-- **配置**：`releaseDocuments.notesSource`（说明源路径，只允许 `{version}` 占位符与 `.yaml`/`.yml`/`.json` 后缀）、`locales`（如 `[en, zh-CN]`）、`changelogs`（path + locale）、`readmes`（path + locale + `regions` 受管区域 id + `versionMarkers` 版本标记模式）。版本标记模式必须与 README 现有唯一标记精确匹配，`{version}` 代表机器版本值，刷新只替换该值；零次或多次匹配失败关闭。
-- **说明源**：`version` 必须与单元版本精确一致，`date` 为 `YYYY-MM-DD`，每个配置语种恰好出现一次且 `summary`、变更项非空，`security`/`breaking`/`added`/`changed`/`deprecated`/`removed`/`fixed` 至少一个类别含条目。YAML alias、重复键、未知字段和语种回退都失败关闭。
+- **配置**：`releaseDocuments.notesSource` 只允许 `{version}` 占位符及 `.yaml`/`.yml`/`.json`；`locales` 声明语种；`changelogs` 声明 path + locale；`readmes` 另含 `regions` 区域 id 和 `versionMarkers` 模式。模式须精确匹配 README 唯一标记，只替换 `{version}` 机器值；零次或多次匹配失败关闭。
+- **说明源**：`version` 须与单元一致，`date` 为 `YYYY-MM-DD`；每种配置语种恰好一次，`summary` 非空，`security`/`breaking`/`added`/`changed`/`deprecated`/`removed`/`fixed` 至少一类含非空条目。YAML alias、重复键、未知字段、语种回退均失败关闭。
 - **只读演练**：`docs refresh --unit <id> --json` 输出逐文件相对路径、locale、新旧摘要、`version`、`locales`、`inputDigest`、`refreshDigest` 和 `nextCommand.argv`；候选无变化时 `status: "clean"`。
 - **确认写入**：必须同时提供 `--write`、精确 `--confirm-refresh <refreshDigest>` 和 `--ack-local-document-write`，全部目标作为一个事务提交；成功后立即复演必须为 `clean`。
 
-**授权边界**：本地发布文档写入授权只覆盖声明的本地文档目标，不是 Git 提交、push、publish 或安装的授权。hook/gate 由对应命令调用直接授权——在 project.yaml 配置 hook 即完成授权（配置时刻即授权契约，FM-16 处置 A）：hook 是任意本地进程、无文件系统/网络隔离、触发前无确认点，配置者须对其内容负责；恢复触发前强制确认门为后续加固项。写入后必须审阅、提交，再重新 prepare。
+**授权边界**：文档写入只覆盖声明的本地目标，不授权 Git 提交、push、publish 或安装。hook/gate 由命令直接授权；project.yaml 配置 hook 即授权（FM-16 处置 A），配置者负责其内容。hook 是任意本地进程，无文件系统/网络隔离，触发前无确认；恢复确认门留待后续加固。写入后须审阅、提交，再 prepare。
 
 ## 故障路由
 
@@ -99,32 +109,19 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" docs refresh --unit <id> \
 
 ## Routing Suggestions (§4.3 Quickstart Routing)
 
-对于不清楚如何开始的用户，推荐使用 `release-skill route` 命令进行自动化工作流选择：
+不确定入口时用 `release-skill route` 推荐工作流：
 
 ```bash
 # 快速分类变更并推荐工作流；已知目标版本时显式传入，未知时省略
-node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" route --root <path> --json
 node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" route --root <path> \
   --target-version <version> --json
 
-# JSON 输出包含 classification 和 recommendation 字段
-{
-  "classification": {
-    "code": [],
-    "docs": ["README.md"],
-    "config": [],
-    "marketplace": [],
-    "mixed": false
-  },
-  "recommendation": {
-    "workflowKind": "docs-only",
-    "reason": "Pure documentation changes detected...",
-    "firstCommand": "release-docs"
-  }
-}
 ```
 
-**可用工作流**:
+输出 `classification` 区分 code/docs/config/marketplace 和 mixed，`recommendation` 给出 workflowKind、reason、firstCommand。
+
+**可用工作流**：
+
 - `docs-only`: 纯文档变更（跳过代码类门限）
 - `config-only`: 纯配置变更（schema 验证 + 决策分支）
 - `marketplace-only`: 纯 marketplace 索引变更（条目更新 + snapshot 同步）
@@ -141,6 +138,10 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" route --root <path> \
 | RELEASE_DOCS_REFRESH_STALE | 确认绑定后候选已变化；重新演练取得新 `refreshDigest` 再确认写入 |
 | RELEASE_DOCS_STALE | prepare 检测到文档未刷新；按 `docs refresh` → 审阅 → 提交 → 重新 prepare 恢复 |
 
+## Cursor 本地安装
+
+完整 `adapters/cursor/` 插件的首次安装和升级见 `release-finish`；macOS 需退出 Cursor 并传入 `--cursor-plugins-root`。安装与加载分别验收。
+
 ## 后续引导
 
-本地准备就绪后下一步运行 `release-assess`：`node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" assess`。生产发布还要求 npm、gh 可用，并在发布前另行完成认证检查。
+本地就绪后运行 `release-assess`；生产发布另需 npm、gh 和认证检查。

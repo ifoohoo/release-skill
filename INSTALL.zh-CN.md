@@ -2,7 +2,7 @@
 
 [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.17 -->
+<!-- release-skill:release-version: 0.9.18 -->
 ## 前置条件
 
 - Node.js 22.0.0 或更高版本
@@ -113,7 +113,7 @@ release-skill 当前只采用并验证 Kimi Code 的交互式 TUI 路径，**无
 （切勿使用裸仓库地址，它会安装最新 release 或默认分支），确认信任提示后重新加载：
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.17
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.18
    /plugins reload
    ```
 
@@ -127,11 +127,16 @@ release-finish 会重新读取 Kimi 的受管安装根，不复用操作前的�
 
 有效配置根依次取显式 `kimiHome`、`KIMI_CODE_HOME`、`~/.kimi-code`，TUI 进程和
 操作后观察使用同一根，TUI 工作目录固定为 `--root` 指定的当前发布项目。用户确认冻结
-计划并显式选择更新 Kimi 后，release-finish 只接受初始标准 `Trust this folder?` 界面：
-当前必须选中 `No, exit`，且存在 `Trust this folder` 目标行。流程移动到目标行，重新确认
-选中项，再提交并等待已知命令提示符。出现未知行或选中项、移动后无法确认、超时、提前
-退出，或者插件命令发出后再次出现目录信任时，该宿主失败并停止。release-finish 仍会先
-清理 ANSI/OSC 控制序列和软换行，再在插件信任对话框内核对冻结仓库、标签和当前选中的
+计划并显式选择更新 Kimi 后，release-finish 会读取完整的初始 `Trust this folder?`
+对话框，并要求其中只有一个正向项 `Trust this folder` 和一个选中项。正向项已经选中时，
+流程不发送方向键，直接确认；已知拒绝项选中时，流程按它与正向项的相对位置移动一次，
+重新读取完整对话框并确认正向项已选中，然后才提交。出现未知或重复选项、正向项缺失或
+重复、选中状态无法核验、移动后无法确认、超时、提前退出，或者插件命令发出后再次出现
+目录信任时，该宿主失败并停止。若后续 Kimi 版本出现新的可复现阻断界面，先记录 Kimi
+版本、可见选项、选中项及其相对关系；这些事实足以唯一确认当前目录、正向信任项和选择
+结果时，在最近测试补回归与兼容并继续，目录身份或选项语义仍有歧义时停止并交回主会话。
+release-finish 仍会先清理 ANSI/OSC 控制序列和软换行，再在插件信任对话框内核对冻结
+仓库、标签和当前选中的
 `Trust and install`。这个本机检查不属于 `verify`，也不会改变
 已经完成的 `VERIFIED` 发布状态。
 
@@ -188,6 +193,35 @@ qoder plugins install release-skill@skill-family-hub --scope user --json
 `UPDATED` 只证明安装载荷已更新，不代表当前 Qoder 会话已经加载新版。必须重新加载插件
 或新开会话，再由真实发现的 release-skill 完成一次只读发布业务调用，才能宣称新版已
 生效。这些本机结果不会改变 `VERIFIED`。
+
+## 安装为 Cursor 本地插件
+
+包内 `adapters/cursor/` 包含 `.cursor-plugin/plugin.json`、全部公开 Skill 和自足运行资源。
+Skill 根据宿主实际加载的 `SKILL.md` 绝对路径定位插件根，并检查根清单；不依赖插件根环境变量。
+
+发布项目在 `postPublish.localHostUpdate.hosts` 中声明 `cursor`，并设置
+`cursor.sourcePath: adapters/cursor`。该相对目录与清单身份随公开快照冻结；需要锁文件依赖时，
+可设置 `cursor.dependencyInstall: npm-ci-ignore-scripts`，脚本只在扫描根外的候选中安装依赖。
+
+macOS 上先退出 Cursor，再运行已安装版本的收尾入口。插件根必须使用真实绝对路径；
+常见位置是用户目录下的 `.cursor/plugins`，命令不会自动推断它。
+
+```bash
+node <installed-plugin-root>/bin/release-skill-local-finish.mjs \
+  --root <release-project-root> --plan <frozen-plan-path> --run <completed-run-path> \
+  --update-local-hosts --hosts cursor --confirm-plan <planDigest> \
+  --cursor-plugins-root <absolute-cursor-plugins-root> --json
+```
+
+命令先复验计划、运行谱系和冻结快照，再把完整插件放到 `<cursor-plugins-root>/local/<plugin>`。
+首次安装不覆盖已有目录；升级整体交换目录，并把旧版保存到 `backups/<plugin>/release-*/plugin`。
+相同版本和完整闭包一致时返回 `ALREADY_CURRENT`；写入成功返回 `UPDATED` 和重启提示。
+交换结果不确定时保留现场并要求人工检查，禁止原样重试。备份迁移失败且交换映射可确认时，
+脚本恢复原目录并报告失败。
+
+重启 Cursor 或执行 Reload Window 后，分别核对 Local 来源、版本、公开 Skill 和一次实际业务调用。
+安装成功不等于新版已加载；本机结果不改变 `VERIFIED`。其他操作系统、Cursor 仍运行或进程状态
+无法判断时，自动安装返回 `MANUAL_REQUIRED`。
 
 ## 消费端安装验证边界
 

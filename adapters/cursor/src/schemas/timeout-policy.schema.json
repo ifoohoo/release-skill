@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/timeout-policy.json",
+  "title": "TimeoutPolicy",
+  "description": "Consumer-supplied timeout parameters for bounded subprocess supervision (FND-ADR-012). The mechanism holds no timeout values of its own: every dimension is supplied by the consumer and only shape-validated here. `maxSeconds` (hard ceiling) and `killGraceSeconds` (SIGTERM-to-SIGKILL grace) are required; the remaining dimensions are optional and, when absent, disable that timeout dimension. All values are positive numbers in seconds. `additionalProperties: false` rejects smuggled fields. The mechanism never interprets these values as business policy; it only enforces them deterministically.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "maxSeconds",
+    "killGraceSeconds"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.timeout-policy" },
+    "startupStaleSeconds": { "type": "number", "exclusiveMinimum": 0 },
+    "startupIdleSeconds": { "type": "number", "exclusiveMinimum": 0 },
+    "streamIdleSeconds": { "type": "number", "exclusiveMinimum": 0 },
+    "maxSeconds": { "type": "number", "exclusiveMinimum": 0 },
+    "toolLeaseSeconds": { "type": "number", "exclusiveMinimum": 0 },
+    "killGraceSeconds": { "type": "number", "exclusiveMinimum": 0 }
+  }
+}

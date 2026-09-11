@@ -132,6 +132,70 @@ function codexCrossValidateListEntry(found, action) {
   return { ok: true };
 }
 
+// --- qoder strategy -------------------------------------------------------
+
+function qoderParseListOutput(listOutput, pluginId) {
+  if (!Array.isArray(listOutput)) {
+    return { ok: false, error: 'Qoder plugin list did not return an array' };
+  }
+  const matches = listOutput.filter((entry) => entry?.id === pluginId);
+  if (matches.length === 0) {
+    return { ok: false, error: `plugin "${pluginId}" not found in Qoder plugin list` };
+  }
+  if (matches.length !== 1) {
+    return { ok: false, error: `plugin "${pluginId}" has duplicate Qoder list entries` };
+  }
+  const [found] = matches;
+  if (typeof found.installPath !== 'string' || found.installPath.length === 0) {
+    return { ok: false, error: `plugin "${pluginId}" found but missing installPath` };
+  }
+  return { ok: true, found, installPath: found.installPath };
+}
+
+function qoderParseMarketplaceListOutput(listOutput, marketplace) {
+  if (!Array.isArray(listOutput)) {
+    return { ok: false, error: 'Qoder marketplace list did not return an array' };
+  }
+  const matches = listOutput.filter((entry) => entry?.name === marketplace);
+  if (matches.length === 0) {
+    return { ok: false, error: `marketplace "${marketplace}" not found in Qoder marketplace list` };
+  }
+  if (matches.length !== 1) {
+    return { ok: false, error: `marketplace "${marketplace}" has duplicate Qoder list entries` };
+  }
+  const [found] = matches;
+  if (found.source?.source !== 'git' || typeof found.source.url !== 'string' || found.source.url.length === 0) {
+    return { ok: false, error: `marketplace "${marketplace}" has invalid Qoder git source` };
+  }
+  if (typeof found.installLocation !== 'string' || found.installLocation.length === 0) {
+    return { ok: false, error: `marketplace "${marketplace}" found but missing installLocation` };
+  }
+  return { ok: true, found, installPath: found.installLocation };
+}
+
+function qoderExtractInstallPath({ listParsed }) {
+  return { ok: true, installPath: listParsed?.installPath };
+}
+
+function qoderExtractListIdentity(found) {
+  return {
+    plugin: found.name,
+    marketplace: String(found.id ?? '').split('@').slice(1).join('@'),
+    version: found.version,
+  };
+}
+
+function qoderCrossValidateListEntry(found, action) {
+  const selector = `${action.plugin}@${action.marketplace}`;
+  if (found.name !== action.plugin || found.source !== selector || found.scope !== 'user') {
+    return { ok: false, error: `Qoder plugin "${selector}" does not match its frozen user-scope identity` };
+  }
+  if (found.version !== action.version) {
+    return { ok: false, error: `list version "${found.version}" does not match action version "${action.version}"` };
+  }
+  return { ok: true };
+}
+
 // --- platform descriptors --------------------------------------------------
 
 const CLAUDE = Object.freeze({
@@ -188,6 +252,7 @@ const CLAUDE = Object.freeze({
     pluginDirName: '.claude-plugin',
     templateFileName: 'plugin.json',
     hasMarketplace: false,
+    enabled: true,
   }),
   strategy: Object.freeze({
     parseListOutput: claudeParseListOutput,
@@ -249,6 +314,7 @@ const CODEX = Object.freeze({
     templateFileName: 'plugin.json',
     marketplaceFileName: null,
     hasMarketplace: false,
+    enabled: true,
   }),
   strategy: Object.freeze({
     parseListOutput: codexParseListOutput,
@@ -309,6 +375,7 @@ const KIMI = Object.freeze({
     templateFileName: 'plugin.json',
     marketplaceFileName: null,
     hasMarketplace: false,
+    enabled: true,
   }),
   strategy: Object.freeze({
     parseListOutput: null,
@@ -395,6 +462,7 @@ const CODEBUDDY = Object.freeze({
     templateFileName: 'plugin.json',
     marketplaceFileName: null,
     hasMarketplace: false,
+    enabled: true,
   }),
   strategy: Object.freeze({
     parseListOutput: null,
@@ -408,20 +476,126 @@ const CODEBUDDY = Object.freeze({
   }),
 });
 
-/** Ordered platform registry. Order is significant (claude, codex, kimi, codebuddy). */
-export const PLATFORMS = Object.freeze([CLAUDE, CODEX, KIMI, CODEBUDDY]);
+const QODER = Object.freeze({
+  id: 'qoder',
+  skillProjectionSurface: 'platforms/qoder',
+  distributionType: 'qoder-plugin',
+  actionType: 'qoder-marketplace-install',
+  adapter: 'plugin-marketplace',
+  automatable: true,
+  installMethod: 'structured-cli',
+  // Qoder's marketplace-add command follows the marketplace default branch;
+  // the frozen commit is checked from the materialized Hub checkout before
+  // installation, so marketplace add itself is not treated as a ref pin.
+  refStrength: 'commit-sha',
+  outputProtocol: 'structured',
+  identityEvidence: 'list-record',
+  degradationPolicy: 'block',
+  cli: Object.freeze({
+    binary: 'qodercli',
+    binaryAliases: Object.freeze(['qoder']),
+    marketplaceAdd: (repo) => ['plugins', 'marketplace', 'add', repo, '--scope', 'user'],
+    install: (plugin, marketplace) => ['plugins', 'install', `${plugin}@${marketplace}`, '--scope', 'user', '--json'],
+    marketplaceList: () => ['plugins', 'marketplace', 'list', '--json'],
+    list: () => ['plugins', 'list', '--json'],
+  }),
+  jsonProtocol: Object.freeze({
+    listOutput: 'array',
+    installPathSource: 'list',
+    marketplaceAddOutput: null,
+    pluginInstallOutput: null,
+  }),
+  isolationEnv: (home) => ({ HOME: home }),
+  isolationSubdirs: Object.freeze(['.qoder']),
+  manifestPaths: Object.freeze({
+    plugin: '.qoder-plugin/plugin.json',
+    marketplace: null,
+  }),
+  marketplaceSourceForm: null,
+  marketplaceEntryCarriesVersion: false,
+  marketplaceRefForm: null,
+  knownHostArtifacts: Object.freeze(['.git']),
+  schemaRequiredFields: Object.freeze(['plugin', 'marketplace', 'entrySkill']),
+  skillRendering: Object.freeze({ mode: 'substitute', preamble: 'qoder', placeholder: '${CLAUDE_PLUGIN_ROOT}' }),
+  buildAdapter: Object.freeze({
+    name: 'qoder',
+    pluginDirName: '.qoder-plugin',
+    templateFileName: 'plugin.json',
+    marketplaceFileName: null,
+    hasMarketplace: false,
+    enabled: true,
+  }),
+  strategy: Object.freeze({
+    parseListOutput: qoderParseListOutput,
+    parseMarketplaceListOutput: qoderParseMarketplaceListOutput,
+    extractInstallPath: qoderExtractInstallPath,
+    extractListIdentity: qoderExtractListIdentity,
+    crossValidateListEntry: qoderCrossValidateListEntry,
+    buildManualRequirement: null,
+    readManifest: null,
+  }),
+});
 
-const VALID_DISTRIBUTION_TYPES = new Set(['claude-plugin', 'codex-plugin', 'kimi-plugin', 'codebuddy-plugin']);
-const VALID_ACTION_TYPES = new Set(['claude-marketplace-install', 'codex-marketplace-install', 'kimi-marketplace-install', 'codebuddy-marketplace-install']);
+const CURSOR = Object.freeze({
+  id: 'cursor',
+  skillProjectionSurface: 'platforms/cursor',
+  distributionType: 'cursor-plugin',
+  actionType: null,
+  adapter: null,
+  automatable: true,
+  installMethod: 'foundation-host-verification',
+  refStrength: 'local-payload',
+  outputProtocol: 'structured',
+  identityEvidence: 'host-verification-result',
+  degradationPolicy: 'block',
+  cli: null,
+  jsonProtocol: Object.freeze({
+    listOutput: null,
+    installPathSource: null,
+    marketplaceAddOutput: null,
+    pluginInstallOutput: null,
+  }),
+  isolationEnv: null,
+  isolationSubdirs: Object.freeze([]),
+  manifestPaths: Object.freeze({ plugin: null, marketplace: null }),
+  marketplaceSourceForm: null,
+  marketplaceEntryCarriesVersion: null,
+  marketplaceRefForm: null,
+  knownHostArtifacts: Object.freeze([]),
+  schemaRequiredFields: Object.freeze(['entrySkill']),
+  skillRendering: null,
+  buildAdapter: Object.freeze({
+    name: 'cursor',
+    pluginDirName: '.cursor-plugin',
+    templateFileName: 'plugin.json',
+    marketplaceFileName: null,
+    hasMarketplace: false,
+    enabled: true,
+  }),
+  strategy: Object.freeze({
+    parseListOutput: null,
+    extractInstallPath: null,
+    extractListIdentity: null,
+    crossValidateListEntry: null,
+    buildManualRequirement: null,
+    readManifest: null,
+  }),
+});
+
+/** Ordered platform registry. Order is significant. */
+export const PLATFORMS = Object.freeze([CLAUDE, CODEX, KIMI, CODEBUDDY, QODER, CURSOR]);
+
+const VALID_DISTRIBUTION_TYPES = new Set(['claude-plugin', 'codex-plugin', 'kimi-plugin', 'codebuddy-plugin', 'qoder-plugin', 'cursor-plugin']);
+const VALID_ACTION_TYPES = new Set(['claude-marketplace-install', 'codex-marketplace-install', 'kimi-marketplace-install', 'codebuddy-marketplace-install', 'qoder-marketplace-install', null]);
 const VALID_SOURCE_FORMS = new Set(['string', 'local-path-object', null]);
 const VALID_MARKETPLACE_REF_FORMS = new Set(['sha', 'name', null]);
 const VALID_LIST_OUTPUTS = new Set(['array', 'installed-object', null]);
 const VALID_CLI_OUTPUTS = new Set(['json', null]);
 const VALID_ENTRY_VERSION_BINDING = new Set([true, false, null]);
-const VALID_INSTALL_METHODS = new Set(['structured-cli', 'interactive-only', 'human-attestation']);
-const VALID_REF_STRENGTHS = new Set(['commit-sha', 'name-ref', 'unfixable']);
+const VALID_INSTALL_METHODS = new Set(['structured-cli', 'interactive-only', 'human-attestation', 'foundation-host-verification']);
+const VALID_REF_STRENGTHS = new Set(['commit-sha', 'name-ref', 'unfixable', 'local-payload']);
 const VALID_OUTPUT_PROTOCOLS = new Set(['structured', 'text', 'none']);
-const VALID_IDENTITY_EVIDENCE = new Set(['list-record', 'install-output', 'filesystem-payload', 'human-attestation']);
+const VALID_IDENTITY_EVIDENCE = new Set(['list-record', 'install-output', 'filesystem-payload', 'human-attestation', 'host-verification-result']);
 const VALID_DEGRADATION_POLICIES = new Set(['block', 'human-attestation', 'human-attestation-with-fallback']);
 const SKILL_PROJECTION_SURFACE_PATTERN = /^platforms\/[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 
@@ -442,19 +616,19 @@ const STANDALONE_SHA_RE = /^[0-9a-f]{40}$/u;
 function standaloneIdentityCore(platformOrId, fields) {
   const platform = typeof platformOrId === 'string' ? getPlatform(platformOrId) : platformOrId;
   const id = platform?.id;
-  if (id !== 'claude' && id !== 'codex') {
+  if (!['claude', 'codex', 'qoder'].includes(id)) {
     throw new Error(`standalone-index install identity is unsupported for platform "${id ?? '<unknown>'}"`);
   }
   const { name, source, version } = fields;
   if (typeof name !== 'string' || name.length === 0
     || !source || typeof source !== 'object' || Array.isArray(source)
     || typeof source.source !== 'string'
-    || typeof source.ref !== 'string' || source.ref.length === 0
     || typeof source.sha !== 'string' || !STANDALONE_SHA_RE.test(source.sha)) {
     throw new Error(`${id} standalone-index install identity has invalid owned fields`);
   }
   if (id === 'claude') {
-    if (source.source !== 'github' || typeof source.repo !== 'string' || source.repo.length === 0
+    if (typeof source.ref !== 'string' || source.ref.length === 0
+      || source.source !== 'github' || typeof source.repo !== 'string' || source.repo.length === 0
       || typeof version !== 'string' || version.length === 0) {
       throw new Error('Claude standalone-index install identity requires github repo, ref, sha, and version');
     }
@@ -465,6 +639,12 @@ function standaloneIdentityCore(platformOrId, fields) {
     };
   }
   if (source.source !== 'url' || typeof source.url !== 'string' || source.url.length === 0) {
+    throw new Error(`${id === 'qoder' ? 'Qoder' : 'Codex'} standalone-index install identity requires url and sha`);
+  }
+  if (id === 'qoder') {
+    return { name, source: { source: 'url', url: source.url, sha: source.sha } };
+  }
+  if (typeof source.ref !== 'string' || source.ref.length === 0) {
     throw new Error('Codex standalone-index install identity requires url, ref, and sha');
   }
   return {
@@ -492,6 +672,12 @@ export function buildExpectedStandaloneIndexInstallIdentity(platformOrId, frozen
     return standaloneIdentityCore(platform, {
       name,
       source: { source: 'url', url: `https://github.com/${repo}.git`, ref: `refs/tags/${tag}`, sha },
+    });
+  }
+  if (id === 'qoder') {
+    return standaloneIdentityCore(platform, {
+      name,
+      source: { source: 'url', url: `https://github.com/${repo}.git`, sha },
     });
   }
   return standaloneIdentityCore(platform, { name, source: {}, version });
@@ -529,6 +715,12 @@ export function projectObservedStandaloneIndexInstallIdentity(platformOrId, entr
         ref: source.ref,
         sha: source.sha,
       },
+    });
+  }
+  if (id === 'qoder') {
+    return standaloneIdentityCore(platform, {
+      name: entry.name,
+      source: { source: source.source, url: source.url, sha: source.sha },
     });
   }
   return standaloneIdentityCore(platform, { name: entry.name, source });
@@ -573,8 +765,13 @@ export function assertRegistry(registry = PLATFORMS) {
     if (!VALID_ACTION_TYPES.has(platform.actionType)) {
       throw new Error(`platform registry: ${label} has illegal actionType "${platform.actionType}"`);
     }
-    if (typeof platform.adapter !== 'string' || platform.adapter.length === 0) {
+    if (platform.installMethod !== 'foundation-host-verification'
+        && (typeof platform.adapter !== 'string' || platform.adapter.length === 0)) {
       throw new Error(`platform registry: ${label} needs a non-empty adapter id`);
+    }
+    if (platform.installMethod === 'foundation-host-verification'
+        && (platform.actionType !== null || platform.adapter !== null)) {
+      throw new Error(`platform registry: ${label} host verification must not declare a checkpoint action or adapter`);
     }
     if (!VALID_ENTRY_VERSION_BINDING.has(platform.marketplaceEntryCarriesVersion)) {
       throw new Error(`platform registry: ${label} has illegal marketplaceEntryCarriesVersion "${platform.marketplaceEntryCarriesVersion}"`);
@@ -582,7 +779,8 @@ export function assertRegistry(registry = PLATFORMS) {
     if (typeof platform.automatable !== 'boolean') {
       throw new Error(`platform registry: ${label} automatable must be boolean`);
     }
-    if (typeof platform.isolationEnv !== 'function') {
+    if (platform.installMethod !== 'foundation-host-verification'
+        && typeof platform.isolationEnv !== 'function') {
       throw new Error(`platform registry: ${label} isolationEnv must be a function`);
     }
     if (!VALID_SOURCE_FORMS.has(platform.marketplaceSourceForm)) {
@@ -602,6 +800,9 @@ export function assertRegistry(registry = PLATFORMS) {
     }
     if (!platform.buildAdapter || typeof platform.buildAdapter !== 'object') {
       throw new Error(`platform registry: ${label} buildAdapter must be an object`);
+    }
+    if (typeof platform.buildAdapter.enabled !== 'boolean') {
+      throw new Error(`platform registry: ${label} buildAdapter.enabled must be boolean`);
     }
     // D6: the adapter directory name is always explicit — prepare's G4
     // declared-host reconciliation and the build producer both key on it.
@@ -649,7 +850,11 @@ export function assertRegistry(registry = PLATFORMS) {
       throw new Error(`platform registry: ${label} has illegal degradationPolicy "${platform.degradationPolicy}"`);
     }
 
-    if (platform.automatable) {
+    if (platform.installMethod === 'foundation-host-verification') {
+      if (platform.cli !== null) {
+        throw new Error(`platform registry: ${label} Foundation host verification must have cli === null`);
+      }
+    } else if (platform.automatable) {
       if (!platform.cli || typeof platform.cli.marketplaceAdd !== 'function'
           || typeof platform.cli.install !== 'function' || typeof platform.cli.list !== 'function') {
         throw new Error(`platform registry: automatable platform ${label} needs cli template functions`);
@@ -690,7 +895,8 @@ export function assertRegistry(registry = PLATFORMS) {
 
     // --- capability contract consistency rules (能力契约一致性规则) -----------
     // automatable === true 必须有 installMethod === 'structured-cli'
-    if (platform.automatable === true && platform.installMethod !== 'structured-cli') {
+    if (platform.automatable === true
+        && !['structured-cli', 'foundation-host-verification'].includes(platform.installMethod)) {
       throw new Error(`platform registry: ${label} is automatable but installMethod is "${platform.installMethod}" (expected "structured-cli")`);
     }
     // automatable === false 必须有 installMethod !== 'structured-cli'
@@ -728,6 +934,9 @@ export function resolvePlatformRoute(platform) {
   if (installMethod === 'interactive-only' || installMethod === 'human-attestation') {
     return { route: 'human-attestation', reason: `installMethod is ${installMethod}` };
   }
+  if (installMethod === 'foundation-host-verification') {
+    return { route: 'host-verification', reason: 'installMethod is foundation-host-verification' };
+  }
   throw new Error(
     `platform "${platform?.id ?? '<unknown>'}" with installMethod="${installMethod}" cannot be routed`,
   );
@@ -745,7 +954,7 @@ export function resolveCapabilityConflicts(platform) {
   const { id, automatable, installMethod, refStrength, identityEvidence, cli, strategy } = platform;
 
   // automatable <-> installMethod 一致性
-  if (automatable === true && installMethod !== 'structured-cli') {
+  if (automatable === true && !['structured-cli', 'foundation-host-verification'].includes(installMethod)) {
     conflicts.push(`automatable=true but installMethod="${installMethod}"`);
   }
   if (automatable === false && installMethod === 'structured-cli') {
@@ -763,7 +972,7 @@ export function resolveCapabilityConflicts(platform) {
   }
 
   // 自动化平台必须有 cli 和策略解析函数
-  if (automatable === true) {
+  if (automatable === true && installMethod !== 'foundation-host-verification') {
     if (!cli || typeof cli !== 'object') {
       conflicts.push(`automatable=true but cli is missing`);
     }

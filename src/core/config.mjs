@@ -401,7 +401,7 @@ export async function loadProjectConfig({ root, configPath } = {}) {
     for (const unit of config.releaseUnits) {
       if (!unit?.distributions) continue;
       for (const dist of unit.distributions) {
-        if (dist.type === 'npm') continue;
+        if (dist.type === 'npm' || dist.type === 'cursor-plugin') continue;
         if (dist.marketplaceSourceType === undefined || dist.marketplaceSourceType === null) {
           dist.marketplaceSourceType = dist.marketplaceRepo ? 'standalone-index' : 'bundled-family';
         }

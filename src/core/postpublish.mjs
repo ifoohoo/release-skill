@@ -30,6 +30,7 @@ import {
   resolvePresetRequiresApproval,
 } from './presets.mjs';
 import { checkGitRemoteUrl, describeGitRemoteUrlFailure } from './git-url-policy.mjs';
+import { classifyPathInput } from 'skill-family-harness-node';
 
 /** Secret-ish environment variable denylist (R3 credential hygiene). */
 export const ENV_ALLOWLIST_DENYLIST = /TOKEN|SECRET|PASSWORD|PASSPHRASE|API_KEY|CREDENTIAL/i;
@@ -42,7 +43,7 @@ const SAFE_ID_RE = /^[a-z0-9][a-z0-9._-]*$/;
 
 /** Branch pattern (leading alphanumeric blocks option-like names). */
 const BRANCH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
-const LOCAL_HOSTS = new Set(['claude', 'codex', 'kimi', 'codebuddy', 'workbuddy', 'qoder']);
+const LOCAL_HOSTS = new Set(['claude', 'codex', 'kimi', 'codebuddy', 'workbuddy', 'qoder', 'cursor']);
 const HUB_HOST_RE = /^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$/u;
 const HUB_REF_RE = /^refs\/heads\/[A-Za-z0-9][A-Za-z0-9._-]*(?:\/[A-Za-z0-9][A-Za-z0-9._-]*)*$/u;
 
@@ -500,6 +501,13 @@ export function validatePostPublishDeclaration(postPublish, options = {}) {
       if (hosts.has(host)) fail(`${unitLabel}localHostUpdate.hosts contains duplicate host "${host}"`);
       hosts.add(host);
     }
+    if (hosts.has('cursor')) {
+      if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/u.test(localHostUpdate.plugin)) fail(`${unitLabel}Cursor plugin name must match the Cursor naming convention`);
+      const cursor = localHostUpdate.cursor;
+      if (!cursor || typeof cursor !== 'object' || Array.isArray(cursor)) fail(`${unitLabel}localHostUpdate.cursor is required`);
+      if (!classifyPathInput(cursor.sourcePath).ok) fail(`${unitLabel}localHostUpdate.cursor.sourcePath must be a safe relative path`);
+      if (cursor.dependencyInstall !== undefined && cursor.dependencyInstall !== 'npm-ci-ignore-scripts') fail(`${unitLabel}localHostUpdate.cursor.dependencyInstall is unsupported`);
+    } else if (localHostUpdate.cursor !== undefined) fail(`${unitLabel}localHostUpdate.cursor requires cursor in hosts`);
     const hub = localHostUpdate.hub;
     if (!hub || typeof hub !== 'object' || Array.isArray(hub)) {
       fail(`${unitLabel}localHostUpdate.hub must be a non-null object`);

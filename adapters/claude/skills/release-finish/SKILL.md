@@ -1,6 +1,6 @@
 ---
 name: release-finish
-description: 发布达到 VERIFIED 后处理发布收尾：确认 postVerify 提案送达边界，按发布分支策略决定是否询问合并，并在用户确认后更新本机 Claude、Codex、Kimi、CodeBuddy/WorkBuddy、Qoder 插件
+description: 发布达到 VERIFIED 后处理发布收尾：确认 postVerify 提案送达边界，按发布分支策略决定是否询问合并，并在用户确认后更新本机 Claude、Codex、Kimi、CodeBuddy/WorkBuddy、Qoder、Cursor 插件
 ---
 
 # release-finish
@@ -60,16 +60,29 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill-local-finish.mjs" \
   --json
 ```
 
-只传用户选择且计划声明的宿主。宿主 CLI 不存在时返回 `SKIPPED_NOT_INSTALLED`。各宿主按以下规则处理：
+只传用户选择且计划声明的宿主。Cursor 选择方式见下节；其他宿主 CLI 不存在时返回 `SKIPPED_NOT_INSTALLED`。各宿主按以下规则处理：
 
 - Claude 或 Codex 只有在市场需要重绑时，才会在该宿主第一条写命令之前只读查询冻结的市场仓库、引用和提交。远端不可达、引用缺失或提交不一致时返回 `MANUAL_REQUIRED`，该宿主不执行市场或插件写入；其他已选宿主继续处理。精确当前安装仍核对真实载荷，但不强制联网。
-- Kimi 的精确当前安装会在返回 `ALREADY_CURRENT` 前核对真实载荷；发生安装或迁移时，只在操作完成后核对结果。配置根依次取显式 `kimiHome`、`KIMI_CODE_HOME`、用户主目录下的 `.kimi-code`，TUI 与安装后观察使用同一根。release-finish 当前只采用并验证 Kimi Code 的受控终端交互界面（TUI）路径，并把 TUI 工作目录固定为 `--root` 指定的当前发布项目。用户已确认冻结计划、显式选择更新且 `--hosts` 包含 `kimi` 时，流程只在初始标准 `Trust this folder?` 界面确认目录：先核对当前选中 `No, exit` 和目标 `Trust this folder`，移动并重新核对目标选中项，确认后等待已知命令提示符。插件命令发出后再次出现目录信任、界面或选中项未知、移动后无法确认、超时或提前退出时，该宿主失败并停止后续安装步骤。插件信任仍先清理 ANSI/OSC 控制序列和软换行，再分别核对冻结仓库与标签；只有选中 `Trust and install` 才提交并重新加载。包名、版本、发布标签、已安装修订号和受管安装根必须与冻结计划一致；`.git` 只提供附加诊断，不是通过条件。旧的本地路径安装会在同一 TUI 会话中先移除，再按发布标签安装。
+- Kimi 的精确当前安装会在返回 `ALREADY_CURRENT` 前核对真实载荷；发生安装或迁移时，只在操作完成后核对结果。配置根依次取显式 `kimiHome`、`KIMI_CODE_HOME`、用户主目录下的 `.kimi-code`，TUI 与安装后观察使用同一根。release-finish 当前只采用并验证 Kimi Code 的受控终端交互界面（TUI）路径，并把 TUI 工作目录固定为 `--root` 指定的当前发布项目。用户已确认冻结计划、显式选择更新且 `--hosts` 包含 `kimi` 时，流程读取完整的初始 `Trust this folder?` 对话框，要求其中只有一个正向项 `Trust this folder` 和一个选中项。正向项已经选中时不发送方向键，直接确认；已知拒绝项选中时，按它与正向项的相对位置移动一次，重新读取完整对话框并确认正向项已选中，然后才提交。插件命令发出后再次出现目录信任、界面或选中项未知、正向项缺失或重复、移动后无法确认、超时或提前退出时，该宿主失败并停止后续安装步骤。若后续 Kimi 版本出现新的可复现界面差异，先记录 Kimi 版本、可见选项、选中项及选项关系；这些事实足以唯一确认当前目录、正向信任项和选择结果时，在最近测试补回归与兼容并继续，目录身份或选项语义不明时仍停止并交回主会话。插件信任仍先清理 ANSI/OSC 控制序列和软换行，再分别核对冻结仓库与标签；只有选中 `Trust and install` 才提交并重新加载。包名、版本、发布标签、已安装修订号和受管安装根必须与冻结计划一致；`.git` 只提供附加诊断，不是通过条件。旧的本地路径安装会在同一 TUI 会话中先移除，再按发布标签安装。
 - CodeBuddy/WorkBuddy 只处理同一 bundled-family 插件和市场。CodeBuddy 仅探测全局 `codebuddy`/`cbc`，由收尾脚本把 `CODEBUDDY_CONFIG_DIR` 固定为有效 `HOME`（环境未提供时取操作系统用户主目录）下名为 `.codebuddy` 的目录；WorkBuddy 仅在 macOS 探测 WorkBuddy 应用内嵌 CLI，由收尾脚本把 `CODEBUDDY_CONFIG_DIR` 与 `WORKBUDDY_CONFIG_DIR` 同时固定为有效 `HOME` 下名为 `.workbuddy` 的目录，绝不把两者互作回退。只有冻结标签与计划声明的可变分支都从同一远端解析到冻结提交时，才调用正式市场更新和插件更新命令；完成后重新读取安装列表，并精确核对唯一条目的市场、版本和修订号。目标未安装、来源不符、远端不可访问或身份不一致时返回 `MANUAL_REQUIRED`，不修改宿主。非 macOS 的 WorkBuddy 返回 `SKIPPED_UNSUPPORTED_PLATFORM`。
 - Qoder 先用 `qoder plugins marketplace list --json` 核对计划声明的 Hub 名称、仓库、分支和本机 checkout，再用 `qoder plugins list --json` 核对唯一插件条目的市场、`scope=user`、版本与 `installPath`。目标市场或插件未安装时返回 `MANUAL_REQUIRED`，不添加市场，也不执行首次安装。旧版已安装时，只运行 `qoder plugins marketplace update <name>` 和 `qoder plugins update <plugin@marketplace> --scope user`。市场刷新后、插件更新前，必须从 Hub 的 `marketplace.json` 核对目标条目的 `source.url` 和 `source.sha`；操作后从真实 `installPath` 核对 Qoder manifest、完整声明载荷和冻结来源。市场可能在检查与更新之间变化，事后身份不符时报告失败，不自动降级、卸载或覆盖。
 
-任何宿主失败都保留其他宿主的实际结果，不回滚，也不把失败冒充成功。
+任何宿主失败都保留其他宿主的实际结果，不把失败冒充成功。Cursor 只在本次交换映射可确认且备份迁移失败时恢复自己的原目录。
 
 完成后报告每个宿主的安装状态。Qoder 返回 `UPDATED` 只表示安装载荷已经更新；启动新会话或执行 `/plugins reload` 并核对实际加载版本后，才能报告新版已加载。本机结果只记录收尾事实，不改变发布状态。
+
+## Cursor 完整 Local 插件
+
+计划声明 `hosts: [cursor]` 和 `cursor.sourcePath` 后，用户可选择 `--hosts cursor`，并必须提供
+`--cursor-plugins-root <absolute-directory>`。该目录通常是用户目录下的 `.cursor/plugins`，不得猜测。
+无需 Cursor CLI、消费项目根或扩展目录；当前自动安装仅支持 macOS，且必须先退出 Cursor 主进程。
+
+脚本复验冻结快照和完整插件清单，在扫描根外准备候选；可选 `npm-ci-ignore-scripts` 只安装候选依赖。
+目标为 `<cursor-plugins-root>/local/<plugin>`。新装不覆盖，升级整体交换目录，旧版移入
+`backups/<plugin>/`。备份迁移失败且映射可确认时恢复原目录；交换结果不确定时保留两侧并停止，禁止盲重试。
+
+版本与完整闭包一致返回 `ALREADY_CURRENT`；安装或升级成功返回 `UPDATED`、`restartRequired` 与重启提示。
+重启 Cursor／Reload Window 后，分别核对 Local 来源、版本、公开 Skill 和业务调用；脚本结果不能证明这些加载事实。
 
 ## 配置与目录
 

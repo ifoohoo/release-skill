@@ -1,12 +1,19 @@
-import { access, readFile } from 'node:fs/promises';
+import { access, readFile, mkdir, mkdtemp, cp, rename, rm, lstat, realpath, chmod } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join, relative } from 'node:path';
+import { join, relative, isAbsolute, normalize } from 'node:path';
 
 import {
   readFileContained,
+  readFileStrict,
   resolveContained,
   superviseProcess,
   withTemporaryWorkspace,
+  createTemporaryWorkspace,
+  createFilesystemRootBinding,
+  observeFilesystemTree,
+  createFixedSetPublicationManifest,
+  publishFixedSet,
+  replaceFixedSetAtomic,
 } from 'skill-family-harness-node';
 
 import { getPlatform } from '../platforms/registry.mjs';
@@ -177,6 +184,17 @@ function hubTargets(plan) {
       workbuddy: 'Handle manually; WorkBuddy cannot pin a Hub ref in this flow (it follows the CodeBuddy manual boundary).',
     };
     return local.hosts.map((host) => {
+      if (host === 'cursor') {
+        return {
+          targetKind: 'cursor-local', executionMode: 'executable',
+          unitId: declaration.unitId, host, plugin: local.plugin,
+          version: unit?.targetVersion,
+          snapshotPath: unit?.frozenSnapshot?.path,
+          manifestDigest: unit?.frozenSnapshot?.manifestDigest,
+          cursor: local.cursor, timeoutMs: 300_000,
+          message: `Install or replace the complete frozen ${local.plugin} Cursor Local plugin; quit Cursor first and restart it afterwards.`,
+        };
+      }
       if (host === 'qoder') {
         return {
           targetKind: 'hub-backed',
@@ -1388,49 +1406,120 @@ proc unexpectedDirectoryTrust {} {
   exit 147
 }
 
+proc readDirectoryTrustDialog {prefix state timeoutCode unknownCode eofCode} {
+  global expect_out
+  set dialogBuffer $prefix
+  set cleanedPrefix [cleanScreen $dialogBuffer]
+  if {![regexp -nocase {Trust this folder\\?} $cleanedPrefix]} {
+    expect {
+      -nocase -re {Trust this folder\\?} {
+        append dialogBuffer $expect_out(buffer)
+      }
+      timeout { failTimeout $state $timeoutCode $unknownCode }
+      eof { failEof $state $eofCode }
+    }
+    set cleanedPrefix [cleanScreen $dialogBuffer]
+  }
+  set framed [regexp -nocase {(^|\\n)[ \\t]*─{8,}[ \\t]*\\n[ \\t]*Trust this folder\\?} $cleanedPrefix]
+  if {$framed} {
+    expect {
+      -re {(^|\\r|\\n)[ \\t]*─{8,}[ \\t]*\\r*\\n} {
+        append dialogBuffer $expect_out(buffer)
+      }
+      timeout { failTimeout $state $timeoutCode $unknownCode }
+      eof { failEof $state $eofCode }
+    }
+  } else {
+    expect {
+      -nocase -re {↑↓[^\\r\\n]*navigate[^\\r\\n]*(?:Esc[^\\r\\n]*)?\\r*\\n} {
+        append dialogBuffer $expect_out(buffer)
+      }
+      timeout { failTimeout $state $timeoutCode $unknownCode }
+      eof { failEof $state $eofCode }
+    }
+  }
+  return [cleanScreen $dialogBuffer]
+}
+
+proc directoryTrustAction {dialog state unknownCode} {
+  set inDialog 0
+  set labels {}
+  set selectedCount 0
+  set selectedIndex -1
+  set selectedLabel ""
+  set trustCount 0
+  set trustIndex -1
+  foreach rawLine [split $dialog "\\n"] {
+    set line [string trim $rawLine]
+    if {[regexp -nocase {^Trust this folder\\?$} $line]} {
+      set inDialog 1
+      continue
+    }
+    if {!$inDialog} { continue }
+    if {$line eq ""} { continue }
+    set selected [regexp {^❯[ \\t]*} $line]
+    if {$selected} {
+      regsub {^❯[ \\t]*} $line {} label
+      set label [string trim $label]
+    } else {
+      set label $line
+    }
+    set knownAction [expr {
+      [string equal -nocase $label "Trust this folder"]
+      || [string equal -nocase $label "No, exit"]
+      || [string equal -nocase $label "Don't trust"]
+    }]
+    if {!$knownAction && $selected} {
+      puts stderr "KIMI_TUI_STATE:$state:selection-unknown"
+      exit $unknownCode
+    }
+    if {!$knownAction} { continue }
+    set index [llength $labels]
+    lappend labels $label
+    if {[string equal -nocase $label "Trust this folder"]} {
+      incr trustCount
+      set trustIndex $index
+    }
+    if {$selected} {
+      incr selectedCount
+      set selectedIndex $index
+      set selectedLabel $label
+    }
+  }
+  if {[llength $labels] != 2 || $trustCount != 1 || $selectedCount != 1} {
+    puts stderr "KIMI_TUI_STATE:$state:selection-unknown"
+    exit $unknownCode
+  }
+  if {[string equal -nocase $selectedLabel "Trust this folder"]} {
+    return selected-trust
+  }
+  if {![string equal -nocase $selectedLabel "No, exit"]
+      && ![string equal -nocase $selectedLabel "Don't trust"]} {
+    puts stderr "KIMI_TUI_STATE:$state:selection-unknown"
+    exit $unknownCode
+  }
+  if {$selectedIndex + 1 == $trustIndex} { return move-down }
+  if {$selectedIndex - 1 == $trustIndex} { return move-up }
+  puts stderr "KIMI_TUI_STATE:$state:selection-unknown"
+  exit $unknownCode
+}
+
 proc confirmInitialDirectoryTrust {} {
   global expect_out promptPattern
-  set dialogBuffer $expect_out(buffer)
-  expect {
-    -nocase -re {❯[^\\r\\n]*No,[ \\t]*exit} {
-      append dialogBuffer $expect_out(buffer)
-    }
-    -re {❯[^\\r\\n]*\\r*\\n} {
-      puts stderr "KIMI_TUI_STATE:directory-trust:selection-unknown"
-      exit 143
-    }
-    timeout {
-      puts stderr "KIMI_TUI_STATE:directory-trust-selected-row:timeout"
-      exit 140
-    }
-    eof { failEof directory-trust-selected-row 141 }
+  set dialog [readDirectoryTrustDialog $expect_out(buffer) directory-trust-selected-row 140 143 141]
+  set action [directoryTrustAction $dialog directory-trust 143]
+  if {$action eq "move-down"} {
+    send -- "\\033\\[B"
+  } elseif {$action eq "move-up"} {
+    send -- "\\033\\[A"
   }
-  expect {
-    -nocase -re {(?:^|\\r|\\n)[ \\t]+Trust this folder[ \\t]*\\r*\\n} {
-      append dialogBuffer $expect_out(buffer)
-    }
-    -re {(?:^|\\r|\\n)[^\\r\\n]*\\r*\\n} {
-      puts stderr "KIMI_TUI_STATE:directory-trust:selection-unknown"
-      exit 143
-    }
-    timeout { failTimeout directory-trust-target-row 148 150 }
-    eof { failEof directory-trust-target-row 149 }
-  }
-  set dialog [cleanScreen $dialogBuffer]
-  if {![regexp -nocase {(^|\\n)[^\\n]*❯[^\\n]*No,[ \\t]*exit} $dialog]
-      || ![regexp -nocase {(^|\\n)[ \\t]+Trust this folder[ \\t]*($|\\n)} $dialog]} {
-    puts stderr "KIMI_TUI_STATE:directory-trust:selection-unknown"
-    exit 143
-  }
-  send -- "\\033\\[B"
-  expect {
-    -nocase -re {❯[^\\r\\n]*Trust this folder} {}
-    -re {❯[^\\r\\n]*\\r*\\n} {
+  if {$action ne "selected-trust"} {
+    set confirmedDialog [readDirectoryTrustDialog "" directory-trust-confirm-selection 144 146 145]
+    set confirmedAction [directoryTrustAction $confirmedDialog directory-trust-confirm-selection 146]
+    if {$confirmedAction ne "selected-trust"} {
       puts stderr "KIMI_TUI_STATE:directory-trust-confirm-selection:unknown"
       exit 146
     }
-    timeout { failTimeout directory-trust-confirm-selection 144 146 }
-    eof { failEof directory-trust-confirm-selection 145 }
   }
   send -- "\\033\\[13u"
   expect {
@@ -1679,6 +1768,160 @@ async function runKimiUpdate(target, detected, run, kimiHome, {
   return { status: 'UPDATED', version: target.version, restartRequired: true };
 }
 
+async function observeCursorClosure(root) {
+  return observeFilesystemTree({ root, rootBinding: await createFilesystemRootBinding(root) });
+}
+
+async function cursorMainProcessRunning(run) {
+  const result = await run('/bin/ps', ['-axo', 'comm='], { timeout: 30_000 });
+  if (typeof result?.stdout !== 'string' || result.stdout.trim().length === 0) throw new Error('Cursor process observation is unavailable');
+  return result.stdout.split('\n').some((line) => /(?:^|\/)Cursor$/u.test(line.trim()));
+}
+
+async function runCursorLocalUpdate(target, {
+  root, run, cursorPluginsRoot, cursorPlatform = process.platform,
+  cursorIsRunning = () => cursorMainProcessRunning(run),
+  cursorPublication = { publishFixedSet, replaceFixedSetAtomic },
+  cursorMoveBackup = rename,
+}) {
+  const frozen = await verifyFrozenSnapshot({ root, snapshotPath: target.snapshotPath, expectedDigest: target.manifestDigest });
+  if (!target.cursor?.sourcePath) throw new Error('Cursor local update requires a frozen cursor.sourcePath');
+  if (!/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/u.test(target.plugin)) throw new Error('Cursor plugin identity must use a valid Cursor plugin name');
+  const source = await resolveContained(frozen.snapshotDir, target.cursor.sourcePath);
+  const identity = JSON.parse(await readFileContained(source, '.cursor-plugin/plugin.json', { encoding: 'utf8' }));
+  if (typeof identity.name !== 'string' || !/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/u.test(identity.name)
+    || identity.name !== target.plugin || identity.version !== target.version) throw new Error('Cursor frozen plugin manifest identity conflicts with the release unit');
+  if (typeof cursorPluginsRoot !== 'string' || !isAbsolute(cursorPluginsRoot) || normalize(cursorPluginsRoot) !== cursorPluginsRoot) {
+    throw new Error('Cursor local update requires --cursor-plugins-root <normalized-absolute-directory>');
+  }
+  if (cursorPlatform !== 'darwin') return { status: 'MANUAL_REQUIRED', reason: 'Cursor Local automatic installation currently supports macOS only' };
+  try {
+    if (await cursorIsRunning() !== false) return { status: 'MANUAL_REQUIRED', reason: 'Quit the Cursor main process before updating Local plugins' };
+  } catch (cause) {
+    return { status: 'MANUAL_REQUIRED', reason: `Cannot confirm Cursor has exited: ${cause.message}` };
+  }
+  // Bind the caller-selected root before creating any staging directory.
+  await createFilesystemRootBinding(cursorPluginsRoot);
+  const pluginsRoot = await realpath(cursorPluginsRoot);
+  const sourceObservation = await observeCursorClosure(source);
+  const workspace = await createTemporaryWorkspace({ prefix: 'release-skill-cursor-local-' });
+  let sibling;
+  let preserve = false;
+  try {
+    const candidate = join(workspace.root, 'plugin');
+    await cp(source, candidate, { recursive: true, errorOnExist: true, force: false });
+    if ((await observeCursorClosure(candidate)).membersDigest !== sourceObservation.membersDigest) throw new Error('Cursor candidate differs from the frozen source closure');
+    await chmod(candidate, 0o700);
+    if (target.cursor.dependencyInstall !== undefined) {
+      if (target.cursor.dependencyInstall !== 'npm-ci-ignore-scripts') throw new Error('Unsupported Cursor dependency installation policy');
+      await run('npm', ['ci', '--ignore-scripts', '--prefix', candidate], {
+        cwd: candidate, timeout: target.timeoutMs, env: hostEnvironment('cursor'),
+      });
+      // npm may add dependencies, but must not mutate the frozen plugin inputs.
+      for (const member of sourceObservation.members.filter((entry) => entry.type === 'file')) {
+        await readFileStrict(candidate, member.path, { expectedSha256: member.sha256 });
+      }
+    }
+    const prepared = await observeCursorClosure(candidate);
+    await verifyFrozenSnapshot({ root, snapshotPath: target.snapshotPath, expectedDigest: target.manifestDigest });
+    try {
+      if (await cursorIsRunning() !== false) return { status: 'MANUAL_REQUIRED', reason: 'Cursor started while preparing the plugin; quit Cursor and rerun the update' };
+    } catch (cause) {
+      return { status: 'MANUAL_REQUIRED', reason: `Cannot confirm Cursor has exited before publication: ${cause.message}` };
+    }
+    const local = await resolveContained(pluginsRoot, 'local');
+    await mkdir(local, { recursive: true });
+    await createFilesystemRootBinding(local);
+    const targetPath = await resolveContained(local, target.plugin);
+    let installed = false;
+    let previousClosure;
+    try {
+      await lstat(targetPath);
+      installed = true;
+    } catch (cause) { if (cause.code !== 'ENOENT') throw cause; }
+    if (installed) {
+      const current = JSON.parse(await readFileContained(targetPath, '.cursor-plugin/plugin.json', { encoding: 'utf8' }));
+      if (current.name !== target.plugin || typeof current.version !== 'string') throw new Error('Cursor installed plugin manifest identity conflicts with the frozen plugin');
+      const observed = await observeCursorClosure(targetPath);
+      previousClosure = observed.membersDigest;
+      if (current.version === target.version && observed.membersDigest === prepared.membersDigest) return { status: 'ALREADY_CURRENT', version: target.version, installPath: targetPath };
+    }
+    // Cursor is closed, so this same-parent candidate cannot be discovered by
+    // a live scanner. Only this uniquely-created directory may be cleaned.
+    sibling = await mkdtemp(join(local, `.${target.plugin}-stage-`));
+    await cp(candidate, sibling, { recursive: true, errorOnExist: false, force: false });
+    if ((await observeCursorClosure(sibling)).membersDigest !== prepared.membersDigest) throw new Error('Cursor publication candidate closure drift');
+    const publication = { sourceRoot: sibling, targetParent: local, targetSegment: target.plugin };
+    let backupPath;
+    if (installed) {
+      try {
+        await cursorPublication.replaceFixedSetAtomic(publication);
+      } catch (cause) {
+        preserve = cause.details?.phase === 'post-commit' || cause.details?.publicationState === 'indeterminate' || cause.details?.commitState === 'indeterminate';
+        throw cause;
+      }
+      // Foundation has proved the exchanged mapping. The old complete plugin
+      // is now owned by the user and must leave the Local scanner namespace.
+      preserve = true;
+      try {
+        const backups = await resolveContained(pluginsRoot, `backups/${target.plugin}`);
+        await mkdir(backups, { recursive: true });
+        await createFilesystemRootBinding(backups);
+        const backupDirectory = await mkdtemp(join(backups, 'release-'));
+        backupPath = join(backupDirectory, 'plugin');
+        await cursorMoveBackup(sibling, backupPath);
+        sibling = undefined;
+        preserve = false;
+      } catch (cause) {
+        // One explicit reverse exchange is justified only by the verified
+        // success above and an old directory still at the displaced path.
+        if ((await observeCursorClosure(sibling)).membersDigest !== previousClosure
+          || (await observeCursorClosure(targetPath)).membersDigest !== prepared.membersDigest) throw cause;
+        await cursorPublication.replaceFixedSetAtomic(publication);
+        preserve = false;
+        throw new Error(`Cursor backup move failed; original plugin restored: ${cause.message}`);
+      }
+    } else {
+      const manifest = await createFixedSetPublicationManifest(publication);
+      const receipt = await cursorPublication.publishFixedSet({ ...publication, manifest });
+      if (receipt.status !== 'succeeded') {
+        preserve = receipt.status === 'indeterminate' || receipt.commitState !== 'not-committed';
+        const error = new Error(`Cursor publication failed: ${receipt.error?.message ?? receipt.status}`);
+        error.details = receipt;
+        throw error;
+      }
+      sibling = undefined;
+    }
+    if ((await observeCursorClosure(targetPath)).membersDigest !== prepared.membersDigest) throw new Error('Cursor installed plugin closure drift after publication');
+    return {
+      status: 'UPDATED', version: target.version, installPath: targetPath,
+      ...(backupPath ? { backupPath } : {}), restartRequired: true,
+      reloadInstruction: 'Restart Cursor or run Reload Window, then verify the Local source, version and Skill invocation.',
+    };
+  } catch (error) {
+    if (preserve) error.details = { ...error.details, candidatePath: sibling, workspacePath: workspace.root, manualAction: 'Keep both directories intact; inspect the Cursor Local publication mapping before retrying.' };
+    throw error;
+  } finally {
+    if (!preserve) {
+      // Sealed snapshots carry read-only directories. Restore owner access
+      // only in this invocation's disposable copies before Foundation cleanup.
+      for (const cleanupRoot of [sibling, workspace.root].filter(Boolean)) {
+        const closure = await observeFilesystemTree({
+          root: cleanupRoot,
+          rootBinding: await createFilesystemRootBinding(cleanupRoot),
+          symlinkPolicy: { mode: 'record' },
+        });
+        await chmod(cleanupRoot, 0o700);
+        for (const member of closure.members.filter((entry) => entry.type === 'directory')) {
+          await chmod(await resolveContained(cleanupRoot, member.path), member.statMode | 0o700);
+        }
+      }
+      if (sibling) await rm(sibling, { recursive: true, force: false });
+      await workspace.dispose();
+    }
+  }
+}
+
 function aggregateStatus(results) {
   const statuses = new Set(results.map((entry) => entry.status));
   const completed = results.some((entry) => ['UPDATED', 'ALREADY_CURRENT'].includes(entry.status));
@@ -1718,6 +1961,11 @@ async function updateLocalHostPluginsInternal({
   detect = (host) => defaultDetect(host, defaultRun),
   run = defaultRun,
   kimiHome,
+  cursorPluginsRoot,
+  cursorPlatform,
+  cursorIsRunning,
+  cursorPublication,
+  cursorMoveBackup,
   verifyInstalledPayload = verifyInstalledMarketplacePayload,
 } = {}) {
   const effectiveKimiHome = kimiHome ?? process.env.KIMI_CODE_HOME ?? join(homedir(), '.kimi-code');
@@ -1732,6 +1980,7 @@ async function updateLocalHostPluginsInternal({
     item.executionMode !== 'manual' && selected.has(item.host)
   ));
   for (const target of targets) {
+    if (target.host === 'cursor') continue;
     if (target.host === 'qoder') assertQoderExecutableTarget(target);
     else assertExecutableTarget(target);
   }
@@ -1739,6 +1988,13 @@ async function updateLocalHostPluginsInternal({
   const results = [];
   for (const target of targets) {
     try {
+      if (target.host === 'cursor') {
+        const outcome = await runCursorLocalUpdate(target, {
+          root, run, cursorPluginsRoot, cursorPlatform, cursorIsRunning, cursorPublication, cursorMoveBackup,
+        });
+        results.push({ host: target.host, unitId: target.unitId, ...outcome });
+        continue;
+      }
       const detected = await detect(target.host);
       if (!detected?.available) {
         results.push({

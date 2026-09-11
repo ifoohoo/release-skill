@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/operation-result.json",
+  "title": "OperationResult",
+  "description": "Terminal result of one kernel protocol operation: terminal state, optional outputs, and stable-coded errors. A result never carries non-terminal states.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "protocol", "operationId", "operation", "state", "errors"],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.operation-result"
+    },
+    "protocol": {
+      "$ref": "#/$defs/protocolRef"
+    },
+    "operationId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+      "description": "Echoes the request operationId."
+    },
+    "operation": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "description": "Echoes the request operation."
+    },
+    "state": {
+      "enum": ["succeeded", "failed", "rejected"],
+      "description": "Terminal states only; equals the kernel protocol terminalStates set."
+    },
+    "outputs": {
+      "type": ["object", "null"],
+      "description": "Operation-specific outputs; meaningful when state is succeeded."
+    },
+    "errors": {
+      "type": "array",
+      "description": "Empty when state is succeeded; at least one stable-coded error otherwise.",
+      "items": {
+        "$ref": "#/$defs/error"
+      }
+    },
+    "completedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Optional RFC 3339 date-time when the operation reached a terminal state."
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "succeeded"
+          }
+        },
+        "required": ["state"]
+      },
+      "then": {
+        "properties": {
+          "errors": {
+            "type": "array",
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": ["failed", "rejected"]
+          }
+        },
+        "required": ["state"]
+      },
+      "then": {
+        "properties": {
+          "errors": {
+            "type": "array",
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "protocolRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*(\\.[a-z][a-z0-9]*(-[a-z0-9]+)*)*$",
+          "description": "Registered protocol name (dot-separated kebab-case segments)."
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Registered protocol version."
+        }
+      }
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^SFC[0-9]{4}$",
+          "description": "Stable error code from the frozen contracts error registry."
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "description": "Optional JSON pointer into the offending document."
+        },
+        "details": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

@@ -67,7 +67,7 @@ function postVerificationComplete(run) {
 function publicationComplete(run) {
   return run.checkpoints.every((cp) => COMPLETED_CHECKPOINTS.has(cp.status)
     || (['failed', 'deferred'].includes(cp.status)
-      && ['claude-marketplace-install', 'codex-marketplace-install', 'kimi-marketplace-install', 'codebuddy-marketplace-install'].includes(cp.actionType)));
+      && ['claude-marketplace-install', 'codex-marketplace-install', 'kimi-marketplace-install', 'codebuddy-marketplace-install', 'qoder-marketplace-install'].includes(cp.actionType)));
 }
 
 async function lineagePathsContained(run, runsRoot) {

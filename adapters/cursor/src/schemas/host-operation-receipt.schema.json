@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/host-operation-receipt.json",
+  "title": "Skill Family host operation receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "hostId", "planDigest", "overall", "writes"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.host-operation-receipt" },
+    "hostId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+    "planDigest": { "$ref": "#/$defs/sha256" },
+    "overall": { "enum": ["rejected", "failed", "succeeded", "partially_applied"] },
+    "reason": { "type": "string", "minLength": 1 },
+    "authorizationRef": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "writes": { "type": "array", "items": { "$ref": "#/$defs/write" } },
+    "closure": { "$ref": "#/$defs/closure" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "relativePath": { "type": "string", "minLength": 1, "maxLength": 240, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)(?!.*\\u0000)[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$" },
+    "write": {
+      "type": "object", "additionalProperties": false, "required": ["target", "outcome"],
+      "properties": { "target": { "$ref": "#/$defs/relativePath" }, "outcome": { "enum": ["planned", "attempted", "succeeded", "failed"] }, "sha256": { "$ref": "#/$defs/sha256" }, "reason": { "type": "string", "minLength": 1 } },
+      "allOf": [
+        { "if": { "properties": { "outcome": { "const": "succeeded" } }, "required": ["outcome"] }, "then": { "properties": { "sha256": true }, "required": ["sha256"] }, "else": { "properties": { "sha256": false } } },
+        { "if": { "properties": { "outcome": { "const": "failed" } }, "required": ["outcome"] }, "then": { "properties": { "reason": true }, "required": ["reason"] } }
+      ]
+    },
+    "closure": {
+      "type": "object", "additionalProperties": false, "required": ["digestAlgorithm", "digest", "resources"],
+      "properties": {
+        "digestAlgorithm": { "const": "sha256" }, "digest": { "$ref": "#/$defs/sha256" },
+        "resources": { "type": "array", "minItems": 1, "items": { "type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": { "path": { "$ref": "#/$defs/relativePath" }, "sha256": { "$ref": "#/$defs/sha256" } } } }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "overall": { "const": "rejected" } }, "required": ["overall"] },
+      "then": {
+        "required": ["reason"],
+        "properties": { "reason": true, "authorizationRef": false, "closure": false, "writes": { "type": "array", "maxItems": 0 } }
+      }
+    },
+    {
+      "if": { "properties": { "overall": { "const": "succeeded" } }, "required": ["overall"] },
+      "then": {
+        "required": ["authorizationRef", "closure"],
+        "properties": { "authorizationRef": true, "closure": true, "writes": { "type": "array", "minItems": 1, "items": { "type": "object", "properties": { "outcome": { "const": "succeeded" } }, "required": ["outcome"] } } }
+      }
+    },
+    {
+      "if": { "properties": { "overall": { "const": "failed" } }, "required": ["overall"] },
+      "then": {
+        "required": ["reason"],
+        "properties": { "reason": true, "writes": { "type": "array", "contains": { "type": "object", "properties": { "outcome": { "const": "failed" } }, "required": ["outcome"] } } },
+        "not": { "properties": { "writes": { "type": "array", "contains": { "type": "object", "properties": { "outcome": { "const": "succeeded" } }, "required": ["outcome"] } } } }
+      }
+    },
+    {
+      "if": { "properties": { "overall": { "const": "partially_applied" } }, "required": ["overall"] },
+      "then": {
+        "required": ["reason", "authorizationRef", "closure"],
+        "properties": {
+          "reason": true,
+          "authorizationRef": true,
+          "closure": true,
+          "writes": {
+            "type": "array",
+            "minItems": 2,
+            "allOf": [
+              { "contains": { "type": "object", "properties": { "outcome": { "const": "succeeded" } }, "required": ["outcome"] } },
+              { "contains": { "type": "object", "properties": { "outcome": { "enum": ["failed", "attempted", "planned"] } }, "required": ["outcome"] } }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

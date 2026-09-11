@@ -16,6 +16,7 @@ import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
 import { readFile, stat, mkdir, readdir, realpath, lstat } from 'node:fs/promises';
 import { join, resolve, relative, isAbsolute, basename } from 'node:path';
+import { resolveContained } from 'skill-family-harness-node';
 
 import {
   ActionType,
@@ -37,7 +38,13 @@ import {
 import { createHash } from 'node:crypto';
 import { createFilesystemRootBinding, observeFilesystemTree } from 'skill-family-harness-node';
 import { computeFrozenSnapshot, resolveFrozenPath } from '../snapshot/frozen.mjs';
-import { PLATFORMS, getPlatform, resolvePlatformRoute, resolveCapabilityConflicts } from '../platforms/registry.mjs';
+import {
+  PLATFORMS,
+  getPlatform,
+  projectObservedStandaloneIndexInstallIdentity,
+  resolvePlatformRoute,
+  resolveCapabilityConflicts,
+} from '../platforms/registry.mjs';
 import {
   KIMI_REQUIREMENT_FILE,
   KIMI_ATTESTATION_FILE,
@@ -895,7 +902,99 @@ const SUPPORTED_TYPES = [
   ActionType.CODEX_MARKETPLACE_INSTALL,
   ActionType.KIMI_MARKETPLACE_INSTALL,
   ActionType.CODEBUDDY_MARKETPLACE_INSTALL,
+  ActionType.QODER_MARKETPLACE_INSTALL,
 ];
+
+async function runPlatformCli(exec, platform, args, options, selectedBinary = null) {
+  const candidates = selectedBinary
+    ? [selectedBinary]
+    : [platform.cli.binary, ...(platform.cli.binaryAliases ?? [])];
+  let lastError;
+  for (const command of candidates) {
+    try {
+      return { command, result: await exec(command, args, options) };
+    } catch (error) {
+      lastError = error;
+      if (error?.code !== 'ENOENT' || command === candidates.at(-1)) throw error;
+    }
+  }
+  throw lastError;
+}
+
+function normalizeGitRepository(value) {
+  const source = String(value ?? '').replace(/^git\+/u, '');
+  let host;
+  let pathname;
+  const scp = /^git@([^:]+):(.+)$/u.exec(source);
+  if (scp) {
+    [, host, pathname] = scp;
+  } else {
+    let parsed;
+    try {
+      parsed = new URL(source);
+    } catch {
+      return null;
+    }
+    if (!['https:', 'ssh:'].includes(parsed.protocol) || !parsed.hostname) return null;
+    // Only the standard HTTPS/SSH endpoints belong to this channel contract.
+    if (parsed.port && parsed.port !== (parsed.protocol === 'ssh:' ? '22' : '443')) return null;
+    host = parsed.hostname;
+    pathname = parsed.pathname.replace(/^\/+/, '');
+  }
+  const repository = pathname.replace(/\/+$/u, '').replace(/\.git$/u, '');
+  if (!/^[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/iu.test(repository)) return null;
+  return `${host.toLowerCase()}/${repository}`;
+}
+
+async function observeQoderHubAfterAdd({ exec, platform, action, env, cwd, timeout, isolatedHome, command }) {
+  const listed = await runPlatformCli(exec, platform, platform.cli.marketplaceList(), {
+    env, cwd, timeout,
+  }, command);
+  let parsed;
+  try {
+    parsed = JSON.parse(listed.result.stdout);
+  } catch {
+    throw new Error('Qoder marketplace list returned malformed JSON');
+  }
+  const observed = platform.strategy.parseMarketplaceListOutput(parsed, action.marketplace);
+  if (!observed.ok) throw new Error(observed.error);
+  const expectedRepository = normalizeGitRepository(
+    action.marketplaceSource ?? `https://github.com/${action.repo}.git`,
+  );
+  if (!expectedRepository || normalizeGitRepository(observed.found.source.url) !== expectedRepository) {
+    throw new Error(`Qoder marketplace "${action.marketplace}" does not point to frozen repository ${expectedRepository ?? action.repo}`);
+  }
+  let marketplaceRoot;
+  try {
+    const homeRoot = await realpath(isolatedHome);
+    const observedRoot = await realpath(observed.installPath);
+    const installRelative = relative(homeRoot, observedRoot);
+    marketplaceRoot = await resolveContained(homeRoot, installRelative);
+  } catch {
+    throw new Error(`Qoder marketplace checkout escapes isolated HOME: ${observed.installPath}`);
+  }
+  const head = await exec('git', ['-C', marketplaceRoot, 'rev-parse', 'HEAD'], {
+    env, cwd, timeout,
+  });
+  const marketplaceCommitSha = String(head.stdout ?? '').trim();
+  if (marketplaceCommitSha !== action.marketplaceCommitSha) {
+    throw new Error(`Qoder marketplace checkout SHA "${marketplaceCommitSha}" does not match frozen SHA "${action.marketplaceCommitSha}"`);
+  }
+  const index = await validateManifestFile(resolve(marketplaceRoot, action.marketplaceIndexPath), ['name', 'plugins']);
+  if (!index.valid || index.manifest.name !== action.marketplace || !Array.isArray(index.manifest.plugins)) {
+    throw new Error('Qoder Hub marketplace index is missing or invalid');
+  }
+  const matches = index.manifest.plugins.filter((entry) => entry?.name === action.plugin);
+  if (matches.length !== 1) {
+    throw new Error(`Qoder Hub marketplace index must contain exactly one "${action.plugin}" entry`);
+  }
+  const frozenIdentity = projectObservedStandaloneIndexInstallIdentity('qoder', action.selectedEntry);
+  const observedIdentity = projectObservedStandaloneIndexInstallIdentity('qoder', matches[0]);
+  if (JSON.stringify(observedIdentity) !== JSON.stringify(frozenIdentity)) {
+    throw new Error('Qoder Hub entry does not match the frozen source URL and SHA');
+  }
+  return { command: listed.command, marketplaceCommitSha, marketplaceRoot, selectedEntry: observedIdentity };
+}
 
 /**
  * Classify whether an error indicates CLI/transport unavailability.
@@ -1138,6 +1237,7 @@ const PLATFORM_SUPPORTED_SOURCES = Object.freeze({
   codex: new Set([MARKETPLACE_SOURCE_TYPES.BUNDLED_FAMILY, MARKETPLACE_SOURCE_TYPES.STANDALONE_INDEX]),
   kimi: new Set([MARKETPLACE_SOURCE_TYPES.BUNDLED_FAMILY, MARKETPLACE_SOURCE_TYPES.STANDALONE_INDEX]),
   codebuddy: new Set([MARKETPLACE_SOURCE_TYPES.BUNDLED_FAMILY, MARKETPLACE_SOURCE_TYPES.STANDALONE_INDEX]),
+  qoder: new Set([MARKETPLACE_SOURCE_TYPES.STANDALONE_INDEX]),
 });
 
 /**
@@ -1298,6 +1398,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           actionType === ActionType.CODEX_MARKETPLACE_INSTALL ||
           actionType === ActionType.KIMI_MARKETPLACE_INSTALL ||
           actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL
+          || actionType === ActionType.QODER_MARKETPLACE_INSTALL
         ) {
           // 1. Validate all parameters for injection safety
           const validation = validateMarketplaceParams(action);
@@ -1730,6 +1831,17 @@ export function createPluginMarketplaceAdapter(deps = {}) {
                   status: ActionStatus.PREFLIGHT_FAILED,
                   error: `selectedEntry.version "${action.selectedEntry.version}" does not match action.version "${action.version}"`,
                 });
+              }
+              if (consumer === 'qoder') {
+                try {
+                  projectObservedStandaloneIndexInstallIdentity('qoder', action.selectedEntry);
+                } catch (identityError) {
+                  return createResult({
+                    actionType,
+                    status: ActionStatus.PREFLIGHT_FAILED,
+                    error: `Qoder selectedEntry identity is invalid: ${identityError.message}`,
+                  });
+                }
               }
             }
           } else {
@@ -2435,6 +2547,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
         actionType === ActionType.CODEX_MARKETPLACE_INSTALL ||
         actionType === ActionType.KIMI_MARKETPLACE_INSTALL ||
         actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL
+        || actionType === ActionType.QODER_MARKETPLACE_INSTALL
       ) {
         try {
           assertIsolatedConsumerWritesAuthorized(context, actionType);
@@ -2500,7 +2613,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             await mkdir(resolve(isolatedHome, subdir), { recursive: true, mode: 0o700 });
           }
 
-          const cliCmd = platform.cli.binary;
+          let cliCmd = null;
           const baseEnv = { ...process.env, ...context.env };
           const env = {
             ...baseEnv,
@@ -2530,9 +2643,17 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           // non-automatable manual-requirement path returned above)
           const ref = action.ref ?? `v${action.version}`;
           let addOutput = null;
+          let qoderMarketplaceObservation = null;
           const marketplaceArgs = platform.cli.marketplaceAdd(action.repo, ref);
           try {
-            const addResult = await exec(cliCmd, marketplaceArgs, { env, cwd: context.root, timeout: frozenTimeoutMs });
+            const addInvocation = await runPlatformCli(
+              exec,
+              platform,
+              marketplaceArgs,
+              { env, cwd: context.root, timeout: frozenTimeoutMs },
+            );
+            cliCmd = addInvocation.command;
+            const addResult = addInvocation.result;
             if (platform.jsonProtocol.marketplaceAddOutput === 'json') {
               try {
                 addOutput = JSON.parse(addResult.stdout);
@@ -2558,6 +2679,18 @@ export function createPluginMarketplaceAdapter(deps = {}) {
                 });
               }
             }
+            if (consumer === 'qoder') {
+              qoderMarketplaceObservation = await observeQoderHubAfterAdd({
+                exec,
+                platform,
+                action,
+                env,
+                cwd: context.root,
+                timeout: frozenTimeoutMs,
+                isolatedHome,
+                command: cliCmd,
+              });
+            }
           } catch (addErr) {
             // Re-throw CLI/transport unavailability errors to outer catch
             // for human-attestation fallback classification
@@ -2576,7 +2709,15 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           let installOutput;
           const installArgs = platform.cli.install(action.plugin, action.marketplace);
           try {
-            const installResult = await exec(cliCmd, installArgs, { env, cwd: context.root, timeout: frozenTimeoutMs });
+            const installInvocation = await runPlatformCli(
+              exec,
+              platform,
+              installArgs,
+              { env, cwd: context.root, timeout: frozenTimeoutMs },
+              cliCmd,
+            );
+            cliCmd = installInvocation.command;
+            const installResult = installInvocation.result;
             if (platform.jsonProtocol.pluginInstallOutput === 'json') {
               try {
                 installOutput = JSON.parse(installResult.stdout);
@@ -2682,8 +2823,10 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             repo: action.repo,
             ref,
             version: action.version,
+            cliCommand: cliCmd,
             addOutput,
             installOutput,
+            qoderMarketplaceObservation,
             executedAt: new Date().toISOString(),
             ...extraInstalledPathsAudit(executeBinding),
           };
@@ -2801,6 +2944,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           actionType === ActionType.CODEX_MARKETPLACE_INSTALL ||
           actionType === ActionType.KIMI_MARKETPLACE_INSTALL ||
           actionType === ActionType.CODEBUDDY_MARKETPLACE_INSTALL
+          || actionType === ActionType.QODER_MARKETPLACE_INSTALL
         ) {
           const consumer = action.consumer;
           const runDir = context.runDir;
@@ -2823,7 +2967,7 @@ export function createPluginMarketplaceAdapter(deps = {}) {
               + `Registered platforms: ${PLATFORMS.map((p) => p.id).join(', ')}`,
             );
           }
-          const cliCmd = platform.cli ? platform.cli.binary : null;
+          let cliCmd = platform.cli ? platform.cli.binary : null;
           const baseEnv = { ...process.env, ...(context.env ?? {}) };
           const env = {
             ...baseEnv,
@@ -3433,6 +3577,45 @@ export function createPluginMarketplaceAdapter(deps = {}) {
             });
           }
 
+          if (consumer === 'qoder') {
+            const qoderObservation = evidence.qoderMarketplaceObservation;
+            const permittedCliCommands = [platform.cli.binary, ...(platform.cli.binaryAliases ?? [])];
+            if (!permittedCliCommands.includes(evidence.cliCommand)) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: false,
+                  error: `Qoder execute evidence cliCommand must be one of: ${permittedCliCommands.join(', ')}`,
+                },
+              });
+            }
+            let frozenEntryIdentity;
+            try {
+              frozenEntryIdentity = projectObservedStandaloneIndexInstallIdentity('qoder', action.selectedEntry);
+            } catch (identityErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: { installed: false, error: identityErr.message },
+              });
+            }
+            if (
+              qoderObservation?.marketplaceCommitSha !== action.marketplaceCommitSha
+              || JSON.stringify(qoderObservation?.selectedEntry) !== JSON.stringify(frozenEntryIdentity)
+            ) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: false,
+                  error: 'Qoder execute evidence is not bound to the frozen Hub SHA and selected entry',
+                },
+              });
+            }
+            cliCmd = evidence.cliCommand;
+          }
+
           if (
             evidence.consumer !== consumer ||
             evidence.plugin !== action.plugin ||
@@ -3455,12 +3638,19 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           // Run list command to verify installation (automatable platforms
           // only; a non-automatable platform has no list CLI and returned via
           // the attestation path above).
-          const listArgs = ['plugin', 'list', '--json'];
+          const listArgs = platform.cli.list();
 
           let listOutput;
           try {
-            const result = await exec(cliCmd, listArgs, { env, cwd: context.root, timeout: frozenTimeoutMs });
-            listOutput = JSON.parse(result.stdout);
+            const invocation = await runPlatformCli(
+              exec,
+              platform,
+              listArgs,
+              { env, cwd: context.root, timeout: frozenTimeoutMs },
+              cliCmd,
+            );
+            cliCmd = invocation.command;
+            listOutput = JSON.parse(invocation.result.stdout);
           } catch (listErr) {
             return createResult({
               actionType,
@@ -3745,7 +3935,9 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           // (CLI list version binding) compensates for the weak name-freeze.
           if (action.marketplaceLocation === 'external') {
             observation.marketplaceLocation = action.marketplaceLocation;
-            observation.marketplaceCommitSha = action.marketplaceCommitSha;
+            observation.marketplaceCommitSha = consumer === 'qoder'
+              ? evidence.qoderMarketplaceObservation.marketplaceCommitSha
+              : action.marketplaceCommitSha;
           }
 
           return createResult({

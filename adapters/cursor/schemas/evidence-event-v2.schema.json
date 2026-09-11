@@ -1,0 +1,164 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://release-skill.dev/schemas/evidence-event/v2",
+  "title": "Evidence Event v2",
+  "description": "Unified schema for JSONL evidence events produced by release-skill 0.8.0+. The v1 schema (evidence-event.schema.json) was too strict for the real event vocabulary (closed command/status/error enums, additionalProperties:false over phase-specific fields) and is retained only for legacy reads; v1 files are never rewritten. v2 freezes the stable envelope (identity, producer, command, phase, status, error, duration) with additionalProperties closed at the top level: every phase-specific detail field (unitId, gate, hookName, actionId, step, hookId, tagCommit, cached, testSelection, cacheKey, durationMs, exitCode, findingCount, ...) lives inside details. Declared location fields are type-constrained; the remaining details vocabulary stays open and producer-versioned. The evidence writer is the single choke point: it relocates any unknown top-level extension key into details and validates the event against this schema before writing (fail closed).",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "runId",
+    "sequence",
+    "timestamp",
+    "command",
+    "phase",
+    "status",
+    "producer"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 2,
+      "description": "Event format version (envelope field; never overridable by callers)"
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for the run (directory name)"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Real monotonic sequence number assigned by the writer, starting from 1"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp of the event"
+    },
+    "command": {
+      "type": "string",
+      "enum": [
+        "assess",
+        "prepare",
+        "publish",
+        "reconcile",
+        "verify",
+        "distribute",
+        "postverify",
+        "hooks-validate"
+      ],
+      "description": "The command that triggered this event"
+    },
+    "phase": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Current execution phase identifier (producer-versioned vocabulary)"
+    },
+    "status": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Status value of this event (started/completed/passed/failed/skipped/warning/blocking/... — producer-versioned vocabulary)"
+    },
+    "producer": {
+      "type": "object",
+      "required": ["name", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "const": "release-skill",
+          "description": "Producer name; attribution only, never an authority"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Producer version; attribution only, never an authority"
+        }
+      },
+      "description": "Producer identity for attribution (R-06B). Old v1 runs have no producer field."
+    },
+    "error": {
+      "type": ["object", "null"],
+      "description": "Error details when the event reports a failure. The writer normalizes diagnostic fields before validation (numeric child-process exit codes such as Git 128 are preserved as EXIT_<n>; free string errors become UNKNOWN_ERROR), so the real cause is never replaced by a schema failure.",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable error code (open string: error codes are producer-versioned and grow over time)"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable error message"
+        }
+      }
+    },
+    "duration": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Phase duration in milliseconds"
+    },
+    "details": {
+      "type": "object",
+      "description": "Phase-specific supplementary information. Declared location fields are type-constrained; the remaining phase-specific vocabulary stays open.",
+      "properties": {
+        "unitId": {
+          "type": "string",
+          "description": "Release unit the event refers to"
+        },
+        "gate": {
+          "type": "string",
+          "description": "Safety gate the event refers to"
+        },
+        "hookName": {
+          "type": "string",
+          "description": "Declared hook the event refers to"
+        },
+        "actionId": {
+          "type": "string",
+          "description": "External action the event refers to"
+        },
+        "step": {
+          "type": "string",
+          "description": "Verification or execution step the event refers to"
+        },
+        "hookId": {
+          "type": "string",
+          "description": "Post-publish hook the event refers to"
+        },
+        "tagCommit": {
+          "type": "string",
+          "description": "Frozen tag commit the event refers to"
+        },
+        "cached": {
+          "type": "boolean",
+          "description": "Whether a hook completion was a cache hit"
+        },
+        "testSelection": {
+          "type": "string",
+          "description": "Test hook selection (full or incremental)"
+        },
+        "cacheKey": {
+          "type": "string",
+          "description": "Hook cache fingerprint"
+        },
+        "durationMs": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Observed duration in milliseconds (null when unobserved)"
+        },
+        "exitCode": {
+          "type": "integer",
+          "description": "Child process exit code"
+        },
+        "findingCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of findings reported by a gate"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

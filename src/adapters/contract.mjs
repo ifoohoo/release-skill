@@ -64,6 +64,7 @@ export const ActionType = Object.freeze({
   CODEX_MARKETPLACE_INSTALL: 'codex-marketplace-install',
   KIMI_MARKETPLACE_INSTALL: 'kimi-marketplace-install',
   CODEBUDDY_MARKETPLACE_INSTALL: 'codebuddy-marketplace-install',
+  QODER_MARKETPLACE_INSTALL: 'qoder-marketplace-install',
 
   // default branch management
   SET_DEFAULT_BRANCH: 'set-default-branch',

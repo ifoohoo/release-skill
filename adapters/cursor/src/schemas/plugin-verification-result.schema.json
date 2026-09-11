@@ -1,0 +1,1217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/plugin-verification-result.json",
+  "title": "Plugin verification result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "operation",
+    "status",
+    "requestDigest",
+    "goal",
+    "source",
+    "host",
+    "facts",
+    "reason",
+    "requiredActions"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.plugin-verification-result"
+    },
+    "operation": {
+      "const": "plugin-verification"
+    },
+    "status": {
+      "enum": [
+        "observed",
+        "rejected",
+        "failed",
+        "indeterminate"
+      ]
+    },
+    "requestDigest": {
+      "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256"
+    },
+    "goal": {
+      "$ref": "https://contracts.skill-family.example/v1/plugin-verification-request.json#/properties/goal"
+    },
+    "source": {
+      "$ref": "https://contracts.skill-family.example/v1/plugin-verification-request.json#/properties/source"
+    },
+    "host": {
+      "$ref": "https://contracts.skill-family.example/v1/plugin-verification-request.json#/properties/host"
+    },
+    "facts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sourceClosureDigest",
+            "membersDigest",
+            "runtimeIdentities",
+            "probe"
+          ],
+          "properties": {
+            "sourceClosureDigest": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "membersDigest": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "runtimeIdentities": {
+              "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/properties/runtimeIdentities"
+            },
+            "probe": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/commandObservation"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "install": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "installedClosureDigest",
+            "payloadMatches",
+            "observationDigest",
+            "sourceMode",
+            "commands",
+            "retained"
+          ],
+          "properties": {
+            "installedClosureDigest": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "payloadMatches": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "observationDigest": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "sourceMode": {
+              "$ref": "https://contracts.skill-family.example/v1/plugin-verification-request.json#/properties/source/properties/type"
+            },
+            "commands": {
+              "type": "array",
+              "maxItems": 3,
+              "items": {
+                "$ref": "#/$defs/commandObservation"
+              }
+            },
+            "retained": {
+              "const": true
+            }
+          }
+        },
+        "discovery": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "basis",
+            "pluginId"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "observed",
+                "absent",
+                "unknown",
+                "not-performed"
+              ]
+            },
+            "basis": {
+              "enum": [
+                "native-plugin-list",
+                "native-init-event",
+                "none"
+              ]
+            },
+            "pluginId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "unknown",
+                      "not-performed"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "basis": {
+                    "const": "none"
+                  },
+                  "pluginId": {
+                    "const": null
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "observed"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "basis": {
+                    "enum": [
+                      "native-plugin-list",
+                      "native-init-event"
+                    ]
+                  },
+                  "pluginId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "absent"
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "basis": {
+                    "enum": [
+                      "native-plugin-list",
+                      "native-init-event"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "invocation": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "required": [
+            "execution",
+            "streams",
+            "snapshots",
+            "snapshotsMatch"
+          ],
+          "properties": {
+            "execution": {
+              "$ref": "#/$defs/execution"
+            },
+            "streams": {
+              "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/properties/streams"
+            },
+            "snapshots": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "additionalProperties": false,
+              "required": [
+                "installedPlugin",
+                "fixture",
+                "protectedWorkspace"
+              ],
+              "properties": {
+                "installedPlugin": {
+                  "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/$defs/snapshot"
+                },
+                "fixture": {
+                  "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/$defs/snapshot"
+                },
+                "protectedWorkspace": {
+                  "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/$defs/snapshot"
+                }
+              }
+            },
+            "snapshotsMatch": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        },
+        "lifecycle": {
+          "$ref": "#/$defs/lifecycle"
+        }
+      }
+    },
+    "reason": {
+      "enum": [
+        null,
+        "preflight-rejected",
+        "executable-observation-mismatch",
+        "execution-failed",
+        "snapshot-mismatch",
+        "private-evidence-publication-failed",
+        "boundary-state-indeterminate",
+        "source-invalid",
+        "members-drift",
+        "tree-violation",
+        "channel-source-invalid",
+        "restriction-unsupported",
+        "install-write-failed",
+        "payload-mismatch"
+      ]
+    },
+    "requiredActions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "manual-temporary-root-inspection-required"
+        ]
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "type": "object",
+        "properties": { "goal": { "const": "native-lifecycle" } },
+        "required": ["goal"]
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "object",
+            "properties": { "type": { "const": "local-marketplace" } }
+          },
+          "host": {
+            "type": "object",
+            "properties": {
+              "cliVersion": false,
+              "executableSha256": false
+            }
+          },
+          "facts": {
+            "type": "object",
+            "required": ["lifecycle"],
+            "properties": {
+              "lifecycle": {},
+              "input": false,
+              "install": false,
+              "discovery": false,
+              "invocation": false
+            }
+          }
+        }
+      },
+      "else": {
+        "type": "object",
+        "properties": {
+          "facts": {
+            "type": "object",
+            "required": ["input", "install", "discovery", "invocation"],
+            "properties": { "input": {}, "install": {}, "discovery": {}, "invocation": {}, "lifecycle": false }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "properties": {
+          "goal": { "const": "native-lifecycle" },
+          "status": { "const": "rejected" }
+        },
+        "required": ["goal", "status"]
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "reason": { "const": "preflight-rejected" },
+          "requiredActions": { "type": "array", "maxItems": 0 },
+          "facts": {
+            "type": "object",
+            "properties": {
+              "lifecycle": {
+                "type": "object",
+                "properties": {
+                  "stages": {
+                    "type": "array",
+                    "minItems": 12,
+                    "maxItems": 12,
+                    "prefixItems": [
+                      { "$ref": "#/$defs/stageNotPerformed" },
+                      { "$ref": "#/$defs/stageNotPerformed" },
+                      { "$ref": "#/$defs/stageNotPerformed" },
+                      { "$ref": "#/$defs/stageNotPerformed" },
+                      { "$ref": "#/$defs/stageNotPerformed" },
+                      { "$ref": "#/$defs/stageNotPerformed" },
+                      { "$ref": "#/$defs/stageNotPerformed" },
+                      { "$ref": "#/$defs/stageNotPerformed" },
+                      { "$ref": "#/$defs/stageNotPerformed" },
+                      { "$ref": "#/$defs/stageNotPerformed" },
+                      { "$ref": "#/$defs/stageNotPerformed" },
+                      { "$ref": "#/$defs/stageNotPerformed" }
+                    ],
+                    "items": false
+                  },
+                  "cleanup": {
+                    "type": "object",
+                    "properties": { "pluginAbsent": { "const": false } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "properties": {
+          "goal": { "const": "native-lifecycle" },
+          "status": { "const": "failed" }
+        },
+        "required": ["goal", "status"]
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "reason": { "const": "execution-failed" },
+          "requiredActions": { "type": "array", "maxItems": 0 },
+          "facts": {
+            "type": "object",
+            "properties": {
+              "lifecycle": {
+                "type": "object",
+                "properties": {
+                  "stages": {
+                    "type": "array",
+                    "contains": {
+                      "type": "object",
+                      "properties": { "status": { "const": "failed" } },
+                      "required": ["status"]
+                    },
+                    "minContains": 1
+                  },
+                  "cleanup": {
+                    "type": "object",
+                    "properties": { "pluginAbsent": { "const": false } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "properties": {
+          "goal": { "const": "native-lifecycle" },
+          "status": { "const": "indeterminate" }
+        },
+        "required": ["goal", "status"]
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "reason": { "const": "boundary-state-indeterminate" },
+          "requiredActions": { "const": ["manual-temporary-root-inspection-required"] },
+          "facts": {
+            "type": "object",
+            "properties": {
+              "lifecycle": {
+                "type": "object",
+                "properties": {
+                  "stages": {
+                    "type": "array",
+                    "contains": {
+                      "type": "object",
+                      "properties": { "status": { "const": "indeterminate" } },
+                      "required": ["status"]
+                    },
+                    "minContains": 1
+                  },
+                  "cleanup": {
+                    "type": "object",
+                    "properties": { "pluginAbsent": { "const": false } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "properties": {
+          "goal": { "const": "native-lifecycle" },
+          "status": { "const": "observed" }
+        },
+        "required": ["goal", "status"]
+      },
+      "then": {
+        "type": "object",
+        "properties": {
+          "facts": {
+            "type": "object",
+            "required": ["lifecycle"],
+            "properties": {
+              "lifecycle": {
+                "type": "object",
+                "required": ["stages", "cleanup"],
+                "properties": {
+                  "stages": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["status"],
+                      "properties": { "status": { "const": "observed" } }
+                    }
+                  },
+                  "cleanup": {
+                    "type": "object",
+                    "required": ["pluginAbsent"],
+                    "properties": { "pluginAbsent": { "const": true } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "observed"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "const": null
+          },
+          "requiredActions": {
+            "type": "array",
+            "maxItems": 0
+          },
+          "facts": {
+            "properties": {
+              "install": {
+                "type": "object",
+                "properties": {
+                  "installedClosureDigest": {
+                    "type": "string"
+                  },
+                  "observationDigest": {
+                    "type": "string"
+                  }
+                }
+              },
+              "input": {
+                "properties": {
+                  "sourceClosureDigest": {
+                    "type": "string"
+                  },
+                  "membersDigest": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object",
+        "allOf": [
+          {
+            "if": {
+              "type": "object",
+              "properties": {
+                "goal": {
+                  "const": "install-only"
+                }
+              },
+              "required": [
+                "goal"
+              ]
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "facts": {
+                  "type": "object",
+                  "properties": {
+                    "invocation": {
+                      "const": null
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "type": "object",
+              "properties": {
+                "goal": {
+                  "const": "install-and-invoke"
+                }
+              },
+              "required": [
+                "goal"
+              ]
+            },
+            "then": {
+              "type": "object",
+              "properties": {
+                "facts": {
+                  "type": "object",
+                  "properties": {
+                    "install": {
+                      "type": "object",
+                      "properties": {
+                        "payloadMatches": {
+                          "const": true
+                        }
+                      }
+                    },
+                    "invocation": {
+                      "type": "object",
+                      "properties": {
+                        "execution": {
+                          "type": "object",
+                          "properties": {
+                            "spawned": {
+                              "const": true
+                            },
+                            "exitStatus": {
+                              "const": 0
+                            },
+                            "processStatus": {
+                              "const": "EXITED"
+                            },
+                            "terminationReason": {
+                              "const": null
+                            },
+                            "watchdogReason": {
+                              "const": null
+                            },
+                            "runnerModelOverrideAbsent": {
+                              "const": true
+                            }
+                          }
+                        },
+                        "streams": {
+                          "type": "object"
+                        },
+                        "snapshots": {
+                          "type": "object"
+                        },
+                        "snapshotsMatch": {
+                          "const": true
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "rejected"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "enum": [
+              "preflight-rejected",
+              "source-invalid",
+              "members-drift",
+              "tree-violation",
+              "channel-source-invalid",
+              "restriction-unsupported",
+              "executable-observation-mismatch"
+            ]
+          },
+          "requiredActions": {
+            "type": "array",
+            "maxItems": 0
+          },
+          "facts": {
+            "properties": {
+              "install": {
+                "const": null
+              },
+              "invocation": {
+                "const": null
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "if": {
+        "allOf": [
+          { "properties": { "status": { "const": "failed" } }, "required": ["status"] },
+          { "properties": { "goal": { "enum": ["install-only", "install-and-invoke"] } }, "required": ["goal"] }
+        ],
+        "required": [
+          "status",
+          "goal"
+        ],
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "enum": [
+              "install-write-failed",
+              "tree-violation",
+              "channel-source-invalid",
+              "execution-failed",
+              "snapshot-mismatch",
+              "private-evidence-publication-failed",
+              "executable-observation-mismatch",
+              "payload-mismatch"
+            ]
+          },
+          "requiredActions": {
+            "type": "array",
+            "maxItems": 0
+          }
+        },
+        "anyOf": [
+          {
+            "properties": {
+              "facts": {
+                "properties": {
+                  "install": {
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "install"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "facts"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "facts": {
+                "properties": {
+                  "invocation": {
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "invocation"
+                ],
+                "type": "object"
+              }
+            },
+            "required": [
+              "facts"
+            ],
+            "type": "object"
+          }
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "indeterminate"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "const": "boundary-state-indeterminate"
+          },
+          "requiredActions": {
+            "type": "array",
+            "const": [
+              "manual-temporary-root-inspection-required"
+            ]
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "reason": {
+            "const": "payload-mismatch"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "type": "object"
+      },
+      "then": {
+        "properties": {
+          "facts": {
+            "properties": {
+              "invocation": {
+                "const": null
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      }
+    }
+  ],
+  "$defs": {
+    "commandObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "step",
+        "execution",
+        "streams",
+        "outputByteLimits",
+        "outputLimitExceeded"
+      ],
+      "properties": {
+        "step": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "execution": {
+          "$ref": "#/$defs/execution"
+        },
+        "streams": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/properties/streams"
+        },
+        "outputByteLimits": {
+          "anyOf": [
+            {
+              "$ref": "https://contracts.skill-family.example/v1/watchdog-termination-envelope.json#/$defs/outputByteLimits"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "outputLimitExceeded": {
+          "enum": [
+            "stdout",
+            "stderr",
+            null
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "step": {
+                "const": "version-probe"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "outputByteLimits": {
+                "const": null
+              },
+              "outputLimitExceeded": {
+                "const": null
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "outputByteLimits": {
+                "const": null
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "outputLimitExceeded": {
+                "const": null
+              }
+            }
+          }
+        }
+      ]
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "spawned",
+        "exitStatus",
+        "processStatus",
+        "terminationReason",
+        "watchdogReason",
+        "runnerModelOverrideAbsent"
+      ],
+      "properties": {
+        "spawned": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/properties/execution/properties/spawned"
+        },
+        "exitStatus": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/properties/execution/properties/exitStatus"
+        },
+        "processStatus": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/properties/execution/properties/processStatus"
+        },
+        "terminationReason": {
+          "$ref": "https://contracts.skill-family.example/v1/watchdog-termination-envelope.json#/properties/terminationReason"
+        },
+        "watchdogReason": {
+          "$ref": "https://contracts.skill-family.example/v1/watchdog-termination-envelope.json#/properties/watchdogReason"
+        },
+        "runnerModelOverrideAbsent": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-result.json#/properties/execution/properties/runnerModelOverrideAbsent"
+        }
+      }
+    },
+    "installObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requestDigest",
+        "installedRoot",
+        "observation"
+      ],
+      "properties": {
+        "requestDigest": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256"
+        },
+        "installedRoot": {
+          "type": "string",
+          "pattern": "^/(?:[^/\\\\\\u0000]+(?:/[^/\\\\\\u0000]+)*)?$",
+          "not": {
+            "pattern": "(?:^|/)\\.{1,2}(?:/|$)"
+          }
+        },
+        "observation": {
+          "$ref": "https://contracts.skill-family.example/v1/filesystem-tree-observation.json"
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope", "stages", "cleanup"],
+      "properties": {
+        "scope": { "const": "local" },
+        "stages": {
+          "type": "array",
+          "minItems": 12,
+          "maxItems": 12,
+          "prefixItems": [
+            { "$ref": "#/$defs/stagePreflight" },
+            { "$ref": "#/$defs/stageValidateV1" },
+            { "$ref": "#/$defs/stageMarketplaceAdd" },
+            { "$ref": "#/$defs/stageInstallV1" },
+            { "$ref": "#/$defs/stageDiscoverV1" },
+            { "$ref": "#/$defs/stageInvokeV1" },
+            { "$ref": "#/$defs/stageDisable" },
+            { "$ref": "#/$defs/stageEnable" },
+            { "$ref": "#/$defs/stageUpdateV2" },
+            { "$ref": "#/$defs/stageInvokeV2" },
+            { "$ref": "#/$defs/stageUninstall" },
+            { "$ref": "#/$defs/stageAbsentAfterUninstall" }
+          ],
+          "items": false
+        },
+        "cleanup": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pluginAbsent"],
+          "properties": { "pluginAbsent": { "type": "boolean" } }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{ "$ref": "#/$defs/stageStopped" }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}], "items": false } } },
+          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, { "$ref": "#/$defs/stageNotPerformed" }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}], "items": false } } }
+        },
+        {
+          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, { "$ref": "#/$defs/stageStopped" }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}], "items": false } } },
+          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, { "$ref": "#/$defs/stageNotPerformed" }, {}, {}, {}, {}, {}, {}, {}, {}, {}], "items": false } } }
+        },
+        {
+          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, { "$ref": "#/$defs/stageStopped" }, {}, {}, {}, {}, {}, {}, {}, {}, {}], "items": false } } },
+          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, { "$ref": "#/$defs/stageNotPerformed" }, {}, {}, {}, {}, {}, {}, {}, {}], "items": false } } }
+        },
+        {
+          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, { "$ref": "#/$defs/stageStopped" }, {}, {}, {}, {}, {}, {}, {}, {}], "items": false } } },
+          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, { "$ref": "#/$defs/stageNotPerformed" }, {}, {}, {}, {}, {}, {}, {}], "items": false } } }
+        },
+        {
+          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, { "$ref": "#/$defs/stageStopped" }, {}, {}, {}, {}, {}, {}, {}], "items": false } } },
+          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, { "$ref": "#/$defs/stageNotPerformed" }, {}, {}, {}, {}, {}, {}], "items": false } } }
+        },
+        {
+          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, { "$ref": "#/$defs/stageStopped" }, {}, {}, {}, {}, {}, {}], "items": false } } },
+          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageNotPerformed" }, {}, {}, {}, {}, {}], "items": false } } }
+        },
+        {
+          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageStopped" }, {}, {}, {}, {}, {}], "items": false } } },
+          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageNotPerformed" }, {}, {}, {}, {}], "items": false } } }
+        },
+        {
+          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageStopped" }, {}, {}, {}, {}], "items": false } } },
+          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageNotPerformed" }, {}, {}, {}], "items": false } } }
+        },
+        {
+          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageStopped" }, {}, {}, {}], "items": false } } },
+          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageNotPerformed" }, {}, {}], "items": false } } }
+        },
+        {
+          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageStopped" }, {}, {}], "items": false } } },
+          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageNotPerformed" }, {}], "items": false } } }
+        },
+        {
+          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageStopped" }, {}], "items": false } } },
+          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageNotPerformed" }], "items": false } } }
+        }
+      ]
+    },
+    "stageStopped": {
+      "type": "object",
+      "required": ["status"],
+      "properties": { "status": { "enum": ["failed", "indeterminate", "not-performed"] } }
+    },
+    "stageNotPerformed": {
+      "type": "object",
+      "required": ["status"],
+      "properties": { "status": { "const": "not-performed" } }
+    },
+    "stageBase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "status", "commands", "trees"],
+      "properties": {
+        "name": {
+          "enum": [
+            "preflight", "validate-v1", "marketplace-add", "install-v1",
+            "discover-v1", "invoke-v1", "disable", "enable", "update-v2",
+            "invoke-v2", "uninstall", "absent-after-uninstall"
+          ]
+        },
+        "status": { "enum": ["observed", "failed", "indeterminate", "not-performed"] },
+        "commands": { "type": "array", "maxItems": 3, "items": { "$ref": "#/$defs/commandObservation" } },
+        "trees": { "type": "array", "maxItems": 6, "uniqueItems": true, "items": { "$ref": "#/$defs/treeEvidence" } }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "not-performed" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "commands": { "type": "array", "maxItems": 0 },
+              "trees": { "type": "array", "maxItems": 0 }
+            }
+          }
+        }
+      ]
+    },
+    "stagePreflight": {
+      "allOf": [
+        { "$ref": "#/$defs/stageBase" },
+        { "type": "object", "properties": { "name": { "const": "preflight" }, "trees": { "type": "array", "maxItems": 0 } } }
+      ]
+    },
+    "stageValidateV1": {
+      "allOf": [
+        { "$ref": "#/$defs/stageBase" },
+        { "type": "object", "properties": { "name": { "const": "validate-v1" } } }
+      ]
+    },
+    "stageMarketplaceAdd": {
+      "allOf": [
+        { "$ref": "#/$defs/stageBase" },
+        { "type": "object", "properties": { "name": { "const": "marketplace-add" } } }
+      ]
+    },
+    "stageInstallV1": {
+      "allOf": [
+        { "$ref": "#/$defs/stageBase" },
+        { "type": "object", "properties": { "name": { "const": "install-v1" } } }
+      ]
+    },
+    "stageDiscoverV1": {
+      "allOf": [
+        { "$ref": "#/$defs/stageBase" },
+        { "type": "object", "properties": { "name": { "const": "discover-v1" } } }
+      ]
+    },
+    "stageInvokeV1": {
+      "allOf": [
+        { "$ref": "#/$defs/stageBase" },
+        { "type": "object", "properties": { "name": { "const": "invoke-v1" } } }
+      ]
+    },
+    "stageDisable": {
+      "allOf": [
+        { "$ref": "#/$defs/stageBase" },
+        { "type": "object", "properties": { "name": { "const": "disable" } } }
+      ]
+    },
+    "stageEnable": {
+      "allOf": [
+        { "$ref": "#/$defs/stageBase" },
+        { "type": "object", "properties": { "name": { "const": "enable" } } }
+      ]
+    },
+    "stageUpdateV2": {
+      "allOf": [
+        { "$ref": "#/$defs/stageBase" },
+        { "type": "object", "properties": { "name": { "const": "update-v2" } } }
+      ]
+    },
+    "stageInvokeV2": {
+      "allOf": [
+        { "$ref": "#/$defs/stageBase" },
+        { "type": "object", "properties": { "name": { "const": "invoke-v2" } } }
+      ]
+    },
+    "stageUninstall": {
+      "allOf": [
+        { "$ref": "#/$defs/stageBase" },
+        { "type": "object", "properties": { "name": { "const": "uninstall" } } }
+      ]
+    },
+    "stageAbsentAfterUninstall": {
+      "allOf": [
+        { "$ref": "#/$defs/stageBase" },
+        { "type": "object", "properties": { "name": { "const": "absent-after-uninstall" } } }
+      ]
+    },
+    "treeEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "status"],
+      "properties": {
+        "role": { "enum": ["source-v1", "source-v2", "installed", "cache", "config", "data"] },
+        "status": { "enum": ["observed", "absent", "not-applicable"] },
+        "observationDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      },
+      "allOf": [
+        {
+          "if": { "type": "object", "properties": { "status": { "const": "observed" } }, "required": ["status"] },
+          "then": { "type": "object", "required": ["observationDigest"], "properties": { "observationDigest": {} } },
+          "else": { "type": "object", "properties": { "observationDigest": false } }
+        }
+      ]
+    }
+  }
+}

@@ -426,8 +426,11 @@ Options:
   --approve         Approve the ship plan (boolean; plan digest is auto-resolved)
   --hook-approval <path> Checkpoint approval for one requiresApproval hook (ship/distribute/postverify; repeatable)
   --state <path>    Override the durable ship state file
+  --cursor-executable-root <absolute-directory> Directory containing cursor-agent (verify/ship)
+  --cursor-user-state-root <absolute-directory> Explicit existing Cursor user state (verify/ship)
   --update-local-hosts Update installed plugins for selected local hosts after VERIFIED
-  --hosts <ids>     Comma-separated local hosts for post-release update: claude,codex,kimi,codebuddy,workbuddy,qoder. No local host is updated unless --hosts contains at least one id
+  --hosts <ids>     Comma-separated local hosts for post-release update: claude,codex,kimi,codebuddy,workbuddy,qoder,cursor. No local host is updated unless --hosts contains at least one id
+  --cursor-plugins-root <absolute-directory> Required for Cursor Local installation/update; quit Cursor before running
   --confirm-plan <digest> Confirm the exact VERIFIED plan before local host mutation
   --no-hook-cache  Force every prepare hook to run in full; neither read nor write the hook cache
   --json           Output results as JSON
@@ -686,6 +689,8 @@ if (command === 'ship' && (args.includes('--help') || args.includes('-h'))) {
         state: '--state <path>',
         unit: '--unit <id> (repeatable before plan freeze)',
         approve: '--approve --actor <name>',
+        cursorExecutableRoot: '--cursor-executable-root <absolute-directory>',
+        cursorUserStateRoot: '--cursor-user-state-root <absolute-directory>',
       },
       message: 'Repeat the same command to resume from the same state. For parallel or cross-session versions, use .release-skill/ships/<version>.json.',
     }, null, 2));
@@ -700,6 +705,11 @@ Options:
   --state <path>              Specify the durable state file
   --unit <id>                 Select a release unit before plan freeze (repeatable)
   --approve --actor <name>    Approve the plan bound to the current state
+  --cursor-executable-root <absolute-directory> Directory containing cursor-agent
+  --cursor-user-state-root <absolute-directory> Existing Cursor user-state directory
+
+Cursor verification requires both directories on each verification attempt.
+Runtime directories are private and are not saved in the plan or ship state.
 
 Repeat the same command to resume from the same state.
 For parallel or cross-session versions, use .release-skill/ships/<version>.json.`);
@@ -1098,6 +1108,10 @@ if (command === 'ship') {
       adapterRegistry,
       ...(hasUnitSelection ? { unitIds } : {}),
       ...(postpublishApprovalPaths.length > 0 ? { postpublishApprovalPaths } : {}),
+      cursorHostRuntime: {
+        executableRoot: value('--cursor-executable-root'),
+        existingUserStateRoot: value('--cursor-user-state-root'),
+      },
     });
     if (hasJson) {
       console.log(JSON.stringify(result, null, 2));
@@ -1577,6 +1591,7 @@ if (command === 'post-release') {
         root: resolve(value('--root') ?? process.cwd()),
         confirmPlanDigest: value('--confirm-plan'),
         selectedHosts,
+        cursorPluginsRoot: value('--cursor-plugins-root'),
       })
       : derivePostReleaseChecklist(plan, {
         runPath: runRecord.command === 'postverify' && runRecord.status === 'DISTRIBUTED'
@@ -1633,6 +1648,11 @@ if (command === 'post-release') {
 
 // --- Verify command routing ---
 if (command === 'verify') {
+  const cursorValue = (flag) => {
+    const index = args.indexOf(flag);
+    return index !== -1 && args[index + 1] && !args[index + 1].startsWith('--')
+      ? args[index + 1] : undefined;
+  };
 
   const rootIdx = args.indexOf('--root');
   const rawRoot = rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd();
@@ -1673,6 +1693,10 @@ if (command === 'verify') {
       adapterRegistry: registry,
       root,
       verificationGatesAuthorized,
+      cursorHostRuntime: {
+        executableRoot: cursorValue('--cursor-executable-root'),
+        existingUserStateRoot: cursorValue('--cursor-user-state-root'),
+      },
     });
     if (result.status === 'VERIFIED') {
       const {

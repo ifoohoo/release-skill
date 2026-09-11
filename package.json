@@ -1,6 +1,6 @@
 {
   "name": "release-skill",
-  "version": "0.9.17",
+  "version": "0.9.18",
   "description": "Safe preparation and frozen GitHub/npm production publishing with full happy end verification",
   "author": {
     "name": "广州市风荷科技有限公司"
@@ -26,6 +26,7 @@
     ".claude-plugin/",
     ".codebuddy-plugin/",
     ".codex-plugin/",
+    ".cursor-plugin/",
     ".kimi-plugin/",
     ".qoder-plugin/",
     "bin/",
@@ -79,9 +80,9 @@
     "ajv-formats": "3.0.1",
     "libnpmpublish": "11.2.0",
     "npm-registry-fetch": "18.0.2",
-    "skill-family-contracts": "0.17.0",
-    "skill-family-engineering-kit": "0.17.0",
-    "skill-family-harness-node": "0.17.0",
+    "skill-family-contracts": "0.21.0",
+    "skill-family-engineering-kit": "0.21.0",
+    "skill-family-harness-node": "0.21.0",
     "yaml": "2.9.0"
   },
   "devDependencies": {
@@ -99,7 +100,8 @@
     "claude-code",
     "codex",
     "kimi-code",
-    "qoder"
+    "qoder",
+    "cursor"
   ],
   "license": "Apache-2.0"
 }
