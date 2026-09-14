@@ -839,6 +839,7 @@ export async function advanceShip(options = {}, injected = {}) {
     try {
       postRelease = derivePostReleaseChecklist(finalPlan, {
         root,
+        planPath: state.planPath,
         statePath,
         unitIds: state.selectedUnitIds,
         runPath: localFinishRunPath,

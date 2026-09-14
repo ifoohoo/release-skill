@@ -132,6 +132,10 @@ shell 语法的 `setupSkill` 都是配置错误。两个字段彼此独立：关
 release-finish 在 `--root` 指定的当前发布项目根目录调用 `setupSkill`。该流程不再接收另一个项目目录，
 也不要求维护者额外指定 setup 目标。
 
+完整收尾使用 `release-skill post-release --finish`。脚本固定汇总分支决定、宿主更新、实际加载、setup 和源码分支检查：全部完成时退出 0，存在待办时退出 2，确定失败时退出 1。`--finish-feedback` 只读取调用者保存的绝对 JSON 文件，并严格绑定当前 `planDigest`、`configDigest` 和规范项目根目录。反馈中的路径和说明只作为智能体报告数据，不会被执行，也不能提供新的写入授权。
+
+`--skip-local-hosts` 显示跳过本轮宿主更新、加载和 setup；它不得与 `--hosts` 或 `--update-local-hosts` 同时使用。没有该参数且尚未选择宿主时，收尾保持待决定，不自动选择全部宿主。
+
 生产模式的 `prepare` 仍会冻结 GitHub 快照，并生成 `push-snapshot`、`create-tag` 和
 `github-release`。该单元的 `postPublish` 声明保持独立生效，其中 phase 为
 `postVerify` 的 hook 也不受影响。因此纯插件可以先验证公开 GitHub Release，再向中央

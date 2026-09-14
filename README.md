@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.18 -->
+<!-- release-skill:release-version: 0.9.19 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,40 +14,40 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.18** (2026-09-11)
+**0.9.19** (2026-09-14)
 
-0.9.18 is a local source candidate that adds first-class Cursor packaging, Foundation-backed host verification, and a final local distribution path for Claude, Codex, Kimi, CodeBuddy, WorkBuddy, Qoder, and Cursor. The three Foundation dependencies remain pinned to the exact 0.21.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.19 is a local source candidate that completes the verified-release workflow with a deterministic local finish orchestrator. After publication and postVerify, maintainers can use one public entry to select the source branch outcome, update supported hosts, confirm that each host loaded the target plugin, run the configured setup Skill, and verify the source workspace without changing the release status. The three Foundation dependencies remain pinned to the exact 0.21.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- Cursor must be closed before its plugin tree is scanned or replaced. Failed upgrades preserve or restore a complete old or new directory instead of publishing a mixed tree.
-- Host verification receives only caller-declared roots and records mechanism observations separately from release-domain publication and verification state.
+- Finish feedback is bound to the current plugin version, project root, selected host, request identity, and execution environment; changing an update decision invalidates earlier setup evidence.
+- No host is considered loaded from filesystem installation alone, and no configured setup is considered complete until its real result is returned through the bound feedback contract.
 - Hub publication remains a compare-and-swap operation. A partial Hub publication is never rolled back or force-pushed automatically.
 
 **Added**
 
-- The npm package now includes `.cursor-plugin/plugin.json` and a self-contained `adapters/cursor/` projection with all release-skill Skills and runtime resources.
-- Release verification can invoke Foundation 0.21.0 host verification with explicit executable and user-state roots, including Cursor project-level plugin verification.
-- The final local updater can distribute the verified release to the declared Claude, Codex, Kimi, CodeBuddy, WorkBuddy, Qoder, and Cursor installations.
-- Skill Family Hub remains the central marketplace. Its release entry is published through the existing Git Data API after release verification.
+- The local finish entry now accepts `--finish` and emits an ordered plan for branch handling, host updates, load confirmation, configured setup execution, and final source checks.
+- Bound feedback can resume the same finish operation after real host loading and setup execution; JSON and text output expose the same pending, blocked, and complete decisions.
+- The release-finish Skill documents the end-to-end VERIFIED-to-COMPLETE handoff, including the exact request and feedback boundaries used by an agent.
 
 **Changed**
 
-- Local host updates verify the frozen snapshot and manifest identity before installation, and Cursor updates use Foundation fixed-set publication for first install and atomic full-directory replacement for upgrades.
-- Platform generation, public-file projection, package allowlists, schemas, and release-finish guidance now treat Cursor as a declared host and adapter.
+- Finish completion is now separate from the release lifecycle: a successful local finish preserves VERIFIED and reports `releaseStatusChanged: false`.
+- The release help entry is shorter and routes specialized publishing, verification, documentation, marketplace, and finish details to their owning Skills.
+- Skill Family Hub remains the central marketplace, and its release entry continues to use the existing GitHub Git Data API after release verification.
 
 **Fixed**
 
-- Cursor plugin names reject underscores so generated local plugin directories remain compatible with Cursor's manifest requirements.
-- The package's native prebuild allowlist and fixed resource-closure checks now include every generated adapter, including Cursor.
+- Ambiguous setup-plugin selection, missing host candidates, stale setup feedback, and incomplete next-action lists now fail closed instead of producing a false COMPLETE result.
+- Read-only Git observations disable optional index locking and retain exact argv, exit code, stdout, and stderr when a command fails.
 
 **Upgrade Notes**
 
-Upgrade from 0.9.17 to obtain Cursor packaging and local installation, the Foundation-backed host verification bridge, and the unified seven-host local finish path. Remove the old release-skill standalone marketplace; use the ifoohoo/skill-family-hub repository and Hub-qualified plugin id release-skill@skill-family-hub. Reload each host after updating; an `UPDATED` filesystem result alone does not prove that the running host loaded the new version.
+Upgrade from 0.9.18 to use the new `post-release --finish` orchestration. Remove the old release-skill standalone marketplace; use the ifoohoo/skill-family-hub repository and Hub-qualified plugin id release-skill@skill-family-hub. Complete the normal publish and postVerify stages first, run the finish entry, perform every requested host load and setup action, then pass the bound feedback file to the same entry until it returns COMPLETE.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.18 is the current source candidate. This README
+> **Current boundary:** v0.9.19 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -71,7 +71,7 @@ Upgrade from 0.9.17 to obtain Cursor packaging and local installation, the Found
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.18 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.19 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -100,7 +100,7 @@ checkpoints remain intact and use matching-version recovery. Evidence v1 stays
 read-only; v2 uses a closed top level with phase extensions in `details`.
 Summaries and recovery suggestions are diagnostic, never publication authority.
 
-The current 0.9.18 candidate includes the narrow R-05 Hook cache v2 consumer
+The current 0.9.19 candidate includes the narrow R-05 Hook cache v2 consumer
 path, the public `postverify` path, and the stable isolated install-tree record
 path (A2/A3). It also adds the explicit-input `verify-records` command and a
 self-contained Qoder projection, first-class Cursor packaging, and the
@@ -576,6 +576,16 @@ setup entry such as `release-setup` or `plugin:skill`; it is never executed as
 a shell command. After host updates, release-finish runs that setup entry
 against the current release project root passed through `--root`; it does not
 request a separate project directory. The two settings are independent.
+
+Use `release-skill post-release --finish` for the complete local finish. It
+always reports merge, host update, actual host loading, setup, and source-branch
+steps. Exit 0 means every applicable step completed or was explicitly skipped;
+exit 2 means caller work remains; exit 1 means a deterministic failure. Pass
+agent observations back through an absolute `--finish-feedback` JSON file bound
+to the reported plan digest, config digest, and canonical project root. Feedback
+is data only: the command does not execute its strings or treat it as new write
+authority. `--skip-local-hosts` explicitly skips host update, loading, and setup
+and cannot be combined with `--hosts` or `--update-local-hosts`.
 
 `distributions` is required but may be an explicit empty array. Use
 `distributions: []` when release-skill should publish only the unit's GitHub

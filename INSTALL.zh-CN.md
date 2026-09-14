@@ -2,7 +2,7 @@
 
 [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.18 -->
+<!-- release-skill:release-version: 0.9.19 -->
 ## 前置条件
 
 - Node.js 22.0.0 或更高版本
@@ -113,12 +113,19 @@ release-skill 当前只采用并验证 Kimi Code 的交互式 TUI 路径，**无
 （切勿使用裸仓库地址，它会安装最新 release 或默认分支），确认信任提示后重新加载：
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.18
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.19
    /plugins reload
    ```
 
 发布达到 `VERIFIED` 后，可选的 `release-finish` 工作流可以在用户明确同意后执行
-同一套 TUI 操作。包名、版本、发布标签、已安装修订号和受管安装根都必须与冻结计划
+同一套 TUI 操作。其公共入口是 `release-skill post-release --root <root> --plan <plan>
+--run <postverify-run> --finish`，固定汇总合并、本机宿主更新、宿主加载、setup 和源码
+分支五步。仍缺加载或 setup 观察时退出码为 `2`，操作失败时为 `1`，只有全部收尾才为
+`0`。智能体观察到的宿主加载结果和实际调用 `release-setup` 的结果，必须通过绝对路径的
+`--finish-feedback` 文件回传，并绑定计划摘要、配置摘要和项目根；更新成功本身不证明新版
+已经加载。
+
+包名、版本、发布标签、已安装修订号和受管安装根都必须与冻结计划
 一致。精确当前安装会在返回 `ALREADY_CURRENT` 前核对；发生安装或迁移时，只在操作
 完成后核对结果。`.git` 目录只提供附加诊断，不是通过条件。发生安装或迁移后，
 release-finish 会重新读取 Kimi 的受管安装根，不复用操作前的观察；随后核对最终身份与

@@ -2,46 +2,46 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.18 -->
+<!-- release-skill:release-version: 0.9.19 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.18** (2026-09-11)
+**0.9.19** (2026-09-14)
 
-0.9.18 是一个本地源码候选。本版本增加 Cursor 的正式打包与分发、基于 Foundation 的宿主核验，以及覆盖 Claude、Codex、Kimi、CodeBuddy、WorkBuddy、Qoder 和 Cursor 的最终本机分发路径。三项 Foundation 依赖继续精确固定在已发布的 0.21.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.19 是一个本地源码候选。本版本补齐已验证发布后的本机收尾编排。发布和 postVerify 完成后，维护者可以通过同一个公共入口决定源码分支去向、更新受支持宿主、确认各宿主实际加载目标插件、运行项目配置的 setup Skill，并检查源码工作区；整个过程不会改写发布状态。三项 Foundation 依赖继续精确固定在已发布的 0.21.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- 扫描或替换 Cursor 插件树前必须关闭 Cursor。升级失败时保留或恢复完整的旧目录或新目录，不会发布混合目录。
-- 宿主核验只接收调用方声明的根目录，并把机制观察结果与 release-skill 的发布、验证状态分别记录。
+- 收尾反馈绑定当前插件版本、项目根目录、选定宿主、请求身份和运行环境；宿主更新决定变化后，旧 setup 证据自动失效。
+- 仅完成文件安装不能证明宿主已经加载插件；已配置的 setup 也只有在真实结果通过绑定反馈返回后才算完成。
 - Hub 发布继续绑定已观察的分支头执行比较后写入。部分发布时不回滚、不覆盖已经成功的远端步骤。
 
 **新增**
 
-- npm 包新增 `.cursor-plugin/plugin.json` 和自包含的 `adapters/cursor/` 投影，包含 release-skill 的全部 Skill 与运行资源。
-- 发布验证可通过显式的可执行文件根目录和用户状态根目录调用 Foundation 0.21.0 宿主核验，其中包括 Cursor 项目级插件核验。
-- 最终本机更新入口可以把已验证版本分发到声明的 Claude、Codex、Kimi、CodeBuddy、WorkBuddy、Qoder 和 Cursor 安装位置。
-- Skill Family Hub 继续作为中央市场。发布完成验证后，release-skill 通过既有 GitHub Git Data API 更新 Hub 条目。
+- 本机收尾入口新增 `--finish`，按固定顺序给出分支处理、宿主更新、加载确认、setup 执行和源码终检计划。
+- 真实完成宿主加载和 setup 后，可以把绑定反馈交回同一入口继续执行；JSON 与文本输出对待处理、阻断和完成状态给出一致裁决。
+- release-finish Skill 补充从 VERIFIED 到 COMPLETE 的完整交接，并明确智能体执行请求与回传反馈的边界。
 
 **变更**
 
-- 本机宿主更新会先核对冻结快照、manifest 身份和版本。Cursor 首次安装使用 Foundation 固定集合发布，升级使用整个目录的原子替换。
-- 平台生成、公开文件投影、包内容许可清单、Schema 与 release-finish 指引现在统一把 Cursor 视为正式宿主和适配器。
+- 本机收尾完成与发布生命周期分离：成功结果继续保留 VERIFIED，并明确返回 `releaseStatusChanged: false`。
+- release-help 入口缩短，把发布、验证、文档、市场和收尾细节路由到各自负责的 Skill。
+- Skill Family Hub 继续作为中央市场；发布完成验证后，release-skill 仍通过既有 GitHub Git Data API 更新 Hub 条目。
 
 **修复**
 
-- Cursor 插件名不再接受下划线，生成的本机插件目录符合 Cursor manifest 的名称约束。
-- npm 包原生预构建许可清单和固定资源闭包检查现已覆盖包括 Cursor 在内的全部生成适配器。
+- setup 插件选择不唯一、没有宿主候选、setup 反馈过期或后续动作缺失时，流程现在会失败关闭，不再错误返回 COMPLETE。
+- 只读 Git 观察关闭可选索引锁；命令失败时保留精确参数、退出码、标准输出和标准错误。
 
 **升级说明**
 
-从 0.9.17 升级后，可获得 Cursor 打包与本机安装、基于 Foundation 的宿主核验桥，以及统一的七宿主本机收尾路径。请移除独立的 `release-skill` 市场，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub。更新后仍需重新加载各宿主；文件系统返回 `UPDATED` 并不单独证明运行中的宿主已经加载新版。
+从 0.9.18 升级后可使用新的 `post-release --finish` 编排。请移除独立的 `release-skill` 市场，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub。先完成正常发布与 postVerify，再运行收尾入口，实际完成其请求的宿主加载和 setup 动作，并把绑定反馈交回同一入口，直至结果为 COMPLETE。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.18 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.19 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -57,7 +57,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.18 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.19 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -75,7 +75,7 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-当前 0.9.18 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
+当前 0.9.19 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
 路径和稳定隔离安装树记录路径（A2/A3），并增加只接受显式输入的 `verify-records`
 命令、自包含 Qoder 投影、Cursor 正式打包，以及基于 Foundation 的宿主核验桥。
 Skill Family Hub 仍是唯一市场来源。
@@ -485,6 +485,8 @@ releaseUnits:
 入口，例如 `release-setup` 或 `plugin:skill`；它不会作为 shell 命令执行。宿主更新后，
 release-finish 在 `--root` 指定的当前发布项目根目录调用该入口，不再要求另行提供项目目录。
 两个配置彼此独立。
+
+完整的本地收尾使用 `release-skill post-release --finish`。命令固定报告分支决定、宿主更新、实际加载、setup 和源码分支检查：全部适用步骤完成或明确跳过时退出 0，仍有待办时退出 2，确定失败时退出 1。智能体通过绝对路径的 `--finish-feedback` JSON 文件回传观察，文件必须绑定当前计划摘要、配置摘要和规范项目根目录。反馈只作为数据：脚本不执行其中字符串，也不把反馈当成新的写入授权。`--skip-local-hosts` 显示跳过宿主更新、加载和 setup，不得与 `--hosts` 或 `--update-local-hosts` 同时使用。
 
 `distributions` 是必填字段，但可以显式设为空数组。使用
 `distributions: []` 时，release-skill 只发布该单元的 GitHub 快照、标签和

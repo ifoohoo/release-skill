@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { readFile } from 'node:fs/promises';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, normalize, resolve } from 'node:path';
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
 import { parseNodeMajor, meetsMinimum, computeReadinessStatus } from '../src/core/node-version.mjs';
@@ -432,6 +432,9 @@ Options:
   --hosts <ids>     Comma-separated local hosts for post-release update: claude,codex,kimi,codebuddy,workbuddy,qoder,cursor. No local host is updated unless --hosts contains at least one id
   --cursor-plugins-root <absolute-directory> Required for Cursor Local installation/update; quit Cursor before running
   --confirm-plan <digest> Confirm the exact VERIFIED plan before local host mutation
+  --finish         Run the complete post-release finish orchestration and return COMPLETE/PENDING/FAILED
+  --finish-feedback <absolute-json-file> Read bound agent-reported host loading and setup results
+  --skip-local-hosts Explicitly skip host update, loading, and setup for this finish run
   --no-hook-cache  Force every prepare hook to run in full; neither read nor write the hook cache
   --json           Output results as JSON
   --version        Show version and exit
@@ -1144,9 +1147,9 @@ if (command === 'ship') {
         const localHostUpdate = result.postRelease.localHostUpdate;
         if (localHostUpdate?.promptRequired === true) {
           console.log(`Post-release: ask whether to update local host plugins (${result.postRelease.localHostUpdate.hosts.join(', ')}).`);
-          if (localHostUpdate.available === true && typeof localHostUpdate.runPath === 'string') {
-            console.log(`Post-release command: release-skill post-release --plan ${result.planPath} --run ${localHostUpdate.runPath}`);
-            console.log('Choose --hosts before adding --update-local-hosts to perform a local update.');
+          if (result.postRelease.finishCommand) {
+            console.log(`Post-release finish command: ${result.postRelease.finishCommand.argv.join(' ')}`);
+            console.log('Choose --hosts before adding --update-local-hosts, or use --skip-local-hosts.');
           }
           printHubManualTargets(localHostUpdate.targets);
         } else {
@@ -1539,6 +1542,48 @@ if (command === 'post-release') {
   };
   const planPath = value('--plan') ? resolve(value('--plan')) : undefined;
   const runPath = value('--run') ? resolve(value('--run')) : undefined;
+  const finishRequested = args.includes('--finish');
+  const skipLocalHosts = args.includes('--skip-local-hosts');
+  const feedbackValue = value('--finish-feedback');
+  if (finishRequested || skipLocalHosts || args.includes('--finish-feedback')) {
+    const valued = new Set([
+      '--root', '--plan', '--run', '--confirm-plan', '--hosts',
+      '--cursor-plugins-root', '--finish-feedback',
+    ]);
+    const booleans = new Set(['--finish', '--skip-local-hosts', '--update-local-hosts', '--json']);
+    const seen = new Set();
+    let parameterError;
+    for (let index = 1; index < args.length; index += 1) {
+      const token = args[index];
+      if (valued.has(token)) {
+        if (seen.has(token)) parameterError ??= `post-release finish does not accept duplicate ${token}`;
+        seen.add(token);
+        const next = args[index + 1];
+        if (!next || next.startsWith('-')) parameterError ??= `post-release finish requires a value for ${token}`;
+        else index += 1;
+        continue;
+      }
+      if (booleans.has(token)) {
+        if (seen.has(token)) parameterError ??= `post-release finish does not accept duplicate ${token}`;
+        seen.add(token);
+        continue;
+      }
+      parameterError ??= `post-release finish does not accept ${token}`;
+    }
+    const rawHosts = value('--hosts');
+    if (!finishRequested) parameterError ??= '--skip-local-hosts and --finish-feedback require --finish';
+    if (skipLocalHosts && (args.includes('--update-local-hosts') || (typeof rawHosts === 'string' && rawHosts.trim().length > 0))) {
+      parameterError ??= '--skip-local-hosts conflicts with --update-local-hosts and --hosts';
+    }
+    if (feedbackValue && (!isAbsolute(feedbackValue) || normalize(feedbackValue) !== feedbackValue)) {
+      parameterError ??= '--finish-feedback requires a normalized absolute JSON file path';
+    }
+    if (parameterError) {
+      if (hasJson) console.log(JSON.stringify({ error: 'POST_RELEASE_FINISH_INVALID', message: parameterError, exitCode: 1 }));
+      else console.error(`Error: ${parameterError}`);
+      await exitAfterFlush(1);
+    }
+  }
   if (!planPath || !runPath) {
     const message = 'post-release requires --plan <path> and --run <verify-or-postverify-run-path>';
     if (hasJson) console.log(JSON.stringify({ error: 'MISSING_PARAMETERS', message, exitCode: 1 }));
@@ -1563,7 +1608,7 @@ if (command === 'post-release') {
       requireDigest: true,
       authorityPlanPath: planPath,
     });
-    if (!updateRequested) {
+    if (!updateRequested || finishRequested) {
       const { assertLocalFinishRun } = await import('../src/commands/post-release-local.mjs');
       await assertLocalFinishRun({
         plan,
@@ -1584,11 +1629,28 @@ if (command === 'post-release') {
       .split(',')
       .map((host) => host.trim())
       .filter(Boolean);
-    const result = updateRequested
+    const root = resolve(value('--root') ?? process.cwd());
+    const result = finishRequested
+      ? await (async () => {
+        const { runPostReleaseFinish } = await import('../src/commands/post-release-finish.mjs');
+        return runPostReleaseFinish({
+          root,
+          plan,
+          planPath,
+          runPath: resolvedRunPath,
+          selectedHosts,
+          updateRequested,
+          skipLocalHosts,
+          confirmPlanDigest: value('--confirm-plan'),
+          cursorPluginsRoot: value('--cursor-plugins-root'),
+          feedbackPath: feedbackValue,
+        });
+      })()
+      : updateRequested
       ? await updateLocalHostPlugins({
         planPath,
         runPath: resolvedRunPath,
-        root: resolve(value('--root') ?? process.cwd()),
+        root,
         confirmPlanDigest: value('--confirm-plan'),
         selectedHosts,
         cursorPluginsRoot: value('--cursor-plugins-root'),
@@ -1603,6 +1665,14 @@ if (command === 'post-release') {
 
     if (hasJson) {
       console.log(JSON.stringify(result, null, 2));
+    } else if (finishRequested) {
+      console.log(`Post-release finish: ${result.finish.status}`);
+      for (const [name, outcome] of Object.entries(result.finish.steps)) {
+        console.log(`  ${name}: ${outcome.status} - ${outcome.summary}`);
+      }
+      for (const action of result.finish.nextActions) {
+        console.log(`Next [${action.type}] ${JSON.stringify(action)}`);
+      }
     } else if (!updateRequested) {
       console.log(`Post-release status: ${result.status}`);
       if (result.merge.promptRequired) console.log('Ask whether the user wants to merge the remaining branch.');
@@ -1625,6 +1695,9 @@ if (command === 'post-release') {
         console.log(`  ${entry.host}/${entry.unitId}: ${entry.status}${entry.version ? ` (${entry.version})` : ''}`);
       }
       console.log('The release remains VERIFIED; restart updated hosts before using the new plugin bytes.');
+    }
+    if (finishRequested) {
+      await exitAfterFlush(result.finish.status === 'COMPLETE' ? 0 : result.finish.status === 'PENDING' ? 2 : 1);
     }
     const success = !updateRequested || ['UPDATED', 'ALREADY_CURRENT', 'NO_APPLICABLE_HOSTS'].includes(result.status);
     await exitAfterFlush(success ? 0 : 1);
@@ -1705,7 +1778,9 @@ if (command === 'verify') {
       } = await import('../src/commands/post-release-local.mjs');
       const plan = JSON.parse(await readFile(planPath, 'utf8'));
       try {
-        result.postRelease = derivePostReleaseChecklist(plan, { root, runPath: result.runPath });
+        result.postRelease = derivePostReleaseChecklist(plan, {
+          root, planPath, runPath: result.runPath,
+        });
       } catch (error) {
         result.postRelease = unavailablePostReleaseChecklist(plan, error);
       }
@@ -1733,9 +1808,9 @@ if (command === 'verify') {
       }
       if (result.postRelease?.localHostUpdate?.promptRequired === true) {
         console.log(`Post-release: ask whether to update local host plugins (${result.postRelease.localHostUpdate.hosts.join(', ')}).`);
-        if (result.postRelease.localHostUpdate.available === true && typeof result.postRelease.localHostUpdate.runPath === 'string') {
-          console.log(`Post-release command: release-skill post-release --plan ${planPath} --run ${result.postRelease.localHostUpdate.runPath}`);
-          console.log('Choose --hosts before adding --update-local-hosts to perform a local update.');
+        if (result.postRelease.finishCommand) {
+          console.log(`Post-release finish command: ${result.postRelease.finishCommand.argv.join(' ')}`);
+          console.log('Choose --hosts before adding --update-local-hosts, or use --skip-local-hosts.');
         }
         printHubManualTargets(result.postRelease.localHostUpdate.targets);
       } else {
@@ -1863,6 +1938,7 @@ This command creates an independent postVerify run and never reads or writes shi
         plan = JSON.parse(await readFile(resolve(planPath), 'utf8'));
         result.postRelease = derivePostReleaseChecklist(plan, {
           root,
+          planPath: resolve(planPath),
           runPath: result.runPath,
           postVerifyComplete: true,
         });
@@ -1884,9 +1960,9 @@ This command creates an independent postVerify run and never reads or writes shi
       } else if (result.postRelease?.localHostUpdate?.promptRequired === true) {
         const localHostUpdate = result.postRelease.localHostUpdate;
         console.log(`Post-release: ask whether to update local host plugins (${localHostUpdate.hosts.join(', ')}).`);
-        if (localHostUpdate.available === true && typeof localHostUpdate.runPath === 'string') {
-          console.log(`Post-release command: release-skill post-release --plan ${resolve(planPath)} --run ${localHostUpdate.runPath}`);
-          console.log('Choose --hosts before adding --update-local-hosts to perform a local update.');
+        if (result.postRelease.finishCommand) {
+          console.log(`Post-release finish command: ${result.postRelease.finishCommand.argv.join(' ')}`);
+          console.log('Choose --hosts before adding --update-local-hosts, or use --skip-local-hosts.');
         }
         printHubManualTargets(localHostUpdate.targets);
       }

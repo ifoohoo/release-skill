@@ -1,5 +1,39 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.19 locale=en baseline=sha256:e0f2dd2aca0b1ca36bb2a95feded3fb291e176c31357f8ba2d390bed4a10184f -->
+## [0.9.19] - 2026-09-14
+
+0.9.19 is a local source candidate that completes the verified-release workflow with a deterministic local finish orchestrator. After publication and postVerify, maintainers can use one public entry to select the source branch outcome, update supported hosts, confirm that each host loaded the target plugin, run the configured setup Skill, and verify the source workspace without changing the release status. The three Foundation dependencies remain pinned to the exact 0.21.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Finish feedback is bound to the current plugin version, project root, selected host, request identity, and execution environment; changing an update decision invalidates earlier setup evidence.
+- No host is considered loaded from filesystem installation alone, and no configured setup is considered complete until its real result is returned through the bound feedback contract.
+- Hub publication remains a compare-and-swap operation. A partial Hub publication is never rolled back or force-pushed automatically.
+
+### Added
+
+- The local finish entry now accepts `--finish` and emits an ordered plan for branch handling, host updates, load confirmation, configured setup execution, and final source checks.
+- Bound feedback can resume the same finish operation after real host loading and setup execution; JSON and text output expose the same pending, blocked, and complete decisions.
+- The release-finish Skill documents the end-to-end VERIFIED-to-COMPLETE handoff, including the exact request and feedback boundaries used by an agent.
+
+### Changed
+
+- Finish completion is now separate from the release lifecycle: a successful local finish preserves VERIFIED and reports `releaseStatusChanged: false`.
+- The release help entry is shorter and routes specialized publishing, verification, documentation, marketplace, and finish details to their owning Skills.
+- Skill Family Hub remains the central marketplace, and its release entry continues to use the existing GitHub Git Data API after release verification.
+
+### Fixed
+
+- Ambiguous setup-plugin selection, missing host candidates, stale setup feedback, and incomplete next-action lists now fail closed instead of producing a false COMPLETE result.
+- Read-only Git observations disable optional index locking and retain exact argv, exit code, stdout, and stderr when a command fails.
+
+### Upgrade Notes
+
+Upgrade from 0.9.18 to use the new `post-release --finish` orchestration. Remove the old release-skill standalone marketplace; use the ifoohoo/skill-family-hub repository and Hub-qualified plugin id release-skill@skill-family-hub. Complete the normal publish and postVerify stages first, run the finish entry, perform every requested host load and setup action, then pass the bound feedback file to the same entry until it returns COMPLETE.
+<!-- release-skill:changelog:end version=0.9.19 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.18 locale=en baseline=sha256:486d52ac38ecb11f043c79661728004fb1c1593089915741867cdc0f449be275 -->
 ## [0.9.18] - 2026-09-11
 

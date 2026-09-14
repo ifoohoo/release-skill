@@ -52,10 +52,11 @@ const QODER_PLUGIN_LIST_ARGS = Object.freeze(['plugins', 'list', '--json']);
 const QODER_MARKETPLACE_LIST_ARGS = Object.freeze(['plugins', 'marketplace', 'list', '--json']);
 const QODER_PAYLOAD_CONTRACT = 'external-marketplace-v1';
 
-function attachFoundationFailure(error, { envelope, stdout }) {
+function attachFoundationFailure(error, { envelope, stdout, stderr }) {
   Object.defineProperties(error, {
     foundationEnvelope: { value: envelope, enumerable: false },
     foundationStdout: { value: stdout, enumerable: false },
+    foundationStderr: { value: stderr, enumerable: false },
   });
   return error;
 }
@@ -220,6 +221,7 @@ function hubTargets(plan) {
         unitId: declaration.unitId,
         host,
         plugin: local.plugin,
+        version: unit?.targetVersion,
         hub,
         message: `${manualInstruction[host]} Install or upgrade ${local.plugin} from Hub ${hub.name}; release-skill does not execute or probe this action.`,
         ...(unit?.publicRepo ? { publicRepo: unit.publicRepo } : {}),
@@ -314,9 +316,23 @@ function buildShipNextStep({ root, statePath, unitIds }) {
   };
 }
 
+function buildFinishCommand({ root, planPath, runPath }) {
+  if (![root, planPath, runPath].every((value) => typeof value === 'string' && value.length > 0)) return undefined;
+  return {
+    argv: [
+      'release-skill', 'post-release',
+      '--root', root,
+      '--plan', planPath,
+      '--run', runPath,
+      '--finish',
+    ],
+  };
+}
+
 export function derivePostReleaseChecklist(plan, {
   runPath,
   root,
+  planPath,
   statePath,
   unitIds,
   postVerifyComplete = false,
@@ -338,10 +354,12 @@ export function derivePostReleaseChecklist(plan, {
   const hasPendingPostVerify = postVerifyHooks(plan).length > 0 && !postVerifyComplete && targets.length > 0;
   const hasStatePath = typeof statePath === 'string' && statePath.length > 0;
   const selectedUnitIds = Array.isArray(unitIds) ? unitIds : undefined;
+  const finishCommand = hasPendingPostVerify ? undefined : buildFinishCommand({ root, planPath, runPath });
   return {
     command: 'post-release',
     status: 'AWAITING_USER_DECISION',
     planDigest: plan.digest,
+    ...(finishCommand ? { finishCommand } : {}),
     merge: {
       promptRequired: uncovered.length > 0,
       alreadyHandledByRelease: uncovered.length === 0,
@@ -592,11 +610,13 @@ async function defaultRun(command, args, options = {}) {
         watchdogReason: envelope.watchdogReason,
         ...(envelope.evidence?.spawnError ? { spawnError: envelope.evidence.spawnError } : {}),
       };
-      throw attachFoundationFailure(error, { envelope, stdout });
+      throw attachFoundationFailure(error, { envelope, stdout, stderr });
     }
     return { stdout, stderr };
   }, { prefix: 'release-skill-host-command-' });
 }
+
+export { defaultRun as runLocalFinishCommand };
 
 async function commandAvailable(command, host, run) {
   try {

@@ -2,7 +2,7 @@
 
 [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.18 -->
+<!-- release-skill:release-version: 0.9.19 -->
 ## Prerequisites
 
 - Node.js 22.0.0 or later
@@ -125,12 +125,22 @@ tag pinned to the exact version (never the bare repository URL, which installs
 the latest release or default branch), confirm the trust prompt, then reload:
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.18
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.19
    /plugins reload
    ```
 
 After the release has reached `VERIFIED`, the optional `release-finish` workflow
 can perform the same TUI interaction only after explicit user confirmation. It
+starts from the public `release-skill post-release --root <root> --plan <plan> --run
+<postverify-run> --finish` entry. The command reports the fixed merge, host-update,
+host-load, setup, and source-branch steps. A pending load or setup observation
+exits `2`; an operational failure exits `1`; only a fully closed checklist exits
+`0`. Agent-observed host loading and the invoked `release-setup` result return
+through an absolute `--finish-feedback` file bound to the plan digest,
+configuration digest, and project root. An update result alone never proves that
+the host loaded the release.
+
+The workflow
 requires the package name, version, release tag, installed revision, and managed
 root to match the frozen plan. An exact current installation is checked before
 returning `ALREADY_CURRENT`. When an installation or migration occurs, the

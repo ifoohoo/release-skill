@@ -1,6 +1,6 @@
 ---
 name: release-finish
-description: 发布达到 VERIFIED 后处理发布收尾：确认 postVerify 提案送达边界，按发布分支策略决定是否询问合并，并在用户确认后更新本机 Claude、Codex、Kimi、CodeBuddy/WorkBuddy、Qoder、Cursor 插件
+description: 发布达到 VERIFIED 后编排完整收尾：处理分支决定和本机宿主更新，确认实际加载，调用已配置的 setup，检查源码分支并汇总剩余工作
 ---
 
 > **Qoder 安装入口解析协议**：在调用 CLI 前，Agent 必须从宿主当前已加载技能的元数据中取得本 `SKILL.md` 的实际绝对路径，并将该字面量记为 `SKILL_FILE`。
@@ -22,7 +22,7 @@ description: 发布达到 VERIFIED 后处理发布收尾：确认 postVerify 提
 
 默认只读取冻结计划和 verify 或 postVerify run。没有用户明确同意，不合并分支，不更新插件。用户显式选择 Kimi 更新后，只有标准初始目录信任界面和插件信任界面中的冻结身份都通过核对，才确认当前项目并安装。用户显式选择 Qoder 且冻结计划声明该宿主后，才执行计划绑定的 Hub 更新。
 
-## 先生成收尾清单
+## 进入完整收尾
 
 从插件根执行：
 
@@ -31,18 +31,22 @@ node "$RELEASE_SKILL_LOCAL_FINISH_ENTRY" \
   --root <project-root> \
   --plan <plan-path> \
   --run <verify-or-postverify-run-path> \
+  --finish \
   --json
 ```
 
 脚本只接受与冻结计划一致的显式运行证据：计划未声明 `postVerify` hook 时，传入同计划的 `VERIFIED` verify run；计划声明了 `postVerify` hook 时，必须传入同计划、沿同一 `VERIFIED` verify run 继承谱系且所有 hook checkpoint 均为 `succeeded` 或 `NO_CHANGE` 的 `DISTRIBUTED` postVerify run。postVerify 尚未完成时，不能直接运行本机收尾；应先完成所需 checkpoint approval，再通过 `ship` 完成 postVerify，并使用结果中的 postVerify run 路径。
 
+`--finish` 每次都返回 `merge`、`host-update`、`host-load`、`setup` 和 `source-branch` 五个步骤。`COMPLETE` 表示本次收尾没有待办，`PENDING` 以退出码 2 要求当前智能体续接，`FAILED` 以退出码 1 保留确定失败。脚本观察标为 `script-observed`；宿主加载与 setup 结果标为 `agent-reported`。两种来源都不改写 `VERIFIED`。
+
 ## 主动询问
 
-读取返回的 `merge` 和 `localHostUpdate`：
+读取 `finish.steps` 和 `finish.nextActions`：
 
 1. `merge.promptRequired=false` 时，发布工作流已经推进或初始化目标分支，不再询问合并。
 2. `merge.promptRequired=true` 时，向用户说明尚未覆盖的发布分支，并询问是否需要合并。用户同意后，先只读核对源分支、目标分支、工作区状态和项目既有合并方式，再用明确的分支名执行；本脚本不猜分支，也不自动推送。
-3. `localHostUpdate.promptRequired=true` 时，列出计划覆盖的宿主，询问是否更新本机插件。Hub-backed 目标必须显示其声明的 Hub、插件和宿主。Qoder 是其中唯一可执行的 Hub-backed 目标；Claude/Codex 使用现有 marketplace 管理入口，Kimi 使用冻结 GitHub Release 和现有人工确认路径，CodeBuddy/WorkBuddy 明确人工处理且不能固定 Hub ref。后续“用户同意更新”段适用于 `available=true` 的 executable externalActions 目标和 Qoder Hub 目标，其余 Hub-backed 目标仍为人工入口。两个问题可以一次问完。
+3. `choose-local-hosts` 出现时，列出计划覆盖的宿主，询问是否更新本机插件。Hub-backed 目标必须显示其声明的 Hub、插件和宿主。Qoder 是其中唯一可执行的 Hub-backed 目标；Claude/Codex 使用现有 marketplace 管理入口，Kimi 使用冻结 GitHub Release 和现有人工确认路径，CodeBuddy/WorkBuddy 明确人工处理且不能固定 Hub ref。后续“用户同意更新”段适用于 `available=true` 的 executable externalActions 目标和 Qoder Hub 目标，其余 Hub-backed 目标仍为人工入口。分支决定和宿主选择可以一次问完。
+4. 用户明确不处理本机宿主时，向同一命令加入 `--skip-local-hosts`。该选择会显示地跳过宿主更新、加载和 setup，不得与 `--hosts` 或 `--update-local-hosts` 同时使用。
 
 ## postVerify 提案送达边界
 
@@ -61,6 +65,7 @@ node "$RELEASE_SKILL_LOCAL_FINISH_ENTRY" \
   --root <project-root> \
   --plan <plan-path> \
   --run <verify-or-postverify-run-path> \
+  --finish \
   --update-local-hosts \
   --hosts claude,codex,kimi,codebuddy,workbuddy,qoder \
   --confirm-plan <planDigest> \
@@ -77,6 +82,27 @@ node "$RELEASE_SKILL_LOCAL_FINISH_ENTRY" \
 任何宿主失败都保留其他宿主的实际结果，不把失败冒充成功。Cursor 只在本次交换映射可确认且备份迁移失败时恢复自己的原目录。
 
 完成后报告每个宿主的安装状态。Qoder 返回 `UPDATED` 只表示安装载荷已经更新；启动新会话或执行 `/plugins reload` 并核对实际加载版本后，才能报告新版已加载。本机结果只记录收尾事实，不改变发布状态。
+
+## 加载、setup 与反馈
+
+宿主更新后再读取其实际技能元数据，核对插件、版本和已加载的 setup 入口。`UPDATED` 和 `ALREADY_CURRENT` 不能单独证明运行中的宿主已加载目标版本。需要重启、入口缺失或归属不明时，保留 `PENDING`，不从源码仓库伪造加载事实。
+
+`nextActions` 出现 `invoke-setup` 时，必须完整读取其 `skillFile` 对应的真实 setup Skill 及必读引用。传入 `projectRoot`、冻结插件版本、只读诊断意图与已有授权，再在该项目实际运行 setup。未覆盖的修复和宿主写入不执行。
+
+调用者将实际观察写入临时 JSON 文件，再用 `--finish-feedback <absolute-json-file>` 进入同一公共入口。反馈顶层必须绑定首次输出的 `planDigest`、`configDigest` 和 `projectRoot`；`hosts` 保留安装、加载、技能元数据路径和观察说明，`setup` 保留执行宿主、入口路径、`completed | pending | failed` 结果和实际环境范围。反馈中的文字和路径只作为数据，脚本不执行任何反馈字符串。
+
+```bash
+node "$RELEASE_SKILL_LOCAL_FINISH_ENTRY" \
+  --root <project-root> \
+  --plan <plan-path> \
+  --run <verify-or-postverify-run-path> \
+  --finish \
+  --hosts <selected-hosts> \
+  --finish-feedback <absolute-json-file> \
+  --json
+```
+
+以上命令只读反馈并重新汇总。重入时不传 `--update-local-hosts`，以免重复安装；反馈文件丢失时，对应步骤恢复为 `PENDING`。
 
 ## Cursor 完整 Local 插件
 
