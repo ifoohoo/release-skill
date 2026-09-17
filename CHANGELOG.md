@@ -1,5 +1,31 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.22 locale=en baseline=sha256:5b9ca7ff99b3d072831f4f114ff4830f6d76540f7c5262fd1deb97eaec9d0a57 -->
+## [0.9.22] - 2026-09-17
+
+0.9.22 is a local source candidate that fixes two failures found during the real-host rollout of 0.9.21. CodeBuddy and WorkBuddy keep the same frozen Hub identity and installed-payload checks. Foundation dependencies remain pinned to 0.21.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Hub publication remains a compare-and-swap operation. A partial Hub publication is never rolled back or force-pushed automatically.
+- A Hub marketplace reported as github is accepted only on the Hub-backed CodeBuddy/WorkBuddy path. The updater still verifies the checkout origin, branch, HEAD, host-specific index, installed revision, and complete frozen payload.
+- WorkBuddy reuses the existing strict residual_process_group envelope only when the child exited successfully and Foundation reports the exact cleanup evidence. Any field mismatch fails closed before later writes.
+
+### Changed
+
+- Skill Family Hub remains the central marketplace, and its release entry continues to use the existing GitHub Git Data API after release verification.
+
+### Fixed
+
+- CodeBuddy 2.148.0 can now update an existing Hub plugin when its official marketplace list reports type github instead of type git.
+- WorkBuddy can complete the same existing-plugin update when its embedded CodeBuddy CLI exits successfully but leaves a process group that Foundation has already terminated and verified.
+
+### Upgrade Notes
+
+Upgrade from 0.9.21 before running local host finishing for CodeBuddy or WorkBuddy. No configuration migration is required. Remove the old release-skill standalone marketplace; use the ifoohoo/skill-family-hub repository and Hub-qualified plugin id release-skill@skill-family-hub. Reload or restart each updated host before claiming that 0.9.22 is loaded.
+<!-- release-skill:changelog:end version=0.9.22 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.21 locale=en baseline=sha256:90f61122ebbbe5f53bc95be7049aaaab4401e19cc805e76be525e9a74bf0a360 -->
 ## [0.9.21] - 2026-09-17
 

@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.21 -->
+<!-- release-skill:release-version: 0.9.22 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,16 +14,15 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.21** (2026-09-17)
+**0.9.22** (2026-09-17)
 
-0.9.21 is a local source candidate that enables automatic local updates for Claude, Codex, Kimi, CodeBuddy, and WorkBuddy when the frozen plan declares a Hub source. Qoder and Cursor retain their existing paths. Foundation dependencies remain pinned to 0.21.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.22 is a local source candidate that fixes two failures found during the real-host rollout of 0.9.21. CodeBuddy and WorkBuddy keep the same frozen Hub identity and installed-payload checks. Foundation dependencies remain pinned to 0.21.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
 - Hub publication remains a compare-and-swap operation. A partial Hub publication is never rolled back or force-pushed automatically.
-- CodeBuddy and WorkBuddy only upgrade existing installations and reject a Hub branch that moves before plugin update.
-- Kimi uses the frozen GitHub Release; its repository-only Hub entry is not treated as tag or commit evidence.
-- Completed postVerify lineage, host selection, plan-digest confirmation, and full installed-payload verification remain required. Host failures preserve the results of other selected hosts.
+- A Hub marketplace reported as github is accepted only on the Hub-backed CodeBuddy/WorkBuddy path. The updater still verifies the checkout origin, branch, HEAD, host-specific index, installed revision, and complete frozen payload.
+- WorkBuddy reuses the existing strict residual_process_group envelope only when the child exited successfully and Foundation reports the exact cleanup evidence. Any field mismatch fails closed before later writes.
 
 **Changed**
 
@@ -31,17 +30,16 @@ report stays in a temporary session directory.
 
 **Fixed**
 
-- Hub-only plans now produce executable local host targets without recreating legacy installation actions or distributions.
-- Claude, Codex, CodeBuddy, and WorkBuddy verify their host-specific Hub entries and installed payloads against the frozen release identity.
-- Kimi retains http_proxy, https_proxy, and all_proxy in the process that performs its controlled terminal installation.
+- CodeBuddy 2.148.0 can now update an existing Hub plugin when its official marketplace list reports type github instead of type git.
+- WorkBuddy can complete the same existing-plugin update when its embedded CodeBuddy CLI exits successfully but leaves a process group that Foundation has already terminated and verified.
 
 **Upgrade Notes**
 
-Upgrade from 0.9.20 to automate the five previously manual Hub-backed hosts. No configuration migration is required. Remove the old release-skill standalone marketplace; use the ifoohoo/skill-family-hub repository and Hub-qualified plugin id release-skill@skill-family-hub. Claude can verify an exact current installation offline. Codex performs its existing remove/install flow when its list does not provide an installation root. Installed does not mean loaded: reload or restart the host and confirm the loaded version.
+Upgrade from 0.9.21 before running local host finishing for CodeBuddy or WorkBuddy. No configuration migration is required. Remove the old release-skill standalone marketplace; use the ifoohoo/skill-family-hub repository and Hub-qualified plugin id release-skill@skill-family-hub. Reload or restart each updated host before claiming that 0.9.22 is loaded.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.21 is the current source candidate. This README
+> **Current boundary:** v0.9.22 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -65,7 +63,7 @@ Upgrade from 0.9.20 to automate the five previously manual Hub-backed hosts. No 
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.21 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.22 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -94,7 +92,7 @@ checkpoints remain intact and use matching-version recovery. Evidence v1 stays
 read-only; v2 uses a closed top level with phase extensions in `details`.
 Summaries and recovery suggestions are diagnostic, never publication authority.
 
-The current 0.9.21 candidate includes the narrow R-05 Hook cache v2 consumer
+The current 0.9.22 candidate includes the narrow R-05 Hook cache v2 consumer
 path, the public `postverify` path, and the stable isolated install-tree record
 path (A2/A3). It also adds the explicit-input `verify-records` command and a
 self-contained Qoder projection, first-class Cursor packaging, and the
@@ -879,7 +877,7 @@ run. The core prepare, publish, and verify workflow remains cross-platform.
 A release unit may also declare `postPublish.localHostUpdate` for a plugin that
 is delivered through a project-selected Hub by a `postVerify` hook. After that
 hook reaches `DISTRIBUTED`, `ship`, `verify`, `post-release`, and
-`release-finish` display the declared Hub, plugin, and hosts. Version 0.9.21
+`release-finish` display the declared Hub, plugin, and hosts. Version 0.9.22
 makes Claude, Codex, Kimi, CodeBuddy, WorkBuddy, and Qoder executable after
 explicit host selection and plan-digest confirmation. Claude and Codex require
 an existing matching Hub marketplace and verify its host-specific entry before

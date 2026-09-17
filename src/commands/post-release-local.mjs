@@ -720,7 +720,7 @@ function isCodeBuddyResidualEnvelope(error) {
 }
 
 function isCodeBuddyReadCommand(target, command, args) {
-  return target.host === 'codebuddy'
+  return (target.host === 'codebuddy' || target.host === 'workbuddy')
     && (command === 'codebuddy' || command === 'cbc' || command === CODEBUDDY_MACOS_PATH)
     && Array.isArray(args)
     && (
@@ -732,7 +732,7 @@ function isCodeBuddyReadCommand(target, command, args) {
 }
 
 function isCodeBuddyWriteCommand(target, command, args, kind) {
-  if (target.host !== 'codebuddy' || !['codebuddy', 'cbc', CODEBUDDY_MACOS_PATH].includes(command)) return false;
+  if (!['codebuddy', 'workbuddy'].includes(target.host) || !['codebuddy', 'cbc', CODEBUDDY_MACOS_PATH].includes(command)) return false;
   const expected = kind === 'marketplace-update'
     ? ['plugin', 'marketplace', 'update', target.marketplace]
     : ['plugin', 'update', `${target.plugin}@${target.marketplace}`, '--scope', 'user'];
@@ -754,14 +754,14 @@ async function runCodeBuddyRead(target, command, args, label, env, run) {
   }
 }
 
-function exactCodeBuddyMarketplaceObservation(target, stdout) {
+function exactCodeBuddyMarketplaceObservation(target, stdout, { acceptedTypes = ['git'] } = {}) {
   const parsed = parseJson(stdout, `${target.host} marketplace list`);
   if (!Array.isArray(parsed)) throw new Error(`${target.host} marketplace list did not return an array`);
   const matches = parsed.filter((entry) => entry?.name === target.marketplace);
   if (matches.length !== 1) {
     throw new Error(`${target.host} marketplace list did not contain exactly one ${target.marketplace}`);
   }
-  if (matches[0].type !== 'git') {
+  if (!acceptedTypes.includes(matches[0].type)) {
     throw new Error(`${target.host} marketplace ${target.marketplace} is not a git marketplace`);
   }
   return { installed: true, exact: true, found: matches[0] };
@@ -1228,13 +1228,14 @@ async function observeHubMarketplace(target, command, env, run) {
     if (!observed.installed) return observed;
     return { ...observed, commit: await observeHubCheckout(target, observed.root, env, run) };
   }
-  const listed = target.host === 'codebuddy'
+  const codeBuddyFamily = target.host === 'codebuddy' || target.host === 'workbuddy';
+  const listed = codeBuddyFamily
     ? (await runCodeBuddyRead(target, command, CODEBUDDY_MARKETPLACE_LIST_ARGS, 'codebuddy marketplace list', env, run)).output
     : await run(command, [...CODEBUDDY_MARKETPLACE_LIST_ARGS], { env });
   const entries = parseJson(listed.stdout, `${target.host} marketplace list`);
   if (!Array.isArray(entries)) throw new Error(`${target.host} marketplace list did not return an array`);
   if (!entries.some((entry) => entry?.name === target.marketplace)) return { installed: false };
-  exactCodeBuddyMarketplaceObservation(target, listed.stdout);
+  exactCodeBuddyMarketplaceObservation(target, listed.stdout, { acceptedTypes: ['git', 'github'] });
   const root = await resolveContained(env.CODEBUDDY_CONFIG_DIR, `plugins/marketplaces/${target.marketplace}`);
   return { installed: true, root, commit: await observeHubCheckout(target, root, env, run) };
 }
@@ -1243,7 +1244,7 @@ async function runHubStructuredUpdate(target, detected, run, { plan, root, verif
   const env = hostEnvironment(target.host);
   const codeBuddy = target.host === 'codebuddy' || target.host === 'workbuddy';
   const readPlugin = async () => {
-    const output = target.host === 'codebuddy'
+    const output = codeBuddy
       ? (await runCodeBuddyRead(target, detected.command, CODEBUDDY_PLUGIN_LIST_ARGS, 'codebuddy plugin list', env, run)).output
       : await run(detected.command, ['plugin', 'list', '--json'], { env });
     const listed = parseJson(output.stdout, `${target.host} plugin list`);
@@ -1343,9 +1344,14 @@ async function runStructuredUpdate(target, detected, run, {
   if (target.targetKind === 'hub-backed') return runHubStructuredUpdate(target, detected, run, { plan, root, verifyInstalledPayload });
   if (target.host === 'codebuddy' || target.host === 'workbuddy') {
     const env = hostEnvironment(target.host);
-    const listedObservation = target.host === 'codebuddy'
-      ? await runCodeBuddyRead(target, detected.command, CODEBUDDY_PLUGIN_LIST_ARGS, `${target.host} plugin list`, env, run)
-      : { output: await run(detected.command, [...CODEBUDDY_PLUGIN_LIST_ARGS], { env }), recovered: false };
+    const listedObservation = await runCodeBuddyRead(
+      target,
+      detected.command,
+      CODEBUDDY_PLUGIN_LIST_ARGS,
+      `${target.host} plugin list`,
+      env,
+      run,
+    );
     const listed = listedObservation.output;
     const observed = exactPluginObservation(target, listed.stdout);
     if (
@@ -1421,9 +1427,14 @@ async function runStructuredUpdate(target, detected, run, {
       pluginRecovered = true;
     }
     if (!pluginRecovered) {
-      const afterList = target.host === 'codebuddy'
-        ? await runCodeBuddyRead(target, detected.command, CODEBUDDY_PLUGIN_LIST_ARGS, `${target.host} plugin list`, env, run)
-        : { output: await run(detected.command, [...CODEBUDDY_PLUGIN_LIST_ARGS], { env }), recovered: false };
+      const afterList = await runCodeBuddyRead(
+        target,
+        detected.command,
+        CODEBUDDY_PLUGIN_LIST_ARGS,
+        `${target.host} plugin list`,
+        env,
+        run,
+      );
       after = exactPluginObservation(target, afterList.output.stdout);
     }
     if (!after.exact) throw new Error(`${target.host} did not update to the frozen plugin identity`);
