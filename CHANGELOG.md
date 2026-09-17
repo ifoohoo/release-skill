@@ -1,5 +1,33 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.21 locale=en baseline=sha256:90f61122ebbbe5f53bc95be7049aaaab4401e19cc805e76be525e9a74bf0a360 -->
+## [0.9.21] - 2026-09-17
+
+0.9.21 is a local source candidate that enables automatic local updates for Claude, Codex, Kimi, CodeBuddy, and WorkBuddy when the frozen plan declares a Hub source. Qoder and Cursor retain their existing paths. Foundation dependencies remain pinned to 0.21.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Hub publication remains a compare-and-swap operation. A partial Hub publication is never rolled back or force-pushed automatically.
+- CodeBuddy and WorkBuddy only upgrade existing installations and reject a Hub branch that moves before plugin update.
+- Kimi uses the frozen GitHub Release; its repository-only Hub entry is not treated as tag or commit evidence.
+- Completed postVerify lineage, host selection, plan-digest confirmation, and full installed-payload verification remain required. Host failures preserve the results of other selected hosts.
+
+### Changed
+
+- Skill Family Hub remains the central marketplace, and its release entry continues to use the existing GitHub Git Data API after release verification.
+
+### Fixed
+
+- Hub-only plans now produce executable local host targets without recreating legacy installation actions or distributions.
+- Claude, Codex, CodeBuddy, and WorkBuddy verify their host-specific Hub entries and installed payloads against the frozen release identity.
+- Kimi retains http_proxy, https_proxy, and all_proxy in the process that performs its controlled terminal installation.
+
+### Upgrade Notes
+
+Upgrade from 0.9.20 to automate the five previously manual Hub-backed hosts. No configuration migration is required. Remove the old release-skill standalone marketplace; use the ifoohoo/skill-family-hub repository and Hub-qualified plugin id release-skill@skill-family-hub. Claude can verify an exact current installation offline. Codex performs its existing remove/install flow when its list does not provide an installation root. Installed does not mean loaded: reload or restart the host and confirm the loaded version.
+<!-- release-skill:changelog:end version=0.9.21 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.20 locale=en baseline=sha256:b1fff0e015af8eb8c97c5a466bcd4f9aa879b1e9fe0622ed3281e55747ff9e1e -->
 ## [0.9.20] - 2026-09-17
 

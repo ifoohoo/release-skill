@@ -227,6 +227,8 @@ releaseUnits:
 
 Qoder 保持 build-only 分发边界，不新增发布计划内的 distribution 或安装检查点。本机收尾更新 Qoder 有四个前提：冻结计划已声明、用户显式选择、Hub 来源匹配、既有用户范围安装核对通过。流程不会添加市场或首次安装。更新完成只表示安装载荷变化，不表示当前会话已加载新版。后续仍须重新加载或新开会话，并完成一次真实的只读业务调用。
 
+0.9.21 起，同一声明也能执行 Claude、Codex、Kimi、CodeBuddy 和 WorkBuddy 的本机更新，无需恢复旧宿主 distribution。插件仓库、标签、提交和快照摘要必须来自冻结 unit 与对应标签动作。Claude、Codex 和 CodeBuddy 家族使用已有同源 Hub 市场；刷新前后分别核对宿主专用条目，安装后比较完整冻结载荷。CodeBuddy/WorkBuddy 只升级已有插件，并在插件写入前再次确认 Hub 分支未漂移。Kimi 直接使用冻结 GitHub Release 和终端交互，其只有仓库 URL 的 Hub 文件不承担标签或提交证明。启动进程保留三个代理变量 `http_proxy`、`https_proxy`、`all_proxy`。
+
 ---
 
 ## 3. 公开源码镜像与分发包

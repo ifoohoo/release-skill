@@ -36,9 +36,9 @@ description: "Discoverable entry point for release-skill: dependency and environ
 
 治理诊断只运行 release-skill 自己的只读检查程序，不运行目标 Skill、业务脚本、构建、hook 或发布动作，也不把 `prepare`、`verify`、`release-finish` 当作静态治理入口。用户要求实际接入或发布时，把已有授权带到对应原业务入口；各入口继续执行原有确认、副作用和状态机合同。
 
-## 0.9.20 候选边界
+## 0.9.21 候选边界
 
-当前 0.9.20 候选精确消费 Foundation 0.21.0 的公开包根 API。0.9.20 仍是源码候选，不能从本说明推断已批准、发布或验证。
+当前 0.9.21 候选精确消费 Foundation 0.21.0 的公开包根 API。0.9.21 仍是源码候选，不能从本说明推断已批准、发布或验证。
 
 冻结前，`prepare` 或新建 `ship` 状态可重复传入 `--unit <id>`；不传则选择全部单元。延期单元不进入计划，也不获得发布状态。完整配置、生成物新鲜度和顶层 Hook 仍覆盖全项目；`publicSourceAuthorityReceipt` 的 coordinator 与 subjects 必须共同选择。冻结后以 `plan.units` 为唯一范围，publish、reconcile、verify、distribute 不再接受 `--unit`。
 

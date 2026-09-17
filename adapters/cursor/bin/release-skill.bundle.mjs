@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.20"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.21"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "826d7969c27d91224343a3853edb9e1611a07ba4dfe0ab65661f8e7b45bb8738";
+const __bundleSourceDigest = "250625e18d802aeb764f43f469e6addbee46fa1b1a9fe1b672f1ccb8c98c0a81";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -134642,14 +134642,9 @@ function hubTargets(plan) {
     if (!local) return [];
     const hub = { ...local.hub, githubHost: local.hub.githubHost ?? "github.com" };
     const unit = (plan.units ?? []).find((candidate) => candidate.id === declaration.unitId);
-    const tag = (plan.externalActions ?? []).find((action) => action.type === "create-tag" && action.unitId === declaration.unitId)?.parameters?.tag;
-    const manualInstruction = {
-      claude: "Use Claude\u2019s existing marketplace management entry.",
-      codex: "Use Codex\u2019s existing marketplace management entry.",
-      kimi: `Use the frozen GitHub Release${tag ? ` (${tag})` : ""} and the existing manual confirmation path; Kimi has no marketplace index.`,
-      codebuddy: "Handle manually; CodeBuddy cannot pin a Hub ref in this flow.",
-      workbuddy: "Handle manually; WorkBuddy cannot pin a Hub ref in this flow (it follows the CodeBuddy manual boundary)."
-    };
+    const tagActions = (plan.externalActions ?? []).filter((action) => action.type === "create-tag" && action.unitId === declaration.unitId);
+    const tagIdentity = tagActions[0]?.parameters;
+    const tag = tagIdentity?.tag;
     return local.hosts.map((host) => {
       if (host === "cursor") {
         return {
@@ -134687,15 +134682,25 @@ function hubTargets(plan) {
       }
       return {
         targetKind: "hub-backed",
-        executionMode: "manual",
+        executionMode: "executable",
         unitId: declaration.unitId,
         host,
         plugin: local.plugin,
         version: unit?.targetVersion,
         hub,
-        message: `${manualInstruction[host]} Install or upgrade ${local.plugin} from Hub ${hub.name}; release-skill does not execute or probe this action.`,
-        ...unit?.publicRepo ? { publicRepo: unit.publicRepo } : {},
-        ...tag ? { frozenTag: tag } : {}
+        marketplace: hub.name,
+        marketplaceRepo: hub.repo,
+        marketplaceRef: hub.ref,
+        githubHost: tagIdentity?.githubHost ?? "github.com",
+        pluginRepo: unit?.publicRepo,
+        pluginCommit: unit?.frozenSnapshot?.commit,
+        pluginTag: tag,
+        frozenTag: tag,
+        snapshotPath: unit?.frozenSnapshot?.path,
+        manifestDigest: unit?.frozenSnapshot?.manifestDigest,
+        timeoutMs: 3e5,
+        message: host === "kimi" ? `Install the frozen GitHub Release ${tag} through Kimi's controlled terminal interface.` : `Update ${local.plugin} from the existing ${hub.name} marketplace and verify the frozen payload.`,
+        ...tagActions.length !== 1 || tagIdentity?.repo !== unit?.publicRepo || tagIdentity?.commit !== unit?.frozenSnapshot?.commit || tagIdentity?.version !== unit?.targetVersion ? { invalidFrozenIdentity: true } : {}
       };
     });
   });
@@ -134707,18 +134712,19 @@ function mergePostReleaseTargets(executableTargets, manualTargets) {
     const existing = byIdentity.get(key);
     if (existing && existing.targetKind === "hub-backed" && target.targetKind === "hub-backed") {
       const sameHub = ["name", "githubHost", "repo", "ref"].every((field) => existing.hub[field] === target.hub[field]);
-      if (!sameHub) throw new Error(`post-release target identity conflict for ${target.unitId}/${target.host}/${target.plugin}`);
+      const samePlugin = ["version", "pluginRepo", "pluginTag", "pluginCommit", "snapshotPath", "manifestDigest"].every((field) => existing[field] === target[field]);
+      if (!sameHub || !samePlugin) throw new Error(`post-release target identity conflict for ${target.unitId}/${target.host}/${target.plugin}`);
       continue;
     }
-    const hubMatchesExecutable = /* @__PURE__ */ __name((hub, executable) => executable.marketplace === hub.name && executable.marketplaceRepo === hub.repo && executable.marketplaceRef === hub.ref && executable.githubHost === hub.githubHost, "hubMatchesExecutable");
+    const hubMatchesExecutable = /* @__PURE__ */ __name((hub, executable, hubTarget) => executable.marketplace === hub.name && executable.marketplaceRepo === hub.repo && executable.marketplaceRef === hub.ref && executable.githubHost === hub.githubHost && executable.pluginRepo === hubTarget.pluginRepo && executable.pluginTag === hubTarget.pluginTag && executable.pluginCommit === hubTarget.pluginCommit, "hubMatchesExecutable");
     if (existing && existing.targetKind !== "hub-backed" && target.targetKind === "hub-backed") {
-      if (!hubMatchesExecutable(target.hub, existing)) {
+      if (!hubMatchesExecutable(target.hub, existing, target)) {
         throw new Error(`post-release target identity conflict for ${target.unitId}/${target.host}/${target.plugin}`);
       }
       continue;
     }
     if (existing && existing.targetKind === "hub-backed" && target.targetKind !== "hub-backed") {
-      if (!hubMatchesExecutable(existing.hub, target)) {
+      if (!hubMatchesExecutable(existing.hub, target, existing)) {
         throw new Error(`post-release target identity conflict for ${target.unitId}/${target.host}/${target.plugin}`);
       }
       byIdentity.set(key, target);
@@ -134732,6 +134738,13 @@ function mergePostReleaseTargets(executableTargets, manualTargets) {
   return [...byIdentity.values()].sort((left, right) => left.host.localeCompare(right.host) || left.unitId.localeCompare(right.unitId) || left.plugin.localeCompare(right.plugin));
 }
 function assertExecutableTarget(target) {
+  if (target.targetKind === "hub-backed") {
+    assertQoderExecutableTarget(target);
+    if (target.invalidFrozenIdentity || typeof target.pluginTag !== "string" || !target.pluginTag || !/^[\w.-]+\/[\w.-]+$/u.test(target.pluginRepo) || !/^[\w.-]+\/[\w.-]+$/u.test(target.hub.repo) || !target.hub.ref?.startsWith("refs/heads/")) {
+      throw new Error(`local host update target has inconsistent frozen source identity for ${target.unitId}`);
+    }
+    return;
+  }
   for (const field of [
     "actionId",
     "unitId",
@@ -134817,6 +134830,9 @@ function derivePostReleaseChecklist(plan, {
   const units = plan.units ?? [];
   const uncovered = units.filter((unit) => !BRANCH_ACTION_INCLUDED.has(unit.productionConfig?.branchStrategy));
   const declaredHubTargets = hubTargets(plan);
+  for (const target of declaredHubTargets) {
+    if (target.targetKind === "hub-backed" && target.host !== "qoder") assertExecutableTarget(target);
+  }
   const executableTargets = [
     ...pluginTargets(plan),
     ...declaredHubTargets.filter((target) => target.executionMode === "executable")
@@ -135428,10 +135444,15 @@ async function observeMarketplace(target, command2, env, run6) {
   const parsed = parseJson2(listed.stdout, `${target.host} marketplace list`);
   const entries = target.host === "claude" ? parsed : parsed?.marketplaces;
   if (!Array.isArray(entries)) throw new Error(`${target.host} marketplace list has an invalid shape`);
-  const found = entries.find((entry) => entry?.name === target.marketplace);
+  const matches = entries.filter((entry) => entry?.name === target.marketplace);
+  if (target.targetKind === "hub-backed" && matches.length > 1) {
+    throw new Error(`${target.host} marketplace list returned conflicting entries for ${target.marketplace}`);
+  }
+  const found = matches[0];
   if (!found) return { installed: false };
   const source = target.host === "claude" ? found.repo : found.marketplaceSource?.source;
-  if (normalizeGitSource(source) !== normalizeGitSource(target.marketplaceRepo)) {
+  const observedSource = target.targetKind === "hub-backed" ? normalizeHubGitSource(source, target.hub.githubHost) : normalizeGitSource(source);
+  if (observedSource !== normalizeGitSource(target.marketplaceRepo)) {
     throw new Error(`${target.host} marketplace ${target.marketplace} does not point to ${target.marketplaceRepo}`);
   }
   const root = target.host === "claude" ? found.installLocation : found.root;
@@ -135471,6 +135492,14 @@ async function bindStructuredMarketplace(target, command2, env, run6, observed) 
   return true;
 }
 function actionParametersForTarget(plan, target) {
+  if (target.targetKind === "hub-backed") {
+    return {
+      snapshotPath: target.snapshotPath,
+      manifestDigest: target.manifestDigest,
+      payloadContract: "external-marketplace-v1",
+      marketplaceLocation: "external"
+    };
+  }
   const action = (plan.externalActions ?? []).find((candidate) => candidate.id === target.actionId);
   if (!action || action.type !== target.actionType || action.unitId !== target.unitId) {
     throw new Error(`local host update target ${target.actionId} has no matching frozen action`);
@@ -135494,11 +135523,153 @@ async function verifyStructuredInstalledPayload({
     target.host
   );
 }
+async function assertHubHostEntry(target, marketplaceRoot) {
+  const codex = target.host === "codex";
+  const indexPath = codex ? ".agents/plugins/marketplace.json" : target.host === "claude" ? ".claude-plugin/marketplace.json" : ".codebuddy-plugin/marketplace.json";
+  const index = parseJson2(await readFileContained(marketplaceRoot, indexPath, { encoding: "utf8" }), `${target.host} Hub index`);
+  const matches = index?.plugins?.filter((entry2) => entry2?.name === target.plugin);
+  if (index?.name !== target.marketplace || !Array.isArray(matches) || matches.length !== 1) {
+    throw new Error(`${target.host} Hub index must contain exactly one frozen plugin entry`);
+  }
+  const entry = matches[0];
+  const source = entry.source;
+  const repo = codex ? normalizeHubGitSource(source?.url, target.githubHost) : source?.repo;
+  if (source?.source !== (codex ? "url" : "github") || repo !== target.pluginRepo || source?.sha !== target.pluginCommit || source?.ref !== (codex ? `refs/tags/${target.pluginTag}` : target.pluginTag) || !codex && entry.version !== target.version || entry.version !== void 0 && entry.version !== target.version) {
+    throw new Error(`${target.host} Hub entry does not match the frozen repository, tag, commit and version`);
+  }
+}
+async function observeHubCheckout(target, checkout, env, run6) {
+  const remote = await run6("git", ["-C", checkout, "remote", "get-url", "origin"], { env, timeout: 3e4 });
+  if (normalizeHubGitSource(remote.stdout.trim(), target.hub.githubHost) !== target.hub.repo) {
+    throw new Error(`${target.host} marketplace checkout does not match the declared Hub repository`);
+  }
+  if (target.host !== "codex") {
+    const branch = await run6("git", ["-C", checkout, "symbolic-ref", "HEAD"], { env, timeout: 3e4 });
+    if (branch.stdout.trim() !== target.hub.ref) throw new Error(`${target.host} marketplace checkout does not match the declared Hub branch`);
+  }
+  const head = await run6("git", ["-C", checkout, "rev-parse", "HEAD"], { env, timeout: 3e4 });
+  const commit = head.stdout.trim();
+  if (!/^[a-f0-9]{40}$/u.test(commit)) throw new Error(`${target.host} Hub checkout has no exact commit`);
+  return commit;
+}
+async function observeHubMarketplace(target, command2, env, run6) {
+  if (target.host === "claude" || target.host === "codex") {
+    const observed = await observeMarketplace(target, command2, env, run6);
+    if (!observed.installed) return observed;
+    return { ...observed, commit: await observeHubCheckout(target, observed.root, env, run6) };
+  }
+  const listed = target.host === "codebuddy" ? (await runCodeBuddyRead(target, command2, CODEBUDDY_MARKETPLACE_LIST_ARGS, "codebuddy marketplace list", env, run6)).output : await run6(command2, [...CODEBUDDY_MARKETPLACE_LIST_ARGS], { env });
+  const entries = parseJson2(listed.stdout, `${target.host} marketplace list`);
+  if (!Array.isArray(entries)) throw new Error(`${target.host} marketplace list did not return an array`);
+  if (!entries.some((entry) => entry?.name === target.marketplace)) return { installed: false };
+  exactCodeBuddyMarketplaceObservation(target, listed.stdout);
+  const root = await resolveContained(env.CODEBUDDY_CONFIG_DIR, `plugins/marketplaces/${target.marketplace}`);
+  return { installed: true, root, commit: await observeHubCheckout(target, root, env, run6) };
+}
+async function runHubStructuredUpdate(target, detected, run6, { plan, root, verifyInstalledPayload }) {
+  const env = hostEnvironment(target.host);
+  const codeBuddy = target.host === "codebuddy" || target.host === "workbuddy";
+  const readPlugin = /* @__PURE__ */ __name(async () => {
+    const output = target.host === "codebuddy" ? (await runCodeBuddyRead(target, detected.command, CODEBUDDY_PLUGIN_LIST_ARGS, "codebuddy plugin list", env, run6)).output : await run6(detected.command, ["plugin", "list", "--json"], { env });
+    const listed = parseJson2(output.stdout, `${target.host} plugin list`);
+    const entries = target.host === "codex" ? listed?.installed : listed;
+    if (Array.isArray(entries) && entries.filter((entry) => (target.host === "codex" ? entry?.pluginId : entry?.id) === `${target.plugin}@${target.marketplace}`).length > 1) throw new Error(`${target.host} plugin list returned conflicting entries`);
+    const observed = exactPluginObservation(target, output.stdout);
+    if (observed.installed) {
+      if (codeBuddy && observed.exact) {
+        observed.installPath = await resolveContained(env.CODEBUDDY_CONFIG_DIR, `plugins/cache/${target.marketplace}/${target.plugin}/${target.version}`);
+      } else if (target.host === "codex") {
+        observed.installPath = observed.found.installedPath;
+        const source = observed.found.source;
+        if (source?.source !== "git" || normalizeHubGitSource(source.url, target.githubHost) !== target.pluginRepo) {
+          throw new Error("codex installed plugin does not point to the frozen public repository");
+        }
+        if (source.sha !== target.pluginCommit || source.ref !== `refs/tags/${target.pluginTag}`) observed.exact = false;
+      }
+      if (observed.found.gitCommitSha !== void 0 && observed.found.gitCommitSha !== target.pluginCommit) observed.exact = false;
+    }
+    return observed;
+  }, "readPlugin");
+  const beforeMarket = await observeHubMarketplace(target, detected.command, env, run6);
+  if (!beforeMarket.installed) return { status: "MANUAL_REQUIRED", reason: `${target.host} declared Hub marketplace is not installed; no marketplace was added` };
+  const before = await readPlugin();
+  if (before.exact && before.installPath) {
+    await assertHubHostEntry(target, beforeMarket.root);
+    await verifyStructuredInstalledPayload({ plan, root, target, installPath: before.installPath, verifyInstalledPayload });
+    return { status: "ALREADY_CURRENT", version: target.version };
+  }
+  if (codeBuddy && !before.installed) return { status: "MANUAL_REQUIRED", reason: `${target.host} target plugin is not installed; no initial installation was performed` };
+  const hubCommit = await withTemporaryWorkspace(async (workspace) => {
+    const checkout = join29(workspace.root, "hub");
+    await run6("git", [
+      "clone",
+      "--depth",
+      "1",
+      "--branch",
+      target.hub.ref.slice("refs/heads/".length),
+      "--single-branch",
+      `https://${target.hub.githubHost}/${target.hub.repo}.git`,
+      checkout
+    ], { env, timeout: target.timeoutMs });
+    const commit = await observeHubCheckout(target, checkout, env, run6);
+    await assertHubHostEntry(target, checkout);
+    return commit;
+  }, { prefix: "release-skill-hub-update-" });
+  if (target.host === "codex") {
+    await bindStructuredMarketplace(
+      { ...target, marketplaceCommit: hubCommit },
+      detected.command,
+      env,
+      run6,
+      { marketplace: { ...beforeMarket, exact: beforeMarket.commit === hubCommit } }
+    );
+  } else {
+    try {
+      await run6(detected.command, ["plugin", "marketplace", "update", target.marketplace], { env, timeout: target.timeoutMs });
+    } catch (error) {
+      if (!isCodeBuddyWriteCommand(target, detected.command, ["plugin", "marketplace", "update", target.marketplace], "marketplace-update") || !isCodeBuddyResidualEnvelope(error)) throw error;
+    }
+  }
+  const refreshed = await observeHubMarketplace(target, detected.command, env, run6);
+  if (!refreshed.installed || refreshed.commit !== hubCommit) throw new Error(`${target.host} Hub branch moved during marketplace refresh`);
+  await assertHubHostEntry(target, refreshed.root);
+  if (codeBuddy) {
+    const remote = await run6("git", ["ls-remote", "--exit-code", `https://${target.hub.githubHost}/${target.hub.repo}.git`, target.hub.ref], { env, timeout: 3e4 });
+    if (!parseFrozenRemoteRef({ ...target, marketplaceCommit: hubCommit }, remote.stdout).exact) {
+      throw new Error(`${target.host} Hub branch moved before plugin update`);
+    }
+  }
+  const current = await readPlugin();
+  const selector = `${target.plugin}@${target.marketplace}`;
+  let installPath;
+  if (target.host === "codex") {
+    if (current.installed) await run6(detected.command, ["plugin", "remove", selector, "--json"], { env });
+    const installed = await run6(detected.command, getPlatform("codex").cli.install(target.plugin, target.marketplace), { env, timeout: target.timeoutMs });
+    const extracted = getPlatform("codex").strategy.extractInstallPath({ execEvidence: { installOutput: parseJson2(installed.stdout, "codex plugin install") } });
+    if (!extracted.ok) throw new Error(extracted.error);
+    installPath = extracted.installPath;
+  } else {
+    const args2 = codeBuddy || current.installed ? ["plugin", "update", selector, "--scope", "user", ...target.host === "claude" ? ["--yes"] : []] : getPlatform("claude").cli.install(target.plugin, target.marketplace);
+    try {
+      await run6(detected.command, args2, { env, timeout: target.timeoutMs });
+    } catch (error) {
+      if (!isCodeBuddyWriteCommand(target, detected.command, args2, "plugin-update") || !isCodeBuddyResidualEnvelope(error)) throw error;
+    }
+  }
+  const after = await readPlugin();
+  if (!after.exact) throw new Error(`${target.host} did not install the frozen plugin identity`);
+  const finalMarket = await observeHubMarketplace(target, detected.command, env, run6);
+  if (!finalMarket.installed || finalMarket.commit !== hubCommit) throw new Error(`${target.host} Hub checkout changed during plugin update`);
+  await assertHubHostEntry(target, finalMarket.root);
+  await verifyStructuredInstalledPayload({ plan, root, target, installPath: installPath ?? after.installPath, verifyInstalledPayload });
+  return { status: "UPDATED", version: target.version, restartRequired: true };
+}
 async function runStructuredUpdate(target, detected, run6, {
   plan,
   root,
   verifyInstalledPayload
 }) {
+  if (target.targetKind === "hub-backed") return runHubStructuredUpdate(target, detected, run6, { plan, root, verifyInstalledPayload });
   if (target.host === "codebuddy" || target.host === "workbuddy") {
     const env2 = hostEnvironment(target.host);
     const listedObservation = target.host === "codebuddy" ? await runCodeBuddyRead(target, detected.command, CODEBUDDY_PLUGIN_LIST_ARGS, `${target.host} plugin list`, env2, run6) : { output: await run6(detected.command, [...CODEBUDDY_PLUGIN_LIST_ARGS], { env: env2 }), recovered: false };
@@ -136339,6 +136510,9 @@ async function updateLocalHostPluginsInternal({
         results.push({ host: target.host, unitId: target.unitId, ...outcome2 });
         continue;
       }
+      if (target.targetKind === "hub-backed" && target.host !== "qoder") {
+        await verifyFrozenSnapshot({ root, snapshotPath: target.snapshotPath, expectedDigest: target.manifestDigest });
+      }
       const detected = await detect(target.host);
       if (!detected?.available) {
         results.push({
@@ -136410,9 +136584,11 @@ var init_post_release_local = __esm({
       "TMPDIR",
       "HTTP_PROXY",
       "HTTPS_PROXY",
+      "ALL_PROXY",
       "NO_PROXY",
       "http_proxy",
       "https_proxy",
+      "all_proxy",
       "no_proxy",
       "SSL_CERT_FILE",
       "SSL_CERT_DIR",
@@ -136475,6 +136651,10 @@ var init_post_release_local = __esm({
     __name(bindStructuredMarketplace, "bindStructuredMarketplace");
     __name(actionParametersForTarget, "actionParametersForTarget");
     __name(verifyStructuredInstalledPayload, "verifyStructuredInstalledPayload");
+    __name(assertHubHostEntry, "assertHubHostEntry");
+    __name(observeHubCheckout, "observeHubCheckout");
+    __name(observeHubMarketplace, "observeHubMarketplace");
+    __name(runHubStructuredUpdate, "runHubStructuredUpdate");
     __name(runStructuredUpdate, "runStructuredUpdate");
     __name(parseCodeBuddyRemoteObservation, "parseCodeBuddyRemoteObservation");
     __name(kimiExpectProgram, "kimiExpectProgram");

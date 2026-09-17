@@ -2,45 +2,40 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.20 -->
+<!-- release-skill:release-version: 0.9.21 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.20** (2026-09-17)
+**0.9.21** (2026-09-17)
 
-0.9.20 是一个本地源码候选。本版本让维护者更容易选择发布治理检查，也更容易判断结果的效力。既有公共 Skill 现在会区分接入评估、离线发布就绪评估和显式历史记录核对；这些只读检查不会运行目标 Skill、hook、构建或发布动作。本版本还把可执行的验证门草案与不可执行的诊断事实分开，并修正 Cursor 自动化能力的派生结果。三项 Foundation 依赖继续精确固定在已发布的 0.21.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.21 是一个本地源码候选，补齐冻结计划声明 Hub 来源后，Claude、Codex、Kimi、CodeBuddy 和 WorkBuddy 的本机自动更新。Qoder 与 Cursor 保留原有路径。Foundation 依赖继续固定为 0.21.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- 只读治理诊断不会执行目标 Skill、业务脚本、构建、hook、prepare、verify 或 release-finish。
-- 历史核对只读取维护者显式提供的文件，不鉴定作者，也不证明目标实际执行、当前发行物身份或当前远端状态。
 - Hub 发布继续绑定已观察的分支头执行比较后写入。部分发布时不回滚、不覆盖已经成功的远端步骤。
-
-**新增**
-
-- 公共帮助与评估入口现在按维护者的意图区分三类只读请求：判断是否接入、分析离线就绪缺口、核对显式提供的历史记录。
-- 接入报告新增 `gateDiagnostics`，用于保留不能形成执行草案的脚本发现；`gateSuggestions` 只保留尚未配置且能够执行的草案。
+- CodeBuddy 与 WorkBuddy 只升级既有安装；插件写入前发现 Hub 分支漂移时停止。
+- Kimi 直接使用冻结 GitHub Release，不把只有仓库 URL 的 Hub 条目作为标签或提交证据。
+- 继续要求完整 postVerify 谱系、用户选择宿主、确认计划摘要和完整载荷验证。单个宿主失败时保留其他已选宿主的实际结果。
 
 **变更**
 
-- 中英文 README 补充只读治理边界；实际 setup 和发布工作继续沿用既有授权合同。
-- 发布评估说明明确历史记录核对结果的效力，避免把历史终态误写成当前发行物字节或远端状态的证据。
-- Skill Family Hub 继续作为统一市场；发布完成验证后，release-skill 仍通过既有 GitHub Git Data API 更新 Hub 条目。
+- Skill Family Hub 继续作为统一市场；发布完成验证后，仍通过既有 GitHub Git Data API 更新 Hub 条目。
 
 **修复**
 
-- Cursor 的 `foundation-host-verification` 安装方式现在正确派生为 `automatable: true`，与已发布的宿主描述符保持一致。
-- 派生制品校验把写模式放到隔离副本执行，检查期间不再改写真实工作区。
+- 仅声明 Hub 的计划现在可以生成可执行宿主目标，不再需要旧安装动作或旧宿主 distribution。
+- Claude、Codex、CodeBuddy 和 WorkBuddy 按各自 Hub 索引核对冻结发布身份，并比较实际安装载荷。
+- Kimi 终端安装进程保留 http_proxy、https_proxy 和 all_proxy 三个代理变量。
 
 **升级说明**
 
-从 0.9.19 升级后，可以使用更清晰的治理入口说明、只含可执行草案的 `gateSuggestions`、新的 `gateDiagnostics` 字段，以及修正后的 Cursor 自动化能力派生。无需迁移配置。请移除独立的 `release-skill` 市场，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub。本版本不包含仍在延期的公共结论文件输出和工程依赖事实接口。
+从 0.9.20 升级后，原先只能人工处理的五个 Hub 宿主可自动更新，无需迁移配置。请移除独立的 `release-skill` 市场，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub。Claude 可以离线复验精确当前安装；Codex 列表不提供安装根时继续使用既有卸载再安装流程。安装完成不代表会话已加载新版，仍需重新加载或重启宿主并确认版本。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.20 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.21 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -56,7 +51,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.20 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.21 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -74,7 +69,7 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-当前 0.9.20 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
+当前 0.9.21 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
 路径和稳定隔离安装树记录路径（A2/A3），并增加只接受显式输入的 `verify-records`
 命令、自包含 Qoder 投影、Cursor 正式打包，以及基于 Foundation 的宿主核验桥。
 Skill Family Hub 仍是唯一市场来源。
@@ -740,12 +735,14 @@ verify run；核心 prepare、publish、verify 流程仍跨平台。
 
 如果插件由项目选定的 Hub 通过 `postVerify` Hook 交付，发布单元还可以声明
 `postPublish.localHostUpdate`。Hook 达到 `DISTRIBUTED` 后，`ship`、`verify`、
-`post-release` 和 `release-finish` 会显示声明中的 Hub、插件和宿主。0.9.14 对这类
-目标保留各自声明的执行模式。只有用户已选择 Qoder，且冻结计划、Hub 来源、既有用户
-范围安装和载荷核对全部通过时，Qoder 才进入可执行分支；其他 Hub-backed 目标仍为人工
-入口。人工提示不会访问 Hub、探测宿主或运行宿主命令。Claude 和 Codex 使用各自已有的 marketplace 管理入口；Kimi
-使用冻结 GitHub Release 和现有人工确认路径；CodeBuddy 与 WorkBuddy 因无法固定 Hub
-ref 而继续人工处理。由冻结插件安装动作派生的原有可执行目标不受影响。
+`post-release` 和 `release-finish` 会显示声明中的 Hub、插件和宿主。0.9.21 让 Claude、
+Codex、Kimi、CodeBuddy、WorkBuddy 和 Qoder 在用户选择宿主并确认计划摘要后进入执行。
+Claude 和 Codex 要求已有同源 Hub 市场，并在插件写入前核对宿主专用条目。CodeBuddy
+与 WorkBuddy 只升级既有安装，刷新市场后再次检查 Hub 分支是否漂移。Kimi 使用冻结
+GitHub Release 和受控终端交互，保留三个代理变量；只有仓库 URL 的 Hub 文件不作为
+标签或提交证据。更新成功前必须把实际安装载荷与冻结快照比较。Claude 可离线复验
+精确当前安装；Codex 列表没有安装根时仍须正式重装。旧安装动作与 Qoder、Cursor
+路径继续可用，身份一致的重复目标只执行一次。
 
 生产 prepare 还会在本轮运行证据建立后、高成本快照和 Hook 之前执行一次尽力清理。
 它只删除已被更新完整谱系取代的终态运行目录，以及没有有效计划或外部写入迹象的封口

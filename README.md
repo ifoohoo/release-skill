@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.20 -->
+<!-- release-skill:release-version: 0.9.21 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,39 +14,34 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.20** (2026-09-17)
+**0.9.21** (2026-09-17)
 
-0.9.20 is a local source candidate that makes release governance diagnosis easier to select and safer to interpret. Existing public Skills now distinguish adoption assessment, offline release-readiness assessment, and explicit historical-record verification without running target Skills, hooks, builds, or release actions. This release also separates actionable verification-gate drafts from non-actionable diagnostics and corrects Cursor automation capability derivation. The three Foundation dependencies remain pinned to the exact 0.21.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.21 is a local source candidate that enables automatic local updates for Claude, Codex, Kimi, CodeBuddy, and WorkBuddy when the frozen plan declares a Hub source. Qoder and Cursor retain their existing paths. Foundation dependencies remain pinned to 0.21.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- Read-only governance diagnosis does not execute target Skills, business scripts, builds, hooks, prepare, verify, or release-finish.
-- Historical verification remains limited to files supplied explicitly by the maintainer and does not claim author identity, target execution, current artifact identity, or current remote state.
 - Hub publication remains a compare-and-swap operation. A partial Hub publication is never rolled back or force-pushed automatically.
-
-**Added**
-
-- Public help and assessment guidance now routes read-only governance requests to the one check that matches the maintainer's intent: adoption status, offline readiness gaps, or explicit historical-record consistency.
-- Adoption reports expose non-actionable discovered scripts in `gateDiagnostics`, while `gateSuggestions` remains limited to actionable, not-yet-configured drafts.
+- CodeBuddy and WorkBuddy only upgrade existing installations and reject a Hub branch that moves before plugin update.
+- Kimi uses the frozen GitHub Release; its repository-only Hub entry is not treated as tag or commit evidence.
+- Completed postVerify lineage, host selection, plan-digest confirmation, and full installed-payload verification remain required. Host failures preserve the results of other selected hosts.
 
 **Changed**
 
-- English and Chinese README guidance now documents the read-only governance boundary and preserves the existing authorization contract for setup and release work.
-- Release assessment guidance states what each historical-record result proves and avoids treating a historical terminal status as evidence about current artifact bytes or remote state.
 - Skill Family Hub remains the central marketplace, and its release entry continues to use the existing GitHub Git Data API after release verification.
 
 **Fixed**
 
-- Cursor's `foundation-host-verification` installation method now derives `automatable: true`, matching the published host descriptor instead of being treated as manual-only.
-- Derived-artifact verification now exercises write mode in an isolated replica, so the real workspace remains read-only during the check.
+- Hub-only plans now produce executable local host targets without recreating legacy installation actions or distributions.
+- Claude, Codex, CodeBuddy, and WorkBuddy verify their host-specific Hub entries and installed payloads against the frozen release identity.
+- Kimi retains http_proxy, https_proxy, and all_proxy in the process that performs its controlled terminal installation.
 
 **Upgrade Notes**
 
-Upgrade from 0.9.19 to use the clearer governance entry guidance, actionable-only `gateSuggestions`, the new `gateDiagnostics` field, and corrected Cursor automation derivation. No configuration migration is required. Remove the old release-skill standalone marketplace; use the ifoohoo/skill-family-hub repository and Hub-qualified plugin id release-skill@skill-family-hub. This release does not add the deferred public conclusion-file output or engineering dependency-fact interface.
+Upgrade from 0.9.20 to automate the five previously manual Hub-backed hosts. No configuration migration is required. Remove the old release-skill standalone marketplace; use the ifoohoo/skill-family-hub repository and Hub-qualified plugin id release-skill@skill-family-hub. Claude can verify an exact current installation offline. Codex performs its existing remove/install flow when its list does not provide an installation root. Installed does not mean loaded: reload or restart the host and confirm the loaded version.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.20 is the current source candidate. This README
+> **Current boundary:** v0.9.21 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -70,7 +65,7 @@ Upgrade from 0.9.19 to use the clearer governance entry guidance, actionable-onl
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.20 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.21 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -99,7 +94,7 @@ checkpoints remain intact and use matching-version recovery. Evidence v1 stays
 read-only; v2 uses a closed top level with phase extensions in `details`.
 Summaries and recovery suggestions are diagnostic, never publication authority.
 
-The current 0.9.20 candidate includes the narrow R-05 Hook cache v2 consumer
+The current 0.9.21 candidate includes the narrow R-05 Hook cache v2 consumer
 path, the public `postverify` path, and the stable isolated install-tree record
 path (A2/A3). It also adds the explicit-input `verify-records` command and a
 self-contained Qoder projection, first-class Cursor packaging, and the
@@ -884,15 +879,18 @@ run. The core prepare, publish, and verify workflow remains cross-platform.
 A release unit may also declare `postPublish.localHostUpdate` for a plugin that
 is delivered through a project-selected Hub by a `postVerify` hook. After that
 hook reaches `DISTRIBUTED`, `ship`, `verify`, `post-release`, and
-`release-finish` display the declared Hub, plugin, and hosts. These Hub-backed
-targets retain their declared execution mode. Qoder is executable only when it
-was selected and all frozen-plan, Hub-source, existing user-scope installation,
-and payload checks pass; other Hub-backed targets remain manual. Manual prompts
-do not query the Hub, inspect the host, or run host commands. Claude
-and Codex use their existing marketplace management entry; Kimi uses the
-frozen GitHub Release and its existing confirmation path; CodeBuddy and
-WorkBuddy remain manual because this flow cannot pin a Hub ref. Existing
-executable targets derived from frozen plugin-install actions remain available.
+`release-finish` display the declared Hub, plugin, and hosts. Version 0.9.21
+makes Claude, Codex, Kimi, CodeBuddy, WorkBuddy, and Qoder executable after
+explicit host selection and plan-digest confirmation. Claude and Codex require
+an existing matching Hub marketplace and verify its host-specific entry before
+plugin writes. CodeBuddy and WorkBuddy only upgrade existing installations,
+checking the Hub branch again after refresh. Kimi uses the frozen GitHub Release
+and controlled terminal interaction, preserving all three proxy variables;
+its repository-only Hub file is not tag or commit evidence. Every successful
+update verifies the installed payload against the frozen snapshot. Claude can
+verify an exact current installation offline; Codex reinstalls when its list
+does not expose an installation root. Existing frozen installation actions
+and the Qoder and Cursor paths remain supported without duplicate execution.
 
 Production `prepare` also performs one best-effort retention pass after its new
 run evidence exists and before expensive snapshot and hook work. It removes
