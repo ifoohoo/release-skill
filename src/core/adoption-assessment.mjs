@@ -584,7 +584,9 @@ const STATUS_LABEL = Object.freeze({
  *   gaps, satisfied/not-applicable entries, assess-derived findings,
  *   cost/check-only suggestions). Sorted before assembly.
  * @param {Array<Object>} options.hookDurations - deriveHookDurations output.
- * @param {Array<Object>} options.gateSuggestions - deriveGateSuggestions output.
+ * @param {Array<Object>} options.gateSuggestions - Actionable gate drafts.
+ * @param {Array<Object>} options.gateDiagnostics - Non-actionable discovered
+ *   scripts retained for explicit diagnosis without affecting status/summary.
  * @param {string} [options.next] - Precise next step.
  * @returns {Object} Frozen report.
  */
@@ -596,6 +598,7 @@ export function buildAssessmentReport({
   findings,
   hookDurations,
   gateSuggestions,
+  gateDiagnostics = [],
   next = null,
 }) {
   const sortedFindings = [...findings].sort((a, b) => (
@@ -605,9 +608,9 @@ export function buildAssessmentReport({
     || (a.unitId ?? '').localeCompare(b.unitId ?? '')
   ));
   const mandatoryCount = sortedFindings.filter((f) => f.category === FINDING_CATEGORY.MANDATORY_GAP).length;
-  // Gate drafts are optional suggestions even though they live in their own
-  // report section (they are never blocking and never change the adopted
-  // band, mirroring deriveStatus' rules for optional-suggestion findings).
+  // Only actionable gate drafts are optional suggestions. Non-actionable
+  // discovery facts remain in gateDiagnostics and must not create a false
+  // "suggestions" status or summary line.
   const status = deriveStatus([
     ...sortedFindings,
     ...(gateSuggestions.length > 0 ? [{ category: FINDING_CATEGORY.OPTIONAL_SUGGESTION }] : []),
@@ -650,6 +653,7 @@ export function buildAssessmentReport({
     findings: sortedFindings,
     hookDurations,
     gateSuggestions,
+    gateDiagnostics,
     workflowPrerequisites,
     unobserved,
     next,
@@ -686,7 +690,7 @@ function renderSummary({ config, status, findings, topology, gateSuggestions, ne
     }
   }
   if (gateSuggestions.length > 0) {
-    lines.push(`gate 候选建议 ${gateSuggestions.length} 条（需人工确认，未写入配置）`);
+    lines.push(`可执行 gate 草案 ${gateSuggestions.length} 条（需人工确认，未写入配置）`);
   }
   if (next) {
     lines.push(`下一步: ${next}`);

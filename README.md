@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.19 -->
+<!-- release-skill:release-version: 0.9.20 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,40 +14,39 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.19** (2026-09-14)
+**0.9.20** (2026-09-17)
 
-0.9.19 is a local source candidate that completes the verified-release workflow with a deterministic local finish orchestrator. After publication and postVerify, maintainers can use one public entry to select the source branch outcome, update supported hosts, confirm that each host loaded the target plugin, run the configured setup Skill, and verify the source workspace without changing the release status. The three Foundation dependencies remain pinned to the exact 0.21.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.20 is a local source candidate that makes release governance diagnosis easier to select and safer to interpret. Existing public Skills now distinguish adoption assessment, offline release-readiness assessment, and explicit historical-record verification without running target Skills, hooks, builds, or release actions. This release also separates actionable verification-gate drafts from non-actionable diagnostics and corrects Cursor automation capability derivation. The three Foundation dependencies remain pinned to the exact 0.21.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- Finish feedback is bound to the current plugin version, project root, selected host, request identity, and execution environment; changing an update decision invalidates earlier setup evidence.
-- No host is considered loaded from filesystem installation alone, and no configured setup is considered complete until its real result is returned through the bound feedback contract.
+- Read-only governance diagnosis does not execute target Skills, business scripts, builds, hooks, prepare, verify, or release-finish.
+- Historical verification remains limited to files supplied explicitly by the maintainer and does not claim author identity, target execution, current artifact identity, or current remote state.
 - Hub publication remains a compare-and-swap operation. A partial Hub publication is never rolled back or force-pushed automatically.
 
 **Added**
 
-- The local finish entry now accepts `--finish` and emits an ordered plan for branch handling, host updates, load confirmation, configured setup execution, and final source checks.
-- Bound feedback can resume the same finish operation after real host loading and setup execution; JSON and text output expose the same pending, blocked, and complete decisions.
-- The release-finish Skill documents the end-to-end VERIFIED-to-COMPLETE handoff, including the exact request and feedback boundaries used by an agent.
+- Public help and assessment guidance now routes read-only governance requests to the one check that matches the maintainer's intent: adoption status, offline readiness gaps, or explicit historical-record consistency.
+- Adoption reports expose non-actionable discovered scripts in `gateDiagnostics`, while `gateSuggestions` remains limited to actionable, not-yet-configured drafts.
 
 **Changed**
 
-- Finish completion is now separate from the release lifecycle: a successful local finish preserves VERIFIED and reports `releaseStatusChanged: false`.
-- The release help entry is shorter and routes specialized publishing, verification, documentation, marketplace, and finish details to their owning Skills.
+- English and Chinese README guidance now documents the read-only governance boundary and preserves the existing authorization contract for setup and release work.
+- Release assessment guidance states what each historical-record result proves and avoids treating a historical terminal status as evidence about current artifact bytes or remote state.
 - Skill Family Hub remains the central marketplace, and its release entry continues to use the existing GitHub Git Data API after release verification.
 
 **Fixed**
 
-- Ambiguous setup-plugin selection, missing host candidates, stale setup feedback, and incomplete next-action lists now fail closed instead of producing a false COMPLETE result.
-- Read-only Git observations disable optional index locking and retain exact argv, exit code, stdout, and stderr when a command fails.
+- Cursor's `foundation-host-verification` installation method now derives `automatable: true`, matching the published host descriptor instead of being treated as manual-only.
+- Derived-artifact verification now exercises write mode in an isolated replica, so the real workspace remains read-only during the check.
 
 **Upgrade Notes**
 
-Upgrade from 0.9.18 to use the new `post-release --finish` orchestration. Remove the old release-skill standalone marketplace; use the ifoohoo/skill-family-hub repository and Hub-qualified plugin id release-skill@skill-family-hub. Complete the normal publish and postVerify stages first, run the finish entry, perform every requested host load and setup action, then pass the bound feedback file to the same entry until it returns COMPLETE.
+Upgrade from 0.9.19 to use the clearer governance entry guidance, actionable-only `gateSuggestions`, the new `gateDiagnostics` field, and corrected Cursor automation derivation. No configuration migration is required. Remove the old release-skill standalone marketplace; use the ifoohoo/skill-family-hub repository and Hub-qualified plugin id release-skill@skill-family-hub. This release does not add the deferred public conclusion-file output or engineering dependency-fact interface.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.19 is the current source candidate. This README
+> **Current boundary:** v0.9.20 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -71,7 +70,7 @@ Upgrade from 0.9.18 to use the new `post-release --finish` orchestration. Remove
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.19 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.20 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -100,7 +99,7 @@ checkpoints remain intact and use matching-version recovery. Evidence v1 stays
 read-only; v2 uses a closed top level with phase extensions in `details`.
 Summaries and recovery suggestions are diagnostic, never publication authority.
 
-The current 0.9.19 candidate includes the narrow R-05 Hook cache v2 consumer
+The current 0.9.20 candidate includes the narrow R-05 Hook cache v2 consumer
 path, the public `postverify` path, and the stable isolated install-tree record
 path (A2/A3). It also adds the explicit-input `verify-records` command and a
 self-contained Qoder projection, first-class Cursor packaging, and the
@@ -288,6 +287,16 @@ separate checks. See [the Cursor instructions](INSTALL.md#install-as-a-cursor-lo
 
 See [INSTALL.md](INSTALL.md) for CodeBuddy, Codex, Kimi Code, Qoder, and Cursor commands.
 
+### Read-only governance diagnosis
+
+Use the existing Skills and choose only the check the request needs:
+
+- adoption status: `setup --assess-adoption --root <path> --json`;
+- local configuration and release-readiness gaps: `assess --root <path> --offline --json`;
+- explicit historical plan, approval, and run consistency: `verify-records`, using the full input form in the next section.
+
+These entry points run release-skill's read-only analyzers. Governance diagnosis does not run target Skills, hooks, builds, or release actions, and it does not treat `prepare`, `verify`, or `release-finish` as static governance checks. When a maintainer asks to set up or publish instead, continue through the existing product Skill with the authorization and safety contract for that action.
+
 ### Offline historical record verification
 
 Use the public command below when a consumer already has an explicit plan,
@@ -403,7 +412,9 @@ ACTOR=your-name
    not-yet-configured project returns `NOT_CONFIGURED` with a pointer to
    first-time setup. Hook-duration suggestions are derived only from events
    produced by the current version; the tool never guesses or writes
-   `cacheInputs` for a project.
+   `cacheInputs` for a project. `gateSuggestions` contains only actionable,
+   not-yet-configured drafts; other discoveries remain in `gateDiagnostics`
+   without changing adoption status or the routine summary.
 3. **assess** — read-only readiness:
    ```bash
    "${CLI[@]}" assess --root "$PROJECT" --offline --json

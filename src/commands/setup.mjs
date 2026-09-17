@@ -2716,6 +2716,7 @@ async function reportNotConfigured(root, configPath) {
     findings: [],
     hookDurations: [],
     gateSuggestions: [],
+    gateDiagnostics: [],
     workflowPrerequisites: {
       full: { met: false, note: '缺少 .release-skill/project.yaml；先完成首次 setup。' },
       docs: { met: false, note: '缺少配置；docs-only 工作流分类由 release-route 决定。' },
@@ -2817,6 +2818,7 @@ async function reportConfigLoadError(root, configPath, error) {
     findings,
     hookDurations: [],
     gateSuggestions: [],
+    gateDiagnostics: [],
     workflowPrerequisites: {
       full: { met: false, note: '配置无法通过校验。' },
       docs: { met: false, note: '配置无法通过校验。' },
@@ -3214,7 +3216,11 @@ export async function assessAdoption({ root } = {}) {
   findings.push(...deriveCheckOnlySuggestions(config.hooks));
 
   // --- Gate suggestions (scenarios 5 & 6) ---
-  const gateSuggestions = deriveGateSuggestions({ declaredUnits, candidates });
+  const configuredGateIds = new Set((config.verificationGates ?? []).map((gate) => gate.id));
+  const unconfiguredGateAssessments = deriveGateSuggestions({ declaredUnits, candidates })
+    .filter((entry) => !configuredGateIds.has(entry.id));
+  const gateSuggestions = unconfiguredGateAssessments.filter((entry) => entry.draft !== null);
+  const gateDiagnostics = unconfiguredGateAssessments.filter((entry) => entry.draft === null);
 
   const hasBlocking = findings.some((f) => f.category === FINDING_CATEGORY.MANDATORY_GAP);
   const next = hasBlocking
@@ -3229,6 +3235,7 @@ export async function assessAdoption({ root } = {}) {
     findings,
     hookDurations,
     gateSuggestions,
+    gateDiagnostics,
     next,
   });
 }

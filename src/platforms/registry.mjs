@@ -1007,11 +1007,16 @@ export function resolveCapabilityConflicts(platform) {
 /**
  * 从 installMethod 派生 automatable 标志。
  *
+ * 现行描述符允许两类自动化安装方式：structured-cli 与
+ * foundation-host-verification。人工方式（interactive-only /
+ * human-attestation）派生为 false。未知方式不视为可自动。
+ *
  * @param {object} platform - 平台描述符
  * @returns {boolean}
  */
 export function deriveAutomatable(platform) {
-  return platform.installMethod === 'structured-cli';
+  return platform.installMethod === 'structured-cli'
+    || platform.installMethod === 'foundation-host-verification';
 }
 
 // ---------------------------------------------------------------------------

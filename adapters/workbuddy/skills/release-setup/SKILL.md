@@ -102,6 +102,7 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" setup --assess-adoption --
 - 完全只读：评估后仓库不新增任何文件，不修改配置，不执行 hook。
 - 报告四态：`NOT_CONFIGURED`、`PARTIALLY_ADOPTED`、`ADOPTED`、`ADOPTED_WITH_SUGGESTIONS`。
 - findings 分四类：`mandatory-gap`（必选缺口，阻断接入）、`satisfied`（已满足）、`optional-suggestion`（可选建议）、`not-applicable`（不适用）；每条带 `code`、`fieldPath`、`evidence` 与 `action`。
+- `gateSuggestions` 只列可执行且尚未登记的配置草案。无法安全形成草案的脚本保留在 `gateDiagnostics`，不计入建议数量，也不把状态改成 `ADOPTED_WITH_SUGGESTIONS`。
 - 建议边界：hook 缓存候选只提示 `cacheInputs` 必须由项目自己声明并证明完整，评估不代猜、不代写；hook 耗时只从描述匹配且生产者可信的 started/completed 事件对推导，`timeoutMs` 不是实际成本；任何建议都不改变接入状态。
 - 必选缺口存在时先修复并重跑 `setup --assess-adoption`，再进入发布流程。
 
@@ -109,7 +110,7 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" setup --assess-adoption --
 
 setup 生成的 `.release-skill/project.yaml` 中 `publisher` 是**已批准的公开发布身份**：它是人工确认的对外发布署名，属于公开面的一部分，而非需要隐藏的私有信息。
 
-若目标仓库用“个人片段”类泄漏策略扫描仓树，而该策略按片段匹配恰好覆盖到 `publisher` 字段，正确做法不是删除或改写策略，而是由贡献者在**本地、gitignore 的个人片段 overlay** 中为该规则声明位置豁免（如 `approvedPlacements`：限定 `publisher` 所在的确切文件路径与行键前缀）。豁免只放行已批准的放置位置，其余出现照常命中；overlay 不入库，个人片段本身不进 committed 策略。
+若目标仓库用“个人片段”类泄漏策略扫描仓树，而该策略按片段匹配恰好覆盖到 `publisher` 字段，应保留既有策略，并由贡献者在**本地、gitignore 的个人片段 overlay** 中为该规则声明位置豁免（如 `approvedPlacements`：限定 `publisher` 所在的确切文件路径与行键前缀）。豁免只放行已批准的放置位置，其余出现照常命中；overlay 不入库，个人片段本身不进 committed 策略。
 
 ## 故障路由
 

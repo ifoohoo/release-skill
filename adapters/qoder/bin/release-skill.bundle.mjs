@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.19"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.20"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "643c60e90e1d750af9cdf9032c0b76cba40259d9ccef6a988d0715b5316813bc";
+const __bundleSourceDigest = "826d7969c27d91224343a3853edb9e1611a07ba4dfe0ab65661f8e7b45bb8738";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -118375,6 +118375,7 @@ function buildAssessmentReport({
   findings,
   hookDurations,
   gateSuggestions,
+  gateDiagnostics = [],
   next = null
 }) {
   const sortedFindings = [...findings].sort((a, b) => (CATEGORY_RANK[a.category] ?? 9) - (CATEGORY_RANK[b.category] ?? 9) || a.code.localeCompare(b.code) || (a.fieldPath ?? "").localeCompare(b.fieldPath ?? "") || (a.unitId ?? "").localeCompare(b.unitId ?? ""));
@@ -118420,6 +118421,7 @@ function buildAssessmentReport({
     findings: sortedFindings,
     hookDurations,
     gateSuggestions,
+    gateDiagnostics,
     workflowPrerequisites,
     unobserved,
     next,
@@ -118449,7 +118451,7 @@ function renderSummary({ config, status, findings, topology, gateSuggestions, ne
     }
   }
   if (gateSuggestions.length > 0) {
-    lines.push(`gate \u5019\u9009\u5EFA\u8BAE ${gateSuggestions.length} \u6761\uFF08\u9700\u4EBA\u5DE5\u786E\u8BA4\uFF0C\u672A\u5199\u5165\u914D\u7F6E\uFF09`);
+    lines.push(`\u53EF\u6267\u884C gate \u8349\u6848 ${gateSuggestions.length} \u6761\uFF08\u9700\u4EBA\u5DE5\u786E\u8BA4\uFF0C\u672A\u5199\u5165\u914D\u7F6E\uFF09`);
   }
   if (next) {
     lines.push(`\u4E0B\u4E00\u6B65: ${next}`);
@@ -121985,6 +121987,7 @@ async function reportNotConfigured(root, configPath) {
     findings: [],
     hookDurations: [],
     gateSuggestions: [],
+    gateDiagnostics: [],
     workflowPrerequisites: {
       full: { met: false, note: "\u7F3A\u5C11 .release-skill/project.yaml\uFF1B\u5148\u5B8C\u6210\u9996\u6B21 setup\u3002" },
       docs: { met: false, note: "\u7F3A\u5C11\u914D\u7F6E\uFF1Bdocs-only \u5DE5\u4F5C\u6D41\u5206\u7C7B\u7531 release-route \u51B3\u5B9A\u3002" },
@@ -122072,6 +122075,7 @@ async function reportConfigLoadError(root, configPath, error) {
     findings,
     hookDurations: [],
     gateSuggestions: [],
+    gateDiagnostics: [],
     workflowPrerequisites: {
       full: { met: false, note: "\u914D\u7F6E\u65E0\u6CD5\u901A\u8FC7\u6821\u9A8C\u3002" },
       docs: { met: false, note: "\u914D\u7F6E\u65E0\u6CD5\u901A\u8FC7\u6821\u9A8C\u3002" },
@@ -122432,7 +122436,10 @@ async function assessAdoption({ root } = {}) {
   findings.push(...deriveLongHookSuggestions(hookDurations));
   findings.push(derivePreHookPublicSurfaceFinding({ config, hookDurations }));
   findings.push(...deriveCheckOnlySuggestions(config.hooks));
-  const gateSuggestions = deriveGateSuggestions({ declaredUnits, candidates });
+  const configuredGateIds = new Set((config.verificationGates ?? []).map((gate) => gate.id));
+  const unconfiguredGateAssessments = deriveGateSuggestions({ declaredUnits, candidates }).filter((entry) => !configuredGateIds.has(entry.id));
+  const gateSuggestions = unconfiguredGateAssessments.filter((entry) => entry.draft !== null);
+  const gateDiagnostics = unconfiguredGateAssessments.filter((entry) => entry.draft === null);
   const hasBlocking = findings.some((f) => f.category === FINDING_CATEGORY.MANDATORY_GAP);
   const next = hasBlocking ? "\u4FEE\u590D\u5168\u90E8\u5FC5\u9009\u7F3A\u53E3\u540E\u91CD\u65B0\u8FD0\u884C release-skill setup --assess-adoption\u3002" : null;
   return buildAssessmentReport({
@@ -122443,6 +122450,7 @@ async function assessAdoption({ root } = {}) {
     findings,
     hookDurations,
     gateSuggestions,
+    gateDiagnostics,
     next
   });
 }

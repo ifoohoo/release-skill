@@ -1,5 +1,38 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.20 locale=en baseline=sha256:b1fff0e015af8eb8c97c5a466bcd4f9aa879b1e9fe0622ed3281e55747ff9e1e -->
+## [0.9.20] - 2026-09-17
+
+0.9.20 is a local source candidate that makes release governance diagnosis easier to select and safer to interpret. Existing public Skills now distinguish adoption assessment, offline release-readiness assessment, and explicit historical-record verification without running target Skills, hooks, builds, or release actions. This release also separates actionable verification-gate drafts from non-actionable diagnostics and corrects Cursor automation capability derivation. The three Foundation dependencies remain pinned to the exact 0.21.0 release. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Read-only governance diagnosis does not execute target Skills, business scripts, builds, hooks, prepare, verify, or release-finish.
+- Historical verification remains limited to files supplied explicitly by the maintainer and does not claim author identity, target execution, current artifact identity, or current remote state.
+- Hub publication remains a compare-and-swap operation. A partial Hub publication is never rolled back or force-pushed automatically.
+
+### Added
+
+- Public help and assessment guidance now routes read-only governance requests to the one check that matches the maintainer's intent: adoption status, offline readiness gaps, or explicit historical-record consistency.
+- Adoption reports expose non-actionable discovered scripts in `gateDiagnostics`, while `gateSuggestions` remains limited to actionable, not-yet-configured drafts.
+
+### Changed
+
+- English and Chinese README guidance now documents the read-only governance boundary and preserves the existing authorization contract for setup and release work.
+- Release assessment guidance states what each historical-record result proves and avoids treating a historical terminal status as evidence about current artifact bytes or remote state.
+- Skill Family Hub remains the central marketplace, and its release entry continues to use the existing GitHub Git Data API after release verification.
+
+### Fixed
+
+- Cursor's `foundation-host-verification` installation method now derives `automatable: true`, matching the published host descriptor instead of being treated as manual-only.
+- Derived-artifact verification now exercises write mode in an isolated replica, so the real workspace remains read-only during the check.
+
+### Upgrade Notes
+
+Upgrade from 0.9.19 to use the clearer governance entry guidance, actionable-only `gateSuggestions`, the new `gateDiagnostics` field, and corrected Cursor automation derivation. No configuration migration is required. Remove the old release-skill standalone marketplace; use the ifoohoo/skill-family-hub repository and Hub-qualified plugin id release-skill@skill-family-hub. This release does not add the deferred public conclusion-file output or engineering dependency-fact interface.
+<!-- release-skill:changelog:end version=0.9.20 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.19 locale=en baseline=sha256:e0f2dd2aca0b1ca36bb2a95feded3fb291e176c31357f8ba2d390bed4a10184f -->
 ## [0.9.19] - 2026-09-14
 

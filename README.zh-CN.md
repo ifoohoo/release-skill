@@ -2,46 +2,45 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.19 -->
+<!-- release-skill:release-version: 0.9.20 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.19** (2026-09-14)
+**0.9.20** (2026-09-17)
 
-0.9.19 是一个本地源码候选。本版本补齐已验证发布后的本机收尾编排。发布和 postVerify 完成后，维护者可以通过同一个公共入口决定源码分支去向、更新受支持宿主、确认各宿主实际加载目标插件、运行项目配置的 setup Skill，并检查源码工作区；整个过程不会改写发布状态。三项 Foundation 依赖继续精确固定在已发布的 0.21.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.20 是一个本地源码候选。本版本让维护者更容易选择发布治理检查，也更容易判断结果的效力。既有公共 Skill 现在会区分接入评估、离线发布就绪评估和显式历史记录核对；这些只读检查不会运行目标 Skill、hook、构建或发布动作。本版本还把可执行的验证门草案与不可执行的诊断事实分开，并修正 Cursor 自动化能力的派生结果。三项 Foundation 依赖继续精确固定在已发布的 0.21.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- 收尾反馈绑定当前插件版本、项目根目录、选定宿主、请求身份和运行环境；宿主更新决定变化后，旧 setup 证据自动失效。
-- 仅完成文件安装不能证明宿主已经加载插件；已配置的 setup 也只有在真实结果通过绑定反馈返回后才算完成。
+- 只读治理诊断不会执行目标 Skill、业务脚本、构建、hook、prepare、verify 或 release-finish。
+- 历史核对只读取维护者显式提供的文件，不鉴定作者，也不证明目标实际执行、当前发行物身份或当前远端状态。
 - Hub 发布继续绑定已观察的分支头执行比较后写入。部分发布时不回滚、不覆盖已经成功的远端步骤。
 
 **新增**
 
-- 本机收尾入口新增 `--finish`，按固定顺序给出分支处理、宿主更新、加载确认、setup 执行和源码终检计划。
-- 真实完成宿主加载和 setup 后，可以把绑定反馈交回同一入口继续执行；JSON 与文本输出对待处理、阻断和完成状态给出一致裁决。
-- release-finish Skill 补充从 VERIFIED 到 COMPLETE 的完整交接，并明确智能体执行请求与回传反馈的边界。
+- 公共帮助与评估入口现在按维护者的意图区分三类只读请求：判断是否接入、分析离线就绪缺口、核对显式提供的历史记录。
+- 接入报告新增 `gateDiagnostics`，用于保留不能形成执行草案的脚本发现；`gateSuggestions` 只保留尚未配置且能够执行的草案。
 
 **变更**
 
-- 本机收尾完成与发布生命周期分离：成功结果继续保留 VERIFIED，并明确返回 `releaseStatusChanged: false`。
-- release-help 入口缩短，把发布、验证、文档、市场和收尾细节路由到各自负责的 Skill。
-- Skill Family Hub 继续作为中央市场；发布完成验证后，release-skill 仍通过既有 GitHub Git Data API 更新 Hub 条目。
+- 中英文 README 补充只读治理边界；实际 setup 和发布工作继续沿用既有授权合同。
+- 发布评估说明明确历史记录核对结果的效力，避免把历史终态误写成当前发行物字节或远端状态的证据。
+- Skill Family Hub 继续作为统一市场；发布完成验证后，release-skill 仍通过既有 GitHub Git Data API 更新 Hub 条目。
 
 **修复**
 
-- setup 插件选择不唯一、没有宿主候选、setup 反馈过期或后续动作缺失时，流程现在会失败关闭，不再错误返回 COMPLETE。
-- 只读 Git 观察关闭可选索引锁；命令失败时保留精确参数、退出码、标准输出和标准错误。
+- Cursor 的 `foundation-host-verification` 安装方式现在正确派生为 `automatable: true`，与已发布的宿主描述符保持一致。
+- 派生制品校验把写模式放到隔离副本执行，检查期间不再改写真实工作区。
 
 **升级说明**
 
-从 0.9.18 升级后可使用新的 `post-release --finish` 编排。请移除独立的 `release-skill` 市场，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub。先完成正常发布与 postVerify，再运行收尾入口，实际完成其请求的宿主加载和 setup 动作，并把绑定反馈交回同一入口，直至结果为 COMPLETE。
+从 0.9.19 升级后，可以使用更清晰的治理入口说明、只含可执行草案的 `gateSuggestions`、新的 `gateDiagnostics` 字段，以及修正后的 Cursor 自动化能力派生。无需迁移配置。请移除独立的 `release-skill` 市场，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub。本版本不包含仍在延期的公共结论文件输出和工程依赖事实接口。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.19 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.20 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -57,7 +56,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.19 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.20 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -75,7 +74,7 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-当前 0.9.19 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
+当前 0.9.20 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
 路径和稳定隔离安装树记录路径（A2/A3），并增加只接受显式输入的 `verify-records`
 命令、自包含 Qoder 投影、Cursor 正式打包，以及基于 Foundation 的宿主核验桥。
 Skill Family Hub 仍是唯一市场来源。
@@ -234,6 +233,16 @@ TUI 路径，见 [INSTALL.zh-CN.md](INSTALL.zh-CN.md#安装为-kimi-code-插件)
 
 CodeBuddy、Codex、Kimi Code、Qoder 和 Cursor 的完整命令见 [INSTALL.zh-CN.md](INSTALL.zh-CN.md)。
 
+### 只读治理诊断
+
+沿用现有 Skill，并且只选择请求需要的检查：
+
+- 判断是否接入：`setup --assess-adoption --root <path> --json`；
+- 分析本地配置和发布就绪缺口：`assess --root <path> --offline --json`；
+- 核对显式提供的历史计划、批准和 run：使用 `verify-records`，完整输入见下一节。
+
+这些入口只运行 release-skill 自身的只读分析。治理诊断不运行目标 Skill、hook、构建或发布动作，也不把 `prepare`、`verify` 或 `release-finish` 当作静态治理检查。维护者要求实际接入或发布时，继续使用原有业务 Skill，并沿用该动作的授权与安全合同。
+
 ### 离线核验历史发布记录
 
 消费者已经持有明确的计划、批准、目标 run 和该目标引用的全部前驱 run 时，可以运行：
@@ -335,7 +344,8 @@ ACTOR=your-name
    **接入评估（只读）：** 对已接入项目，`setup --assess-adoption` 报告已满足项、
    必选缺口、可选建议和不适用项，不写入任何文件；未配置项目返回 `NOT_CONFIGURED`
    并指向首次接入。Hook 耗时建议只从当前版本生产者产生的事件推导；工具绝不代猜
-   或代写项目的 `cacheInputs`。
+   或代写项目的 `cacheInputs`。`gateSuggestions` 只列能够形成可执行草案且尚未登记的
+   候选；其余发现保留在 `gateDiagnostics`，不影响接入状态或日常摘要。
 3. **assess** — 只读就绪评估：
    ```bash
    "${CLI[@]}" assess --root "$PROJECT" --offline --json

@@ -17,9 +17,20 @@ description: "Discoverable entry point for release-skill: dependency and environ
 
 本地阶段通过须同时满足 `status: "READY"` 和 exit code 0。读取 `readiness.localPreparation.status` 与 `missingRequired`。生产另读 `readiness.productionPublish`：缺 npm/gh 为 `NOT_READY`，已安装也只是 `AUTH_CHECK_REQUIRED`，不代表认证、权限或发布授权已经成立。
 
-## 0.9.19 候选边界
+## 治理诊断分流
 
-当前 0.9.19 候选精确消费 Foundation 0.21.0 的公开包根 API。0.9.19 仍是源码候选，不能从本说明推断已批准、发布或验证。
+用户只要求治理诊断时，按意图选择一个入口：
+
+- 了解能力、依赖或安全边界：留在 `release-help`。
+- 检查接入：转 `release-setup`，运行 `setup --assess-adoption`；`NOT_CONFIGURED` 指向首次接入，不创建配置。
+- 分析配置、文档和发布就绪缺口：转 `release-assess`，运行离线 `assess`。
+- 核对历史记录：转 `release-assess`，只核对用户显式提供的 plan、approval 和 run 文件。
+
+治理诊断只运行 release-skill 自己的只读检查程序，不运行目标 Skill、业务脚本、构建、hook 或发布动作，也不把 `prepare`、`verify`、`release-finish` 当作静态治理入口。用户要求实际接入或发布时，把已有授权带到对应原业务入口；各入口继续执行原有确认、副作用和状态机合同。
+
+## 0.9.20 候选边界
+
+当前 0.9.20 候选精确消费 Foundation 0.21.0 的公开包根 API。0.9.20 仍是源码候选，不能从本说明推断已批准、发布或验证。
 
 冻结前，`prepare` 或新建 `ship` 状态可重复传入 `--unit <id>`；不传则选择全部单元。延期单元不进入计划，也不获得发布状态。完整配置、生成物新鲜度和顶层 Hook 仍覆盖全项目；`publicSourceAuthorityReceipt` 的 coordinator 与 subjects 必须共同选择。冻结后以 `plan.units` 为唯一范围，publish、reconcile、verify、distribute 不再接受 `--unit`。
 
@@ -30,8 +41,8 @@ Hook cache v2 只复用绝对路径，或已用真实 cwd 核验的 cwd-relative
 ## 最短路径
 
 1. 从插件根运行 `help --json`，检查本地准备度；生产发布再检查生产准备度。
-2. 缺少 `.release-skill/project.yaml` 时进入 `release-setup`；已有配置时进入 `release-assess`。
-3. 本地评估使用 `release-assess` 和 `prepare --offline`。默认在审阅计划与快照后停止。
+2. 只检查治理接入时，按上节选择 `release-setup` 或 `release-assess`，结束于范围明确的结论和下一入口。
+3. 实际接入时进入 `release-setup`；实际发布评估使用 `release-assess`，准备发布时再进入 `prepare --offline`。
 4. 生产发布优先使用可恢复的 `ship`；也可走 `prepare --online --production → approve → publish → verify`。
 
 ```bash
