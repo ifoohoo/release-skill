@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/state-store-recovery-observation.json",
+  "title": "State store recovery observation",
+  "description": "Read-only maintenance observation. The runtime rechecks identities and original bytes before any takeover; confirmation does not itself provide exclusion.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "root", "directories", "controls"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.state-store-recovery-observation" },
+    "root": { "type": "string", "pattern": "^/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[\\\\\\u0000])(?:[^/]+(?:/[^/]+)*)?$" },
+    "directories": {
+      "type": "array", "minItems": 1, "maxItems": 3, "uniqueItems": true,
+      "items": { "$ref": "#/$defs/directory" },
+      "contains": { "type": "object", "properties": { "path": { "const": "." }, "exists": { "const": true } }, "required": ["path", "exists"] },
+      "minContains": 1, "maxContains": 1
+    },
+    "controls": {
+      "type": "array", "minItems": 3, "maxItems": 3,
+      "prefixItems": [
+        { "$ref": "#/$defs/control", "properties": { "path": { "const": "writer.lock" }, "record": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/writerRecord" }] } }, "type": "object" },
+        { "$ref": "#/$defs/control", "properties": { "path": { "const": "writer-mutation.lock" }, "record": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/mutationRecord" }] } }, "type": "object" },
+        { "$ref": "#/$defs/control", "properties": { "path": { "const": "writer-recovery.lock" }, "record": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/recoveryRecord" }] } }, "type": "object" }
+      ],
+      "items": false
+    }
+  },
+  "$defs": {
+    "identity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["device", "inode", "mode", "type"],
+      "properties": {
+        "device": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
+        "inode": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
+        "mode": { "type": "integer", "minimum": 0, "maximum": 65535 },
+        "type": { "enum": ["file", "directory"] }
+      }
+    },
+    "directory": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "exists", "identity"],
+      "properties": {
+        "path": { "enum": [".", "events", "snapshots"] },
+        "exists": { "type": "boolean" },
+        "identity": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/identity" }] }
+      },
+      "allOf": [{
+        "if": { "properties": { "exists": { "const": true } }, "required": ["exists"] },
+        "then": { "properties": { "identity": { "$ref": "#/$defs/identity", "type": "object", "properties": { "type": { "const": "directory" } } } } },
+        "else": { "properties": { "identity": { "type": "null" } } }
+      }]
+    },
+    "control": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "exists", "identity", "nlink", "size", "sha256", "record"],
+      "properties": {
+        "path": { "enum": ["writer.lock", "writer-mutation.lock", "writer-recovery.lock"] },
+        "exists": { "type": "boolean" },
+        "identity": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/identity" }] },
+        "nlink": { "enum": [null, 1] },
+        "size": { "type": ["integer", "null"], "minimum": 0, "maximum": 9007199254740991 },
+        "sha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+        "record": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/record" }] }
+      },
+      "allOf": [{
+        "if": { "properties": { "exists": { "const": true } }, "required": ["exists"] },
+        "then": { "properties": {
+          "identity": { "$ref": "#/$defs/identity", "type": "object", "properties": { "type": { "const": "file" } } },
+          "nlink": { "const": 1 }, "size": { "type": "integer" }, "sha256": { "type": "string" }, "record": { "$ref": "#/$defs/record" }
+        } },
+        "else": { "properties": { "identity": { "type": "null" }, "nlink": { "type": "null" }, "size": { "type": "null" }, "sha256": { "type": "null" }, "record": { "type": "null" } } }
+      }]
+    },
+    "record": {
+      "type": "object", "additionalProperties": false,
+      "required": ["status", "value"],
+      "properties": { "status": { "enum": ["valid", "partial", "unsupported"] }, "value": { "type": ["object", "null"] } },
+      "allOf": [{
+        "if": { "properties": { "status": { "const": "valid" } }, "required": ["status"] },
+        "then": { "properties": { "value": { "type": "object" } } },
+        "else": { "properties": { "value": { "type": "null" } } }
+      }]
+    },
+    "writerRecord": {
+      "$ref": "#/$defs/record", "type": "object",
+      "allOf": [{
+        "if": { "properties": { "status": { "const": "valid" } }, "required": ["status"] },
+        "then": { "properties": { "value": {
+          "type": "object", "additionalProperties": false,
+          "required": ["schemaVersion", "owner", "fencing", "acquisitionId", "acquiredAt"],
+          "properties": {
+            "schemaVersion": { "const": 1 }, "owner": { "type": "string", "minLength": 1 },
+            "fencing": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "acquisitionId": { "type": "string", "pattern": "^[0-9a-f]{24}$" },
+            "acquiredAt": { "type": "string", "format": "date-time" }
+          }
+        } } }
+      }]
+    },
+    "mutationRecord": {
+      "$ref": "#/$defs/record", "type": "object",
+      "allOf": [{
+        "if": { "properties": { "status": { "const": "valid" } }, "required": ["status"] },
+        "then": { "properties": { "value": {
+          "type": "object", "additionalProperties": false,
+          "required": ["schemaVersion", "owner", "fencing", "acquisitionId", "operation", "mutationId"],
+          "properties": {
+            "schemaVersion": { "const": 1 }, "owner": { "type": "string", "minLength": 1 },
+            "fencing": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "acquisitionId": { "type": "string", "pattern": "^(?:[0-9a-f]{24}|recovery-claim)$" },
+            "operation": { "type": "string", "minLength": 1 },
+            "mutationId": { "type": "string", "pattern": "^[0-9a-f]{24}$" }
+          }
+        } } }
+      }]
+    },
+    "recoveryRecord": {
+      "$ref": "#/$defs/record", "type": "object",
+      "allOf": [{
+        "if": { "properties": { "status": { "const": "valid" } }, "required": ["status"] },
+        "then": { "properties": { "value": {
+          "type": "object", "additionalProperties": false, "required": ["schemaVersion", "recoveryId"],
+          "properties": { "schemaVersion": { "const": 1 }, "recoveryId": { "type": "string", "pattern": "^[0-9a-f]{24}$" } }
+        } } }
+      }]
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/file-set-recovery-request.json",
+  "title": "File set recovery request",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "operationId", "root", "rootBinding", "recoveryRelPath", "environment", "allowAdjacentStaging", "maintenance"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.file-set-recovery-request" },
+    "operationId": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/operationId" },
+    "root": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/root" },
+    "rootBinding": { "$ref": "https://contracts.skill-family.example/v1/filesystem-root-binding.json" },
+    "recoveryRelPath": { "const": ".foundation-file-apply" },
+    "environment": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/environment" },
+    "allowAdjacentStaging": { "const": true },
+    "maintenance": { "$ref": "#/$defs/maintenance" }
+  },
+  "$defs": {
+    "maintenance": {
+      "type": "object", "additionalProperties": false,
+      "required": ["observation", "confirmAllParticipantsStopped", "confirmExclusiveMaintenance"],
+      "properties": {
+        "observation": { "$ref": "https://contracts.skill-family.example/v1/state-store-recovery-observation.json" },
+        "confirmAllParticipantsStopped": { "const": true },
+        "confirmExclusiveMaintenance": { "const": true }
+      }
+    }
+  }
+}

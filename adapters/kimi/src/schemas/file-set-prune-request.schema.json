@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/file-set-prune-request.json",
+  "title": "File set prune request",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "operationId", "root", "rootBinding", "recoveryRelPath", "environment"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.file-set-prune-request" },
+    "operationId": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/operationId" },
+    "root": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/root" },
+    "rootBinding": { "$ref": "https://contracts.skill-family.example/v1/filesystem-root-binding.json" },
+    "recoveryRelPath": { "const": ".foundation-file-apply" },
+    "environment": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/environment" },
+    "maintenance": { "$ref": "https://contracts.skill-family.example/v1/file-set-recovery-request.json#/$defs/maintenance" }
+  }
+}

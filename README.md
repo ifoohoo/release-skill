@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.22 -->
+<!-- release-skill:release-version: 0.9.23 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,32 +14,37 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.22** (2026-09-17)
+**0.9.23** (2026-09-26)
 
-0.9.22 is a local source candidate that fixes two failures found during the real-host rollout of 0.9.21. CodeBuddy and WorkBuddy keep the same frozen Hub identity and installed-payload checks. Foundation dependencies remain pinned to 0.21.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.23 is a local source candidate. The adoption check, offline static readiness, and historical record consistency can issue a shared family proof and read an existing proof. Prepare and publish skill text now builds the human-readable approval summary from the immutable plan. The three Foundation dependencies stay pinned to 0.22.0. A static-readiness pass does not mean the release is published. Consistent records do not mean the release succeeded or that it is verified. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- Hub publication remains a compare-and-swap operation. A partial Hub publication is never rolled back or force-pushed automatically.
-- A Hub marketplace reported as github is accepted only on the Hub-backed CodeBuddy/WorkBuddy path. The updater still verifies the checkout origin, branch, HEAD, host-specific index, installed revision, and complete frozen payload.
-- WorkBuddy reuses the existing strict residual_process_group envelope only when the child exited successfully and Foundation reports the exact cleanup evidence. Any field mismatch fails closed before later writes.
+- Hub publication remains a compare-and-swap operation bound to the observed branch head. A partial Hub publication is never rolled back or force-pushed automatically.
+
+**Added**
+
+- setup --assess-adoption, assess --offline, and verify-records accept an optional --conclusion-output <absolute-path>. On a successful write, the command exclusively creates one new family proof and keeps the original domain status and exit code; conclusionPath is added only then. Omitting the option writes no proof file.
+- read-proof --proof-root <root> --proof <relative> --json reads one existing release-skill proof under that root. It does not rescan the target, follow details, or turn a failed or incomplete check into a pass.
+- When the declared scope is complete, ASSESSED means the static readiness check finished. Under the same condition, CONSISTENT means the supplied historical records agree, and historicalTerminalStatus stays as recorded. A native pass code is not a professional pass while that scope is incomplete. PUBLISHED and VERIFIED still use the existing conditions of the publish and verify phases.
+- Exclusive writing and professional-conclusion schema checks call Foundation 0.22.0. Reading also uses Foundation to keep the proof path inside the given root. Release-skill keeps the domain mapping for the three entries.
 
 **Changed**
 
-- Skill Family Hub remains the central marketplace, and its release entry continues to use the existing GitHub Git Data API after release verification.
+- Skill Family Hub remains the central marketplace. After release verification, its release entry still uses the existing GitHub Git Data API through the postVerify Hook.
 
 **Fixed**
 
-- CodeBuddy 2.148.0 can now update an existing Hub plugin when its official marketplace list reports type github instead of type git.
-- WorkBuddy can complete the same existing-plugin update when its embedded CodeBuddy CLI exits successfully but leaves a process group that Foundation has already terminated and verified.
+- The prepare and publish skills read the immutable plan and build the human-readable approval summary only from the units, externalActions, waivers, and postPublish values actually present. Versions and public targets come only from values already written there. Missing fields stay missing.
+- Successful prepare returns the immutable planPath, planDigest, and its other result fields. Approval stays bound to that plan, and copying planDigest is not required. A postPublish checkpoint that needs its own approval remains a separate approval. The publish authorization gate uses the same reading.
 
 **Upgrade Notes**
 
-Upgrade from 0.9.21 before running local host finishing for CodeBuddy or WorkBuddy. No configuration migration is required. Remove the old release-skill standalone marketplace; use the ifoohoo/skill-family-hub repository and Hub-qualified plugin id release-skill@skill-family-hub. Reload or restart each updated host before claiming that 0.9.22 is loaded.
+Compared with 0.9.22, this candidate needs no additional configuration migration. An installation still using the old release-skill standalone marketplace should remove it and use the ifoohoo/skill-family-hub repository with the Hub-qualified plugin id release-skill@skill-family-hub. The three checks keep their previous commands, and a proof file is written only when --conclusion-output is set. Reading an existing proof does not advance release state. This file describes the local source candidate; publication, host loading, and acceptance remain separate later authorizations.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.22 is the current source candidate. This README
+> **Current boundary:** v0.9.23 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -63,7 +68,7 @@ Upgrade from 0.9.21 before running local host finishing for CodeBuddy or WorkBud
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.22 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.23 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -92,7 +97,7 @@ checkpoints remain intact and use matching-version recovery. Evidence v1 stays
 read-only; v2 uses a closed top level with phase extensions in `details`.
 Summaries and recovery suggestions are diagnostic, never publication authority.
 
-The current 0.9.22 candidate includes the narrow R-05 Hook cache v2 consumer
+The current 0.9.23 candidate includes the narrow R-05 Hook cache v2 consumer
 path, the public `postverify` path, and the stable isolated install-tree record
 path (A2/A3). It also adds the explicit-input `verify-records` command and a
 self-contained Qoder projection, first-class Cursor packaging, and the
@@ -107,7 +112,7 @@ the selected host has loaded the released plugin. This candidate still excludes
 R-02 safe full-tree inventory. Marketplace installation and live invocation
 remain host-level post-release checks; Cursor is distributed through its
 supported local-plugin directory rather than a Hub marketplace entry.
-Foundation dependencies are pinned to the three released 0.21.0 packages.
+Foundation dependencies are pinned to the three released 0.22.0 packages.
 For Kimi/CodeBuddy plans that still use the bundled-family distribution form,
 verify calls the released
 `runPluginVerification` entry with the complete frozen payload and records a
@@ -290,6 +295,23 @@ Use the existing Skills and choose only the check the request needs:
 
 These entry points run release-skill's read-only analyzers. Governance diagnosis does not run target Skills, hooks, builds, or release actions, and it does not treat `prepare`, `verify`, or `release-finish` as static governance checks. When a maintainer asks to set up or publish instead, continue through the existing product Skill with the authorization and safety contract for that action.
 
+All three entry points accept the optional `--conclusion-output <absolute-path>`
+to save a proof of the check. Without it, no proof is written. With it, the
+command exclusively creates a new file and preserves the original domain result
+and exit code. For example:
+
+```text
+release-skill assess --root <project-root> --offline --conclusion-output <absolute-path> --json
+release-skill read-proof --proof-root <root> --proof <relative> --json
+```
+
+`read-proof` reads an existing release-skill proof beneath the specified root.
+It does not follow `details` references, check the current target again, or
+authenticate the author or publication. A readable proof may record a failed or
+incomplete check; reading it successfully does not make that check pass. To
+refresh the conclusion, rerun the original check with a new output path and
+retain the old proof.
+
 ### Offline historical record verification
 
 Use the public command below when a consumer already has an explicit plan,
@@ -301,9 +323,11 @@ release-skill verify-records --plan <path> --approval <path> --target-run <path>
 
 The command reads only those paths and emits one JSON object. `CONSISTENT`
 exits 0, `CONTRADICTED` exits 1, and `INSUFFICIENT` exits 2. It does not scan
-`.release-skill`, follow paths embedded in a record, contact a remote, write a
-file, or advance release state. A consistent historical chain does not prove
-that its records are globally latest or that remote objects still exist.
+`.release-skill`, follow paths embedded in a record, contact a remote, or advance
+release state. Without `--conclusion-output`, it does not write a file. A
+consistent historical chain does not mean `VERIFIED` or that the current target
+passes all checks; it does not prove that its records are globally latest or
+that remote objects still exist.
 
 ### Main workflow
 
@@ -340,8 +364,13 @@ ACTOR=your-name
 
 1. **help** — check the environment:
    ```bash
-   "${CLI[@]}" help
+   "${CLI[@]}" help --json
    ```
+   Local preparation requires both `status: "READY"` and exit code 0. Check
+   `readiness.localPreparation` for local gaps and `readiness.productionPublish`
+   for production requirements. `AUTH_CHECK_REQUIRED` still requires authentication
+   and permission checks; local readiness does not establish those checks or
+   release approval.
 2. **setup** — first-use only (read-only discovery, then create-once config):
    ```bash
    SETUP_SESSION="$(mktemp -d "${TMPDIR:-/tmp}/release-setup.XXXXXX")"

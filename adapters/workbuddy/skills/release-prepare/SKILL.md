@@ -53,7 +53,7 @@ description: Freeze an immutable release plan with local configuration, document
 6. 外部生成入口承担责任时，在授权写集内运行一次该入口，再运行一次项目指定的聚焦检查。build Hook 承担责任时跳过本步，留给 prepare 执行；不得先手工调用同一生成流程。
 7. 普通路径不额外运行手动完整测试或 `hooks validate`。直接运行 `${CLI} prepare --root <path> --offline --json`，由 prepare 执行已声明 Hook 和完整验证；用户已明确选择范围时，为每个单元追加一个 `--unit <id>`。用户明确要求独立完整验收时保留该要求，即使正式 prepare 会再次运行完整 Hook。
 8. 检查 CLI exit code 0 和结构化状态 `PREPARED`。读取返回的不可变 `planPath=plans/<planDigest>.json`，再从该文件读取 `status`、`units` 和 `externalActions`。build Hook 承担生成时，还要从 Hook 输出及 evidence 确认完整依赖链和聚焦检查各执行一次。聚焦检查通过、Hook 通过和 `PREPARED` 是不同结果，不得互相代替。
-9. 向用户展示可读的 `approvalSummary`：版本、公开仓库、分支策略、branch/tag、npm 与 GitHub Release 目标、全部外部动作、例外，以及需要独立 checkpoint 批准的 postPublish hook。`planDigest` 仅作为内部绑定字段，不要求用户复制或确认。后续 approve/publish 只能使用该 immutable planPath，等待确认后再 approve。计划批准不包含受限 postPublish hook 的 checkpoint 批准。
+9. 读取命令返回的不可变 `planPath` 对应计划，按其中实际存在的 `units`、`externalActions`、`waivers` 和 `postPublish` 整理人可读批准摘要。版本、公开仓库、分支策略、branch/tag、npm 与 GitHub Release 目标、全部外部动作、例外，以及需要独立 checkpoint 批准的 postPublish hook，只展示计划里已经写下的值；没有的字段保持缺失，不猜测。prepare 成功时返回不可变 `planPath`、`planDigest` 等字段，批准摘要来自该计划文件。`planDigest` 仅作为内部绑定字段，不要求用户复制或确认。后续 approve/publish 只能使用该 immutable planPath，等待确认后再 approve。计划批准不包含受限 postPublish hook 的 checkpoint 批准。
 
 报告调用次数时，以本轮请求开始到取得结果或停止为计数窗口。分别列出生成命令、聚焦检查、正式 Hook 前提检查和昂贵测试。`prepare` 不是生成命令；一次 Hook 启动也不能证明昂贵测试已经进入测试体。优先使用工具转录、项目夹具输出和 CLI evidence，不能用模型自报替代实际记录。
 
@@ -125,4 +125,10 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" prepare --root <path> --on
 
 ## 后续引导
 
-计划冻结后，读取命令返回的 immutable `planPath` 和 `approvalSummary` 展示给用户，等待确认后再 approve。`planDigest` 由系统自动计算和绑定，不作为人工交互口令。`release-plan.json` 等 latest alias 只用于浏览，不得作为生产 authority 传递。冻结计划批准是正常发布级流程的唯一批准门；有效 `requiresApproval: true` 的 postPublish hook 仍须使用绑定 `(planDigest, hookId)` 且最长有效 24 小时的独立 checkpoint 批准。
+计划冻结后，读取命令返回的不可变 `planPath` 对应计划，按其中实际存在的 `units`、`externalActions`、`waivers` 和 `postPublish` 整理人可读批准摘要并展示给用户。版本与公开目标只取这些对象里已经写下的值，缺失字段不猜测。等待确认后再 approve。批准绑定这份原计划；`planDigest` 由系统自动计算和绑定，不作为人工交互口令。`release-plan.json` 等 latest alias 只用于浏览，不得作为生产 authority 传递。冻结计划批准是正常发布级流程的唯一批准门；有效 `requiresApproval: true` 的 postPublish hook 仍须使用绑定 `(planDigest, hookId)` 且最长有效 24 小时的独立 checkpoint 批准。
+
+## 人类最终回复
+
+纯问询或转交时短答：写明实际回答、适用范围或理由、必要限制和下一步。建议保持为建议。
+
+执行路径说明本轮实际阶段、发布范围、退出码和结构化结果，引用已有 `planPath`、从该计划实际字段整理的批准摘要和产物位置。保留 `NEEDS_INPUT`、`BLOCKED`、门禁失败和人工后续。仅当退出码为 0 且状态为 `PREPARED` 时，把本阶段写为计划已冻结。`PREPARED`、`PUBLISHED`、本机更新与 `VERIFIED` 按各自既有通过条件分别报告。已有计划文件按原合同呈现。栏目只收录当前命令已经返回的事实；批准摘要只转述该不可变计划中实际存在的字段。

@@ -141,3 +141,9 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" verify \
 - `release-approve`: Plan approval（仅场景 B）
 - `release-publish`: 制品发布（仅在 public surface 变化时执行）
 - `release-verify`: 消费者验证（场景 B 的最终验证门）
+
+## 人类最终回复
+
+纯问询或转交时短答：写明实际回答、适用范围或理由、必要限制和下一步。建议保持为建议。
+
+执行路径说明实际分支、已完成步骤、未执行步骤，以及既有计划、`workflowDecision` 产物和限制。`publishPath` 为 `no-publish-needed` 时按原合同结束，无发布路径。场景 B 只写入已经执行的 approve、publish、verify 结果。已有文件输出按原合同呈现。栏目只收录当前命令或分支已经返回的事实。

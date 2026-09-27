@@ -107,3 +107,9 @@ node "$RELEASE_SKILL_ENTRY" postverify --root <path> \
 | npm 安装失败 | POST_PUBLISH_VERIFY_FAILED | 停止 |
 | CLI 烟雾输出不匹配 | POST_PUBLISH_VERIFY_FAILED | 停止 |
 | consumer gate / smokeBin 执行失败 | GATE_FAILED | 检查失败原因，修复后重试 |
+
+## 人类最终回复
+
+纯问询或转交时短答：写明实际回答、适用范围或理由、必要限制和下一步。建议保持为建议。
+
+执行路径说明本轮实际阶段、范围、退出码和结构化结果，引用计划、源 run 与 verify 或 postverify 产物位置。保留失败、未完成检查点和人工后续。仅当退出码为 0 且状态为 `VERIFIED` 时，把发布终态写为已验证。本机宿主更新和 `release-finish` 结果单独成文，不改写发布状态。已有 run 文件按原合同呈现。栏目只收录当前命令已经返回的事实。

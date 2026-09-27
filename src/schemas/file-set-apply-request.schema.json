@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/file-set-apply-request.json",
+  "title": "File set apply request",
+  "description": "Frozen JSON projection. Runtime checks bind bytes, cumulative capacity, modes, canonical paths, filesystem identities and cooperative ownership before business writes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "operationId", "root", "rootBinding", "recoveryRelPath", "allowAdjacentStaging", "environment", "validationTimeoutMs", "operations"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.file-set-apply-request" },
+    "operationId": { "$ref": "#/$defs/operationId" },
+    "root": { "$ref": "#/$defs/root" },
+    "rootBinding": { "$ref": "https://contracts.skill-family.example/v1/filesystem-root-binding.json" },
+    "recoveryRelPath": { "const": ".foundation-file-apply" },
+    "allowAdjacentStaging": { "const": true },
+    "environment": { "$ref": "#/$defs/environment" },
+    "validationTimeoutMs": { "type": "integer", "minimum": 1, "maximum": 2147483647 },
+    "operations": {
+      "type": "array", "minItems": 1, "maxItems": 1024, "uniqueItems": true,
+      "items": { "$ref": "#/$defs/operation" }
+    }
+  },
+  "$defs": {
+    "operationId": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
+    "root": { "type": "string", "pattern": "^/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[\\\\\\u0000])(?:[^/]+(?:/[^/]+)*)?$" },
+    "path": { "type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.|\\.git|\\.foundation-file-apply)(?:/|$))(?!.*[\\\\\\u0000])[^/]+(?:/[^/]+)*$" },
+    "environment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["filesystem", "cooperativeWriters"],
+      "properties": {
+        "filesystem": { "enum": ["apfs", "ext4"] },
+        "cooperativeWriters": { "const": true }
+      }
+    },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "size": { "type": "integer", "minimum": 0, "maximum": 268435456 },
+    "mode": { "type": "integer", "minimum": 256, "maximum": 511 },
+    "next": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sha256", "size", "mode"],
+      "properties": {
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "size": { "$ref": "#/$defs/size" },
+        "mode": { "$ref": "#/$defs/mode" }
+      }
+    },
+    "present": {
+      "type": "object", "additionalProperties": false,
+      "required": ["exists", "sha256", "size", "mode"],
+      "properties": {
+        "exists": { "const": true },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "size": { "$ref": "#/$defs/size" },
+        "mode": { "$ref": "#/$defs/mode" }
+      }
+    },
+    "absent": {
+      "type": "object", "additionalProperties": false,
+      "required": ["exists"], "properties": { "exists": { "const": false } }
+    },
+    "operation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "action", "expected", "next"],
+      "properties": {
+        "path": { "$ref": "#/$defs/path" },
+        "action": { "enum": ["create", "replace", "delete"] },
+        "expected": { "oneOf": [{ "$ref": "#/$defs/absent" }, { "$ref": "#/$defs/present" }] },
+        "next": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/next" }] }
+      },
+      "allOf": [
+        { "if": { "properties": { "action": { "const": "create" } }, "required": ["action"] }, "then": { "properties": { "expected": { "$ref": "#/$defs/absent" }, "next": { "$ref": "#/$defs/next" } } } },
+        { "if": { "properties": { "action": { "const": "replace" } }, "required": ["action"] }, "then": { "properties": { "expected": { "$ref": "#/$defs/present" }, "next": { "$ref": "#/$defs/next" } } } },
+        { "if": { "properties": { "action": { "const": "delete" } }, "required": ["action"] }, "then": { "properties": { "expected": { "$ref": "#/$defs/present" }, "next": { "type": "null" } } } }
+      ]
+    }
+  }
+}

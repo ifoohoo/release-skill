@@ -117,3 +117,9 @@ node "$RELEASE_SKILL_ENTRY" verify \
 - `release-verify`: 消费者验证和远程状态重检
 - `skill-family-docs-style-guard`（skill-family-docs adapter）: `check-style.mjs` 文档质量三道门
 - `render-public-site`（skill-family-doc-render）: 站点渲染漂移与泄漏扫描
+
+## 人类最终回复
+
+纯问询或转交时短答：写明实际回答、适用范围或理由、必要限制和下一步。建议保持为建议。
+
+执行路径说明实际分支、已完成步骤、未执行步骤，以及演练或写入产物和限制。本地文档写入只在 `--write --confirm-refresh --ack-local-document-write` 三项绑定已经实际执行后报告。发布链只报告已经跑完的 prepare、approve、publish、verify；仅当退出码为 0 且状态为 `VERIFIED` 时，把发布终态写为已验证。已有文件输出按原合同呈现。栏目只收录当前命令或分支已经返回的事实。

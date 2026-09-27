@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/file-set-event-payload.json",
+  "title": "File set event payload",
+  "description": "File recovery facts within the existing state-event envelope. Event order, request and path bindings are checked by Harness; no second sequence or hash chain is introduced.",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "operationId", "type"],
+  "properties": {
+    "schemaVersion": { "const": 1 }, "kind": { "const": "skill-family.file-set-event-payload" },
+    "operationId": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/operationId" },
+    "type": { "enum": ["prepared", "apply-intent", "applied", "restore-intent", "restored", "validation-started", "validation-finished", "committed", "rolled-back", "recovery-required", "prune-intent", "pruned"] },
+    "request": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json" },
+    "requestDigest": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/sha256" },
+    "rootBinding": { "$ref": "https://contracts.skill-family.example/v1/filesystem-root-binding.json" },
+    "materialIdentity": { "$ref": "#/$defs/directoryIdentity" },
+    "entries": { "type": "array", "minItems": 1, "maxItems": 1024, "items": { "$ref": "#/$defs/materialEntry" } },
+    "index": { "type": "integer", "minimum": 0, "maximum": 1023 },
+    "current": { "enum": ["original", "expected-new"] },
+    "validation": { "$ref": "https://contracts.skill-family.example/v1/file-set-result.json#/$defs/validation" },
+    "paths": { "$ref": "https://contracts.skill-family.example/v1/file-set-result.json#/$defs/paths" },
+    "errorKinds": { "$ref": "https://contracts.skill-family.example/v1/file-set-result.json#/$defs/errorKinds" }
+  },
+  "allOf": [
+    { "if": { "properties": { "type": { "const": "prepared" } }, "required": ["type"] },
+      "then": { "properties": { "request": {}, "requestDigest": {}, "rootBinding": {}, "materialIdentity": {}, "entries": {} }, "required": ["request", "requestDigest", "rootBinding", "materialIdentity", "entries"] },
+      "else": { "properties": { "request": false, "requestDigest": false, "rootBinding": false, "materialIdentity": false, "entries": false } } },
+    { "if": { "properties": { "type": { "enum": ["apply-intent", "applied", "restore-intent", "restored"] } }, "required": ["type"] },
+      "then": { "properties": { "index": {} }, "required": ["index"] }, "else": { "properties": { "index": false } } },
+    { "if": { "properties": { "type": { "enum": ["applied", "restored"] } }, "required": ["type"] },
+      "then": { "properties": { "current": {} }, "required": ["current"] }, "else": { "properties": { "current": false } } },
+    { "if": { "properties": { "type": { "const": "applied" } }, "required": ["type"] },
+      "then": { "properties": { "current": { "const": "expected-new" } } } },
+    { "if": { "properties": { "type": { "const": "restored" } }, "required": ["type"] },
+      "then": { "properties": { "current": { "const": "original" } } } },
+    { "if": { "properties": { "type": { "const": "validation-finished" } }, "required": ["type"] },
+      "then": { "properties": { "validation": {} }, "required": ["validation"] }, "else": { "properties": { "validation": false } } },
+    { "if": { "properties": { "type": { "enum": ["committed", "rolled-back", "recovery-required"] } }, "required": ["type"] },
+      "then": { "properties": { "paths": {}, "errorKinds": {} }, "required": ["paths", "errorKinds"] }, "else": { "properties": { "paths": false, "errorKinds": false } } }
+  ],
+  "$defs": {
+    "directoryIdentity": {
+      "$ref": "https://contracts.skill-family.example/v1/state-store-recovery-observation.json#/$defs/identity",
+      "type": "object", "properties": { "type": { "const": "directory" } }
+    },
+    "materialEntry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["before", "after", "parentIdentity"],
+      "properties": {
+        "before": { "anyOf": [{ "type": "null" }, { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/next" }] },
+        "after": { "anyOf": [{ "type": "null" }, { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/next" }] },
+        "parentIdentity": { "$ref": "#/$defs/directoryIdentity" }
+      }
+    }
+  }
+}

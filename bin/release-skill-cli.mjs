@@ -37,7 +37,7 @@ registerPathRedactor(redactSensitivePaths);
 
 const execFile = promisify(execFileCb);
 
-const COMMANDS = new Set(['help', 'setup', 'assess', 'prepare', 'approve', 'publish', 'reconcile', 'verify', 'verify-records', 'postverify', 'ship', 'post-release', 'attest', 'hooks', 'artifacts', 'docs', 'distribute', 'route', 'lineage']);
+const COMMANDS = new Set(['help', 'setup', 'assess', 'prepare', 'approve', 'publish', 'reconcile', 'verify', 'verify-records', 'read-proof', 'postverify', 'ship', 'post-release', 'attest', 'hooks', 'artifacts', 'docs', 'distribute', 'route', 'lineage']);
 
 function printHubManualTargets(targets = []) {
   for (const target of targets) {
@@ -366,6 +366,7 @@ Commands:
   reconcile  Resume PARTIAL state from evidence; conflicts require a human
   verify     Fresh remote and consumer verification; only this reaches VERIFIED
   verify-records Verify explicitly supplied historical plan, approval, and run records offline
+  read-proof Read one family professional-conclusion file without rescanning the target
   postverify Run approved postVerify hooks from a VERIFIED run in an independent run
   ship       Resume one durable prepare -> approve -> publish -> verify flow; completes a parked
              postVerify hook once its checkpoint approval is provided (--hook-approval)
@@ -389,6 +390,9 @@ Options:
   --approval <path> Path to the release-level approval record (required for publish/postverify)
   --production     Prepare immutable Git/npm production artifacts
   --output <path>  Override prepare/approve output path (non-production only)
+  --conclusion-output <absolute-path> Exclusive professional-conclusion file for setup --assess-adoption, assess --offline, or verify-records
+  --proof-root <path> Root that may be read by read-proof
+  --proof <relative> Contained relative proof path for read-proof
   --run-dir <path> Override prepare run directory; production requires one direct child of .release-skill/runs
   --workflow <full|docs|config|marketplace> Workflow profile for prepare (default full). docs/config/marketplace
                    deterministically trim code-class gates (declared hooks, snapshot-verify gates,
@@ -741,7 +745,26 @@ Options:
 
 The command reads only these explicit paths. It never scans .release-skill,
 follows paths carried inside records, contacts a remote, writes a file, or
-changes release state.`);
+changes release state. Optional --conclusion-output <absolute-path> creates one
+new professional-conclusion file; existing files are not overwritten.`);
+  await exitAfterFlush(0);
+}
+
+if (command === 'read-proof' && (args.includes('--help') || args.includes('-h'))) {
+  console.log(`release-skill read-proof - Read one family professional-conclusion file
+
+Usage:
+  release-skill read-proof --proof-root <root> --proof <relative> --json
+
+Options:
+  --proof-root <path> Root the caller allows this command to read
+  --proof <relative>  Contained relative path of the proof file
+  --json              Required; output one JSON result
+  -h, --help          Show this help message and exit
+
+The command reads only that relative path. It does not rescan the target,
+follow paths inside the proof body, execute the target, or call verify-records
+to reload historical records.`);
   await exitAfterFlush(0);
 }
 
@@ -806,8 +829,9 @@ if (command === 'verify-records') {
   const {
     VERIFY_RECORDS_EXIT_CODES,
     verifyReleaseRecords,
+    attachVerifyRecordsConclusion,
   } = await import('../src/commands/verify-records.mjs');
-  const result = verifyReleaseRecords({
+  let result = verifyReleaseRecords({
     plan,
     approval,
     targetRun,
@@ -815,8 +839,51 @@ if (command === 'verify-records') {
     unitId,
     targetVersion,
   });
+  try {
+    result = await attachVerifyRecordsConclusion(
+      result,
+      value('--conclusion-output'),
+      `${unitId ?? 'missing-unit'}@${targetVersion ?? 'missing-version'}`,
+    );
+  } catch (err) {
+    console.log(JSON.stringify({
+      error: err.code ?? 'UNKNOWN_ERROR',
+      message: err.message,
+      details: publicErrorDetails(err),
+      exitCode: err.exitCode ?? 1,
+    }));
+    await exitAfterFlush(err.exitCode ?? 1);
+  }
   console.log(JSON.stringify(result));
   await exitAfterFlush(VERIFY_RECORDS_EXIT_CODES[result.status]);
+}
+
+if (command === 'read-proof') {
+  const value = (flag) => {
+    const index = args.indexOf(flag);
+    return index !== -1 && args[index + 1] && !args[index + 1].startsWith('--')
+      ? args[index + 1]
+      : undefined;
+  };
+  if (!hasJson) {
+    console.log(JSON.stringify({
+      status: 'unavailable',
+      reason: '--json is required for read-proof',
+      provider: null,
+      conclusion: null,
+    }));
+    await exitAfterFlush(2);
+  }
+  const {
+    READ_EXIT_CODES,
+    readProfessionalProof,
+  } = await import('../src/commands/professional-proof.mjs');
+  const result = await readProfessionalProof({
+    proofRoot: value('--proof-root'),
+    proofPath: value('--proof'),
+  });
+  console.log(JSON.stringify(result));
+  await exitAfterFlush(READ_EXIT_CODES[result.status] ?? 2);
 }
 
 // --- Setup command routing ---
@@ -836,8 +903,12 @@ if (command === 'setup') {
   // observations, structured gate drafts. Never writes, never goes remote.
   if (args.includes('--assess-adoption')) {
     try {
+      const conclusionIdx = args.indexOf('--conclusion-output');
+      const conclusionOutput = conclusionIdx !== -1 && args[conclusionIdx + 1] && !args[conclusionIdx + 1].startsWith('--')
+        ? args[conclusionIdx + 1]
+        : undefined;
       const setupModule = await import('../src/commands/setup.mjs');
-      const report = await setupModule.assessAdoption({ root });
+      const report = await setupModule.assessAdoption({ root, conclusionOutput });
       if (hasJson) {
         console.log(JSON.stringify(report, null, 2));
       } else {
@@ -955,10 +1026,14 @@ if (command === 'assess') {
   const offline = args.includes('--offline') || !args.includes('--online');
   const outputIdx = args.indexOf('--output');
   const output = outputIdx !== -1 && args[outputIdx + 1] ? args[outputIdx + 1] : undefined;
+  const conclusionIdx = args.indexOf('--conclusion-output');
+  const conclusionOutput = conclusionIdx !== -1 && args[conclusionIdx + 1] && !args[conclusionIdx + 1].startsWith('--')
+    ? args[conclusionIdx + 1]
+    : undefined;
 
   try {
     const { assessProject } = await import('../src/commands/assess.mjs');
-    const report = await assessProject({ root, offline, output });
+    const report = await assessProject({ root, offline, output, conclusionOutput });
 
     if (hasJson) {
       console.log(JSON.stringify(report, null, 2));

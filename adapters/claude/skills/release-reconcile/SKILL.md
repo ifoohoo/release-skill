@@ -71,3 +71,9 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" reconcile --root <path> --pla
 ## 后续引导
 
 PUBLISHED 后立即用新 `runPath` 运行 verify。VERIFIED 后发布完成。PARTIAL 状态参考报告恢复建议。BLOCKED 需人工决策。
+
+## 人类最终回复
+
+纯问询或转交时短答：写明实际回答、适用范围或理由、必要限制和下一步。建议保持为建议。
+
+执行路径说明本轮实际阶段、范围、退出码和结构化结果，引用源 run、计划和命令返回的新 `runPath`。保留 `PARTIAL`、`BLOCKED`、远端冲突和人工后续。仅当退出码为 0 且状态为 `PUBLISHED` 时，把恢复写为外写检查点已齐；随后用新 `runPath` 进入 verify。`PUBLISHED` 与 `VERIFIED` 按各自既有通过条件分别报告。已有 run 文件按原合同呈现。栏目只收录当前命令已经返回的事实。

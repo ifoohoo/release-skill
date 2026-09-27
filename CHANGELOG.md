@@ -1,9 +1,40 @@
 # Changelog
 
-<!-- release-skill:changelog:start version=0.9.22 locale=en baseline=sha256:5b9ca7ff99b3d072831f4f114ff4830f6d76540f7c5262fd1deb97eaec9d0a57 -->
+<!-- release-skill:changelog:start version=0.9.23 locale=en baseline=sha256:f8bd83211dfe0baa2fc5f55f90498973ef3050f5c78871db22d3784db0ae7442 -->
+## [0.9.23] - 2026-09-26
+
+0.9.23 is a local source candidate. The adoption check, offline static readiness, and historical record consistency can issue a shared family proof and read an existing proof. Prepare and publish skill text now builds the human-readable approval summary from the immutable plan. The three Foundation dependencies stay pinned to 0.22.0. A static-readiness pass does not mean the release is published. Consistent records do not mean the release succeeded or that it is verified. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Hub publication remains a compare-and-swap operation bound to the observed branch head. A partial Hub publication is never rolled back or force-pushed automatically.
+
+### Added
+
+- setup --assess-adoption, assess --offline, and verify-records accept an optional --conclusion-output <absolute-path>. On a successful write, the command exclusively creates one new family proof and keeps the original domain status and exit code; conclusionPath is added only then. Omitting the option writes no proof file.
+- read-proof --proof-root <root> --proof <relative> --json reads one existing release-skill proof under that root. It does not rescan the target, follow details, or turn a failed or incomplete check into a pass.
+- When the declared scope is complete, ASSESSED means the static readiness check finished. Under the same condition, CONSISTENT means the supplied historical records agree, and historicalTerminalStatus stays as recorded. A native pass code is not a professional pass while that scope is incomplete. PUBLISHED and VERIFIED still use the existing conditions of the publish and verify phases.
+- Exclusive writing and professional-conclusion schema checks call Foundation 0.22.0. Reading also uses Foundation to keep the proof path inside the given root. Release-skill keeps the domain mapping for the three entries.
+
+### Changed
+
+- Skill Family Hub remains the central marketplace. After release verification, its release entry still uses the existing GitHub Git Data API through the postVerify Hook.
+
+### Fixed
+
+- The prepare and publish skills read the immutable plan and build the human-readable approval summary only from the units, externalActions, waivers, and postPublish values actually present. Versions and public targets come only from values already written there. Missing fields stay missing.
+- Successful prepare returns the immutable planPath, planDigest, and its other result fields. Approval stays bound to that plan, and copying planDigest is not required. A postPublish checkpoint that needs its own approval remains a separate approval. The publish authorization gate uses the same reading.
+
+### Upgrade Notes
+
+Compared with 0.9.22, this candidate needs no additional configuration migration. An installation still using the old release-skill standalone marketplace should remove it and use the ifoohoo/skill-family-hub repository with the Hub-qualified plugin id release-skill@skill-family-hub. The three checks keep their previous commands, and a proof file is written only when --conclusion-output is set. Reading an existing proof does not advance release state. This file describes the local source candidate; publication, host loading, and acceptance remain separate later authorizations.
+<!-- release-skill:changelog:end version=0.9.23 locale=en -->
+
+
+<!-- release-skill:changelog:start version=0.9.22 locale=en baseline=sha256:ae4fc78ae5e454ee7a6cf37f6ae6130dfe7fefb5948aaa21197a7ef409ffb794 -->
 ## [0.9.22] - 2026-09-17
 
-0.9.22 is a local source candidate that fixes two failures found during the real-host rollout of 0.9.21. CodeBuddy and WorkBuddy keep the same frozen Hub identity and installed-payload checks. Foundation dependencies remain pinned to 0.21.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.22 is a local source candidate that fixes two failures found during the real-host rollout of 0.9.21. CodeBuddy and WorkBuddy keep the same frozen Hub identity and installed-payload checks. Foundation dependencies remain pinned to 0.22.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 ### Security
 

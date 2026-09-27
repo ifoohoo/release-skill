@@ -57,6 +57,11 @@ import {
   checkPluginManifests,
   checkReadmeStructure,
 } from './assess.mjs';
+import {
+  PROVIDER_ENTRY,
+  assertConclusionOutputOption,
+  attachProfessionalConclusion,
+} from './professional-proof.mjs';
 
 const execFile = promisify(execFileCb);
 const SKIP_DIRS = new Set([
@@ -2855,12 +2860,18 @@ async function reportConfigLoadError(root, configPath, error) {
  * @param {string} options.root - Absolute project root.
  * @returns {Promise<Object>} Adoption report.
  */
-export async function assessAdoption({ root } = {}) {
+export async function assessAdoption({ root, conclusionOutput } = {}) {
   if (!root || typeof root !== 'string' || !isAbsolute(root)) {
     throw setupError(CONFIG_INVALID, 'assessment root must be an absolute path');
   }
+  assertConclusionOutputOption(conclusionOutput);
   const rootReal = await realpath(root).catch((error) => {
     throw setupError(CONFIG_INVALID, `cannot resolve assessment root: ${error.message}`);
+  });
+  const finish = (report) => attachProfessionalConclusion(report, {
+    entry: PROVIDER_ENTRY.ADOPTION,
+    subjectRef: rootReal,
+    conclusionOutput,
   });
   const configPath = join(rootReal, '.release-skill', 'project.yaml');
 
@@ -2872,7 +2883,7 @@ export async function assessAdoption({ root } = {}) {
     if (error.code !== 'ENOENT') throw error;
   }
   if (!configExists) {
-    return reportNotConfigured(rootReal, configPath);
+    return finish(await reportNotConfigured(rootReal, configPath));
   }
 
   let loaded;
@@ -2880,7 +2891,7 @@ export async function assessAdoption({ root } = {}) {
     loaded = await loadProjectConfig({ root: rootReal });
   } catch (error) {
     if (error.code !== CONFIG_INVALID) throw error;
-    return reportConfigLoadError(rootReal, configPath, error);
+    return finish(await reportConfigLoadError(rootReal, configPath, error));
   }
   const { config, configDigest } = loaded;
 
@@ -3227,7 +3238,7 @@ export async function assessAdoption({ root } = {}) {
     ? '修复全部必选缺口后重新运行 release-skill setup --assess-adoption。'
     : null;
 
-  return buildAssessmentReport({
+  return finish(buildAssessmentReport({
     config,
     configPath,
     configDigest,
@@ -3237,5 +3248,5 @@ export async function assessAdoption({ root } = {}) {
     gateSuggestions,
     gateDiagnostics,
     next,
-  });
+  }));
 }

@@ -1567,7 +1567,7 @@ set expectedTag $env(RELEASE_SKILL_KIMI_EXPECTED_TAG)
 set promptPattern {(?:(?:^|\\r|\\n)> (?:\\r*\\n|$)|(?:^|\\r|\\n)(?:(?:\\033\\[[0-9;?]*[ -/]*[@-~])|\\033\\][^\\x07]*\\x07|[ \\t])*│[^\\r\\n]*>[^\\r\\n]*│(?:(?:\\033\\[[0-9;?]*[ -/]*[@-~])|\\033\\][^\\x07]*\\x07|[ \\t])*(?:\\r*\\n|$))}
 
 proc cleanScreen {value} {
-  regsub -all {\\033\\[[0-9;?]*[ -/]*[@-~]} $value {} value
+  regsub -all {\\033\\[[0-9;:<=>?]*[ -/]*[@-~]} $value {} value
   regsub -all {\\033\\][^\\x07]*\\x07} $value {} value
   regsub -all {\\r} $value {} value
   return $value
@@ -1646,7 +1646,7 @@ proc readDirectoryTrustDialog {prefix state timeoutCode unknownCode eofCode} {
   set framed [regexp -nocase {(^|\\n)[ \\t]*─{8,}[ \\t]*\\n[ \\t]*Trust this folder\\?} $cleanedPrefix]
   if {$framed} {
     expect {
-      -re {(^|\\r|\\n)[ \\t]*─{8,}[ \\t]*\\r*\\n} {
+      -re {(^|\\r|\\n)[^\\r\\n]*─{8,}[^\\r\\n]*(\\r*\\n|$)} {
         append dialogBuffer $expect_out(buffer)
       }
       timeout { failTimeout $state $timeoutCode $unknownCode }

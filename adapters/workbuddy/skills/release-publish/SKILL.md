@@ -51,7 +51,7 @@ description: "从已批准的生产计划发布冻结 Git branch/tag、npm tarba
 
 ## 授权门
 
-1. 展示可读的 `approvalSummary`：版本、公开仓库、分支策略、branch/tag、npm 与 GitHub Release 目标、全部 actions、例外，以及需要独立 checkpoint 批准的 postPublish hook。
+1. 读取本次批准所绑定的不可变计划，按其中实际存在的 `units`、`externalActions`、`waivers` 和 `postPublish` 整理并展示人可读批准摘要。版本、公开仓库、分支策略、branch/tag、npm 与 GitHub Release 目标、全部 actions、例外，以及需要独立 checkpoint 批准的 postPublish hook，只展示计划里已经写下的值；没有的字段保持缺失，不猜测。
 2. 必须存在未过期且由系统绑定同一内部 digest 的 approval record；批准后不再要求用户复制摘要做二次确认。
 3. 只有 CLI exit code 0 且结构化状态为 `PUBLISHED` 才算外写阶段通过；随后必须运行 verify，只有 `VERIFIED` 才是完整终态。
 
@@ -82,3 +82,9 @@ GitHub Release → Claude/Codex marketplace 隔离安装。每步 execute 后立
 
 发布成功后必须运行 `release-verify`；PARTIAL 仅在人工确认远端状态后进入
 `release-reconcile`。
+
+## 人类最终回复
+
+纯问询或转交时短答：写明实际回答、适用范围或理由、必要限制和下一步。建议保持为建议。
+
+执行路径说明本轮实际阶段、范围、退出码和结构化结果，引用已批准计划、approval 与 run 产物位置。保留预检阻断、`PARTIAL` 和人工后续。仅当退出码为 0 且状态为 `PUBLISHED` 时，把外写阶段写为已发布；随后仍须 `release-verify`。`PUBLISHED`、本机更新与 `VERIFIED` 按各自既有通过条件分别报告。已有 run 文件按原合同呈现。栏目只收录当前命令已经返回的事实。

@@ -392,11 +392,23 @@ function renderSkillForPlatform(content, platformName) {
       '${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs',
       '$RELEASE_SKILL_ENTRY',
     );
-    const renderedPreamble = rendered.includes('$RELEASE_SKILL_LOCAL_FINISH_ENTRY')
-      ? preamble
+    const hasMainEntry = rendered.includes('$RELEASE_SKILL_ENTRY');
+    const hasFinishEntry = rendered.includes('$RELEASE_SKILL_LOCAL_FINISH_ENTRY');
+    const mainBindingLine = '> 令 `RELEASE_SKILL_ENTRY=PLUGIN_ROOT/bin/release-skill.mjs`，对入口执行 `realpath` containment、`lstat` 非符号链接且为普通文件校验。\n';
+    const finishBindingLine = '> 令 `RELEASE_SKILL_LOCAL_FINISH_ENTRY=PLUGIN_ROOT/bin/release-skill-local-finish.mjs`，对入口执行 `realpath` containment、`lstat` 非符号链接且为普通文件校验。\n';
+    const mainShellLine = '> 每一次 shell 工具调用都必须在同一个调用中用上述已验证绝对值设置 `RELEASE_SKILL_ENTRY`，然后执行 `node "$RELEASE_SKILL_ENTRY" ...`；不得依赖前一次 shell 的变量。\n';
+    const dualShellLine = '> 每一次 shell 工具调用都必须在同一个调用中用上述已验证绝对值设置 `RELEASE_SKILL_ENTRY` 与 `RELEASE_SKILL_LOCAL_FINISH_ENTRY`，然后执行 `node "$RELEASE_SKILL_ENTRY" ...` 或 `node "$RELEASE_SKILL_LOCAL_FINISH_ENTRY" ...`；不得依赖前一次 shell 的变量。\n';
+    let renderedPreamble = preamble;
+    if (hasFinishEntry && hasMainEntry) {
+      if (!preamble.includes(mainBindingLine) || !preamble.includes(mainShellLine)) {
+        throw new Error(`${hostLabel} dual-entry rendering requires the original main-entry protocol lines`);
+      }
+      renderedPreamble = preamble.replace(`${mainBindingLine}${mainShellLine}`, `${mainBindingLine}${finishBindingLine}${dualShellLine}`);
+    } else if (hasFinishEntry) {
+      renderedPreamble = preamble
         .replaceAll('RELEASE_SKILL_ENTRY', 'RELEASE_SKILL_LOCAL_FINISH_ENTRY')
-        .replaceAll('release-skill.mjs', 'release-skill-local-finish.mjs')
-      : preamble;
+        .replaceAll('release-skill.mjs', 'release-skill-local-finish.mjs');
+    }
     if (platformName === 'cursor' && /\$\{(?:CLAUDE|CURSOR|CODEBUDDY|KIMI)[A-Z_]*\}/u.test(rendered)) {
       throw new Error('Cursor rendering contains a residual host-specific placeholder');
     }

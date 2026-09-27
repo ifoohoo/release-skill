@@ -10,7 +10,10 @@
  * freshness gate:
  *
  * - adapter gate: runs `scripts/build-adapters.mjs --check` (drift list,
- *   exit 1 on drift — the same supported check the scripts surface offers);
+ *   exit 1 on drift — the same supported check the scripts surface offers).
+ *   Exit 2 and an explicit process start failure mean that check did not
+ *   finish, so freshness is unknown. Timeout stays timeout. Other gates
+ *   keep their existing numeric-exit mapping.
  * - platform manifest gate: runs
  *   `scripts/generate-platform-manifest.mjs --check`;
  * - fact-pin gate: runs the version fact pins of
@@ -193,13 +196,15 @@ export async function checkDerivedArtifactGate(kind, pkgRoot, options = {}) {
       durationMs: Date.now() - startedAt,
     };
   } catch (err) {
-    // Timeout / spawn failure fail closed too: an undecidable gate is drift.
+    // Timeout stays timeout. Adapter exit 2 and an explicit spawn failure
+    // mean the check did not finish. Every other non-zero result, including
+    // other gates' numeric exits, remains drift.
     const stdoutTail = boundedOutputTail(err?.stdout ?? '');
     const stderrTail = boundedOutputTail(err?.stderr ?? err?.message ?? '');
     return {
       applicable: true,
       fresh: false,
-      reason: err?.killed || err?.code === 'ETIMEDOUT' ? 'timeout' : 'drift',
+      reason: failureReason(kind, err),
       artifact: gate.artifact,
       exitCode: typeof err?.code === 'number' ? err.code : null,
       stdoutTail,
@@ -207,6 +212,25 @@ export async function checkDerivedArtifactGate(kind, pkgRoot, options = {}) {
       durationMs: Date.now() - startedAt,
     };
   }
+}
+
+function failureReason(kind, err) {
+  if (err?.killed || err?.code === 'ETIMEDOUT') return 'timeout';
+  if (kind === 'adapters' && (isProcessStartFailure(err) || err?.code === 2)) {
+    return 'execution-failed';
+  }
+  return 'drift';
+}
+
+function isProcessStartFailure(err) {
+  const syscall = err?.syscall;
+  if (syscall === 'spawn' || syscall === 'spawnSync') return true;
+  const executable = err?.path;
+  // Node 22 execFile sets syscall to "spawn <executable>" when the file cannot be started.
+  return typeof syscall === 'string'
+    && typeof executable === 'string'
+    && executable.length > 0
+    && syscall === `spawn ${executable}`;
 }
 
 /** Adapter freshness decision (build-adapters --check). */
@@ -230,14 +254,19 @@ async function assertGate(kind, pkgRoot, options = {}) {
     return result;
   }
   const gate = GATES[kind];
-  const subject = kind === 'adapters'
-    ? 'adapters/ is out of sync with its sources (build-adapters --check reported drift)'
-    : kind === 'platform-manifest'
-      ? 'platform-manifest.json is out of sync with the current package tree (generate-platform-manifest --check reported drift)'
-      : 'the release-docs-self-bootstrap fact pins are stale (the hermetic fact-pin check failed)';
+  const unfinishedAdapterCheck = kind === 'adapters'
+    && (result.reason === 'execution-failed' || result.reason === 'timeout');
+  const subject = unfinishedAdapterCheck
+    ? `adapter freshness cannot be determined because build-adapters --check did not finish (${result.reason})`
+    : kind === 'adapters'
+      ? 'adapters/ is out of sync with its sources (build-adapters --check reported drift)'
+      : kind === 'platform-manifest'
+        ? 'platform-manifest.json is out of sync with the current package tree (generate-platform-manifest --check reported drift)'
+        : 'the release-docs-self-bootstrap fact pins are stale (the hermetic fact-pin check failed)';
+  const remediation = unfinishedAdapterCheck ? '' : ` ${gate.remediation}`;
   throw new ReleaseError(
     DERIVED_ARTIFACT_STALE,
-    `${subject}. ${DERIVED_ARTIFACT_PREGATE_NOTE} ${gate.remediation}`,
+    `${subject}. ${DERIVED_ARTIFACT_PREGATE_NOTE}${remediation}`,
     {
       artifact: result.artifact,
       reason: result.reason,

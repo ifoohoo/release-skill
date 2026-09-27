@@ -107,7 +107,9 @@ node -e 'require("node:fs").rmSync(process.argv[1],{recursive:true,force:false})
 node "$RELEASE_SKILL_ENTRY" setup --assess-adoption --root "$PROJECT" --json
 ```
 
-- 完全只读：评估后仓库不新增任何文件，不修改配置，不执行 hook。
+需要共同证明时另加 `--conclusion-output <absolute-path>`。该文件必须尚未存在；排他写入成功后，报告才含 `conclusionPath`。
+
+- 完全只读：评估后仓库不新增任何文件，不修改配置，不执行 hook。不带 `--conclusion-output` 时不另写证明。
 - 报告四态：`NOT_CONFIGURED`、`PARTIALLY_ADOPTED`、`ADOPTED`、`ADOPTED_WITH_SUGGESTIONS`。
 - findings 分四类：`mandatory-gap`（必选缺口，阻断接入）、`satisfied`（已满足）、`optional-suggestion`（可选建议）、`not-applicable`（不适用）；每条带 `code`、`fieldPath`、`evidence` 与 `action`。
 - `gateSuggestions` 只列可执行且尚未登记的配置草案。无法安全形成草案的脚本保留在 `gateDiagnostics`，不计入建议数量，也不把状态改成 `ADOPTED_WITH_SUGGESTIONS`。
@@ -131,3 +133,9 @@ setup 生成的 `.release-skill/project.yaml` 中 `publisher` 是**已批准的�
 ## 完成标准
 
 完整报告未进入 Agent 上下文；跨 shell 只靠显式会话路径续接；无冲突提案由机器机械提取；写入仅创建一次且摘要精确匹配；创建后状态和 assess 只输出紧凑结果；人工文件保持原字节。
+
+## 人类最终回复
+
+纯问询或转交时短答：写明实际回答、适用范围或理由、必要限制和下一步。建议保持为建议。
+
+首次发现、绑定确认和首次创建，只解释本轮已经得到的 `compactSummary`、绑定摘要、`setupDigest` 和命令实际可见结果。接入评估解释原生状态与 findings。回复沿用既有提取器，使用已打印的紧凑摘要。完整报告只在发现、人工确认和提取期间暂存于会话目录。第4步在固定提取器成功后按原步骤清理会话目录。成功路径的最终回复只用已经打印的紧凑摘要及命令可见结果，不重新读取完整报告。该回复不得把完整报告写成之后仍可读取。发现待确认或绑定待确认时，原会话目录仍按第2、3步保留，不把成功路径的清理提前。已有文件输出按原合同呈现。栏目只收录当前命令已经返回的事实。

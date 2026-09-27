@@ -465,3 +465,17 @@ export function verifyReleaseRecords(request = {}) {
     findings: findings.map(({ _outcome, ...finding }) => finding),
   };
 }
+
+/**
+ * Optional exclusive professional-conclusion output. The domain verifier stays
+ * pure; this hook loads the family projector only when a path is supplied.
+ */
+export async function attachVerifyRecordsConclusion(result, conclusionOutput, subjectRef) {
+  if (conclusionOutput == null || conclusionOutput === '') return result;
+  const { attachProfessionalConclusion, PROVIDER_ENTRY } = await import('./professional-proof.mjs');
+  return attachProfessionalConclusion(result, {
+    entry: PROVIDER_ENTRY.RECORDS,
+    subjectRef,
+    conclusionOutput,
+  });
+}

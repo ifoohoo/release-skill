@@ -24,6 +24,11 @@ import { promisify } from 'node:util';
 import { loadProjectConfig } from '../core/config.mjs';
 import { ReleaseError, CONFIG_INVALID, GATE_FAILED } from '../core/errors.mjs';
 import { collectExpectedPublicSurfaceAdoptionWarnings } from '../core/public-surface.mjs';
+import {
+  PROVIDER_ENTRY,
+  assertConclusionOutputOption,
+  attachProfessionalConclusion,
+} from './professional-proof.mjs';
 
 const execFile = promisify(execFileCb);
 
@@ -1063,10 +1068,17 @@ function generateSummary({ config, topology, gaps, offline }) {
  *   - offline: boolean
  */
 export async function assessProject(options) {
-  const { root, offline = true, output } = options;
+  const { root, offline = true, output, conclusionOutput } = options;
 
   if (!root || typeof root !== 'string') {
     throw new ReleaseError(CONFIG_INVALID, 'root must be a non-empty string');
+  }
+  assertConclusionOutputOption(conclusionOutput, { conflictPath: output });
+  if (conclusionOutput && offline === false) {
+    throw new ReleaseError(
+      CONFIG_INVALID,
+      'professional conclusion output is only supported for assess --offline',
+    );
   }
 
   const allGaps = [];
@@ -1096,7 +1108,11 @@ export async function assessProject(options) {
       await writeReport(output, report);
     }
 
-    return report;
+    return attachProfessionalConclusion(report, {
+      entry: PROVIDER_ENTRY.ASSESS,
+      subjectRef: root,
+      conclusionOutput,
+    });
   }
 
   const config = configResult.config;
@@ -1162,7 +1178,11 @@ export async function assessProject(options) {
     await writeReport(output, report);
   }
 
-  return report;
+  return attachProfessionalConclusion(report, {
+    entry: PROVIDER_ENTRY.ASSESS,
+    subjectRef: root,
+    conclusionOutput,
+  });
 }
 
 /**

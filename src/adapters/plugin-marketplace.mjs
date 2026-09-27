@@ -2592,19 +2592,14 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           const consumer = action.consumer;
           const runDir = context.runDir;
           const isolatedHome = resolve(runDir, 'consumers', `${consumer}-${action.plugin}`);
-
-          // Verify consumer directory is inside runDir
-          const runDirReal = await realpath(runDir).catch(() => runDir);
-          const isolatedHomePreReal = await realpath(isolatedHome).catch(() => isolatedHome);
-          const relToRun = relative(runDirReal, isolatedHomePreReal);
           const sepE = process.platform === 'win32' ? '\\' : '/';
-          if (relToRun !== '' && (isAbsolute(relToRun) || relToRun === '..' || relToRun.startsWith(`..${sepE}`))) {
-            return createResult({
-              actionType,
-              status: ActionStatus.EXECUTE_FAILED,
-              error: `consumer directory escapes runDir: ${isolatedHome}`,
-            });
-          }
+
+          // Recursive mkdir(isolatedHome) used to create a missing runDir.
+          // Foundation resolveContained requires that root to exist and still
+          // rejects symlink escapes. isolatedHome stays lexical for HOME and
+          // evidence; a throw uses the outer EXECUTE_FAILED mapping.
+          await mkdir(runDir, { recursive: true, mode: 0o700 });
+          await resolveContained(runDir, join('consumers', `${consumer}-${action.plugin}`));
 
           // Create isolated HOME and the consumer state subdirectories the
           // registry declares for this platform.

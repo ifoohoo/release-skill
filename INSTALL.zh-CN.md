@@ -2,10 +2,10 @@
 
 [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.22 -->
+<!-- release-skill:release-version: 0.9.23 -->
 ## 前置条件
 
-- Node.js 22.0.0 或更高版本
+- Node.js `>=22.22.2 <23`（22.22.2 及以上，且低于 23）
 - Git 2.30 或更高版本
 
 ## 从 npm 安装（推荐）
@@ -113,7 +113,7 @@ release-skill 当前只采用并验证 Kimi Code 的交互式 TUI 路径，**无
 （切勿使用裸仓库地址，它会安装最新 release 或默认分支），确认信任提示后重新加载：
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.22
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.23
    /plugins reload
    ```
 
@@ -248,7 +248,7 @@ node <installed-plugin-root>/bin/release-skill-local-finish.mjs \
 ```bash
 export RELEASE_SKILL_HOME=/absolute/path/to/release-skill
 cd "$RELEASE_SKILL_HOME"
-npm exec --yes pnpm@10.17.1 -- install --frozen-lockfile
+npm exec --yes pnpm@10.30.0 -- install --frozen-lockfile
 ```
 
 通过以下数组调用命令行工具：

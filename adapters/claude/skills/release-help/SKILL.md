@@ -25,12 +25,13 @@ description: "Discoverable entry point for release-skill: dependency and environ
 - 检查接入：转 `release-setup`，运行 `setup --assess-adoption`；`NOT_CONFIGURED` 指向首次接入，不创建配置。
 - 分析配置、文档和发布就绪缺口：转 `release-assess`，运行离线 `assess`。
 - 核对历史记录：转 `release-assess`，只核对用户显式提供的 plan、approval 和 run 文件。
+- 读取已有共同证明：转 `release-assess`，运行 `read-proof`。三个只读入口可用 `--conclusion-output` 排他写出证明；读取不重新扫描目标。
 
 治理诊断只运行 release-skill 自己的只读检查程序，不运行目标 Skill、业务脚本、构建、hook 或发布动作，也不把 `prepare`、`verify`、`release-finish` 当作静态治理入口。用户要求实际接入或发布时，把已有授权带到对应原业务入口；各入口继续执行原有确认、副作用和状态机合同。
 
-## 0.9.22 候选边界
+## 0.9.23 候选边界
 
-当前 0.9.22 候选精确消费 Foundation 0.21.0 的公开包根 API。0.9.22 仍是源码候选，不能从本说明推断已批准、发布或验证。
+当前 0.9.23 候选精确消费 Foundation 0.22.0 的公开包根 API。0.9.23 仍是源码候选，不能从本说明推断已批准、发布或验证。
 
 冻结前，`prepare` 或新建 `ship` 状态可重复传入 `--unit <id>`；不传则选择全部单元。延期单元不进入计划，也不获得发布状态。完整配置、生成物新鲜度和顶层 Hook 仍覆盖全项目；`publicSourceAuthorityReceipt` 的 coordinator 与 subjects 必须共同选择。冻结后以 `plan.units` 为唯一范围，publish、reconcile、verify、distribute 不再接受 `--unit`。
 
@@ -99,3 +100,7 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill-local-finish.mjs" \
 ## 后续引导
 
 本地就绪后运行 `release-assess`；需要生产发布时，再确认 npm、gh、认证、冻结计划和有效批准。
+
+## 人类最终回复
+
+纯问询或转交时短答。写明这次实际回答了什么、适用范围或转交理由、仍然有效的限制、以及下一步入口。已有 JSON 按原合同在回复中呈现。route 分类、推荐命令和未执行动作保持为建议。栏目只收录当前命令或分支已经返回的事实；有内容才设标题，短答直接成段。

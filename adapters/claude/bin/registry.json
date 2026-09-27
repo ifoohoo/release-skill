@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "skill-family.contracts.registry",
-  "contractsVersion": "1.18.0",
+  "contractsVersion": "1.20.0",
   "note": "Protocol-name and schema-$id registry. Registration mechanically rejects duplicate protocol name/version (SFC1004) and duplicate $id (SFC1003). This file is the single registration surface; adding an entry is a contracts change.",
   "protocols": [
     {
@@ -334,6 +334,55 @@
       "dialect": "2020-12",
       "status": "candidate",
       "file": "src/schemas/engineering-baseline.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/professional-conclusion.json",
+      "object": "professional-conclusion",
+      "dialect": "2020-12",
+      "status": "candidate",
+      "file": "src/schemas/professional-conclusion.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/file-set-apply-request.json",
+      "object": "file-set-apply-request",
+      "dialect": "2020-12",
+      "status": "candidate",
+      "file": "src/schemas/file-set-apply-request.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/file-set-recovery-request.json",
+      "object": "file-set-recovery-request",
+      "dialect": "2020-12",
+      "status": "candidate",
+      "file": "src/schemas/file-set-recovery-request.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/file-set-prune-request.json",
+      "object": "file-set-prune-request",
+      "dialect": "2020-12",
+      "status": "candidate",
+      "file": "src/schemas/file-set-prune-request.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/file-set-result.json",
+      "object": "file-set-result",
+      "dialect": "2020-12",
+      "status": "candidate",
+      "file": "src/schemas/file-set-result.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/file-set-event-payload.json",
+      "object": "file-set-event-payload",
+      "dialect": "2020-12",
+      "status": "candidate",
+      "file": "src/schemas/file-set-event-payload.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/state-store-recovery-observation.json",
+      "object": "state-store-recovery-observation",
+      "dialect": "2020-12",
+      "status": "candidate",
+      "file": "src/schemas/state-store-recovery-observation.schema.json"
     }
   ],
   "dialects": {

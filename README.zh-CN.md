@@ -2,38 +2,43 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.22 -->
+<!-- release-skill:release-version: 0.9.23 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.22** (2026-09-17)
+**0.9.23** (2026-09-26)
 
-0.9.22 是一个本地源码候选，修复 0.9.21 真实宿主收尾暴露的两处问题。CodeBuddy 与 WorkBuddy 继续使用同一份冻结 Hub 身份和安装载荷检查。Foundation 依赖保持固定为 0.21.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.23 是一个本地源码候选。接入检查、离线静态准备度和历史记录一致性可以出具本族共同证明，也可以读取已有证明。prepare 与 publish 的技能说明改为从不可变计划整理人可读批准摘要。Foundation 三个依赖继续固定为 0.22.0。静态准备度通过不表示已经发布。记录一致不表示发布已经成功，也不表示已经验证。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- Hub 发布继续绑定已观察的分支头执行比较后写入。部分发布时不回滚、不覆盖已经成功的远端步骤。
-- 只有 Hub-backed CodeBuddy/WorkBuddy 路径接受 github 市场类型。更新器仍核对 checkout 的 origin、分支、HEAD、宿主专用索引、安装修订号和完整冻结载荷。
-- WorkBuddy 只复用现有的严格 residual_process_group 信封。子进程必须成功退出，Foundation 也必须返回精确的清理证据；任一字段不符时，在后续写入前失败关闭。
+- Hub 发布仍绑定已观察的分支头执行比较后写入。部分发布时不回滚、不覆盖已成功的远端步骤，也不自动强推。
+
+**新增**
+
+- `setup --assess-adoption`、`assess --offline` 和 `verify-records` 可以附加 `--conclusion-output <absolute-path>`。写入成功时，命令排他创建一份新的本族证明，并保留原领域状态和退出码；结果这时才带 `conclusionPath`。未传该参数时不写证明文件。
+- `read-proof --proof-root <root> --proof <relative> --json` 只读取该根下已有的 release-skill 证明。读取不重新检查目标，不跟随 `details`，也不把失败或未完成的检查变成通过。
+- 声明范围已经完成时，`ASSESSED` 表示静态准备度检查完成。同一条件下，`CONSISTENT` 表示所给历史记录一致，`historicalTerminalStatus` 保持原值。范围尚未完成时，原生通过码不算专业通过。`PUBLISHED` 和 `VERIFIED` 继续使用发布阶段和验证阶段各自的通过条件。
+- 证明的排他写入和 professional-conclusion 结构校验调用 Foundation 0.22.0。读取时同样由 Foundation 把证明路径限制在给定根目录内。三个入口的领域映射仍留在 release-skill。
 
 **变更**
 
-- Skill Family Hub 继续作为统一市场；发布完成验证后，仍通过既有 GitHub Git Data API 更新 Hub 条目。
+- Skill Family Hub 继续作为统一市场。发布验证完成后，postVerify Hook 仍使用既有 GitHub Git Data API 更新 Hub 的发布条目。
 
 **修复**
 
-- CodeBuddy 2.148.0 的官方市场列表返回 github 类型时，现在可以继续更新既有 Hub 插件。
-- WorkBuddy 的内嵌 CodeBuddy CLI 成功退出，且 Foundation 已清理并验证残留进程组时，现在可以完成同一条既有插件更新路径。
+- prepare 与 publish 技能改为读取不可变计划。人可读批准摘要只使用计划中实际存在的 `units`、`externalActions`、`waivers` 和 `postPublish`。版本与公开目标只取这些对象里已经写下的值，没有的字段不补写。
+- 成功的 prepare 返回不可变 `planPath`、`planDigest` 等字段。批准仍绑定这份计划，不必复制 `planDigest`。需要独立批准的 postPublish checkpoint 仍另行批准。publish 授权门使用同一读法。
 
 **升级说明**
 
-执行 CodeBuddy 或 WorkBuddy 本机宿主收尾前，请从 0.9.21 升级到 0.9.22，无需迁移配置。请移除独立的 `release-skill` 市场，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub。更新后必须重新加载或重启宿主，确认实际加载 0.9.22 后再报告完成。
+本候选相对 0.9.22 无需额外迁移配置。若安装仍使用独立的 `release-skill` 市场，应将其移除，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub。三个检查的原命令保持可用，只有传入 `--conclusion-output` 才写出证明。读取已有证明不会推进发布状态。本文件只说明本地源码候选；正式发布、宿主加载和验收留待后续单独授权。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.22 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.23 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -49,7 +54,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.22 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.23 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -67,7 +72,7 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-当前 0.9.22 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
+当前 0.9.23 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
 路径和稳定隔离安装树记录路径（A2/A3），并增加只接受显式输入的 `verify-records`
 命令、自包含 Qoder 投影、Cursor 正式打包，以及基于 Foundation 的宿主核验桥。
 Skill Family Hub 仍是唯一市场来源。
@@ -77,7 +82,7 @@ Skill Family Hub 仍是唯一市场来源。
 当前仍不包含 R-02 安全整树盘点。市场安装与真实调用继续作为各宿主的发布后检查；Cursor
 通过其支持的本机插件目录分发，不进入 Hub 市场条目。本范围说明不构成远端发布记录或消费者升级指引。
 
-Foundation 三包精确依赖已发布的 0.21.0。仍采用 bundled-family 分发形态的
+Foundation 三包精确依赖已发布的 0.22.0。仍采用 bundled-family 分发形态的
 Kimi/CodeBuddy 计划会在 verify 阶段调用正式 `runPluginVerification`，把完整冻结载荷
 交给 Foundation，并记录最小的 `install-only` 观察收据。Kimi 映射为 `kimi-code`，
 CodeBuddy 映射为兼容的 `workbuddy`。`observed` 与 `payloadMatches` 只表示机制观察结果，
@@ -236,6 +241,18 @@ CodeBuddy、Codex、Kimi Code、Qoder 和 Cursor 的完整命令见 [INSTALL.zh-
 
 这些入口只运行 release-skill 自身的只读分析。治理诊断不运行目标 Skill、hook、构建或发布动作，也不把 `prepare`、`verify` 或 `release-finish` 当作静态治理检查。维护者要求实际接入或发布时，继续使用原有业务 Skill，并沿用该动作的授权与安全合同。
 
+三个入口均可选用 `--conclusion-output <absolute-path>` 保存本次检查的证明。
+未指定时不出证；指定时只排他创建新文件，并保留原业务结果和退出码。例如：
+
+```text
+release-skill assess --root <project-root> --offline --conclusion-output <absolute-path> --json
+release-skill read-proof --proof-root <root> --proof <relative> --json
+```
+
+`read-proof` 读取指定根目录下已有的 release-skill 证明。它不跟随 `details` 引用，
+不重新检查当前目标，也不认证作者或发布事实。可读取的证明也可能记录失败或未完成的检查，
+读取成功不代表该检查通过。需要刷新结论时，重新运行原检查并写入新路径，保留旧证明。
+
 ### 离线核验历史发布记录
 
 消费者已经持有明确的计划、批准、目标 run 和该目标引用的全部前驱 run 时，可以运行：
@@ -246,8 +263,9 @@ release-skill verify-records --plan <path> --approval <path> --target-run <path>
 
 该命令只读取这些路径，并输出一个 JSON 对象。`CONSISTENT` 的退出码是 0，
 `CONTRADICTED` 的退出码是 1，`INSUFFICIENT` 的退出码是 2。它不会扫描
-`.release-skill`、跟随记录内嵌路径、访问远端、写文件或推进发布状态。历史链一致也不能
-证明这些记录是全局最新，或远端对象仍然存在。
+`.release-skill`、跟随记录内嵌路径、访问远端或推进发布状态。未指定 `--conclusion-output`
+时不会写文件。历史链一致不代表 `VERIFIED` 或当前目标全面通过，也不能证明这些记录
+是全局最新，或远端对象仍然存在。
 
 ### 主流程
 
@@ -280,8 +298,12 @@ ACTOR=your-name
 
 1. **help** — 环境检查：
    ```bash
-   "${CLI[@]}" help
+   "${CLI[@]}" help --json
    ```
+   本地准备就绪须同时满足 `status: "READY"` 和退出码 0。通过
+   `readiness.localPreparation` 查看本地缺口，通过 `readiness.productionPublish`
+   查看生产要求。`AUTH_CHECK_REQUIRED` 表示仍需检查认证和权限；本地就绪不代表
+   这些检查已通过，也不代表获得发布批准。
 2. **setup** — 首次接入（只读发现，然后 create-once 配置）：
    ```bash
    SETUP_SESSION="$(mktemp -d "${TMPDIR:-/tmp}/release-setup.XXXXXX")"
