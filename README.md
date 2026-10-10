@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.23 -->
+<!-- release-skill:release-version: 0.9.24 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,37 +14,34 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.23** (2026-09-26)
+**0.9.24** (2026-10-02)
 
-0.9.23 is a local source candidate. The adoption check, offline static readiness, and historical record consistency can issue a shared family proof and read an existing proof. Prepare and publish skill text now builds the human-readable approval summary from the immutable plan. The three Foundation dependencies stay pinned to 0.22.0. A static-readiness pass does not mean the release is published. Consistent records do not mean the release succeeded or that it is verified. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.24 is a local source candidate. Production prepare no longer deletes run directories. captureBaseline accepts a git status listing up to 64 MiB. Frozen commit dates treat a Git Z reading and the plan +00:00 form as the same UTC instant before comparison. The three Foundation dependencies stay pinned to 0.22.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
 - Hub publication remains a compare-and-swap operation bound to the observed branch head. A partial Hub publication is never rolled back or force-pushed automatically.
 
-**Added**
-
-- setup --assess-adoption, assess --offline, and verify-records accept an optional --conclusion-output <absolute-path>. On a successful write, the command exclusively creates one new family proof and keeps the original domain status and exit code; conclusionPath is added only then. Omitting the option writes no proof file.
-- read-proof --proof-root <root> --proof <relative> --json reads one existing release-skill proof under that root. It does not rescan the target, follow details, or turn a failed or incomplete check into a pass.
-- When the declared scope is complete, ASSESSED means the static readiness check finished. Under the same condition, CONSISTENT means the supplied historical records agree, and historicalTerminalStatus stays as recorded. A native pass code is not a professional pass while that scope is incomplete. PUBLISHED and VERIFIED still use the existing conditions of the publish and verify phases.
-- Exclusive writing and professional-conclusion schema checks call Foundation 0.22.0. Reading also uses Foundation to keep the proof path inside the given root. Release-skill keeps the domain mapping for the three entries.
-
 **Changed**
 
 - Skill Family Hub remains the central marketplace. After release verification, its release entry still uses the existing GitHub Git Data API through the postVerify Hook.
 
+**Removed**
+
+- Production prepare no longer runs the run-retention cleanup. It keeps the directories already present under .release-skill/runs/, including sealed failed prepares and finished lineages. src/core/run-retention.mjs is not part of the public file list.
+
 **Fixed**
 
-- The prepare and publish skills read the immutable plan and build the human-readable approval summary only from the units, externalActions, waivers, and postPublish values actually present. Versions and public targets come only from values already written there. Missing fields stay missing.
-- Successful prepare returns the immutable planPath, planDigest, and its other result fields. Approval stays bound to that plan, and copying planDigest is not required. A postPublish checkpoint that needs its own approval remains a separate approval. The publish authorization gate uses the same reading.
+- captureBaseline reads git status with a 64 MiB maxBuffer, the same bound computeWorkspaceDigest already uses. A status listing larger than Node's default 1 MiB no longer fails that capture.
+- Frozen commit verification still requires the author and committer instants to equal the plan freeze timestamp. Git may return the same UTC instant as Z, and the plan form stays +00:00. Both sides pass through normalizeGitTimestamp before comparison. A different instant still fails.
 
 **Upgrade Notes**
 
-Compared with 0.9.22, this candidate needs no additional configuration migration. An installation still using the old release-skill standalone marketplace should remove it and use the ifoohoo/skill-family-hub repository with the Hub-qualified plugin id release-skill@skill-family-hub. The three checks keep their previous commands, and a proof file is written only when --conclusion-output is set. Reading an existing proof does not advance release state. This file describes the local source candidate; publication, host loading, and acceptance remain separate later authorizations.
+Compared with 0.9.23, this candidate needs no configuration migration. Prepare no longer reclaims disk by deleting old run directories; those directories remain until an operator removes them outside this command. An installation still using the old release-skill standalone marketplace should remove it and use the ifoohoo/skill-family-hub repository with the Hub-qualified plugin id release-skill@skill-family-hub. This file describes the local source candidate. Publication, host loading, and acceptance remain separate later authorizations.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.23 is the current source candidate. This README
+> **Current boundary:** v0.9.24 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -68,7 +65,7 @@ Compared with 0.9.22, this candidate needs no additional configuration migration
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.23 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.24 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -77,6 +74,10 @@ Compared with 0.9.22, this candidate needs no additional configuration migration
 > **Start here:**
 > - npm install: `npm install -g release-skill` → `release-skill help`
 > - source checkout: `node "$RELEASE_SKILL_HOME/packages/release-skill/bin/release-skill.mjs" help`
+
+<a id="release-terms"></a>
+
+A release unit is a release object with independently configured version, public files, and distribution targets. A release plan is a record for review before approval, linking target versions, frozen artifacts, and proposed external actions; see the [human review and approval steps](#release-plan-review).
 
 ### 0.8.0 scope and verification boundaries
 
@@ -97,7 +98,7 @@ checkpoints remain intact and use matching-version recovery. Evidence v1 stays
 read-only; v2 uses a closed top level with phase extensions in `details`.
 Summaries and recovery suggestions are diagnostic, never publication authority.
 
-The current 0.9.23 candidate includes the narrow R-05 Hook cache v2 consumer
+The current 0.9.24 candidate includes the narrow R-05 Hook cache v2 consumer
 path, the public `postverify` path, and the stable isolated install-tree record
 path (A2/A3). It also adds the explicit-input `verify-records` command and a
 self-contained Qoder projection, first-class Cursor packaging, and the
@@ -201,7 +202,7 @@ This scope summary is not a remote publication record or a consumer upgrade inst
 
 ## Quick start
 
-A release unit is a release object with independently configured version, public files, and distribution targets.
+The release unit and release plan are defined [above](#release-terms); the review steps are the [human review and approval steps](#release-plan-review).
 
 ### Selecting a release scope
 
@@ -340,7 +341,7 @@ observes the complete frozen payload in a fresh local installation. Real
 marketplace installation and host invocation remain non-blocking post-release
 manual tasks; the system does not verify their completion.
 
-A release plan is a record for review before approval, linking target versions, frozen artifacts, and proposed external actions; see the [human review and approval steps](#release-plan-review).
+The release unit and release plan are defined [above](#release-terms); the review steps are the [human review and approval steps](#release-plan-review).
 
 ```bash
 release-skill ship --root "$PROJECT" --target-version 1.2.3 --json
@@ -350,11 +351,7 @@ release-skill ship --root "$PROJECT" --approve --actor "$ACTOR" --json
 During development, `release-skill hooks validate` runs declared hooks and
 writes the same content-bound cache receipts that `prepare` consumes.
 
-Run these steps in order. Steps 1-3 are read-only. In step 4, release-skill's own
-prepare pipeline is local-only and never invokes remote publish adapters; configured
-hooks and gates remain arbitrary unsandboxed processes and can perform local or remote
-side effects. Step 4 is therefore local-only only when those processes are absent or
-separately audited and explicitly acknowledged. Steps 5-9 require explicit human gates.
+Run these steps in order. The `help` call in step 1, the default `setup` diagnosis in step 2 without `--write`, and the `assess` call shown in step 3 are read-only diagnoses. When step 2 explicitly runs `setup --write --confirm-setup`, it creates project configuration; that same step also creates, writes, and deletes local temporary session files. Those are local writes, not remote publication. In step 4, release-skill's own prepare pipeline is local-only and never invokes remote publish adapters; configured hooks and gates remain arbitrary unsandboxed processes and can perform local or remote side effects. Step 4 is therefore local-only only when those processes are absent or separately audited and explicitly acknowledged. Steps 5-9 require explicit human gates.
 
 ```bash
 CLI=(release-skill)           # or: CLI=(node "$RELEASE_SKILL_HOME/packages/release-skill/bin/release-skill.mjs")
@@ -919,13 +916,8 @@ verify an exact current installation offline; Codex reinstalls when its list
 does not expose an installation root. Existing frozen installation actions
 and the Qoder and Cursor paths remain supported without duplicate execution.
 
-Production `prepare` also performs one best-effort retention pass after its new
-run evidence exists and before expensive snapshot and hook work. It removes
-only superseded complete run lineages and sealed failed prepare directories
-that have no valid plan or external-write trace. The current plan, the newest
-complete lineage, and every non-terminal, partial, corrupt, ambiguous, or
-out-of-bounds lineage remain protected. Retention failures never change the
-prepare result.
+Production `prepare` keeps the run directories already present under
+`.release-skill/runs/`, including sealed failed prepares and finished lineages.
 
 New `codebuddy-plugin` project configurations must declare `marketplace`
 explicitly so product families cannot silently inherit another family's Hub.

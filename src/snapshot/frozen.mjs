@@ -199,9 +199,10 @@ export async function verifyFrozenDirectoryStructure(directory, label = 'frozen 
  *
  * Consumption only: this never rebuilds objects and never reads the wall
  * clock. When `commitTimestamp` (the plan's `frozenSnapshot.commitTimestamp`)
- * is provided, the frozen commit's real `%aI`/`%cI` dates must match it
- * exactly, so a commit carrying any other author/committer time can never
- * pass pre-publish verification.
+ * is provided, the plan canonical form remains `+00:00`. Git may read the
+ * same UTC instant back as `Z` via `%aI`/`%cI`. Both sides pass through
+ * `normalizeGitTimestamp` before comparison, so a commit carrying any other
+ * author/committer instant can never pass pre-publish verification.
  */
 export async function verifyFrozenGitRepository({
   root,
@@ -225,13 +226,15 @@ export async function verifyFrozenGitRepository({
       ['--git-dir', gitDir, 'show', '-s', '--format=%aI%n%cI', commit],
       { shell: false },
     );
-    const [authorDate, committerDate] = datesOut.trim().split('\n');
+    const [rawAuthorDate, rawCommitterDate] = datesOut.trim().split('\n');
+    const authorDate = normalizeGitTimestamp(rawAuthorDate, 'frozen commit author date');
+    const committerDate = normalizeGitTimestamp(rawCommitterDate, 'frozen commit committer date');
     if (authorDate !== expectedTimestamp || committerDate !== expectedTimestamp) {
       throw frozenError('frozen git commit dates do not match the plan freeze timestamp', {
         commit,
         expectedTimestamp,
-        observedAuthorDate: authorDate,
-        observedCommitterDate: committerDate,
+        observedAuthorDate: rawAuthorDate,
+        observedCommitterDate: rawCommitterDate,
       });
     }
   }
@@ -314,9 +317,10 @@ const GIT_ISO8601_STRICT_RE =
  *
  * The value must be a non-empty, strict ISO 8601 timestamp with an explicit UTC
  * offset and a parseable calendar date. It is normalized to UTC with second
- * precision and a `+00:00` offset, which is exactly the form Git stores and
- * re-emits via `%aI`/`%cI`. Missing, empty, malformed, or out-of-range values
- * throw a closed `GATE_FAILED` error.
+ * precision and a `+00:00` offset. The plan canonical form remains `+00:00`.
+ * Git may read the same UTC instant back as `Z` via `%aI`/`%cI`; both sides
+ * pass through `normalizeGitTimestamp` before comparison. Missing, empty,
+ * malformed, or out-of-range values throw a closed `GATE_FAILED` error.
  *
  * Normalization is idempotent: re-normalizing an already-canonical value returns
  * the identical string, so prepare and the Git builder always agree byte-for-byte.
@@ -399,11 +403,12 @@ function publicGitRemote({ repo, githubHost = 'github.com' }) {
  * `commitTimestamp` is the plan freeze timestamp sampled exactly once during
  * production prepare. It is strictly validated BEFORE any filesystem or Git
  * write (missing, empty, malformed, or impossible values fail closed), then
- * written verbatim to both GIT_AUTHOR_DATE and GIT_COMMITTER_DATE, so the
- * frozen commit's `%aI` and `%cI` always equal the plan's
- * `frozenSnapshot.commitTimestamp` byte-for-byte. Identical inputs therefore
- * yield identical tree and commit identifiers, and a different freeze
- * timestamp alone yields a different commit with an identical tree.
+ * written verbatim to both GIT_AUTHOR_DATE and GIT_COMMITTER_DATE. The plan
+ * canonical form remains `+00:00`. Git may read the same UTC instant back as
+ * `Z` via `%aI`/`%cI`; both sides pass through `normalizeGitTimestamp` before
+ * comparison. Identical inputs therefore yield identical tree and commit
+ * identifiers, and a different freeze timestamp alone yields a different
+ * commit with an identical tree.
  */
 export async function buildFrozenGitRepository({
   snapshotDir,

@@ -13,6 +13,7 @@
 
 import { readFile, writeFile, readdir, stat, mkdir } from 'node:fs/promises';
 import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { canonicalJson, sha256Hex } from '../core/digest.mjs';
 import { digestDocument } from 'skill-family-contracts';
@@ -111,7 +112,7 @@ async function renderDir(srcDir, outDir, pathPrefix) {
  * @returns {Promise<{outputs: Array, outputManifestDigest: string}>}
  */
 export async function produceRenderPublicAssets({ inputs, output } = {}) {
-  const defaultRoot = new URL('../../..', import.meta.url).pathname;
+  const defaultRoot = fileURLToPath(new URL('../../..', import.meta.url));
   const root = inputs ?? defaultRoot;
 
   const srcDirs = [

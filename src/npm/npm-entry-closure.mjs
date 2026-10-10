@@ -84,6 +84,37 @@ function checkTarget({ field, target, fileIndex, requireDotSlash = false }) {
   };
 }
 
+// Identity mapping whose only star is the final character, for example
+// "./schemas/*" -> "./schemas/*". Node replaces that star with any non-empty
+// string, including "/". Other shapes stay rejected.
+function isDirectTrailingStarMapping(key, value) {
+  return typeof value === 'string'
+    && key === value
+    && key.startsWith('./')
+    && key.indexOf('*') === key.length - 1;
+}
+
+function validateTrailingStarPrefix(pattern) {
+  const head = pattern.slice(0, -1);
+  if (head === './') return {};
+  const staticTarget = head.endsWith('/') ? head.slice(0, -1) : head;
+  const validated = validateRelativeTarget(staticTarget, 'exports', { requireDotSlash: true });
+  if (validated.error) return validated;
+  return {};
+}
+
+function matchingIndexPaths(pattern, fileIndex) {
+  const prefix = pattern.slice(0, -1);
+  const matched = [];
+  for (const path of fileIndex.keys()) {
+    if (typeof path !== 'string') continue;
+    const subpath = `./${path}`;
+    if (subpath.startsWith(prefix) && subpath.length >= pattern.length) matched.push(path);
+  }
+  matched.sort();
+  return matched;
+}
+
 function collectExports(value, location, result) {
   if (value === null) return;
   if (typeof value === 'string') {
@@ -117,14 +148,18 @@ function collectExports(value, location, result) {
   for (const [key, child] of Object.entries(value)) {
     const childLocation = `${location}.${key}`;
     if (key.includes('*')) {
-      result.errors.push(
-        entryError(
-          'exports',
-          key,
-          'unsupported_entry_shape',
-          `${childLocation} uses a wildcard subpath that the static gate cannot verify`,
-        ),
-      );
+      if (isDirectTrailingStarMapping(key, child)) {
+        result.patterns.push({ location: childLocation, pattern: key });
+      } else {
+        result.errors.push(
+          entryError(
+            'exports',
+            key,
+            'unsupported_entry_shape',
+            `${childLocation} uses a wildcard subpath that the static gate cannot verify`,
+          ),
+        );
+      }
       continue;
     }
     collectExports(child, childLocation, result);
@@ -166,7 +201,7 @@ export function checkNpmEntryClosure(manifest, fileIndex) {
   }
 
   if (manifest.exports !== undefined) {
-    const exportsResult = { targets: [], errors: [], diagnostics: [] };
+    const exportsResult = { targets: [], patterns: [], errors: [], diagnostics: [] };
     collectExports(manifest.exports, 'exports', exportsResult);
     result.errors.push(...exportsResult.errors);
     result.diagnostics.push(...exportsResult.diagnostics);
@@ -179,6 +214,33 @@ export function checkNpmEntryClosure(manifest, fileIndex) {
       });
       result.entries.push(...checked.entries);
       result.errors.push(...checked.errors);
+    }
+    for (const pattern of exportsResult.patterns) {
+      const validated = validateTrailingStarPrefix(pattern.pattern);
+      if (validated.error) {
+        result.errors.push(validated.error);
+        continue;
+      }
+      const matched = matchingIndexPaths(pattern.pattern, fileIndex);
+      if (matched.length === 0) {
+        result.errors.push(entryError(
+          'exports',
+          pattern.pattern,
+          'empty_pattern_match',
+          `${pattern.location} matched no files in the package file index`,
+        ));
+        continue;
+      }
+      for (const path of matched) {
+        const checked = checkTarget({
+          field: 'exports',
+          target: `./${path}`,
+          fileIndex,
+          requireDotSlash: true,
+        });
+        result.entries.push(...checked.entries);
+        result.errors.push(...checked.errors);
+      }
     }
   }
 

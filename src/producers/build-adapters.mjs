@@ -22,6 +22,7 @@
 import { readdir, mkdir, lstat, realpath, open, rm } from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
 import { join, dirname, relative, isAbsolute, sep, resolve, posix as pathPosix } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { sha256Hex } from '../core/digest.mjs';
 import { digestDocument } from 'skill-family-contracts';
@@ -713,7 +714,7 @@ async function generateAdapterFiles(platform, skills, templateJson, root, market
  * @param {string} [options.platformFilter] - Only generate for this platform name.
  */
 export async function produceBuildAdapters({ inputs, output, outputRoots, platformFilter } = {}) {
-  const defaultRoot = new URL('../..', import.meta.url).pathname;
+  const defaultRoot = fileURLToPath(new URL('../..', import.meta.url));
   const requestedRoot = inputs ?? defaultRoot;
 
   // ── Phase 1: Validate input root is not a symlink ──

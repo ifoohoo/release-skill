@@ -2,43 +2,40 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.23 -->
+<!-- release-skill:release-version: 0.9.24 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.23** (2026-09-26)
+**0.9.24** (2026-10-02)
 
-0.9.23 是一个本地源码候选。接入检查、离线静态准备度和历史记录一致性可以出具本族共同证明，也可以读取已有证明。prepare 与 publish 的技能说明改为从不可变计划整理人可读批准摘要。Foundation 三个依赖继续固定为 0.22.0。静态准备度通过不表示已经发布。记录一致不表示发布已经成功，也不表示已经验证。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.24 是一个本地源码候选。生产 prepare 不再删除运行目录。captureBaseline 可以接收不超过 64 MiB 的 git status 列表。冻结提交日期在比较前把 Git 读出的 Z 与计划中的 +00:00 视为同一 UTC 时刻。Foundation 三个依赖继续固定为 0.22.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
 - Hub 发布仍绑定已观察的分支头执行比较后写入。部分发布时不回滚、不覆盖已成功的远端步骤，也不自动强推。
 
-**新增**
-
-- `setup --assess-adoption`、`assess --offline` 和 `verify-records` 可以附加 `--conclusion-output <absolute-path>`。写入成功时，命令排他创建一份新的本族证明，并保留原领域状态和退出码；结果这时才带 `conclusionPath`。未传该参数时不写证明文件。
-- `read-proof --proof-root <root> --proof <relative> --json` 只读取该根下已有的 release-skill 证明。读取不重新检查目标，不跟随 `details`，也不把失败或未完成的检查变成通过。
-- 声明范围已经完成时，`ASSESSED` 表示静态准备度检查完成。同一条件下，`CONSISTENT` 表示所给历史记录一致，`historicalTerminalStatus` 保持原值。范围尚未完成时，原生通过码不算专业通过。`PUBLISHED` 和 `VERIFIED` 继续使用发布阶段和验证阶段各自的通过条件。
-- 证明的排他写入和 professional-conclusion 结构校验调用 Foundation 0.22.0。读取时同样由 Foundation 把证明路径限制在给定根目录内。三个入口的领域映射仍留在 release-skill。
-
 **变更**
 
 - Skill Family Hub 继续作为统一市场。发布验证完成后，postVerify Hook 仍使用既有 GitHub Git Data API 更新 Hub 的发布条目。
 
+**移除**
+
+- 生产 prepare 不再执行 run-retention 清理。它保留 .release-skill/runs/ 中已有的目录，包括封口失败的 prepare 和已经结束的谱系。src/core/run-retention.mjs 不再属于公开文件清单。
+
 **修复**
 
-- prepare 与 publish 技能改为读取不可变计划。人可读批准摘要只使用计划中实际存在的 `units`、`externalActions`、`waivers` 和 `postPublish`。版本与公开目标只取这些对象里已经写下的值，没有的字段不补写。
-- 成功的 prepare 返回不可变 `planPath`、`planDigest` 等字段。批准仍绑定这份计划，不必复制 `planDigest`。需要独立批准的 postPublish checkpoint 仍另行批准。publish 授权门使用同一读法。
+- captureBaseline 读取 git status 时使用 64 MiB maxBuffer，与 computeWorkspaceDigest 已有的上限相同。状态列表超过 Node 默认的 1 MiB 时，这次采集不再因此失败。
+- 冻结提交校验仍要求作者和提交者时刻等于计划冻结时间。Git 可能把同一 UTC 时刻读成 Z，计划形式仍是 +00:00。两边都先经过 normalizeGitTimestamp 再比较。不同的时刻仍然失败。
 
 **升级说明**
 
-本候选相对 0.9.22 无需额外迁移配置。若安装仍使用独立的 `release-skill` 市场，应将其移除，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub。三个检查的原命令保持可用，只有传入 `--conclusion-output` 才写出证明。读取已有证明不会推进发布状态。本文件只说明本地源码候选；正式发布、宿主加载和验收留待后续单独授权。
+本候选相对 0.9.23 无需迁移配置。prepare 不再通过删除旧运行目录回收磁盘；这些目录会保留，直到操作者在该命令之外移除。若安装仍使用独立的 `release-skill` 市场，应将其移除，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub。本文件只说明本地源码候选；正式发布、宿主加载和验收留待后续单独授权。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.23 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.24 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -54,12 +51,16 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.23 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.24 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
 > - npm 安装：`npm install -g release-skill` → `release-skill help`
 > - 源码 checkout：`node "$RELEASE_SKILL_HOME/packages/release-skill/bin/release-skill.mjs" help`
+
+<a id="release-terms"></a>
+
+发布单元是独立配置版本、公开文件和分发目标的发布对象。发布计划是供批准前审阅的记录，将目标版本、冻结产物和拟执行的外部动作关联起来；详见[人工审阅与批准步骤](#release-plan-review)。
 
 ### 0.8.0 范围与验证边界
 
@@ -72,7 +73,7 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-当前 0.9.23 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
+当前 0.9.24 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
 路径和稳定隔离安装树记录路径（A2/A3），并增加只接受显式输入的 `verify-records`
 命令、自包含 Qoder 投影、Cursor 正式打包，以及基于 Foundation 的宿主核验桥。
 Skill Family Hub 仍是唯一市场来源。
@@ -157,7 +158,7 @@ CodeBuddy 映射为兼容的 `workbuddy`。`observed` 与 `payloadMatches` 只�
 
 ## 快速开始
 
-发布单元是独立配置版本、公开文件和分发目标的发布对象。
+发布单元和发布计划的定义见[上文](#release-terms)，审阅步骤见[人工审阅与批准步骤](#release-plan-review)。
 
 ### 选择本轮发布范围
 
@@ -275,7 +276,7 @@ hook 授权等待态。受限的 postPublish hook 仍须独立批准，计划批
 观察完整冻结载荷。真实市场安装和宿主调用仍是发布完成后的非阻塞人工后续任务，
 系统不核验其完成结果。
 
-发布计划是供批准前审阅的记录，将目标版本、冻结产物和拟执行的外部动作关联起来；详见[人工审阅与批准步骤](#release-plan-review)。
+发布单元和发布计划的定义见[上文](#release-terms)，审阅步骤见[人工审阅与批准步骤](#release-plan-review)。
 
 ```bash
 release-skill ship --root "$PROJECT" --target-version 1.2.3 --json
@@ -285,10 +286,7 @@ release-skill ship --root "$PROJECT" --approve --actor "$ACTOR" --json
 开发阶段可运行 `release-skill hooks validate`；它会执行声明的 hooks，并写入
 `prepare` 可复用的内容绑定收据。
 
-按以下顺序执行。步骤 1-3 只读。步骤 4 中，release-skill 自身的 prepare 流水线仅在本地写入，
-且不会调用远端发布适配器；配置的 hook 和 gate 仍是可产生本地或远端副作用的任意无沙箱进程。
-只有这些进程不存在，或已单独审计并显式确认副作用时，步骤 4 才能视为“仅本地”。步骤 5-9
-需要显式人工门禁。
+按以下顺序执行。步骤 1 的 `help`、步骤 2 不带 `--write` 的默认 `setup` 诊断，以及步骤 3 所示的 `assess`，是只读诊断。步骤 2 显式执行 `setup --write --confirm-setup` 时，会在项目中创建配置；同一步骤还会创建、写入并删除本地临时会话文件，这些操作属于本地写入，不涉及远端发布。步骤 4 中，release-skill 自身的 prepare 流水线仅在本地写入，且不会调用远端发布适配器；配置的 hook 和 gate 仍是可产生本地或远端副作用的任意无沙箱进程。只有这些进程不存在，或已单独审计并显式确认副作用时，步骤 4 才能视为“仅本地”。步骤 5-9 需要显式人工门禁。
 
 ```bash
 CLI=(release-skill)           # 或：CLI=(node "$RELEASE_SKILL_HOME/packages/release-skill/bin/release-skill.mjs")
@@ -764,10 +762,7 @@ GitHub Release 和受控终端交互，保留三个代理变量；只有仓库 U
 精确当前安装；Codex 列表没有安装根时仍须正式重装。旧安装动作与 Qoder、Cursor
 路径继续可用，身份一致的重复目标只执行一次。
 
-生产 prepare 还会在本轮运行证据建立后、高成本快照和 Hook 之前执行一次尽力清理。
-它只删除已被更新完整谱系取代的终态运行目录，以及没有有效计划或外部写入迹象的封口
-失败 prepare。当前计划、最近完整谱系，以及所有非终态、部分成功、损坏、含糊或越界
-谱系都受保护。清理失败不会改变 prepare 结果。
+生产 prepare 保留 `.release-skill/runs/` 中已有的运行目录，包括封口失败的 prepare 和已经结束的谱系。
 
 新的 `codebuddy-plugin` 项目配置必须显式声明 `marketplace`，避免不同产品线误用同一市场；`marketplaceSource`（消费者添加市场所用的 URL）仍可按需声明。只有已经冻结、且未携带该字段的历史计划会继续按旧规则解释为 `artifact-skill-set`，以保证 reconcile 可以重放原计划。
 

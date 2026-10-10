@@ -272,6 +272,21 @@ function normalizeLocalGitMode(mode) {
   return (mode & 0o111) === 0 ? '100644' : '100755';
 }
 
+function gitPathSegments(value) {
+  return String(value).replaceAll('\\', '/').replace(/\/+$/u, '').split('/').filter(Boolean);
+}
+
+function sharesDirectoryBoundary(recordPath, requestedPath) {
+  const recordSegments = gitPathSegments(recordPath);
+  const requestedSegments = gitPathSegments(requestedPath);
+  const limit = Math.min(recordSegments.length, requestedSegments.length);
+  if (limit === 0) return false;
+  for (let index = 0; index < limit; index += 1) {
+    if (recordSegments[index] !== requestedSegments[index]) return false;
+  }
+  return true;
+}
+
 /**
  * Check only frozen source-input paths for staged, unstaged or untracked
  * changes. Unrelated dirty files remain allowed.
@@ -310,11 +325,21 @@ export async function checkSourceInputDirty({ closure, root, execFn = execFile }
     if (record.length < 4) continue;
     const status = record.slice(0, 2);
     const recordPath = record.slice(3);
+    let renamedPath = '';
+    if (status.startsWith('R') || status.startsWith('C')) {
+      renamedPath = records[index + 1] ?? '';
+      index += 1;
+    }
     // Ignored inputs are still untracked inputs. A file explicitly selected
     // for publication must not escape the prepare gate merely because a
-    // .gitignore rule hides it from ordinary status output.
-    dirtyPaths.push(recordPath);
-    if (status.startsWith('R') || status.startsWith('C')) index += 1;
+    // .gitignore rule hides it from ordinary status output. A porcelain row
+    // counts only when its path shares a full directory segment with a
+    // requested closure path. A character prefix is not a selection.
+    for (const candidate of [recordPath, renamedPath]) {
+      if (candidate && paths.some((requested) => sharesDirectoryBoundary(candidate, requested))) {
+        dirtyPaths.push(candidate);
+      }
+    }
   }
   return {
     dirty: dirtyPaths.length > 0,

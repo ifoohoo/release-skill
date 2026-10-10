@@ -54,12 +54,19 @@ export const REDACTED_PATH_PLACEHOLDER = '<redacted-path>';
 // (b) UNC paths (\\server\share...);
 // (c) POSIX absolute paths: a '/' anchored at the start of the string or
 //     preceded by a delimiter (whitespace, quote, '=', ':', ',', '(', '[',
-//     '{', '<'), running until whitespace or a quote. The left boundary keeps
-//     redaction from firing inside relative fragments ('src/core/x.mjs'),
-//     fragment-anchored JSON pointers ('#/required'), or protocol-relative
-//     URLs ('https://x/y').
+//     '{', '<'). Non-final '/'-separated segments may contain spaces (a
+//     volume name such as /Volumes/Samsung 990 pro 4T/src/file), so the
+//     token continues across those spaces and stops before trailing prose
+//     ('plan.json rejected: ...'). The left boundary keeps redaction from
+//     firing inside relative fragments ('src/core/x.mjs'), fragment-anchored
+//     JSON pointers ('#/required'), or protocol-relative URLs ('https://x/y').
+//     Windows drive and UNC alternatives still stop at whitespace; only the
+//     POSIX alternative crosses spaces, and only in non-final segments.
+//     A segment starting with a space right after '/' (e.g. /Volumes/ 990/x)
+//     and Windows drive/UNC tokens still truncate at that whitespace (known
+//     limitation).
 const PATH_TOKEN_RE =
-  /(?<=^|[\s'"=:,([{<])(?:[A-Za-z]:[\\/][^\s'"]*|\\\\[^\s'"]+|\/[^\s'"]+)/g;
+  /(?<=^|[\s'"=:,([{<])(?:[A-Za-z]:[\\/][^\s'"]*|\\\\[^\s'"]+|\/(?:[^/\s'"]+(?:[ ]+[^/\s'"]+)*\/)*[^/\s'"]*)/g;
 
 // Trailing prose punctuation that may cling to a token and must survive.
 const TRAILING_PUNCT_RE = /^(.*?)([.!,;:)\]}>]*)$/;

@@ -78,7 +78,6 @@ import { acquireProjectLock } from '../artifacts/project-lock.mjs';
 import { observePreviousPublicBaseline } from '../core/previous-public-baseline.mjs';
 import { verifyFrozenNpmTarballContract } from '../adapters/npm.mjs';
 import { createProductionPrepareRunDir } from '../core/run.mjs';
-import { cleanupRunRetention } from '../core/run-retention.mjs';
 import {
   PLATFORMS,
   normalizeHostId,
@@ -279,7 +278,9 @@ import { boundedOutputTail } from '../core/bounded-output.mjs';
  * already captures child stdout/stderr on non-zero exit; on failure this
  * layer writes bounded tails into the hooks evidence event AND echoes them to
  * the current process' stderr, so a failing hook is diagnosable on the
- * terminal without opening evidence.jsonl. Success events carry no tails.
+ * terminal without opening evidence.jsonl. Fresh success and non-zero exit
+ * events also retain the returned full streams through the evidence writer's
+ * redaction. Success events carry no tails; cache hits have no fresh streams.
  * Exit-code semantics are unchanged.
  *
  * @param {object} config - The loaded project config.
@@ -413,6 +414,7 @@ export async function runDeclaredHooks(config, root, evidence, hookFn = runHook,
         // streams instead of the noisy compiler prelude at the beginning.
         stdoutTail,
         stderrTail,
+        details: { stdout: result.stdout, stderr: result.stderr },
         ...selectionField,
       });
       throw new ReleaseError(
@@ -448,6 +450,7 @@ export async function runDeclaredHooks(config, root, evidence, hookFn = runHook,
       status: 'completed',
       hookName: name,
       exitCode: 0,
+      details: { stdout: result.stdout, stderr: result.stderr },
       ...selectionField,
     });
     records.push({ name, completed: true, cached: false, testSelection: selectionField.testSelection });
@@ -3404,34 +3407,6 @@ export async function prepareRelease(options) {
   const evidence = createEvidenceWriter({ runDir, command: 'prepare', clock });
 
   try {
-    // R14-01: production prepare performs one best-effort retention pass only
-    // after the current run/evidence authority exists and before high-cost
-    // config, snapshot, and hook work begins. It never blocks prepare.
-    if (production) {
-      try {
-        const retention = await (options.runRetentionFn ?? cleanupRunRetention)({
-          releaseDir,
-          currentRunDir: runDir,
-        });
-        await evidence.append({
-          phase: 'run-retention',
-          status: 'completed',
-          scanned: retention.scanned,
-          deleted: retention.deleted,
-          errors: retention.errors,
-        });
-      } catch (error) {
-        await evidence.append({
-          phase: 'run-retention',
-          status: 'warning',
-          scanned: 0,
-          deleted: 0,
-          errors: 1,
-          error: { code: error?.code ?? 'RUN_RETENTION_FAILED', message: error?.message ?? String(error) },
-        });
-      }
-    }
-
     // --- Step 1: Load and validate config ---
     await evidence.append({ phase: 'config', status: 'started' });
 

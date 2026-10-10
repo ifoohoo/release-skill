@@ -292,7 +292,15 @@ async function computeWorkspaceDigest(root) {
  * @returns {Promise<{ gitHead: string, gitTreeHash: string, workspaceDigest: string, statusEntries: string[], capturedAt: string }>}
  */
 export async function captureBaseline(root) {
-  const opts = { cwd: root, shell: false, encoding: 'utf8' };
+  // Same 64 MiB bound as computeWorkspaceDigest: `git status --porcelain=v1
+  // -z --untracked-files=all` lists every untracked file and exceeds Node's
+  // default 1 MiB execFile maxBuffer once that listing grows past ~1 MiB.
+  const opts = {
+    cwd: root,
+    shell: false,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  };
 
   const [{ stdout: headOut }, { stdout: treeOut }, { stdout: statusOut }] =
     await Promise.all([

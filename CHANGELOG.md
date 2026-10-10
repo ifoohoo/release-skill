@@ -1,5 +1,33 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.24 locale=en baseline=sha256:17152a17c71bea35445f03040022e41c7fb5a77be0024c049f96d3fb6b0053bb -->
+## [0.9.24] - 2026-10-02
+
+0.9.24 is a local source candidate. Production prepare no longer deletes run directories. captureBaseline accepts a git status listing up to 64 MiB. Frozen commit dates treat a Git Z reading and the plan +00:00 form as the same UTC instant before comparison. The three Foundation dependencies stay pinned to 0.22.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Hub publication remains a compare-and-swap operation bound to the observed branch head. A partial Hub publication is never rolled back or force-pushed automatically.
+
+### Changed
+
+- Skill Family Hub remains the central marketplace. After release verification, its release entry still uses the existing GitHub Git Data API through the postVerify Hook.
+
+### Removed
+
+- Production prepare no longer runs the run-retention cleanup. It keeps the directories already present under .release-skill/runs/, including sealed failed prepares and finished lineages. src/core/run-retention.mjs is not part of the public file list.
+
+### Fixed
+
+- captureBaseline reads git status with a 64 MiB maxBuffer, the same bound computeWorkspaceDigest already uses. A status listing larger than Node's default 1 MiB no longer fails that capture.
+- Frozen commit verification still requires the author and committer instants to equal the plan freeze timestamp. Git may return the same UTC instant as Z, and the plan form stays +00:00. Both sides pass through normalizeGitTimestamp before comparison. A different instant still fails.
+
+### Upgrade Notes
+
+Compared with 0.9.23, this candidate needs no configuration migration. Prepare no longer reclaims disk by deleting old run directories; those directories remain until an operator removes them outside this command. An installation still using the old release-skill standalone marketplace should remove it and use the ifoohoo/skill-family-hub repository with the Hub-qualified plugin id release-skill@skill-family-hub. This file describes the local source candidate. Publication, host loading, and acceptance remain separate later authorizations.
+<!-- release-skill:changelog:end version=0.9.24 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.23 locale=en baseline=sha256:f8bd83211dfe0baa2fc5f55f90498973ef3050f5c78871db22d3784db0ae7442 -->
 ## [0.9.23] - 2026-09-26
 

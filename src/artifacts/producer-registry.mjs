@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { canonicalJson, sha256Hex } from '../core/digest.mjs';
 import { digestBytes } from 'skill-family-harness-node';
@@ -44,7 +45,7 @@ export { buildProducerGraph };
  * @returns {string[]} Absolute paths of all reachable local modules.
  */
 function collectStaticImports(filePath, visited = new Set()) {
-  const abs = new URL(`file://${filePath}`).pathname;
+  const abs = fileURLToPath(pathToFileURL(filePath));
   if (visited.has(abs)) return [];
   visited.add(abs);
 
@@ -109,7 +110,7 @@ export async function createBuiltInProducerRegistry() {
   const producers = new Map();
 
   // Resolve lockfile path (one level up from package root)
-  const lockfilePath = join(new URL('../../..', import.meta.url).pathname, 'pnpm-lock.yaml');
+  const lockfilePath = join(fileURLToPath(new URL('../../..', import.meta.url)), 'pnpm-lock.yaml');
   let lockfileBytes;
   try {
     lockfileBytes = await readFile(lockfilePath);
@@ -128,7 +129,7 @@ export async function createBuiltInProducerRegistry() {
     }
 
     // Collect full static dependency closure
-    const modulePath = new URL(moduleUrl).pathname;
+    const modulePath = fileURLToPath(moduleUrl);
     const allModulePaths = collectStaticImports(modulePath);
     const allModuleBytes = await Promise.all(
       allModulePaths.map(async (p) => {

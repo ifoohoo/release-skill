@@ -11,6 +11,7 @@
 
 import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { canonicalJson, sha256Hex } from '../core/digest.mjs';
 import { digestDocument } from 'skill-family-contracts';
@@ -44,7 +45,7 @@ export function computeSyncSkillsDigest(sourceBytes) {
  * @param {string} options.output - Output directory path.
  */
 export async function produceSyncSkills({ inputs, output } = {}) {
-  const defaultSrc = new URL('../../skills-src', import.meta.url).pathname;
+  const defaultSrc = fileURLToPath(new URL('../../skills-src', import.meta.url));
   const srcDir = inputs ?? defaultSrc;
 
   const skillDirs = [];

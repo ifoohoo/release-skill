@@ -22,6 +22,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { computeBundleSourceDigest } from '../src/core/bundle-freshness.mjs';
 import {
@@ -32,7 +33,7 @@ import {
 
 const CHECK_MODE = process.argv.includes('--check');
 
-const SCRIPT_DIR = dirname(new URL(import.meta.url).pathname);
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = join(SCRIPT_DIR, '..');
 const ENTRY = join(PKG_ROOT, 'bin', 'release-skill-cli.mjs');
 const OUTFILE = join(PKG_ROOT, 'bin', 'release-skill.bundle.mjs');

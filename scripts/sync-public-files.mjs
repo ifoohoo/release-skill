@@ -36,7 +36,7 @@ import { PLATFORMS } from '../src/platforms/registry.mjs';
 // Constants
 // ---------------------------------------------------------------------------
 
-const SCRIPT_DIR = new URL('.', import.meta.url).pathname;
+const SCRIPT_DIR = fileURLToPath(new URL('.', import.meta.url));
 const PKG_ROOT = process.env.RELEASE_SKILL_PKG_ROOT ?? join(SCRIPT_DIR, '..');
 const PROJECT_YAML = join(PKG_ROOT, '..', '..', '.release-skill', 'project.yaml');
 const SOURCE_PREFIX = 'packages/release-skill/';
