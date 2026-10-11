@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.24 -->
+<!-- release-skill:release-version: 0.9.25 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,34 +14,29 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.24** (2026-10-02)
+**0.9.25** (2026-10-12)
 
-0.9.24 is a local source candidate. Production prepare no longer deletes run directories. captureBaseline accepts a git status listing up to 64 MiB. Frozen commit dates treat a Git Z reading and the plan +00:00 form as the same UTC instant before comparison. The three Foundation dependencies stay pinned to 0.22.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.25 is a local source candidate. It fixes a RangeError in public-file inspection when one scan root contains 128197 files. The three Foundation dependencies remain pinned to 0.22.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- Hub publication remains a compare-and-swap operation bound to the observed branch head. A partial Hub publication is never rolled back or force-pushed automatically.
+- Existing safety boundaries are unchanged: Hub publication remains a compare-and-swap operation bound to the observed branch head. Partial Hub publication is never rolled back or force-pushed automatically, and completed steps are not overwritten.
 
 **Changed**
 
-- Skill Family Hub remains the central marketplace. After release verification, its release entry still uses the existing GitHub Git Data API through the postVerify Hook.
-
-**Removed**
-
-- Production prepare no longer runs the run-retention cleanup. It keeps the directories already present under .release-skill/runs/, including sealed failed prepares and finished lineages. src/core/run-retention.mjs is not part of the public file list.
+- The distribution path is unchanged: Skill Family Hub remains the central marketplace, and its entry is still updated through the existing GitHub Git Data API after release verification.
 
 **Fixed**
 
-- captureBaseline reads git status with a 64 MiB maxBuffer, the same bound computeWorkspaceDigest already uses. A status listing larger than Node's default 1 MiB no longer fails that capture.
-- Frozen commit verification still requires the author and committer instants to equal the plan freeze timestamp. Git may return the same UTC instant as Z, and the plan form stays +00:00. Both sides pass through normalizeGitTimestamp before comparison. A different instant still fails.
+- Public-file inspection now appends files individually to avoid passing too many arguments in one call and interrupting release preparation. Scan order, file identities, public-file mappings, and include/exclude classification policy remain unchanged. A regression test runs the real scanning, classification, and mapping logic with 128197 in-memory directory entries. It reproduced the RangeError at the same location in the old implementation and passes after the fix; it does not create that many files on disk.
 
 **Upgrade Notes**
 
-Compared with 0.9.23, this candidate needs no configuration migration. Prepare no longer reclaims disk by deleting old run directories; those directories remain until an operator removes them outside this command. An installation still using the old release-skill standalone marketplace should remove it and use the ifoohoo/skill-family-hub repository with the Hub-qualified plugin id release-skill@skill-family-hub. This file describes the local source candidate. Publication, host loading, and acceptance remain separate later authorizations.
+No configuration migration is required. Installations still using the old release-skill standalone marketplace should remove it and use the ifoohoo/skill-family-hub repository with the Hub-qualified plugin id release-skill@skill-family-hub; this migration path is unchanged. This note does not replace execution evidence for the full release gates, publication, consumer installation, host loading, or independent acceptance.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.24 is the current source candidate. This README
+> **Current boundary:** v0.9.25 is the current source candidate. This README
 > records intended scope and verification boundaries; it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -65,7 +60,7 @@ Compared with 0.9.23, this candidate needs no configuration migration. Prepare n
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.24 is the current
+> **Production path verified since the v0.1.1 milestone; v0.9.25 is the current
 > source candidate. Its README does not establish publication,
 > consumer-installation verification, or independent acceptance.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -98,7 +93,7 @@ checkpoints remain intact and use matching-version recovery. Evidence v1 stays
 read-only; v2 uses a closed top level with phase extensions in `details`.
 Summaries and recovery suggestions are diagnostic, never publication authority.
 
-The current 0.9.24 candidate includes the narrow R-05 Hook cache v2 consumer
+The current 0.9.25 candidate includes the narrow R-05 Hook cache v2 consumer
 path, the public `postverify` path, and the stable isolated install-tree record
 path (A2/A3). It also adds the explicit-input `verify-records` command and a
 self-contained Qoder projection, first-class Cursor packaging, and the

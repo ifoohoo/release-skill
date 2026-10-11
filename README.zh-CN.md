@@ -2,40 +2,35 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.24 -->
+<!-- release-skill:release-version: 0.9.25 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.24** (2026-10-02)
+**0.9.25** (2026-10-12)
 
-0.9.24 是一个本地源码候选。生产 prepare 不再删除运行目录。captureBaseline 可以接收不超过 64 MiB 的 git status 列表。冻结提交日期在比较前把 Git 读出的 Z 与计划中的 +00:00 视为同一 UTC 时刻。Foundation 三个依赖继续固定为 0.22.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.25 是一个本地源码候选。本次修复公开文件检查在单个扫描根含 128197 个文件时触发的 RangeError。Foundation 三个依赖继续固定为 0.22.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- Hub 发布仍绑定已观察的分支头执行比较后写入。部分发布时不回滚、不覆盖已成功的远端步骤，也不自动强推。
+- 既有安全边界保持不变：Hub 写入继续绑定已观察的分支头，按 compare-and-swap 比较后写入。部分发布时不回滚、不覆盖已成功步骤，也不自动强推。
 
 **变更**
 
-- Skill Family Hub 继续作为统一市场。发布验证完成后，postVerify Hook 仍使用既有 GitHub Git Data API 更新 Hub 的发布条目。
-
-**移除**
-
-- 生产 prepare 不再执行 run-retention 清理。它保留 .release-skill/runs/ 中已有的目录，包括封口失败的 prepare 和已经结束的谱系。src/core/run-retention.mjs 不再属于公开文件清单。
+- 分发路径保持不变：Skill Family Hub 仍是统一市场，发布验证完成后，仍通过既有 GitHub Git Data API 更新 Hub 条目。
 
 **修复**
 
-- captureBaseline 读取 git status 时使用 64 MiB maxBuffer，与 computeWorkspaceDigest 已有的上限相同。状态列表超过 Node 默认的 1 MiB 时，这次采集不再因此失败。
-- 冻结提交校验仍要求作者和提交者时刻等于计划冻结时间。Git 可能把同一 UTC 时刻读成 Z，计划形式仍是 +00:00。两边都先经过 normalizeGitTimestamp 再比较。不同的时刻仍然失败。
+- 公开文件检查改为逐项追加，避免一次调用传入过多参数而阻断发布准备；原扫描顺序、文件身份、公开文件映射及包含/排除分类策略保持不变。新增回归用 128197 个内存目录项执行真实扫描、分类和映射逻辑，在旧实现上精确复现同位置的 RangeError，修复后通过；该回归没有创建同等规模的真实磁盘文件。
 
 **升级说明**
 
-本候选相对 0.9.23 无需迁移配置。prepare 不再通过删除旧运行目录回收磁盘；这些目录会保留，直到操作者在该命令之外移除。若安装仍使用独立的 `release-skill` 市场，应将其移除，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub。本文件只说明本地源码候选；正式发布、宿主加载和验收留待后续单独授权。
+升级无需迁移配置。若仍使用旧版独立的 `release-skill` 市场，应移除旧市场，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub；这条迁移路径保持不变。本说明不能代替完整发布门禁、正式发布、消费者安装、宿主加载或独立验收的实际证据。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.24 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.25 只是当前源码候选。本 README 记录预期范围与验证边界，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -51,7 +46,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.24 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.25 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -73,7 +68,7 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-当前 0.9.24 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
+当前 0.9.25 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
 路径和稳定隔离安装树记录路径（A2/A3），并增加只接受显式输入的 `verify-records`
 命令、自包含 Qoder 投影、Cursor 正式打包，以及基于 Foundation 的宿主核验桥。
 Skill Family Hub 仍是唯一市场来源。

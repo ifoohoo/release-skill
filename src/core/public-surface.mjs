@@ -437,7 +437,7 @@ export async function inspectExpectedPublicSurface({ root, unit } = {}) {
   let skippedNonRegularCount = 0;
   for (const rule of resolvedRoots) {
     const observed = await scanRoot({ workspaceRoot, unit, rule });
-    observedFiles.push(...observed.files);
+    for (const file of observed.files) observedFiles.push(file);
     skippedNonRegularCount += observed.skippedNonRegularCount;
   }
 

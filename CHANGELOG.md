@@ -1,5 +1,28 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.25 locale=en baseline=sha256:7251718ad92327e37679d4db09d19657ea13f51a5720aa33369181fe5ddb3bbe -->
+## [0.9.25] - 2026-10-12
+
+0.9.25 is a local source candidate. It fixes a RangeError in public-file inspection when one scan root contains 128197 files. The three Foundation dependencies remain pinned to 0.22.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Existing safety boundaries are unchanged: Hub publication remains a compare-and-swap operation bound to the observed branch head. Partial Hub publication is never rolled back or force-pushed automatically, and completed steps are not overwritten.
+
+### Changed
+
+- The distribution path is unchanged: Skill Family Hub remains the central marketplace, and its entry is still updated through the existing GitHub Git Data API after release verification.
+
+### Fixed
+
+- Public-file inspection now appends files individually to avoid passing too many arguments in one call and interrupting release preparation. Scan order, file identities, public-file mappings, and include/exclude classification policy remain unchanged. A regression test runs the real scanning, classification, and mapping logic with 128197 in-memory directory entries. It reproduced the RangeError at the same location in the old implementation and passes after the fix; it does not create that many files on disk.
+
+### Upgrade Notes
+
+No configuration migration is required. Installations still using the old release-skill standalone marketplace should remove it and use the ifoohoo/skill-family-hub repository with the Hub-qualified plugin id release-skill@skill-family-hub; this migration path is unchanged. This note does not replace execution evidence for the full release gates, publication, consumer installation, host loading, or independent acceptance.
+<!-- release-skill:changelog:end version=0.9.25 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.24 locale=en baseline=sha256:17152a17c71bea35445f03040022e41c7fb5a77be0024c049f96d3fb6b0053bb -->
 ## [0.9.24] - 2026-10-02
 

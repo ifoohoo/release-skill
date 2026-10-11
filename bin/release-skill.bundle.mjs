@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.24"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.25"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "0bb99087b65e06d81cc887e899c16ab8964ff5994530881b36007cfce6a3f428";
+const __bundleSourceDigest = "42145a246d5fd5adff3a1218e94fbfc06df377290431628aa3270e2414b8183e";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -50175,7 +50175,7 @@ async function inspectExpectedPublicSurface({ root, unit } = {}) {
   let skippedNonRegularCount = 0;
   for (const rule of resolvedRoots) {
     const observed = await scanRoot({ workspaceRoot, unit, rule });
-    observedFiles.push(...observed.files);
+    for (const file of observed.files) observedFiles.push(file);
     skippedNonRegularCount += observed.skippedNonRegularCount;
   }
   const includedByIdentity = /* @__PURE__ */ new Map();
