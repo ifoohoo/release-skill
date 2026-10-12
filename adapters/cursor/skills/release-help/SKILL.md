@@ -38,15 +38,17 @@ description: "Discoverable entry point for release-skill: dependency and environ
 
 治理诊断只运行 release-skill 自己的只读检查程序，不运行目标 Skill、业务脚本、构建、hook 或发布动作，也不把 `prepare`、`verify`、`release-finish` 当作静态治理入口。用户要求实际接入或发布时，把已有授权带到对应原业务入口；各入口继续执行原有确认、副作用和状态机合同。
 
-## 0.9.25 候选边界
+## 0.9.26 能力与证据边界
 
-当前 0.9.25 候选精确消费 Foundation 0.22.0 的公开包根 API。0.9.25 仍是源码候选，不能从本说明推断已批准、发布或验证。
+release-skill 0.9.26 精确依赖 Foundation 0.22.0 的公开包根 API。本节说明当前版本的能力范围与证据边界；批准、发布和验证状态以对应计划、批准及执行记录为准，不能由本说明推断。
 
-冻结前，`prepare` 或新建 `ship` 状态可重复传入 `--unit <id>`；不传则选择全部单元。延期单元不进入计划，也不获得发布状态。完整配置、生成物新鲜度和顶层 Hook 仍覆盖全项目；`publicSourceAuthorityReceipt` 的 coordinator 与 subjects 必须共同选择。冻结后以 `plan.units` 为唯一范围，publish、reconcile、verify、distribute 不再接受 `--unit`。
+在冻结前，`prepare` 或新建 `ship` 状态时可重复传入 `--unit <id>`；未传入则默认选择全部单元。延期单元不进入发布计划，亦不获得发布状态。完整配置、生成物新鲜度检查及顶层 Hook 仍作用于全项目范围。`publicSourceAuthorityReceipt` 的 coordinator 与全部 subjects 必须共同选择。
 
-每个单元都要声明 `previousPublicBaseline`：确认没有前序版本才用 `none`，否则使用带 repo/ref/commit 的 `bound`。`none` 不绕过 publish 的唯一性预检。
+冻结后，发布流程（publish、reconcile、verify、distribute）不再接受 `--unit` 参数，仅以 `plan.units` 为唯一有效范围。
 
-Hook cache v2 只复用绝对路径，或已用真实 cwd 核验的 cwd-relative executable identity；裸 PATH、PATHEXT、Windows 或观察不可用时冷执行，并失败关闭。稳定隔离安装树只在宿主命令退出、目录隔离且扫描期间无并发写入时记录；附加链接只记录、不跟随，声明载荷中的 symlink 失败关闭。
+每个单元必须声明 `previousPublicBaseline`：只有确认没有前序公开版本时，才使用 `none`；否则必须提供 `bound`，并包含 `repo/ref/commit` 信息。`none` 不绕过 publish 阶段的唯一性预检。
+
+Hook 缓存 v2 仅复用绝对路径，或已通过真实 cwd 核验的 cwd-relative 可执行文件身份；若依赖裸 PATH、PATHEXT、Windows 环境或观察不可用，将触发冷执行并失败关闭。稳定隔离安装树仅在宿主命令退出、目录隔离且扫描期间无并发写入时记录；附加链接仅记录，不跟随；声明载荷中出现 symlink 将导致失败关闭。
 
 ## 最短路径
 

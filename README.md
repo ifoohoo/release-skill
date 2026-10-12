@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.25 -->
+<!-- release-skill:release-version: 0.9.26 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,13 +14,14 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.25** (2026-10-12)
+**0.9.26** (2026-10-12)
 
-0.9.25 is a local source candidate. It fixes a RangeError in public-file inspection when one scan root contains 128197 files. The three Foundation dependencies remain pinned to 0.22.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.26 corrects wording that treated the current installed version as permanently a source candidate. It also makes existing WorkBuddy CLI calls in local host updates select the official lite-wb bundle. The three Foundation dependencies remain pinned to 0.22.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
 - Existing safety boundaries are unchanged: Hub publication remains a compare-and-swap operation bound to the observed branch head. Partial Hub publication is never rolled back or force-pushed automatically, and completed steps are not overwritten.
+- Approval, publication, post-publication verification, consumer installation, real-host loading, and independent acceptance still require their own actual records. This note does not prove any of those outcomes. Selecting the WorkBuddy bundle does not establish authentication or real-host qualification.
 
 **Changed**
 
@@ -28,16 +29,17 @@ report stays in a temporary session directory.
 
 **Fixed**
 
-- Public-file inspection now appends files individually to avoid passing too many arguments in one call and interrupting release preparation. Scan order, file identities, public-file mappings, and include/exclude classification policy remain unchanged. A regression test runs the real scanning, classification, and mapping logic with 128197 in-memory directory entries. It reproduced the RangeError at the same location in the old implementation and passes after the fix; it does not create that many files on disk.
+- The help and prepare skills, both READMEs, and README acceptance prompts describe capabilities and evidence boundaries without assigning a permanent candidate status to the current version. Version synchronization retains necessary version references without restoring that status assertion. Existing regression checks cover these boundaries.
+- The WorkBuddy branch of local host update commands sets CODEBUDDY_FORCE_LITE_WB_BUNDLE=1 to select the official lite-wb bundle. Other hosts do not receive this selector. Existing authentication filtering, exact-source checks, and fail-closed behavior remain in place.
 
 **Upgrade Notes**
 
-No configuration migration is required. Installations still using the old release-skill standalone marketplace should remove it and use the ifoohoo/skill-family-hub repository with the Hub-qualified plugin id release-skill@skill-family-hub; this migration path is unchanged. This note does not replace execution evidence for the full release gates, publication, consumer installation, host loading, or independent acceptance.
+For consumers already using Skill Family Hub, no configuration migration is required. Installations still using the old release-skill standalone marketplace should remove it and use the ifoohoo/skill-family-hub repository with the Hub-qualified plugin id release-skill@skill-family-hub; this migration path is unchanged. The existing --unit release-selection contract is unchanged. This update adds no automatic first-time installation capability and does not change the existing MANUAL_REQUIRED boundary.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.25 is the current source candidate. This README
-> records intended scope and verification boundaries; it is not evidence of
+> **Current boundary:** v0.9.26: this README records capabilities and verification boundaries;
+> it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
 > and post-publish verification results.
@@ -60,9 +62,9 @@ No configuration migration is required. Installations still using the old releas
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; v0.9.25 is the current
-> source candidate. Its README does not establish publication,
-> consumer-installation verification, or independent acceptance.**
+> **Production path verified since the v0.1.1 milestone; for v0.9.26,
+> publication, consumer-installation verification, and independent acceptance
+> require version-specific release records and verification results.**
 > The npm-installed CLI is the supported user entry. Source checkout
 > is the development/contributor fallback.
 >
@@ -93,18 +95,17 @@ checkpoints remain intact and use matching-version recovery. Evidence v1 stays
 read-only; v2 uses a closed top level with phase extensions in `details`.
 Summaries and recovery suggestions are diagnostic, never publication authority.
 
-The current 0.9.25 candidate includes the narrow R-05 Hook cache v2 consumer
+release-skill includes the narrow R-05 Hook cache v2 consumer
 path, the public `postverify` path, and the stable isolated install-tree record
-path (A2/A3). It also adds the explicit-input `verify-records` command and a
+path (A2/A3). It also includes the explicit-input `verify-records` command and a
 self-contained Qoder projection, first-class Cursor packaging, and the
 Foundation-backed host verification bridge. Skill Family Hub remains the single
-marketplace source. The candidate
-also makes the `release-prepare` Skill organize existing assessment, refresh,
+marketplace source. The `release-prepare` Skill organizes existing assessment, refresh,
 focused-check, and prepare entry points without adding another execution
 engine. `prepare --help` and `prepare -h` now return before configuration,
 locks, runs, or hooks can observe the request. The `release-finish` Skill can
 also report the source branch and continue into a configured setup entry after
-the selected host has loaded the released plugin. This candidate still excludes
+the selected host has loaded the released plugin. This scope still excludes
 R-02 safe full-tree inventory. Marketplace installation and live invocation
 remain host-level post-release checks; Cursor is distributed through its
 supported local-plugin directory rather than a Hub marketplace entry.

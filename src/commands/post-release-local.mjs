@@ -601,6 +601,7 @@ function hostEnvironment(host, { kimiHome } = {}) {
   if (host === 'workbuddy') {
     env.CODEBUDDY_CONFIG_DIR = join(env.HOME, '.workbuddy');
     env.WORKBUDDY_CONFIG_DIR = join(env.HOME, '.workbuddy');
+    env.CODEBUDDY_FORCE_LITE_WB_BUNDLE = '1';
   }
   if (host === 'kimi' && kimiHome) env.KIMI_CODE_HOME = kimiHome;
   return env;

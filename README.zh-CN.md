@@ -2,51 +2,53 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.25 -->
+<!-- release-skill:release-version: 0.9.26 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.25** (2026-10-12)
+**0.9.26** (2026-10-12)
 
-0.9.25 是一个本地源码候选。本次修复公开文件检查在单个扫描根含 128197 个文件时触发的 RangeError。Foundation 三个依赖继续固定为 0.22.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.26 修正了将当前安装版本永久描述为“源码候选”的措辞，并让本机宿主更新中的既有 WorkBuddy CLI 调用选择官方 lite-wb 包。Foundation 三个依赖继续固定为 0.22.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
 - 既有安全边界保持不变：Hub 写入继续绑定已观察的分支头，按 compare-and-swap 比较后写入。部分发布时不回滚、不覆盖已成功步骤，也不自动强推。
+- 批准、发布、发布后验证、消费者安装、真实宿主加载和独立验收仍分别需要实际记录。本说明不能证明这些结果，选择 WorkBuddy 包也不能证明认证已成立或真实宿主资格已经通过。
 
 **变更**
 
-- 分发路径保持不变：Skill Family Hub 仍是统一市场，发布验证完成后，仍通过既有 GitHub Git Data API 更新 Hub 条目。
+- 分发路径保持不变：Skill Family Hub 仍是统一市场；发布验证完成后，Hub 条目仍通过既有 GitHub Git Data API 更新。
 
 **修复**
 
-- 公开文件检查改为逐项追加，避免一次调用传入过多参数而阻断发布准备；原扫描顺序、文件身份、公开文件映射及包含/排除分类策略保持不变。新增回归用 128197 个内存目录项执行真实扫描、分类和映射逻辑，在旧实现上精确复现同位置的 RangeError，修复后通过；该回归没有创建同等规模的真实磁盘文件。
+- help 和 prepare 技能、两份 README 及 README 验收提示现在说明能力与证据边界，不再给当前版本固定候选身份。版本同步继续保留必要的版本引用，但不再恢复这一状态断言。既有回归检查覆盖这些边界。
+- 本机宿主更新命令的 WorkBuddy 分支通过 CODEBUDDY_FORCE_LITE_WB_BUNDLE=1 选择官方 lite-wb 包；其他宿主不接收该选择器。原有认证信息过滤、精确来源检查和失败关闭行为保持不变。
 
 **升级说明**
 
-升级无需迁移配置。若仍使用旧版独立的 `release-skill` 市场，应移除旧市场，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub；这条迁移路径保持不变。本说明不能代替完整发布门禁、正式发布、消费者安装、宿主加载或独立验收的实际证据。
+已使用 Skill Family Hub 的消费者升级时无需迁移配置。若仍使用旧版独立的 `release-skill` 市场，应移除旧市场，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub；这条迁移路径保持不变。既有 --unit 选择合同保持不变。本次不增加首次自动安装能力，也不改变原 MANUAL_REQUIRED 边界。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.25 只是当前源码候选。本 README 记录预期范围与验证边界，
+> **当前边界：** v0.9.26 的能力范围与验证边界见本 README，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
-> v0.1.1 已完成 GitHub 与 npm 的
-> 真实生产发布，是首次生产验证的历史里程碑，并从冻结 Git ref 完成精确 npm
-> 安装及 Claude/Codex 消费者安装验证；"当前发布版本"与"首次生产验证里程碑"
-> 是两个不同的事实，不得混写成同一含义。同一工作流还通过了本地
-> 生产等价协议套件：测试运行真实 release-skill CLI 和冻结制品，Git 目标是
-> 本地 bare remote，`gh`、`npm`、Claude、Codex 使用协议级 fake。该套件没有
+> v0.1.1 已完成 GitHub 与 npm 的真实生产发布，是首次生产验证的历史里程碑。
+> 该版本还从冻结 Git ref 完成精确 npm 安装及 Claude/Codex 消费者安装验证。
+> “当前发布版本”与“首次生产验证里程碑”是两个不同的事实，不能混为一谈。
+> 同一工作流还通过了本地生产等价协议套件：测试使用真实 release-skill CLI 和
+> 冻结制品，Git 目标为本地 bare remote，`gh`、`npm`、Claude、Codex 使用
+> 协议级 fake。该套件没有
 > 提供 OS 级网络隔离，也不能证明其他项目的认证、权限、限流和最终一致性行为
 > 与本次发布相同；每个项目的第一次生产发布仍应作为受监控 canary。
 > `prepare --online` 观察 bound 前序公开基线，漂移或不可观察时失败关闭；
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.25 是当前源码候选，本 README 不证明该候选已经发布、完成消费者安装验证或通过独立验收。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.26 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -68,8 +70,8 @@ marketplace 委托目标工作区发布的边界不变。
 
 旧 production 计划缺少 `sourceAuthority` 时，在外部写入前拒绝。未发生外部写入的计划必须重新 prepare 并批准新摘要，不能补写旧计划或迁移批准。已有 `PARTIAL` 保留检查点，走匹配版本的恢复路径。evidence v1 只读；v2 顶层封闭，阶段扩展放在 `details`。摘要和恢复建议只作诊断，不构成发布权威。
 
-当前 0.9.25 候选包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
-路径和稳定隔离安装树记录路径（A2/A3），并增加只接受显式输入的 `verify-records`
+release-skill 包含窄范围的 R-05 Hook cache v2 消费路径、公开 `postverify`
+路径和稳定隔离安装树记录路径（A2/A3），还包含只接受显式输入的 `verify-records`
 命令、自包含 Qoder 投影、Cursor 正式打包，以及基于 Foundation 的宿主核验桥。
 Skill Family Hub 仍是唯一市场来源。
 `release-prepare` Skill 现在会组织项目已有的评估、刷新、聚焦检查和 prepare 入口，不新增执行引擎。

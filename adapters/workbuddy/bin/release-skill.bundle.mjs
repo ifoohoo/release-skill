@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.25"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.26"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "42145a246d5fd5adff3a1218e94fbfc06df377290431628aa3270e2414b8183e";
+const __bundleSourceDigest = "e423ce89a99a1ec7350c5243cca4a6570684945b0ba83452cc9892789985489d";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -135457,6 +135457,7 @@ function hostEnvironment(host, { kimiHome } = {}) {
   if (host === "workbuddy") {
     env.CODEBUDDY_CONFIG_DIR = join29(env.HOME, ".workbuddy");
     env.WORKBUDDY_CONFIG_DIR = join29(env.HOME, ".workbuddy");
+    env.CODEBUDDY_FORCE_LITE_WB_BUNDLE = "1";
   }
   if (host === "kimi" && kimiHome) env.KIMI_CODE_HOME = kimiHome;
   return env;

@@ -1,5 +1,30 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.26 locale=en baseline=sha256:233636f011ef5211286935424f64ef11eb1170dc297f40a2dd65e6572c459bb0 -->
+## [0.9.26] - 2026-10-12
+
+0.9.26 corrects wording that treated the current installed version as permanently a source candidate. It also makes existing WorkBuddy CLI calls in local host updates select the official lite-wb bundle. The three Foundation dependencies remain pinned to 0.22.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Existing safety boundaries are unchanged: Hub publication remains a compare-and-swap operation bound to the observed branch head. Partial Hub publication is never rolled back or force-pushed automatically, and completed steps are not overwritten.
+- Approval, publication, post-publication verification, consumer installation, real-host loading, and independent acceptance still require their own actual records. This note does not prove any of those outcomes. Selecting the WorkBuddy bundle does not establish authentication or real-host qualification.
+
+### Changed
+
+- The distribution path is unchanged: Skill Family Hub remains the central marketplace, and its entry is still updated through the existing GitHub Git Data API after release verification.
+
+### Fixed
+
+- The help and prepare skills, both READMEs, and README acceptance prompts describe capabilities and evidence boundaries without assigning a permanent candidate status to the current version. Version synchronization retains necessary version references without restoring that status assertion. Existing regression checks cover these boundaries.
+- The WorkBuddy branch of local host update commands sets CODEBUDDY_FORCE_LITE_WB_BUNDLE=1 to select the official lite-wb bundle. Other hosts do not receive this selector. Existing authentication filtering, exact-source checks, and fail-closed behavior remain in place.
+
+### Upgrade Notes
+
+For consumers already using Skill Family Hub, no configuration migration is required. Installations still using the old release-skill standalone marketplace should remove it and use the ifoohoo/skill-family-hub repository with the Hub-qualified plugin id release-skill@skill-family-hub; this migration path is unchanged. The existing --unit release-selection contract is unchanged. This update adds no automatic first-time installation capability and does not change the existing MANUAL_REQUIRED boundary.
+<!-- release-skill:changelog:end version=0.9.26 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.25 locale=en baseline=sha256:7251718ad92327e37679d4db09d19657ea13f51a5720aa33369181fe5ddb3bbe -->
 ## [0.9.25] - 2026-10-12
 

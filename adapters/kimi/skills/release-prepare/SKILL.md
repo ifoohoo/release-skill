@@ -20,7 +20,7 @@ description: Freeze an immutable release plan with local configuration, document
 
 运行项目构建/测试 hook，生成公开快照并扫描泄漏，冻结不可变发布计划。prepare 自身不调用发布 adapter，但会执行用户配置的 hook。
 
-0.9.4 候选允许多发布单元项目在冻结前显式选择本轮范围。`--unit <id>` 可以重复传入；未传时仍选择全部单元。显式选择只跳过延期单元的单元级工作，完整配置校验、生成物新鲜度和顶层 Hook 仍全部执行。计划冻结后以 `plan.units` 为唯一范围权威，publish、reconcile、verify 和 distribute 不接受单元选择。
+自 0.9.4 起，多发布单元项目可在计划冻结前显式指定本轮发布范围。重复传入 `--unit <id>` 可选择多个单元；未传入该参数时，默认选择全部单元。显式选择只跳过延期单元的单元级工作；完整配置校验、生成物新鲜度检查及顶层 Hook 仍全部执行。冻结后，`plan.units` 是唯一范围权威，publish、reconcile、verify 和 distribute 不再接受单元选择。
 
 0.9.3 引入的 Hook cache v2 继续只复用有完整身份和输入证据的成功 Hook 结果。裸 PATH、PATHEXT、Windows、TTL、损坏记录或 Foundation 观察不可用时，缓存保持失败关闭，Hook 仍按完整路径冷执行；该机制不改变 prepare 的计划、批准和发布权威。
 
@@ -38,7 +38,7 @@ description: Freeze an immutable release plan with local configuration, document
 
 **发布文档新鲜度门**: 配置了 `releaseDocuments` 的单元在 hook 授权门前先执行同一只读规划器：`clean` 继续；`changes` 抛 `RELEASE_DOCS_STALE`，详情列出相对路径、语种、`refreshDigest` 和精确演练/写入参数数组。prepare 只检查、不写工作树。正式 prepare 前先运行只读演练；有变化时向用户展示文件/语种/版本/`refreshDigest`，只有在用户明确授权"本地发布文档写入"后，才执行带 `--write --confirm-refresh <refreshDigest> --ack-local-document-write` 三项绑定的写入，随后运行聚焦校验，要求维护者审阅并提交刷新结果，再重新 prepare。该授权不扩展为 hook、提交、push 或 publish 授权。
 
-**显式发布范围**: 只有用户已经指出本轮要发布哪些单元时，才把这些 ID 逐个传给 `--unit`。release-skill 不根据失败自动排除单元。选择命中 `publicSourceAuthorityReceipt` 的 coordinator 或 subject 时，必须包含收据声明的完整单元闭包；缺少单元时按命令返回的精确 argv 重新选择，不自动扩选。成功后展示 `releaseScope.selectedUnitIds`、`releaseScope.deferredUnitIds` 和批准摘要。延期仅表示没有进入本轮计划，不表示通过或失败。
+**显式发布范围**: 只有用户已经指出本轮要发布哪些单元时，才逐个传入 `--unit`；不得根据失败自动排除单元。选中的单元包含 `publicSourceAuthorityReceipt` 的 coordinator 或 subject 时，必须同时包含收据声明的完整单元闭包。缺少单元时，按命令返回的精确 argv 重新选择，不自动扩选。成功后展示 `releaseScope.selectedUnitIds`、`releaseScope.deferredUnitIds` 和批准摘要。延期仅表示没有进入本轮计划，不表示通过或失败。
 
 ## 正向执行路径
 
