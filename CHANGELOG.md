@@ -1,5 +1,30 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.27 locale=en baseline=sha256:69bb1c474b2b31ec80eead86837455a7ec3b128baa671245db12cf509fa53a5b -->
+## [0.9.27] - 2026-10-13
+
+0.9.27 fixes Kimi local-host observation when a managed plugin root contains kimi.plugin.json and no package.json. The WorkBuddy lite-wb selector remains the 0.9.26 fix and is not part of this version. The three Foundation dependencies remain pinned to 0.22.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Existing safety boundaries are unchanged: Hub publication remains a compare-and-swap operation bound to the observed branch head. Partial Hub publication is never rolled back or force-pushed automatically, and completed steps are not overwritten.
+- Approval, publication, post-publication verification, consumer installation, real-host loading, and independent acceptance still require their own actual records. This note does not prove any of those outcomes. Reading a Kimi plugin manifest does not establish authentication or real-host qualification.
+
+### Changed
+
+- The distribution path is unchanged: Skill Family Hub remains the central marketplace, and its entry is still updated through the existing GitHub Git Data API after release verification.
+- The WorkBuddy CODEBUDDY_FORCE_LITE_WB_BUNDLE selector shipped in 0.9.26. This version does not change that selector.
+
+### Fixed
+
+- Kimi local host observation still reads package.json when that file is present, and that path is unchanged. When the read fails with the existing missing-resource or ENOENT shape, observation reads kimi.plugin.json in the same managed root and uses its name and version in the existing identity comparison, together with the GitHub tag ref and installed SHA from installed.json. A missing kimi.plugin.json still fails closed. Declared-root checks, tag ref handling, installed SHA handling, and git HEAD comparison stay as they are. This fallback does not add package.json to any Kimi projection.
+
+### Upgrade Notes
+
+For consumers already using Skill Family Hub, no configuration migration is required. Installations still using the old release-skill standalone marketplace should remove it and use the ifoohoo/skill-family-hub repository with the Hub-qualified plugin id release-skill@skill-family-hub; this migration path is unchanged. The existing --unit release-selection contract is unchanged.
+<!-- release-skill:changelog:end version=0.9.27 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.26 locale=en baseline=sha256:233636f011ef5211286935424f64ef11eb1170dc297f40a2dd65e6572c459bb0 -->
 ## [0.9.26] - 2026-10-12
 

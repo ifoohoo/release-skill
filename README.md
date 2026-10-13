@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.26 -->
+<!-- release-skill:release-version: 0.9.27 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,31 +14,31 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.26** (2026-10-12)
+**0.9.27** (2026-10-13)
 
-0.9.26 corrects wording that treated the current installed version as permanently a source candidate. It also makes existing WorkBuddy CLI calls in local host updates select the official lite-wb bundle. The three Foundation dependencies remain pinned to 0.22.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.27 fixes Kimi local-host observation when a managed plugin root contains kimi.plugin.json and no package.json. The WorkBuddy lite-wb selector remains the 0.9.26 fix and is not part of this version. The three Foundation dependencies remain pinned to 0.22.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
 - Existing safety boundaries are unchanged: Hub publication remains a compare-and-swap operation bound to the observed branch head. Partial Hub publication is never rolled back or force-pushed automatically, and completed steps are not overwritten.
-- Approval, publication, post-publication verification, consumer installation, real-host loading, and independent acceptance still require their own actual records. This note does not prove any of those outcomes. Selecting the WorkBuddy bundle does not establish authentication or real-host qualification.
+- Approval, publication, post-publication verification, consumer installation, real-host loading, and independent acceptance still require their own actual records. This note does not prove any of those outcomes. Reading a Kimi plugin manifest does not establish authentication or real-host qualification.
 
 **Changed**
 
 - The distribution path is unchanged: Skill Family Hub remains the central marketplace, and its entry is still updated through the existing GitHub Git Data API after release verification.
+- The WorkBuddy CODEBUDDY_FORCE_LITE_WB_BUNDLE selector shipped in 0.9.26. This version does not change that selector.
 
 **Fixed**
 
-- The help and prepare skills, both READMEs, and README acceptance prompts describe capabilities and evidence boundaries without assigning a permanent candidate status to the current version. Version synchronization retains necessary version references without restoring that status assertion. Existing regression checks cover these boundaries.
-- The WorkBuddy branch of local host update commands sets CODEBUDDY_FORCE_LITE_WB_BUNDLE=1 to select the official lite-wb bundle. Other hosts do not receive this selector. Existing authentication filtering, exact-source checks, and fail-closed behavior remain in place.
+- Kimi local host observation still reads package.json when that file is present, and that path is unchanged. When the read fails with the existing missing-resource or ENOENT shape, observation reads kimi.plugin.json in the same managed root and uses its name and version in the existing identity comparison, together with the GitHub tag ref and installed SHA from installed.json. A missing kimi.plugin.json still fails closed. Declared-root checks, tag ref handling, installed SHA handling, and git HEAD comparison stay as they are. This fallback does not add package.json to any Kimi projection.
 
 **Upgrade Notes**
 
-For consumers already using Skill Family Hub, no configuration migration is required. Installations still using the old release-skill standalone marketplace should remove it and use the ifoohoo/skill-family-hub repository with the Hub-qualified plugin id release-skill@skill-family-hub; this migration path is unchanged. The existing --unit release-selection contract is unchanged. This update adds no automatic first-time installation capability and does not change the existing MANUAL_REQUIRED boundary.
+For consumers already using Skill Family Hub, no configuration migration is required. Installations still using the old release-skill standalone marketplace should remove it and use the ifoohoo/skill-family-hub repository with the Hub-qualified plugin id release-skill@skill-family-hub; this migration path is unchanged. The existing --unit release-selection contract is unchanged.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.26: this README records capabilities and verification boundaries;
+> **Current boundary:** v0.9.27: this README records capabilities and verification boundaries;
 > it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -62,7 +62,7 @@ For consumers already using Skill Family Hub, no configuration migration is requ
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; for v0.9.26,
+> **Production path verified since the v0.1.1 milestone; for v0.9.27,
 > publication, consumer-installation verification, and independent acceptance
 > require version-specific release records and verification results.**
 > The npm-installed CLI is the supported user entry. Source checkout

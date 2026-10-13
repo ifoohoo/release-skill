@@ -1898,10 +1898,19 @@ async function observeKimiTarget(target, kimiHome, run) {
   const pluginRoot = await resolveContained(managedRoot, target.plugin);
   const declaredRoot = await resolveContained(managedRoot, relative(managedRoot, entry.root));
   if (declaredRoot !== pluginRoot) throw new Error('Kimi installed plugin root does not match its managed root');
-  const packageJson = parseJson(
-    await readFileContained(pluginRoot, 'package.json', { encoding: 'utf8' }),
-    'Kimi installed package manifest',
-  );
+  let manifestText;
+  let manifestLabel = 'Kimi installed package manifest';
+  try {
+    manifestText = await readFileContained(pluginRoot, 'package.json', { encoding: 'utf8' });
+  } catch (error) {
+    const missing = error?.code === 'ENOENT'
+      || error?.details?.causeCode === 'ENOENT'
+      || error?.details?.kind === 'missing-resource';
+    if (!missing) throw error;
+    manifestLabel = 'Kimi installed plugin manifest';
+    manifestText = await readFileContained(pluginRoot, 'kimi.plugin.json', { encoding: 'utf8' });
+  }
+  const packageJson = parseJson(manifestText, manifestLabel);
   const refName = entry.github.ref?.kind === 'tag' ? entry.github.ref.value : undefined;
   const revision = entry.github.installedSha;
   let gitHeadExact = true;

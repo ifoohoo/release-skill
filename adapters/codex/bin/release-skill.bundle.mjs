@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.26"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.27"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "e423ce89a99a1ec7350c5243cca4a6570684945b0ba83452cc9892789985489d";
+const __bundleSourceDigest = "25d576aeb1a7c01598399f326190124dbdd91b562e32ad4d9a532e3399654151";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -136645,10 +136645,17 @@ async function observeKimiTarget(target, kimiHome, run6) {
   const pluginRoot = await resolveContained(managedRoot, target.plugin);
   const declaredRoot = await resolveContained(managedRoot, relative28(managedRoot, entry.root));
   if (declaredRoot !== pluginRoot) throw new Error("Kimi installed plugin root does not match its managed root");
-  const packageJson = parseJson2(
-    await readFileContained(pluginRoot, "package.json", { encoding: "utf8" }),
-    "Kimi installed package manifest"
-  );
+  let manifestText;
+  let manifestLabel = "Kimi installed package manifest";
+  try {
+    manifestText = await readFileContained(pluginRoot, "package.json", { encoding: "utf8" });
+  } catch (error) {
+    const missing = error?.code === "ENOENT" || error?.details?.causeCode === "ENOENT" || error?.details?.kind === "missing-resource";
+    if (!missing) throw error;
+    manifestLabel = "Kimi installed plugin manifest";
+    manifestText = await readFileContained(pluginRoot, "kimi.plugin.json", { encoding: "utf8" });
+  }
+  const packageJson = parseJson2(manifestText, manifestLabel);
   const refName = entry.github.ref?.kind === "tag" ? entry.github.ref.value : void 0;
   const revision = entry.github.installedSha;
   let gitHeadExact = true;

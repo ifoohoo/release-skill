@@ -2,37 +2,37 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.26 -->
+<!-- release-skill:release-version: 0.9.27 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.26** (2026-10-12)
+**0.9.27** (2026-10-13)
 
-0.9.26 修正了将当前安装版本永久描述为“源码候选”的措辞，并让本机宿主更新中的既有 WorkBuddy CLI 调用选择官方 lite-wb 包。Foundation 三个依赖继续固定为 0.22.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.27 修复 Kimi 本机宿主观察：受管插件根只有 kimi.plugin.json、没有 package.json 时不再失败。WorkBuddy 的 lite-wb 选择器修复已在 0.9.26 完成，不属于本版。Foundation 三个依赖继续固定为 0.22.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
 - 既有安全边界保持不变：Hub 写入继续绑定已观察的分支头，按 compare-and-swap 比较后写入。部分发布时不回滚、不覆盖已成功步骤，也不自动强推。
-- 批准、发布、发布后验证、消费者安装、真实宿主加载和独立验收仍分别需要实际记录。本说明不能证明这些结果，选择 WorkBuddy 包也不能证明认证已成立或真实宿主资格已经通过。
+- 批准、发布、发布后验证、消费者安装、真实宿主加载和独立验收仍分别需要实际记录。本说明不能证明这些结果，读取 Kimi 插件清单也不能证明认证已成立或真实宿主资格已经通过。
 
 **变更**
 
 - 分发路径保持不变：Skill Family Hub 仍是统一市场；发布验证完成后，Hub 条目仍通过既有 GitHub Git Data API 更新。
+- WorkBuddy 的 CODEBUDDY_FORCE_LITE_WB_BUNDLE 选择器已随 0.9.26 交付，本版不改动该选择器。
 
 **修复**
 
-- help 和 prepare 技能、两份 README 及 README 验收提示现在说明能力与证据边界，不再给当前版本固定候选身份。版本同步继续保留必要的版本引用，但不再恢复这一状态断言。既有回归检查覆盖这些边界。
-- 本机宿主更新命令的 WorkBuddy 分支通过 CODEBUDDY_FORCE_LITE_WB_BUNDLE=1 选择官方 lite-wb 包；其他宿主不接收该选择器。原有认证信息过滤、精确来源检查和失败关闭行为保持不变。
+- Kimi 本机宿主观察在 package.json 存在时仍读取该文件，这条路径保持不变。读取失败且错误属于既有 missing-resource 或 ENOENT 形态时，改为读取同一受管根下的 kimi.plugin.json，并用其 name 与 version 参加既有身份比较，同时继续使用 installed.json 中的 GitHub tag ref 与 installedSha。kimi.plugin.json 同样缺失时仍按原错误失败关闭。声明根检查、tag ref、installedSha 与 git HEAD 比较逻辑不变。该回退不会给任何 Kimi 投影补上 package.json。
 
 **升级说明**
 
-已使用 Skill Family Hub 的消费者升级时无需迁移配置。若仍使用旧版独立的 `release-skill` 市场，应移除旧市场，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub；这条迁移路径保持不变。既有 --unit 选择合同保持不变。本次不增加首次自动安装能力，也不改变原 MANUAL_REQUIRED 边界。
+已使用 Skill Family Hub 的消费者升级时无需迁移配置。若仍使用旧版独立的 `release-skill` 市场，应移除旧市场，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub；这条迁移路径保持不变。既有 --unit 选择合同保持不变。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.26 的能力范围与验证边界见本 README，
+> **当前边界：** v0.9.27 的能力范围与验证边界见本 README，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -48,7 +48,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.26 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.27 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**

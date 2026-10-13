@@ -38,9 +38,9 @@ description: "Discoverable entry point for release-skill: dependency and environ
 
 治理诊断只运行 release-skill 自己的只读检查程序，不运行目标 Skill、业务脚本、构建、hook 或发布动作，也不把 `prepare`、`verify`、`release-finish` 当作静态治理入口。用户要求实际接入或发布时，把已有授权带到对应原业务入口；各入口继续执行原有确认、副作用和状态机合同。
 
-## 0.9.26 能力与证据边界
+## 0.9.27 能力与证据边界
 
-release-skill 0.9.26 精确依赖 Foundation 0.22.0 的公开包根 API。本节说明当前版本的能力范围与证据边界；批准、发布和验证状态以对应计划、批准及执行记录为准，不能由本说明推断。
+release-skill 0.9.27 精确依赖 Foundation 0.22.0 的公开包根 API。本版修复 Kimi 本机宿主观察：受管插件根只有 kimi.plugin.json、没有 package.json 时不再失败。本节说明当前版本的能力范围与证据边界；批准、发布和验证状态以对应计划、批准及执行记录为准，不能由本说明推断。
 
 在冻结前，`prepare` 或新建 `ship` 状态时可重复传入 `--unit <id>`；未传入则默认选择全部单元。延期单元不进入发布计划，亦不获得发布状态。完整配置、生成物新鲜度检查及顶层 Hook 仍作用于全项目范围。`publicSourceAuthorityReceipt` 的 coordinator 与全部 subjects 必须共同选择。
 
