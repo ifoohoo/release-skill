@@ -101,12 +101,15 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs" setup --assess-adoption --
 
 需要共同证明时另加 `--conclusion-output <absolute-path>`。该文件必须尚未存在；排他写入成功后，报告才含 `conclusionPath`。
 
-- 完全只读：评估后仓库不新增任何文件，不修改配置，不执行 hook。不带 `--conclusion-output` 时不另写证明。
+需要核对已声明宿主覆盖时，先收集 `schemaVersion=1` 的输入文件，再在同一命令上加 `--host-coverage <file>`。本 Skill 只收集输入、调用 CLI 并解释 `hostCoverage`，不在 Skill 内另做比较。可选 `--observe-hosts` 必须与 `--host-coverage` 一起使用，只观察输入身份对应的 Claude 与 Codex 列表；未实现宿主保持 `unknown`。不安装、不写入配置。无新选项时 `hostCoverage.requested` 为 false，旧四态与退出码不变。
+
+- 完全只读：评估后仓库不新增任何文件，不修改配置，不执行 hook。不带 `--conclusion-output` 时不另写证明。覆盖诊断同样不安装宿主插件。
 - 报告四态：`NOT_CONFIGURED`、`PARTIALLY_ADOPTED`、`ADOPTED`、`ADOPTED_WITH_SUGGESTIONS`。
 - findings 分四类：`mandatory-gap`（必选缺口，阻断接入）、`satisfied`（已满足）、`optional-suggestion`（可选建议）、`not-applicable`（不适用）；每条带 `code`、`fieldPath`、`evidence` 与 `action`。
 - `gateSuggestions` 只列可执行且尚未登记的配置草案。无法安全形成草案的脚本保留在 `gateDiagnostics`，不计入建议数量，也不把状态改成 `ADOPTED_WITH_SUGGESTIONS`。
 - 建议边界：hook 缓存候选只提示 `cacheInputs` 必须由项目自己声明并证明完整，评估不代猜、不代写；hook 耗时只从描述匹配且生产者可信的 started/completed 事件对推导，`timeoutMs` 不是实际成本；任何建议都不改变接入状态。
 - 必选缺口存在时先修复并重跑 `setup --assess-adoption`，再进入发布流程。
+- 覆盖请求在配置缺失或无效时也要出现在报告里，不得把未知或接线不足写成已完成。专业结论使用最终 `status`。
 
 ## publisher 字段与个人片段泄漏策略
 
@@ -130,4 +133,4 @@ setup 生成的 `.release-skill/project.yaml` 中 `publisher` 是**已批准的�
 
 纯问询或转交时短答：写明实际回答、适用范围或理由、必要限制和下一步。建议保持为建议。
 
-首次发现、绑定确认和首次创建，只解释本轮已经得到的 `compactSummary`、绑定摘要、`setupDigest` 和命令实际可见结果。接入评估解释原生状态与 findings。回复沿用既有提取器，使用已打印的紧凑摘要。完整报告只在发现、人工确认和提取期间暂存于会话目录。第4步在固定提取器成功后按原步骤清理会话目录。成功路径的最终回复只用已经打印的紧凑摘要及命令可见结果，不重新读取完整报告。该回复不得把完整报告写成之后仍可读取。发现待确认或绑定待确认时，原会话目录仍按第2、3步保留，不把成功路径的清理提前。已有文件输出按原合同呈现。栏目只收录当前命令已经返回的事实。
+首次发现、绑定确认和首次创建，只解释本轮已经得到的 `compactSummary`、绑定摘要、`setupDigest` 和命令实际可见结果。接入评估解释原生状态与 findings；若请求了覆盖诊断，同时解释 `hostCoverage` 与最终 `status`。回复沿用既有提取器，使用已打印的紧凑摘要。完整报告只在发现、人工确认和提取期间暂存于会话目录。第4步在固定提取器成功后按原步骤清理会话目录。成功路径的最终回复只用已经打印的紧凑摘要及命令可见结果，不重新读取完整报告。该回复不得把完整报告写成之后仍可读取。发现待确认或绑定待确认时，原会话目录仍按第2、3步保留，不把成功路径的清理提前。已有文件输出按原合同呈现。栏目只收录当前命令已经返回的事实。

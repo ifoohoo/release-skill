@@ -32,11 +32,14 @@
  * timestamps, findings are sorted by (category, code, fieldPath, unitId),
  * and `assessmentDigest` binds the config digest plus the full discovery
  * facts so any fact change invalidates earlier suggestion summaries for any
- * future write path.
+ * future write path. When host-coverage diagnosis is requested, the digest
+ * also binds this invocation's complete JSON input, live observation records,
+ * and load-error fact.
  *
  * @module adoption-assessment
  */
 
+import { getPlatform, normalizeHostId } from '../platforms/registry.mjs';
 import { canonicalJson, sha256Hex } from './digest.mjs';
 import { resolveProducerVersion } from './evidence.mjs';
 
@@ -288,6 +291,482 @@ export function deriveStatus(findings) {
     return ASSESSMENT_STATUS.ADOPTED_WITH_SUGGESTIONS;
   }
   return ASSESSMENT_STATUS.ADOPTED;
+}
+
+const HOST_COVERAGE_OBSERVATION_STATES = Object.freeze(['installed', 'not-installed', 'unknown']);
+
+export function emptyHostCoverage() {
+  return Object.freeze({
+    requested: false,
+    complete: false,
+    results: Object.freeze([]),
+    findings: Object.freeze([]),
+    binding: null,
+  });
+}
+
+export function publicHostCoverage(coverage = emptyHostCoverage()) {
+  return Object.freeze({
+    requested: coverage.requested === true,
+    complete: coverage.complete === true,
+    results: coverage.results ?? Object.freeze([]),
+  });
+}
+
+function platformIdOrNull(value) {
+  try {
+    return getPlatform(value).id;
+  } catch {
+    return null;
+  }
+}
+
+async function canonicalizeHost(value) {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return { ok: false, raw: value, reason: 'host id is missing' };
+  }
+  const trimmed = value.trim();
+  let foundationId = null;
+  try {
+    foundationId = await normalizeHostId(trimmed);
+  } catch (error) {
+    const platformId = platformIdOrNull(trimmed);
+    if (platformId) return { ok: true, raw: value, host: platformId };
+    return {
+      ok: false,
+      raw: value,
+      reason: error?.message ?? 'host id could not be normalized',
+    };
+  }
+  const foundationPlatform = platformIdOrNull(foundationId);
+  if (foundationPlatform) return { ok: true, raw: value, host: foundationPlatform };
+  const rawPlatform = platformIdOrNull(trimmed);
+  if (rawPlatform) return { ok: true, raw: value, host: rawPlatform };
+  return { ok: true, raw: value, host: foundationId };
+}
+
+function uniquePush(list, value) {
+  if (!list.includes(value)) list.push(value);
+}
+
+function applicableDistribution(unit, host) {
+  let distributionType = null;
+  try {
+    distributionType = getPlatform(host).distributionType;
+  } catch {
+    distributionType = null;
+  }
+  if (distributionType == null) return null;
+  return (unit?.distributions ?? []).find((item) => item.type === distributionType) ?? null;
+}
+
+function nonemptyString(value) {
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function declaredPluginIdentity(unit, host) {
+  const localPlugin = nonemptyString(unit?.postPublish?.localHostUpdate?.plugin);
+  if (localPlugin) return localPlugin;
+  return nonemptyString(applicableDistribution(unit, host)?.plugin);
+}
+
+function declaredMarketplaceIdentity(unit, host) {
+  const localMarketplace = nonemptyString(unit?.postPublish?.localHostUpdate?.hub?.name);
+  if (localMarketplace) return localMarketplace;
+  return nonemptyString(applicableDistribution(unit, host)?.marketplace);
+}
+
+function wiringFacts(config, unitId, host) {
+  if (!config) return { available: false };
+  const unit = (config.releaseUnits ?? []).find((item) => item.id === unitId);
+  if (!unit) return { available: false, unitFound: false };
+  let distributionType = null;
+  try {
+    distributionType = getPlatform(host).distributionType;
+  } catch {
+    distributionType = null;
+  }
+  const hasLocalUpdate = Array.isArray(unit.postPublish?.localHostUpdate?.hosts)
+    && unit.postPublish.localHostUpdate.hosts.includes(host);
+  if (distributionType == null) {
+    return { available: false, unitFound: true, hasLocalUpdate };
+  }
+  const hasDistribution = (unit.distributions ?? []).some((item) => item.type === distributionType);
+  return {
+    available: true,
+    unitFound: true,
+    hasDistribution,
+    hasLocalUpdate,
+    distributionType,
+  };
+}
+
+function observationKey(unitId, host) {
+  return `${unitId}\u0000${host}`;
+}
+
+function validObservedAt(value) {
+  const observedAt = nonemptyString(value);
+  if (observedAt == null || Number.isNaN(Date.parse(observedAt))) return null;
+  return observedAt;
+}
+
+function normalizeObservationRecord(observation, host) {
+  return {
+    host,
+    plugin: nonemptyString(observation?.plugin),
+    marketplace: nonemptyString(observation?.marketplace),
+    state: HOST_COVERAGE_OBSERVATION_STATES.includes(observation?.state) ? observation.state : null,
+    source: nonemptyString(observation?.source),
+    observedAt: validObservedAt(observation?.observedAt),
+    version: nonemptyString(observation?.version),
+  };
+}
+
+function observationFactsIssue(observation) {
+  if (!observation || observation.state == null) return 'install observation is missing';
+  if (observation.plugin == null) return 'observation plugin is missing';
+  if (observation.marketplace == null) return 'observation marketplace is missing';
+  if (observation.source == null) return 'observation source is missing';
+  if (observation.observedAt == null) return 'observation observedAt is missing or not a valid timestamp';
+  if (observation.state === 'installed' && observation.version == null) {
+    return 'installed observation version is missing';
+  }
+  return null;
+}
+
+function mergeObservation(fileObservation, liveObservation) {
+  if (!fileObservation && !liveObservation) return null;
+  if (!liveObservation) return fileObservation;
+  if (!fileObservation) return liveObservation;
+  const identityConflict = (
+    (fileObservation.plugin && liveObservation.plugin && fileObservation.plugin !== liveObservation.plugin)
+    || (fileObservation.marketplace && liveObservation.marketplace && fileObservation.marketplace !== liveObservation.marketplace)
+  );
+  if (identityConflict) {
+    return {
+      ...liveObservation,
+      state: 'unknown',
+      reason: 'file and live observations disagree on plugin identity',
+    };
+  }
+  if (
+    fileObservation.state
+    && fileObservation.state !== 'unknown'
+    && liveObservation.state
+    && liveObservation.state !== 'unknown'
+    && fileObservation.state !== liveObservation.state
+  ) {
+    return {
+      ...liveObservation,
+      state: 'unknown',
+      reason: 'file and live observations disagree on install state',
+    };
+  }
+  return liveObservation;
+}
+
+/**
+ * Compare explicit host-coverage input with project wiring and observations.
+ * Support facts come only from the input declaration, never from distributions
+ * or localHostUpdate.
+ *
+ * @param {object} options
+ * @returns {Promise<object>}
+ */
+export async function evaluateHostCoverage({
+  requested = false,
+  input = null,
+  loadError = null,
+  config = null,
+  liveObservations = [],
+} = {}) {
+  if (!requested) return emptyHostCoverage();
+
+  const issues = [];
+  const results = [];
+  const binding = { input, liveObservations, loadError };
+  if (loadError) issues.push(loadError);
+  if (input == null) {
+    return finishHostCoverage({ requested: true, complete: false, results, issues, binding });
+  }
+  if (input.schemaVersion !== 1) issues.push('schemaVersion must be 1');
+  if (!Array.isArray(input.units)) {
+    issues.push('units must be an array');
+    return finishHostCoverage({
+      requested: true,
+      complete: false,
+      results,
+      issues,
+      binding,
+    });
+  }
+
+  const seenUnitIds = new Set();
+  for (const unit of input.units) {
+    const unitId = typeof unit?.unitId === 'string' ? unit.unitId : null;
+    if (unitId == null || unitId.length === 0) {
+      issues.push('unitId is missing');
+      continue;
+    }
+    const duplicatedUnit = seenUnitIds.has(unitId);
+    if (duplicatedUnit) {
+      issues.push(`unitId "${unitId}" is duplicated`);
+    } else {
+      seenUnitIds.add(unitId);
+    }
+
+    const supportSource = typeof unit?.support?.source === 'string' ? unit.support.source.trim() : '';
+    if (supportSource.length === 0) issues.push(`unit "${unitId}" is missing support.source`);
+
+    const supportHosts = [];
+    for (const raw of Array.isArray(unit?.support?.hosts) ? unit.support.hosts : []) {
+      const canonical = await canonicalizeHost(raw);
+      if (!canonical.ok) {
+        issues.push(`unit "${unitId}" has unresolvable support host ${JSON.stringify(raw)}`);
+        if (typeof raw === 'string' && raw.length > 0) uniquePush(supportHosts, raw);
+        continue;
+      }
+      uniquePush(supportHosts, canonical.host);
+    }
+    if (!Array.isArray(unit?.support?.hosts)) issues.push(`unit "${unitId}" is missing support.hosts`);
+
+    const includeHosts = [];
+    if (!Array.isArray(unit?.delivery?.include)) {
+      issues.push(`unit "${unitId}" is missing delivery.include`);
+    } else {
+      for (const raw of unit.delivery.include) {
+        const canonical = await canonicalizeHost(raw);
+        if (!canonical.ok) {
+          issues.push(`unit "${unitId}" has unresolvable include host ${JSON.stringify(raw)}`);
+          if (typeof raw === 'string' && raw.length > 0) uniquePush(includeHosts, raw);
+          continue;
+        }
+        uniquePush(includeHosts, canonical.host);
+      }
+    }
+
+    const excludeByHost = new Map();
+    if (!Array.isArray(unit?.delivery?.exclude)) {
+      issues.push(`unit "${unitId}" is missing delivery.exclude`);
+    } else {
+      for (const entry of unit.delivery.exclude) {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry) || typeof entry.reason !== 'string' || entry.reason.length === 0) {
+          issues.push(`unit "${unitId}" exclude entries must be {host, reason} objects`);
+          continue;
+        }
+        const canonical = await canonicalizeHost(entry.host);
+        if (!canonical.ok) {
+          issues.push(`unit "${unitId}" has unresolvable exclude host ${JSON.stringify(entry.host)}`);
+          continue;
+        }
+        if (excludeByHost.has(canonical.host)) {
+          issues.push(`unit "${unitId}" host "${canonical.host}" is excluded more than once`);
+          continue;
+        }
+        excludeByHost.set(canonical.host, entry.reason);
+      }
+    }
+
+    const installIfMissing = [];
+    if (!Array.isArray(unit?.delivery?.installIfMissing)) {
+      issues.push(`unit "${unitId}" is missing delivery.installIfMissing`);
+    } else {
+      for (const raw of unit.delivery.installIfMissing) {
+        const canonical = await canonicalizeHost(raw);
+        if (!canonical.ok) {
+          issues.push(`unit "${unitId}" has unresolvable installIfMissing host ${JSON.stringify(raw)}`);
+          continue;
+        }
+        uniquePush(installIfMissing, canonical.host);
+      }
+    }
+
+    const fileObservations = new Map();
+    const duplicateHosts = new Set();
+    if (!Array.isArray(unit?.observations)) {
+      issues.push(`unit "${unitId}" is missing observations`);
+    } else {
+      for (const observation of unit.observations) {
+        const canonical = await canonicalizeHost(observation?.host);
+        if (!canonical.ok) {
+          issues.push(`unit "${unitId}" has unresolvable observation host ${JSON.stringify(observation?.host)}`);
+          continue;
+        }
+        const key = observationKey(unitId, canonical.host);
+        if (fileObservations.has(key) || duplicateHosts.has(canonical.host)) {
+          duplicateHosts.add(canonical.host);
+          fileObservations.delete(key);
+          issues.push(`unit "${unitId}" has duplicate observations for host "${canonical.host}"`);
+          continue;
+        }
+        const normalized = normalizeObservationRecord(observation, canonical.host);
+        if (normalized.state == null) {
+          issues.push(`unit "${unitId}" observation for "${canonical.host}" has invalid state`);
+        }
+        fileObservations.set(key, normalized);
+      }
+    }
+
+    const liveByHost = new Map();
+    for (const observation of liveObservations) {
+      if (observation?.unitId !== unitId) continue;
+      const canonical = await canonicalizeHost(observation.host);
+      if (!canonical.ok) continue;
+      liveByHost.set(canonical.host, {
+        ...normalizeObservationRecord(observation, canonical.host),
+        reason: observation.reason,
+      });
+    }
+
+    const declaredHosts = [];
+    for (const host of [...supportHosts, ...includeHosts, ...excludeByHost.keys(), ...installIfMissing]) {
+      uniquePush(declaredHosts, host);
+    }
+    for (const observation of [...fileObservations.values(), ...liveByHost.values()]) {
+      uniquePush(declaredHosts, observation.host);
+    }
+    declaredHosts.sort((a, b) => a.localeCompare(b));
+
+    const unitConfig = (config?.releaseUnits ?? []).find((item) => item.id === unitId) ?? null;
+    if (config != null && unitConfig == null) {
+      issues.push(`requested unit "${unitId}" is not declared in config.releaseUnits`);
+    }
+
+    for (const host of declaredHosts) {
+      const excluded = excludeByHost.has(host);
+      const included = includeHosts.includes(host);
+      const supported = supportHosts.includes(host);
+      const firstInstall = installIfMissing.includes(host);
+      const fileObservation = fileObservations.get(observationKey(unitId, host));
+      const liveObservation = liveByHost.get(host);
+      const observation = mergeObservation(fileObservation, liveObservation);
+      const duplicate = duplicateHosts.has(host);
+      const wiring = wiringFacts(config, unitId, host);
+      const expectedPlugin = declaredPluginIdentity(unitConfig, host);
+      const expectedMarketplace = declaredMarketplaceIdentity(unitConfig, host);
+      const identityConflict = Boolean(
+        (observation?.plugin && expectedPlugin && observation.plugin !== expectedPlugin)
+        || (observation?.marketplace && expectedMarketplace && observation.marketplace !== expectedMarketplace),
+      );
+      const factsIssue = observationFactsIssue(observation);
+
+      let status = 'unknown';
+      let reason = 'host coverage facts are incomplete';
+      if (duplicate) {
+        reason = 'duplicate observations for the same host';
+      } else if (config != null && unitConfig == null) {
+        reason = 'requested unit is not declared in config.releaseUnits';
+      } else if (excluded && included) {
+        reason = 'host is both included and excluded';
+        issues.push(`unit "${unitId}" host "${host}" is both included and excluded`);
+      } else if (excluded) {
+        status = FINDING_CATEGORY.NOT_APPLICABLE;
+        reason = `已排除：${excludeByHost.get(host)}`;
+      } else if (supportSource.length === 0) {
+        reason = 'support.source is missing';
+      } else if (!supported) {
+        reason = 'host is not declared in support.hosts; support cannot be inferred from wiring';
+      } else if (!included) {
+        reason = 'supported host is not included and has no exclusion reason';
+      } else if (identityConflict) {
+        reason = 'observation identity conflicts with the unit distribution or local-update identity';
+      } else if (factsIssue) {
+        reason = factsIssue;
+      } else if (observation.state === 'unknown') {
+        reason = observation.reason ?? 'install observation is unknown';
+      } else if (observation.state === 'not-installed' && !firstInstall) {
+        status = FINDING_CATEGORY.NOT_APPLICABLE;
+        reason = 'host is not installed and this round has no first-install duty';
+      } else if (!wiring.available) {
+        reason = 'project wiring facts are unavailable';
+      } else if (!wiring.hasDistribution || !wiring.hasLocalUpdate) {
+        status = FINDING_CATEGORY.MANDATORY_GAP;
+        const missing = [
+          wiring.hasDistribution ? null : 'applicable distribution',
+          wiring.hasLocalUpdate ? null : 'localHostUpdate host wiring',
+        ].filter(Boolean);
+        reason = `supported in-scope host is missing ${missing.join(' and ')}`;
+      } else {
+        status = FINDING_CATEGORY.SATISFIED;
+        reason = observation.state === 'not-installed'
+          ? 'first-install duty has complete wiring'
+          : 'supported in-scope host is installed and wired';
+      }
+
+      if (!duplicatedUnit && status === 'unknown') {
+        issues.push(`unit "${unitId}" host "${host}": ${reason}`);
+      }
+
+      const evidence = {
+        support: { hosts: [...supportHosts], source: supportSource || null },
+        delivery: {
+          include: [...includeHosts],
+          exclude: [...excludeByHost.entries()].map(([excludeHost, excludeReason]) => ({
+            host: excludeHost,
+            reason: excludeReason,
+          })),
+          installIfMissing: [...installIfMissing],
+        },
+        observation: observation ?? null,
+        wiring,
+      };
+      if (!duplicatedUnit) {
+        results.push(Object.freeze({
+          unitId,
+          host,
+          status,
+          reason,
+          evidence,
+        }));
+      }
+    }
+  }
+
+  results.sort((a, b) => a.unitId.localeCompare(b.unitId) || a.host.localeCompare(b.host));
+  const complete = issues.length === 0 && results.every((item) => item.status !== 'unknown');
+  return finishHostCoverage({
+    requested: true,
+    complete,
+    results,
+    issues,
+    binding,
+  });
+}
+
+function finishHostCoverage({ requested, complete, results, issues, binding }) {
+  const findings = [];
+  if (requested && !complete) {
+    findings.push(createFinding({
+      category: FINDING_CATEGORY.MANDATORY_GAP,
+      code: 'HOST_COVERAGE_FACTS_MISSING',
+      fieldPath: 'hostCoverage',
+      message: `宿主覆盖诊断已请求，但完成本次检查所需事实缺失：${issues[0] ?? 'unknown facts remain'}`,
+      evidence: { issues, complete: false },
+      action: '补齐支持出处、范围、观察或接线事实后重新评估；未知不得写成未安装或已通过。',
+      severity: 'blocking',
+    }));
+  }
+  for (const result of results) {
+    if (result.status !== FINDING_CATEGORY.MANDATORY_GAP) continue;
+    findings.push(createFinding({
+      category: FINDING_CATEGORY.MANDATORY_GAP,
+      code: 'HOST_COVERAGE_WIRING_GAP',
+      unitId: result.unitId,
+      fieldPath: `hostCoverage.${result.unitId}.${result.host}`,
+      message: `发布单元 "${result.unitId}" 宿主 "${result.host}" 覆盖不足：${result.reason}`,
+      evidence: result.evidence,
+      action: '补齐适用分发或 localHostUpdate 宿主接线后重新评估；安装观察不能证明加载成功。',
+      severity: 'blocking',
+    }));
+  }
+  return Object.freeze({
+    requested,
+    complete,
+    results: Object.freeze(results),
+    findings: Object.freeze(findings),
+    binding,
+  });
 }
 
 /**
@@ -588,6 +1067,7 @@ const STATUS_LABEL = Object.freeze({
  * @param {Array<Object>} options.gateDiagnostics - Non-actionable discovered
  *   scripts retained for explicit diagnosis without affecting status/summary.
  * @param {string} [options.next] - Precise next step.
+ * @param {Object} [options.hostCoverage] - Host-coverage diagnosis result.
  * @returns {Object} Frozen report.
  */
 export function buildAssessmentReport({
@@ -600,6 +1080,7 @@ export function buildAssessmentReport({
   gateSuggestions,
   gateDiagnostics = [],
   next = null,
+  hostCoverage = emptyHostCoverage(),
 }) {
   const sortedFindings = [...findings].sort((a, b) => (
     (CATEGORY_RANK[a.category] ?? 9) - (CATEGORY_RANK[b.category] ?? 9)
@@ -642,13 +1123,17 @@ export function buildAssessmentReport({
     note: '评估默认离线，未观测远端；不能据此否定本地接入，也不代表具备生产发布条件。',
   }];
 
+  const digestPayload = hostCoverage.requested
+    ? { configDigest, discoveryFacts: facts, hostCoverage: hostCoverage.binding }
+    : { configDigest, discoveryFacts: facts };
+  const publicCoverage = publicHostCoverage(hostCoverage);
   const report = {
     command: 'release-setup',
     mode: 'adoption-assessment',
     status,
     configPath,
     configDigest,
-    assessmentDigest: sha256Hex(canonicalJson({ configDigest, discoveryFacts: facts })),
+    assessmentDigest: sha256Hex(canonicalJson(digestPayload)),
     topology,
     findings: sortedFindings,
     hookDurations,
@@ -656,8 +1141,18 @@ export function buildAssessmentReport({
     gateDiagnostics,
     workflowPrerequisites,
     unobserved,
+    hostCoverage: publicCoverage,
     next,
-    summary: renderSummary({ config, status, findings: sortedFindings, topology, hookDurations, gateSuggestions, next }),
+    summary: renderSummary({
+      config,
+      status,
+      findings: sortedFindings,
+      topology,
+      hookDurations,
+      gateSuggestions,
+      next,
+      hostCoverage: publicCoverage,
+    }),
   };
   return Object.freeze(report);
 }
@@ -668,13 +1163,16 @@ export function buildAssessmentReport({
  * @param {Object} input
  * @returns {string}
  */
-function renderSummary({ config, status, findings, topology, gateSuggestions, next }) {
+function renderSummary({ config, status, findings, topology, gateSuggestions, next, hostCoverage }) {
   const lines = [];
   lines.push(`项目: ${config.project?.name ?? '(未命名)'}`);
   lines.push(`拓扑: ${topology.type}，发布单元 ${topology.releaseUnits.length} 个${topology.distributions.length > 0 ? `，分发渠道 ${topology.distributions.join(', ')}` : ''}`);
   lines.push(`接入状态: ${STATUS_LABEL[status] ?? status}`);
   const count = (category) => findings.filter((f) => f.category === category).length;
   lines.push(`必选缺口 ${count('mandatory-gap')} | 已满足 ${count('satisfied')} | 可选建议 ${count('optional-suggestion')} | 不适用 ${count('not-applicable')}`);
+  if (hostCoverage?.requested) {
+    lines.push(`宿主覆盖: 已请求，${hostCoverage.complete ? '事实完整' : '事实不完整'}，${hostCoverage.results.length} 项结果`);
+  }
   const blocking = findings.filter((f) => f.category === FINDING_CATEGORY.MANDATORY_GAP);
   if (blocking.length > 0) {
     lines.push('阻断项:');

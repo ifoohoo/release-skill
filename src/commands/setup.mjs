@@ -23,7 +23,7 @@ import addFormats from 'ajv-formats';
 
 import { canonicalJson, sha256Hex } from '../core/digest.mjs';
 import { acquireProjectLock } from '../artifacts/project-lock.mjs';
-import { getPlatform, PLATFORMS } from '../platforms/registry.mjs';
+import { getPlatform, PLATFORMS, normalizeHostId } from '../platforms/registry.mjs';
 import { checkNpmEntryClosure } from '../npm/npm-entry-closure.mjs';
 import {
   CONFIG_EXISTS,
@@ -47,10 +47,14 @@ import {
   deriveHookDurations,
   deriveLongHookSuggestions,
   derivePreHookPublicSurfaceFinding,
+  emptyHostCoverage,
+  evaluateHostCoverage,
+  publicHostCoverage,
   scanGateDeclarationFindings,
   FINDING_CATEGORY,
   ASSESSMENT_STATUS,
 } from '../core/adoption-assessment.mjs';
+import { observeHostPlugin } from '../core/local-host-observation.mjs';
 import {
   checkCommonDocs,
   checkPackageMetadata,
@@ -2684,6 +2688,99 @@ async function readEvidenceEvents(root) {
   return events;
 }
 
+async function loadHostCoverageInput(hostCoveragePath) {
+  if (hostCoveragePath == null || hostCoveragePath === '') {
+    return { requested: false, input: null, loadError: null };
+  }
+  if (typeof hostCoveragePath !== 'string') {
+    return { requested: true, input: null, loadError: 'host coverage path is invalid' };
+  }
+  try {
+    const raw = await readFile(hostCoveragePath, 'utf8');
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return { requested: true, input: null, loadError: 'host coverage file is not valid JSON' };
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { requested: true, input: null, loadError: 'host coverage file must be a JSON object' };
+    }
+    return { requested: true, input: parsed, loadError: null };
+  } catch (error) {
+    return {
+      requested: true,
+      input: null,
+      loadError: error?.code === 'ENOENT'
+        ? 'host coverage file is missing'
+        : (error.message ?? 'host coverage file could not be read'),
+    };
+  }
+}
+
+async function canonicalObservationHost(value) {
+  if (typeof value !== 'string' || value.trim().length === 0) return null;
+  const trimmed = value.trim();
+  let foundationId = trimmed;
+  try {
+    foundationId = await normalizeHostId(trimmed);
+  } catch {
+    // Fall through to the local platform registry, matching adoption diagnosis.
+  }
+  try {
+    return getPlatform(foundationId).id;
+  } catch {
+    try {
+      return getPlatform(trimmed).id;
+    } catch {
+      return foundationId;
+    }
+  }
+}
+
+async function collectLiveHostObservations({ input, runHostCommand } = {}) {
+  const live = [];
+  if (!input || !Array.isArray(input.units)) return live;
+  for (const unit of input.units) {
+    if (typeof unit?.unitId !== 'string' || unit.unitId.length === 0) continue;
+    const includeHosts = new Set();
+    for (const raw of Array.isArray(unit?.delivery?.include) ? unit.delivery.include : []) {
+      const host = await canonicalObservationHost(raw);
+      if (host) includeHosts.add(host);
+    }
+    const excludeHosts = new Set();
+    for (const entry of Array.isArray(unit?.delivery?.exclude) ? unit.delivery.exclude : []) {
+      const host = await canonicalObservationHost(entry?.host);
+      if (host) excludeHosts.add(host);
+    }
+    const identities = new Map();
+    for (const observation of Array.isArray(unit?.observations) ? unit.observations : []) {
+      const host = await canonicalObservationHost(observation?.host);
+      if (host == null || identities.has(host)) continue;
+      const plugin = typeof observation?.plugin === 'string' && observation.plugin.length > 0
+        ? observation.plugin
+        : null;
+      const marketplace = typeof observation?.marketplace === 'string' && observation.marketplace.length > 0
+        ? observation.marketplace
+        : null;
+      identities.set(host, { plugin, marketplace });
+    }
+    for (const host of includeHosts) {
+      if (excludeHosts.has(host)) continue;
+      const identity = identities.get(host);
+      if (identity?.plugin == null || identity?.marketplace == null) continue;
+      const observed = await observeHostPlugin({
+        host,
+        plugin: identity.plugin,
+        marketplace: identity.marketplace,
+        run: runHostCommand,
+      });
+      live.push({ ...observed, unitId: unit.unitId });
+    }
+  }
+  return live;
+}
+
 /**
  * Build the NOT_CONFIGURED report (acceptance scenario 1).
  *
@@ -2694,9 +2791,10 @@ async function readEvidenceEvents(root) {
  *
  * @param {string} root - Project root.
  * @param {string} configPath - Expected config path.
+ * @param {Object} [hostCoverage] - Host-coverage diagnosis result.
  * @returns {Promise<Object>} Frozen report.
  */
-async function reportNotConfigured(root, configPath) {
+async function reportNotConfigured(root, configPath, hostCoverage = emptyHostCoverage()) {
   const facts = await discoverFacts(root);
   const candidates = buildCandidates(facts);
   const discovery = {
@@ -2732,6 +2830,7 @@ async function reportNotConfigured(root, configPath) {
       field: '远端前提（npm/GitHub 可用性、发布标签序列）',
       note: '评估默认离线，未观测远端；不能据此否定本地接入，也不代表具备生产发布条件。',
     }],
+    hostCoverage: publicHostCoverage(hostCoverage),
     next,
     discovery,
     summary: [
@@ -2739,6 +2838,9 @@ async function reportNotConfigured(root, configPath) {
       '接入状态: 尚未配置',
       '必选缺口 0 | 已满足 0 | 可选建议 0 | 不适用 0',
       `发现 ${discovery.unitCandidates.length} 个候选发布单元（只读预览，未写入）`,
+      ...(hostCoverage.requested
+        ? [`宿主覆盖: 已请求，${hostCoverage.complete ? '事实完整' : '事实不完整'}，未把未知写成已接入。`]
+        : []),
       `下一步: ${next}`,
       '注意: 评估默认离线且只读，未访问远端，未修改任何文件。',
     ].join('\n'),
@@ -2755,9 +2857,10 @@ async function reportNotConfigured(root, configPath) {
  * @param {string} root - Project root.
  * @param {string} configPath - Config path.
  * @param {Object} error - ReleaseError with details.
+ * @param {Object} [hostCoverage] - Host-coverage diagnosis result.
  * @returns {Promise<Object>} Frozen report.
  */
-async function reportConfigLoadError(root, configPath, error) {
+async function reportConfigLoadError(root, configPath, error, hostCoverage = emptyHostCoverage()) {
   const findings = [];
   const details = error.details ?? {};
   if (Array.isArray(details.validationErrors)) {
@@ -2834,11 +2937,15 @@ async function reportConfigLoadError(root, configPath, error) {
       field: '远端前提（npm/GitHub 可用性、发布标签序列）',
       note: '评估默认离线，未观测远端；不能据此否定本地接入，也不代表具备生产发布条件。',
     }],
+    hostCoverage: publicHostCoverage(hostCoverage),
     summary: [
       '项目: (配置加载失败)',
       '接入状态: 部分接入（存在必选缺口）',
       `必选缺口 ${findings.length} | 已满足 0 | 可选建议 0 | 不适用 0`,
       ...findings.map((finding) => `  - [${finding.code}] ${finding.fieldPath ?? ''} ${finding.message}`),
+      ...(hostCoverage.requested
+        ? [`宿主覆盖: 已请求，${hostCoverage.complete ? '事实完整' : '事实不完整'}，配置无效时不得宣称覆盖完成。`]
+        : []),
       `下一步: 修复全部配置错误后重新运行 release-skill setup --assess-adoption。`,
       '注意: 评估默认离线且只读，未访问远端，未修改任何文件。',
     ].join('\n'),
@@ -2858,9 +2965,18 @@ async function reportConfigLoadError(root, configPath, error) {
  *
  * @param {Object} options
  * @param {string} options.root - Absolute project root.
+ * @param {string} [options.hostCoveragePath] - Explicit host-coverage input JSON.
+ * @param {boolean} [options.observeHosts] - Observe Claude/Codex from input identities.
+ * @param {Function} [options.runHostCommand] - Injected process runner for observation tests.
  * @returns {Promise<Object>} Adoption report.
  */
-export async function assessAdoption({ root, conclusionOutput } = {}) {
+export async function assessAdoption({
+  root,
+  conclusionOutput,
+  hostCoveragePath,
+  observeHosts = false,
+  runHostCommand,
+} = {}) {
   if (!root || typeof root !== 'string' || !isAbsolute(root)) {
     throw setupError(CONFIG_INVALID, 'assessment root must be an absolute path');
   }
@@ -2874,6 +2990,24 @@ export async function assessAdoption({ root, conclusionOutput } = {}) {
     conclusionOutput,
   });
   const configPath = join(rootReal, '.release-skill', 'project.yaml');
+  const loadedCoverage = await loadHostCoverageInput(
+    typeof hostCoveragePath === 'string' && !isAbsolute(hostCoveragePath)
+      ? resolve(rootReal, hostCoveragePath)
+      : hostCoveragePath,
+  );
+  const liveObservations = loadedCoverage.requested && observeHosts === true && loadedCoverage.input
+    ? await collectLiveHostObservations({
+      input: loadedCoverage.input,
+      runHostCommand,
+    })
+    : [];
+  const diagnoseHostCoverage = (config) => evaluateHostCoverage({
+    requested: loadedCoverage.requested,
+    input: loadedCoverage.input,
+    loadError: loadedCoverage.loadError,
+    config,
+    liveObservations,
+  });
 
   let configExists = false;
   try {
@@ -2883,7 +3017,7 @@ export async function assessAdoption({ root, conclusionOutput } = {}) {
     if (error.code !== 'ENOENT') throw error;
   }
   if (!configExists) {
-    return finish(await reportNotConfigured(rootReal, configPath));
+    return finish(await reportNotConfigured(rootReal, configPath, await diagnoseHostCoverage(null)));
   }
 
   let loaded;
@@ -2891,7 +3025,12 @@ export async function assessAdoption({ root, conclusionOutput } = {}) {
     loaded = await loadProjectConfig({ root: rootReal });
   } catch (error) {
     if (error.code !== CONFIG_INVALID) throw error;
-    return finish(await reportConfigLoadError(rootReal, configPath, error));
+    return finish(await reportConfigLoadError(
+      rootReal,
+      configPath,
+      error,
+      await diagnoseHostCoverage(null),
+    ));
   }
   const { config, configDigest } = loaded;
 
@@ -3233,6 +3372,9 @@ export async function assessAdoption({ root, conclusionOutput } = {}) {
   const gateSuggestions = unconfiguredGateAssessments.filter((entry) => entry.draft !== null);
   const gateDiagnostics = unconfiguredGateAssessments.filter((entry) => entry.draft === null);
 
+  const hostCoverage = await diagnoseHostCoverage(config);
+  findings.push(...hostCoverage.findings);
+
   const hasBlocking = findings.some((f) => f.category === FINDING_CATEGORY.MANDATORY_GAP);
   const next = hasBlocking
     ? '修复全部必选缺口后重新运行 release-skill setup --assess-adoption。'
@@ -3248,5 +3390,6 @@ export async function assessAdoption({ root, conclusionOutput } = {}) {
     gateSuggestions,
     gateDiagnostics,
     next,
+    hostCoverage,
   }));
 }

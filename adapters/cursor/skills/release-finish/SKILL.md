@@ -23,6 +23,8 @@ description: 发布达到 VERIFIED 后编排完整收尾：处理分支决定和
 
 默认只读取冻结计划和 verify 或 postVerify run。没有用户明确同意，不合并分支，不更新插件。用户显式选择 Kimi 更新后，只有标准初始目录信任界面和插件信任界面中的冻结身份都通过核对，才确认当前项目并安装。用户显式选择 Qoder 且冻结计划声明该宿主后，才执行计划绑定的 Hub 更新。
 
+宿主覆盖是否接线完整，走 `release-assess` 或 `release-setup` 的只读入口 `setup --assess-adoption --host-coverage <file>`，需要列表观察时再加 `--observe-hosts`。那是诊断，不是本机安装授权。`--observe-hosts` 只读 Claude/Codex 列表，身份来自覆盖输入的 `observations`，不安装、不改配置。本 Skill 仍只在用户明确同意后才更新本机宿主；覆盖诊断结果不能代替 `--update-local-hosts` 与 `--confirm-plan`。
+
 ## 进入完整收尾
 
 从插件根执行：

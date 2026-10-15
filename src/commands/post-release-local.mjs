@@ -6,7 +6,6 @@ import {
   readFileContained,
   readFileStrict,
   resolveContained,
-  superviseProcess,
   withTemporaryWorkspace,
   createTemporaryWorkspace,
   createFilesystemRootBinding,
@@ -22,6 +21,12 @@ import { verifyInstalledMarketplacePayload } from '../adapters/plugin-marketplac
 import { normalizePostPublishView, postPublishActionId } from '../core/postpublish.mjs';
 import { loadRun, validateRunLineage } from '../core/run.mjs';
 import { verifyFrozenSnapshot } from '../snapshot/frozen.mjs';
+import {
+  attachFoundationFailure,
+  hostEnvironment,
+  parseHostCommandJson,
+  runLocalFinishCommand,
+} from '../core/local-host-observation.mjs';
 
 const HOSTS_BY_ACTION = Object.freeze({
   'claude-marketplace-install': ['claude'],
@@ -39,27 +44,11 @@ const DISTRIBUTION_BY_ACTION = Object.freeze({
 
 const BRANCH_ACTION_INCLUDED = new Set(['advance-existing-branch', 'initialize-default-branch']);
 const CODEBUDDY_MACOS_PATH = '/Applications/WorkBuddy.app/Contents/Resources/app.asar.unpacked/cli/bin/codebuddy';
-const SAFE_ENV_KEYS = Object.freeze([
-  'PATH', 'HOME', 'USER', 'LANG', 'LC_ALL', 'LC_CTYPE', 'TERM', 'TMPDIR',
-  'HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'NO_PROXY', 'http_proxy', 'https_proxy', 'all_proxy', 'no_proxy',
-  'SSL_CERT_FILE', 'SSL_CERT_DIR', 'NODE_EXTRA_CA_CERTS',
-  'CLAUDE_CONFIG_DIR', 'CODEX_HOME', 'KIMI_CODE_HOME',
-  'CODEBUDDY_CONFIG_DIR', 'WORKBUDDY_CONFIG_DIR',
-]);
 const CODEBUDDY_PLUGIN_LIST_ARGS = Object.freeze(['plugin', 'list', '--json']);
 const CODEBUDDY_MARKETPLACE_LIST_ARGS = Object.freeze(['plugin', 'marketplace', 'list']);
 const QODER_PLUGIN_LIST_ARGS = Object.freeze(['plugins', 'list', '--json']);
 const QODER_MARKETPLACE_LIST_ARGS = Object.freeze(['plugins', 'marketplace', 'list', '--json']);
 const QODER_PAYLOAD_CONTRACT = 'external-marketplace-v1';
-
-function attachFoundationFailure(error, { envelope, stdout, stderr }) {
-  Object.defineProperties(error, {
-    foundationEnvelope: { value: envelope, enumerable: false },
-    foundationStdout: { value: stdout, enumerable: false },
-    foundationStderr: { value: stderr, enumerable: false },
-  });
-  return error;
-}
 
 function actionTarget(plan, action, host) {
   const parameters = action.parameters ?? {};
@@ -253,13 +242,20 @@ function mergePostReleaseTargets(executableTargets, manualTargets) {
       if (!sameHub || !samePlugin) throw new Error(`post-release target identity conflict for ${target.unitId}/${target.host}/${target.plugin}`);
       continue;
     }
-    const hubMatchesExecutable = (hub, executable, hubTarget) => executable.marketplace === hub.name
-      && executable.marketplaceRepo === hub.repo
-      && executable.marketplaceRef === hub.ref
-      && executable.githubHost === hub.githubHost
-      && executable.pluginRepo === hubTarget.pluginRepo
-      && executable.pluginTag === hubTarget.pluginTag
-      && executable.pluginCommit === hubTarget.pluginCommit;
+    const hubMatchesExecutable = (hub, executable, hubTarget) => {
+      // Kimi installs the frozen GitHub release, not a marketplace index.
+      if (executable.host === 'kimi') {
+        return ['version', 'githubHost', 'pluginRepo', 'pluginTag', 'pluginCommit']
+          .every((field) => executable[field] === hubTarget[field]);
+      }
+      return executable.marketplace === hub.name
+        && executable.marketplaceRepo === hub.repo
+        && executable.marketplaceRef === hub.ref
+        && executable.githubHost === hub.githubHost
+        && executable.pluginRepo === hubTarget.pluginRepo
+        && executable.pluginTag === hubTarget.pluginTag
+        && executable.pluginCommit === hubTarget.pluginCommit;
+    };
     // When the same frozen plugin is available through both sources, the
     // executable action wins only when both frozen source identities agree.
     if (existing && existing.targetKind !== 'hub-backed' && target.targetKind === 'hub-backed') {
@@ -589,63 +585,8 @@ export function assertVerifiedReleaseRun(plan, runRecord) {
   }
 }
 
-function hostEnvironment(host, { kimiHome } = {}) {
-  const env = {};
-  for (const key of SAFE_ENV_KEYS) {
-    if (process.env[key] !== undefined) env[key] = process.env[key];
-  }
-  env.HOME ??= homedir();
-  env.PATH ??= '/usr/bin:/bin';
-  env.GIT_TERMINAL_PROMPT = '0';
-  if (host === 'codebuddy') env.CODEBUDDY_CONFIG_DIR = join(env.HOME, '.codebuddy');
-  if (host === 'workbuddy') {
-    env.CODEBUDDY_CONFIG_DIR = join(env.HOME, '.workbuddy');
-    env.WORKBUDDY_CONFIG_DIR = join(env.HOME, '.workbuddy');
-    env.CODEBUDDY_FORCE_LITE_WB_BUNDLE = '1';
-  }
-  if (host === 'kimi' && kimiHome) env.KIMI_CODE_HOME = kimiHome;
-  return env;
-}
-
-async function defaultRun(command, args, options = {}) {
-  return withTemporaryWorkspace(async (workspace) => {
-    const stdoutFile = 'stdout.log';
-    const stderrFile = 'stderr.log';
-    const envelope = await superviseProcess({
-      command,
-      args,
-      cwd: options.cwd ?? process.cwd(),
-      env: options.env ?? hostEnvironment('generic'),
-      timeoutPolicy: {
-        maxSeconds: Math.max(1, Math.ceil((options.timeout ?? 120_000) / 1000)),
-        killGraceSeconds: 5,
-      },
-      rawSink: { root: workspace.root, stdoutFile, stderrFile },
-      outputByteLimits: { stdout: 8 * 1024 * 1024, stderr: 8 * 1024 * 1024 },
-    });
-    const [stdout, stderr] = await Promise.all([
-      workspace.readFile(stdoutFile, { encoding: 'utf8' }),
-      workspace.readFile(stderrFile, { encoding: 'utf8' }),
-    ]);
-    if (!envelope.ok) {
-      const error = new Error(
-        `${command} exited ${envelope.exitStatus}${stderr.trim() ? `: ${stderr.trim()}` : ''}`,
-      );
-      error.exitStatus = envelope.exitStatus;
-      error.hostCommandUnavailable = envelope.processStatus === 'FAILED_TO_START';
-      error.details = {
-        processStatus: envelope.processStatus,
-        terminationReason: envelope.terminationReason,
-        watchdogReason: envelope.watchdogReason,
-        ...(envelope.evidence?.spawnError ? { spawnError: envelope.evidence.spawnError } : {}),
-      };
-      throw attachFoundationFailure(error, { envelope, stdout, stderr });
-    }
-    return { stdout, stderr };
-  }, { prefix: 'release-skill-host-command-' });
-}
-
-export { defaultRun as runLocalFinishCommand };
+const defaultRun = runLocalFinishCommand;
+export { runLocalFinishCommand };
 
 async function commandAvailable(command, host, run) {
   try {
@@ -682,13 +623,7 @@ async function defaultDetect(host, run = defaultRun) {
   return { available: true, command: host };
 }
 
-function parseJson(stdout, label) {
-  try {
-    return JSON.parse(stdout);
-  } catch {
-    throw new Error(`${label} did not return JSON`);
-  }
-}
+const parseJson = parseHostCommandJson;
 
 function foundationEnvelopeFromError(error) {
   return error?.foundationEnvelope ?? null;

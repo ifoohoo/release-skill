@@ -57,10 +57,14 @@ function claudeParseListOutput(listOutput, pluginId) {
   if (!Array.isArray(listOutput)) {
     return { ok: false, error: 'Claude plugin list did not return an array' };
   }
-  const found = listOutput.find((p) => p.id === pluginId);
-  if (!found) {
+  const matches = listOutput.filter((p) => p.id === pluginId);
+  if (matches.length === 0) {
     return { ok: false, error: `plugin "${pluginId}" not found in Claude plugin list` };
   }
+  if (matches.length !== 1) {
+    return { ok: false, error: `plugin "${pluginId}" has duplicate Claude list entries` };
+  }
+  const [found] = matches;
   if (!found.installPath) {
     return { ok: false, error: `plugin "${pluginId}" found but missing installPath` };
   }
@@ -93,10 +97,14 @@ function codexParseListOutput(listOutput, pluginId) {
   if (!Array.isArray(installed)) {
     return { ok: false, error: 'Codex plugin list did not return {installed: [...]}' };
   }
-  const found = installed.find((p) => p.pluginId === pluginId);
-  if (!found) {
+  const matches = installed.filter((p) => p.pluginId === pluginId);
+  if (matches.length === 0) {
     return { ok: false, error: `plugin "${pluginId}" not found in Codex installed list` };
   }
+  if (matches.length !== 1) {
+    return { ok: false, error: `plugin "${pluginId}" has duplicate Codex list entries` };
+  }
+  const [found] = matches;
   return { ok: true, found };
 }
 

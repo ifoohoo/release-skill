@@ -29,11 +29,74 @@ description: "Read-only release governance diagnosis: adoption, project readines
 
 ## 接入检查
 
+默认仍调用同一入口，不带新选项时行为与原来一致：
+
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" setup --assess-adoption --root <path> --json
 ```
 
 `ADOPTED` 与 `ADOPTED_WITH_SUGGESTIONS` 的退出码是 0，`NOT_CONFIGURED` 的退出码是 1，`PARTIALLY_ADOPTED` 的退出码是 2。未配置时说明首次 `release-setup` 入口，不生成或写入配置；必选缺口按 finding 的 `fieldPath` 与 `action` 处理。声明的 hook 只作为配置和事实读取，不执行。
+
+用户要核对已声明宿主是否接线完整时，本 Skill 收集 `schemaVersion=1` 的 JSON 输入文件，再调用同一 CLI：
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" setup --assess-adoption --root <path> --host-coverage <file> --json
+```
+
+把用户已提供的完整事实写入该文件，不要从源码或接线猜测。发布单元身份写入 `unitId`，项目声明的支持宿主与出处写入 `support.hosts` / `support.source`，本轮纳入、排除和首次安装义务写入 `delivery.include` / `delivery.exclude` / `delivery.installIfMissing`，安装快照写入 `observations`。字段形状如下：
+
+- 顶层对象：`schemaVersion` 为整数 1，`units` 必须是数组。
+- 每个单元：`unitId` 为发布单元标识。
+- `support.hosts`：项目声明支持的宿主字符串数组。
+- `support.source`：该支持声明的出处，不是发布源。
+- `delivery.include`：本轮纳入的宿主字符串数组。
+- `delivery.exclude`：本轮排除数组；元素必须是 `{host, reason}` 对象。没有排除时写空数组。
+- `delivery.installIfMissing`：本轮首次安装义务对应的宿主字符串数组。没有该义务时写空数组。
+- `observations`：观察数组。每条含 `host`、`plugin`、`marketplace`、`state`、`source`、`observedAt`。
+- `state` 只能是 `installed`、`not-installed`、`unknown`。
+- `state` 为 `installed` 时必须提供 `version`。安全的默认 `unknown` 记录可以省略 `version`。示例使用 `unknown` 且省略 `version`，不要编造已安装事实或真实版本。
+- 下列 JSON 只说明结构，占位身份不是项目支持或已安装证据。
+
+```json
+{
+  "schemaVersion": 1,
+  "units": [
+    {
+      "unitId": "release-unit-id",
+      "support": {
+        "hosts": ["claude", "codex"],
+        "source": "项目声明出处"
+      },
+      "delivery": {
+        "include": ["claude"],
+        "exclude": [
+          {
+            "host": "codex",
+            "reason": "本轮不纳入"
+          }
+        ],
+        "installIfMissing": []
+      },
+      "observations": [
+        {
+          "host": "claude",
+          "plugin": "plugin-id",
+          "marketplace": "marketplace-name",
+          "state": "unknown",
+          "source": "operator",
+          "observedAt": "1970-01-01T00:00:00.000Z"
+        }
+      ]
+    }
+  ]
+}
+```
+
+需要本机列表观察时，仅在已提供 `--host-coverage` 后再加 `--observe-hosts`。观察只针对输入 `observations` 里给出 `plugin` 与 `marketplace` 的 Claude、Codex；命令和参数来自平台注册表，不接受输入里的可执行文件或 shell。未实现的宿主保持 `unknown`。观察失败、输出对不上或身份冲突时也保持 `unknown`，不得写成未安装或已通过。
+
+`--host-coverage` 不能单独用于普通 setup 写入或发现模式，也不能没有 `--assess-adoption`。错误组合以 `MISSING_PARAMETERS` 失败关闭，JSON 仍标明 `hostCoverage.requested=true`，不得把这次请求悄悄丢掉。
+
+解释结果时读取 `hostCoverage`：`requested` 表示是否请求了覆盖诊断；`complete` 表示本次事实是否齐全；`results[]` 每项含 `unitId`（发布单元）、`host`、`status`、`reason`、`evidence`。`status` 只能是 `satisfied`、`mandatory-gap`、`not-applicable`、`unknown`。支持范围只看输入的 `support.hosts` 与 `support.source`，不能从项目接线反推。配置不存在时顶层状态仍是 `NOT_CONFIGURED`，但覆盖请求仍要报告，且不得宣称覆盖完成。配置存在而 `complete=false` 时会出现事实缺失的 `mandatory-gap`，聚合为 `PARTIALLY_ADOPTED`。专业结论使用最终 `status`。本 Skill 不安装插件、不改宿主配置、不把安装观察写成已经加载成功。
 
 ## 项目离线评估
 
@@ -88,4 +151,4 @@ offline assess 不访问 GitHub/npm 认证，因此不会以顶层 `AUTH_MISSING
 
 纯问询或转交时短答：写明实际回答、适用范围或理由、必要限制和下一步。建议保持为建议。
 
-用本轮命令原返回值写紧凑完整诊断，覆盖实际对象与范围、结论与依据、缺口或产物、未覆盖项与下一步。不另建六段报告。`verify-records` 对用户显式给出的记录做本次声明范围内的核对，并报告实际得到的 `CONSISTENT`、`CONTRADICTED` 或 `INSUFFICIENT`。`historicalTerminalStatus` 作为独立历史终态另列，与本次核对结果不能互相替代。`read-proof` 只解释旧证明文件里已有的结论和原检查范围；旧证明可以是未通过或未完成。该入口不重新核对当前记录，不表示当前重验、作者认证或发布完成。已有 JSON 与 `--output` / `--conclusion-output` 产物按原合同呈现。栏目只收录当前命令已经返回的事实。
+用本轮命令原返回值写紧凑完整诊断，覆盖实际对象与范围、结论与依据、缺口或产物、未覆盖项与下一步。若请求了 `--host-coverage`，须报告 `hostCoverage` 与最终 `status`，不得把未知写成完成。不另建六段报告。`verify-records` 对用户显式给出的记录做本次声明范围内的核对，并报告实际得到的 `CONSISTENT`、`CONTRADICTED` 或 `INSUFFICIENT`。`historicalTerminalStatus` 作为独立历史终态另列，与本次核对结果不能互相替代。`read-proof` 只解释旧证明文件里已有的结论和原检查范围；旧证明可以是未通过或未完成。该入口不重新核对当前记录，不表示当前重验、作者认证或发布完成。已有 JSON 与 `--output` / `--conclusion-output` 产物按原合同呈现。栏目只收录当前命令已经返回的事实。

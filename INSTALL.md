@@ -2,7 +2,7 @@
 
 [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.27 -->
+<!-- release-skill:release-version: 0.9.28 -->
 ## Prerequisites
 
 - Node.js `>=22.22.2 <23` (22.22.2 or newer, and below 23)
@@ -125,7 +125,7 @@ tag pinned to the exact version (never the bare repository URL, which installs
 the latest release or default branch), confirm the trust prompt, then reload:
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.27
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.9.28
    /plugins reload
    ```
 

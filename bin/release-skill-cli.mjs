@@ -391,6 +391,8 @@ Options:
   --production     Prepare immutable Git/npm production artifacts
   --output <path>  Override prepare/approve output path (non-production only)
   --conclusion-output <absolute-path> Exclusive professional-conclusion file for setup --assess-adoption, assess --offline, or verify-records
+  --host-coverage <file> Explicit host-coverage diagnosis JSON for setup --assess-adoption; Skill collects input and interprets the same CLI
+  --observe-hosts  Observe installed Claude/Codex plugins named in --host-coverage; unimplemented hosts stay unknown
   --proof-root <path> Root that may be read by read-proof
   --proof <relative> Contained relative proof path for read-proof
   --run-dir <path> Override prepare run directory; production requires one direct child of .release-skill/runs
@@ -898,6 +900,43 @@ if (command === 'setup') {
     ? args[confirmationIdx + 1]
     : undefined;
   const write = args.includes('--write');
+  const hostCoverageIdx = args.indexOf('--host-coverage');
+  const hasHostCoverage = hostCoverageIdx !== -1;
+  const hasObserveHosts = args.includes('--observe-hosts');
+  const hostCoverageValue = hasHostCoverage && args[hostCoverageIdx + 1] && !String(args[hostCoverageIdx + 1]).startsWith('--')
+    ? args[hostCoverageIdx + 1]
+    : undefined;
+  const hostCoverageConflict = write
+    || answersPath !== undefined
+    || args.includes('--propose-hooks')
+    || args.includes('--discover-downstream');
+
+  const rejectHostCoverageRequest = async (message) => {
+    const exitCode = EXIT_CODE_MAP[MISSING_PARAMETERS];
+    const payload = {
+      error: MISSING_PARAMETERS,
+      message,
+      details: { field: hasHostCoverage ? '--host-coverage' : '--observe-hosts' },
+      exitCode,
+      hostCoverage: { requested: true, complete: false, results: [] },
+    };
+    if (hasJson) console.log(JSON.stringify(payload));
+    else console.error(`Error: ${message}`);
+    await exitAfterFlush(exitCode);
+  };
+
+  if (hasHostCoverage && !args.includes('--assess-adoption')) {
+    await rejectHostCoverageRequest('--host-coverage requires setup --assess-adoption');
+  }
+  if (hasObserveHosts && !hasHostCoverage) {
+    await rejectHostCoverageRequest('--observe-hosts requires --host-coverage');
+  }
+  if ((hasHostCoverage || hasObserveHosts) && hostCoverageConflict) {
+    await rejectHostCoverageRequest('--host-coverage cannot be combined with setup write or discovery modes');
+  }
+  if (hasHostCoverage && !hostCoverageValue) {
+    await rejectHostCoverageRequest('--host-coverage requires a file path');
+  }
 
   // WP-6 — read-only adoption assessment: four-category matrix, hook cost
   // observations, structured gate drafts. Never writes, never goes remote.
@@ -908,7 +947,12 @@ if (command === 'setup') {
         ? args[conclusionIdx + 1]
         : undefined;
       const setupModule = await import('../src/commands/setup.mjs');
-      const report = await setupModule.assessAdoption({ root, conclusionOutput });
+      const report = await setupModule.assessAdoption({
+        root,
+        conclusionOutput,
+        hostCoveragePath: hasHostCoverage ? resolve(hostCoverageValue) : undefined,
+        observeHosts: hasObserveHosts,
+      });
       if (hasJson) {
         console.log(JSON.stringify(report, null, 2));
       } else {

@@ -2,37 +2,43 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.27 -->
+<!-- release-skill:release-version: 0.9.28 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.27** (2026-10-13)
+**0.9.28** (2026-10-15)
 
-0.9.27 修复 Kimi 本机宿主观察：受管插件根只有 kimi.plugin.json、没有 package.json 时不再失败。WorkBuddy 的 lite-wb 选择器修复已在 0.9.26 完成，不属于本版。Foundation 三个依赖继续固定为 0.22.0。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.28 版本新增可选宿主接入覆盖诊断功能，通过 `setup --assess-adoption` 的可选参数，核对声明范围内的宿主是否具备所需接线。该版本精确依赖 Foundation 0.25.0 的公开包根 API，采用 Codex 0.154.0 静态加载规则检查，基于 11 份真实生成 Skill 的原字节在隔离环境中完成诊断，不证明安装、会话选择或业务执行通过。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
 - 既有安全边界保持不变：Hub 写入继续绑定已观察的分支头，按 compare-and-swap 比较后写入。部分发布时不回滚、不覆盖已成功步骤，也不自动强推。
 - 批准、发布、发布后验证、消费者安装、真实宿主加载和独立验收仍分别需要实际记录。本说明不能证明这些结果，读取 Kimi 插件清单也不能证明认证已成立或真实宿主资格已经通过。
 
+**新增**
+
+- `--host-coverage <file>` 接收包含项目声明支持范围、本轮交付范围、首次安装义务与安装观察的输入文件，报告每个宿主的覆盖状态及事实缺口；Skill 仅负责收集事实并解释 CLI 输出，不参与差异比较逻辑。
+- `--observe-hosts` 在显式提供覆盖输入时，使用平台注册表定义的命令只读获取本轮纳入的 Claude、Codex 插件列表，核对插件与市场身份；已排除或缺少身份的目标不启动原生命令。
+
 **变更**
 
+- Foundation 三个依赖锁步升级为 0.25.0，采用 Codex 0.154.0 静态加载规则检查，基于11份真实生成Skill原字节在隔离环境中完成诊断，不证明安装、会话选择或业务执行通过。
 - 分发路径保持不变：Skill Family Hub 仍是统一市场；发布验证完成后，Hub 条目仍通过既有 GitHub Git Data API 更新。
-- WorkBuddy 的 CODEBUDDY_FORCE_LITE_WB_BUNDLE 选择器已随 0.9.26 交付，本版不改动该选择器。
 
 **修复**
 
-- Kimi 本机宿主观察在 package.json 存在时仍读取该文件，这条路径保持不变。读取失败且错误属于既有 missing-resource 或 ENOENT 形态时，改为读取同一受管根下的 kimi.plugin.json，并用其 name 与 version 参加既有身份比较，同时继续使用 installed.json 中的 GitHub tag ref 与 installedSha。kimi.plugin.json 同样缺失时仍按原错误失败关闭。声明根检查、tag ref、installedSha 与 git HEAD 比较逻辑不变。该回退不会给任何 Kimi 投影补上 package.json。
+- 缺失身份、来源、有效时间或 installed 版本的记录不能视为覆盖成功；实时未知状态不能由旧的 installed 快照覆盖；同一目标匹配多条列表记录时将被拒绝；无效或重复输入仍绑定原有摘要路径。
+- Kimi 的直接发布记录与 Hub 的 localHostUpdate 记录绑定同一单元、宿主、插件、版本、GitHub 主机、仓库、标签和提交时，合并为一个原有可执行目标。Kimi 使用冻结的 GitHub Release，该场景不再比较市场索引元数据；不同冻结身份仍被拒绝。其他宿主的市场身份校验保持不变。
 
 **升级说明**
 
-已使用 Skill Family Hub 的消费者升级时无需迁移配置。若仍使用旧版独立的 `release-skill` 市场，应移除旧市场，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub；这条迁移路径保持不变。既有 --unit 选择合同保持不变。
+已使用 Skill Family Hub 的消费者升级时无需迁移配置。若仍使用旧版独立的 `release-skill` 市场，应移除旧市场，改用 ifoohoo/skill-family-hub 仓库与 Hub 限定插件名 release-skill@skill-family-hub；这条迁移路径保持不变。既有 --unit 选择合同保持不变。 不使用新选项时，保留原有的四种顶层状态和退出码，不扫描宿主；不安装或更新插件，不修改宿主配置或凭据；安装列表的观察结果不证明插件已真实加载或完成业务执行；现有配置无需迁移；本轮覆盖检查需显式提供事实文件。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.27 的能力范围与验证边界见本 README，
+> **当前边界：** v0.9.28 的能力范围与验证边界见本 README，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -48,7 +54,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.27 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.28 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -80,7 +86,7 @@ Skill Family Hub 仍是唯一市场来源。
 当前仍不包含 R-02 安全整树盘点。市场安装与真实调用继续作为各宿主的发布后检查；Cursor
 通过其支持的本机插件目录分发，不进入 Hub 市场条目。本范围说明不构成远端发布记录或消费者升级指引。
 
-Foundation 三包精确依赖已发布的 0.22.0。仍采用 bundled-family 分发形态的
+Foundation 三包精确依赖已发布的 0.25.0。仍采用 bundled-family 分发形态的
 Kimi/CodeBuddy 计划会在 verify 阶段调用正式 `runPluginVerification`，把完整冻结载荷
 交给 Foundation，并记录最小的 `install-only` 观察收据。Kimi 映射为 `kimi-code`，
 CodeBuddy 映射为兼容的 `workbuddy`。`observed` 与 `payloadMatches` 只表示机制观察结果，
