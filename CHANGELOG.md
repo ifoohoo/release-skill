@@ -1,5 +1,45 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.29 locale=en baseline=sha256:b0f764fb7dc5897a2bc031a06114e766eb3bb2a39fe4778c0c23bc620921bf40 -->
+## [0.9.29] - 2026-10-16
+
+0.9.29 fixes Qoder local updates rejecting the valid ./skills/ layout in Foundation 0.25.0's frozen manifest. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- The skills path must be a non-empty string naming an existing directory within the plugin. The installed name/version/skills must match this release's frozen manifest. Both UPDATED and ALREADY_CURRENT branches validate the actual installed payload.
+- Frozen snapshot digest, identity, Hub repository/ref and entry source.url/source.sha checks remain in effect. Missing, invalid or escaping paths and payload drift still fail; no automatic initial installation is added.
+- Hub writes remain bound to the observed branch head through compare-and-swap. Partial Hub publication is never rolled back or force-pushed automatically, and completed steps are not overwritten.
+
+### Changed
+
+- Skill Family Hub remains the unified marketplace. After release validation, Hub entries are updated via GitHub Git Data API. This mechanism remains unchanged and is not claimed to have been executed in this release.
+
+### Fixed
+
+- Resolved incorrect path hardcoding in 0.9.28 that rejected valid ./skills/ directory from Foundation 0.25.0's frozen manifest. Qoder plugins now read skills path from verified frozen manifest, ensuring compatibility with both ./adapters/qoder/skills/ and ./skills/ layouts.
+
+### Upgrade Notes
+
+- Existing installations may continue using the existing local-finish entry point,
+  provided they maintain authorization.
+
+- The release note does not constitute a release authorization, nor does it confirm
+  real-world host business validation.
+
+- Do not infer published status from this document; actual release status must be
+  referenced from approved plans, approvals, and execution records.
+
+- The path must be a valid existing directory within the plugin and match the frozen
+  manifest exactly.
+
+- No new configuration parameters or migration steps are introduced.
+- Users of the existing Skill Family Hub do not need to perform configuration migration.
+- The old release-skill standalone marketplace is deprecated and should be removed.
+  Replace it with the `ifoohoo/skill-family-hub` repository and `release-skill@skill-family-hub`.
+<!-- release-skill:changelog:end version=0.9.29 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.28 locale=en baseline=sha256:cd1f7e8115d51b08d4d406835280d7be7716c5010255adb0afa4d3e4d4eadac6 -->
 ## [0.9.28] - 2026-10-15
 

@@ -37,9 +37,9 @@ description: "Discoverable entry point for release-skill: dependency and environ
 
 治理诊断只运行 release-skill 自己的只读检查程序，不运行目标 Skill、业务脚本、构建、hook 或发布动作，也不把 `prepare`、`verify`、`release-finish` 当作静态治理入口。用户要求实际接入或发布时，把已有授权带到对应原业务入口；各入口继续执行原有确认、副作用和状态机合同。
 
-## 0.9.28 能力与证据边界
+## 0.9.29 能力与证据边界
 
-release-skill 0.9.28 精确依赖 Foundation 0.25.0 的公开包根 API。本版本新增可选宿主覆盖诊断能力，支持通过 `--host-coverage <file>` 提供输入文件，报告每个宿主在声明范围内的覆盖状态与事实缺口；同时采用 Codex 0.154.0 静态加载规则检查，基于 11 份真实生成 Skill 的原字节在隔离环境中完成诊断，不证明安装、会话选择或业务执行通过。批准、发布和验证状态以对应计划、批准及执行记录为准，不能由本说明推断。
+release-skill 0.9.29 保留 Foundation 0.25.0精确依赖、可选宿主覆盖诊断输入`--host-coverage <file>`与`--observe-hosts`、Codex 0.154.0静态加载规则检查11份真实生成Skill的原字节等既有事实；本版修复 Qoder 本机更新的路径处理：从已验证摘要的冻结清单读取skills路径，支持既有`./adapters/qoder/skills/`和`./skills/`布局，仍核对安装name/version/skills、路径包含性与实际载荷。静态检查不证明安装、会话选择或业务执行通过，批准、发布和验证状态以对应计划、批准及执行记录为准。
 
 在冻结前，`prepare` 或新建 `ship` 状态时可重复传入 `--unit <id>`；未传入则默认选择全部单元。延期单元不进入发布计划，亦不获得发布状态。完整配置、生成物新鲜度检查及顶层 Hook 仍作用于全项目范围。`publicSourceAuthorityReceipt` 的 coordinator 与全部 subjects 必须共同选择。
 

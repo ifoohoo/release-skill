@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.28 -->
+<!-- release-skill:release-version: 0.9.29 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,37 +14,46 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.28** (2026-10-15)
+**0.9.29** (2026-10-16)
 
-0.9.28 adds optional host coverage diagnosis to `setup --assess-adoption`, checking whether hosts in the declared scope have the required release wiring. The three Foundation dependencies are pinned to 0.25.0. The Codex 0.154.0 static loading check consumes the original bytes of 11 generated Skills in an isolated project; this does not establish installation, session selection, or business execution. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.29 fixes Qoder local updates rejecting the valid ./skills/ layout in Foundation 0.25.0's frozen manifest. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- Existing safety boundaries are unchanged: Hub publication remains a compare-and-swap operation bound to the observed branch head. Partial Hub publication is never rolled back or force-pushed automatically, and completed steps are not overwritten.
-- Approval, publication, post-publication verification, consumer installation, real-host loading, and independent acceptance still require their own actual records. This note does not prove any of those outcomes. Reading a Kimi plugin manifest does not establish authentication or real-host qualification.
-
-**Added**
-
-- `--host-coverage <file>` accepts an input file specifying declared support scope, delivery scope for this round, initial installation obligations, and installation observations, reporting per-host coverage status and factual gaps; Skill collects facts and interprets CLI output but does not implement comparison logic.
-- `--observe-hosts` uses commands defined by the platform registry to read plugin lists for in-scope Claude and Codex hosts when coverage input is explicitly supplied, and checks plugin and marketplace identities. Excluded targets and targets without identity do not trigger native commands.
+- The skills path must be a non-empty string naming an existing directory within the plugin. The installed name/version/skills must match this release's frozen manifest. Both UPDATED and ALREADY_CURRENT branches validate the actual installed payload.
+- Frozen snapshot digest, identity, Hub repository/ref and entry source.url/source.sha checks remain in effect. Missing, invalid or escaping paths and payload drift still fail; no automatic initial installation is added.
+- Hub writes remain bound to the observed branch head through compare-and-swap. Partial Hub publication is never rolled back or force-pushed automatically, and completed steps are not overwritten.
 
 **Changed**
 
-- The three Foundation dependencies are pinned to 0.25.0. The Codex 0.154.0 static loading check consumes the original bytes of 11 generated Skills in an isolated project; this does not establish installation, session selection, or business execution.
-- The distribution path is unchanged: Skill Family Hub remains the central marketplace, and its entry is still updated through the existing GitHub Git Data API after release verification.
+- Skill Family Hub remains the unified marketplace. After release validation, Hub entries are updated via GitHub Git Data API. This mechanism remains unchanged and is not claimed to have been executed in this release.
 
 **Fixed**
 
-- Records missing identity, source, a valid observation timestamp, or installed version are not considered successful coverage; real-time unknown status cannot be overridden by old installed snapshots; multiple list entries matching the target are rejected; invalid or duplicate inputs still bind to the existing digest binding.
-- Kimi direct release and Hub localHostUpdate records that bind the same unit, host, plugin, version, GitHub host, repository, tag, and commit now merge into exactly one existing direct executable target. Marketplace index metadata is irrelevant only for Kimi, whose installation uses the frozen GitHub release. Different frozen identities still fail closed. Other hosts retain current marketplace identity checks.
+- Resolved incorrect path hardcoding in 0.9.28 that rejected valid ./skills/ directory from Foundation 0.25.0's frozen manifest. Qoder plugins now read skills path from verified frozen manifest, ensuring compatibility with both ./adapters/qoder/skills/ and ./skills/ layouts.
 
 **Upgrade Notes**
 
-For consumers already using Skill Family Hub, no configuration migration is required. Installations still using the old release-skill standalone marketplace should remove it and use the ifoohoo/skill-family-hub repository with the Hub-qualified plugin id release-skill@skill-family-hub; this migration path is unchanged. The existing --unit release-selection contract is unchanged. Without new options, the original four top-level states and exit codes are preserved, and no host scanning occurs; no plugin installation or updates, no host configuration or credential modifications; observed installation lists do not imply actual loading or business execution; existing configurations require no migration; explicit fact file input is mandatory for this round’s coverage check.
+- Existing installations may continue using the existing local-finish entry point,
+  provided they maintain authorization.
+
+- The release note does not constitute a release authorization, nor does it confirm
+  real-world host business validation.
+
+- Do not infer published status from this document; actual release status must be
+  referenced from approved plans, approvals, and execution records.
+
+- The path must be a valid existing directory within the plugin and match the frozen
+  manifest exactly.
+
+- No new configuration parameters or migration steps are introduced.
+- Users of the existing Skill Family Hub do not need to perform configuration migration.
+- The old release-skill standalone marketplace is deprecated and should be removed.
+  Replace it with the `ifoohoo/skill-family-hub` repository and `release-skill@skill-family-hub`.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.28: this README records capabilities and verification boundaries;
+> **Current boundary:** v0.9.29: this README records capabilities and verification boundaries;
 > it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -68,7 +77,7 @@ For consumers already using Skill Family Hub, no configuration migration is requ
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; for v0.9.28,
+> **Production path verified since the v0.1.1 milestone; for v0.9.29,
 > publication, consumer-installation verification, and independent acceptance
 > require version-specific release records and verification results.**
 > The npm-installed CLI is the supported user entry. Source checkout
