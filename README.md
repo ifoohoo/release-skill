@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.30 -->
+<!-- release-skill:release-version: 0.9.31 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,36 +14,35 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.30** (2026-10-16)
+**0.9.31** (2026-10-17)
 
-0.9.30 fixes the private Hub hook's missing release-evidence argument while retaining exact Foundation 0.25.0 dependencies. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.31 fixes Kimi removal confirmation and shared setup ownership while retaining exact Foundation 0.25.0 dependencies. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- The hook rejects missing or invalid evidence paths before remote access; the authoritative Hub gate validates the original release evidence.
-- Gate failure prevents Git Data API writes. Partial Hub publication is never rolled back or force-pushed, and completed steps are not overwritten. Writes remain bound to the observed branch head through compare-and-swap.
+- Maintains strict confirmation boundaries: exact plugin ID and selection must be verified before removal. No changes to frozen install URL/ref/sha or post-install payload validation. Hub gate failure prevents GitHub Git Data API write. Writes bind the observed branch head through `compare-and-swap`. Partial Hub publication is never rolled back or force-pushed; completed steps are not overwritten. Existing `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` environment variable continues to require an existing regular file at an absolute path (not a symlink), validated via `npm run release:check -- --release-evidence <file>`. Independent checkpoint approval, no replay of historical frozen plans, and `ALREADY_CURRENT` gate remain enforced.
 
 **Changed**
 
-- Skill Family Hub remains the unified market; entries are updated via GitHub Git Data API after post-verify validation.
+- Skill Family Hub remains the unified market. GitHub Git Data API integration continues with `compare-and-swap` write semantics; no automatic rollback or overwrite of completed steps.
 
 **Fixed**
 
-- The private Hub hook forwards the absolute path supplied through `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` to `npm run release:check -- --release-evidence <file>`. The path must name an existing regular file; symbolic links are rejected.
+- Kimi 2.2.0: The remove confirmation page now uses `Remove <displayName> (<id>)?` with `Cancel` and `Remove plugin` options. The adapter verifies the exact plugin ID and current selection. When selection movement is required, move first and re-observe before confirming. No direction key input is needed when `Remove plugin` is already selected. Removal is submitted only while that option is selected.
+- Kimi 2.2.0: Display names containing `Confirm` or `Sure`, or titles arriving in chunks, no longer trigger the old broad regex path. Invalid ID, unknown or ambiguous selection, timeout, or EOF stop the update without proceeding to installation.
+- The adapter retains the existing `Confirm remove plugin "<id>"?` wording, bracketed paste, and CSI Enter input method from Kimi 0.40.1. Frozen install URL/ref/sha, post-install name/version, and payload verification remain unchanged. Offline Expect/fake validation only; no real Kimi consumer installation or update performed.
+- Shared environment setup for the same `unitId/plugin/version` is now merged. Different physical `skillFile` paths under Claude/Codex no longer count as separate setup owners. Only one precise setup feedback from a loaded host is required to satisfy shared environment checks.
+- Host-specific installation, loading, and configuration still require separate verification. Feedback continues to bind `host/unit/path/plan/config/root`. True multiple plugin ownership still requires disambiguation. Failure in any host (Kimi or others) results in `FAILED` status; `VERIFIED`/`DISTRIBUTED` release state is unchanged.
 
 **Upgrade Notes**
 
-Before running `postverify`, maintainers set the `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` environment variable to the absolute path of the original Hub evidence descriptor; the existing `envAllowlist` forwards only that key. The descriptor and referenced native records are not copied or rewritten.
+Existing release plans can continue to be finalized after obtaining the new provider. No need to re-publish plugins from the original domain. Use the existing frozen plan within the explicitly authorized host scope; the provider update does not authorize additional host operations. Host installation, loading, and setup facts must be verified independently. This round’s offline Expect/fake testing does not imply the fix is limited to offline use; the product is intended for real hosts. Real Kimi consumer acceptance has not been performed, and thus cannot be claimed as passed.
 
-A new plan freezes the corrected hook and still requires independent checkpoint approval. Historical plans, approvals and frozen hooks remain unchanged and are not replayed. `ALREADY_CURRENT` still requires the authoritative Hub gate.
-
-Existing Hub users need no configuration migration. The old release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and `release-skill@skill-family-hub`.
-
-This note does not authorize publication or prove real-host business or consumer installation verification. No consumer installation or update is added.
+The old release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and `release-skill@skill-family-hub`.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.30: this README records capabilities and verification boundaries;
+> **Current boundary:** v0.9.31: this README records capabilities and verification boundaries;
 > it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -67,7 +66,7 @@ This note does not authorize publication or prove real-host business or consumer
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; for v0.9.30,
+> **Production path verified since the v0.1.1 milestone; for v0.9.31,
 > publication, consumer-installation verification, and independent acceptance
 > require version-specific release records and verification results.**
 > The npm-installed CLI is the supported user entry. Source checkout

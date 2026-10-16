@@ -2,42 +2,41 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.30 -->
+<!-- release-skill:release-version: 0.9.31 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.30** (2026-10-16)
+**0.9.31** (2026-10-17)
 
-0.9.30 修复项目私有 Hub 钩子漏传发布证据参数的问题，继续使用精确的 Foundation 0.25.0 依赖。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.31 修复 Kimi 移除确认和共享环境 setup 归属，继续使用精确的 Foundation 0.25.0 依赖。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- 钩子在访问远端前拒绝缺失或非法的证据路径，证据内容交由 Hub 正式门禁验证。
-- 门禁失败不进行 Git Data API 写入；部分发布不回滚、不覆盖已完成步骤、不自动强推；写入绑定观察到的分支头并比较后写入。
+- 保持严格确认边界：移除前必须精确核对插件ID与选择。冻结的安装URL/ref/sha与安装后载荷验证规则未变。Hub门禁失败将阻止GitHub Git Data API写入。写入采用 `compare-and-swap`，绑定已观察的分支头并比较后写入；部分发布不回滚、不覆盖已完成步骤、不自动强推。现有 `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` 环境变量仍须指定已有普通文件的绝对路径（拒绝符号链接），交由 `npm run release:check -- --release-evidence <file>` 验证。独立检查点批准、历史冻结计划不重放、ALREADY_CURRENT 门禁仍强制执行。
 
 **变更**
 
-- Skill Family Hub 仍是统一市场，验证后经 GitHub Git Data API 更新条目。
+- Skill Family Hub 保持统一市场。GitHub Git Data API 机制延续，写入采用 compare-and-swap 语义；不自动回滚或覆盖已完成步骤。
 
 **修复**
 
-- 项目私有 Hub 钩子把 `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` 指定的绝对路径传给 `npm run release:check -- --release-evidence <file>`。路径必须指向已有普通文件，不接受符号链接。
+- Kimi 2.2.0：移除确认页使用 `Remove <displayName> (<id>)?`，包含 Cancel 和 Remove plugin 选项。适配器核对精确插件ID与选中项。需移动时先移动并重新观察选择后再确认。已选中 `Remove plugin` 时无需方向键输入，只有该项选中时才提交移除操作。
+- Kimi 2.2.0：显示名含 Confirm 或 Sure，或标题分块到达，不再触发旧宽泛正则路径。错误ID、未知或歧义选择、timeout或EOF均导致失败关闭，不继续安装。
+- Kimi 2.2.0：保留 Kimi 0.40.1 已支持的实际措辞 `Confirm remove plugin "<id>"?`、括号粘贴及 CSI Enter 输入方式。冻结的安装URL/ref/sha、安装后name/version和载荷核对未改变。本轮采用离线 Expect/fake 验证，不构成真实 Kimi 消费者验收。
+- 同一 `unitId/plugin/version` 的共享环境setup按 unitId/plugin/version 归并；Claude/Codex不同物理skillFile路径不再视为多个setup归属。仅需一个已加载宿主的精确setup反馈即可承接共享环境检查。
+- 各宿主安装、加载及专属配置仍分别核实。反馈继续绑定 host/unit/path/plan/config/root；真正多插件归属仍须消歧，Kimi失败或其他宿主失败仍使收尾 FAILED；不改 VERIFIED/DISTRIBUTED 发布状态。
 
 **升级说明**
 
-维护者在运行 `postverify` 前，将环境变量 `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` 设为原始 Hub 证据描述符的绝对路径；现有 `envAllowlist` 只转发该键。描述符及其引用的原生记录不复制、不改写。
+在获取新提供方后，可继续按原冻结计划与已授权宿主范围完成收尾工作，无需重发原领域插件。继续使用原冻结计划及已明确授权的宿主范围，提供方更新不扩大本机操作授权。宿主安装、加载与setup事实需独立核实。本轮离线Expect/fake测试不代表修复仅适用于离线场景；产品意图面向真实宿主。真实Kimi消费者验收未执行，不能声称通过。
 
-新计划冻结修正的钩子，仍须取得独立检查点批准；历史计划、批准和冻结钩子保持不变，不重放。`ALREADY_CURRENT` 仍须通过 Hub 正式门禁。
-
-已使用 Hub 的用户无需配置迁移。旧版独立的 `release-skill` 市场已弃用，应改用 `ifoohoo/skill-family-hub` 与 `release-skill@skill-family-hub`。
-
-本说明不授权发布，也不证明真实宿主业务或消费者安装验证完成；不新增消费者安装或更新动作。
+旧版独立的 `release-skill` 市场已弃用，应改用 `ifoohoo/skill-family-hub` 与 `release-skill@skill-family-hub`。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.30 的能力范围与验证边界见本 README，
+> **当前边界：** v0.9.31 的能力范围与验证边界见本 README，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -53,7 +52,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.30 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.31 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**

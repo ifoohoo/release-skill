@@ -372,7 +372,7 @@ export async function runPostReleaseFinish({
   const candidates = observations.filter((entry) => (
     entry.installation === 'current' && entry.loaded === true && typeof entry.skillFile === 'string'
   ));
-  const candidateOwners = new Set(candidates.map((entry) => `${entry.plugin}\u0000${entry.version}\u0000${entry.skillFile}`));
+  const candidateOwners = new Set(candidates.map((entry) => `${entry.unitId}\u0000${entry.plugin}\u0000${entry.version}`));
   const effectiveSetup = updateKeepsFeedback ? feedback.setup : null;
   let setupStep;
   if (!setupSkill) {

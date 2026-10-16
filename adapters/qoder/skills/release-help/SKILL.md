@@ -37,9 +37,15 @@ description: "Discoverable entry point for release-skill: dependency and environ
 
 治理诊断只运行 release-skill 自己的只读检查程序，不运行目标 Skill、业务脚本、构建、hook 或发布动作，也不把 `prepare`、`verify`、`release-finish` 当作静态治理入口。用户要求实际接入或发布时，把已有授权带到对应原业务入口；各入口继续执行原有确认、副作用和状态机合同。
 
-## 0.9.30 能力与证据边界
+## 0.9.31 能力与证据边界
 
-release-skill 0.9.30 保留 Foundation 0.25.0 精确依赖、可选宿主覆盖诊断输入 `--host-coverage <file>` 与 `--observe-hosts`、Codex 0.154.0 静态加载规则检查 11 份真实生成 Skill 的原字节等既有事实；本版修复私有 Hub 的 postVerify 钩子：通过既有 `envAllowlist` 传递 `RELEASE_SKILL_HUB_RELEASE_EVIDENCE`，其值为原始描述符所指向的已有普通文件绝对路径（拒绝符号链接），交由 Hub `npm run release:check -- --release-evidence <file>` 验证。Qoder 本机更新路径处理维持既有能力，支持 `./adapters/qoder/skills/` 与 `./skills/` 两种布局，仍核对安装 name/version/skills、路径包含性与实际载荷。静态检查不证明安装、会话选择或业务执行通过，批准、发布和验证状态以对应计划、批准及执行记录为准。
+0.9.31 修复了 Kimi 2.2.0 的移除确认逻辑与共享环境 setup 归属规则。移除确认页采用 `Remove <displayName> (<id>)?` 格式，包含 Cancel 和 Remove plugin 选项；适配器精确核对插件 ID 与选中项，需移动时须先移动并重新观察选择再确认，已选中 `Remove plugin` 时无需方向键输入，仅在该选项激活时提交移除操作。显示名含 Confirm 或 Sure，或标题分块到达，不再触发旧宽泛正则路径；错误 ID、未知或歧义选择、timeout 或 EOF 均导致失败关闭，不继续安装。
+
+保留 Kimi 0.40.1 的实际确认措辞 `Confirm remove plugin "<id>"?`、括号粘贴与 CSI Enter 输入方式。冻结的安装 URL/ref/sha、安装后 name/version 与载荷核对规则未变。本轮验证为离线 Expect/fake 测试，不构成真实 Kimi 消费者验收。
+
+同一 `unitId/plugin/version` 的共享环境 setup 按单元、插件、版本归并，Claude/Codex 不同物理 `skillFile` 路径不再视为多个 setup 归属。仅需一个已加载宿主的精确 setup 反馈即可满足共享环境检查要求。各宿主的安装、加载及专属配置仍需分别核实，反馈继续绑定 `host/unit/path/plan/config/root`；真正多插件归属仍需消歧，Kimi 失败或其他宿主失败均导致收尾状态为 FAILED，不改变 `VERIFIED`/`DISTRIBUTED` 发布状态。
+
+本版保留 Foundation 0.25.0 精确依赖、可选宿主覆盖诊断输入 `--host-coverage <file>` 与 `--observe-hosts`、Codex 0.154.0 对 11 份真实生成 Skill 的原字节静态检查能力。静态检查不证明安装、会话选择或业务执行通过，批准、发布和验证状态以对应计划、批准及执行记录为准。Qoder 本机更新路径处理维持既有能力，支持 `./adapters/qoder/skills/` 与 `./skills/` 两种布局，仍核对安装 name/version/skills、路径包含性与实际载荷。私有 Hub 的 `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` 环境变量继续要求原始描述符指向的已有普通文件绝对路径（拒绝符号链接），交由 `npm run release:check -- --release-evidence <file>` 验证。实际版本能力不能等同于发布状态或真实宿主验收。
 
 在冻结前，`prepare` 或新建 `ship` 状态时可重复传入 `--unit <id>`；未传入则默认选择全部单元。延期单元不进入发布计划，亦不获得发布状态。完整配置、生成物新鲜度检查及顶层 Hook 仍作用于全项目范围。`publicSourceAuthorityReceipt` 的 coordinator 与全部 subjects 必须共同选择。
 

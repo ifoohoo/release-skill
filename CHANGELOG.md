@@ -1,5 +1,34 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.31 locale=en baseline=sha256:d40f153bfc277e24178ac5d32d20a0b6d824cf611d0fa65709cea01463b037ea -->
+## [0.9.31] - 2026-10-17
+
+0.9.31 fixes Kimi removal confirmation and shared setup ownership while retaining exact Foundation 0.25.0 dependencies. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Maintains strict confirmation boundaries: exact plugin ID and selection must be verified before removal. No changes to frozen install URL/ref/sha or post-install payload validation. Hub gate failure prevents GitHub Git Data API write. Writes bind the observed branch head through `compare-and-swap`. Partial Hub publication is never rolled back or force-pushed; completed steps are not overwritten. Existing `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` environment variable continues to require an existing regular file at an absolute path (not a symlink), validated via `npm run release:check -- --release-evidence <file>`. Independent checkpoint approval, no replay of historical frozen plans, and `ALREADY_CURRENT` gate remain enforced.
+
+### Changed
+
+- Skill Family Hub remains the unified market. GitHub Git Data API integration continues with `compare-and-swap` write semantics; no automatic rollback or overwrite of completed steps.
+
+### Fixed
+
+- Kimi 2.2.0: The remove confirmation page now uses `Remove <displayName> (<id>)?` with `Cancel` and `Remove plugin` options. The adapter verifies the exact plugin ID and current selection. When selection movement is required, move first and re-observe before confirming. No direction key input is needed when `Remove plugin` is already selected. Removal is submitted only while that option is selected.
+- Kimi 2.2.0: Display names containing `Confirm` or `Sure`, or titles arriving in chunks, no longer trigger the old broad regex path. Invalid ID, unknown or ambiguous selection, timeout, or EOF stop the update without proceeding to installation.
+- The adapter retains the existing `Confirm remove plugin "<id>"?` wording, bracketed paste, and CSI Enter input method from Kimi 0.40.1. Frozen install URL/ref/sha, post-install name/version, and payload verification remain unchanged. Offline Expect/fake validation only; no real Kimi consumer installation or update performed.
+- Shared environment setup for the same `unitId/plugin/version` is now merged. Different physical `skillFile` paths under Claude/Codex no longer count as separate setup owners. Only one precise setup feedback from a loaded host is required to satisfy shared environment checks.
+- Host-specific installation, loading, and configuration still require separate verification. Feedback continues to bind `host/unit/path/plan/config/root`. True multiple plugin ownership still requires disambiguation. Failure in any host (Kimi or others) results in `FAILED` status; `VERIFIED`/`DISTRIBUTED` release state is unchanged.
+
+### Upgrade Notes
+
+Existing release plans can continue to be finalized after obtaining the new provider. No need to re-publish plugins from the original domain. Use the existing frozen plan within the explicitly authorized host scope; the provider update does not authorize additional host operations. Host installation, loading, and setup facts must be verified independently. This round’s offline Expect/fake testing does not imply the fix is limited to offline use; the product is intended for real hosts. Real Kimi consumer acceptance has not been performed, and thus cannot be claimed as passed.
+
+The old release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and `release-skill@skill-family-hub`.
+<!-- release-skill:changelog:end version=0.9.31 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.30 locale=en baseline=sha256:f96989498b14d998fb38751ca6bd2610255761ebb1618018ec2ca362ebe707a5 -->
 ## [0.9.30] - 2026-10-16
 

@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.30"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.31"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "52acbaddf4e589b42b49defb03ff5dfa59e0306f37a3ce0e8e3aaa240b9cfba4";
+const __bundleSourceDigest = "1ac240c6ac1cc3eaec8662f1f04ed43c069136e65400823f01c951e7976dc9e8";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -137228,23 +137228,171 @@ function parseCodeBuddyRemoteObservation(target, stdout) {
   };
 }
 function kimiExpectProgram({ removePlugin } = {}) {
-  const removeCommand = removePlugin ? `submitCommand "/plugins remove $removePlugin"
-expect {
-  -nocase -re {(remove|delete|uninstall).*(confirm|sure)|(confirm|sure).*(remove|delete|uninstall)} {
-    expect {
-      -ex $removePlugin {
-        send -- "\\033\\[B"
-        send -- "\\033\\[13u"
-      }
-      timeout { failTimeout remove-confirmation 125 127 }
-      eof { failEof remove-confirmation 126 }
+  const removeCommand = removePlugin ? `proc kimi22RemoveIdentity {dialog} {
+  set identity ""
+  foreach rawLine [split $dialog "\\n"] {
+    set line [string trim $rawLine]
+    if {[regexp -nocase {Remove .+ \\(([^()]+)\\)\\?} $line match pluginId]} {
+      if {$identity ne "" && $identity ne $pluginId} { return "" }
+      set identity $pluginId
     }
+  }
+  return $identity
+}
+
+proc kimi22RemoveDialogComplete {dialog} {
+  set hasCancel 0
+  set hasRemove 0
+  foreach rawLine [split $dialog "\\n"] {
+    set line [string trim $rawLine]
+    regsub {^\u276F[ \\t]*} $line {} label
+    set label [string trim $label]
+    if {[string equal -nocase $label "Cancel"]} { set hasCancel 1 }
+    if {[string equal -nocase $label "Remove plugin"]} { set hasRemove 1 }
+  }
+  return [expr {$hasCancel && $hasRemove}]
+}
+
+proc kimi22RemoveAction {dialog state unknownCode} {
+  set labels {}
+  set selectedCount 0
+  set selectedIndex -1
+  set selectedLabel ""
+  set removeCount 0
+  set removeIndex -1
+  foreach rawLine [split $dialog "\\n"] {
+    set line [string trim $rawLine]
+    if {$line eq ""} { continue }
+    set selected [regexp {^\u276F[ \\t]*} $line]
+    if {$selected} {
+      regsub {^\u276F[ \\t]*} $line {} label
+      set label [string trim $label]
+    } else {
+      set label $line
+    }
+    set knownAction [expr {
+      [string equal -nocase $label "Cancel"]
+      || [string equal -nocase $label "Remove plugin"]
+    }]
+    if {!$knownAction && $selected} {
+      puts stderr "KIMI_TUI_STATE:$state:unknown"
+      exit $unknownCode
+    }
+    if {!$knownAction} { continue }
+    set index [llength $labels]
+    lappend labels $label
+    if {[string equal -nocase $label "Remove plugin"]} {
+      incr removeCount
+      set removeIndex $index
+    }
+    if {$selected} {
+      incr selectedCount
+      set selectedIndex $index
+      set selectedLabel $label
+    }
+  }
+  if {[llength $labels] != 2 || $removeCount != 1 || $selectedCount != 1} {
+    puts stderr "KIMI_TUI_STATE:$state:unknown"
+    exit $unknownCode
+  }
+  if {[string equal -nocase $selectedLabel "Remove plugin"]} {
+    return selected-remove
+  }
+  if {![string equal -nocase $selectedLabel "Cancel"]} {
+    puts stderr "KIMI_TUI_STATE:$state:unknown"
+    exit $unknownCode
+  }
+  if {$selectedIndex + 1 == $removeIndex} { return move-down }
+  if {$selectedIndex - 1 == $removeIndex} { return move-up }
+  puts stderr "KIMI_TUI_STATE:$state:unknown"
+  exit $unknownCode
+}
+
+proc readKimi22RemoveDialog {prefix state timeoutCode unknownCode eofCode} {
+  global expect_out
+  set dialogBuffer $prefix
+  set cleaned [cleanScreen $dialogBuffer]
+  if {![regexp -nocase {Remove .+ \\(([^()]+)\\)\\?} $cleaned]} {
+    expect {
+      -nocase -re {Remove [^\\r\\n]*\\([^\\r\\n]+\\)\\?} {
+        append dialogBuffer $expect_out(buffer)
+      }
+      timeout { failTimeout $state $timeoutCode $unknownCode }
+      eof { failEof $state $eofCode }
+    }
+    set cleaned [cleanScreen $dialogBuffer]
+  }
+  while {![kimi22RemoveDialogComplete $cleaned]} {
+    expect {
+      -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
+      -nocase -re {(?:Cancel|Remove plugin)[^\\r\\n]*\\r*\\n} {
+        append dialogBuffer $expect_out(buffer)
+      }
+      -re {([^\\r\\n]+\\r*\\n)} {
+        append dialogBuffer $expect_out(buffer)
+      }
+      timeout { failTimeout $state $timeoutCode $unknownCode }
+      eof { failEof $state $eofCode }
+    }
+    set cleaned [cleanScreen $dialogBuffer]
+  }
+  return $cleaned
+}
+
+proc confirmKimi22Remove {} {
+  global expect_out promptPattern removePlugin
+  set dialog [readKimi22RemoveDialog $expect_out(buffer) remove-confirmation 125 127 126]
+  set identity [kimi22RemoveIdentity $dialog]
+  if {$identity eq "" || $identity ne $removePlugin} {
+    puts stderr "KIMI_TUI_STATE:remove-confirmation:unknown"
+    exit 127
+  }
+  set action [kimi22RemoveAction $dialog remove-confirmation 127]
+  if {$action eq "move-down"} {
+    send -- "\\033\\[B"
+  } elseif {$action eq "move-up"} {
+    send -- "\\033\\[A"
+  }
+  if {$action ne "selected-remove"} {
+    set confirmedDialog [readKimi22RemoveDialog "" remove-confirm-selection 125 127 126]
+    set confirmedIdentity [kimi22RemoveIdentity $confirmedDialog]
+    if {$confirmedIdentity eq "" || $confirmedIdentity ne $removePlugin} {
+      puts stderr "KIMI_TUI_STATE:remove-confirm-selection:unknown"
+      exit 127
+    }
+    set confirmedAction [kimi22RemoveAction $confirmedDialog remove-confirm-selection 127]
+    if {$confirmedAction ne "selected-remove"} {
+      puts stderr "KIMI_TUI_STATE:remove-confirm-selection:unknown"
+      exit 127
+    }
+  }
+  send -- "\\033\\[13u"
+  expect {
+    -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
+    -re $promptPattern {}
+    timeout { failTimeout remove-prompt 128 130 }
+    eof { failEof remove-prompt 129 }
+  }
+}
+
+submitCommand "/plugins remove $removePlugin"
+expect {
+  -nocase -re {Confirm remove plugin "([^"\\r\\n]+)"\\?\\r*\\n} {
+    if {$expect_out(1,string) ne $removePlugin} {
+      puts stderr "KIMI_TUI_STATE:remove-confirmation:unknown"
+      exit 127
+    }
+    send -- "\\033\\[B"
+    send -- "\\033\\[13u"
     expect {
       -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
       -re $promptPattern {}
       timeout { failTimeout remove-prompt 128 130 }
       eof { failEof remove-prompt 129 }
     }
+  }
+  -nocase -re {Remove [^\\r\\n]*\\([^\\r\\n]+\\)\\?} {
+    confirmKimi22Remove
   }
   -re $promptPattern {}
   -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
@@ -146909,7 +147057,7 @@ async function runPostReleaseFinish({
   }
   const setupSkill = loaded.config.releaseFinish?.setupSkill;
   const candidates = observations.filter((entry) => entry.installation === "current" && entry.loaded === true && typeof entry.skillFile === "string");
-  const candidateOwners = new Set(candidates.map((entry) => `${entry.plugin}\0${entry.version}\0${entry.skillFile}`));
+  const candidateOwners = new Set(candidates.map((entry) => `${entry.unitId}\0${entry.plugin}\0${entry.version}`));
   const effectiveSetup = updateKeepsFeedback ? feedback.setup : null;
   let setupStep;
   if (!setupSkill) {
