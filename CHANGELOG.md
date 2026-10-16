@@ -1,5 +1,35 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.30 locale=en baseline=sha256:f96989498b14d998fb38751ca6bd2610255761ebb1618018ec2ca362ebe707a5 -->
+## [0.9.30] - 2026-10-16
+
+0.9.30 fixes the private Hub hook's missing release-evidence argument while retaining exact Foundation 0.25.0 dependencies. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- The hook rejects missing or invalid evidence paths before remote access; the authoritative Hub gate validates the original release evidence.
+- Gate failure prevents Git Data API writes. Partial Hub publication is never rolled back or force-pushed, and completed steps are not overwritten. Writes remain bound to the observed branch head through compare-and-swap.
+
+### Changed
+
+- Skill Family Hub remains the unified market; entries are updated via GitHub Git Data API after post-verify validation.
+
+### Fixed
+
+- The private Hub hook forwards the absolute path supplied through `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` to `npm run release:check -- --release-evidence <file>`. The path must name an existing regular file; symbolic links are rejected.
+
+### Upgrade Notes
+
+Before running `postverify`, maintainers set the `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` environment variable to the absolute path of the original Hub evidence descriptor; the existing `envAllowlist` forwards only that key. The descriptor and referenced native records are not copied or rewritten.
+
+A new plan freezes the corrected hook and still requires independent checkpoint approval. Historical plans, approvals and frozen hooks remain unchanged and are not replayed. `ALREADY_CURRENT` still requires the authoritative Hub gate.
+
+Existing Hub users need no configuration migration. The old release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and `release-skill@skill-family-hub`.
+
+This note does not authorize publication or prove real-host business or consumer installation verification. No consumer installation or update is added.
+<!-- release-skill:changelog:end version=0.9.30 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.29 locale=en baseline=sha256:b0f764fb7dc5897a2bc031a06114e766eb3bb2a39fe4778c0c23bc620921bf40 -->
 ## [0.9.29] - 2026-10-16
 

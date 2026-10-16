@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.29"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.30"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "4b1d1fa4db3d1788009a6035816d59dfa1298cba9c5d691ae3aa36e49067d145";
+const __bundleSourceDigest = "52acbaddf4e589b42b49defb03ff5dfa59e0306f37a3ce0e8e3aaa240b9cfba4";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;

@@ -2,43 +2,42 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.29 -->
+<!-- release-skill:release-version: 0.9.30 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.29** (2026-10-16)
+**0.9.30** (2026-10-16)
 
-0.9.29 修复 Qoder 本机更新拒绝 Foundation 0.25.0 冻结清单中合法 ./skills/ 目录的问题。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.30 修复项目私有 Hub 钩子漏传发布证据参数的问题，继续使用精确的 Foundation 0.25.0 依赖。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- skills 路径必须是非空字符串，指向插件内已有目录；安装清单的 name/version/skills 必须匹配本次冻结清单。UPDATED 与 ALREADY_CURRENT 分支均核验实际安装载荷。
-- 冻结快照摘要、身份、Hub 仓库/ref 与条目 source.url/source.sha 校验继续生效。路径缺失、非法、越界或载荷漂移仍会失败，不新增自动初装。
-- 部分发布不回滚、不覆盖已完成步骤、不自动强推；Hub 写入绑定已观察分支头，compare-and-swap 比较后写入。
+- 钩子在访问远端前拒绝缺失或非法的证据路径，证据内容交由 Hub 正式门禁验证。
+- 门禁失败不进行 Git Data API 写入；部分发布不回滚、不覆盖已完成步骤、不自动强推；写入绑定观察到的分支头并比较后写入。
 
 **变更**
 
-- Skill Family Hub 仍是统一市场。发布验证完成后，Hub 条目仍通过 GitHub Git Data API 更新。此机制保持不变，不声称本次已执行。
+- Skill Family Hub 仍是统一市场，验证后经 GitHub Git Data API 更新条目。
 
 **修复**
 
-- 修复0.9.28中路径硬编码问题，该问题导致拒绝Foundation 0.25.0冻结清单中有效的./skills/目录。Qoder插件现从已验证的冻结清单读取skills路径，确保与./adapters/qoder/skills/和./skills/两种布局兼容。
+- 项目私有 Hub 钩子把 `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` 指定的绝对路径传给 `npm run release:check -- --release-evidence <file>`。路径必须指向已有普通文件，不接受符号链接。
 
 **升级说明**
 
-- 现有安装可继续使用原本机收尾入口，但需保持授权。
-- 本说明不构成发布授权，也不代表真实宿主业务已通过验证。
-- 不得据此断言版本已发布；发布状态应以实际计划、批准和执行记录为准。
-- 路径必须为插件内有效的已有目录，且与冻结清单完全一致。
-- 未引入新增参数或配置迁移。
-- 已使用 Skill Family Hub 的用户无需配置迁移。
-- 旧版独立的 `release-skill` 市场已弃用，应移除并改用 `ifoohoo/skill-family-hub` 仓库与 `release-skill@skill-family-hub`。
+维护者在运行 `postverify` 前，将环境变量 `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` 设为原始 Hub 证据描述符的绝对路径；现有 `envAllowlist` 只转发该键。描述符及其引用的原生记录不复制、不改写。
+
+新计划冻结修正的钩子，仍须取得独立检查点批准；历史计划、批准和冻结钩子保持不变，不重放。`ALREADY_CURRENT` 仍须通过 Hub 正式门禁。
+
+已使用 Hub 的用户无需配置迁移。旧版独立的 `release-skill` 市场已弃用，应改用 `ifoohoo/skill-family-hub` 与 `release-skill@skill-family-hub`。
+
+本说明不授权发布，也不证明真实宿主业务或消费者安装验证完成；不新增消费者安装或更新动作。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.29 的能力范围与验证边界见本 README，
+> **当前边界：** v0.9.30 的能力范围与验证边界见本 README，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -54,7 +53,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.29 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.30 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
