@@ -38,11 +38,11 @@ description: "Discoverable entry point for release-skill: dependency and environ
 
 治理诊断只运行 release-skill 自己的只读检查程序，不运行目标 Skill、业务脚本、构建、hook 或发布动作，也不把 `prepare`、`verify`、`release-finish` 当作静态治理入口。用户要求实际接入或发布时，把已有授权带到对应原业务入口；各入口继续执行原有确认、副作用和状态机合同。
 
-## 0.9.31 能力与证据边界
+## 0.9.32 能力与证据边界
 
-0.9.31 修复了 Kimi 2.2.0 的移除确认逻辑与共享环境 setup 归属规则。移除确认页采用 `Remove <displayName> (<id>)?` 格式，包含 Cancel 和 Remove plugin 选项；适配器精确核对插件 ID 与选中项，需移动时须先移动并重新观察选择再确认，已选中 `Remove plugin` 时无需方向键输入，仅在该选项激活时提交移除操作。显示名含 Confirm 或 Sure，或标题分块到达，不再触发旧宽泛正则路径；错误 ID、未知或歧义选择、timeout 或 EOF 均导致失败关闭，不继续安装。
+0.9.32 修复了 Kimi 2.2.0 移除菜单移动后，适配器因等待完整标题而失败的问题。真实终端只重绘变动的菜单行，不重发插件标题，末行也没有换行。适配器在移动后必须先重新观察选中项，确认唯一选中 `Remove plugin` 后才允许提交操作。读取帧前先核实初始精确插件 ID，读完该帧后才发送方向键，再读取完整增量帧并核对唯一选中项，完整标题重绘时仍核对精确 ID。未知、歧义、未移动、帧未完成、timeout、EOF 均导致失败关闭，不继续安装。 移除确认页仍采用 `Remove <displayName> (<id>)?`，包含 Cancel 和 Remove plugin 选项；已选中 `Remove plugin` 时无需方向键。显示名含 Confirm 或 Sure，或标题分块到达，仍核对精确身份，不触发旧宽泛正则路径。
 
-保留 Kimi 0.40.1 的实际确认措辞 `Confirm remove plugin "<id>"?`、括号粘贴与 CSI Enter 输入方式。冻结的安装 URL/ref/sha、安装后 name/version 与载荷核对规则未变。本轮验证为离线 Expect/fake 测试，不构成真实 Kimi 消费者验收。
+保留 Kimi 0.40.1 的实际确认措辞 `Confirm remove plugin "<id>"?`、括号粘贴与 CSI Enter 输入方式。冻结的安装 URL/ref/sha、安装后 name/version 与载荷核对规则未变。 真实 Kimi 2.2.0 已完成确认前的精确身份、移动及选中项观察，随后按 Esc 取消并退出，未执行移除、安装或更新。47 项聚焦测试通过，独立代码审阅无发现；真实消费者的完整更新与加载验收仍待执行。修复面向真实更新流程，提供方升级不扩大宿主授权，也无需重发原领域插件。
 
 同一 `unitId/plugin/version` 的共享环境 setup 按单元、插件、版本归并，Claude/Codex 不同物理 `skillFile` 路径不再视为多个 setup 归属。仅需一个已加载宿主的精确 setup 反馈即可满足共享环境检查要求。各宿主的安装、加载及专属配置仍需分别核实，反馈继续绑定 `host/unit/path/plan/config/root`；真正多插件归属仍需消歧，Kimi 失败或其他宿主失败均导致收尾状态为 FAILED，不改变 `VERIFIED`/`DISTRIBUTED` 发布状态。
 

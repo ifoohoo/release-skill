@@ -1584,7 +1584,43 @@ proc readKimi22RemoveDialog {prefix state timeoutCode unknownCode eofCode} {
     }
     set cleaned [cleanScreen $dialogBuffer]
   }
+  # Consume the initial synchronized frame before sending a selection key.
+  # Otherwise its remaining rows can be mistaken for the selection repaint.
+  if {[string last "\\033\\[?2026h" $dialogBuffer] > [string last "\\033\\[?2026l" $dialogBuffer]} {
+    expect {
+      -exact "\\033\\[?2026l" { append dialogBuffer $expect_out(buffer) }
+      timeout { failTimeout $state $timeoutCode $unknownCode }
+      eof { failEof $state $eofCode }
+    }
+    set cleaned [cleanScreen $dialogBuffer]
+  }
   return $cleaned
+}
+
+proc readKimi22RemoveSelection {} {
+  global expect_out removePlugin
+  expect {
+    -nocase -re {Trust this folder\\?} { unexpectedDirectoryTrust }
+    -nocase -re {Remove [^\\r\\n]*\\([^\\r\\n]+\\)\\?} {
+      set dialog [readKimi22RemoveDialog $expect_out(buffer) remove-confirm-selection 125 127 126]
+      if {[kimi22RemoveIdentity $dialog] ne $removePlugin} {
+        puts stderr "KIMI_TUI_STATE:remove-confirm-selection:unknown"
+        exit 127
+      }
+      return $dialog
+    }
+    -exact "\\033\\[?2026l" {
+      # Kimi 2.2 redraws only the changed menu rows, with no title or final newline.
+      # The initial dialog already bound the plugin; require one complete new frame.
+      if {[string first "\\033\\[?2026h" $expect_out(buffer)] < 0} {
+        puts stderr "KIMI_TUI_STATE:remove-confirm-selection:unknown"
+        exit 127
+      }
+      return [cleanScreen $expect_out(buffer)]
+    }
+    timeout { failTimeout remove-confirm-selection 125 127 }
+    eof { failEof remove-confirm-selection 126 }
+  }
 }
 
 proc confirmKimi22Remove {} {
@@ -1602,9 +1638,9 @@ proc confirmKimi22Remove {} {
     send -- "\\033\\[A"
   }
   if {$action ne "selected-remove"} {
-    set confirmedDialog [readKimi22RemoveDialog "" remove-confirm-selection 125 127 126]
+    set confirmedDialog [readKimi22RemoveSelection]
     set confirmedIdentity [kimi22RemoveIdentity $confirmedDialog]
-    if {$confirmedIdentity eq "" || $confirmedIdentity ne $removePlugin} {
+    if {$confirmedIdentity ne "" && $confirmedIdentity ne $removePlugin} {
       puts stderr "KIMI_TUI_STATE:remove-confirm-selection:unknown"
       exit 127
     }

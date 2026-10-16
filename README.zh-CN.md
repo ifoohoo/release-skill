@@ -2,15 +2,15 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.31 -->
+<!-- release-skill:release-version: 0.9.32 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.31** (2026-10-17)
+**0.9.32** (2026-10-17)
 
-0.9.31 修复 Kimi 移除确认和共享环境 setup 归属，继续使用精确的 Foundation 0.25.0 依赖。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.32 修复 Kimi 2.2.0 移除菜单移动后，适配器因等待完整标题而失败的问题，继续采用精确的 Foundation 0.25.0 依赖。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
@@ -22,21 +22,18 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 
 **修复**
 
-- Kimi 2.2.0：移除确认页使用 `Remove <displayName> (<id>)?`，包含 Cancel 和 Remove plugin 选项。适配器核对精确插件ID与选中项。需移动时先移动并重新观察选择后再确认。已选中 `Remove plugin` 时无需方向键输入，只有该项选中时才提交移除操作。
-- Kimi 2.2.0：显示名含 Confirm 或 Sure，或标题分块到达，不再触发旧宽泛正则路径。错误ID、未知或歧义选择、timeout或EOF均导致失败关闭，不继续安装。
-- Kimi 2.2.0：保留 Kimi 0.40.1 已支持的实际措辞 `Confirm remove plugin "<id>"?`、括号粘贴及 CSI Enter 输入方式。冻结的安装URL/ref/sha、安装后name/version和载荷核对未改变。本轮采用离线 Expect/fake 验证，不构成真实 Kimi 消费者验收。
-- 同一 `unitId/plugin/version` 的共享环境setup按 unitId/plugin/version 归并；Claude/Codex不同物理skillFile路径不再视为多个setup归属。仅需一个已加载宿主的精确setup反馈即可承接共享环境检查。
-- 各宿主安装、加载及专属配置仍分别核实。反馈继续绑定 host/unit/path/plan/config/root；真正多插件归属仍须消歧，Kimi失败或其他宿主失败仍使收尾 FAILED；不改 VERIFIED/DISTRIBUTED 发布状态。
+- 适配 Kimi 2.2.0 在方向键移动后只输出菜单增量重绘、不重发插件标题且最后一行没有换行的行为。适配器在移动后必须重新观察选中项，确认唯一选中 `Remove plugin` 后才允许提交操作。
+- 读取帧前先核实初始精确插件 ID，读完该帧后才发送方向键，再读取完整增量帧并核对唯一选中项，完整标题重绘时仍核对精确 ID。未知、歧义、未移动、帧未完成、timeout、EOF 均导致失败关闭。
 
 **升级说明**
 
-在获取新提供方后，可继续按原冻结计划与已授权宿主范围完成收尾工作，无需重发原领域插件。继续使用原冻结计划及已明确授权的宿主范围，提供方更新不扩大本机操作授权。宿主安装、加载与setup事实需独立核实。本轮离线Expect/fake测试不代表修复仅适用于离线场景；产品意图面向真实宿主。真实Kimi消费者验收未执行，不能声称通过。
+本修复用于真实更新流程，非仅限离线测试。保留 Kimi 0.40.1 实际措辞 `Confirm remove plugin "<id>"?`、括号粘贴与 CSI Enter 输入方式。冻结的安装 URL/ref/sha、安装后 name/version 与载荷核对规则不变。同一 `unitId/plugin/version` 的共享 setup 按单元、插件、版本归并，Claude/Codex 不同物理 `skillFile` 路径不再视为多个 setup 归属，沿用 0.9.31 已有逻辑。各宿主安装、加载及专属配置仍需分别核实，反馈绑定 `host/unit/path/plan/config/root`。失败不改 `VERIFIED`/`DISTRIBUTED` 状态。`Foundation 0.25.0` 精确依赖继续采用。旧版独立的 `release-skill` 市场已弃用，使用 `ifoohoo/skill-family-hub` 与 `release-skill@skill-family-hub`。获取新提供方后可继续原冻结计划，无需重发原领域插件，也不扩大宿主授权。
 
-旧版独立的 `release-skill` 市场已弃用，应改用 `ifoohoo/skill-family-hub` 与 `release-skill@skill-family-hub`。
+真实 Kimi 2.2.0 已完成确认前的精确身份、移动及选中项观察，随后按 Esc 取消并退出，未执行移除、安装或更新。47 项聚焦测试通过，独立代码审阅无发现；真实消费者的完整更新与加载验收仍待执行。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.31 的能力范围与验证边界见本 README，
+> **当前边界：** v0.9.32 的能力范围与验证边界见本 README，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -52,7 +49,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.31 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.32 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**

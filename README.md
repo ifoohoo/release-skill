@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.31 -->
+<!-- release-skill:release-version: 0.9.32 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,9 +14,9 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.31** (2026-10-17)
+**0.9.32** (2026-10-17)
 
-0.9.31 fixes Kimi removal confirmation and shared setup ownership while retaining exact Foundation 0.25.0 dependencies. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.32 fixes the adapter failure caused by waiting for a complete title after selection movement in the Kimi 2.2.0 removal menu while retaining exact Foundation 0.25.0 dependencies. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
@@ -28,21 +28,18 @@ report stays in a temporary session directory.
 
 **Fixed**
 
-- Kimi 2.2.0: The remove confirmation page now uses `Remove <displayName> (<id>)?` with `Cancel` and `Remove plugin` options. The adapter verifies the exact plugin ID and current selection. When selection movement is required, move first and re-observe before confirming. No direction key input is needed when `Remove plugin` is already selected. Removal is submitted only while that option is selected.
-- Kimi 2.2.0: Display names containing `Confirm` or `Sure`, or titles arriving in chunks, no longer trigger the old broad regex path. Invalid ID, unknown or ambiguous selection, timeout, or EOF stop the update without proceeding to installation.
-- The adapter retains the existing `Confirm remove plugin "<id>"?` wording, bracketed paste, and CSI Enter input method from Kimi 0.40.1. Frozen install URL/ref/sha, post-install name/version, and payload verification remain unchanged. Offline Expect/fake validation only; no real Kimi consumer installation or update performed.
-- Shared environment setup for the same `unitId/plugin/version` is now merged. Different physical `skillFile` paths under Claude/Codex no longer count as separate setup owners. Only one precise setup feedback from a loaded host is required to satisfy shared environment checks.
-- Host-specific installation, loading, and configuration still require separate verification. Feedback continues to bind `host/unit/path/plan/config/root`. True multiple plugin ownership still requires disambiguation. Failure in any host (Kimi or others) results in `FAILED` status; `VERIFIED`/`DISTRIBUTED` release state is unchanged.
+- Handle Kimi 2.2.0 menu redraws that omit the plugin title and final newline after selection movement. The adapter must re-observe the selection after movement and confirm unique selection of `Remove plugin` before proceeding.
+- Initial exact plugin ID is verified before frame reading. Direction key is sent only after reading the frame, followed by a full incremental frame to confirm unique selection. Full title redraw still validates exact ID. Unknown, ambiguous, un-moved, incomplete frame, timeout, or EOF all stop the update before installation.
 
 **Upgrade Notes**
 
-Existing release plans can continue to be finalized after obtaining the new provider. No need to re-publish plugins from the original domain. Use the existing frozen plan within the explicitly authorized host scope; the provider update does not authorize additional host operations. Host installation, loading, and setup facts must be verified independently. This round’s offline Expect/fake testing does not imply the fix is limited to offline use; the product is intended for real hosts. Real Kimi consumer acceptance has not been performed, and thus cannot be claimed as passed.
+This fix applies to real update workflows, not limited to offline testing. Retain Kimi 0.40.1’s actual prompt `Confirm remove plugin "<id>"?`, bracketed paste, and CSI Enter input method. Frozen install URL/ref/sha, post-install name/version, and payload verification rules unchanged. Shared setup for same `unitId/plugin/version` is merged by unit, plugin, and version; different physical `skillFile` paths in Claude/Codex no longer count as separate setups, as per 0.9.31. Each host’s installation, loading, and configuration must still be verified separately, with feedback bound to `host/unit/path/plan/config/root`. Failure does not alter `VERIFIED`/`DISTRIBUTED` state. `Foundation 0.25.0` exact dependencies remain in use. The old release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and `release-skill@skill-family-hub`. Provider upgrades do not republish domain plugins or expand host authorization.
 
-The old release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and `release-skill@skill-family-hub`.
+Real Kimi 2.2.0 was observed through exact identity checks, selection movement, and selection verification, then canceled with Esc and exited without removal, installation, or update. All 47 focused tests passed, and independent code review found no issues. Full real-consumer update and loading acceptance remains pending.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.31: this README records capabilities and verification boundaries;
+> **Current boundary:** v0.9.32: this README records capabilities and verification boundaries;
 > it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -66,7 +63,7 @@ The old release-skill standalone marketplace is deprecated; use `ifoohoo/skill-f
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; for v0.9.31,
+> **Production path verified since the v0.1.1 milestone; for v0.9.32,
 > publication, consumer-installation verification, and independent acceptance
 > require version-specific release records and verification results.**
 > The npm-installed CLI is the supported user entry. Source checkout
