@@ -14,7 +14,7 @@ description: "首次接入 release-skill：只读发现发布单元与个性化�
 
 ## 适用场景
 
-项目尚无 `.release-skill/project.yaml`，或用户要求初始化、接入、校准发布规则时使用。配置已存在时只审计并路由到 `release-assess`，不得重新生成。
+项目尚未存在 `.release-skill/project.yaml`，或需初始化、接入、校准发布规则时使用。已有配置只审计并转交至 `release-assess`，不得重新生成。
 
 ## 硬边界
 
@@ -26,6 +26,19 @@ description: "首次接入 release-skill：只读发现发布单元与个性化�
   不得自动写入 `publicFiles` 或 `requiredPublicFiles`。
 - 写入只允许 create-once（仅创建一次），必须同时提供 answers 与精确 `setupDigest`；无安全原生写入能力时失败关闭。
 - Agent 的多次 shell 调用彼此独立；只能用首轮打印的会话目录绝对路径续接，不得假设变量仍存在。
+
+## 工程材料角色
+
+正式不等于公开。首次只对已确认材料向现有字段提案，不新造配置键，不自动写入。`delivery.include/exclude` 选择宿主，不能决定文件是否进入发布包。
+
+| 材料角色 | 现有字段 | 首次接入约束 |
+|---|---|---|
+| 正式可公开资源 | `releaseUnits[].publicFiles`（`sourceScope/from/to/mode`） | `from` 为仓根相对输入，`to` 为快照目标；仅提案已确认映射，不得自动写入 |
+| 必需运行文件 | `releaseUnits[].requiredPublicFiles` | 快照目标路径须被同一单元 `publicFiles[].to` 覆盖。接入评估按目标找 `from` 再查仓根输入。排除不得拿掉这些资源 |
+| 私有正式设计 | 不列入 `publicFiles`；挡住时用 `policy.forbiddenPaths` | `forbiddenPaths` 按快照目标配置，不得将源目录名误作重命名后的禁路径 |
+| 非正式日志与运行记录 | 不列入 `publicFiles`；使用 `policy.forbiddenPaths` / `forbiddenContentPatterns` | 不进入公开快照或发布包 |
+
+Foundation 建议不构成发布批准。冲突必须失败关闭。分类文字无法机械识别全部私有内容，未配置的材料不会因文字说明自动排除。
 
 ## 首次接入
 
@@ -115,7 +128,7 @@ node "$RELEASE_SKILL_ENTRY" setup --assess-adoption --root "$PROJECT" --json
 - findings 分四类：`mandatory-gap`（必选缺口，阻断接入）、`satisfied`（已满足）、`optional-suggestion`（可选建议）、`not-applicable`（不适用）；每条带 `code`、`fieldPath`、`evidence` 与 `action`。
 - `gateSuggestions` 只列可执行且尚未登记的配置草案。无法安全形成草案的脚本保留在 `gateDiagnostics`，不计入建议数量，也不把状态改成 `ADOPTED_WITH_SUGGESTIONS`。
 - 建议边界：hook 缓存候选只提示 `cacheInputs` 必须由项目自己声明并证明完整，评估不代猜、不代写；hook 耗时只从描述匹配且生产者可信的 started/completed 事件对推导，`timeoutMs` 不是实际成本；任何建议都不改变接入状态。
-- 必选缺口存在时先修复并重跑 `setup --assess-adoption`，再进入发布流程。
+- 必选缺口存在时须先修复并重跑 `setup --assess-adoption`，再进入发布流程。`REQUIRED_PUBLIC_FILE_MISSING` 表示快照目标对应的仓根相对 `from` 不存在；`LICENSE_MISSING` 不能代替。该码只属于本入口；prepare 用自身原生错误。
 - 覆盖请求在配置缺失或无效时也要出现在报告里，不得把未知或接线不足写成已完成。专业结论使用最终 `status`。
 
 ## publisher 字段与个人片段泄漏策略

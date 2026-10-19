@@ -46,6 +46,8 @@ ship state；hook approval 缺失、错误或过期时，在 hook 执行前失�
 
 **attestation 证明力边界**: `attest` 命令记录的旧计划兼容人工证明（`humanConfirmed: true` → `PASSED_MANUAL`）是本地自声明收据，不是签名见证：`--actor` 仅做非空字符串校验，无外部签名或身份核验，任何能运行 CLI 的进程都能自称任意 actor；伪造收据需写 `.release-skill` authority 目录，与直接改写收据文件属同一信任边界。因此旧兼容路径的人工证明只用于旧冻结计划收尾，不构成独立可审计的人工见证。新计划的 Kimi/CodeBuddy 安装一律走 `manualFollowUps`（`verifiedBySystem: false`），不参与 `VERIFIED` 终态判定。
 
+本阶段核对已发布渠道的实际载荷。漏失必需文件、禁路径误入、npm 实际遗漏保持失败。`requiredPublicFiles` 是快照目标路径；`forbiddenPaths` 按快照目标核对，不能把源目录名直接当作重命名后的禁路径。未使用渠道不得写成已完成。`VERIFIED`、`PUBLISHED`、配置通过与 `PREPARED` 分别记录，不重写历史结果。分类文字不会机械识别全部私有内容。
+
 **阶段通过规则**: 只有 CLI exit code 0 和结构化状态码 `VERIFIED` 才是完整终态。
 
 **源 run 要求**: `--run` 必需；源 run 的所有 checkpoint 必须为 succeeded 或 skipped。

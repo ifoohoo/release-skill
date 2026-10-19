@@ -27,6 +27,17 @@ description: "Read-only release governance diagnosis: adoption, project readines
 
 检查请求结束于结构化结果、实际检查范围、未覆盖项和下一入口，不自动继续 prepare。
 
+已配置项目用本技能做增量诊断，不调用 `setup --write` 覆盖。Foundation 建议不是发布批准，也不能替代 `requiredPublicFiles` 或禁路径检查。
+
+## 工程材料角色
+
+只读诊断按现有字段核对四类材料。字段坐标如下：
+
+- 正式可公开资源：`releaseUnits[].publicFiles`。`from` 是仓根相对输入路径，`to` 是冻结快照目标路径。接入评估入口 `setup --assess-adoption` 检查 `from` 是否存在，缺失记为 `PUBLIC_FILE_MISSING`。普通 `assess` 与 `verify-records` 不使用该接入评估码。
+- 必需运行文件：`releaseUnits[].requiredPublicFiles` 是字符串快照目标路径，必须被同一单元 `publicFiles[].to` 精确覆盖。接入评估按 `to` 找到对应 `from`，再检查仓根相对输入是否存在；缺失记为 `REQUIRED_PUBLIC_FILE_MISSING`。该码只属于接入评估。后续 `prepare` 仍使用自身原生错误（例如 `PUBLIC_FILE_MISSING`、`CONFIG_INVALID`），不以接入评估码代替。文档完整性缺口（如 `LICENSE_MISSING`）不能代替该角色。覆盖失败由配置加载以 `CONFIG_INVALID` 失败关闭。
+- 私有正式设计、非正式日志与运行记录：不要写入 `publicFiles`。需要挡住时，用 `policy.forbiddenPaths` / `forbiddenContentPatterns`。`forbiddenPaths` 按快照目标路径配置，不能把源目录名直接当作任意重命名后的禁路径。分类文字本身不会机械识别全部私有内容；未列入映射或禁路径的材料，不因这段说明自动排除。后续 prepare 扫描命中禁路径或禁内容时拒绝。
+- `delivery.include/exclude` 只描述宿主选择，不能当作文件包含或排除。排除策略不得覆盖运行必需资源。
+
 ## 只读边界
 
 治理诊断只运行 release-skill 自身的只读检查程序，不运行目标 Skill、业务脚本或构建，不执行目标 hook，也不调用 `prepare`、`verify` 或 `release-finish`。请求中即使出现 `smokeBin`、`invoke-setup` 或生产发布线索，也不能据此启动对应动作；这些属于另一个产品动作场景。

@@ -1,5 +1,31 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.33 locale=en baseline=sha256:af9d9faf59d67db851b0161430803a4e2ab6752f9979f83bd0a01b0df17bbeed -->
+## [0.9.33] - 2026-10-20
+
+0.9.33 maps four engineering material roles onto existing release-project fields, distinguishes first-time setup from incremental wiring, and checks payload channels through those fields while retaining exact Foundation 0.25.0 dependencies. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- This round does not change remote-write authorization. Existing confirmation boundaries and frozen install URL/ref/sha remain in force. Hub gate failure prevents GitHub Git Data API write. Writes bind the observed branch head through `compare-and-swap`. Partial Hub publication is never rolled back or force-pushed; completed steps are not overwritten. Independent checkpoint approval, no replay of historical frozen plans, and `ALREADY_CURRENT` remain enforced.
+
+### Changed
+
+- Public formal materials are written to `publicFiles` (`sourceScope` / `from` / `to` / `mode`). Runtime-required resources are written to `requiredPublicFiles` and must be covered exactly by the same unit's `publicFiles[].to`. Private formal materials and informal runtime materials are omitted from `publicFiles`; when they must be blocked, use `forbiddenPaths` / `forbiddenContentPatterns`. Formal does not mean public. Whether a formal artifact enters the public snapshot is decided by whether it is listed in `publicFiles`. npm is a payload channel. `package.json` `files` and entry closure apply together with the public map. `delivery.include` / `delivery.exclude` select hosts and are not file include or exclude rules. Exclusion must not drop required resources. Conflicting configuration fails closed.
+- First-time wiring uses `release-setup`. An existing `.release-skill/project.yaml` returns `ALREADY_CONFIGURED` / `CONFIG_EXISTS` and is not overwritten. Incremental changes are diagnosed by `release-assess` and handled by the existing `release-config` skill; `release-config` is not a new CLI. Route first, then run `prepare --workflow config` only when the actual workflow is `config-only`; `full-happy-end` or mixed changes follow the ordinary full path. Do not unconditionally trigger `prepare --workflow config`.
+- Skill guidance for setup, assess, config, prepare, and verify now describes these material roles through the existing fields. `REQUIRED_PUBLIC_FILE_MISSING` belongs only to `setup --assess-adoption`. Ordinary `assess` and `verify-records` do not use that code. prepare keeps its native errors such as `PUBLIC_FILE_MISSING` and `CONFIG_INVALID`. `LICENSE_MISSING` does not substitute for required runtime resources. Foundation suggestions cannot serve as publication approval.
+- Skill Family Hub remains the unified market. GitHub Git Data API integration continues with `compare-and-swap` write semantics; no automatic rollback or overwrite of completed steps. This is the existing mechanism, not a new Hub implementation in this version, and it is not evidence that publication has completed.
+
+### Fixed
+
+- On `setup --assess-adoption`, adoption assessment locates the `publicFiles[].to` that covers each `requiredPublicFiles` snapshot target, then checks that the repository-relative `from` exists. Absence is recorded as `REQUIRED_PUBLIC_FILE_MISSING`. That code does not enter ordinary `assess`, `verify-records`, or prepare.
+
+### Upgrade Notes
+
+Keep exact Foundation 0.25.0 dependencies; do not upgrade because a sibling workspace is newer. Blank projects use `release-setup`. Configured projects keep their legal fields and use `release-assess` / `release-config` for increments. Route first; do not unconditionally run `prepare --workflow config`. A forbidden-path-only `config-only` increment may finish offline non-production prepare as `PREPARED` with `workflowDecision` `indeterminable` / `publish-needed`; that result is legal. npm is a payload channel; a missing entry fails closed with `GATE_FAILED` / `npm-entry-closure` / `entry_missing`. The old release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and `release-skill@skill-family-hub`.
+<!-- release-skill:changelog:end version=0.9.33 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.32 locale=en baseline=sha256:760080f3cd309b1d75cc9f41fe29c9ac5dc80f228f9946db9e6d0cf303954f42 -->
 ## [0.9.32] - 2026-10-17
 

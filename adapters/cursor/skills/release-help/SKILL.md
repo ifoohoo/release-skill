@@ -38,15 +38,26 @@ description: "Discoverable entry point for release-skill: dependency and environ
 
 治理诊断只运行 release-skill 自己的只读检查程序，不运行目标 Skill、业务脚本、构建、hook 或发布动作，也不把 `prepare`、`verify`、`release-finish` 当作静态治理入口。用户要求实际接入或发布时，把已有授权带到对应原业务入口；各入口继续执行原有确认、副作用和状态机合同。
 
-## 0.9.32 能力与证据边界
+## 0.9.33 能力与证据边界
 
-0.9.32 修复了 Kimi 2.2.0 移除菜单移动后，适配器因等待完整标题而失败的问题。真实终端只重绘变动的菜单行，不重发插件标题，末行也没有换行。适配器在移动后必须先重新观察选中项，确认唯一选中 `Remove plugin` 后才允许提交操作。读取帧前先核实初始精确插件 ID，读完该帧后才发送方向键，再读取完整增量帧并核对唯一选中项，完整标题重绘时仍核对精确 ID。未知、歧义、未移动、帧未完成、timeout、EOF 均导致失败关闭，不继续安装。 移除确认页仍采用 `Remove <displayName> (<id>)?`，包含 Cancel 和 Remove plugin 选项；已选中 `Remove plugin` 时无需方向键。显示名含 Confirm 或 Sure，或标题分块到达，仍核对精确身份，不触发旧宽泛正则路径。
+四类工程材料接到现有 `release-project` 字段。公开正式材料写入 `publicFiles`（`sourceScope` / `from` / `to` / `mode`）。运行必需资源写入 `requiredPublicFiles`，必须被同一单元 `publicFiles[].to` 精确覆盖。私有正式材料与非正式运行材料不列入 `publicFiles`，需要挡住时使用 `forbiddenPaths` / `forbiddenContentPatterns`。正式不等于公开。是否进入公开快照由 `publicFiles` 是否列出决定。npm 是载荷渠道。`package.json` 的 `files` 与入口闭包和公开映射同时约束。`delivery.include` / `delivery.exclude` 只选择宿主，不是文件包含或排除。排除不得拿掉运行必需资源。互相冲突的配置必须失败关闭。
 
-保留 Kimi 0.40.1 的实际确认措辞 `Confirm remove plugin "<id>"?`、括号粘贴与 CSI Enter 输入方式。冻结的安装 URL/ref/sha、安装后 name/version 与载荷核对规则未变。 真实 Kimi 2.2.0 已完成确认前的精确身份、移动及选中项观察，随后按 Esc 取消并退出，未执行移除、安装或更新。47 项聚焦测试通过，独立代码审阅无发现；真实消费者的完整更新与加载验收仍待执行。修复面向真实更新流程，提供方升级不扩大宿主授权，也无需重发原领域插件。
+首次接线使用 `release-setup`。已有 `.release-skill/project.yaml` 返回 `ALREADY_CONFIGURED` / `CONFIG_EXISTS`，不覆盖。存量增量由 `release-assess` 诊断，再由已有 `release-config` Skill 处理。`release-config` 不是新增 CLI。必须先 `route`：实际为 `config-only` 才执行 `prepare --workflow config`；`full-happy-end` 或混合走普通 full。不得无条件触发 `prepare --workflow config`。
+
+`REQUIRED_PUBLIC_FILE_MISSING` 只属于 `setup --assess-adoption`。接入评估按 `requiredPublicFiles` 的快照目标找到对应 `publicFiles[].to`，再检查仓根相对 `from` 是否存在；缺失记该码。普通 `assess` 与 `verify-records` 不使用该码。`prepare` 仍使用自身原生错误，例如 `PUBLIC_FILE_MISSING`、`CONFIG_INVALID`。`LICENSE_MISSING` 不能代替运行必需资源。Foundation 建议不能作为发布批准。
+
+Skill Family Hub 保持统一市场。GitHub Git Data API 机制延续，写入采用 `compare-and-swap` 语义；不自动回滚或覆盖已完成步骤。这是已有机制，不是本轮新实现的 Hub，也不表示已经完成发布。本轮未变更远端写入授权。确认边界、冻结安装 URL/ref/sha、安装后 name/version 与载荷核对规则仍有效。Hub 门禁失败将阻止 GitHub Git Data API 写入。写入绑定已观察的分支头并比较后写入；部分发布不回滚、不覆盖已完成步骤、不自动强推。独立检查点批准、历史冻结计划不重放、`ALREADY_CURRENT` 仍强制执行。
+
+继续采用 Foundation 0.25.0 精确依赖，不能因为邻仓版本较新就升级。空白项目走 `release-setup`；已有配置保留合法字段，用 `release-assess` / `release-config` 做增量。仅禁路径一类的 `config-only` 增量，离线非生产 `prepare` 可为 `PREPARED`，`workflowDecision` 为 `indeterminable` / `publish-needed`，这是合法结果。npm 入口缺失时失败关闭，错误为 `GATE_FAILED` / `npm-entry-closure` / `entry_missing`。旧版独立的 `release-skill` 市场已弃用，使用 `ifoohoo/skill-family-hub` 与 `release-skill@skill-family-hub`。
+
+**0.9.32 历史事实**  
+Kimi 2.2.0 移除菜单移动后，真实终端只重绘变动的菜单行，不重发插件标题，末行也没有换行；适配器曾因等待完整标题失败。适配器在移动后必须先重新观察选中项，确认唯一选中 `Remove plugin` 后才允许提交操作。读取帧前先核实初始精确插件 ID，读完该帧后才发送方向键，再读取完整增量帧并核对唯一选中项，完整标题重绘时仍核对精确 ID。未知、歧义、未移动、帧未完成、timeout、EOF 均导致失败关闭，不继续安装。移除确认页仍采用 `Remove <displayName> (<id>)?`，包含 Cancel 和 Remove plugin 选项；已选中 `Remove plugin` 时无需方向键。显示名含 Confirm 或 Sure，或标题分块到达，仍核对精确身份，不触发旧宽泛正则路径。保留 Kimi 0.40.1 实际确认措辞 `Confirm remove plugin "<id>"?`、括号粘贴与 CSI Enter 输入方式。该修复面向真实更新流程，提供方升级不扩大宿主授权，也无需重发原领域插件。真实 Kimi 2.2.0 已完成确认前的精确身份、移动及选中项观察，随后按 Esc 取消并退出，未执行移除、安装或更新。47 项聚焦测试通过，独立代码审阅无发现；真实消费者的完整更新与加载验收仍待执行。
 
 同一 `unitId/plugin/version` 的共享环境 setup 按单元、插件、版本归并，Claude/Codex 不同物理 `skillFile` 路径不再视为多个 setup 归属。仅需一个已加载宿主的精确 setup 反馈即可满足共享环境检查要求。各宿主的安装、加载及专属配置仍需分别核实，反馈继续绑定 `host/unit/path/plan/config/root`；真正多插件归属仍需消歧，Kimi 失败或其他宿主失败均导致收尾状态为 FAILED，不改变 `VERIFIED`/`DISTRIBUTED` 发布状态。
 
-本版保留 Foundation 0.25.0 精确依赖、可选宿主覆盖诊断输入 `--host-coverage <file>` 与 `--observe-hosts`、Codex 0.154.0 对 11 份真实生成 Skill 的原字节静态检查能力。静态检查不证明安装、会话选择或业务执行通过，批准、发布和验证状态以对应计划、批准及执行记录为准。Qoder 本机更新路径处理维持既有能力，支持 `./adapters/qoder/skills/` 与 `./skills/` 两种布局，仍核对安装 name/version/skills、路径包含性与实际载荷。私有 Hub 的 `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` 环境变量继续要求原始描述符指向的已有普通文件绝对路径（拒绝符号链接），交由 `npm run release:check -- --release-evidence <file>` 验证。实际版本能力不能等同于发布状态或真实宿主验收。
+可选宿主覆盖诊断输入 `--host-coverage <file>` 与 `--observe-hosts`、Codex 0.154.0 对 11 份真实生成 Skill 的原字节静态检查能力未变。静态检查不证明安装、会话选择或业务执行通过，批准、发布和验证状态以对应计划、批准及执行记录为准。
+
+Qoder 本机更新路径处理维持既有能力，支持 `./adapters/qoder/skills/` 与 `./skills/` 两种布局，仍核对安装 name/version/skills、路径包含性与实际载荷。私有 Hub 的 `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` 环境变量继续要求原始描述符指向的已有普通文件绝对路径（拒绝符号链接），交由 `npm run release:check -- --release-evidence <file>` 验证。
 
 在冻结前，`prepare` 或新建 `ship` 状态时可重复传入 `--unit <id>`；未传入则默认选择全部单元。延期单元不进入发布计划，亦不获得发布状态。完整配置、生成物新鲜度检查及顶层 Hook 仍作用于全项目范围。`publicSourceAuthorityReceipt` 的 coordinator 与全部 subjects 必须共同选择。
 
@@ -55,6 +66,8 @@ description: "Discoverable entry point for release-skill: dependency and environ
 每个单元必须声明 `previousPublicBaseline`：只有确认没有前序公开版本时，才使用 `none`；否则必须提供 `bound`，并包含 `repo/ref/commit` 信息。`none` 不绕过 publish 阶段的唯一性预检。
 
 Hook 缓存 v2 仅复用绝对路径，或已通过真实 cwd 核验的 cwd-relative 可执行文件身份；若依赖裸 PATH、PATHEXT、Windows 环境或观察不可用，将触发冷执行并失败关闭。稳定隔离安装树仅在宿主命令退出、目录隔离且扫描期间无并发写入时记录；附加链接仅记录，不跟随；声明载荷中出现 symlink 将导致失败关闭。
+
+实际版本能力不能等同于发布状态或真实宿主验收。
 
 ## 最短路径
 

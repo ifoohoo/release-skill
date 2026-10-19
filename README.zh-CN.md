@@ -2,38 +2,38 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.32 -->
+<!-- release-skill:release-version: 0.9.33 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.32** (2026-10-17)
+**0.9.33** (2026-10-20)
 
-0.9.32 修复 Kimi 2.2.0 移除菜单移动后，适配器因等待完整标题而失败的问题，继续采用精确的 Foundation 0.25.0 依赖。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.33 将四类工程材料接入现有 `release-project` 字段，区分首次接线与存量增量，并依据现有字段核对载荷渠道，继续采用精确的 Foundation 0.25.0 依赖。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- 保持严格确认边界：移除前必须精确核对插件ID与选择。冻结的安装URL/ref/sha与安装后载荷验证规则未变。Hub门禁失败将阻止GitHub Git Data API写入。写入采用 `compare-and-swap`，绑定已观察的分支头并比较后写入；部分发布不回滚、不覆盖已完成步骤、不自动强推。现有 `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` 环境变量仍须指定已有普通文件的绝对路径（拒绝符号链接），交由 `npm run release:check -- --release-evidence <file>` 验证。独立检查点批准、历史冻结计划不重放、ALREADY_CURRENT 门禁仍强制执行。
+- 本轮未变更远端写入授权。确认边界、冻结安装 URL/ref/sha 仍有效。Hub 门禁失败将阻止 GitHub Git Data API 写入。写入采用 `compare-and-swap`，绑定已观察的分支头并比较后写入；部分发布不回滚、不覆盖已完成步骤、不自动强推。独立检查点批准、历史冻结计划不重放、`ALREADY_CURRENT` 门禁仍强制执行。
 
 **变更**
 
-- Skill Family Hub 保持统一市场。GitHub Git Data API 机制延续，写入采用 compare-and-swap 语义；不自动回滚或覆盖已完成步骤。
+- 公开正式材料写入 `publicFiles`（字段合同 `sourceScope` / `from` / `to` / `mode`）；运行必需资源写入 `requiredPublicFiles`，必须被同一单元 `publicFiles[].to` 精确覆盖；私有正式材料与非正式运行材料不列入 `publicFiles`，需要挡住时使用 `forbiddenPaths` / `forbiddenContentPatterns`。正式不等于公开。是否进入公开快照由 `publicFiles` 是否列出决定。npm 是载荷渠道。`package.json` 的 `files` 与入口闭包和公开映射同时约束。`delivery.include` / `delivery.exclude` 只选择宿主，不是文件包含或排除。排除不得拿掉运行必需资源。互相冲突的配置必须失败关闭。
+- 首次接线使用 `release-setup`。目录中已有 `.release-skill/project.yaml` 时返回 `ALREADY_CONFIGURED` / `CONFIG_EXISTS`，不覆盖原配置。存量增量由 `release-assess` 诊断，再由已有 `release-config` Skill 处理。`release-config` 不是新增 CLI。执行时必须先 `route`：实际工作流为 `config-only` 才执行 `prepare --workflow config`；`full-happy-end` 或混合变更走普通 full。不得无条件触发 `prepare --workflow config`。
+- setup、assess、config、prepare、verify 的技能说明改为按现有字段描述上述材料角色。`REQUIRED_PUBLIC_FILE_MISSING` 只属于 `setup --assess-adoption`。普通 `assess` 与 `verify-records` 不使用该码。`prepare` 仍使用自身原生错误，例如 `PUBLIC_FILE_MISSING`、`CONFIG_INVALID`。`LICENSE_MISSING` 不能代替运行必需资源。Foundation 建议不能作为发布批准。
+- Skill Family Hub 保持统一市场。GitHub Git Data API 机制延续，写入采用 `compare-and-swap` 语义；不自动回滚或覆盖已完成步骤。这是已有机制，不是本轮新实现的 Hub，也不表示已经完成发布。
 
 **修复**
 
-- 适配 Kimi 2.2.0 在方向键移动后只输出菜单增量重绘、不重发插件标题且最后一行没有换行的行为。适配器在移动后必须重新观察选中项，确认唯一选中 `Remove plugin` 后才允许提交操作。
-- 读取帧前先核实初始精确插件 ID，读完该帧后才发送方向键，再读取完整增量帧并核对唯一选中项，完整标题重绘时仍核对精确 ID。未知、歧义、未移动、帧未完成、timeout、EOF 均导致失败关闭。
+- 接入评估在 `setup --assess-adoption` 中，按 `requiredPublicFiles` 的快照目标找到对应 `publicFiles[].to`，再检查仓根相对 `from` 是否存在；缺失时记为 `REQUIRED_PUBLIC_FILE_MISSING`。该码不进入普通 `assess`、`verify-records` 或 `prepare`。
 
 **升级说明**
 
-本修复用于真实更新流程，非仅限离线测试。保留 Kimi 0.40.1 实际措辞 `Confirm remove plugin "<id>"?`、括号粘贴与 CSI Enter 输入方式。冻结的安装 URL/ref/sha、安装后 name/version 与载荷核对规则不变。同一 `unitId/plugin/version` 的共享 setup 按单元、插件、版本归并，Claude/Codex 不同物理 `skillFile` 路径不再视为多个 setup 归属，沿用 0.9.31 已有逻辑。各宿主安装、加载及专属配置仍需分别核实，反馈绑定 `host/unit/path/plan/config/root`。失败不改 `VERIFIED`/`DISTRIBUTED` 状态。`Foundation 0.25.0` 精确依赖继续采用。旧版独立的 `release-skill` 市场已弃用，使用 `ifoohoo/skill-family-hub` 与 `release-skill@skill-family-hub`。获取新提供方后可继续原冻结计划，无需重发原领域插件，也不扩大宿主授权。
-
-真实 Kimi 2.2.0 已完成确认前的精确身份、移动及选中项观察，随后按 Esc 取消并退出，未执行移除、安装或更新。47 项聚焦测试通过，独立代码审阅无发现；真实消费者的完整更新与加载验收仍待执行。
+继续采用 Foundation 0.25.0 精确依赖，不能因为邻仓版本较新就升级。空白项目走 `release-setup`；已有配置保留合法字段，用 `release-assess` / `release-config` 做增量。先 `route`，不要无条件执行 `prepare --workflow config`。仅禁路径一类的 `config-only` 增量，离线非生产 `prepare` 可为 `PREPARED`，`workflowDecision` 为 `indeterminable` / `publish-needed`，这是合法结果。npm 是载荷渠道，入口缺失时失败关闭，错误为 `GATE_FAILED` / `npm-entry-closure` / `entry_missing`。旧版独立的 `release-skill` 市场已弃用，使用 `ifoohoo/skill-family-hub` 与 `release-skill@skill-family-hub`。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.32 的能力范围与验证边界见本 README，
+> **当前边界：** v0.9.33 的能力范围与验证边界见本 README，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -49,7 +49,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.32 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.33 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**

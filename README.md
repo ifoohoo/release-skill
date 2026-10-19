@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.32 -->
+<!-- release-skill:release-version: 0.9.33 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,32 +14,32 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.32** (2026-10-17)
+**0.9.33** (2026-10-20)
 
-0.9.32 fixes the adapter failure caused by waiting for a complete title after selection movement in the Kimi 2.2.0 removal menu while retaining exact Foundation 0.25.0 dependencies. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.33 maps four engineering material roles onto existing release-project fields, distinguishes first-time setup from incremental wiring, and checks payload channels through those fields while retaining exact Foundation 0.25.0 dependencies. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- Maintains strict confirmation boundaries: exact plugin ID and selection must be verified before removal. No changes to frozen install URL/ref/sha or post-install payload validation. Hub gate failure prevents GitHub Git Data API write. Writes bind the observed branch head through `compare-and-swap`. Partial Hub publication is never rolled back or force-pushed; completed steps are not overwritten. Existing `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` environment variable continues to require an existing regular file at an absolute path (not a symlink), validated via `npm run release:check -- --release-evidence <file>`. Independent checkpoint approval, no replay of historical frozen plans, and `ALREADY_CURRENT` gate remain enforced.
+- This round does not change remote-write authorization. Existing confirmation boundaries and frozen install URL/ref/sha remain in force. Hub gate failure prevents GitHub Git Data API write. Writes bind the observed branch head through `compare-and-swap`. Partial Hub publication is never rolled back or force-pushed; completed steps are not overwritten. Independent checkpoint approval, no replay of historical frozen plans, and `ALREADY_CURRENT` remain enforced.
 
 **Changed**
 
-- Skill Family Hub remains the unified market. GitHub Git Data API integration continues with `compare-and-swap` write semantics; no automatic rollback or overwrite of completed steps.
+- Public formal materials are written to `publicFiles` (`sourceScope` / `from` / `to` / `mode`). Runtime-required resources are written to `requiredPublicFiles` and must be covered exactly by the same unit's `publicFiles[].to`. Private formal materials and informal runtime materials are omitted from `publicFiles`; when they must be blocked, use `forbiddenPaths` / `forbiddenContentPatterns`. Formal does not mean public. Whether a formal artifact enters the public snapshot is decided by whether it is listed in `publicFiles`. npm is a payload channel. `package.json` `files` and entry closure apply together with the public map. `delivery.include` / `delivery.exclude` select hosts and are not file include or exclude rules. Exclusion must not drop required resources. Conflicting configuration fails closed.
+- First-time wiring uses `release-setup`. An existing `.release-skill/project.yaml` returns `ALREADY_CONFIGURED` / `CONFIG_EXISTS` and is not overwritten. Incremental changes are diagnosed by `release-assess` and handled by the existing `release-config` skill; `release-config` is not a new CLI. Route first, then run `prepare --workflow config` only when the actual workflow is `config-only`; `full-happy-end` or mixed changes follow the ordinary full path. Do not unconditionally trigger `prepare --workflow config`.
+- Skill guidance for setup, assess, config, prepare, and verify now describes these material roles through the existing fields. `REQUIRED_PUBLIC_FILE_MISSING` belongs only to `setup --assess-adoption`. Ordinary `assess` and `verify-records` do not use that code. prepare keeps its native errors such as `PUBLIC_FILE_MISSING` and `CONFIG_INVALID`. `LICENSE_MISSING` does not substitute for required runtime resources. Foundation suggestions cannot serve as publication approval.
+- Skill Family Hub remains the unified market. GitHub Git Data API integration continues with `compare-and-swap` write semantics; no automatic rollback or overwrite of completed steps. This is the existing mechanism, not a new Hub implementation in this version, and it is not evidence that publication has completed.
 
 **Fixed**
 
-- Handle Kimi 2.2.0 menu redraws that omit the plugin title and final newline after selection movement. The adapter must re-observe the selection after movement and confirm unique selection of `Remove plugin` before proceeding.
-- Initial exact plugin ID is verified before frame reading. Direction key is sent only after reading the frame, followed by a full incremental frame to confirm unique selection. Full title redraw still validates exact ID. Unknown, ambiguous, un-moved, incomplete frame, timeout, or EOF all stop the update before installation.
+- On `setup --assess-adoption`, adoption assessment locates the `publicFiles[].to` that covers each `requiredPublicFiles` snapshot target, then checks that the repository-relative `from` exists. Absence is recorded as `REQUIRED_PUBLIC_FILE_MISSING`. That code does not enter ordinary `assess`, `verify-records`, or prepare.
 
 **Upgrade Notes**
 
-This fix applies to real update workflows, not limited to offline testing. Retain Kimi 0.40.1’s actual prompt `Confirm remove plugin "<id>"?`, bracketed paste, and CSI Enter input method. Frozen install URL/ref/sha, post-install name/version, and payload verification rules unchanged. Shared setup for same `unitId/plugin/version` is merged by unit, plugin, and version; different physical `skillFile` paths in Claude/Codex no longer count as separate setups, as per 0.9.31. Each host’s installation, loading, and configuration must still be verified separately, with feedback bound to `host/unit/path/plan/config/root`. Failure does not alter `VERIFIED`/`DISTRIBUTED` state. `Foundation 0.25.0` exact dependencies remain in use. The old release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and `release-skill@skill-family-hub`. Provider upgrades do not republish domain plugins or expand host authorization.
-
-Real Kimi 2.2.0 was observed through exact identity checks, selection movement, and selection verification, then canceled with Esc and exited without removal, installation, or update. All 47 focused tests passed, and independent code review found no issues. Full real-consumer update and loading acceptance remains pending.
+Keep exact Foundation 0.25.0 dependencies; do not upgrade because a sibling workspace is newer. Blank projects use `release-setup`. Configured projects keep their legal fields and use `release-assess` / `release-config` for increments. Route first; do not unconditionally run `prepare --workflow config`. A forbidden-path-only `config-only` increment may finish offline non-production prepare as `PREPARED` with `workflowDecision` `indeterminable` / `publish-needed`; that result is legal. npm is a payload channel; a missing entry fails closed with `GATE_FAILED` / `npm-entry-closure` / `entry_missing`. The old release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and `release-skill@skill-family-hub`.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.32: this README records capabilities and verification boundaries;
+> **Current boundary:** v0.9.33: this README records capabilities and verification boundaries;
 > it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -63,7 +63,7 @@ Real Kimi 2.2.0 was observed through exact identity checks, selection movement, 
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; for v0.9.32,
+> **Production path verified since the v0.1.1 milestone; for v0.9.33,
 > publication, consumer-installation verification, and independent acceptance
 > require version-specific release records and verification results.**
 > The npm-installed CLI is the supported user entry. Source checkout

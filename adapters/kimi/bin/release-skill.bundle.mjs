@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.32"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.33"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "b023c0808411ba0bf3fea258860422e38fe89a744a6c33676eb07e08c2a43b0b";
+const __bundleSourceDigest = "ee9e8dbc0309bd3c8fb80c02fbe2b3d4d17f0c3db63d353b35ccd6c1283a2a6c";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -123961,17 +123961,21 @@ async function assessAdoption({
         severity: "blocking"
       }));
     }
+    const publicFromByTo = new Map(
+      publicFileMappings.filter((mapping) => typeof mapping?.to === "string" && typeof mapping?.from === "string").map((mapping) => [mapping.to, mapping.from])
+    );
     for (const required of unit.requiredPublicFiles ?? []) {
-      if (typeof required?.from !== "string") continue;
-      if (await adoptionPathExists(resolve28(rootReal, required.from))) continue;
+      if (typeof required !== "string") continue;
+      const from = publicFromByTo.get(required);
+      if (typeof from === "string" && await adoptionPathExists(resolve28(rootReal, from))) continue;
       findings.push(createFinding({
         category: FINDING_CATEGORY.MANDATORY_GAP,
         code: "REQUIRED_PUBLIC_FILE_MISSING",
         unitId,
-        fieldPath: "releaseUnits[].requiredPublicFiles[].from",
-        message: `\u53D1\u5E03\u5355\u5143 "${unitId}" \u7684\u5FC5\u9009\u516C\u5F00\u6587\u4EF6\u8F93\u5165\u4E0D\u5B58\u5728: ${required.from}`,
-        evidence: { from: required.from },
-        action: "\u521B\u5EFA\u8BE5\u6587\u4EF6\uFF0C\u6216\u4FEE\u6B63 releaseUnits[].requiredPublicFiles[].from\u3002",
+        fieldPath: "releaseUnits[].requiredPublicFiles",
+        message: `\u53D1\u5E03\u5355\u5143 "${unitId}" \u7684\u5FC5\u9009\u516C\u5F00\u6587\u4EF6\u4E0D\u5B58\u5728: ${required}`,
+        evidence: { required, from: from ?? null, to: required },
+        action: "\u521B\u5EFA\u8BE5\u6587\u4EF6\uFF0C\u6216\u4FEE\u6B63 releaseUnits[].requiredPublicFiles \u4E0E\u5BF9\u5E94 publicFiles \u6620\u5C04\u3002",
         severity: "blocking"
       }));
     }

@@ -45,6 +45,12 @@ prepare 的真实输出是 plan 内的 `workflowDecision`。
   - 场景 B：`publishPath === 'publish-needed'`（公开 surface 变化或不可判定）→ 运行
     轻链 (approve→publish→verify)
 
+存量增量只改本轮目标映射。已有合法字段、历史发行记录与精确授权保持不变，不要重建 `.release-skill/project.yaml`。
+
+正式可公开资源写入 `releaseUnits[].publicFiles`：`from` 为仓根相对输入，`to` 为快照目标。必需运行文件写入 `releaseUnits[].requiredPublicFiles`，该项是快照目标路径，必须被同一单元 `publicFiles[].to` 覆盖。私有正式设计与非正式日志不得进入公开映射；需要挡住时，`policy.forbiddenPaths` 按快照目标路径配置，`forbiddenContentPatterns` 按内容扫描。
+
+`delivery.include/exclude` 不是文件包含或排除。排除不得覆盖 `requiredPublicFiles`。互相冲突的配置必须失败关闭。Foundation 建议不能作为发布批准。未经精确批准不产生远端动作。分类文字不会机械识别全部私有内容。接入评估缺失码 `REQUIRED_PUBLIC_FILE_MISSING` 不属于本技能的 prepare 路径；config-only prepare 仍走 `release-prepare` 原生错误。
+
 **授权边界**: 命令调用本身即授权执行配置的 hooks/gates。config-only 工作流的远程写操作受标准 approval 机制约束，不 bypass 安全 gate。
 
 **阶段通过规则**:

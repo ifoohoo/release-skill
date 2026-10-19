@@ -3190,15 +3190,22 @@ export async function assessAdoption({
         severity: 'blocking',
       }));
     }
+    // requiredPublicFiles are string targets covered by publicFiles[].to.
+    const publicFromByTo = new Map(
+      publicFileMappings
+        .filter((mapping) => typeof mapping?.to === 'string' && typeof mapping?.from === 'string')
+        .map((mapping) => [mapping.to, mapping.from]),
+    );
     for (const required of unit.requiredPublicFiles ?? []) {
-      if (typeof required?.from !== 'string') continue;
-      if (await adoptionPathExists(resolve(rootReal, required.from))) continue;
+      if (typeof required !== 'string') continue;
+      const from = publicFromByTo.get(required);
+      if (typeof from === 'string' && await adoptionPathExists(resolve(rootReal, from))) continue;
       findings.push(createFinding({
         category: FINDING_CATEGORY.MANDATORY_GAP, code: 'REQUIRED_PUBLIC_FILE_MISSING',
-        unitId, fieldPath: 'releaseUnits[].requiredPublicFiles[].from',
-        message: `发布单元 "${unitId}" 的必选公开文件输入不存在: ${required.from}`,
-        evidence: { from: required.from },
-        action: '创建该文件，或修正 releaseUnits[].requiredPublicFiles[].from。',
+        unitId, fieldPath: 'releaseUnits[].requiredPublicFiles',
+        message: `发布单元 "${unitId}" 的必选公开文件不存在: ${required}`,
+        evidence: { required, from: from ?? null, to: required },
+        action: '创建该文件，或修正 releaseUnits[].requiredPublicFiles 与对应 publicFiles 映射。',
         severity: 'blocking',
       }));
     }
