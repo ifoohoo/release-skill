@@ -31,6 +31,7 @@ import { PLATFORMS, normalizeHostId } from '../platforms/registry.mjs';
 import { deriveSurfaceHostBinding, groupSurfaceHostBindings, pluginRootFromManifestRelativePath } from '../core/surface-host-bindings.mjs';
 
 import { assertImmutablePlanAuthority, computePlanDigest, validatePlan, validatePlanActionCompleteness } from '../core/plan.mjs';
+import { verifyTestAcceptance } from '../core/test-intake.mjs';
 import {
   assertImmutableApprovalAuthority,
   computeApprovalDigest,
@@ -497,6 +498,7 @@ export async function publishRelease(options) {
   }
   validatePlan(plan);
   assertImmutablePlanAuthority(planPath, plan);
+  await verifyTestAcceptance({ root, plan });
   const isProductionPlan = plan.production?.mode === 'github-npm-v1';
 
   // --- Set up directories ---

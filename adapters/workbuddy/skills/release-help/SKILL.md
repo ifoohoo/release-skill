@@ -29,7 +29,7 @@ description: "Discoverable entry point for release-skill: dependency and environ
 
 治理诊断只运行 release-skill 自己的只读检查程序，不运行目标 Skill、业务脚本、构建、hook 或发布动作，也不把 `prepare`、`verify`、`release-finish` 当作静态治理入口。用户要求实际接入或发布时，把已有授权带到对应原业务入口；各入口继续执行原有确认、副作用和状态机合同。
 
-## 0.9.33 能力与证据边界
+## 0.9.34 能力与证据边界
 
 四类工程材料接到现有 `release-project` 字段。公开正式材料写入 `publicFiles`（`sourceScope` / `from` / `to` / `mode`）。运行必需资源写入 `requiredPublicFiles`，必须被同一单元 `publicFiles[].to` 精确覆盖。私有正式材料与非正式运行材料不列入 `publicFiles`，需要挡住时使用 `forbiddenPaths` / `forbiddenContentPatterns`。正式不等于公开。是否进入公开快照由 `publicFiles` 是否列出决定。npm 是载荷渠道。`package.json` 的 `files` 与入口闭包和公开映射同时约束。`delivery.include` / `delivery.exclude` 只选择宿主，不是文件包含或排除。排除不得拿掉运行必需资源。互相冲突的配置必须失败关闭。
 
@@ -51,6 +51,8 @@ Kimi 2.2.0 移除菜单移动后，真实终端只重绘变动的菜单行，不
 Qoder 本机更新路径处理维持既有能力，支持 `./adapters/qoder/skills/` 与 `./skills/` 两种布局，仍核对安装 name/version/skills、路径包含性与实际载荷。私有 Hub 的 `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` 环境变量继续要求原始描述符指向的已有普通文件绝对路径（拒绝符号链接），交由 `npm run release:check -- --release-evidence <file>` 验证。
 
 在冻结前，`prepare` 或新建 `ship` 状态时可重复传入 `--unit <id>`；未传入则默认选择全部单元。延期单元不进入发布计划，亦不获得发布状态。完整配置、生成物新鲜度检查及顶层 Hook 仍作用于全项目范围。`publicSourceAuthorityReceipt` 的 coordinator 与全部 subjects 必须共同选择。
+
+可选 `testIntake` 只在生产 prepare 生效。首次准备返回 `NEEDS_INPUT` 和一份非正式候选，退出码 13；同一候选用 `prepare --candidate <path>` 续接，接受后才有正式计划。候选不能批准或发布，也不能清除 `PARTIAL`、`PUBLISHED` 或 `VERIFIED`。未声明的项目、原有 hook 和完整门保持不变。轻量工作流和单元选择都不免除项目级要求。非生产 prepare 遇到 `testIntake` 返回 `CONFIG_INVALID`。
 
 冻结后，发布流程（publish、reconcile、verify、distribute）不再接受 `--unit` 参数，仅以 `plan.units` 为唯一有效范围。
 
@@ -116,6 +118,7 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill-local-finish.mjs" \
 - 项目配置缺失：进入 `release-setup` 的只读发现，不直接生成或覆盖 README/配置。
 - assess 失败：运行 `release-assess` 的离线诊断并按错误码处理。
 - `PARTIAL` 或远端冲突：进入 `release-reconcile`，保留已经成功的 checkpoint。
+- `testIntake` 返回 `NEEDS_INPUT`：停留在给出的候选上补齐结果，再用 `--candidate` 续接。不要把候选文件交给 approve 或 publish。
 - 文档、Cursor、宿主更新或本机收尾失败：转到上节对应专用 Skill，不在 help 中猜测恢复步骤。
 
 ## 后续引导

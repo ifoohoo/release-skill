@@ -1,4 +1,4 @@
-import { readFile, lstat, mkdir } from 'node:fs/promises';
+import { readFile, lstat, mkdir, realpath } from 'node:fs/promises';
 import { basename, dirname, resolve } from 'node:path';
 import { publishFileOrReplace } from 'skill-family-harness-node';
 
@@ -21,6 +21,10 @@ import {
   PLAN_DIGEST_MISMATCH,
   CONSUMER_VERIFICATION_DEFERRED,
 } from '../core/errors.mjs';
+import {
+  applyShipPrepareOutcome,
+  resolveShipCandidateContinuation,
+} from '../core/test-candidate.mjs';
 
 function normalizeNewShipUnitIds(releaseUnits, requestedUnitIds) {
   if (requestedUnitIds === undefined) return undefined;
@@ -102,6 +106,66 @@ async function readFrozenPlanForUnitScope(planPath, statePath, stateUnitIds) {
   }
 }
 
+async function sameAuthorityFile(left, right) {
+  const identity = async (value) => {
+    const absolute = resolve(value);
+    try {
+      return await realpath(absolute);
+    } catch {
+      return absolute;
+    }
+  };
+  return (await identity(left)) === (await identity(right));
+}
+
+/**
+ * A VERIFIED reattach keeps the release fact. An observed postverify is
+ * carried with its verify parent so open work can re-enter postVerifyRelease
+ * and completed work can feed the existing local finish checklist.
+ */
+async function observedPostverifyContinuation(root, planPath) {
+  if (!planPath) return null;
+  let routing;
+  try {
+    const { readRunRouting } = await import('./route.mjs');
+    routing = await readRunRouting(root, {});
+  } catch {
+    return null;
+  }
+  const formal = resolve(planPath);
+  const bound = [];
+  for (const run of routing?.observedRuns ?? []) {
+    if (!run?.planPath || !run.status || !run.runPath || !run.command) continue;
+    if (await sameAuthorityFile(run.planPath, formal)) bound.push(run);
+  }
+  const postverifyRuns = bound.filter((run) => run.command === 'postverify');
+  const completed = postverifyRuns.filter((run) => run.status === 'DISTRIBUTED');
+  const open = postverifyRuns.filter((run) => run.status !== 'DISTRIBUTED');
+  // A completed authority supersedes open attempts for the same verify
+  // parent. Multiple completed records are ambiguous; never fall back to an
+  // older open attempt or choose by directory order or timestamp.
+  if (completed.length > 1) return null;
+  const pending = completed.length === 1 ? completed[0] : open.length === 1 ? open[0] : null;
+  if (!pending) return null;
+  let verify = null;
+  for (const run of bound) {
+    if (run.command !== 'verify' || run.status !== 'VERIFIED' || !run.runPath) continue;
+    if (pending.sourceRunPath && await sameAuthorityFile(run.runPath, pending.sourceRunPath)) {
+      verify = run;
+      break;
+    }
+  }
+  if (!verify) return null;
+  return {
+    verifyRunPath: verify.runPath,
+    ...(verify.approvalPath ? { approvalPath: verify.approvalPath } : {}),
+    postVerify: {
+      status: pending.status,
+      runPath: pending.runPath,
+    },
+  };
+}
+
 async function writeJsonAtomic(path, value) {
   await mkdir(dirname(path), { recursive: true });
   const { stateDigest: _oldDigest, ...body } = value;
@@ -177,9 +241,10 @@ async function defaultDependencies() {
 
 function publicState(state, { postRelease } = {}) {
   const visiblePostRelease = postRelease === undefined ? state.postRelease : postRelease;
+  const showsTestCandidate = state.status === 'NEW' && state.testCandidate;
   return {
     command: 'ship',
-    status: state.status,
+    status: showsTestCandidate ? 'NEEDS_INPUT' : state.status,
     statePath: state.statePath,
     targetVersion: state.targetVersion,
     ...(state.hooks && state.hooks.length > 0 ? {
@@ -199,6 +264,10 @@ function publicState(state, { postRelease } = {}) {
     ...(state.distributeRunPath ? { distributeRunPath: state.distributeRunPath } : {}),
     ...(state.postVerify ? { postVerify: state.postVerify } : {}),
     ...(state.requirements ? { requirements: state.requirements } : {}),
+    ...(showsTestCandidate ? { testCandidate: state.testCandidate } : {}),
+    ...(showsTestCandidate && state.pendingTestRequirements
+      ? { pendingTestRequirements: state.pendingTestRequirements }
+      : {}),
     ...(state.manualFollowUps ? { manualFollowUps: state.manualFollowUps } : {}),
     ...(state.metadataUpdate ? { metadataUpdate: state.metadataUpdate } : {}),
     ...(visiblePostRelease ? { postRelease: visiblePostRelease } : {}),
@@ -483,7 +552,77 @@ export async function advanceShip(options = {}, injected = {}) {
     });
   }
 
-  if (state.status === 'NEW') {
+  if (state.status === 'NEW' && state.testCandidate) {
+    const loaded = await deps.loadProjectConfig({ root });
+    const continuation = resolveShipCandidateContinuation({
+      state,
+      loadedConfigDigest: loaded.configDigest,
+      requestedUnitIds: options.unitIds,
+    });
+    if (continuation.kind === 'conflict') {
+      throw new ReleaseError(GATE_FAILED, `ship test candidate conflict: ${continuation.reason}`, {
+        reason: continuation.reason,
+      });
+    }
+    const prepared = await deps.prepareRelease({
+      root,
+      candidatePath: continuation.candidatePath,
+      expectedCandidateSha256: continuation.candidateSha256,
+      expectedSubjectDigest: continuation.subjectDigest,
+      production: true,
+      offline: false,
+      offlineExplicit: false,
+      workflowExplicit: false,
+      version: state.targetVersion ?? undefined,
+      versionExplicit: state.targetVersion != null,
+      hooksAuthorized: true,
+      verificationGatesAuthorized: true,
+      hookCache: true,
+      ...(Array.isArray(state.selectedUnitIds) ? { unitIds: state.selectedUnitIds } : {}),
+    });
+    if (prepared?.status === 'NEEDS_INPUT') {
+      state = {
+        ...applyShipPrepareOutcome(state, {
+          ...prepared,
+          testCandidate: {
+            path: prepared.candidatePath ?? state.testCandidate.path,
+            sha256: prepared.candidateSha256 ?? state.testCandidate.sha256,
+            subjectDigest: prepared.subjectDigest ?? state.testCandidate.subjectDigest,
+            evidenceDir: prepared.evidenceDir ?? state.testCandidate.evidenceDir,
+          },
+        }),
+        updatedAt: new Date().toISOString(),
+      };
+      await writeJsonAtomic(statePath, state);
+      return publicState(state);
+    }
+    const outcome = applyShipPrepareOutcome(state, prepared);
+    // A reattached PARTIAL, PUBLISHED, or VERIFIED record stays that status.
+    // Returning here avoids a new approval and avoids falling through into
+    // reconcile, distribute, or verify in this same call.
+    if (outcome.status !== 'NEEDS_PLAN_APPROVAL') {
+      const continuation = outcome.status === 'VERIFIED'
+        ? await observedPostverifyContinuation(root, outcome.planPath)
+        : null;
+      state = {
+        ...outcome,
+        ...(continuation ?? {}),
+        updatedAt: new Date().toISOString(),
+      };
+      await writeJsonAtomic(statePath, state);
+      return publicState(state);
+    }
+    const maxApprovalMs = typeof deps.readMaxApprovalMs === 'function'
+      ? await deps.readMaxApprovalMs()
+      : MAX_APPROVAL_MS;
+    const approvalSummary = await buildApprovalSummary(prepared.planPath, maxApprovalMs);
+    state = {
+      ...outcome,
+      approvalSummary,
+      updatedAt: new Date().toISOString(),
+    };
+    await writeJsonAtomic(statePath, state);
+  } else if (state.status === 'NEW') {
     const loaded = await deps.loadProjectConfig({ root });
     let stateChanged = false;
     if (Array.isArray(state.selectedUnitIds)) {
@@ -538,6 +677,23 @@ export async function advanceShip(options = {}, injected = {}) {
       hookCache: true,
       ...(state.selectedUnitIds ? { unitIds: state.selectedUnitIds } : {}),
     });
+    if (prepared?.status === 'NEEDS_INPUT') {
+      state = {
+        ...applyShipPrepareOutcome(state, {
+          ...prepared,
+          testCandidate: {
+            path: prepared.candidatePath,
+            sha256: prepared.candidateSha256,
+            subjectDigest: prepared.subjectDigest,
+            evidenceDir: prepared.evidenceDir,
+          },
+          requirements: prepared.requirements,
+        }),
+        updatedAt: new Date().toISOString(),
+      };
+      await writeJsonAtomic(statePath, state);
+      return publicState(state);
+    }
     let frozenPlan = null;
     if (Array.isArray(state.selectedUnitIds) || deps.preflightGitTransports) {
       frozenPlan = Array.isArray(state.selectedUnitIds)
@@ -631,6 +787,9 @@ export async function advanceShip(options = {}, injected = {}) {
   }
 
   if (state.status === 'PARTIAL') {
+    // A reattached terminal record has no source run. Returning keeps that
+    // status; a publish that stored sourceRunPath still reconciles.
+    if (!state.sourceRunPath) return publicState(state);
     const reconciled = await deps.reconcileRelease({
       planPath: state.planPath,
       sourceRunPath: state.sourceRunPath,
@@ -653,6 +812,7 @@ export async function advanceShip(options = {}, injected = {}) {
   let postVerifyRanThisCall = false;
 
   if (state.status === 'PUBLISHED' || state.status === 'NEEDS_MANUAL_ATTESTATIONS') {
+    if (!state.sourceRunPath && !state.distributeRunPath) return publicState(state);
     // Step 1: Check if postPublish requires distribution.
     // Only targets and distribute-phase hooks route through distribute;
     // phase:postVerify hooks belong to their independent post-VERIFIED run.
@@ -699,10 +859,12 @@ export async function advanceShip(options = {}, injected = {}) {
     }
     
     // Step 2: Verify (this will check for distributed run if distribution was required)
+    const verifySource = needsDistribution ? state.distributeRunPath : state.sourceRunPath;
+    if (!verifySource) return publicState(state);
     try {
       const verified = await deps.verifyRelease({
         planPath: state.planPath,
-        sourceRunPath: needsDistribution ? state.distributeRunPath : state.sourceRunPath,
+        sourceRunPath: verifySource,
         adapterRegistry: options.adapterRegistry,
         root,
         verificationGatesAuthorized: state.verificationGatesAuthorized === true,
@@ -737,7 +899,7 @@ export async function advanceShip(options = {}, injected = {}) {
     const postVerifyHooks = normalizePostPublishView(plan)
       .flatMap((declaration) => declaration.hooks ?? [])
       .filter((hook) => hook.phase === 'postVerify');
-    if (state.status === 'VERIFIED' && postVerifyHooks.length > 0 && deps.postVerifyRelease) {
+    if (state.status === 'VERIFIED' && state.verifyRunPath && postVerifyHooks.length > 0 && deps.postVerifyRelease) {
       postVerifyRanThisCall = true;
       let postVerifyOutcome;
       try {
@@ -785,6 +947,7 @@ export async function advanceShip(options = {}, injected = {}) {
   if (
     state.status === 'VERIFIED'
     && deps.postVerifyRelease
+    && state.verifyRunPath
     && !postVerifyRanThisCall
     && (!state.postVerify || state.postVerify.status !== 'DISTRIBUTED')
   ) {

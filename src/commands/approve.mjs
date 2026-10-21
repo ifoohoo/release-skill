@@ -38,6 +38,7 @@ import {
   validatePostPublishHookIdUniqueness,
 } from '../core/postpublish.mjs';
 import { WORKSPACE_DIGEST_ALGORITHM } from '../core/baseline.mjs';
+import { projectRootFromPlanPath, verifyTestAcceptance } from '../core/test-intake.mjs';
 
 // ---------------------------------------------------------------------------
 // Default clock
@@ -141,8 +142,20 @@ export async function approvePlan(options) {
     );
   }
 
+  if (plan.candidateVersion === 1 && plan.planVersion == null) {
+    throw new ReleaseError(GATE_FAILED, 'a test candidate is not a release plan', {
+      reason: 'TEST_CANDIDATE_NOT_PLAN',
+    });
+  }
+
   // --- Step 4: Validate the plan ---
   validatePlan(plan);
+  if (plan.testAcceptance) {
+    await verifyTestAcceptance({
+      root: options.root ?? projectRootFromPlanPath(planPath),
+      plan,
+    });
+  }
 
   if (
     plan.production?.mode === 'github-npm-v1' &&

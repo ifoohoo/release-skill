@@ -5,7 +5,7 @@ import { basename, dirname, isAbsolute, join, normalize, resolve } from 'node:pa
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
 import { parseNodeMajor, meetsMinimum, computeReadinessStatus } from '../src/core/node-version.mjs';
-import { EXIT_CODE_MAP, MISSING_PARAMETERS, registerPathRedactor } from '../src/core/errors.mjs';
+import { EXIT_CODE_MAP, MISSING_PARAMETERS, ReleaseError, registerPathRedactor } from '../src/core/errors.mjs';
 import { redactSensitivePaths } from '../src/core/redact.mjs';
 
 // Process output errors can be emitted immediately after a large console
@@ -1362,7 +1362,11 @@ if (command === 'prepare') {
   const hooksAuthorized = args.includes('--acknowledge-hook-side-effects');
   const verificationGatesAuthorized = args.includes('--acknowledge-gate-side-effects');
   const hookCache = !args.includes('--no-hook-cache');
-  const production = args.includes('--production');
+  const candidateIdx = args.indexOf('--candidate');
+  const candidatePath = candidateIdx !== -1 && args[candidateIdx + 1] && !args[candidateIdx + 1].startsWith('--')
+    ? args[candidateIdx + 1]
+    : undefined;
+  const production = args.includes('--production') || candidatePath !== undefined;
   const workflowIdx = args.indexOf('--workflow');
   const workflow = workflowIdx !== -1 && args[workflowIdx + 1] ? args[workflowIdx + 1] : 'full';
   // Test-selection flag (2026-08-18 investigation §4.4): reserved for a
@@ -1385,22 +1389,53 @@ if (command === 'prepare') {
   }
 
   try {
+    if (candidateIdx !== -1 && !candidatePath) {
+      throw new ReleaseError(MISSING_PARAMETERS, '--candidate requires a path value');
+    }
     const { prepareRelease } = await import('../src/commands/prepare.mjs');
     const { readFile: readFileFs } = await import('node:fs/promises');
     const result = await prepareRelease({
       root,
       version: targetVersion,
+      versionExplicit: targetVersion !== undefined,
       offline,
+      offlineExplicit: args.includes('--offline') || args.includes('--online'),
       hooksAuthorized,
       verificationGatesAuthorized,
       hookCache,
       production,
       workflow,
+      workflowExplicit: workflowIdx !== -1,
       testSelection,
       output,
       runDir,
+      ...(candidatePath ? { candidatePath } : {}),
       ...(hasUnitSelection ? { unitIds } : {}),
     });
+
+    if (result?.status === 'NEEDS_INPUT') {
+      const payload = {
+        command: 'prepare',
+        error: 'GATE_FAILED',
+        status: 'NEEDS_INPUT',
+        message: result.message,
+        candidatePath: result.candidatePath,
+        candidateSha256: result.candidateSha256,
+        subjectDigest: result.subjectDigest,
+        evidenceDir: result.evidenceDir,
+        requirements: result.requirements ?? [],
+        gaps: result.gaps ?? [],
+        nextSteps: result.nextSteps ?? [],
+        exitCode: result.exitCode ?? 13,
+      };
+      if (hasJson) {
+        console.log(JSON.stringify(payload, null, 2));
+      } else {
+        console.error(`Error: ${result.message}`);
+        if (result.candidatePath) console.error(`Candidate: ${result.candidatePath}`);
+      }
+      await exitAfterFlush(result.exitCode ?? 13);
+    }
 
     // Keep stdout compact and stable. The immutable plan remains the single
     // authority at planPath; callers should not have to carry its full

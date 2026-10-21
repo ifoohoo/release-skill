@@ -102,6 +102,14 @@ postPublish hooks 分两个阶段，各自对应独立的 distribute run：
 外部写入开始后不得缩小范围。任一检查点成功后出现失败，仍进入 PARTIAL，并由
 `reconcile` 在原冻结计划内向前恢复；延期单元需要另行 prepare、审阅和批准。
 
+### 2.4 显式测试接入的同候选续接
+
+声明 `testIntake` 的生产 prepare 不新增状态。首次准备在冻结适用快照和 tarball 后保存一份非正式候选，命令返回 `NEEDS_INPUT`（`GATE_FAILED`，退出码 13）。这一步不写正式计划，不进入 `PREPARED`，也不写 `FROZEN`。
+
+同一候选通过 `prepare --candidate <path>` 续接。适用的预冻结要求核验通过后，才写入正式计划并进入 `PREPARED`。续接使用新的运行目录，不覆盖旧证据，也不再生成第二份候选。对象、配置或权威要求等实质输入变化时拒绝续接，原候选保持不变；只补齐仍绑定该对象的结果不算漂移。
+
+候选不是计划。它不能进入批准或发布，也不能把 `PARTIAL`、`PUBLISHED`、`VERIFIED` 或任何已成功的外部检查点改成完成。`ship` 在接受前保持持久状态 `NEW`，并带上同一个 `testCandidate`。未声明 `testIntake` 的项目仍按原转换进入 `PREPARED`。
+
 ---
 
 ## 3. 禁止转换
@@ -141,6 +149,7 @@ postPublish hooks 分两个阶段，各自对应独立的 distribute run：
 - 系统必须明确列出缺失的输入项、影响范围和可选方案。
 - NEEDS_INPUT 不能被静默转换为 VERIFIED。
 - 用户提供输入后，系统从 DISCOVERED 或 ASSESSED 重新开始。
+- 显式测试接入的 `NEEDS_INPUT` 只补齐同一候选的结果。`ship` 保持 `NEW` 与原 `testCandidate`，不重建候选，也不读取正式 `planPath`。结果满足后，同一次续接才进入 `PREPARED`。
 
 ### 4.2 BLOCKED 处理
 
@@ -160,7 +169,7 @@ postPublish hooks 分两个阶段，各自对应独立的 distribute run：
 
 批准记录绑定到发布计划 hash。以下任何变化均导致批准自动失效：
 
-- 发布计划绑定层内容变化（plan digest 不匹配）。planVersion 2 的 digest 只绑定信任边界：冻结产物身份（git commit/tree、manifestDigest、npm tarball 摘要）、外部动作列表（不含运行时 status）、目标版本、配置摘要、校验门。
+- 发布计划绑定层内容变化（plan digest 不匹配）。planVersion 2 的 digest 只绑定信任边界：冻结产物身份（git commit/tree、manifestDigest、npm tarball 摘要）、外部动作列表（不含运行时 status）、目标版本、配置摘要、校验门。当前计划版本上的可选 `testAcceptance` 属于绑定层，记录层剥离不移除它。替换结果、准则、范围或允许的限制会改变 plan digest，原批准不再适用。不改变这些原件的注释不会使批准失效。没有 `testAcceptance` 的计划保持原绑定范围。planVersion 1 与未声明该字段的 planVersion 2 摘要含义不变。
 - 目标版本变化。
 - 已批准的 action 列表变化。
 
@@ -169,6 +178,8 @@ postPublish hooks 分两个阶段，各自对应独立的 distribute run：
 远端冲突状态不在 approval 绑定字段中。远端对象已存在但与冻结计划完全一致时，`publish`/`reconcile` 把对应检查点标为 `SKIPPED`；存在且不一致，或无法可靠判断时，preflight 阶段阻断执行并要求人工决策。npm 版本只有在观察到有效且与冻结计划相同的 integrity 时才能进入 `SKIPPED`；integrity 缺失、空白、无法解析或不同都在任何 Adapter execute 前失败关闭。
 
 失效后系统回退到 PREPARED 状态，要求重新批准。
+
+approve、publish 和 reconcile 在任何外部动作前复核 `testAcceptance` 指向的要求文件和结果原件。原件缺失或摘要不符时失败关闭，不重新批准，也不重放已经成功的外部检查点。未带 `testAcceptance` 的计划跳过这项复核。
 
 ### 4.5 路由诊断与当前恢复
 

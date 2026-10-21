@@ -2,38 +2,40 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.33 -->
+<!-- release-skill:release-version: 0.9.34 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.33** (2026-10-20)
+**0.9.34** (2026-10-22)
 
-0.9.33 将四类工程材料接入现有 `release-project` 字段，区分首次接线与存量增量，并依据现有字段核对载荷渠道，继续采用精确的 Foundation 0.25.0 依赖。本说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.34 引入可选的测试结果接入功能。声明 `testIntake` 的项目可通过 `testIntake.requirementsFile` 和 `testIntake.resultFile` 指定测试要求与测试结果文件，实现与外部测试编排的集成，并依据定义准则进行验证。Foundation 保持精确版本 0.25.0。本发布说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- 本轮未变更远端写入授权。确认边界、冻结安装 URL/ref/sha 仍有效。Hub 门禁失败将阻止 GitHub Git Data API 写入。写入采用 `compare-and-swap`，绑定已观察的分支头并比较后写入；部分发布不回滚、不覆盖已完成步骤、不自动强推。独立检查点批准、历史冻结计划不重放、`ALREADY_CURRENT` 门禁仍强制执行。
+- Skill Family Hub 仍为统一市场，沿用 GitHub Git Data API。更新操作绑定已观察分支头并比较后写入（compare-and-swap）。部分发布不回滚、不覆盖已完成步骤、不自动强推；这些机制保持不变，本轮未修改远端授权。
 
-**变更**
+**新增**
 
-- 公开正式材料写入 `publicFiles`（字段合同 `sourceScope` / `from` / `to` / `mode`）；运行必需资源写入 `requiredPublicFiles`，必须被同一单元 `publicFiles[].to` 精确覆盖；私有正式材料与非正式运行材料不列入 `publicFiles`，需要挡住时使用 `forbiddenPaths` / `forbiddenContentPatterns`。正式不等于公开。是否进入公开快照由 `publicFiles` 是否列出决定。npm 是载荷渠道。`package.json` 的 `files` 与入口闭包和公开映射同时约束。`delivery.include` / `delivery.exclude` 只选择宿主，不是文件包含或排除。排除不得拿掉运行必需资源。互相冲突的配置必须失败关闭。
-- 首次接线使用 `release-setup`。目录中已有 `.release-skill/project.yaml` 时返回 `ALREADY_CONFIGURED` / `CONFIG_EXISTS`，不覆盖原配置。存量增量由 `release-assess` 诊断，再由已有 `release-config` Skill 处理。`release-config` 不是新增 CLI。执行时必须先 `route`：实际工作流为 `config-only` 才执行 `prepare --workflow config`；`full-happy-end` 或混合变更走普通 full。不得无条件触发 `prepare --workflow config`。
-- setup、assess、config、prepare、verify 的技能说明改为按现有字段描述上述材料角色。`REQUIRED_PUBLIC_FILE_MISSING` 只属于 `setup --assess-adoption`。普通 `assess` 与 `verify-records` 不使用该码。`prepare` 仍使用自身原生错误，例如 `PUBLIC_FILE_MISSING`、`CONFIG_INVALID`。`LICENSE_MISSING` 不能代替运行必需资源。Foundation 建议不能作为发布批准。
-- Skill Family Hub 保持统一市场。GitHub Git Data API 机制延续，写入采用 `compare-and-swap` 语义；不自动回滚或覆盖已完成步骤。这是已有机制，不是本轮新实现的 Hub，也不表示已经完成发布。
+- 可配置测试接入：声明 `testIntake` 的项目可通过 `testIntake.requirementsFile` 和 `testIntake.resultFile` 指定测试要求文件与测试结果文件。首次 `production` `prepare` 保存非正式候选并返回 `NEEDS_INPUT` 及候选路径；冻结前证据未补齐则不生成正式发布计划。后续执行 `prepare --candidate <path>` 可续接同一候选，不重建公开载荷。候选本身不可用于批准或发布。
+- 测试组织与验收：TEST技能负责组织测试执行、判断是否复用或重跑，并汇总业务是否达标的判断。release-skill 核对提交材料与要求、候选对象、适用阶段的绑定关系，但不代替领域或独立验收者的语义验收。
+- 冻结后职责：冻结后的要求由已声明的消费者通过 `consumer-verify`（消费者安装验证）、`postverify`（发布后校验）、`finish`（本机收尾）阶段处理，冻结前通过不替代冻结后验证。
+- 批准前复核原始材料：测试验收已纳入发布计划摘要。`approve`、`publish`、`reconcile` 等操作在执行前复核原始材料。修改结果、准则、范围或允许的限制将导致原批准失效。
 
 **修复**
 
-- 接入评估在 `setup --assess-adoption` 中，按 `requiredPublicFiles` 的快照目标找到对应 `publicFiles[].to`，再检查仓根相对 `from` 是否存在；缺失时记为 `REQUIRED_PUBLIC_FILE_MISSING`。该码不进入普通 `assess`、`verify-records` 或 `prepare`。
+- 正式计划无法读取或解析时返回明确错误，不再静默忽略。
+- 显式传入 `--candidate` 但未提供路径时，`prepare` 在执行前即拒绝。
+- 打包后的新候选模块使用现有构建版本信息，源码模式使用可信包身份。
 
 **升级说明**
 
-继续采用 Foundation 0.25.0 精确依赖，不能因为邻仓版本较新就升级。空白项目走 `release-setup`；已有配置保留合法字段，用 `release-assess` / `release-config` 做增量。先 `route`，不要无条件执行 `prepare --workflow config`。仅禁路径一类的 `config-only` 增量，离线非生产 `prepare` 可为 `PREPARED`，`workflowDecision` 为 `indeterminable` / `publish-needed`，这是合法结果。npm 是载荷渠道，入口缺失时失败关闭，错误为 `GATE_FAILED` / `npm-entry-closure` / `entry_missing`。旧版独立的 `release-skill` 市场已弃用，使用 `ifoohoo/skill-family-hub` 与 `release-skill@skill-family-hub`。
+未声明 `testIntake` 的项目保留原有完整门禁与发布路径，不强制接入 TEST 或 artifact-graph。仅支持 `testIntake` 声明项目使用 `production` prepare，非生产 prepare 不被允许。Foundation 三个依赖保持精确版本 0.25.0。TEST 必须通过真实 Skill 入口调用，不新增 TEST CLI，不自动解决全部业务验收，也不表示已验证所有宿主或模型。历史 `PARTIAL`、`PUBLISHED`、`VERIFIED` 状态不因测试重跑被清除。旧版独立的 `release-skill` 市场已弃用，使用 `ifoohoo/skill-family-hub` 和 `release-skill@skill-family-hub`。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.33 的能力范围与验证边界见本 README，
+> **当前边界：** v0.9.34 的能力范围与验证边界见本 README，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -49,7 +51,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.33 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.34 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -506,6 +508,8 @@ releaseUnits:
 入口，例如 `release-setup` 或 `plugin:skill`；它不会作为 shell 命令执行。宿主更新后，
 release-finish 在 `--root` 指定的当前发布项目根目录调用该入口，不再要求另行提供项目目录。
 两个配置彼此独立。
+
+可选的 `testIntake` 只声明要求文件和结果文件，并且只在生产 prepare 中生效。首次生产 prepare 保存一份非正式候选，返回 `NEEDS_INPUT`（`GATE_FAILED`，退出码 13），并给出 `candidatePath`、`candidateSha256` 和 `subjectDigest`，此时不写正式计划。用 `prepare --candidate <path>` 续接同一候选；适用的冻结前要求通过后才写入正式计划和 `PREPARED`。候选不能用于批准或发布，也不能清除 `PARTIAL`、`PUBLISHED` 或 `VERIFIED`。未声明 `testIntake` 的项目保持原有 hook、完整门和发布路径。docs、config、marketplace 工作流、单元选择和无需发布的配置都不免除项目级要求。非生产 prepare 拒绝 `testIntake`，错误码为 `CONFIG_INVALID`。可选的 `testAcceptance` 进入当前计划摘要。替换结果、准则、范围或允许的限制会使原批准失效。approve、publish 和 reconcile 在动作前复核这些原件。
 
 完整的本地收尾使用 `release-skill post-release --finish`。命令固定报告分支决定、宿主更新、实际加载、setup 和源码分支检查：全部适用步骤完成或明确跳过时退出 0，仍有待办时退出 2，确定失败时退出 1。智能体通过绝对路径的 `--finish-feedback` JSON 文件回传观察，文件必须绑定当前计划摘要、配置摘要和规范项目根目录。反馈只作为数据：脚本不执行其中字符串，也不把反馈当成新的写入授权。`--skip-local-hosts` 显示跳过宿主更新、加载和 setup，不得与 `--hosts` 或 `--update-local-hosts` 同时使用。
 

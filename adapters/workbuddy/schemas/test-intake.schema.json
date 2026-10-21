@@ -1,0 +1,217 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://release-skill.dev/schemas/test-intake/v1",
+  "title": "Release test intake documents",
+  "description": "Requirements, results, candidate, and testAcceptance documents for an explicit testIntake release. Unknown fields are rejected.",
+  "$ref": "#/definitions/candidate",
+  "definitions": {
+    "fileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*\\\\)(?!.*\\u0000)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)(?!.*/$).+$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "anchor": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "source", "criterion", "owner", "scope", "phase", "acceptor"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "source": { "$ref": "#/definitions/fileRef" },
+        "criterion": { "$ref": "#/definitions/fileRef" },
+        "owner": { "type": "string", "minLength": 1 },
+        "scope": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind"],
+              "properties": { "kind": { "const": "project" } }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "unitId"],
+              "properties": {
+                "kind": { "const": "unit" },
+                "unitId": { "type": "string", "minLength": 1 }
+              }
+            }
+          ]
+        },
+        "phase": {
+          "type": "string",
+          "enum": ["pre-freeze", "consumer-verify", "postverify", "finish"]
+        },
+        "acceptor": { "type": "string", "minLength": 1 },
+        "handoff": { "$ref": "#/definitions/handoff" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "phase": { "const": "pre-freeze" } },
+            "required": ["phase"]
+          },
+          "then": { "not": { "required": ["handoff"] } }
+        },
+        {
+          "if": {
+            "properties": { "phase": { "enum": ["consumer-verify", "postverify", "finish"] } },
+            "required": ["phase"]
+          },
+          "then": { "required": ["handoff"] }
+        }
+      ]
+    },
+    "handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["gate", "hook", "finish"] },
+        "id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "requirementsDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["formatVersion", "requirements"],
+      "properties": {
+        "formatVersion": { "const": 1 },
+        "requirements": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/requirement" }
+        }
+      }
+    },
+    "resultItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requirementId",
+        "disposition",
+        "verdict",
+        "acceptedBy",
+        "decision",
+        "evidence",
+        "applicability",
+        "limitations"
+      ],
+      "properties": {
+        "requirementId": { "type": "string", "minLength": 1 },
+        "disposition": {
+          "type": "string",
+          "enum": ["executed", "reused", "not-applicable", "failed", "incomplete", "uncovered"]
+        },
+        "verdict": {
+          "type": "string",
+          "enum": ["passed", "failed", "not-evaluated"]
+        },
+        "acceptedBy": { "type": "string", "minLength": 1 },
+        "decision": { "$ref": "#/definitions/fileRef" },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/fileRef" }
+        },
+        "applicability": { "$ref": "#/definitions/fileRef" },
+        "limitations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/fileRef" }
+        }
+      }
+    },
+    "resultDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["formatVersion", "subjectDigest", "requirementsSha256", "results"],
+      "properties": {
+        "formatVersion": { "const": 1 },
+        "subjectDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "requirementsSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "results": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/resultItem" }
+        }
+      }
+    },
+    "testAcceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formatVersion",
+        "subjectDigest",
+        "requirements",
+        "result",
+        "acceptedRequirementIds",
+        "deferredRequirementIds"
+      ],
+      "properties": {
+        "formatVersion": { "const": 1 },
+        "subjectDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "requirements": { "$ref": "#/definitions/fileRef" },
+        "result": { "$ref": "#/definitions/fileRef" },
+        "acceptedRequirementIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "deferredRequirementIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidateVersion", "writerVersion", "prepareOptions", "requirements", "prepared"],
+      "properties": {
+        "candidateVersion": { "const": 1 },
+        "writerVersion": { "type": "string", "minLength": 1 },
+        "prepareOptions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["workflow", "offline", "production", "unitIds", "unitVersions"],
+          "properties": {
+            "workflow": { "type": "string", "enum": ["full", "docs", "config", "marketplace"] },
+            "offline": { "type": "boolean" },
+            "production": { "const": true },
+            "unitIds": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "unitVersions": {
+              "type": "object",
+              "additionalProperties": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "requirements": { "$ref": "#/definitions/fileRef" },
+        "prepared": {
+          "type": "object",
+          "properties": {
+            "status": false,
+            "digest": false,
+            "testAcceptance": false
+          }
+        }
+      }
+    }
+  }
+}

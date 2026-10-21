@@ -26,16 +26,20 @@
       "bytes": 1744
     },
     "release-plan.schema.json": {
-      "digest": "3d24cb908cdfbfd5d89551b7c6fed5140f6f1448b9920f114264291ca4cf1c52",
-      "bytes": 55905
+      "digest": "a1e748edeb36b00aa59cbcce893141a30b5c96e75d7fbdbc85b932cde9cc413c",
+      "bytes": 68944
     },
     "release-project.schema.json": {
-      "digest": "b0ba3c46692622f734a80d3f4e3904180bbfd1096ca2d9b6d6fd957917e96f73",
-      "bytes": 47688
+      "digest": "e996238c58067fbe1228ab012da53e8edde1b9d3c8f135d4d5848349f4392148",
+      "bytes": 57111
     },
     "release-run.schema.json": {
       "digest": "4a041b8f6488e7d61b7eb271ebdbc2e043731df41c4437783ef63e77f664c192",
       "bytes": 19002
+    },
+    "test-intake.schema.json": {
+      "digest": "654e91ce518cb2b8aca84947d0c3bb8c4262ab047d86081e7e93dc07a9c6c739",
+      "bytes": 6982
     }
   }
 }

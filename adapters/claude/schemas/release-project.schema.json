@@ -62,6 +62,24 @@
         }
       }
     },
+    "testIntake": {
+      "type": "object",
+      "description": "Optional explicit test intake. When present, both files are required project-relative ordinary paths. Production prepare only. Undeclared projects keep the existing release path.",
+      "additionalProperties": false,
+      "required": ["requirementsFile", "resultFile"],
+      "properties": {
+        "requirementsFile": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*\\\\)(?!.*\\u0000)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)(?!.*/$).+$"
+        },
+        "resultFile": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*\\\\)(?!.*\\u0000)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)(?!.*/$).+$"
+        }
+      }
+    },
     "publicSourceAuthorityReceipt": {
       "type": "object",
       "description": "Optional public source-authority receipt uploaded to one coordinator GitHub Release after all subject npm tarballs are frozen.",

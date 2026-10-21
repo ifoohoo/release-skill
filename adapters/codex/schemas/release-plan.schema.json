@@ -1170,6 +1170,9 @@
         }
       }
     },
+    "testAcceptance": {
+      "$ref": "#/definitions/testAcceptance"
+    },
     "createdAt": {
       "type": "string",
       "format": "date-time"
@@ -1371,6 +1374,58 @@
     }
   },
   "definitions": {
+    "testFileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*\\\\)(?!.*\\u0000)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)(?!.*/$).+$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "anchor": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "testAcceptance": {
+      "type": "object",
+      "description": "Binding-layer acceptance of pre-freeze test requirements. Included in the plan digest. Not a record-layer field.",
+      "additionalProperties": false,
+      "required": [
+        "formatVersion",
+        "subjectDigest",
+        "requirements",
+        "result",
+        "acceptedRequirementIds",
+        "deferredRequirementIds"
+      ],
+      "properties": {
+        "formatVersion": { "const": 1 },
+        "subjectDigest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "requirements": { "$ref": "#/definitions/testFileRef" },
+        "result": { "$ref": "#/definitions/testFileRef" },
+        "acceptedRequirementIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "deferredRequirementIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
     "verificationGate": {
       "type": "object",
       "required": [
@@ -2218,6 +2273,36 @@
           "externalActions": {
             "type": "array",
             "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "production": {
+            "required": ["mode"]
+          }
+        },
+        "required": ["production"]
+      },
+      "then": {
+        "properties": {
+          "units": {
+            "items": {
+              "properties": {
+                "frozenSnapshot": {
+                  "required": [
+                    "gitObjectDir",
+                    "branch",
+                    "branchStrategy",
+                    "commit",
+                    "tree",
+                    "commitTimestamp"
+                  ]
+                }
+              }
+            }
           }
         }
       }

@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.33 -->
+<!-- release-skill:release-version: 0.9.34 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,32 +14,34 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.33** (2026-10-20)
+**0.9.34** (2026-10-22)
 
-0.9.33 maps four engineering material roles onto existing release-project fields, distinguishes first-time setup from incremental wiring, and checks payload channels through those fields while retaining exact Foundation 0.25.0 dependencies. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.34 introduces optional test result integration. Projects declaring `testIntake` can specify test requirements and results files, enabling external test orchestration and validation against defined criteria. Foundation remains at exact version 0.25.0. This release note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- This round does not change remote-write authorization. Existing confirmation boundaries and frozen install URL/ref/sha remain in force. Hub gate failure prevents GitHub Git Data API write. Writes bind the observed branch head through `compare-and-swap`. Partial Hub publication is never rolled back or force-pushed; completed steps are not overwritten. Independent checkpoint approval, no replay of historical frozen plans, and `ALREADY_CURRENT` remain enforced.
+- Skill Family Hub remains the unified market, continuing to use GitHub Git Data API. Updates are bound to observed branch heads and written via compare-and-swap. Partial Hub publication is never rolled back or force-pushed; completed steps are not overwritten. These mechanisms remain unchanged; remote authorization is not modified in this release.
 
-**Changed**
+**Added**
 
-- Public formal materials are written to `publicFiles` (`sourceScope` / `from` / `to` / `mode`). Runtime-required resources are written to `requiredPublicFiles` and must be covered exactly by the same unit's `publicFiles[].to`. Private formal materials and informal runtime materials are omitted from `publicFiles`; when they must be blocked, use `forbiddenPaths` / `forbiddenContentPatterns`. Formal does not mean public. Whether a formal artifact enters the public snapshot is decided by whether it is listed in `publicFiles`. npm is a payload channel. `package.json` `files` and entry closure apply together with the public map. `delivery.include` / `delivery.exclude` select hosts and are not file include or exclude rules. Exclusion must not drop required resources. Conflicting configuration fails closed.
-- First-time wiring uses `release-setup`. An existing `.release-skill/project.yaml` returns `ALREADY_CONFIGURED` / `CONFIG_EXISTS` and is not overwritten. Incremental changes are diagnosed by `release-assess` and handled by the existing `release-config` skill; `release-config` is not a new CLI. Route first, then run `prepare --workflow config` only when the actual workflow is `config-only`; `full-happy-end` or mixed changes follow the ordinary full path. Do not unconditionally trigger `prepare --workflow config`.
-- Skill guidance for setup, assess, config, prepare, and verify now describes these material roles through the existing fields. `REQUIRED_PUBLIC_FILE_MISSING` belongs only to `setup --assess-adoption`. Ordinary `assess` and `verify-records` do not use that code. prepare keeps its native errors such as `PUBLIC_FILE_MISSING` and `CONFIG_INVALID`. `LICENSE_MISSING` does not substitute for required runtime resources. Foundation suggestions cannot serve as publication approval.
-- Skill Family Hub remains the unified market. GitHub Git Data API integration continues with `compare-and-swap` write semantics; no automatic rollback or overwrite of completed steps. This is the existing mechanism, not a new Hub implementation in this version, and it is not evidence that publication has completed.
+- Configurable test intake: Projects declaring `testIntake` can specify test requirements and results files via `testIntake.requirementsFile` and `testIntake.resultFile`. The first `production` `prepare` saves a non-final candidate and returns `NEEDS_INPUT` with the candidate path. Evidence must be provided before freezing; otherwise, no formal release plan is created. Subsequent `prepare --candidate <path>` resumes the same candidate without rebuilding public payloads. The candidate itself cannot be approved or published.
+- Test orchestration and acceptance: The TEST skill orchestrates test execution, determines whether to reuse or re-run tests, and aggregates business-level judgment on whether requirements are met. release-skill validates submitted materials against requirements, candidate bindings, and applicable stages, but does not replace the semantic acceptance by the domain or independent validators.
+- Post-freeze responsibilities: Requirements after freeze are handled by declared consumers via `consumer-verify`, `postverify`, or `finish` stages. Passing pre-freeze tests does not substitute for post-freeze validation.
+- Approval and artifact verification: Test acceptance is included in the release plan summary. Actions like `approve`, `publish`, and `reconcile` verify original artifacts before execution. Changes to results, criteria, scope, or allowed constraints invalidate prior approvals.
 
 **Fixed**
 
-- On `setup --assess-adoption`, adoption assessment locates the `publicFiles[].to` that covers each `requiredPublicFiles` snapshot target, then checks that the repository-relative `from` exists. Absence is recorded as `REQUIRED_PUBLIC_FILE_MISSING`. That code does not enter ordinary `assess`, `verify-records`, or prepare.
+- An unreadable or unparsable formal authority now raises an explicit error rather than being silently ignored.
+- `prepare` now rejects execution if `--candidate` is provided without a valid path.
+- New candidate modules after packaging use existing build version information; source mode uses trusted package identities.
 
 **Upgrade Notes**
 
-Keep exact Foundation 0.25.0 dependencies; do not upgrade because a sibling workspace is newer. Blank projects use `release-setup`. Configured projects keep their legal fields and use `release-assess` / `release-config` for increments. Route first; do not unconditionally run `prepare --workflow config`. A forbidden-path-only `config-only` increment may finish offline non-production prepare as `PREPARED` with `workflowDecision` `indeterminable` / `publish-needed`; that result is legal. npm is a payload channel; a missing entry fails closed with `GATE_FAILED` / `npm-entry-closure` / `entry_missing`. The old release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and `release-skill@skill-family-hub`.
+Projects not declaring `testIntake` retain the original full gate and release path, with no requirement to adopt TEST or artifact-graph. Only `production` prepare is supported for `testIntake`-declared projects; non-production prepare is not allowed. Foundation dependencies remain at exact version 0.25.0. TEST must be invoked through the real Skill entry point. No new TEST CLI is introduced, and no automatic resolution of all domain acceptances is provided. This does not imply validation of all hosts or models. History of `PARTIAL`, `PUBLISHED`, and `VERIFIED` states is preserved even if tests are re-run. The release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and `release-skill@skill-family-hub` instead.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.33: this README records capabilities and verification boundaries;
+> **Current boundary:** v0.9.34: this README records capabilities and verification boundaries;
 > it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -63,7 +65,7 @@ Keep exact Foundation 0.25.0 dependencies; do not upgrade because a sibling work
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; for v0.9.33,
+> **Production path verified since the v0.1.1 milestone; for v0.9.34,
 > publication, consumer-installation verification, and independent acceptance
 > require version-specific release records and verification results.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -603,6 +605,22 @@ setup entry such as `release-setup` or `plugin:skill`; it is never executed as
 a shell command. After host updates, release-finish runs that setup entry
 against the current release project root passed through `--root`; it does not
 request a separate project directory. The two settings are independent.
+
+Optional `testIntake` names a requirements file and a result file. It is
+accepted only by production prepare. The first production prepare stores one
+non-plan candidate and returns `NEEDS_INPUT` (`GATE_FAILED`, exit 13) with
+`candidatePath`, `candidateSha256`, and `subjectDigest`. It does not write a
+formal plan. Reattach that same candidate with `prepare --candidate <path>`;
+the formal plan and `PREPARED` are written only after the applicable pre-freeze
+requirements pass. A candidate cannot be approved or published, and it cannot
+clear `PARTIAL`, `PUBLISHED`, or `VERIFIED`. A project that does not declare
+`testIntake` keeps its existing hooks, full gate, and publish path. A docs,
+config, or marketplace workflow, a unit selection, or a no-publish-needed
+config does not waive project-level requirements. Non-production prepare
+rejects `testIntake` with `CONFIG_INVALID`. Optional `testAcceptance` is part
+of the current plan digest. Replacing the result, criterion, scope, or allowed
+limitation invalidates the previous approval. Approve, publish, and reconcile
+re-check those originals before acting.
 
 Use `release-skill post-release --finish` for the complete local finish. It
 always reports merge, host update, actual host loading, setup, and source-branch

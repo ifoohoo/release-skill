@@ -34,6 +34,34 @@
 | `DIRTY_SOURCE_INPUT` | 源码输入闭包存在未提交变化 | `publicFiles.from` 或 `version.source` 有 staged、unstaged、untracked 变化 | 提交或撤销这些具体输入的变化后重新 prepare；无关 dirty 不受影响 |
 | `BUNDLE_STALE` | bundle 与其源码输入失步（fail-closed 前置门禁） | `bin/release-skill.bundle.mjs` 内嵌的源码摘要与当前 `src/` 摘要不一致，或 bundle/内嵌摘要缺失；在 prepare 加载 config 后的早期阶段检测，任何 workflow 均不可豁免 | 按错误提示在 release-skill 包根运行 `node scripts/build-bundle.mjs`（或 `pnpm build`）重建 bundle 后重新 prepare |
 
+显式测试接入不新增顶层错误码。配置和结构问题仍是 `CONFIG_INVALID`（退出码 10），覆盖和续接问题仍是 `GATE_FAILED`（退出码 13）。稳定原因写在 `details.reason`，未知失败保持 `unknown`，不另造原因。
+
+| `details.reason` | 错误码 | 含义 |
+|---|---|---|
+| `TEST_INTAKE_NON_PRODUCTION` | `CONFIG_INVALID` | 非生产 prepare 声明了 `testIntake` |
+| `TEST_INTAKE_PATH` | `CONFIG_INVALID` | 接入路径不合法，或两个文件归一化后相同 |
+| `TEST_CANDIDATE_WITHOUT_INTAKE` | `CONFIG_INVALID` | 未声明 `testIntake` 却传入候选路径 |
+| `TEST_CANDIDATE_NOT_PLAN` | `GATE_FAILED` | 把候选文件交给 approve 或 publish |
+| `TEST_INTAKE_NEEDS_INPUT` | `GATE_FAILED` | 候选已保存，预冻结结果尚未接受 |
+| `TEST_REQUIREMENT_MISSING` | `GATE_FAILED` | 结果文件或某条适用要求缺失 |
+| `TEST_EVIDENCE_EMPTY` | `GATE_FAILED` | `executed` 或 `reused` 没有可核验证据 |
+| `TEST_ACCEPTOR_MISMATCH` | `GATE_FAILED` | `acceptedBy` 与 acceptor 或 owner 不一致 |
+| `TEST_RESULT_EARLY_PHASE` | `GATE_FAILED` | 后续阶段项在冻结前被标成完成 |
+| `TEST_SUBJECT_MISMATCH` | `GATE_FAILED` | 结果没有绑定当前对象 |
+| `TEST_REQUIREMENTS_DIGEST_MISMATCH` | `GATE_FAILED` | 结果没有绑定当前要求文件 |
+| `TEST_CANDIDATE_REPREPARE` | `GATE_FAILED` | 候选所绑定的实质输入已变化，须重新准备 |
+| `TEST_CANDIDATE_DIGEST_MISMATCH` | `GATE_FAILED` | 候选字节与 ship 记录或证据摘要不一致 |
+| `TEST_CANDIDATE_EVIDENCE_MISSING` | `GATE_FAILED` | 找不到保存候选时的证据摘要 |
+| `TEST_CANDIDATE_CONFIG_CONFLICT` | `GATE_FAILED` | ship 续接时配置摘要已变化 |
+| `TEST_CANDIDATE_UNIT_CONFLICT` | `GATE_FAILED` | ship 续接时单元选择已变化 |
+| `TEST_ACCEPTANCE_MISSING` | `GATE_FAILED` | 计划绑定的原件缺失 |
+| `TEST_ACCEPTANCE_TAMPERED` | `GATE_FAILED` | 计划绑定的原件与摘要不符 |
+| `TEST_ACCEPTANCE_SUBJECT` | `GATE_FAILED` | `testAcceptance.subjectDigest` 与计划对象不一致 |
+| `TEST_ACCEPTANCE_ROOT` | `GATE_FAILED` | 无法从计划路径确定项目根 |
+| `unknown` | `GATE_FAILED` | 失败、未完成或未覆盖，且没有更具体的稳定原因 |
+
+安装证据、加载证据和业务证据继续按原字段分开保存。测试接入不把它们收成一个全局 PASS 或单一证据类别。
+
 **动作状态码** (adapter execute/observe/verify):
 
 - `NO_CHANGE`: 幂等时 payload 无差异，不创建 commit/tag/push。
@@ -204,6 +232,8 @@ v2 的顶层结构封闭（`additionalProperties: false`），只接受 Schema �
 ```
 
 冻结计划存放在 `.release-skill/plans/<planDigest>.json`；批准记录存放在 `.release-skill/approvals/<planDigest>/<approvalDigest>.json`，均不在运行目录内。
+
+声明 `testIntake` 时，首次生产 prepare 在该次运行目录写入 `test-candidate.json`。它不是正式计划。证据流用 `phase: test-candidate`、`status: saved` 记录这次保存，候选摘要放在 `details.candidateSha256`。续接另开运行目录，不改写这份候选，也不改写当时的证据。正式计划只在接受之后出现。
 
 ### 5.1 文件保留
 

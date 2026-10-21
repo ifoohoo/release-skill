@@ -1,5 +1,33 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.34 locale=en baseline=sha256:d00e9ecca9e64593103a20119972dbfb025fd8e73b1de2f850e3838d965170ce -->
+## [0.9.34] - 2026-10-22
+
+0.9.34 introduces optional test result integration. Projects declaring `testIntake` can specify test requirements and results files, enabling external test orchestration and validation against defined criteria. Foundation remains at exact version 0.25.0. This release note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Skill Family Hub remains the unified market, continuing to use GitHub Git Data API. Updates are bound to observed branch heads and written via compare-and-swap. Partial Hub publication is never rolled back or force-pushed; completed steps are not overwritten. These mechanisms remain unchanged; remote authorization is not modified in this release.
+
+### Added
+
+- Configurable test intake: Projects declaring `testIntake` can specify test requirements and results files via `testIntake.requirementsFile` and `testIntake.resultFile`. The first `production` `prepare` saves a non-final candidate and returns `NEEDS_INPUT` with the candidate path. Evidence must be provided before freezing; otherwise, no formal release plan is created. Subsequent `prepare --candidate <path>` resumes the same candidate without rebuilding public payloads. The candidate itself cannot be approved or published.
+- Test orchestration and acceptance: The TEST skill orchestrates test execution, determines whether to reuse or re-run tests, and aggregates business-level judgment on whether requirements are met. release-skill validates submitted materials against requirements, candidate bindings, and applicable stages, but does not replace the semantic acceptance by the domain or independent validators.
+- Post-freeze responsibilities: Requirements after freeze are handled by declared consumers via `consumer-verify`, `postverify`, or `finish` stages. Passing pre-freeze tests does not substitute for post-freeze validation.
+- Approval and artifact verification: Test acceptance is included in the release plan summary. Actions like `approve`, `publish`, and `reconcile` verify original artifacts before execution. Changes to results, criteria, scope, or allowed constraints invalidate prior approvals.
+
+### Fixed
+
+- An unreadable or unparsable formal authority now raises an explicit error rather than being silently ignored.
+- `prepare` now rejects execution if `--candidate` is provided without a valid path.
+- New candidate modules after packaging use existing build version information; source mode uses trusted package identities.
+
+### Upgrade Notes
+
+Projects not declaring `testIntake` retain the original full gate and release path, with no requirement to adopt TEST or artifact-graph. Only `production` prepare is supported for `testIntake`-declared projects; non-production prepare is not allowed. Foundation dependencies remain at exact version 0.25.0. TEST must be invoked through the real Skill entry point. No new TEST CLI is introduced, and no automatic resolution of all domain acceptances is provided. This does not imply validation of all hosts or models. History of `PARTIAL`, `PUBLISHED`, and `VERIFIED` states is preserved even if tests are re-run. The release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and `release-skill@skill-family-hub` instead.
+<!-- release-skill:changelog:end version=0.9.34 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.33 locale=en baseline=sha256:af9d9faf59d67db851b0161430803a4e2ab6752f9979f83bd0a01b0df17bbeed -->
 ## [0.9.33] - 2026-10-20
 

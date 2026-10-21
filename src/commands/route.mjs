@@ -354,7 +354,7 @@ export async function classifyBaselineSurface(root, prevCommit) {
  * read. Invalid authority is diagnostic, never permission for a new release.
  *
  * @param {string} root - project root directory
- * @returns {Promise<{hasPartialRun: boolean, recoveryActionCode: string|null, runs: object[]}>}
+ * @returns {Promise<{hasPartialRun: boolean, recoveryActionCode: string|null, runs: object[], observedRuns: object[]}>}
  */
 export async function readRunRouting(root, options = {}) {
   const cwd = resolve(root);
@@ -364,7 +364,9 @@ export async function readRunRouting(root, options = {}) {
   try {
     runDirs = await readdir(runsDir);
   } catch (error) {
-    if (error.code === 'ENOENT') return { hasPartialRun: false, recoveryActionCode: null, runs: [] };
+    if (error.code === 'ENOENT') {
+      return { hasPartialRun: false, recoveryActionCode: null, runs: [], observedRuns: [] };
+    }
     const relativePath = relative(cwd, runsDir);
     const diagnostic = {
       code: error.code ?? 'RUNS_DIRECTORY_UNREADABLE',
@@ -383,6 +385,7 @@ export async function readRunRouting(root, options = {}) {
       hasPartialRun: false,
       recoveryActionCode: null,
       runs: [],
+      observedRuns: [],
       diagnostics: [{
         path: relativePath,
         runPath: runsDir,
@@ -455,6 +458,22 @@ export async function readRunRouting(root, options = {}) {
     }
     records.push(record);
   }
+  // Runs with a null recovery code, and runs seen without a target version,
+  // stay out of `runs`. Callers that need the recorded status still see them.
+  // Recovery selection below is unchanged.
+  const observedRuns = records.flatMap((record) => {
+    const run = record.run;
+    if (!run?.planPath || !run.status) return [];
+    return [{
+      runPath: record.runPath ?? null,
+      planPath: run.planPath,
+      command: run.command ?? null,
+      status: run.status,
+      sourceRunPath: run.sourceRunPath ?? null,
+      ...(run.approvalPath ? { approvalPath: run.approvalPath } : {}),
+      recoveryActionCode: record.recoveryActionCode ?? null,
+    }];
+  }).sort((a, b) => String(a.runPath).localeCompare(String(b.runPath)));
   const targetScopedRecords = [];
   const historicalDiagnostics = [];
   for (const record of records) {
@@ -536,6 +555,7 @@ export async function readRunRouting(root, options = {}) {
     hasPartialRun: unresolved.some((r) => r.run?.status === 'PARTIAL'),
     recoveryActionCode,
     runs,
+    observedRuns,
     ...(unifiedDiagnostics.length > 0 ? { diagnostics: unifiedDiagnostics } : {}),
   };
 }
@@ -872,14 +892,15 @@ async function isProvenPreAuthorityFailure(runDir, runName) {
 
 /**
  * Postverify is a downstream run type that predates the generic recovery
- * reader. A terminal legacy record is consumable only when its summary agrees
- * with its sealed status and its verify parent is fully lineage-valid.
+ * reader. Its completed and open records are consumable only when the summary
+ * agrees with the sealed status and the verify parent is fully lineage-valid.
  */
 async function readLegacyPostverifyRecovery(runPath) {
   try {
     const run = await loadRun(runPath, { requireDigest: true });
-    if (run.command !== 'postverify' || run.status !== 'DISTRIBUTED') {
-      throw new ReleaseError(GATE_FAILED, 'legacy postverify status is not terminal DISTRIBUTED');
+    const acceptedStatuses = new Set(['DISTRIBUTED', 'PARTIAL', 'BLOCKED', 'NEEDS_INPUT']);
+    if (run.command !== 'postverify' || !acceptedStatuses.has(run.status)) {
+      throw new ReleaseError(GATE_FAILED, 'postverify status is not a recognized completed or open state');
     }
     const planRaw = await readFile(run.planPath, 'utf8');
     const plan = JSON.parse(planRaw);
@@ -932,7 +953,8 @@ async function readLegacyPostverifyRecovery(runPath) {
         }))
     ));
     validateRunCheckpointMapping(run, expectedPostVerifyActions);
-    if (run.checkpoints.some((checkpoint) => !['succeeded', 'skipped', 'NO_CHANGE'].includes(checkpoint.status))) {
+    if (run.status === 'DISTRIBUTED'
+      && run.checkpoints.some((checkpoint) => !['succeeded', 'skipped', 'NO_CHANGE'].includes(checkpoint.status))) {
       throw new ReleaseError(GATE_FAILED, 'legacy postverify DISTRIBUTED run has incomplete checkpoints');
     }
     return {
@@ -940,6 +962,9 @@ async function readLegacyPostverifyRecovery(runPath) {
       run,
       plan,
       lineage: [{ run: parent, runPath: resolve(run.sourceRunPath) }],
+      // Postverify continuation is owned by the existing ship entry point.
+      // Route exposes its validated status but does not turn it into a second
+      // release recovery action.
       recoveryActionCode: null,
       legacyPostverify: true,
     };

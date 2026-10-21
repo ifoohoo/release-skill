@@ -210,7 +210,9 @@ export function validatePlan(plan) {
  * still written to the plan file (schema unchanged, evidence chain intact)
  * but is excluded from the digest. Everything else (planVersion, units with
  * every frozenSnapshot artifact identity field, externalActions identity,
- * production, configDigest, verificationGates, snapshotDigest) binds.
+ * production, configDigest, verificationGates, snapshotDigest, and
+ * testAcceptance when present) binds. testAcceptance is intentionally absent
+ * from the exclusion list below: it stays in the binding layer.
  * For v3 the frozen `postPublish` array and every item binding field stay in
  * the binding layer: any order or binding change moves the digest.
  *

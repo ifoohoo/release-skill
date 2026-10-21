@@ -36,7 +36,15 @@ import {
 } from '../core/public-surface.mjs';
 import { runSnapshotVerificationGates } from '../core/verification-gates.mjs';
 import { asError, createEvidenceWriter } from '../core/evidence.mjs';
-import { computePlanDigest, writePlanAtomic, writePlanImmutable } from '../core/plan.mjs';
+import { computePlanDigest, validatePlan, validatePlanActionCompleteness, writePlanAtomic, writePlanImmutable } from '../core/plan.mjs';
+import { assertTestIntakeDeclaration, readTestRequirements, subjectDigestOf } from '../core/test-intake.mjs';
+import {
+  decideTestCandidateHandoff,
+  projectPrepared,
+  readCandidateEvidenceSha256,
+  readTestCandidate,
+  writeTestCandidate,
+} from '../core/test-candidate.mjs';
 import { sha256Hex } from '../core/digest.mjs';
 import {
   CHECKER_VERSION as SKILL_RESOURCE_CHECKER_VERSION,
@@ -54,6 +62,9 @@ import {
   computeFrozenSnapshot,
   normalizeGitTimestamp,
   sealFrozenSnapshot,
+  verifyFrozenFile,
+  verifyFrozenGitRepository,
+  verifyFrozenSnapshot,
 } from '../snapshot/frozen.mjs';
 import { ReleaseError, GATE_FAILED, CONFIG_INVALID, CONFIG_MISSING, FORBIDDEN_CONTENT_DETECTED, RELEASE_DOCS_STALE, DIRTY_SOURCE_INPUT, BUNDLE_STALE } from '../core/errors.mjs';
 import { assertBundleFreshness } from '../core/bundle-freshness.mjs';
@@ -91,10 +102,11 @@ import {
   normalizePostPublishDeclaration,
   orderNormalizedHooks,
   validatePostPublishHookIdUniqueness,
+  normalizePostPublishView,
   PAYLOAD_SOURCE_TAG_WORKTREE,
 } from '../core/postpublish.mjs';
-import { freezeExecutionBundle, bundleRootForAuthorityDir } from '../core/postpublish-bundle.mjs';
-import { digestReleaseAssetIdentities } from '../core/release-assets.mjs';
+import { freezeExecutionBundle, bundleRootForAuthorityDir, verifyExecutionBundle } from '../core/postpublish-bundle.mjs';
+import { digestReleaseAssetIdentities, normalizeReleaseAssets } from '../core/release-assets.mjs';
 
 // ---------------------------------------------------------------------------
 // 安装契约常量
@@ -3288,6 +3300,363 @@ function resolveRequestedReleaseUnits(config, requestedUnitIds, retryOptions) {
   };
 }
 
+function candidateReprepare(message, drifts, details = {}) {
+  throw new ReleaseError(GATE_FAILED, message, {
+    reason: 'TEST_CANDIDATE_REPREPARE',
+    drifts,
+    ...details,
+  });
+}
+
+async function recheckCandidateClosure(realRoot, prepared, config, unitIds) {
+  const authority = prepared?.sourceAuthority;
+  if (!authority) return;
+  const stored = authority.inputDigest;
+  if (typeof stored !== 'string' || stored.length === 0) {
+    candidateReprepare('test candidate source inputDigest is missing', ['inputDigest'], {
+      storedInputDigest: stored ?? null,
+    });
+  }
+  const selected = new Set(unitIds ?? []);
+  const units = (config.releaseUnits ?? []).filter((unit) => selected.has(unit.id));
+  const closure = await computeSourceInputClosure({ units, root: realRoot });
+  if (closure.digest !== stored) {
+    candidateReprepare(
+      `test candidate source inputDigest changed: ${stored} -> ${closure.digest}`,
+      [`inputDigest:${stored}->${closure.digest}`],
+      { inputDigest: closure.digest, storedInputDigest: stored },
+    );
+  }
+}
+
+async function recheckExecutionBundle(realRoot, prepared) {
+  let declarations;
+  try {
+    declarations = normalizePostPublishView(prepared);
+  } catch (err) {
+    if (!prepared?.postPublish) return;
+    throw err;
+  }
+  const anchor = resolve(realRoot, '.release-skill', 'release-plan.json');
+  for (const declaration of declarations) {
+    if (!declaration?.executionBundle) continue;
+    try {
+      await verifyExecutionBundle({ planPath: anchor, postPublish: declaration });
+    } catch (err) {
+      candidateReprepare(
+        `test candidate execution bundle changed: ${err.message}`,
+        ['executionBundle'],
+        { cause: err.code ?? 'unknown' },
+      );
+    }
+  }
+}
+
+function recheckReceipt(prepared) {
+  if (!prepared?.publicSourceAuthorityReceipt) return;
+  const completeness = validatePlanActionCompleteness({
+    ...prepared,
+    status: prepared.status ?? 'PREPARED',
+  });
+  const failures = (completeness.details?.failures ?? []).filter((failure) => (
+    String(failure).includes('publicSourceAuthorityReceipt')
+  ));
+  if (failures.length > 0) {
+    candidateReprepare(
+      `test candidate publicSourceAuthorityReceipt is incomplete: ${failures.join('; ')}`,
+      ['receipt'],
+      { failures },
+    );
+  }
+}
+
+/**
+ * Reattach one saved test candidate. Does not rebuild and does not write a
+ * second candidate. Frozen git checks run only when the saved unit still
+ * carries a frozenSnapshot.
+ */
+async function reattachTestCandidate({
+  realRoot,
+  runDir,
+  releaseDir,
+  evidence,
+  evidenceDir,
+  config,
+  configDigest,
+  production,
+  workflow,
+  offline,
+  version,
+  options,
+  clock,
+  runWarnings,
+  adoptedCandidate,
+  output,
+}) {
+  const savedOptions = adoptedCandidate.candidate.prepareOptions;
+  const workflowExplicit = options?.workflowExplicit === true;
+  const offlineExplicit = options?.offlineExplicit === true;
+  const versionExplicit = options?.versionExplicit === true;
+  const resolvedWorkflow = workflowExplicit ? workflow : savedOptions.workflow;
+  const resolvedOffline = offlineExplicit ? offline : savedOptions.offline;
+  const resolvedUnitIds = Array.isArray(options?.unitIds)
+    ? options.unitIds
+    : savedOptions.unitIds;
+  const extraDrifts = [];
+  if (versionExplicit) {
+    for (const unitId of savedOptions.unitIds) {
+      if (savedOptions.unitVersions[unitId] !== version) extraDrifts.push(`targetVersion.${unitId}`);
+    }
+  }
+  for (const unitId of savedOptions.unitIds) {
+    const unit = (config.releaseUnits ?? []).find((item) => item.id === unitId);
+    if (!unit) {
+      extraDrifts.push(`unit.${unitId}`);
+      continue;
+    }
+    try {
+      const onDisk = await resolveUnitVersion(unit, realRoot, undefined);
+      if (onDisk !== savedOptions.unitVersions[unitId]) extraDrifts.push(`unitVersions.${unitId}`);
+    } catch {
+      extraDrifts.push(`unitVersions.${unitId}`);
+    }
+  }
+  const requirements = await readTestRequirements({
+    root: realRoot,
+    config,
+    selectedUnitIds: savedOptions.unitIds,
+  });
+  const evidenceCandidateSha256 = await readCandidateEvidenceSha256(
+    realRoot,
+    options.candidatePath,
+  );
+  const decision = await decideTestCandidateHandoff({
+    root: realRoot,
+    config,
+    production,
+    candidatePath: options.candidatePath,
+    requirements,
+    prepareOptions: {
+      workflow: resolvedWorkflow,
+      offline: resolvedOffline,
+      production: true,
+      unitIds: resolvedUnitIds,
+      unitVersions: savedOptions.unitVersions,
+    },
+    evidenceCandidateSha256,
+    expectedCandidateSha256: options.expectedCandidateSha256,
+    expectedSubjectDigest: options.expectedSubjectDigest,
+    configDigest,
+    extraDrifts,
+  });
+  const savedPrepared = adoptedCandidate.candidate.prepared;
+  await recheckCandidateClosure(realRoot, savedPrepared, config, savedOptions.unitIds);
+  await recheckExecutionBundle(realRoot, savedPrepared);
+  recheckReceipt(savedPrepared);
+  const now = clock ? clock() : new Date().toISOString();
+  if (decision.kind === 'await-results') {
+    await evidence.append({
+      phase: 'test-candidate',
+      status: 'awaiting',
+      candidatePath: decision.candidatePath,
+      candidateSha256: decision.candidateSha256,
+      subjectDigest: decision.subjectDigest,
+    });
+    await evidence.finish({
+      status: 'NEEDS_INPUT',
+      candidatePath: decision.candidatePath,
+      candidateSha256: decision.candidateSha256,
+      subjectDigest: decision.subjectDigest,
+      completedAt: now,
+    });
+    return {
+      status: 'NEEDS_INPUT',
+      code: 'GATE_FAILED',
+      exitCode: 13,
+      candidatePath: decision.candidatePath,
+      candidateSha256: decision.candidateSha256,
+      subjectDigest: decision.subjectDigest,
+      evidenceDir,
+      requirements: (decision.gaps ?? []).map((item) => item.requirementId).filter(Boolean),
+      gaps: decision.gaps,
+      message: 'testIntake results for this candidate are not accepted yet',
+      nextSteps: [{
+        code: 'TEST_INTAKE_NEEDS_INPUT',
+        message: 'Bind the result file to this subjectDigest and re-run prepare with the same candidate.',
+      }],
+      warnings: runWarnings,
+    };
+  }
+  if (decision.kind === 'already-accepted') {
+    await evidence.finish({
+      status: decision.status ?? 'PREPARED',
+      planDigest: decision.planDigest,
+      completedAt: now,
+    });
+    return {
+      status: decision.status,
+      planPath: resolve(realRoot, decision.planPath),
+      planDigest: decision.planDigest,
+      evidenceDir,
+      warnings: runWarnings,
+      nextSteps: [],
+    };
+  }
+  if (decision.prepared?.sourceAuthority?.entries) {
+    try {
+      const dirty = await checkSourceInputDirty({
+        closure: { entries: decision.prepared.sourceAuthority.entries },
+        root: realRoot,
+      });
+      if (dirty.dirty) {
+        throw new ReleaseError(GATE_FAILED, 'test candidate source inputs changed', {
+          reason: 'TEST_CANDIDATE_REPREPARE',
+          drifts: dirty.dirtyPaths.map((filePath) => `source:${filePath}`),
+        });
+      }
+    } catch (err) {
+      if (err instanceof ReleaseError && err.details?.reason === 'TEST_CANDIDATE_REPREPARE') throw err;
+      throw new ReleaseError(GATE_FAILED, 'test candidate source inputs could not be rechecked', {
+        reason: 'TEST_CANDIDATE_REPREPARE',
+        drifts: ['sourceAuthority'],
+        cause: err.code ?? 'unknown',
+      });
+    }
+  }
+  for (const unit of decision.prepared.units ?? []) {
+    const frozen = unit.frozenSnapshot;
+    if (!frozen) continue;
+    try {
+      // snapshotDigest is the pre-seal content hash. sealFrozenSnapshot
+      // changes file mode, and that mode is part of the sealed digest stored
+      // on frozenSnapshot.manifestDigest — the same field publish rechecks.
+      if (frozen.path || frozen.manifestDigest) {
+        await verifyFrozenSnapshot({
+          root: realRoot,
+          snapshotPath: frozen.path,
+          expectedDigest: frozen.manifestDigest,
+        });
+      }
+      if (frozen.gitObjectDir) {
+        await verifyFrozenGitRepository({
+          root: realRoot,
+          gitObjectDir: frozen.gitObjectDir,
+          commit: frozen.commit,
+          tree: frozen.tree,
+          parentCommit: frozen.parentCommit,
+          commitTimestamp: frozen.commitTimestamp,
+        });
+      }
+      const npmDistribution = (unit.distributions ?? []).find((dist) => dist.type === 'npm');
+      if (frozen.npm?.tarballPath && npmDistribution) {
+        await verifyFrozenNpmTarballContract({
+          package: npmDistribution.package,
+          version: unit.targetVersion,
+          tarballPath: frozen.npm.tarballPath,
+          tarballSha256: frozen.npm.tarballSha256,
+          integrity: frozen.npm.integrity,
+        }, realRoot);
+      }
+    } catch (err) {
+      if (err instanceof ReleaseError && err.details?.reason === 'TEST_CANDIDATE_REPREPARE') throw err;
+      throw new ReleaseError(GATE_FAILED, `test candidate frozen object changed for unit "${unit.id}"`, {
+        reason: 'TEST_CANDIDATE_REPREPARE',
+        drifts: [`frozen:${unit.id}`],
+        cause: err.code ?? 'unknown',
+      });
+    }
+  }
+  for (const action of decision.prepared.externalActions ?? []) {
+    let assets = [];
+    if (action.parameters?.releaseAssets !== undefined) {
+      try {
+        assets = normalizeReleaseAssets(action.parameters.releaseAssets);
+      } catch (err) {
+        throw new ReleaseError(GATE_FAILED, `test candidate release assets could not be rechecked for "${action.id}"`, {
+          reason: 'TEST_CANDIDATE_REPREPARE',
+          drifts: [`releaseAsset:${action.id}`],
+          cause: err.code ?? 'unknown',
+        });
+      }
+    }
+    for (const releaseAsset of assets) {
+      try {
+        await verifyFrozenFile({
+          root: realRoot,
+          filePath: releaseAsset.path,
+          expectedSha256: releaseAsset.sha256,
+          label: `frozen GitHub Release asset "${releaseAsset.name}"`,
+        });
+      } catch (err) {
+        if (err instanceof ReleaseError && err.details?.reason === 'TEST_CANDIDATE_REPREPARE') throw err;
+        throw new ReleaseError(GATE_FAILED, `test candidate release asset changed for "${releaseAsset.name}"`, {
+          reason: 'TEST_CANDIDATE_REPREPARE',
+          drifts: [`releaseAsset:${releaseAsset.name}`],
+          cause: err.code ?? 'unknown',
+        });
+      }
+    }
+  }
+  if (savedOptions.production === true && decision.prepared?.production?.mode !== 'github-npm-v1') {
+    candidateReprepare('test candidate prepared.production does not match production prepare', ['prepared.production']);
+  }
+  const plan = {
+    ...decision.prepared,
+    status: 'PREPARED',
+    testAcceptance: decision.testAcceptance,
+    createdAt: now,
+  };
+  try {
+    validatePlan(plan);
+  } catch (err) {
+    if (err instanceof ReleaseError && err.details?.reason === 'TEST_CANDIDATE_REPREPARE') throw err;
+    candidateReprepare(`test candidate plan structure is incomplete: ${err.message}`, ['plan-structure']);
+  }
+  const completeness = validatePlanActionCompleteness(plan);
+  if (!completeness.passed) {
+    const failures = completeness.details?.failures ?? [];
+    candidateReprepare(
+      `test candidate action completeness failed: ${failures.join('; ')}`,
+      ['action-completeness'],
+      { failures },
+    );
+  }
+  const latestPlanPath = output ?? resolve(releaseDir, 'release-plan.json');
+  const plannedDigest = computePlanDigest(plan);
+  const immutablePlanPath = resolve(dirname(latestPlanPath), 'plans', `${plannedDigest}.json`);
+  const { planPath: writtenPath, planDigest } = await writePlanImmutable(immutablePlanPath, plan);
+  await writePlanAtomic(latestPlanPath, plan);
+  await writeFrozenMarker(releaseDir, {
+    planDigest,
+    targetVersions: savedOptions.unitVersions,
+    createdAt: plan.createdAt,
+    runId: basename(runDir),
+  });
+  await evidence.append({
+    phase: 'plan-write',
+    status: 'completed',
+    planPath: writtenPath,
+    planDigest,
+  });
+  await evidence.finish({
+    status: 'PREPARED',
+    planPath: writtenPath,
+    planDigest,
+    configDigest,
+    offline,
+    workflowKind: resolvedWorkflow,
+    completedAt: now,
+  });
+  return {
+    planPath: writtenPath,
+    planDigest,
+    evidenceDir,
+    warnings: runWarnings,
+    nextSteps: [],
+    status: 'PREPARED',
+  };
+}
+
 export async function prepareRelease(options) {
   const {
     root,
@@ -3411,7 +3780,20 @@ export async function prepareRelease(options) {
     await evidence.append({ phase: 'config', status: 'started' });
 
     const { config, configPath, configDigest } = await loadProjectConfig({ root: realRoot });
-    const releaseSelection = resolveRequestedReleaseUnits(config, unitIds, {
+    assertTestIntakeDeclaration({ config, production });
+    if (options?.candidatePath && !config.testIntake) {
+      throw new ReleaseError(CONFIG_INVALID, 'candidate path requires testIntake', {
+        reason: 'TEST_CANDIDATE_WITHOUT_INTAKE',
+        field: 'candidatePath',
+      });
+    }
+    const adoptedCandidate = options?.candidatePath
+      ? await readTestCandidate({ root: realRoot, candidatePath: options.candidatePath })
+      : null;
+    const selectionUnitIds = adoptedCandidate && !Array.isArray(options?.unitIds)
+      ? adoptedCandidate.candidate.prepareOptions.unitIds
+      : unitIds;
+    const releaseSelection = resolveRequestedReleaseUnits(config, selectionUnitIds, {
       root,
       version,
       offline,
@@ -3452,6 +3834,34 @@ export async function prepareRelease(options) {
         ...(releaseSelection.deferredReleaseDiagnostics
           ? { nextPrepareArgv: releaseSelection.deferredReleaseDiagnostics.nextPrepareArgv }
           : {}),
+      });
+    }
+
+    if (adoptedCandidate) {
+      return await reattachTestCandidate({
+        realRoot,
+        runDir,
+        releaseDir,
+        evidence,
+        evidenceDir,
+        config,
+        configDigest,
+        production,
+        workflow,
+        offline,
+        version,
+        options,
+        clock,
+        runWarnings,
+        adoptedCandidate,
+        output,
+      });
+    }
+    if (config.testIntake) {
+      await readTestRequirements({
+        root: realRoot,
+        config,
+        selectedUnitIds: releaseSelection.selectedUnitIds,
       });
     }
 
@@ -4371,7 +4781,38 @@ export async function prepareRelease(options) {
     // approval, it cannot be disabled by project overlays. Workflows that
     // trim declared hooks record the trim; projects declaring no test hook
     // pass vacuously (nothing can run incrementally there).
-    if (skipDeclaredHooks) {
+    if (config.testIntake) {
+      await evidence.append({
+        phase: 'full-test-gate',
+        status: 'replaced',
+        reason: 'testIntake acceptance replaces the vacuous full-test pass; applicable requirements stay required',
+      });
+      if (!skipDeclaredHooks && config.hooks?.test) {
+        const testRecord = hookRecords.find((record) => record.name === 'test');
+        const satisfied = Boolean(
+          testRecord && testRecord.completed && testRecord.testSelection === 'full',
+        );
+        if (!satisfied) {
+          await evidence.append({
+            phase: 'full-test-gate',
+            status: 'blocking',
+            testSelection: testRecord?.testSelection ?? null,
+            cached: Boolean(testRecord?.cached),
+          });
+          throw new ReleaseError(
+            GATE_FAILED,
+            testRecord?.testSelection === 'incremental'
+              ? 'full-test freeze gate failed: incremental test selection cannot satisfy the freeze-time requirement of a completed full test run in this prepare run'
+              : 'full-test freeze gate failed: prepare requires a completed full-mode test hook in this run before the plan digest is computed',
+            {
+              gate: 'full-test-freeze',
+              testSelection: testRecord?.testSelection ?? null,
+              cached: Boolean(testRecord?.cached),
+            },
+          );
+        }
+      }
+    } else if (skipDeclaredHooks) {
       await evidence.append({
         phase: 'full-test-gate',
         status: 'skipped',
@@ -4976,6 +5417,61 @@ export async function prepareRelease(options) {
       unitCount: units.length,
       actionCount: externalActions.length,
     });
+
+    if (config.testIntake) {
+      const requirementsNow = await readTestRequirements({
+        root: realRoot,
+        config,
+        selectedUnitIds: releaseSelection.selectedUnitIds,
+      });
+      const saved = await writeTestCandidate({
+        root: realRoot,
+        runDir,
+        prepared: projectPrepared(plan),
+        requirements: requirementsNow,
+        prepareOptions: {
+          workflow,
+          offline,
+          production: true,
+          unitIds: releaseSelection.selectedUnitIds,
+          unitVersions: Object.fromEntries(
+            configUnits.map((unit, index) => [unit.id, resolvedVersions[index]]),
+          ),
+        },
+      });
+      const subjectDigest = subjectDigestOf(projectPrepared(plan));
+      await evidence.append({
+        phase: 'test-candidate',
+        status: 'saved',
+        candidatePath: saved.candidatePath,
+        candidateSha256: saved.sha256,
+        subjectDigest,
+      });
+      await evidence.finish({
+        status: 'NEEDS_INPUT',
+        candidatePath: saved.candidatePath,
+        candidateSha256: saved.sha256,
+        subjectDigest,
+        configDigest,
+        completedAt: (clock ? clock() : new Date().toISOString()),
+      });
+      return {
+        status: 'NEEDS_INPUT',
+        code: 'GATE_FAILED',
+        exitCode: 13,
+        candidatePath: saved.candidatePath,
+        candidateSha256: saved.sha256,
+        subjectDigest,
+        evidenceDir,
+        requirements: requirementsNow.preFreeze.map((item) => item.id),
+        message: 'testIntake candidate saved; results for this object are not accepted yet',
+        nextSteps: [{
+          code: 'TEST_INTAKE_NEEDS_INPUT',
+          message: 'Call TEST on this subject, bind the result file to subjectDigest, then re-run prepare with the same candidate.',
+        }],
+        warnings: runWarnings,
+      };
+    }
 
     // --- Step 8: Validate and write plan atomically ---
     await evidence.append({ phase: 'plan-write', status: 'started' });

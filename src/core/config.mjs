@@ -27,6 +27,7 @@ import { validatePublicSurfaceGlob } from './public-surface.mjs';
 import { canonicalPublicPath, publicPathCollisionKey } from '../snapshot/public-path.mjs';
 import { isReservedReleaseControlPath } from './baseline.mjs';
 import { readTrustedPackageResource } from './trusted-resource.mjs';
+import { assertTestIntakePaths } from './test-intake.mjs';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -421,6 +422,10 @@ export async function loadProjectConfig({ root, configPath } = {}) {
       `config schema validation failed: ${summary}`,
       { configPath: absConfigPath, validationErrors: errors },
     );
+  }
+
+  if (config.testIntake) {
+    assertTestIntakePaths(config.testIntake);
   }
 
   // --- Compile forbiddenContentPatterns (fail closed on invalid regex) ---
