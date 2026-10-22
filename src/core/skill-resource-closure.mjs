@@ -51,7 +51,7 @@ const GLOB_PATTERN = /[*?\[]/u;
 // the token was extracted. A prose marker elsewhere on the line exempts
 // nothing (fail-closed over a line-wide false pass).
 const SOURCE_ONLY_MARKER = /(?:\bsource-only\b|仅源码包)/iu;
-const TRANSPORT_EXCLUSIONS = Object.freeze([
+export const TRANSPORT_EXCLUSIONS = Object.freeze([
   '.git',
   'node_modules',
   '.in_use',

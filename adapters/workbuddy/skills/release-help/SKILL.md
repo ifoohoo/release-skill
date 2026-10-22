@@ -7,52 +7,64 @@ description: "Discoverable entry point for release-skill: dependency and environ
 
 ## 触发
 
-询问 release-skill 的用法、发布流程、依赖、环境、只读诊断或 dry-run 时使用。本入口只做能力说明和分诊；专用工作流交给对应 Skill。
+用户询问 `release-skill` 用法、流程、依赖、环境、只读诊断或 `dry-run` 时使用。入口只说明能力并分诊，不执行操作。
 
 ## 只读边界
 
-`help` 不联网、不检查认证、不改文件、不生成计划，也不执行 Git、宿主安装或外部发布写入。它只根据当前环境报告准备度并给出下一步。优先调用插件自带入口；不可用时才回退到源码入口。
+`help` 命令不联网、不检查认证、不修改文件、不生成发布计划，也不执行 Git 操作、宿主安装或外部发布写入。据环境评估准备度、建议下一步。
 
-核心流程跨平台；WorkBuddy 本机收尾仅支持 macOS。Node.js >= 22 和 Git 决定本地准备度。npm、gh 只影响生产发布依赖；pnpm 缺失只进入建议。
+核心流程跨平台；WorkBuddy 本机收尾仅支持 macOS。本地准备度由 Node.js ≥ 22 和 Git 决定。`npm` 与 `gh` 仅影响生产发布依赖；`pnpm` 缺失仅触发建议，不影响准备度判断。
 
-本地阶段通过须同时满足 `status: "READY"` 和 exit code 0。读取 `readiness.localPreparation.status` 与 `missingRequired`。生产另读 `readiness.productionPublish`：缺 npm/gh 为 `NOT_READY`，已安装也只是 `AUTH_CHECK_REQUIRED`，不代表认证、权限或发布授权已经成立。
+本地阶段通过需同时满足：
+- `status: "READY"`
+- 退出码为 0
+
+通过读取 `readiness.localPreparation.status` 与 `missingRequired` 判断。生产发布另需检查 `readiness.productionPublish`：
+- 缺失 `npm` 或 `gh` 时为 `NOT_READY`
+- 已安装时仅为 `AUTH_CHECK_REQUIRED`，不代表认证、权限或发布授权已成立
 
 ## 治理诊断分流
 
-用户只要求治理诊断时，按意图选择一个入口：
+只请求治理诊断时，按意图选择入口：
 
-- 了解能力、依赖或安全边界：留在 `release-help`。
-- 检查接入：转 `release-setup`，运行 `setup --assess-adoption`；`NOT_CONFIGURED` 指向首次接入，不创建配置。
-- 分析配置、文档和发布就绪缺口：转 `release-assess`，运行离线 `assess`。
-- 核对历史记录：转 `release-assess`，只核对用户显式提供的 plan、approval 和 run 文件。
-- 读取已有共同证明：转 `release-assess`，运行 `read-proof`。三个只读入口可用 `--conclusion-output` 排他写出证明；读取不重新扫描目标。
+| 意图 | 推荐入口 | 说明 |
+|------|----------|------|
+| 了解能力、依赖或安全边界 | 保留 `release-help` | 仅提供能力说明与分诊 |
+| 检查接入状态 | `release-setup --assess-adoption` | `NOT_CONFIGURED` 表示首次接入，不创建配置 |
+| 分析配置、文档与发布就绪缺口 | `release-assess --offline` | 离线诊断，不运行构建或发布动作 |
+| 核对历史记录 | `release-assess`（显式提供 plan/approval/run 文件） | 仅读取用户提供的文件，不重新扫描 |
+| 读取已有证明 | `release-skill read-proof --proof-root <root> --proof <relative> --json`，只读现有文件、不扫描目标 | 三个只读入口可用 `--conclusion-output <absolute-path>` 排他输出共同证明 |
 
-治理诊断只运行 release-skill 自己的只读检查程序，不运行目标 Skill、业务脚本、构建、hook 或发布动作，也不把 `prepare`、`verify`、`release-finish` 当作静态治理入口。用户要求实际接入或发布时，把已有授权带到对应原业务入口；各入口继续执行原有确认、副作用和状态机合同。
+诊断只运行 `release-skill` 自身只读检查，不调用目标 Skill、业务脚本、构建、hook 或发布动作。`prepare`、`verify`、`release-finish` 不作为静态治理入口。用户要求实际接入或发布时，应将已有授权带入对应原业务入口，各入口继续执行原有确认、副作用与状态机合同。
 
-## 0.9.36 能力与证据边界
+## 0.9.37 能力与证据边界
 
-四类工程材料接到现有 `release-project` 字段。公开正式材料写入 `publicFiles`（`sourceScope` / `from` / `to` / `mode`）。运行必需资源写入 `requiredPublicFiles`，必须被同一单元 `publicFiles[].to` 精确覆盖。私有正式材料与非正式运行材料不列入 `publicFiles`，需要挡住时使用 `forbiddenPaths` / `forbiddenContentPatterns`。正式不等于公开。是否进入公开快照由 `publicFiles` 是否列出决定。npm 是载荷渠道。`package.json` 的 `files` 与入口闭包和公开映射同时约束。`delivery.include` / `delivery.exclude` 只选择宿主，不是文件包含或排除。排除不得拿掉运行必需资源。互相冲突的配置必须失败关闭。
+四类工程材料由 `release-project` 字段统一管理。公开正式材料写入 `publicFiles`（含 `sourceScope` / `from` / `to` / `mode`）。运行必需资源写入 `requiredPublicFiles`，必须被同一单元的 `publicFiles[].to` 精确覆盖。
 
-首次接线使用 `release-setup`。已有 `.release-skill/project.yaml` 返回 `ALREADY_CONFIGURED` / `CONFIG_EXISTS`，不覆盖。存量增量由 `release-assess` 诊断，再由已有 `release-config` Skill 处理。`release-config` 不是新增 CLI。必须先 `route`：实际为 `config-only` 才执行 `prepare --workflow config`；`full-happy-end` 或混合走普通 full。不得无条件触发 `prepare --workflow config`。
+私有正式材料与非正式运行材料**不列入** `publicFiles`，需通过 `forbiddenPaths` / `forbiddenContentPatterns` 阻挡。正式 ≠ 公开；是否进入公开快照由 `publicFiles` 是否列出决定。
 
-`REQUIRED_PUBLIC_FILE_MISSING` 只属于 `setup --assess-adoption`。接入评估按 `requiredPublicFiles` 的快照目标找到对应 `publicFiles[].to`，再检查仓根相对 `from` 是否存在；缺失记该码。普通 `assess` 与 `verify-records` 不使用该码。`prepare` 仍使用自身原生错误，例如 `PUBLIC_FILE_MISSING`、`CONFIG_INVALID`。`LICENSE_MISSING` 不能代替运行必需资源。Foundation 建议不能作为发布批准。
+`npm` 是载荷渠道。`package.json` 的 `files` 字段与入口闭包、公开映射共同约束公开内容。`delivery.include` / `delivery.exclude` 仅用于选择宿主，不用于文件包含或排除。排除不得移除运行必需资源。配置冲突必须失败关闭。
 
-Skill Family Hub 保持统一市场。GitHub Git Data API 机制延续，写入采用 `compare-and-swap` 语义；不自动回滚或覆盖已完成步骤。这是已有机制，不是本轮新实现的 Hub，也不表示已经完成发布。本轮未变更远端写入授权。确认边界、冻结安装 URL/ref/sha、安装后 name/version 与载荷核对规则仍有效。Hub 门禁失败将阻止 GitHub Git Data API 写入。写入绑定已观察的分支头并比较后写入；部分发布不回滚、不覆盖已完成步骤、不自动强推。独立检查点批准、历史冻结计划不重放、`ALREADY_CURRENT` 仍强制执行。
+首次接入走 `release-setup`；已有 `.release-skill/project.yaml` 为 `ALREADY_CONFIGURED` / `CONFIG_EXISTS`，不覆盖。增量由 `release-assess` 诊断、`release-config` 处理。后者不是新增 CLI，须先 `route`；仅 `config-only` 执行 `prepare --workflow config`，`full-happy-end` 或混合路径走普通 full 流程，不得无条件执行。
 
-继续采用 Foundation 0.25.0 精确依赖，不能因为邻仓版本较新就升级。空白项目走 `release-setup`；已有配置保留合法字段，用 `release-assess` / `release-config` 做增量。仅禁路径一类的 `config-only` 增量，离线非生产 `prepare` 可为 `PREPARED`，`workflowDecision` 为 `indeterminable` / `publish-needed`，这是合法结果。npm 入口缺失时失败关闭，错误为 `GATE_FAILED` / `npm-entry-closure` / `entry_missing`。旧版独立的 `release-skill` 市场已弃用，使用 `ifoohoo/skill-family-hub` 与 `release-skill@skill-family-hub`。
+`REQUIRED_PUBLIC_FILE_MISSING` 仅属于 `setup --assess-adoption`。接入评估按 `requiredPublicFiles` 快照目标匹配 `publicFiles[].to`，检查仓根相对 `from` 是否存在；缺失记该码。普通 `assess` 与 `verify-records` 不使用该码。`prepare` 仍使用自身原生错误，如 `PUBLIC_FILE_MISSING`、`CONFIG_INVALID`。`LICENSE_MISSING` 不能替代运行必需资源。Foundation 建议不能作为发布批准依据。
+
+Hub 维持统一市场，沿用 GitHub Git Data API 的 `compare-and-swap` 写入，绑定并比较已观察分支头。该机制非本轮新增；远端授权未变，也不代表发布完成。仍须冻结安装 URL/ref/sha，安装后核对 name/version/载荷；门禁失败阻止写入。独立检查点仍须批准；不回滚、覆盖已完成步骤或强推，不重放历史冻结计划，`ALREADY_CURRENT` 仍强制执行。
+
+继续采用 Foundation 0.25.0 精确依赖，不得因邻仓版本更新而升级。空白项目走 `release-setup`；已有配置保留合法字段，用 `release-assess` / `release-config` 做增量。仅禁路径一类的 `config-only` 增量，离线非生产 `prepare` 可为 `PREPARED`，`workflowDecision` 为 `indeterminable` / `publish-needed`，此为合法结果。`npm` 入口缺失时失败关闭，错误为 `GATE_FAILED` / `npm-entry-closure` / `entry_missing`。旧版独立 `release-skill` 市场已弃用，使用 `ifoohoo/skill-family-hub` 与 `release-skill@skill-family-hub`。
 
 **0.9.32 历史事实**  
-Kimi 2.2.0 移除菜单移动后，真实终端只重绘变动的菜单行，不重发插件标题，末行也没有换行；适配器曾因等待完整标题失败。适配器在移动后必须先重新观察选中项，确认唯一选中 `Remove plugin` 后才允许提交操作。读取帧前先核实初始精确插件 ID，读完该帧后才发送方向键，再读取完整增量帧并核对唯一选中项，完整标题重绘时仍核对精确 ID。未知、歧义、未移动、帧未完成、timeout、EOF 均导致失败关闭，不继续安装。移除确认页仍采用 `Remove <displayName> (<id>)?`，包含 Cancel 和 Remove plugin 选项；已选中 `Remove plugin` 时无需方向键。显示名含 Confirm 或 Sure，或标题分块到达，仍核对精确身份，不触发旧宽泛正则路径。保留 Kimi 0.40.1 实际确认措辞 `Confirm remove plugin "<id>"?`、括号粘贴与 CSI Enter 输入方式。该修复面向真实更新流程，提供方升级不扩大宿主授权，也无需重发原领域插件。真实 Kimi 2.2.0 已完成确认前的精确身份、移动及选中项观察，随后按 Esc 取消并退出，未执行移除、安装或更新。47 项聚焦测试通过，独立代码审阅无发现；真实消费者的完整更新与加载验收仍待执行。
+Kimi 2.2.0 移除菜单移动后只重绘变动行，不重发插件标题，末行无换行。适配器须先重新观察选中项，确认唯一选中 `Remove plugin` 后才可提交。读帧前核实初始精确插件 ID；移动后重新观察并核对唯一选中项与精确 ID。未知、歧义、未移动、帧未完成、timeout、EOF 均失败关闭。确认页仍为 `Remove <displayName> (<id>)?`，含 Cancel 与 Remove plugin；已选中时无需方向键。显示名含 Confirm 或 Sure，或标题分块到达，仍核对精确身份。保留 Kimi 0.40.1 措辞 `Confirm remove plugin "<id>"?`、括号粘贴与 CSI Enter。
 
 同一 `unitId/plugin/version` 的共享环境 setup 按单元、插件、版本归并，Claude/Codex 不同物理 `skillFile` 路径不再视为多个 setup 归属。仅需一个已加载宿主的精确 setup 反馈即可满足共享环境检查要求。各宿主的安装、加载及专属配置仍需分别核实，反馈继续绑定 `host/unit/path/plan/config/root`；真正多插件归属仍需消歧，Kimi 失败或其他宿主失败均导致收尾状态为 FAILED，不改变 `VERIFIED`/`DISTRIBUTED` 发布状态。
 
-可选宿主覆盖诊断输入 `--host-coverage <file>` 与 `--observe-hosts`、Codex 0.154.0 对 11 份真实生成 Skill 的原字节静态检查能力未变。静态检查不证明安装、会话选择或业务执行通过，批准、发布和验证状态以对应计划、批准及执行记录为准。
+可选宿主覆盖诊断输入 `--host-coverage <file>` 与 `--observe-hosts`、Codex 0.154.0 对 11 份真实生成 Skill 的原字节静态检查能力未变。静态检查不证明安装、会话选择或业务通过；批准、发布和验证状态以对应计划、批准及执行记录为准。
 
 Qoder 本机更新路径处理维持既有能力，支持 `./adapters/qoder/skills/` 与 `./skills/` 两种布局，仍核对安装 name/version/skills、路径包含性与实际载荷。私有 Hub 的 `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` 环境变量继续要求原始描述符指向的已有普通文件绝对路径（拒绝符号链接），交由 `npm run release:check -- --release-evidence <file>` 验证。
 
 在冻结前，`prepare` 或新建 `ship` 状态时可重复传入 `--unit <id>`；未传入则默认选择全部单元。延期单元不进入发布计划，亦不获得发布状态。完整配置、生成物新鲜度检查及顶层 Hook 仍作用于全项目范围。`publicSourceAuthorityReceipt` 的 coordinator 与全部 subjects 必须共同选择。
 
-可选 `testIntake` 只在生产 prepare 生效。首次准备返回 `NEEDS_INPUT` 和一份非正式候选，退出码 13；同一候选用 `prepare --candidate <path>` 续接，接受后才有正式计划。候选不能批准或发布，也不能清除 `PARTIAL`、`PUBLISHED` 或 `VERIFIED`。未声明的项目、原有 hook 和完整门保持不变。轻量工作流和单元选择都不免除项目级要求。非生产 prepare 遇到 `testIntake` 返回 `CONFIG_INVALID`。
+推荐 production ship 或转入新生产准备前，核对 `testIntake`。缺失则说明缺项并默认推动 `skill-family-test:skill-family-test-plan`，再在授权范围内调用 `skill-family-test:skill-family-test-run`。跳过须先征询并取得本轮适用且项目、版本、范围匹配的明确同意。沉默、拒绝、普通发布预授权、旧轮次、其他项目、版本或范围不匹配均不可跳过；本轮匹配答复可复用。不得把跳过写成测试已达标。只读路径只报告缺口。已声明时仅生产 prepare 生效：首次返回 `NEEDS_INPUT` 与非正式候选（退出码 13），`prepare --candidate <path>` 续接后才有正式计划。候选不能批准或发布，也不能清除 `PARTIAL`、`PUBLISHED` 或 `VERIFIED`。未声明项目的 hook 与完整门不变。轻量工作流和单元选择不免除项目级要求。非生产 prepare 返回 `CONFIG_INVALID`。直接非交互 CLI 仍接受可选 `testIntake`，不新增选择参数。
 
 冻结后，发布流程（publish、reconcile、verify、distribute）不再接受 `--unit` 参数，仅以 `plan.units` 为唯一有效范围。
 
@@ -60,13 +72,13 @@ Qoder 本机更新路径处理维持既有能力，支持 `./adapters/qoder/skil
 
 Hook 缓存 v2 仅复用绝对路径，或已通过真实 cwd 核验的 cwd-relative 可执行文件身份；若依赖裸 PATH、PATHEXT、Windows 环境或观察不可用，将触发冷执行并失败关闭。稳定隔离安装树仅在宿主命令退出、目录隔离且扫描期间无并发写入时记录；附加链接仅记录，不跟随；声明载荷中出现 symlink 将导致失败关闭。
 
-实际版本能力不能等同于发布状态或真实宿主验收。
+版本能力不等于发布状态或真实宿主验收。
 
 ## 最短路径
 
-1. 从插件根运行 `help --json`，检查本地准备度；生产发布再检查生产准备度。
-2. 只检查治理接入时，按上节选择 `release-setup` 或 `release-assess`，结束于范围明确的结论和下一入口。
-3. 实际接入时进入 `release-setup`；实际发布评估使用 `release-assess`，准备发布时再进入 `prepare --offline`。
+1. 从插件根运行 `help --json`，检查本地准备度；生产发布再检查生产准备度。  
+2. 只检查治理接入时，按上节选择 `release-setup` 或 `release-assess`，结束于范围明确的结论和下一入口。  
+3. 实际接入时进入 `release-setup`；实际发布评估使用 `release-assess`，准备发布时再进入 `prepare --offline`。  
 4. 生产发布优先使用可恢复的 `ship`；也可走 `prepare --online --production → approve → publish → verify`。
 
 ```bash
@@ -102,29 +114,27 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill-local-finish.mjs" \
 
 ## 专用工作流路由
 
-- 消费项目的 Cursor 场景配置、受控可执行目录、用户状态目录、结果不确定时的现场保留与复验，见 `release-verify`。
-- README、CHANGELOG 和双语说明的 `docs refresh` 演练、摘要确认与受管写入，见 `release-docs`。
-- VERIFIED 后的分支决定、宿主更新、加载反馈、setup 和源码检查，见 `release-finish`。
-- 纯配置变更，见 `release-config`。
+- 消费项目的 Cursor 场景配置、受控可执行目录、用户状态目录、结果不确定时的现场保留与复验，见 `release-verify`。  
+- README、CHANGELOG 和双语说明的 `docs refresh` 演练、摘要确认与受管写入，见 `release-docs`。  
+- VERIFIED 后的分支决定、宿主更新、加载反馈、setup 和源码检查，见 `release-finish`。  
+- 纯配置变更，见 `release-config`。  
 - 纯 marketplace 索引与快照变更，见 `release-marketplace`。
 
 这些入口保留各自的参数、确认和失败关闭规则；help 不复制或放宽它们。
 
 ## 故障分诊
 
-- Node.js 或 Git 缺失：读取 `missingRequired`，补齐依赖后重跑 help。
-- npm/gh 缺失或未认证：本地准备仍可继续；生产发布前另行完成 gh、Git HTTPS credential 与 npm auth 检查。
-- CLI 入口缺失：确认 `${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs` 存在；缺失时重新安装插件。
-- 项目配置缺失：进入 `release-setup` 的只读发现，不直接生成或覆盖 README/配置。
-- assess 失败：运行 `release-assess` 的离线诊断并按错误码处理。
-- `PARTIAL` 或远端冲突：进入 `release-reconcile`，保留已经成功的 checkpoint。
-- `testIntake` 返回 `NEEDS_INPUT`：停留在给出的候选上补齐结果，再用 `--candidate` 续接。不要把候选文件交给 approve 或 publish。
-- 文档、Cursor、宿主更新或本机收尾失败：转到上节对应专用 Skill，不在 help 中猜测恢复步骤。
-
-## 后续引导
-
-本地就绪后运行 `release-assess`；需要生产发布时，再确认 npm、gh、认证、冻结计划和有效批准。
+| 错误 | 处理 |
+|------|------|
+| Node.js 或 Git 缺失 | 读取 `missingRequired`，补齐依赖后重跑 help |
+| npm/gh 缺失或未认证 | 本地准备仍可继续；生产发布前另行完成 gh、Git HTTPS credential 与 npm auth 检查 |
+| CLI 入口缺失 | 确认 `${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill.mjs` 存在；缺失时重新安装插件 |
+| 项目配置缺失 | 进入 `release-setup` 的只读发现，不直接生成或覆盖 README/配置 |
+| assess 失败 | 运行 `release-assess` 的离线诊断并按错误码处理 |
+| `PARTIAL` 或远端冲突 | 进入 `release-reconcile`，保留已经成功的 checkpoint |
+| `testIntake` 返回 `NEEDS_INPUT` | 停留在给出的候选上补齐结果，再用 `--candidate` 续接。不要把候选文件交给 approve 或 publish |
+| 文档、Cursor、宿主更新或本机收尾失败 | 转到上节对应专用 Skill，不在 help 中猜测恢复步骤 |
 
 ## 人类最终回复
 
-纯问询或转交时短答。写明这次实际回答了什么、适用范围或转交理由、仍然有效的限制、以及下一步入口。已有 JSON 按原合同在回复中呈现。route 分类、推荐命令和未执行动作保持为建议。栏目只收录当前命令或分支已经返回的事实；有内容才设标题，短答直接成段。
+纯问询或转交时短答：写明这次实际回答了什么、适用范围或转交理由、仍然有效的限制、以及下一步入口。已有 JSON 按原合同在回复中呈现。`route` 分类、推荐命令和未执行动作保持为建议。栏目只收录当前命令或分支已经返回的事实；有内容才设标题，短答直接成段。

@@ -1,5 +1,29 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.37 locale=en baseline=sha256:11b436a4b3d6a642189df7126078f2fa2a2d3cf0922d8031d0c33cb12d9680d3 -->
+## [0.9.37] - 2026-10-23
+
+0.9.37 fixes a false verification failure caused by write-bit changes to installed files in the single-plugin path where the frozen plugin root is the project root. It also adds a TEST intake choice before a Skill starts a new production preparation. The three Foundation dependencies remain pinned to 0.25.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Remote-write authorization and release approval remain unchanged. Consent to skip TEST intake is not release approval.
+- Skill Family Hub is the unified marketplace. Updates use GitHub Git Data API and compare-and-swap against the observed branch head; partial Hub publication is never rolled back or force-pushed, and completed steps are not overwritten.
+
+### Added
+
+- Before a Skill starts a new production preparation, it checks `testIntake`. When wiring is missing, the Skill directs the project through the existing `skill-family-test:skill-family-test-plan` and `skill-family-test:skill-family-test-run` entries to organize the plan and checks and return the actual result. The original business owner judges the result; invoking TEST or skipping intake does not mean the tests passed. Skipping requires an explicit prompt followed by consent that applies to the current run and matches the project, version, and scope. Silence, refusal, general release preauthorization, and stale or mismatched consent do not qualify. A matching response for the current run may be reused.
+
+### Fixed
+
+- Only in the single-plugin path where the frozen plugin root is the project root, `verify` ignores changes to all write permission bits (`mode & ~0o222`) when comparing installed files with the frozen snapshot. The frozen snapshot retains its original modes. File content, type, size, non-write mode bits, missing or extra paths, and frozen bindings remain strictly checked.
+
+### Upgrade Notes
+
+This applies only to new Skill-led production preparation. Read-only and non-production paths, and approval, publish, reconcile, and formal verify for plans that are already frozen, gain no new TEST intake obligation. The direct non-interactive CLI continues to accept optional `testIntake`; no CLI argument, consent format, authentication, or state machine was added. Test results remain bound to the existing candidate and requirements contract. The release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and `release-skill@skill-family-hub`.
+<!-- release-skill:changelog:end version=0.9.37 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.36 locale=en baseline=sha256:704d09597e835404867409d99c9b8d674751ef145a9e0855d6e2182d768bb3a2 -->
 ## [0.9.36] - 2026-10-22
 

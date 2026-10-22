@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.36"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.37"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "bc9386087a5bffe2f92c12f687ec75582a9e853164020e99618a4bdf5cd13a68";
+const __bundleSourceDigest = "6eb7b6560da84252426dc5cfc81297a3d5d6d6101aecb1a8fbf3f35402892715";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -116683,6 +116683,49 @@ import { dirname as dirname11, join as join20, relative as relative18, isAbsolut
 import { tmpdir as tmpdir3 } from "node:os";
 import { execFile as execFileCb7 } from "node:child_process";
 import { promisify as promisify7 } from "node:util";
+function transportIdentityEntries(entries) {
+  return entries.map(({ path: path43, type, mode, size, contentDigest }) => ({
+    path: path43,
+    type,
+    mode: mode & ~WRITE_BITS,
+    size,
+    contentDigest
+  }));
+}
+function compareInstallToFrozenTransport(frozenEntries, installedEntries) {
+  const frozen = transportIdentityEntries(frozenEntries);
+  const installed = transportIdentityEntries(installedEntries);
+  const installedByPath = new Map(installed.map((entry) => [entry.path, entry]));
+  const conflicts = [];
+  for (const frozenEntry of frozen) {
+    const installedEntry = installedByPath.get(frozenEntry.path);
+    if (!installedEntry) {
+      conflicts.push(`missing: ${frozenEntry.path}`);
+      continue;
+    }
+    if (installedEntry.type !== frozenEntry.type) {
+      conflicts.push(`type mismatch: ${frozenEntry.path}`);
+    } else if (installedEntry.size !== frozenEntry.size || installedEntry.contentDigest !== frozenEntry.contentDigest) {
+      conflicts.push(`content mismatch: ${frozenEntry.path}`);
+    } else if (installedEntry.mode !== frozenEntry.mode) {
+      conflicts.push(`mode mismatch: ${frozenEntry.path}`);
+    }
+  }
+  const frozenPaths = new Set(frozen.map((entry) => entry.path));
+  for (const installedEntry of installed) {
+    if (!frozenPaths.has(installedEntry.path)) {
+      conflicts.push(`extra: ${installedEntry.path}`);
+    }
+  }
+  return conflicts;
+}
+function frozenSnapshotRelativePath(unit, actions, unitId) {
+  if (typeof unit?.frozenSnapshot?.path === "string" && unit.frozenSnapshot.path.length > 0) {
+    return unit.frozenSnapshot.path;
+  }
+  const action = (actions ?? []).find((item) => item.unitId === unitId && typeof item.parameters?.snapshotPath === "string" && item.parameters.snapshotPath.length > 0);
+  return action?.parameters?.snapshotPath ?? null;
+}
 async function verifyCursorHostDistributions({
   plan,
   root,
@@ -118258,16 +118301,65 @@ async function verifyRelease(options) {
           }
           const pluginDistCount = (surface.unit?.distributions ?? []).filter((d) => d.type !== "npm").length;
           if (pluginDistCount === 1 && surface.frozenPluginRoot === ".") {
-            const observedReceipt = createSkillResourceClosureReceipt(closureResult, {
-              unitId: surface.unitId,
-              preparedAt: expectedUnitReceipt.preparedAt ?? null,
-              exitCode: expectedUnitReceipt.exitCode ?? 0
-            });
-            assertSkillResourceClosureReceipt(
-              expectedUnitReceipt,
-              observedReceipt,
-              `unit "${surface.unitId}"`
-            );
+            const frozenRel = frozenSnapshotRelativePath(surface.unit, actions, surface.unitId);
+            if (frozenRel) {
+              const frozenDir = await resolveFrozenPath(root, frozenRel, "frozen snapshot path");
+              const frozenClosure = await checkSkillResourceClosure({
+                snapshotDir: frozenDir,
+                host: surface.host,
+                surfaceHostBindings: [{ surfaceId: surface.surfaceId, host: surface.host }]
+              });
+              const frozenReceipt = createSkillResourceClosureReceipt(frozenClosure, {
+                unitId: surface.unitId,
+                preparedAt: expectedUnitReceipt.preparedAt ?? null,
+                exitCode: expectedUnitReceipt.exitCode ?? 0
+              });
+              assertSkillResourceClosureReceipt(
+                expectedUnitReceipt,
+                frozenReceipt,
+                `unit "${surface.unitId}"`
+              );
+              const frozenSnap = await computeFrozenSnapshot(frozenDir, {
+                excludeRootEntries: TRANSPORT_EXCLUSIONS
+              });
+              const installedSnap = await computeFrozenSnapshot(surface.installPath, {
+                excludeRootEntries: TRANSPORT_EXCLUSIONS
+              });
+              const conflicts = compareInstallToFrozenTransport(
+                frozenSnap.entries,
+                installedSnap.entries
+              );
+              await evidence.append({
+                phase: "verify",
+                step: "skill-resource-closure",
+                status: "install-comparison",
+                unitId: surface.unitId,
+                frozenInputDigest: frozenSnap.digest,
+                installedInputDigest: installedSnap.digest,
+                frozenModes: frozenSnap.entries.map((entry) => ({ path: entry.path, mode: entry.mode })),
+                installedModes: installedSnap.entries.map((entry) => ({ path: entry.path, mode: entry.mode }))
+              });
+              if (conflicts.length > 0) {
+                const listed = conflicts.slice(0, PAYLOAD_CONFLICT_REPORT_CAP2).join("; ");
+                const overflow = conflicts.length > PAYLOAD_CONFLICT_REPORT_CAP2 ? `; and ${conflicts.length - PAYLOAD_CONFLICT_REPORT_CAP2} more conflicting path(s)` : "";
+                throw new ReleaseError(
+                  POST_PUBLISH_VERIFY_FAILED,
+                  `installed plugin root differs in path, bytes, size, or non-write mode bits for unit "${surface.unitId}": ${listed}${overflow}`,
+                  { unitId: surface.unitId, conflicts }
+                );
+              }
+            } else {
+              const observedReceipt = createSkillResourceClosureReceipt(closureResult, {
+                unitId: surface.unitId,
+                preparedAt: expectedUnitReceipt.preparedAt ?? null,
+                exitCode: expectedUnitReceipt.exitCode ?? 0
+              });
+              assertSkillResourceClosureReceipt(
+                expectedUnitReceipt,
+                observedReceipt,
+                `unit "${surface.unitId}"`
+              );
+            }
           }
         }
         skillResourceClosureReceipts.push(createSkillResourceClosureReceipt(
@@ -118478,7 +118570,7 @@ async function verifyRelease(options) {
     throw err;
   }
 }
-var execFile6, VERIFICATION_RESOLVED_TYPES, ADAPTER_ACTION_TYPE_MAP2, FIRST_RELEASE_BOOTSTRAP_MODE, EXTERNAL_MARKETPLACE_SHA_RE2, defaultNpmExecutor;
+var execFile6, VERIFICATION_RESOLVED_TYPES, WRITE_BITS, PAYLOAD_CONFLICT_REPORT_CAP2, ADAPTER_ACTION_TYPE_MAP2, FIRST_RELEASE_BOOTSTRAP_MODE, EXTERNAL_MARKETPLACE_SHA_RE2, defaultNpmExecutor;
 var init_verify = __esm({
   async "src/commands/verify.mjs"() {
     init_src2();
@@ -118516,6 +118608,11 @@ var init_verify = __esm({
       PASSED_MANUAL: "PASSED_MANUAL",
       NOT_REQUIRED_UNCHANGED: "NOT_REQUIRED_UNCHANGED"
     });
+    WRITE_BITS = 146;
+    PAYLOAD_CONFLICT_REPORT_CAP2 = 10;
+    __name(transportIdentityEntries, "transportIdentityEntries");
+    __name(compareInstallToFrozenTransport, "compareInstallToFrozenTransport");
+    __name(frozenSnapshotRelativePath, "frozenSnapshotRelativePath");
     __name(verifyCursorHostDistributions, "verifyCursorHostDistributions");
     __name(verifyPublicSourceAuthorityReceiptOffline, "verifyPublicSourceAuthorityReceiptOffline");
     ADAPTER_ACTION_TYPE_MAP2 = {

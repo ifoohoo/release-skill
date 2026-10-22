@@ -57,7 +57,7 @@ import {
   consumePublicSourceAuthorityReceipt,
   verifySourceAuthorityReceipt,
 } from '../core/source-authority.mjs';
-import { verifyFrozenFile } from '../snapshot/frozen.mjs';
+import { computeFrozenSnapshot, resolveFrozenPath, verifyFrozenFile } from '../snapshot/frozen.mjs';
 import {
   deriveBaselineAdvances,
   applyBaselineAdvances,
@@ -87,6 +87,7 @@ import {
   checkSkillResourceClosure,
   createSkillResourceClosureReceipt,
   evaluateConsumerSkillResourceClosureReceipts,
+  TRANSPORT_EXCLUSIONS,
 } from '../core/skill-resource-closure.mjs';
 import { deriveSurfaceHostBinding, pluginRootFromManifestRelativePath } from '../core/surface-host-bindings.mjs';
 import { isRemoteWriteAction, isMarketplaceAction } from '../core/checkpoints.mjs';
@@ -130,6 +131,61 @@ export const VERIFICATION_RESOLVED_TYPES = Object.freeze({
   PASSED_MANUAL: 'PASSED_MANUAL',
   NOT_REQUIRED_UNCHANGED: 'NOT_REQUIRED_UNCHANGED',
 });
+
+/** Ignore only write bits; retain type, size, content, and non-write mode bits. */
+const WRITE_BITS = 0o222;
+const PAYLOAD_CONFLICT_REPORT_CAP = 10;
+
+function transportIdentityEntries(entries) {
+  return entries.map(({ path, type, mode, size, contentDigest }) => ({
+    path,
+    type,
+    mode: mode & ~WRITE_BITS,
+    size,
+    contentDigest,
+  }));
+}
+
+function compareInstallToFrozenTransport(frozenEntries, installedEntries) {
+  const frozen = transportIdentityEntries(frozenEntries);
+  const installed = transportIdentityEntries(installedEntries);
+  const installedByPath = new Map(installed.map((entry) => [entry.path, entry]));
+  const conflicts = [];
+  for (const frozenEntry of frozen) {
+    const installedEntry = installedByPath.get(frozenEntry.path);
+    if (!installedEntry) {
+      conflicts.push(`missing: ${frozenEntry.path}`);
+      continue;
+    }
+    if (installedEntry.type !== frozenEntry.type) {
+      conflicts.push(`type mismatch: ${frozenEntry.path}`);
+    } else if (
+      installedEntry.size !== frozenEntry.size
+      || installedEntry.contentDigest !== frozenEntry.contentDigest
+    ) {
+      conflicts.push(`content mismatch: ${frozenEntry.path}`);
+    } else if (installedEntry.mode !== frozenEntry.mode) {
+      conflicts.push(`mode mismatch: ${frozenEntry.path}`);
+    }
+  }
+  const frozenPaths = new Set(frozen.map((entry) => entry.path));
+  for (const installedEntry of installed) {
+    if (!frozenPaths.has(installedEntry.path)) {
+      conflicts.push(`extra: ${installedEntry.path}`);
+    }
+  }
+  return conflicts;
+}
+
+function frozenSnapshotRelativePath(unit, actions, unitId) {
+  if (typeof unit?.frozenSnapshot?.path === 'string' && unit.frozenSnapshot.path.length > 0) {
+    return unit.frozenSnapshot.path;
+  }
+  const action = (actions ?? []).find((item) => item.unitId === unitId
+    && typeof item.parameters?.snapshotPath === 'string'
+    && item.parameters.snapshotPath.length > 0);
+  return action?.parameters?.snapshotPath ?? null;
+}
 
 /** Verify actionless Cursor distributions through their frozen host contract. */
 export async function verifyCursorHostDistributions({
@@ -2265,25 +2321,75 @@ export async function verifyRelease(options) {
             );
           }
           // For single-plugin units (the root-surface distributions this
-          // design covers) the install payload IS the frozen snapshot, so the
-          // recomputed receipt must equal the frozen unit receipt field for
-          // field (checker version, input digest, surface/skill/reference/
-          // finding counts, receipt digest). Record-layer fields (preparedAt,
-          // exitCode) are carried from the frozen receipt — the same rule
-          // publish's recheck uses.
+          // design covers) the install payload IS the frozen snapshot.
+          // Frozen snapshot + original receipt stay on the strict prepare/
+          // publish rule. Install-versus-frozen comparison follows the
+          // existing transport policy (mode & ~0o222) so a sealed 0444
+          // tree may legally reappear as 0644 after marketplace extract.
           const pluginDistCount = (surface.unit?.distributions ?? [])
             .filter((d) => d.type !== 'npm').length;
           if (pluginDistCount === 1 && surface.frozenPluginRoot === '.') {
-            const observedReceipt = createSkillResourceClosureReceipt(closureResult, {
-              unitId: surface.unitId,
-              preparedAt: expectedUnitReceipt.preparedAt ?? null,
-              exitCode: expectedUnitReceipt.exitCode ?? 0,
-            });
-            assertSkillResourceClosureReceipt(
-              expectedUnitReceipt,
-              observedReceipt,
-              `unit "${surface.unitId}"`,
-            );
+            const frozenRel = frozenSnapshotRelativePath(surface.unit, actions, surface.unitId);
+            if (frozenRel) {
+              const frozenDir = await resolveFrozenPath(root, frozenRel, 'frozen snapshot path');
+              const frozenClosure = await checkSkillResourceClosure({
+                snapshotDir: frozenDir,
+                host: surface.host,
+                surfaceHostBindings: [{ surfaceId: surface.surfaceId, host: surface.host }],
+              });
+              const frozenReceipt = createSkillResourceClosureReceipt(frozenClosure, {
+                unitId: surface.unitId,
+                preparedAt: expectedUnitReceipt.preparedAt ?? null,
+                exitCode: expectedUnitReceipt.exitCode ?? 0,
+              });
+              assertSkillResourceClosureReceipt(
+                expectedUnitReceipt,
+                frozenReceipt,
+                `unit "${surface.unitId}"`,
+              );
+              const frozenSnap = await computeFrozenSnapshot(frozenDir, {
+                excludeRootEntries: TRANSPORT_EXCLUSIONS,
+              });
+              const installedSnap = await computeFrozenSnapshot(surface.installPath, {
+                excludeRootEntries: TRANSPORT_EXCLUSIONS,
+              });
+              const conflicts = compareInstallToFrozenTransport(
+                frozenSnap.entries,
+                installedSnap.entries,
+              );
+              await evidence.append({
+                phase: 'verify',
+                step: 'skill-resource-closure',
+                status: 'install-comparison',
+                unitId: surface.unitId,
+                frozenInputDigest: frozenSnap.digest,
+                installedInputDigest: installedSnap.digest,
+                frozenModes: frozenSnap.entries.map((entry) => ({ path: entry.path, mode: entry.mode })),
+                installedModes: installedSnap.entries.map((entry) => ({ path: entry.path, mode: entry.mode })),
+              });
+              if (conflicts.length > 0) {
+                const listed = conflicts.slice(0, PAYLOAD_CONFLICT_REPORT_CAP).join('; ');
+                const overflow = conflicts.length > PAYLOAD_CONFLICT_REPORT_CAP
+                  ? `; and ${conflicts.length - PAYLOAD_CONFLICT_REPORT_CAP} more conflicting path(s)`
+                  : '';
+                throw new ReleaseError(
+                  POST_PUBLISH_VERIFY_FAILED,
+                  `installed plugin root differs in path, bytes, size, or non-write mode bits for unit "${surface.unitId}": ${listed}${overflow}`,
+                  { unitId: surface.unitId, conflicts },
+                );
+              }
+            } else {
+              const observedReceipt = createSkillResourceClosureReceipt(closureResult, {
+                unitId: surface.unitId,
+                preparedAt: expectedUnitReceipt.preparedAt ?? null,
+                exitCode: expectedUnitReceipt.exitCode ?? 0,
+              });
+              assertSkillResourceClosureReceipt(
+                expectedUnitReceipt,
+                observedReceipt,
+                `unit "${surface.unitId}"`,
+              );
+            }
           }
         }
         skillResourceClosureReceipts.push(createSkillResourceClosureReceipt(

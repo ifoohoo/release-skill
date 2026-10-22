@@ -2,33 +2,36 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.36 -->
+<!-- release-skill:release-version: 0.9.37 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.36** (2026-10-22)
+**0.9.37** (2026-10-23)
 
-0.9.36 修复 Qoder 插件清单对合法双投影目录的误拒，确保市场来源在 URL 与 GitHub 两种路径下均正确校验，修正 Codex 入口目录检测逻辑以尊重 manifest 声明路径而非硬编码 skills/。本发布说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。Foundation 依赖保持精确锁定为 0.25.0。
+0.9.37 修复单插件发布单元在冻结插件根为项目根目录时，安装文件写权限变化造成的验证误报，并在 Skill 发起新一轮生产准备前加入 TEST 接入选择。三个 Foundation 依赖均精确锁定为 0.25.0。本发布说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- Foundation 0.25.0 保持不变；Hub 来源、user-scope、冻结 commit/digest 与完整载荷校验机制保留。写入宿主前复验冻结快照摘要，安装后比较完整载荷。无新增市场、首装、新宿主策略、新框架、新依赖或 tier 变化。0.9.35 不可变。Skill Family Hub 仍为统一市场，沿用 GitHub Git Data API，以比较后写入绑定已观察的分支头；部分发布不回滚、不覆盖已完成步骤。
+- 远端写入授权和发布批准保持不变。同意跳过 TEST 接入不等于发布批准。
+- Skill Family Hub 是统一市场，更新采用 GitHub Git Data API，并以比较后写入绑定已观察的分支头；部分发布不回滚、不覆盖已完成步骤，也不 force-push。
+
+**新增**
+
+- Skill 启动新一轮生产准备前会核对 `testIntake`。缺少接线时，Skill 会引导项目通过现有的 `skill-family-test:skill-family-test-plan` 和 `skill-family-test:skill-family-test-run` 入口组织方案与检查，并交回实际结果。结果仍由原业务职责方判读；调用 TEST 或跳过接入都不表示测试已通过。跳过前必须明确征询，并取得适用于本轮且与项目、版本、范围匹配的同意。沉默、拒绝、一般发布预授权及过期或不匹配的同意都不能作为跳过依据；本轮匹配的答复可以复用。
 
 **修复**
 
-- 0.9.35 版本中，Qoder 插件误拒自身合法的双投影目录。`.qoder-plugin/plugin.json` 与 `.claude-plugin/plugin.json` 中的 name/version 必须绑定同一冻结目标，各自 skills 可不同。每个已存在候选必须是合法 JSON 对象、目标身份匹配、skills 非空且解析为插件根内真实目录。原生优先，仅原生缺失时才选兼容；任一候选无效即失败，不回退。安装后路径与 skills 必须精确匹配冻结选择，完整载荷检查保留。
-- Qoder 现可接受只提供 `.claude-plugin/marketplace.json`、未提供根 marketplace.json 的既有市场。支持两种既有位置：根 marketplace.json 的 URL 来源，以及 `.claude-plugin/marketplace.json` 的 GitHub 来源。至少一份存在，每份已存在清单均须合法，且目标插件恰有一条、绑定同一冻结身份；市场仍可包含其他插件。不因另一份有效而忽略坏清单。URL 来源保留仓库与 sha 精确校验，显式 version/ref 必须匹配；兼容 GitHub 来源校验 repo/ref/sha/entry.version。仅确定缺文件视为缺席。市场刷新后、插件更新前校验；ALREADY_CURRENT 保持只读且零更新命令。
-- Codex 入口目录原检查写死为 skills/，误拒 `.agents/skills/` 等合法 manifest 声明路径。安装前检查与安装后观察均采用 manifest 声明的 skills 目录。字段缺省时继续使用既有 skills/ 默认路径，入口名前缀行为保留。显式无效、越界或非目录路径拒绝，不回退。已安装入口观察与完整载荷验证须绑定同一冻结安装合同。
+- 仅在单插件发布单元且冻结插件根为项目根目录的验证路径中，`verify` 比较已安装文件与冻结快照时忽略所有写权限位（`mode & ~0o222`）。冻结快照保留原始权限；文件内容、类型、大小、非写权限位、缺失或新增路径及冻结绑定仍严格检查。
 
 **升级说明**
 
-原独立的 `release-skill` 市场已弃用。使用更新后的 `release-skill@skill-family-hub` 入口、`release-finish` 与公共 CLI。未改插件无需重发，改字节须新冻结计划与匹配批准。安装 ≠ 加载，未观察实际加载则保留 reload-pending 状态。本机收尾失败不改变远端 VERIFIED 状态。统一使用 `ifoohoo/skill-family-hub` 和 `release-skill@skill-family-hub`。
+本项只适用于由 Skill 开始的新一轮生产准备。只读、非生产路径，以及已有冻结计划的批准、发布、对账和正式验证不新增 TEST 接入义务。直接非交互 CLI 仍接受可选 `testIntake`；本版本未增加 CLI 参数、同意格式、认证或状态机。测试结果继续按既有合同绑定候选与要求。原独立的 `release-skill` 市场已弃用，请使用 `ifoohoo/skill-family-hub` 和 `release-skill@skill-family-hub`。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.36 的能力范围与验证边界见本 README，
+> **当前边界：** v0.9.37 的能力范围与验证边界见本 README，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -44,7 +47,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.36 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.37 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -503,6 +506,8 @@ release-finish 在 `--root` 指定的当前发布项目根目录调用该入口�
 两个配置彼此独立。
 
 可选的 `testIntake` 只声明要求文件和结果文件，并且只在生产 prepare 中生效。首次生产 prepare 保存一份非正式候选，返回 `NEEDS_INPUT`（`GATE_FAILED`，退出码 13），并给出 `candidatePath`、`candidateSha256` 和 `subjectDigest`，此时不写正式计划。用 `prepare --candidate <path>` 续接同一候选；适用的冻结前要求通过后才写入正式计划和 `PREPARED`。候选不能用于批准或发布，也不能清除 `PARTIAL`、`PUBLISHED` 或 `VERIFIED`。未声明 `testIntake` 的项目保持原有 hook、完整门和发布路径。docs、config、marketplace 工作流、单元选择和无需发布的配置都不免除项目级要求。非生产 prepare 拒绝 `testIntake`，错误码为 `CONFIG_INVALID`。可选的 `testAcceptance` 进入当前计划摘要。替换结果、准则、范围或允许的限制会使原批准失效。approve、publish 和 reconcile 在动作前复核这些原件。
+
+由 Skill 发起的新一轮生产准备先核对接入。缺失则说明缺项并默认推动现有接线；仅本轮适用且范围匹配的明确同意可跳过。沉默、拒绝、仅普通发布预授权、旧轮次、其他项目、版本或范围不匹配均不可跳过；本轮匹配答复可复用。不得把跳过写成测试已达标。已冻结计划的批准、发布、对账与正式验证不回头追加接入义务。只读、非生产及 marketplace-only 委托发布不新增接入义务。直接非交互 CLI 仍接受可选 `testIntake`，不新增选择参数。
 
 完整的本地收尾使用 `release-skill post-release --finish`。命令固定报告分支决定、宿主更新、实际加载、setup 和源码分支检查：全部适用步骤完成或明确跳过时退出 0，仍有待办时退出 2，确定失败时退出 1。智能体通过绝对路径的 `--finish-feedback` JSON 文件回传观察，文件必须绑定当前计划摘要、配置摘要和规范项目根目录。反馈只作为数据：脚本不执行其中字符串，也不把反馈当成新的写入授权。`--skip-local-hosts` 显示跳过宿主更新、加载和 setup，不得与 `--hosts` 或 `--update-local-hosts` 同时使用。
 

@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.36 -->
+<!-- release-skill:release-version: 0.9.37 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,27 +14,30 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.36** (2026-10-22)
+**0.9.37** (2026-10-23)
 
-0.9.36 fixes incorrect rejection of valid dual-projection plugin directories in Qoder, ensures correct validation of market sources via both URL and GitHub-based manifests, and corrects Codex entry root detection to respect manifest-declared paths instead of hardcoding `skills/`. This release note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance. Foundation dependencies remain pinned to 0.25.0.
+0.9.37 fixes a false verification failure caused by write-bit changes to installed files in the single-plugin path where the frozen plugin root is the project root. It also adds a TEST intake choice before a Skill starts a new production preparation. The three Foundation dependencies remain pinned to 0.25.0. This note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- Foundation 0.25.0 remains unchanged; the source, scope, commit/digest, and full payload are preserved. The frozen snapshot is re-verified before writing, and the full payload is compared after installation. No new market, first-install, host strategy, framework, dependency, or tier has been introduced. 0.9.35 is immutable. Skill Family Hub remains the unified marketplace, using GitHub Git Data API and compare-and-swap bound to the observed branch head. Partial Hub publication is never rolled back or force-pushed; completed steps are not overwritten.
+- Remote-write authorization and release approval remain unchanged. Consent to skip TEST intake is not release approval.
+- Skill Family Hub is the unified marketplace. Updates use GitHub Git Data API and compare-and-swap against the observed branch head; partial Hub publication is never rolled back or force-pushed, and completed steps are not overwritten.
+
+**Added**
+
+- Before a Skill starts a new production preparation, it checks `testIntake`. When wiring is missing, the Skill directs the project through the existing `skill-family-test:skill-family-test-plan` and `skill-family-test:skill-family-test-run` entries to organize the plan and checks and return the actual result. The original business owner judges the result; invoking TEST or skipping intake does not mean the tests passed. Skipping requires an explicit prompt followed by consent that applies to the current run and matches the project, version, and scope. Silence, refusal, general release preauthorization, and stale or mismatched consent do not qualify. A matching response for the current run may be reused.
 
 **Fixed**
 
-- In 0.9.35, Qoder plugins incorrectly rejected valid dual-projection directories. The `name` and `version` in `.qoder-plugin/plugin.json` and `.claude-plugin/plugin.json` must bind to the same frozen target, though individual `skills` can differ. Each present candidate must be a valid JSON object, match the target identity, have non-empty `skills`, and resolve to a real directory within the plugin root. Native takes precedence; compatibility is only used when native is missing. If any candidate is invalid, installation fails immediately without fallback. After installation, the selected path and `skills` must exactly match the frozen choice, and full payload validation is retained.
-- Qoder now also accepts existing markets that provide `.claude-plugin/marketplace.json` instead of a root `marketplace.json`. The system supports two existing locations: a URL-based `marketplace.json` at the root, and a GitHub-based `marketplace.json` in `.claude-plugin/`. At least one must exist. Each present index must be valid and contain exactly one entry for the target plugin, bound to the same frozen identity; other plugin entries remain allowed. A bad source is not ignored just because another is valid. URL sources require exact repository and SHA verification, and any explicit `version` or `ref` must match. GitHub sources require exact verification of `repo`, `ref`, `sha`, and `entry.version`. Only confirmed missing files are considered absent. Validation occurs after market refresh and before plugin update. `ALREADY_CURRENT` remains read-only with zero update commands.
-- The Codex entry root check previously hardcoded `skills/`, rejecting valid paths like `.agents/skills/` declared in the manifest. Installation pre-check and post-install observation now respect the `skills` directory declared in the plugin manifest. When the field is missing, the default `skills/` path is retained, and existing prefix behavior is preserved. Explicitly invalid, out-of-bounds, or non-directory paths are rejected without fallback. Post-install observation and full payload verification must bind to the same frozen installation contract.
+- Only in the single-plugin path where the frozen plugin root is the project root, `verify` ignores changes to all write permission bits (`mode & ~0o222`) when comparing installed files with the frozen snapshot. The frozen snapshot retains its original modes. File content, type, size, non-write mode bits, missing or extra paths, and frozen bindings remain strictly checked.
 
 **Upgrade Notes**
 
-The release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and the updated `release-skill@skill-family-hub`, `release-finish`, and public CLI. Unmodified plugins need not be republished. Byte changes require a new frozen plan and matching approval. Installation does not imply loading — if actual loading is not observed, the state remains `reload-pending`. Local completion failure does not alter the remote `VERIFIED` status.
+This applies only to new Skill-led production preparation. Read-only and non-production paths, and approval, publish, reconcile, and formal verify for plans that are already frozen, gain no new TEST intake obligation. The direct non-interactive CLI continues to accept optional `testIntake`; no CLI argument, consent format, authentication, or state machine was added. Test results remain bound to the existing candidate and requirements contract. The release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and `release-skill@skill-family-hub`.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.36: this README records capabilities and verification boundaries;
+> **Current boundary:** v0.9.37: this README records capabilities and verification boundaries;
 > it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -58,7 +61,7 @@ The release-skill standalone marketplace is deprecated; use `ifoohoo/skill-famil
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; for v0.9.36,
+> **Production path verified since the v0.1.1 milestone; for v0.9.37,
 > publication, consumer-installation verification, and independent acceptance
 > require version-specific release records and verification results.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -614,6 +617,17 @@ rejects `testIntake` with `CONFIG_INVALID`. Optional `testAcceptance` is part
 of the current plan digest. Replacing the result, criterion, scope, or allowed
 limitation invalidates the previous approval. Approve, publish, and reconcile
 re-check those originals before acting.
+
+When a Skill starts a new production prepare, it checks intake first. If
+intake is missing, it names the gap and default-pushes the existing wiring.
+Skip is allowed only after this-round matching explicit consent. Silence,
+refuse, generic publish preauthorization, and stale, other-project, version,
+or scope-mismatched consent do not skip. A matching this-round reply is
+reused. Skip is never described as tests already passed. Already-frozen
+approve, publish, reconcile, and verify do not gain a new intake obligation.
+Read-only, non-production, and delegated marketplace-only paths do not add
+one. Direct non-interactive CLI still accepts optional `testIntake` with no
+new choice flag.
 
 Use `release-skill post-release --finish` for the complete local finish. It
 always reports merge, host update, actual host loading, setup, and source-branch

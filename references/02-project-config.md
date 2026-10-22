@@ -124,19 +124,100 @@ policy:                     # 可选，安全策略
 
 ### 2.0 显式测试接入
 
-`testIntake` 可选。只含两个项目相对普通文件路径：`requirementsFile` 与 `resultFile`。两者归一化后必须不同；`a/./b` 与 `a/b` 视为同一路径。未知字段、绝对路径、`..` 和结尾斜杠在配置加载时拒绝。
+`testIntake` 为可选配置项，仅包含两个项目相对普通文件路径字段：`requirementsFile` 与 `resultFile`。路径经归一化后必须互异；`a/./b` 与 `a/b` 视为同一路径。配置加载时拒绝以下内容：
+- 未知字段；
+- 绝对路径；
+- 包含 `..` 路径组件的路径；
+- 以斜杠结尾的路径。
 
-未声明 `testIntake` 的项目保持原有 hook、完整门、缓存和发布路径，不因此增加 TEST、Graph 或 Registry 依赖。`--test-selection incremental` 仍在冻结时拒绝。
+未声明 `testIntake` 的项目维持原有 hook 机制、完整门控、缓存策略与发布路径，不引入 TEST、Graph 或 Registry 依赖。
 
-声明之后只允许生产 `prepare`。非生产 prepare 返回 `CONFIG_INVALID`，原因 `TEST_INTAKE_NON_PRODUCTION`。assess 等其他命令仍可加载这份配置。docs、config、marketplace 轻量工作流、`selectedUnits` 和无需发布的配置分支都不免除项目级要求：未选中单元的单元级要求可以不进入本轮，项目级要求始终适用。
+`--test-selection incremental` 在 `prepare` 或冻结过程中均被拒绝，不得在任何准备阶段启用。该拒绝行为不延迟至冻结完成后。
 
-要求文件与结果文件的字段以 `schemas/test-intake.schema.json` 为准。release 只核收原件：预冻结项必须有一条可核验结果，处置为 `executed`、`reused`，或由 owner 确认的 `not-applicable`；结论为 `passed`；`acceptedBy` 与声明的 acceptor 一致，`not-applicable` 时与 owner 一致；引用文件可读且摘要一致；结果里的 `subjectDigest` 与 `requirementsSha256` 绑定当前对象。退出码 0、全局 PASS、空证据、`failed` / `incomplete` / `uncovered`、未知字段，或把后续阶段项提前标成完成，都不能通过。未知失败原因保持 `unknown`。安装、加载和业务证据继续分开保存，不合并成一个类别。
+#### 交互式 Skill 的接入职责
 
-首次生产 prepare 生成适用快照和 tarball 后，只保存一份非正式候选 `.release-skill/runs/<run>/test-candidate.json`，返回 `NEEDS_INPUT`（`GATE_FAILED`，退出码 13），并给出 `candidatePath`、`candidateSha256`、`subjectDigest`。此时不写正式计划，也不进入 `PREPARED` 或 `FROZEN`。之后用 `prepare --candidate <path>` 续接：新的运行目录，不覆盖旧运行目录、旧证据或旧候选。结果补齐并核验通过后才写正式计划。对象、配置、权威要求或其他实质输入变化时返回 `TEST_CANDIDATE_REPREPARE`，原候选字节保持不变。只往结果文件补入仍绑定该对象的有效内容，不算输入漂移。
+生产准备前，Skill 必须核对接入状态。若未声明 `testIntake`，系统默认触发公开 TEST 0.1.0 的 `skill-family-test:skill-family-test-plan`，随后在授权范围内调用 `skill-family-test:skill-family-test-run`。
 
-候选不能传给 approve 或 publish，也不能把 `PARTIAL`、`PUBLISHED`、`VERIFIED` 或任何已成功的外部检查点改成完成。`ship` 在接受前保持持久状态 `NEW` 与 `testCandidate`，不重建候选。没有 `testCandidate` 的 `NEW` 记录仍走原来的准备路径。
+跳过接入须满足以下条件：
+- 基于本轮适用且范围匹配的明确同意；
+- 必须先明确征询再作决定；
+- 沉默、拒绝、仅普通发布预授权、旧轮次、其他项目、版本或范围不匹配均不可跳过；
+- 本轮匹配的答复可复用。
 
-正式计划上的可选 `testAcceptance` 进入当前计划版本的绑定摘要，记录层剥离不移除它。替换结果、准则、范围或允许的限制会改变 plan digest，原批准不再适用。不改变这些原件的注释不会使批准失效。没有 `testAcceptance` 的计划保持原摘要路径。approve、publish 和 reconcile 在动作前复核绑定原件；原件缺失或被改写时失败关闭，不重新批准，也不重放已经成功的外部检查点。
+不得将跳过表述为测试已达标，亦不得以跳过清除已声明的适用要求。
+
+以下请求不新增接入义务：
+- 只读请求；
+- 非生产路径；
+- marketplace-only 委托发布。
+- 已冻结计划的批准、发布、对账与正式验证不追加接入义务。
+
+直接非交互 CLI 支持可选 `testIntake`，不新增选择参数、同意文件 Schema 或身份认证。选择责任由实际交互的 Skill 承担，答复记入既有任务或执行计划。
+
+#### 声明后的命令与要求适用范围
+
+声明 `testIntake` 后，仅允许执行生产 `prepare` 命令。非生产 `prepare` 返回 `CONFIG_INVALID`，错误码为 `TEST_INTAKE_NON_PRODUCTION`。
+
+`assess` 等其他命令仍可加载该配置。
+
+轻量工作流（如 docs、config、marketplace）、`selectedUnits` 与无需发布的配置分支不免除项目级要求：未选中单元的单元级要求可不进入本轮，但项目级要求始终适用。
+
+#### 核收原件与失败条件
+
+`release` 仅核收原件，要求如下：
+- 预冻结项必须存在一条可核验结果；
+- 结果状态必须为 `executed`、`reused` 或由 owner 确认的 `not-applicable`；
+- 结论必须为 `passed`；
+- `acceptedBy` 与声明的 acceptor 一致；`not-applicable` 时与 owner 一致；
+- 引用文件可读且摘要一致；
+- 结果中的 `subjectDigest` 与 `requirementsSha256` 均必须绑定当前对象。
+
+以下情况均不通过核收：
+- 退出码为 0；
+- 全局 PASS；
+- 空证据；
+- 状态为 `failed`、`incomplete`、`uncovered`；
+- 未知字段；
+- 提前将后续阶段项标记为完成；
+- 未知失败原因（保持 `unknown`）。
+
+安装、加载与业务证据须分开保存，不得合并为单一类别。
+
+核收依据 `schemas/test-intake.schema.json` 定义的字段结构。
+
+#### 首次生产 prepare、候选续接和输入漂移
+
+首次生产 `prepare` 执行后，生成适用快照与 tarball，仅保存一份非正式候选：
+- 路径：`.release-skill/runs/<run>/test-candidate.json`；
+- 返回状态：`NEEDS_INPUT`（`GATE_FAILED`，退出码 13）；
+- 附带字段：`candidatePath`、`candidateSha256` 与 `subjectDigest`。
+
+此时不写正式计划，也不进入 `PREPARED` 或 `FROZEN` 状态。
+
+后续使用 `prepare --candidate <path>` 续接：
+- 创建新运行目录；
+- 不覆盖旧运行目录、旧证据或旧候选；
+- 结果补齐并核验通过后，才写入正式计划。
+
+当对象、配置、权威要求或其他实质输入发生变更时，返回 `TEST_CANDIDATE_REPREPARE`，原候选字节保持不变。
+
+**仅当向仍绑定原对象的 `resultFile` 补入有效结果内容时，不视为输入漂移。**
+
+首次候选、有效结果、正式计划与正式业务接受为不同阶段，不得将 `NEEDS_INPUT` 或工具成功改写为通过。
+
+#### 后续计划与批准绑定
+
+候选不可传给 `approve` 或 `publish`，亦不可将 `PARTIAL`、`PUBLISHED`、`VERIFIED` 或任何已成功的外部检查点修改为完成状态。
+
+`ship` 在接受前保持持久状态 `NEW` 与 `testCandidate`，不重建候选。无 `testCandidate` 的 `NEW` 记录仍沿用原有准备路径。
+
+正式计划中的可选字段 `testAcceptance` 进入当前计划版本的绑定摘要，记录层剥离不移除该字段。
+
+替换结果、准则、范围或允许的限制将改变 plan digest，原批准不再适用。未改变这些原件的注释不会使批准失效。
+
+无 `testAcceptance` 的计划保持原摘要路径。
+
+`approve`、`publish` 与 `reconcile` 在执行前复核绑定原件；原件缺失或被改写时，动作失败并关闭，不重新批准，也不重放已成功的外部检查点。
 
 ### 2.1 本地发布收尾
 
