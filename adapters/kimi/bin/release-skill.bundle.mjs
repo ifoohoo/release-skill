@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.34"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.35"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "218550cf2d3009ab588c7a6a20d1898281fec7adf2a1e694affc7eda2642a277";
+const __bundleSourceDigest = "e14a5aba2f50cba3982bbe413cc9faebf0d45629e53f410e4942f562d7161754";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -139650,14 +139650,26 @@ async function observeQoderPlugin(target, command2, env, run6) {
   };
 }
 async function readQoderManifest(root, label) {
-  const manifest = parseJson2(
-    await readFileContained(root, ".qoder-plugin/plugin.json", { encoding: "utf8" }),
-    label
-  );
-  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
-    throw new Error(`${label} did not return an object`);
+  const candidates = [];
+  for (const manifestPath of [".qoder-plugin/plugin.json", ".claude-plugin/plugin.json"]) {
+    let text;
+    try {
+      text = await readFileContained(root, manifestPath, { encoding: "utf8" });
+    } catch (error) {
+      if (error?.code === "SFC2004" && error?.details?.kind === "missing-resource") continue;
+      throw error;
+    }
+    const manifest = parseJson2(text, `${label} (${manifestPath})`);
+    if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
+      throw new Error(`${label} (${manifestPath}) did not return an object`);
+    }
+    candidates.push({ manifestPath, manifest });
   }
-  return manifest;
+  if (candidates.length === 0) throw new Error(`${label} has no native or compatible plugin manifest`);
+  if (candidates.length === 2 && ["name", "version", "skills"].some((field) => candidates[0].manifest[field] !== candidates[1].manifest[field])) {
+    throw new Error(`${label} does not match the frozen Qoder plugin identity and projection path: conflicting native and compatible manifests`);
+  }
+  return candidates[0];
 }
 async function assertQoderPluginManifest(target, manifest, label, pluginRoot, frozenSkills) {
   if (manifest.name !== target.plugin || manifest.version !== target.version || typeof manifest.skills !== "string" || manifest.skills.length === 0 || frozenSkills !== void 0 && manifest.skills !== frozenSkills) {
@@ -139675,8 +139687,9 @@ async function assertFrozenQoderManifest(target, root) {
     snapshotPath: target.snapshotPath,
     expectedDigest: target.manifestDigest
   });
-  const manifest = await readQoderManifest(snapshotRoot, "frozen Qoder plugin manifest");
-  return assertQoderPluginManifest(target, manifest, "frozen Qoder plugin manifest", snapshotRoot);
+  const { manifestPath, manifest } = await readQoderManifest(snapshotRoot, "frozen Qoder plugin manifest");
+  const skills = await assertQoderPluginManifest(target, manifest, "frozen Qoder plugin manifest", snapshotRoot);
+  return { manifestPath, skills };
 }
 async function assertQoderHubEntry(target, marketplaceRoot) {
   const marketplace = parseJson2(
@@ -139699,11 +139712,14 @@ async function verifyQoderInstalledPayload({
   target,
   root,
   installPath,
-  frozenSkills,
+  frozenManifest,
   verifyInstalledPayload
 }) {
-  const manifest = await readQoderManifest(installPath, "installed Qoder plugin manifest");
-  await assertQoderPluginManifest(target, manifest, "installed Qoder plugin manifest", installPath, frozenSkills);
+  const { manifestPath, manifest } = await readQoderManifest(installPath, "installed Qoder plugin manifest");
+  if (manifestPath !== frozenManifest.manifestPath) {
+    throw new Error("installed Qoder plugin manifest path differs from the frozen manifest selection");
+  }
+  await assertQoderPluginManifest(target, manifest, "installed Qoder plugin manifest", installPath, frozenManifest.skills);
   await verifyInstalledPayload({
     snapshotPath: target.snapshotPath,
     manifestDigest: target.manifestDigest,
@@ -139716,7 +139732,7 @@ async function runQoderUpdate(target, detected, run6, {
   verifyInstalledPayload
 }) {
   const env = hostEnvironment("qoder");
-  const frozenSkills = await assertFrozenQoderManifest(target, root);
+  const frozenManifest = await assertFrozenQoderManifest(target, root);
   const marketplace = await observeQoderMarketplace(target, detected.command, env, run6);
   if (!marketplace.installed) {
     return {
@@ -139737,7 +139753,7 @@ async function runQoderUpdate(target, detected, run6, {
       target,
       root,
       installPath: before.installPath,
-      frozenSkills,
+      frozenManifest,
       verifyInstalledPayload
     });
     return { status: "ALREADY_CURRENT", version: target.version };
@@ -139764,7 +139780,7 @@ async function runQoderUpdate(target, detected, run6, {
     target,
     root,
     installPath: after.installPath,
-    frozenSkills,
+    frozenManifest,
     verifyInstalledPayload
   });
   return {

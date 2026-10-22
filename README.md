@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.34 -->
+<!-- release-skill:release-version: 0.9.35 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,34 +14,26 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.34** (2026-10-22)
+**0.9.35** (2026-10-22)
 
-0.9.34 introduces optional test result integration. Projects declaring `testIntake` can specify test requirements and results files, enabling external test orchestration and validation against defined criteria. Foundation remains at exact version 0.25.0. This release note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.9.35 enables successful Qoder finish checks for already installed plugins using a valid Claude-compatible manifest. It detects and blocks invalid or conflicting manifest candidates. This release note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance. Foundation dependencies remain pinned to `0.25.0`.
 
 **Security**
 
-- Skill Family Hub remains the unified market, continuing to use GitHub Git Data API. Updates are bound to observed branch heads and written via compare-and-swap. Partial Hub publication is never rolled back or force-pushed; completed steps are not overwritten. These mechanisms remain unchanged; remote authorization is not modified in this release.
-
-**Added**
-
-- Configurable test intake: Projects declaring `testIntake` can specify test requirements and results files via `testIntake.requirementsFile` and `testIntake.resultFile`. The first `production` `prepare` saves a non-final candidate and returns `NEEDS_INPUT` with the candidate path. Evidence must be provided before freezing; otherwise, no formal release plan is created. Subsequent `prepare --candidate <path>` resumes the same candidate without rebuilding public payloads. The candidate itself cannot be approved or published.
-- Test orchestration and acceptance: The TEST skill orchestrates test execution, determines whether to reuse or re-run tests, and aggregates business-level judgment on whether requirements are met. release-skill validates submitted materials against requirements, candidate bindings, and applicable stages, but does not replace the semantic acceptance by the domain or independent validators.
-- Post-freeze responsibilities: Requirements after freeze are handled by declared consumers via `consumer-verify`, `postverify`, or `finish` stages. Passing pre-freeze tests does not substitute for post-freeze validation.
-- Approval and artifact verification: Test acceptance is included in the release plan summary. Actions like `approve`, `publish`, and `reconcile` verify original artifacts before execution. Changes to results, criteria, scope, or allowed constraints invalidate prior approvals.
+- The frozen snapshot is reverified before any host write operation. Existing controls—approval, Hub authorization, path containment, and complete payload validation—remain in force. Foundation dependencies are pinned to `0.25.0`. Skill Family Hub remains the unified marketplace, with publication using GitHub Git Data API and compare-and-swap bound to the observed branch head. Partial Hub publication is never rolled back or force-pushed; completed steps are not overwritten. These mechanisms and remote authorization are unchanged in 0.9.35. The checker does not perform first-time installation, add marketplaces, or generate manifests. Generic release tiers and other host update policies are unchanged.
 
 **Fixed**
 
-- An unreadable or unparsable formal authority now raises an explicit error rather than being silently ignored.
-- `prepare` now rejects execution if `--candidate` is provided without a valid path.
-- New candidate modules after packaging use existing build version information; source mode uses trusted package identities.
+- The checker independently reads `.qoder-plugin/plugin.json` and `.claude-plugin/plugin.json` from both the frozen snapshot and the installed plugin. If the native Qoder manifest is missing, a valid Claude-compatible manifest is accepted. If either present manifest is invalid, verification fails without fallback. When both manifests exist, `name`, `version`, and `skills` must match exactly; otherwise, verification fails.
+- The installed manifest selection, its associated relative path, and `skills` are compared against the frozen selection. This closes gaps caused by competing manifest additions or changes in selected relative paths. Original plugin identity and complete payload checks remain enforced.
 
 **Upgrade Notes**
 
-Projects not declaring `testIntake` retain the original full gate and release path, with no requirement to adopt TEST or artifact-graph. Only `production` prepare is supported for `testIntake`-declared projects; non-production prepare is not allowed. Foundation dependencies remain at exact version 0.25.0. TEST must be invoked through the real Skill entry point. No new TEST CLI is introduced, and no automatic resolution of all domain acceptances is provided. This does not imply validation of all hosts or models. History of `PARTIAL`, `PUBLISHED`, and `VERIFIED` states is preserved even if tests are re-run. The release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and `release-skill@skill-family-hub` instead.
+Use the updated `release-finish` entry from the public `release-skill@skill-family-hub` to finish an existing installed compatible plugin using its applicable frozen plan. Updating the checker alone does not require republishing the plugin. New plugin bytes still require a new frozen plan and matching approval. `UPDATED` or `ALREADY_CURRENT` indicates installed payload status only—not that the running host has loaded it. Preserve `reload-pending` when loading has not been observed. A local finish failure does not erase a remote `VERIFIED` result. The release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and `release-skill@skill-family-hub`.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.34: this README records capabilities and verification boundaries;
+> **Current boundary:** v0.9.35: this README records capabilities and verification boundaries;
 > it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -65,7 +57,7 @@ Projects not declaring `testIntake` retain the original full gate and release pa
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; for v0.9.34,
+> **Production path verified since the v0.1.1 milestone; for v0.9.35,
 > publication, consumer-installation verification, and independent acceptance
 > require version-specific release records and verification results.**
 > The npm-installed CLI is the supported user entry. Source checkout

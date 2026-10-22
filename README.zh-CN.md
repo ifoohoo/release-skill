@@ -2,40 +2,32 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.34 -->
+<!-- release-skill:release-version: 0.9.35 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.34** (2026-10-22)
+**0.9.35** (2026-10-22)
 
-0.9.34 引入可选的测试结果接入功能。声明 `testIntake` 的项目可通过 `testIntake.requirementsFile` 和 `testIntake.resultFile` 指定测试要求与测试结果文件，实现与外部测试编排的集成，并依据定义准则进行验证。Foundation 保持精确版本 0.25.0。本发布说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.9.35 修复 Qoder 收尾检查逻辑，使已安装的、使用有效 Claude 兼容清单的插件可通过检查；同时识别并阻止无效或冲突的候选清单。本发布说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。Foundation 依赖保持精确锁定为 `0.25.0`。
 
 **安全**
 
-- Skill Family Hub 仍为统一市场，沿用 GitHub Git Data API。更新操作绑定已观察分支头并比较后写入（compare-and-swap）。部分发布不回滚、不覆盖已完成步骤、不自动强推；这些机制保持不变，本轮未修改远端授权。
-
-**新增**
-
-- 可配置测试接入：声明 `testIntake` 的项目可通过 `testIntake.requirementsFile` 和 `testIntake.resultFile` 指定测试要求文件与测试结果文件。首次 `production` `prepare` 保存非正式候选并返回 `NEEDS_INPUT` 及候选路径；冻结前证据未补齐则不生成正式发布计划。后续执行 `prepare --candidate <path>` 可续接同一候选，不重建公开载荷。候选本身不可用于批准或发布。
-- 测试组织与验收：TEST技能负责组织测试执行、判断是否复用或重跑，并汇总业务是否达标的判断。release-skill 核对提交材料与要求、候选对象、适用阶段的绑定关系，但不代替领域或独立验收者的语义验收。
-- 冻结后职责：冻结后的要求由已声明的消费者通过 `consumer-verify`（消费者安装验证）、`postverify`（发布后校验）、`finish`（本机收尾）阶段处理，冻结前通过不替代冻结后验证。
-- 批准前复核原始材料：测试验收已纳入发布计划摘要。`approve`、`publish`、`reconcile` 等操作在执行前复核原始材料。修改结果、准则、范围或允许的限制将导致原批准失效。
+- 在写入宿主前重新核验冻结快照；既有批准、Hub 授权、路径收容与完整载荷边界检查机制保持不变。Foundation 依赖精确锁定为 `0.25.0`。Skill Family Hub 仍为统一市场，沿用 GitHub Git Data API，更新操作绑定已观察分支头并比较后写入（compare-and-swap）。部分发布不回滚、不覆盖已完成步骤、不自动强推；本轮未修改这些机制与远端授权。检查器不执行首次安装、新增市场或伪造清单，通用发布层级和其他宿主更新策略保持不变。
 
 **修复**
 
-- 正式计划无法读取或解析时返回明确错误，不再静默忽略。
-- 显式传入 `--candidate` 但未提供路径时，`prepare` 在执行前即拒绝。
-- 打包后的新候选模块使用现有构建版本信息，源码模式使用可信包身份。
+- 检查器分别读取冻结快照与已安装插件中的 `.qoder-plugin/plugin.json` 和 `.claude-plugin/plugin.json`。若原生 Qoder 清单不存在，可接受有效的 Claude 兼容清单；清单存在但无效时，不降级接受。当两份清单均存在时，`name`、`version`、`skills` 必须完全一致，否则验证失败。
+- 安装侧选定的清单及其相对路径与 `skills`，与冻结侧对应项进行比对，补上额外候选清单和所选路径变化的检查缺口。原有插件身份与完整载荷检查机制持续生效。
 
 **升级说明**
 
-未声明 `testIntake` 的项目保留原有完整门禁与发布路径，不强制接入 TEST 或 artifact-graph。仅支持 `testIntake` 声明项目使用 `production` prepare，非生产 prepare 不被允许。Foundation 三个依赖保持精确版本 0.25.0。TEST 必须通过真实 Skill 入口调用，不新增 TEST CLI，不自动解决全部业务验收，也不表示已验证所有宿主或模型。历史 `PARTIAL`、`PUBLISHED`、`VERIFIED` 状态不因测试重跑被清除。旧版独立的 `release-skill` 市场已弃用，使用 `ifoohoo/skill-family-hub` 和 `release-skill@skill-family-hub`。
+使用 `release-skill@skill-family-hub` 提供的更新版 `release-finish` 入口，配合适用的冻结计划完成已有兼容插件的收尾。仅升级检查器无需重新发布该插件；若插件内容变更，仍需新冻结计划与匹配批准。`UPDATED` 或 `ALREADY_CURRENT` 仅表示安装载荷已通过检查，不表示运行中的宿主已加载。未观察到加载时，保留 `reload-pending` 状态。本机收尾失败不覆盖远端 `VERIFIED` 结果。旧版独立的 `release-skill` 市场已弃用，使用 `ifoohoo/skill-family-hub` 与 `release-skill@skill-family-hub`。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.34 的能力范围与验证边界见本 README，
+> **当前边界：** v0.9.35 的能力范围与验证边界见本 README，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -51,7 +43,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.34 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.35 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
