@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.9.35 -->
+<!-- release-skill:release-version: 0.9.36 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -14,26 +14,27 @@ Setup surfaces only the deterministic `compactSummary` review view; the full
 report stays in a temporary session directory.
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.35** (2026-10-22)
+**0.9.36** (2026-10-22)
 
-0.9.35 enables successful Qoder finish checks for already installed plugins using a valid Claude-compatible manifest. It detects and blocks invalid or conflicting manifest candidates. This release note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance. Foundation dependencies remain pinned to `0.25.0`.
+0.9.36 fixes incorrect rejection of valid dual-projection plugin directories in Qoder, ensures correct validation of market sources via both URL and GitHub-based manifests, and corrects Codex entry root detection to respect manifest-declared paths instead of hardcoding `skills/`. This release note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance. Foundation dependencies remain pinned to 0.25.0.
 
 **Security**
 
-- The frozen snapshot is reverified before any host write operation. Existing controls—approval, Hub authorization, path containment, and complete payload validation—remain in force. Foundation dependencies are pinned to `0.25.0`. Skill Family Hub remains the unified marketplace, with publication using GitHub Git Data API and compare-and-swap bound to the observed branch head. Partial Hub publication is never rolled back or force-pushed; completed steps are not overwritten. These mechanisms and remote authorization are unchanged in 0.9.35. The checker does not perform first-time installation, add marketplaces, or generate manifests. Generic release tiers and other host update policies are unchanged.
+- Foundation 0.25.0 remains unchanged; the source, scope, commit/digest, and full payload are preserved. The frozen snapshot is re-verified before writing, and the full payload is compared after installation. No new market, first-install, host strategy, framework, dependency, or tier has been introduced. 0.9.35 is immutable. Skill Family Hub remains the unified marketplace, using GitHub Git Data API and compare-and-swap bound to the observed branch head. Partial Hub publication is never rolled back or force-pushed; completed steps are not overwritten.
 
 **Fixed**
 
-- The checker independently reads `.qoder-plugin/plugin.json` and `.claude-plugin/plugin.json` from both the frozen snapshot and the installed plugin. If the native Qoder manifest is missing, a valid Claude-compatible manifest is accepted. If either present manifest is invalid, verification fails without fallback. When both manifests exist, `name`, `version`, and `skills` must match exactly; otherwise, verification fails.
-- The installed manifest selection, its associated relative path, and `skills` are compared against the frozen selection. This closes gaps caused by competing manifest additions or changes in selected relative paths. Original plugin identity and complete payload checks remain enforced.
+- In 0.9.35, Qoder plugins incorrectly rejected valid dual-projection directories. The `name` and `version` in `.qoder-plugin/plugin.json` and `.claude-plugin/plugin.json` must bind to the same frozen target, though individual `skills` can differ. Each present candidate must be a valid JSON object, match the target identity, have non-empty `skills`, and resolve to a real directory within the plugin root. Native takes precedence; compatibility is only used when native is missing. If any candidate is invalid, installation fails immediately without fallback. After installation, the selected path and `skills` must exactly match the frozen choice, and full payload validation is retained.
+- Qoder now also accepts existing markets that provide `.claude-plugin/marketplace.json` instead of a root `marketplace.json`. The system supports two existing locations: a URL-based `marketplace.json` at the root, and a GitHub-based `marketplace.json` in `.claude-plugin/`. At least one must exist. Each present index must be valid and contain exactly one entry for the target plugin, bound to the same frozen identity; other plugin entries remain allowed. A bad source is not ignored just because another is valid. URL sources require exact repository and SHA verification, and any explicit `version` or `ref` must match. GitHub sources require exact verification of `repo`, `ref`, `sha`, and `entry.version`. Only confirmed missing files are considered absent. Validation occurs after market refresh and before plugin update. `ALREADY_CURRENT` remains read-only with zero update commands.
+- The Codex entry root check previously hardcoded `skills/`, rejecting valid paths like `.agents/skills/` declared in the manifest. Installation pre-check and post-install observation now respect the `skills` directory declared in the plugin manifest. When the field is missing, the default `skills/` path is retained, and existing prefix behavior is preserved. Explicitly invalid, out-of-bounds, or non-directory paths are rejected without fallback. Post-install observation and full payload verification must bind to the same frozen installation contract.
 
 **Upgrade Notes**
 
-Use the updated `release-finish` entry from the public `release-skill@skill-family-hub` to finish an existing installed compatible plugin using its applicable frozen plan. Updating the checker alone does not require republishing the plugin. New plugin bytes still require a new frozen plan and matching approval. `UPDATED` or `ALREADY_CURRENT` indicates installed payload status only—not that the running host has loaded it. Preserve `reload-pending` when loading has not been observed. A local finish failure does not erase a remote `VERIFIED` result. The release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and `release-skill@skill-family-hub`.
+The release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and the updated `release-skill@skill-family-hub`, `release-finish`, and public CLI. Unmodified plugins need not be republished. Byte changes require a new frozen plan and matching approval. Installation does not imply loading — if actual loading is not observed, the state remains `reload-pending`. Local completion failure does not alter the remote `VERIFIED` status.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.9.35: this README records capabilities and verification boundaries;
+> **Current boundary:** v0.9.36: this README records capabilities and verification boundaries;
 > it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -57,7 +58,7 @@ Use the updated `release-finish` entry from the public `release-skill@skill-fami
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; for v0.9.35,
+> **Production path verified since the v0.1.1 milestone; for v0.9.36,
 > publication, consumer-installation verification, and independent acceptance
 > require version-specific release records and verification results.**
 > The npm-installed CLI is the supported user entry. Source checkout

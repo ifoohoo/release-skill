@@ -2,32 +2,33 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.9.35 -->
+<!-- release-skill:release-version: 0.9.36 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.9.35** (2026-10-22)
+**0.9.36** (2026-10-22)
 
-0.9.35 修复 Qoder 收尾检查逻辑，使已安装的、使用有效 Claude 兼容清单的插件可通过检查；同时识别并阻止无效或冲突的候选清单。本发布说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。Foundation 依赖保持精确锁定为 `0.25.0`。
+0.9.36 修复 Qoder 插件清单对合法双投影目录的误拒，确保市场来源在 URL 与 GitHub 两种路径下均正确校验，修正 Codex 入口目录检测逻辑以尊重 manifest 声明路径而非硬编码 skills/。本发布说明不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。Foundation 依赖保持精确锁定为 0.25.0。
 
 **安全**
 
-- 在写入宿主前重新核验冻结快照；既有批准、Hub 授权、路径收容与完整载荷边界检查机制保持不变。Foundation 依赖精确锁定为 `0.25.0`。Skill Family Hub 仍为统一市场，沿用 GitHub Git Data API，更新操作绑定已观察分支头并比较后写入（compare-and-swap）。部分发布不回滚、不覆盖已完成步骤、不自动强推；本轮未修改这些机制与远端授权。检查器不执行首次安装、新增市场或伪造清单，通用发布层级和其他宿主更新策略保持不变。
+- Foundation 0.25.0 保持不变；Hub 来源、user-scope、冻结 commit/digest 与完整载荷校验机制保留。写入宿主前复验冻结快照摘要，安装后比较完整载荷。无新增市场、首装、新宿主策略、新框架、新依赖或 tier 变化。0.9.35 不可变。Skill Family Hub 仍为统一市场，沿用 GitHub Git Data API，以比较后写入绑定已观察的分支头；部分发布不回滚、不覆盖已完成步骤。
 
 **修复**
 
-- 检查器分别读取冻结快照与已安装插件中的 `.qoder-plugin/plugin.json` 和 `.claude-plugin/plugin.json`。若原生 Qoder 清单不存在，可接受有效的 Claude 兼容清单；清单存在但无效时，不降级接受。当两份清单均存在时，`name`、`version`、`skills` 必须完全一致，否则验证失败。
-- 安装侧选定的清单及其相对路径与 `skills`，与冻结侧对应项进行比对，补上额外候选清单和所选路径变化的检查缺口。原有插件身份与完整载荷检查机制持续生效。
+- 0.9.35 版本中，Qoder 插件误拒自身合法的双投影目录。`.qoder-plugin/plugin.json` 与 `.claude-plugin/plugin.json` 中的 name/version 必须绑定同一冻结目标，各自 skills 可不同。每个已存在候选必须是合法 JSON 对象、目标身份匹配、skills 非空且解析为插件根内真实目录。原生优先，仅原生缺失时才选兼容；任一候选无效即失败，不回退。安装后路径与 skills 必须精确匹配冻结选择，完整载荷检查保留。
+- Qoder 现可接受只提供 `.claude-plugin/marketplace.json`、未提供根 marketplace.json 的既有市场。支持两种既有位置：根 marketplace.json 的 URL 来源，以及 `.claude-plugin/marketplace.json` 的 GitHub 来源。至少一份存在，每份已存在清单均须合法，且目标插件恰有一条、绑定同一冻结身份；市场仍可包含其他插件。不因另一份有效而忽略坏清单。URL 来源保留仓库与 sha 精确校验，显式 version/ref 必须匹配；兼容 GitHub 来源校验 repo/ref/sha/entry.version。仅确定缺文件视为缺席。市场刷新后、插件更新前校验；ALREADY_CURRENT 保持只读且零更新命令。
+- Codex 入口目录原检查写死为 skills/，误拒 `.agents/skills/` 等合法 manifest 声明路径。安装前检查与安装后观察均采用 manifest 声明的 skills 目录。字段缺省时继续使用既有 skills/ 默认路径，入口名前缀行为保留。显式无效、越界或非目录路径拒绝，不回退。已安装入口观察与完整载荷验证须绑定同一冻结安装合同。
 
 **升级说明**
 
-使用 `release-skill@skill-family-hub` 提供的更新版 `release-finish` 入口，配合适用的冻结计划完成已有兼容插件的收尾。仅升级检查器无需重新发布该插件；若插件内容变更，仍需新冻结计划与匹配批准。`UPDATED` 或 `ALREADY_CURRENT` 仅表示安装载荷已通过检查，不表示运行中的宿主已加载。未观察到加载时，保留 `reload-pending` 状态。本机收尾失败不覆盖远端 `VERIFIED` 结果。旧版独立的 `release-skill` 市场已弃用，使用 `ifoohoo/skill-family-hub` 与 `release-skill@skill-family-hub`。
+原独立的 `release-skill` 市场已弃用。使用更新后的 `release-skill@skill-family-hub` 入口、`release-finish` 与公共 CLI。未改插件无需重发，改字节须新冻结计划与匹配批准。安装 ≠ 加载，未观察实际加载则保留 reload-pending 状态。本机收尾失败不改变远端 VERIFIED 状态。统一使用 `ifoohoo/skill-family-hub` 和 `release-skill@skill-family-hub`。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.9.35 的能力范围与验证边界见本 README，
+> **当前边界：** v0.9.36 的能力范围与验证边界见本 README，
 > 不代表已经发布、完成消费者安装验证或通过独立验收。
 > 版本可用性以对应发布记录及发布后验证结果为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
@@ -43,7 +44,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.35 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.9.36 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**

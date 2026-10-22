@@ -247,7 +247,9 @@ releaseUnits:
 
 Qoder 保持 build-only 分发边界，不新增发布计划内的 distribution 或安装检查点。本机收尾更新 Qoder 有四个前提：冻结计划已声明、用户显式选择、Hub 来源匹配、既有用户范围安装核对通过。流程不添加市场或执行首次安装。更新完成仅表示安装载荷已变更，不表示当前会话已加载新版，后续仍须重新加载或新开会话，并完成一次真实的只读业务调用。
 
-冻结与安装两侧均核验原生 `.qoder-plugin/plugin.json` 与 Claude 兼容 `.claude-plugin/plugin.json`：原生清单缺失时方可启用兼容清单，原生清单存在但无效时不得回退；两清单同时存在时，均须可解析为有效对象，且 `name/version/skills` 完全一致，以原生清单为优先。安装侧结果须与冻结侧选定的相对清单路径及 `skills` 一致，不得忽略额外出现的损坏或冲突清单。写入前复验冻结快照摘要，安装后须完整比较声明载荷与冻结来源，现有 `external-marketplace-v1` 合同允许宿主额外文件，因此完整载荷比较不得替代双清单的独立核验。
+在已核对的市场安装根内，分别读取 `marketplace.json` 的 `url` 来源与 `.claude-plugin/marketplace.json` 的 `github` 来源；至少一个存在，且所有存在候选都须有效并绑定同一冻结目标。根目录来源核对 `source.url/source.sha`；兼容来源沿现有 Claude 断言核对仓库、冻结标签、提交和版本。任一损坏或冲突均拒绝，不猜测优先级。
+
+冻结与安装两侧均核验原生 `.qoder-plugin/plugin.json` 与 Claude 兼容 `.claude-plugin/plugin.json`：原生清单缺失时方可启用兼容清单，原生清单存在但无效时不得回退；两清单同时存在时，均须可解析为有效对象，以原生清单为优先。每个已存在候选（包括未选候选）都须核对目标 `name/version`；其 `skills` 必须为非空字符串，经 `Foundation 0.25.0` 的 `resolveContained` 解析为根内真实目录。跨候选只比较 `name/version`，允许各自合法 `skills` 不同；原生正常不能遮蔽兼容无效。安装侧结果须与冻结侧选定的相对清单路径及 `skills` 一致，不得忽略额外出现的损坏或冲突清单。写入前复验冻结快照摘要，安装后须完整比较声明载荷与冻结来源，现有 `external-marketplace-v1` 合同允许宿主额外文件，因此完整载荷比较不得替代双清单的独立核验。
 
 0.9.21 起，同一声明也能执行 Claude、Codex、Kimi、CodeBuddy 和 WorkBuddy 的本机更新，无需恢复旧宿主 distribution。插件仓库、标签、提交和快照摘要必须来自冻结 unit 与对应标签动作。Claude、Codex 和 CodeBuddy 家族使用已有同源 Hub 市场；刷新前后分别核对宿主专用条目，安装后比较完整冻结载荷。CodeBuddy/WorkBuddy 只升级已有插件，并在插件写入前再次确认 Hub 分支未漂移。Kimi 直接使用冻结 GitHub Release 和终端交互，其只有仓库 URL 的 Hub 文件不承担标签或提交证明。启动进程保留三个代理变量 `http_proxy`、`https_proxy`、`all_proxy`。
 

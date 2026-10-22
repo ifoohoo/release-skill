@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.35"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.36"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "e14a5aba2f50cba3982bbe413cc9faebf0d45629e53f410e4942f562d7161754";
+const __bundleSourceDigest = "bc9386087a5bffe2f92c12f687ec75582a9e853164020e99618a4bdf5cd13a68";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -113912,6 +113912,66 @@ function normalizeCodeBuddySkillsRel(skillsRaw) {
   }
   return rel;
 }
+async function resolveCodexEntrySkillFile(pluginRoot, entrySkill, pluginName) {
+  const { normalizeGenericSkillsRel: normalizeGenericSkillsRel2 } = await init_surface_host_bindings().then(() => surface_host_bindings_exports);
+  if (!entrySkill || typeof entrySkill !== "string" || !SAFE_ID_RE.test(entrySkill)) {
+    throw new Error(`unsafe entrySkill: "${entrySkill}"`);
+  }
+  const platform = getPlatform("codex");
+  const manifestPath = await resolveContained(pluginRoot, platform.manifestPaths.plugin);
+  let manifest;
+  try {
+    manifest = JSON.parse(await readFile26(manifestPath, "utf8"));
+  } catch (err) {
+    throw new Error(`Codex plugin manifest cannot be read: ${err.message}`);
+  }
+  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
+    throw new Error("Codex plugin manifest must be an object");
+  }
+  const skillsRel = Object.hasOwn(manifest, "skills") ? normalizeGenericSkillsRel2(manifest.skills) : "skills";
+  const skillsRoot = await resolveContained(pluginRoot, skillsRel);
+  let skillsRootStat;
+  try {
+    skillsRootStat = await lstat37(skillsRoot);
+  } catch {
+    throw new Error(`Codex manifest skills root does not exist: ${manifest.skills ?? skillsRel}`);
+  }
+  if (skillsRootStat.isSymbolicLink() || !skillsRootStat.isDirectory()) {
+    throw new Error(`Codex manifest skills root must be a real directory: ${manifest.skills ?? skillsRel}`);
+  }
+  const findCandidate = /* @__PURE__ */ __name(async (skillDirName) => {
+    const skillDir = await resolveContained(pluginRoot, `${skillsRel}/${skillDirName}`);
+    let skillDirStat;
+    try {
+      skillDirStat = await lstat37(skillDir);
+    } catch (err) {
+      if (err?.code === "ENOENT") return null;
+      throw err;
+    }
+    if (skillDirStat.isSymbolicLink() || !skillDirStat.isDirectory()) {
+      throw new Error(`Codex entry skill directory must be a real directory: ${skillsRel}/${skillDirName}`);
+    }
+    const skillFile = await resolveContained(pluginRoot, `${skillsRel}/${skillDirName}/SKILL.md`);
+    let skillStat;
+    try {
+      skillStat = await lstat37(skillFile);
+    } catch (err) {
+      if (err?.code === "ENOENT") return null;
+      throw err;
+    }
+    if (skillStat.isSymbolicLink() || !skillStat.isFile()) {
+      throw new Error(`Codex entry skill must be a regular non-symlink file: ${skillsRel}/${skillDirName}/SKILL.md`);
+    }
+    return skillFile;
+  }, "findCandidate");
+  const shortNameEntry = await findCandidate(entrySkill);
+  if (shortNameEntry) return shortNameEntry;
+  if (pluginName && SAFE_ID_RE.test(pluginName)) {
+    const prefixedEntry = await findCandidate(`${pluginName}-${entrySkill}`);
+    if (prefixedEntry) return prefixedEntry;
+  }
+  throw new Error(`Codex entry skill not found: ${skillsRel}/${entrySkill}/SKILL.md`);
+}
 async function resolveCodeBuddyEntrySkillFile(pluginRootReal, manifest, entrySkill) {
   if (!entrySkill || typeof entrySkill !== "string" || !SAFE_ID_RE.test(entrySkill)) {
     throw new Error(`unsafe entrySkill: "${entrySkill}"`);
@@ -115067,6 +115127,17 @@ function createPluginMarketplaceAdapter(deps = {}) {
                 error: `entry skill not resolvable in snapshot: ${entryErr.message}`
               });
             }
+          } else if (consumer === "codex") {
+            const pluginRootForSkill = pluginRootForEntrySkill || snapshotDirReal;
+            try {
+              await resolveCodexEntrySkillFile(pluginRootForSkill, action.entrySkill, action.plugin);
+            } catch (entryErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `entry skill not resolvable in snapshot: ${entryErr.message}`
+              });
+            }
           } else {
             const pluginRootForSkill = pluginRootForEntrySkill || snapshotDirReal;
             let entrySkillFile = resolve22(pluginRootForSkill, "skills", action.entrySkill, "SKILL.md");
@@ -116181,42 +116252,59 @@ function createPluginMarketplaceAdapter(deps = {}) {
               }
             });
           }
-          let entrySkillPath = resolve22(installPath, "skills", action.entrySkill, "SKILL.md");
-          let entrySkillFound = false;
-          try {
-            const skillStat = await lstat37(entrySkillPath);
-            if (skillStat.isFile() && !skillStat.isSymbolicLink()) {
-              entrySkillFound = true;
-            }
-          } catch {
-          }
-          if (!entrySkillFound && action.plugin) {
-            const prefixedPath = resolve22(
-              installPath,
-              "skills",
-              `${action.plugin}-${action.entrySkill}`,
-              "SKILL.md"
-            );
+          if (consumer === "codex") {
             try {
-              const skillStat = await lstat37(prefixedPath);
+              await resolveCodexEntrySkillFile(installPath, action.entrySkill, action.plugin);
+            } catch (entryErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: true,
+                  installPath,
+                  entrySkillFound: false,
+                  error: `entry skill not resolvable in installed plugin: ${entryErr.message}`
+                }
+              });
+            }
+          } else {
+            let entrySkillPath = resolve22(installPath, "skills", action.entrySkill, "SKILL.md");
+            let entrySkillFound = false;
+            try {
+              const skillStat = await lstat37(entrySkillPath);
               if (skillStat.isFile() && !skillStat.isSymbolicLink()) {
-                entrySkillPath = prefixedPath;
                 entrySkillFound = true;
               }
             } catch {
             }
-          }
-          if (!entrySkillFound) {
-            return createResult({
-              actionType,
-              status: ActionStatus.OBSERVED,
-              observation: {
-                installed: true,
+            if (!entrySkillFound && action.plugin) {
+              const prefixedPath = resolve22(
                 installPath,
-                entrySkillFound: false,
-                error: `entry skill not found: skills/${action.entrySkill}/SKILL.md`
+                "skills",
+                `${action.plugin}-${action.entrySkill}`,
+                "SKILL.md"
+              );
+              try {
+                const skillStat = await lstat37(prefixedPath);
+                if (skillStat.isFile() && !skillStat.isSymbolicLink()) {
+                  entrySkillPath = prefixedPath;
+                  entrySkillFound = true;
+                }
+              } catch {
               }
-            });
+            }
+            if (!entrySkillFound) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: true,
+                  installPath,
+                  entrySkillFound: false,
+                  error: `entry skill not found: skills/${action.entrySkill}/SKILL.md`
+                }
+              });
+            }
           }
           let manifestDigest;
           let manifestError = null;
@@ -116418,6 +116506,7 @@ var init_plugin_marketplace = __esm({
     __name(normalizeKimiSkillsRel, "normalizeKimiSkillsRel");
     __name(resolveKimiEntrySkillFile, "resolveKimiEntrySkillFile");
     __name(normalizeCodeBuddySkillsRel, "normalizeCodeBuddySkillsRel");
+    __name(resolveCodexEntrySkillFile, "resolveCodexEntrySkillFile");
     __name(resolveCodeBuddyEntrySkillFile, "resolveCodeBuddyEntrySkillFile");
     SUPPORTED_TYPES = [
       ActionType.PLUGIN_MANIFEST_VALIDATE,
@@ -116458,6 +116547,14 @@ var init_plugin_marketplace = __esm({
 });
 
 // src/core/surface-host-bindings.mjs
+var surface_host_bindings_exports = {};
+__export(surface_host_bindings_exports, {
+  deriveSurfaceHostBinding: () => deriveSurfaceHostBinding,
+  groupSurfaceHostBindings: () => groupSurfaceHostBindings,
+  normalizeGenericSkillsRel: () => normalizeGenericSkillsRel,
+  normalizeSurfacePath: () => normalizeSurfacePath,
+  pluginRootFromManifestRelativePath: () => pluginRootFromManifestRelativePath
+});
 import { dirname as dirname10, isAbsolute as isAbsolute18, join as join19, normalize as normalize3, resolve as resolve23, sep as sep9 } from "node:path";
 import { lstat as lstat38 } from "node:fs/promises";
 function normalizeSurfacePath(rawPath) {
@@ -139649,7 +139746,7 @@ async function observeQoderPlugin(target, command2, env, run6) {
     found
   };
 }
-async function readQoderManifest(root, label) {
+async function readQoderManifest(root, label, target) {
   const candidates = [];
   for (const manifestPath of [".qoder-plugin/plugin.json", ".claude-plugin/plugin.json"]) {
     let text;
@@ -139663,10 +139760,11 @@ async function readQoderManifest(root, label) {
     if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
       throw new Error(`${label} (${manifestPath}) did not return an object`);
     }
+    await assertQoderPluginManifest(target, manifest, `${label} (${manifestPath})`, root);
     candidates.push({ manifestPath, manifest });
   }
   if (candidates.length === 0) throw new Error(`${label} has no native or compatible plugin manifest`);
-  if (candidates.length === 2 && ["name", "version", "skills"].some((field) => candidates[0].manifest[field] !== candidates[1].manifest[field])) {
+  if (candidates.length === 2 && ["name", "version"].some((field) => candidates[0].manifest[field] !== candidates[1].manifest[field])) {
     throw new Error(`${label} does not match the frozen Qoder plugin identity and projection path: conflicting native and compatible manifests`);
   }
   return candidates[0];
@@ -139687,26 +139785,43 @@ async function assertFrozenQoderManifest(target, root) {
     snapshotPath: target.snapshotPath,
     expectedDigest: target.manifestDigest
   });
-  const { manifestPath, manifest } = await readQoderManifest(snapshotRoot, "frozen Qoder plugin manifest");
+  const { manifestPath, manifest } = await readQoderManifest(snapshotRoot, "frozen Qoder plugin manifest", target);
   const skills = await assertQoderPluginManifest(target, manifest, "frozen Qoder plugin manifest", snapshotRoot);
   return { manifestPath, skills };
 }
 async function assertQoderHubEntry(target, marketplaceRoot) {
-  const marketplace = parseJson2(
-    await readFileContained(marketplaceRoot, "marketplace.json", { encoding: "utf8" }),
-    "Qoder Hub marketplace manifest"
-  );
-  if (marketplace?.name !== target.marketplace || !Array.isArray(marketplace.plugins)) {
-    throw new Error("Qoder Hub marketplace manifest does not match the frozen marketplace");
+  let found = false;
+  for (const indexPath of ["marketplace.json", ".claude-plugin/marketplace.json"]) {
+    let text;
+    try {
+      text = await readFileContained(marketplaceRoot, indexPath, { encoding: "utf8" });
+    } catch (error) {
+      if (error?.code === "SFC2004" && error?.details?.kind === "missing-resource") continue;
+      throw error;
+    }
+    found = true;
+    const marketplace = parseJson2(text, `Qoder Hub marketplace manifest (${indexPath})`);
+    if (!marketplace || typeof marketplace !== "object" || Array.isArray(marketplace) || marketplace.name !== target.marketplace || !Array.isArray(marketplace.plugins)) {
+      throw new Error("Qoder Hub marketplace manifest does not match the frozen marketplace");
+    }
+    if (indexPath === ".claude-plugin/marketplace.json") {
+      if (target.hub.githubHost !== "github.com" || typeof target.frozenTag !== "string" || target.frozenTag.length === 0) {
+        throw new Error("Qoder compatible Hub entry requires a frozen GitHub tag identity");
+      }
+      await assertHubHostEntry({ ...target, host: "claude", pluginTag: target.frozenTag, githubHost: target.hub.githubHost }, marketplaceRoot);
+      continue;
+    }
+    const matches = marketplace.plugins.filter((entry2) => entry2?.name === target.plugin);
+    if (matches.length !== 1) {
+      throw new Error(`Qoder Hub marketplace manifest must contain exactly one ${target.plugin} entry`);
+    }
+    const entry = matches[0];
+    const source = entry.source;
+    if (source?.source !== "url" || normalizeHubGitSource(source.url, target.hub.githubHost) !== target.pluginRepo || source.sha !== target.pluginCommit || entry.version !== void 0 && entry.version !== target.version || source.ref !== void 0 && (typeof target.frozenTag !== "string" || source.ref !== target.frozenTag)) {
+      throw new Error("Qoder Hub entry does not match the frozen public source identity");
+    }
   }
-  const matches = marketplace.plugins.filter((entry) => entry?.name === target.plugin);
-  if (matches.length !== 1) {
-    throw new Error(`Qoder Hub marketplace manifest must contain exactly one ${target.plugin} entry`);
-  }
-  const source = matches[0]?.source;
-  if (source?.source !== "url" || normalizeHubGitSource(source.url, target.hub.githubHost) !== target.pluginRepo || source.sha !== target.pluginCommit) {
-    throw new Error("Qoder Hub entry does not match the frozen public source identity");
-  }
+  if (!found) throw new Error("Qoder Hub has no native or compatible marketplace manifest");
 }
 async function verifyQoderInstalledPayload({
   target,
@@ -139715,7 +139830,7 @@ async function verifyQoderInstalledPayload({
   frozenManifest,
   verifyInstalledPayload
 }) {
-  const { manifestPath, manifest } = await readQoderManifest(installPath, "installed Qoder plugin manifest");
+  const { manifestPath, manifest } = await readQoderManifest(installPath, "installed Qoder plugin manifest", target);
   if (manifestPath !== frozenManifest.manifestPath) {
     throw new Error("installed Qoder plugin manifest path differs from the frozen manifest selection");
   }

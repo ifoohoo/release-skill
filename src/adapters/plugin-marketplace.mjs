@@ -824,6 +824,88 @@ export function normalizeCodeBuddySkillsRel(skillsRaw) {
 }
 
 /**
+ * Resolve a Codex entry skill using the plugin manifest at the actual plugin
+ * root. An omitted `skills` field keeps Codex's conventional `skills/` root;
+ * an explicit declaration is authoritative and must be valid and present.
+ *
+ * The short-name layout keeps priority over the plugin-prefixed layout, but
+ * fallback is allowed only when the short-name candidate is absent. Existing
+ * unsafe candidates are errors and cannot be hidden by a second layout.
+ *
+ * @param {string} pluginRoot - Real plugin root derived from source or install.
+ * @param {string} entrySkill - Frozen entry-skill id.
+ * @param {string} pluginName - Frozen plugin id used by the legacy prefix.
+ * @returns {Promise<string>} Absolute path to a regular, non-symlink SKILL.md.
+ */
+async function resolveCodexEntrySkillFile(pluginRoot, entrySkill, pluginName) {
+  const { normalizeGenericSkillsRel } = await import('../core/surface-host-bindings.mjs');
+  if (!entrySkill || typeof entrySkill !== 'string' || !SAFE_ID_RE.test(entrySkill)) {
+    throw new Error(`unsafe entrySkill: "${entrySkill}"`);
+  }
+
+  const platform = getPlatform('codex');
+  const manifestPath = await resolveContained(pluginRoot, platform.manifestPaths.plugin);
+  let manifest;
+  try {
+    manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+  } catch (err) {
+    throw new Error(`Codex plugin manifest cannot be read: ${err.message}`);
+  }
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    throw new Error('Codex plugin manifest must be an object');
+  }
+
+  const skillsRel = Object.hasOwn(manifest, 'skills')
+    ? normalizeGenericSkillsRel(manifest.skills)
+    : 'skills';
+  const skillsRoot = await resolveContained(pluginRoot, skillsRel);
+  let skillsRootStat;
+  try {
+    skillsRootStat = await lstat(skillsRoot);
+  } catch {
+    throw new Error(`Codex manifest skills root does not exist: ${manifest.skills ?? skillsRel}`);
+  }
+  if (skillsRootStat.isSymbolicLink() || !skillsRootStat.isDirectory()) {
+    throw new Error(`Codex manifest skills root must be a real directory: ${manifest.skills ?? skillsRel}`);
+  }
+
+  const findCandidate = async (skillDirName) => {
+    const skillDir = await resolveContained(pluginRoot, `${skillsRel}/${skillDirName}`);
+    let skillDirStat;
+    try {
+      skillDirStat = await lstat(skillDir);
+    } catch (err) {
+      if (err?.code === 'ENOENT') return null;
+      throw err;
+    }
+    if (skillDirStat.isSymbolicLink() || !skillDirStat.isDirectory()) {
+      throw new Error(`Codex entry skill directory must be a real directory: ${skillsRel}/${skillDirName}`);
+    }
+
+    const skillFile = await resolveContained(pluginRoot, `${skillsRel}/${skillDirName}/SKILL.md`);
+    let skillStat;
+    try {
+      skillStat = await lstat(skillFile);
+    } catch (err) {
+      if (err?.code === 'ENOENT') return null;
+      throw err;
+    }
+    if (skillStat.isSymbolicLink() || !skillStat.isFile()) {
+      throw new Error(`Codex entry skill must be a regular non-symlink file: ${skillsRel}/${skillDirName}/SKILL.md`);
+    }
+    return skillFile;
+  };
+
+  const shortNameEntry = await findCandidate(entrySkill);
+  if (shortNameEntry) return shortNameEntry;
+  if (pluginName && SAFE_ID_RE.test(pluginName)) {
+    const prefixedEntry = await findCandidate(`${pluginName}-${entrySkill}`);
+    if (prefixedEntry) return prefixedEntry;
+  }
+  throw new Error(`Codex entry skill not found: ${skillsRel}/${entrySkill}/SKILL.md`);
+}
+
+/**
  * CodeBuddy equivalent of resolveKimiEntrySkillFile (parallel implementation,
  * codebuddy wording; the kimi helper above is intentionally left untouched).
  * Resolves the entry SKILL.md from the authoritative codebuddy manifest:
@@ -2110,8 +2192,8 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           // snapshot, so the snapshot marketplace-manifest section is skipped
           // entirely. The plugin manifest is read directly from the snapshot
           // root and the frozen external identity fields are validated. ref was
-          // already injection-checked above (step 2); the entry skill reuses the
-          // automatable fixed layout validated below.
+          // already injection-checked above (step 2); Codex entry lookup reads
+          // the plugin manifest from this snapshot root.
           if (
             typeof action.marketplaceCommitSha !== 'string'
             || !/^[0-9a-f]{40}$/.test(action.marketplaceCommitSha)
@@ -2315,19 +2397,27 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           }
           }
 
-          // Verify the entry skill exists in the snapshot.
-          // Structured-cli platforms' manifests always declare ./skills/, so the
-          // fixed skills/<entrySkill>/SKILL.md layout is authoritative for
-          // them. A human-attestation platform (kimi, codebuddy) resolves the
-          // entry skill via the manifest-declared skills root (MAJOR-4): the
-          // root is validated + realpath-contained, and omitted `skills` means
-          // the official single-skill root SKILL.md.
+          // Verify the entry skill exists in the snapshot. Kimi/CodeBuddy use
+          // their existing manifest-specific rules; Codex resolves its own
+          // manifest-declared skills root below. Claude keeps its established
+          // conventional skills/ lookup and prefixed fallback.
           if (platformRoute.route === 'human-attestation') {
             const resolveEntrySkillFile = consumer === 'codebuddy'
               ? resolveCodeBuddyEntrySkillFile
               : resolveKimiEntrySkillFile;
             try {
               await resolveEntrySkillFile(snapshotDirReal, kimiSnapshotManifest, action.entrySkill);
+            } catch (entryErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.PREFLIGHT_FAILED,
+                error: `entry skill not resolvable in snapshot: ${entryErr.message}`,
+              });
+            }
+          } else if (consumer === 'codex') {
+            const pluginRootForSkill = pluginRootForEntrySkill || snapshotDirReal;
+            try {
+              await resolveCodexEntrySkillFile(pluginRootForSkill, action.entrySkill, action.plugin);
             } catch (entryErr) {
               return createResult({
                 actionType,
@@ -3735,48 +3825,67 @@ export function createPluginMarketplaceAdapter(deps = {}) {
           }
 
           // Verify entry skill exists as a regular file in install dir.
-          // Prefixed skill-directory fallback (0.5.1 entry-skill-prefix fix):
-          // mirror the preflight resolution — `skills/<entrySkill>` first,
-          // then `skills/<plugin>-<entrySkill>` when the plugin is known.
-          let entrySkillPath = resolve(installPath, 'skills', action.entrySkill, 'SKILL.md');
-          let entrySkillFound = false;
-          try {
-            const skillStat = await lstat(entrySkillPath);
-            if (skillStat.isFile() && !skillStat.isSymbolicLink()) {
-              entrySkillFound = true;
-            }
-          } catch {
-            // entry skill not found in unprefixed layout
-          }
-          if (!entrySkillFound && action.plugin) {
-            const prefixedPath = resolve(
-              installPath,
-              'skills',
-              `${action.plugin}-${action.entrySkill}`,
-              'SKILL.md',
-            );
+          // Codex uses its actual installed plugin manifest for the skills
+          // root, keeping observation aligned with frozen-source preflight.
+          if (consumer === 'codex') {
             try {
-              const skillStat = await lstat(prefixedPath);
+              await resolveCodexEntrySkillFile(installPath, action.entrySkill, action.plugin);
+            } catch (entryErr) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: true,
+                  installPath,
+                  entrySkillFound: false,
+                  error: `entry skill not resolvable in installed plugin: ${entryErr.message}`,
+                },
+              });
+            }
+          } else {
+            // Prefixed skill-directory fallback (0.5.1 entry-skill-prefix fix):
+            // mirror the preflight resolution — `skills/<entrySkill>` first,
+            // then `skills/<plugin>-<entrySkill>` when the plugin is known.
+            let entrySkillPath = resolve(installPath, 'skills', action.entrySkill, 'SKILL.md');
+            let entrySkillFound = false;
+            try {
+              const skillStat = await lstat(entrySkillPath);
               if (skillStat.isFile() && !skillStat.isSymbolicLink()) {
-                entrySkillPath = prefixedPath;
                 entrySkillFound = true;
               }
             } catch {
-              // both layouts miss; report below
+              // entry skill not found in unprefixed layout
             }
-          }
-
-          if (!entrySkillFound) {
-            return createResult({
-              actionType,
-              status: ActionStatus.OBSERVED,
-              observation: {
-                installed: true,
+            if (!entrySkillFound && action.plugin) {
+              const prefixedPath = resolve(
                 installPath,
-                entrySkillFound: false,
-                error: `entry skill not found: skills/${action.entrySkill}/SKILL.md`,
-              },
-            });
+                'skills',
+                `${action.plugin}-${action.entrySkill}`,
+                'SKILL.md',
+              );
+              try {
+                const skillStat = await lstat(prefixedPath);
+                if (skillStat.isFile() && !skillStat.isSymbolicLink()) {
+                  entrySkillPath = prefixedPath;
+                  entrySkillFound = true;
+                }
+              } catch {
+                // both layouts miss; report below
+              }
+            }
+
+            if (!entrySkillFound) {
+              return createResult({
+                actionType,
+                status: ActionStatus.OBSERVED,
+                observation: {
+                  installed: true,
+                  installPath,
+                  entrySkillFound: false,
+                  error: `entry skill not found: skills/${action.entrySkill}/SKILL.md`,
+                },
+              });
+            }
           }
 
           // Bind the installed payload back to the sealed authority while

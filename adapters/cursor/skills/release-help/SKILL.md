@@ -38,7 +38,7 @@ description: "Discoverable entry point for release-skill: dependency and environ
 
 治理诊断只运行 release-skill 自己的只读检查程序，不运行目标 Skill、业务脚本、构建、hook 或发布动作，也不把 `prepare`、`verify`、`release-finish` 当作静态治理入口。用户要求实际接入或发布时，把已有授权带到对应原业务入口；各入口继续执行原有确认、副作用和状态机合同。
 
-## 0.9.35 能力与证据边界
+## 0.9.36 能力与证据边界
 
 四类工程材料接到现有 `release-project` 字段。公开正式材料写入 `publicFiles`（`sourceScope` / `from` / `to` / `mode`）。运行必需资源写入 `requiredPublicFiles`，必须被同一单元 `publicFiles[].to` 精确覆盖。私有正式材料与非正式运行材料不列入 `publicFiles`，需要挡住时使用 `forbiddenPaths` / `forbiddenContentPatterns`。正式不等于公开。是否进入公开快照由 `publicFiles` 是否列出决定。npm 是载荷渠道。`package.json` 的 `files` 与入口闭包和公开映射同时约束。`delivery.include` / `delivery.exclude` 只选择宿主，不是文件包含或排除。排除不得拿掉运行必需资源。互相冲突的配置必须失败关闭。
 

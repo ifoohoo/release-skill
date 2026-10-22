@@ -846,7 +846,7 @@ async function observeQoderPlugin(target, command, env, run) {
   };
 }
 
-async function readQoderManifest(root, label) {
+async function readQoderManifest(root, label, target) {
   const candidates = [];
   for (const manifestPath of ['.qoder-plugin/plugin.json', '.claude-plugin/plugin.json']) {
     let text;
@@ -860,10 +860,11 @@ async function readQoderManifest(root, label) {
     if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
       throw new Error(`${label} (${manifestPath}) did not return an object`);
     }
+    await assertQoderPluginManifest(target, manifest, `${label} (${manifestPath})`, root);
     candidates.push({ manifestPath, manifest });
   }
   if (candidates.length === 0) throw new Error(`${label} has no native or compatible plugin manifest`);
-  if (candidates.length === 2 && ['name', 'version', 'skills'].some((field) => (
+  if (candidates.length === 2 && ['name', 'version'].some((field) => (
     candidates[0].manifest[field] !== candidates[1].manifest[field]
   ))) {
     throw new Error(`${label} does not match the frozen Qoder plugin identity and projection path: conflicting native and compatible manifests`);
@@ -894,31 +895,49 @@ async function assertFrozenQoderManifest(target, root) {
     snapshotPath: target.snapshotPath,
     expectedDigest: target.manifestDigest,
   });
-  const { manifestPath, manifest } = await readQoderManifest(snapshotRoot, 'frozen Qoder plugin manifest');
+  const { manifestPath, manifest } = await readQoderManifest(snapshotRoot, 'frozen Qoder plugin manifest', target);
   const skills = await assertQoderPluginManifest(target, manifest, 'frozen Qoder plugin manifest', snapshotRoot);
   return { manifestPath, skills };
 }
 
 async function assertQoderHubEntry(target, marketplaceRoot) {
-  const marketplace = parseJson(
-    await readFileContained(marketplaceRoot, 'marketplace.json', { encoding: 'utf8' }),
-    'Qoder Hub marketplace manifest',
-  );
-  if (marketplace?.name !== target.marketplace || !Array.isArray(marketplace.plugins)) {
-    throw new Error('Qoder Hub marketplace manifest does not match the frozen marketplace');
+  let found = false;
+  for (const indexPath of ['marketplace.json', '.claude-plugin/marketplace.json']) {
+    let text;
+    try {
+      text = await readFileContained(marketplaceRoot, indexPath, { encoding: 'utf8' });
+    } catch (error) {
+      if (error?.code === 'SFC2004' && error?.details?.kind === 'missing-resource') continue;
+      throw error;
+    }
+    found = true;
+    const marketplace = parseJson(text, `Qoder Hub marketplace manifest (${indexPath})`);
+    if (!marketplace || typeof marketplace !== 'object' || Array.isArray(marketplace)
+      || marketplace.name !== target.marketplace || !Array.isArray(marketplace.plugins)) {
+      throw new Error('Qoder Hub marketplace manifest does not match the frozen marketplace');
+    }
+    if (indexPath === '.claude-plugin/marketplace.json') {
+      if (target.hub.githubHost !== 'github.com' || typeof target.frozenTag !== 'string' || target.frozenTag.length === 0) {
+        throw new Error('Qoder compatible Hub entry requires a frozen GitHub tag identity');
+      }
+      await assertHubHostEntry({ ...target, host: 'claude', pluginTag: target.frozenTag, githubHost: target.hub.githubHost }, marketplaceRoot);
+      continue;
+    }
+    const matches = marketplace.plugins.filter((entry) => entry?.name === target.plugin);
+    if (matches.length !== 1) {
+      throw new Error(`Qoder Hub marketplace manifest must contain exactly one ${target.plugin} entry`);
+    }
+    const entry = matches[0];
+    const source = entry.source;
+    if (source?.source !== 'url'
+      || normalizeHubGitSource(source.url, target.hub.githubHost) !== target.pluginRepo
+      || source.sha !== target.pluginCommit
+      || (entry.version !== undefined && entry.version !== target.version)
+      || (source.ref !== undefined && (typeof target.frozenTag !== 'string' || source.ref !== target.frozenTag))) {
+      throw new Error('Qoder Hub entry does not match the frozen public source identity');
+    }
   }
-  const matches = marketplace.plugins.filter((entry) => entry?.name === target.plugin);
-  if (matches.length !== 1) {
-    throw new Error(`Qoder Hub marketplace manifest must contain exactly one ${target.plugin} entry`);
-  }
-  const source = matches[0]?.source;
-  if (
-    source?.source !== 'url'
-    || normalizeHubGitSource(source.url, target.hub.githubHost) !== target.pluginRepo
-    || source.sha !== target.pluginCommit
-  ) {
-    throw new Error('Qoder Hub entry does not match the frozen public source identity');
-  }
+  if (!found) throw new Error('Qoder Hub has no native or compatible marketplace manifest');
 }
 
 async function verifyQoderInstalledPayload({
@@ -928,7 +947,7 @@ async function verifyQoderInstalledPayload({
   frozenManifest,
   verifyInstalledPayload,
 }) {
-  const { manifestPath, manifest } = await readQoderManifest(installPath, 'installed Qoder plugin manifest');
+  const { manifestPath, manifest } = await readQoderManifest(installPath, 'installed Qoder plugin manifest', target);
   if (manifestPath !== frozenManifest.manifestPath) {
     throw new Error('installed Qoder plugin manifest path differs from the frozen manifest selection');
   }

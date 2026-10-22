@@ -1,5 +1,26 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.9.36 locale=en baseline=sha256:704d09597e835404867409d99c9b8d674751ef145a9e0855d6e2182d768bb3a2 -->
+## [0.9.36] - 2026-10-22
+
+0.9.36 fixes incorrect rejection of valid dual-projection plugin directories in Qoder, ensures correct validation of market sources via both URL and GitHub-based manifests, and corrects Codex entry root detection to respect manifest-declared paths instead of hardcoding `skills/`. This release note is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance. Foundation dependencies remain pinned to 0.25.0.
+
+### Security
+
+- Foundation 0.25.0 remains unchanged; the source, scope, commit/digest, and full payload are preserved. The frozen snapshot is re-verified before writing, and the full payload is compared after installation. No new market, first-install, host strategy, framework, dependency, or tier has been introduced. 0.9.35 is immutable. Skill Family Hub remains the unified marketplace, using GitHub Git Data API and compare-and-swap bound to the observed branch head. Partial Hub publication is never rolled back or force-pushed; completed steps are not overwritten.
+
+### Fixed
+
+- In 0.9.35, Qoder plugins incorrectly rejected valid dual-projection directories. The `name` and `version` in `.qoder-plugin/plugin.json` and `.claude-plugin/plugin.json` must bind to the same frozen target, though individual `skills` can differ. Each present candidate must be a valid JSON object, match the target identity, have non-empty `skills`, and resolve to a real directory within the plugin root. Native takes precedence; compatibility is only used when native is missing. If any candidate is invalid, installation fails immediately without fallback. After installation, the selected path and `skills` must exactly match the frozen choice, and full payload validation is retained.
+- Qoder now also accepts existing markets that provide `.claude-plugin/marketplace.json` instead of a root `marketplace.json`. The system supports two existing locations: a URL-based `marketplace.json` at the root, and a GitHub-based `marketplace.json` in `.claude-plugin/`. At least one must exist. Each present index must be valid and contain exactly one entry for the target plugin, bound to the same frozen identity; other plugin entries remain allowed. A bad source is not ignored just because another is valid. URL sources require exact repository and SHA verification, and any explicit `version` or `ref` must match. GitHub sources require exact verification of `repo`, `ref`, `sha`, and `entry.version`. Only confirmed missing files are considered absent. Validation occurs after market refresh and before plugin update. `ALREADY_CURRENT` remains read-only with zero update commands.
+- The Codex entry root check previously hardcoded `skills/`, rejecting valid paths like `.agents/skills/` declared in the manifest. Installation pre-check and post-install observation now respect the `skills` directory declared in the plugin manifest. When the field is missing, the default `skills/` path is retained, and existing prefix behavior is preserved. Explicitly invalid, out-of-bounds, or non-directory paths are rejected without fallback. Post-install observation and full payload verification must bind to the same frozen installation contract.
+
+### Upgrade Notes
+
+The release-skill standalone marketplace is deprecated; use `ifoohoo/skill-family-hub` and the updated `release-skill@skill-family-hub`, `release-finish`, and public CLI. Unmodified plugins need not be republished. Byte changes require a new frozen plan and matching approval. Installation does not imply loading — if actual loading is not observed, the state remains `reload-pending`. Local completion failure does not alter the remote `VERIFIED` status.
+<!-- release-skill:changelog:end version=0.9.36 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.35 locale=en baseline=sha256:d6b5bc6f37e83b5ac692f09dc175c61441598caa2f12679a2ffb2a11593b8bca -->
 ## [0.9.35] - 2026-10-22
 

@@ -17,6 +17,10 @@
       "digest": "86c9cab024ebe9c7f8ec3358fcc12d05b8ed246ab59da2b0acc6a517f31274ea",
       "bytes": 2488
     },
+    "evidence-event-v2.schema.json": {
+      "digest": "693430e636afc85bf4a79e3f7bf3fb87254cbd62f2e3f35c35d6f84e5e8e0be1",
+      "bytes": 6058
+    },
     "evidence-event.schema.json": {
       "digest": "b7e14522a5aba818cab191545f23d2323be0e4c80566e9d3e4da576103a00490",
       "bytes": 2390
@@ -34,8 +38,8 @@
       "bytes": 57111
     },
     "release-run.schema.json": {
-      "digest": "4a041b8f6488e7d61b7eb271ebdbc2e043731df41c4437783ef63e77f664c192",
-      "bytes": 19002
+      "digest": "26c44ddf1ed42f266a2ddee7f6132cee94c59593e37f24359c9c48f12612ec22",
+      "bytes": 21874
     },
     "test-intake.schema.json": {
       "digest": "654e91ce518cb2b8aca84947d0c3bb8c4262ab047d86081e7e93dc07a9c6c739",
