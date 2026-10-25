@@ -1,3 +1,5 @@
+import { acquireProjectLock } from '../artifacts/project-lock.mjs';
+import { assertPlanNotReplaced } from '../core/plan-replacement.mjs';
 /**
  * Approve command: record approval for a frozen release plan.
  *
@@ -14,7 +16,7 @@
  */
 
 import { readFile, writeFile } from 'node:fs/promises';
-import { resolve, dirname, basename } from 'node:path';
+import { resolve, dirname, basename, sep } from 'node:path';
 
 import {
   assertAuthorityFileTarget,
@@ -276,33 +278,40 @@ export async function approvePlan(options) {
     actualDigest,
     `${approvalDigest}.json`,
   );
-  await prepareAuthorityDirectory(dirname(immutableApprovalPath));
-  await assertAuthorityFileTarget(immutableApprovalPath);
+  const replacementRoot = options.root ?? (plan.production || plan.testAcceptance || Object.hasOwn(plan, 'replacesPlanDigest')
+    || resolve(planPath).split(sep).includes('.release-skill') ? projectRootFromPlanPath(planPath) : null);
+  const replacementLock = replacementRoot
+    ? await acquireProjectLock({ root: replacementRoot, command: 'approve', mode: 'exclusive' }) : null;
   try {
-    await writeFile(immutableApprovalPath, json, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
-  } catch (error) {
-    if (error.code !== 'EEXIST') throw error;
-    const existing = await readFile(immutableApprovalPath, 'utf8');
-    if (existing !== json) {
-      throw new ReleaseError(
-        GATE_FAILED,
-        'approval authority digest collision: existing bytes differ',
-        { planDigest: actualDigest, approvalDigest, immutableApprovalPath },
-      );
+    if (replacementRoot) await assertPlanNotReplaced(replacementRoot, { ...plan, digest: actualDigest }, planPath);
+    await prepareAuthorityDirectory(dirname(immutableApprovalPath));
+    await assertAuthorityFileTarget(immutableApprovalPath);
+    try {
+      await writeFile(immutableApprovalPath, json, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      const existing = await readFile(immutableApprovalPath, 'utf8');
+      if (existing !== json) {
+        throw new ReleaseError(
+          GATE_FAILED,
+          'approval authority digest collision: existing bytes differ',
+          { planDigest: actualDigest, approvalDigest, immutableApprovalPath },
+        );
+      }
     }
-  }
 
-  const writePath = outputPath ?? resolve(releaseDir, 'approval-record.json');
-  await prepareAuthorityDirectory(dirname(writePath));
-  await assertAuthorityFileTarget(writePath);
-  await writeFile(writePath, json, 'utf8');
+    const writePath = outputPath ?? resolve(releaseDir, 'approval-record.json');
+    await prepareAuthorityDirectory(dirname(writePath));
+    await assertAuthorityFileTarget(writePath);
+    await writeFile(writePath, json, 'utf8');
 
-  return Object.freeze({
-    ...approvalRecord,
-    approvalDigest,
-    approvalPath: immutableApprovalPath,
-    latestApprovalPath: writePath,
-  });
+    return Object.freeze({
+      ...approvalRecord,
+      approvalDigest,
+      approvalPath: immutableApprovalPath,
+      latestApprovalPath: writePath,
+    });
+  } finally { if (replacementLock) await replacementLock.release(); }
 }
 
 /**

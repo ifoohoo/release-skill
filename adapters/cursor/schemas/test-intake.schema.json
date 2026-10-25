@@ -206,6 +206,7 @@
         "prepared": {
           "type": "object",
           "properties": {
+            "replacesPlanDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
             "status": false,
             "digest": false,
             "testAcceptance": false

@@ -1,3 +1,4 @@
+import { bindReplacement } from '../core/plan-replacement.mjs';
 /**
  * Prepare command: freeze a release plan with snapshots and gates.
  *
@@ -3448,6 +3449,7 @@ async function reattachTestCandidate({
     expectedSubjectDigest: options.expectedSubjectDigest,
     configDigest,
     extraDrifts,
+    replaceUnpublishedPlan: options.replaceUnpublishedPlan,
   });
   const savedPrepared = adoptedCandidate.candidate.prepared;
   await recheckCandidateClosure(realRoot, savedPrepared, config, savedOptions.unitIds);
@@ -3624,6 +3626,7 @@ async function reattachTestCandidate({
   const latestPlanPath = output ?? resolve(releaseDir, 'release-plan.json');
   const plannedDigest = computePlanDigest(plan);
   const immutablePlanPath = resolve(dirname(latestPlanPath), 'plans', `${plannedDigest}.json`);
+  await bindReplacement({ root: realRoot, prepared: decision.prepared, resultFile: requirements.resultFile });
   const { planPath: writtenPath, planDigest } = await writePlanImmutable(immutablePlanPath, plan);
   await writePlanAtomic(latestPlanPath, plan);
   await writeFrozenMarker(releaseDir, {
@@ -3781,6 +3784,9 @@ export async function prepareRelease(options) {
 
     const { config, configPath, configDigest } = await loadProjectConfig({ root: realRoot });
     assertTestIntakeDeclaration({ config, production });
+    if (options.replaceUnpublishedPlan !== undefined && (!production || !config.testIntake)) {
+      throw new ReleaseError(CONFIG_INVALID, 'unpublished replacement requires production testIntake');
+    }
     if (options?.candidatePath && !config.testIntake) {
       throw new ReleaseError(CONFIG_INVALID, 'candidate path requires testIntake', {
         reason: 'TEST_CANDIDATE_WITHOUT_INTAKE',
@@ -5424,10 +5430,11 @@ export async function prepareRelease(options) {
         config,
         selectedUnitIds: releaseSelection.selectedUnitIds,
       });
+      const boundPrepared = await bindReplacement({ root: realRoot, prepared: projectPrepared(plan), replaceUnpublishedPlan: options.replaceUnpublishedPlan, resultFile: requirementsNow.resultFile });
       const saved = await writeTestCandidate({
         root: realRoot,
         runDir,
-        prepared: projectPrepared(plan),
+        prepared: boundPrepared,
         requirements: requirementsNow,
         prepareOptions: {
           workflow,
@@ -5439,7 +5446,7 @@ export async function prepareRelease(options) {
           ),
         },
       });
-      const subjectDigest = subjectDigestOf(projectPrepared(plan));
+      const subjectDigest = subjectDigestOf(boundPrepared);
       await evidence.append({
         phase: 'test-candidate',
         status: 'saved',

@@ -1,3 +1,5 @@
+import { acquireProjectLock } from '../artifacts/project-lock.mjs';
+import { assertPlanNotReplaced } from '../core/plan-replacement.mjs';
 /**
  * Publish command: Saga-pattern checkpoint execution with safety gates.
  *
@@ -498,6 +500,7 @@ export async function publishRelease(options) {
   }
   validatePlan(plan);
   assertImmutablePlanAuthority(planPath, plan);
+  await assertPlanNotReplaced(root, plan, planPath);
   await verifyTestAcceptance({ root, plan });
   const isProductionPlan = plan.production?.mode === 'github-npm-v1';
 
@@ -1248,8 +1251,13 @@ export async function publishRelease(options) {
       ...(finishedAt ? { finishedAt } : {}),
     });
     let stateSequence = 0;
-    let latestState = await appendRunState(runDir, stateSequence, buildPersistedState());
-    recoveryRunPath = latestState.statePath;
+    const replacementLock = await acquireProjectLock({ root, command: 'publish', mode: 'exclusive' });
+    let latestState;
+    try {
+      await assertPlanNotReplaced(root, plan, planPath);
+      latestState = await appendRunState(runDir, stateSequence, buildPersistedState());
+      recoveryRunPath = latestState.statePath;
+    } finally { await replacementLock.release(); }
 
     await evidence.append({
       phase: 'publish',

@@ -1,3 +1,4 @@
+import { assertPlanNotReplaced } from '../core/plan-replacement.mjs';
 /**
  * Reconcile command: idempotent recovery from partial publish.
  *
@@ -149,6 +150,7 @@ export async function reconcileRelease(options) {
   }
   validatePlan(plan);
   assertImmutablePlanAuthority(planPath, plan);
+  await assertPlanNotReplaced(root, plan, planPath);
   await verifyTestAcceptance({ root, plan });
   const isProductionPlan = plan.production?.mode === 'github-npm-v1';
 

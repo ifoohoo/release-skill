@@ -1,3 +1,4 @@
+import { readFormalPlans, bindReplacement, canonicalFormalPlanPath } from './plan-replacement.mjs';
 /**
  * One test-intake candidate: exclusive save, strict read, and the no-git
  * handoff decision shared by prepare and ship.
@@ -281,68 +282,6 @@ function sameTargetVersions(left, right) {
  *
  * @param {string} root
  */
-async function readFormalPlans(root) {
-  const plansPath = resolve(root, '.release-skill', 'plans');
-  let names;
-  try {
-    names = await readdir(plansPath);
-  } catch (err) {
-    if (err?.code === 'ENOENT') {
-      try {
-        await lstat(plansPath);
-      } catch (statError) {
-        if (statError?.code === 'ENOENT') return [];
-        throw new ReleaseError(CONFIG_INVALID, 'formal test acceptance plans could not be read', {
-          reason: 'TEST_CANDIDATE_AUTHORITY_INVALID',
-          field: 'plansPath',
-          cause: statError?.code ?? 'unknown',
-        });
-      }
-    }
-    throw new ReleaseError(CONFIG_INVALID, 'formal test acceptance plans could not be read', {
-      reason: 'TEST_CANDIDATE_AUTHORITY_INVALID',
-      field: 'plansPath',
-      cause: err?.code ?? 'unknown',
-    });
-  }
-  const plans = [];
-  for (const name of names) {
-    if (!name.endsWith('.json')) continue;
-    const rel = `.release-skill/plans/${name}`;
-    let receipt;
-    try {
-      receipt = await readFileStrict(root, rel, { encoding: 'utf8' });
-    } catch (err) {
-      const cause = harnessKind(err) ?? 'unknown';
-      throw new ReleaseError(CONFIG_INVALID, 'formal test acceptance plan could not be read', {
-        reason: 'TEST_CANDIDATE_AUTHORITY_INVALID',
-        field: 'planPath',
-        path: rel,
-        cause,
-      });
-    }
-    let plan;
-    try {
-      plan = JSON.parse(receipt.content);
-    } catch {
-      throw new ReleaseError(CONFIG_INVALID, 'formal test acceptance plan is not valid JSON', {
-        reason: 'TEST_CANDIDATE_AUTHORITY_INVALID',
-        field: 'planPath',
-        path: rel,
-      });
-    }
-    plans.push({
-      planPath: rel,
-      planDigest: typeof plan?.digest === 'string' ? plan.digest : name.slice(0, -'.json'.length),
-      status: plan?.status,
-      subjectDigest: typeof plan?.testAcceptance?.subjectDigest === 'string'
-        ? plan.testAcceptance.subjectDigest
-        : null,
-      targetVersions: targetVersionsOf(plan),
-    });
-  }
-  return plans;
-}
 
 async function sameAuthorityFile(left, right) {
   const identity = async (value) => {
@@ -432,10 +371,11 @@ export async function decideTestCandidateHandoff({
   expectedSubjectDigest,
   configDigest,
   extraDrifts = [],
+  replaceUnpublishedPlan,
 }) {
   if (!config?.testIntake) {
-    if (candidatePath) {
-      throw new ReleaseError(CONFIG_INVALID, 'candidate path requires testIntake', {
+    if (candidatePath || replaceUnpublishedPlan !== undefined) {
+      throw new ReleaseError(CONFIG_INVALID, 'candidate or replacement path requires testIntake', {
         reason: 'TEST_CANDIDATE_WITHOUT_INTAKE',
         field: 'candidatePath',
       });
@@ -449,7 +389,8 @@ export async function decideTestCandidateHandoff({
     });
   }
   if (!candidatePath) {
-    const saved = await writeTestCandidate({ root, runDir, prepared, requirements, prepareOptions });
+    const bound = await bindReplacement({ root, prepared, replaceUnpublishedPlan, resultFile: requirements.resultFile });
+    const saved = await writeTestCandidate({ root, runDir, prepared: bound, requirements, prepareOptions });
     const subjectDigest = computePlanDigest(saved.candidate.prepared);
     return {
       kind: 'save-candidate',
@@ -483,6 +424,9 @@ export async function decideTestCandidateHandoff({
     });
   }
 
+  if (replaceUnpublishedPlan !== undefined && canonicalFormalPlanPath(root, replaceUnpublishedPlan) !== `.release-skill/plans/${loaded.candidate.prepared.replacesPlanDigest}.json`) {
+    throw new ReleaseError(GATE_FAILED, 'replacement selection differs from frozen candidate');
+  }
   const options = loaded.candidate.prepareOptions;
   const drifts = [...extraDrifts];
   if (loaded.candidate.writerVersion !== WRITER_VERSION) drifts.push('writerVersion');
@@ -510,10 +454,13 @@ export async function decideTestCandidateHandoff({
     });
   }
 
-  const formalPlans = await readFormalPlans(root);
+  const formalPlans = await readFormalPlans(root, loaded.candidate.prepared);
   const targetVersions = targetVersionsOf(loaded.candidate.prepared);
+  const predecessor = loaded.candidate.prepared.replacesPlanDigest;
+  const retired = new Set(formalPlans.map((entry) => entry.plan.replacesPlanDigest).filter(Boolean));
+  if (predecessor) retired.add(predecessor);
   const differentBasis = formalPlans.filter((plan) => (
-    sameTargetVersions(plan.targetVersions, targetVersions) && plan.subjectDigest !== subjectDigest
+    !retired.has(plan.planDigest) && sameTargetVersions(plan.targetVersions, targetVersions) && plan.subjectDigest !== subjectDigest
   ));
   if (differentBasis.length > 0) {
     throw new ReleaseError(GATE_FAILED, 'a different formal acceptance basis already exists for this target', {
@@ -543,6 +490,7 @@ export async function decideTestCandidateHandoff({
     };
   }
 
+  await bindReplacement({ root, prepared: loaded.candidate.prepared, replaceUnpublishedPlan, resultFile: requirements.resultFile });
   const acceptance = await acceptTestResults({
     root,
     requirements,

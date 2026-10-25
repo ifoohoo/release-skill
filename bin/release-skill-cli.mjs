@@ -413,6 +413,7 @@ Options:
   --answers <path> Human-reviewed setup answers JSON
   --write          Create an absent project.yaml during setup; never overwrites
   --confirm-setup <digest> Confirm exact setup facts and answers before create
+  --replace-unpublished-plan <path> Explicitly replace an unpublished immutable plan during production TEST prepare
   --discover-downstream Read-only discovery of downstream candidates (git remotes, marketplace/docs
                    clues, artifact-graph.config.yaml, foundation profile). Never writes
   --propose-hooks  Produce postPublish hook declaration drafts; with --write and exact --confirm-setup,
@@ -1366,6 +1367,8 @@ if (command === 'prepare') {
   const candidatePath = candidateIdx !== -1 && args[candidateIdx + 1] && !args[candidateIdx + 1].startsWith('--')
     ? args[candidateIdx + 1]
     : undefined;
+  const replacementIdx = args.indexOf('--replace-unpublished-plan');
+  const replaceUnpublishedPlan = replacementIdx >= 0 && args[replacementIdx + 1] && !args[replacementIdx + 1].startsWith('--') ? args[replacementIdx + 1] : undefined;
   const production = args.includes('--production') || candidatePath !== undefined;
   const workflowIdx = args.indexOf('--workflow');
   const workflow = workflowIdx !== -1 && args[workflowIdx + 1] ? args[workflowIdx + 1] : 'full';
@@ -1389,6 +1392,7 @@ if (command === 'prepare') {
   }
 
   try {
+    if (replacementIdx !== -1 && !replaceUnpublishedPlan) throw new ReleaseError(MISSING_PARAMETERS, '--replace-unpublished-plan requires a path value');
     if (candidateIdx !== -1 && !candidatePath) {
       throw new ReleaseError(MISSING_PARAMETERS, '--candidate requires a path value');
     }
@@ -1410,6 +1414,7 @@ if (command === 'prepare') {
       output,
       runDir,
       ...(candidatePath ? { candidatePath } : {}),
+      ...(replaceUnpublishedPlan ? { replaceUnpublishedPlan } : {}),
       ...(hasUnitSelection ? { unitIds } : {}),
     });
 
