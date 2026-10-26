@@ -1,4 +1,4 @@
-import { readFormalPlans, bindReplacement, canonicalFormalPlanPath } from './plan-replacement.mjs';
+import { readFormalPlans, bindReplacement, canonicalFormalPlanPath, overlaps } from './plan-replacement.mjs';
 /**
  * One test-intake candidate: exclusive save, strict read, and the no-git
  * handoff decision shared by prepare and ship.
@@ -272,10 +272,6 @@ function targetVersionsOf(plan) {
     .filter((version) => typeof version === 'string' && version.length > 0))];
 }
 
-function sameTargetVersions(left, right) {
-  return left.length === right.length && left.every((version) => right.includes(version));
-}
-
 /**
  * Formal plans under `.release-skill/plans`. The convenience pointer is not
  * an acceptance basis. Does not run git.
@@ -460,7 +456,7 @@ export async function decideTestCandidateHandoff({
   const retired = new Set(formalPlans.map((entry) => entry.plan.replacesPlanDigest).filter(Boolean));
   if (predecessor) retired.add(predecessor);
   const differentBasis = formalPlans.filter((plan) => (
-    !retired.has(plan.planDigest) && sameTargetVersions(plan.targetVersions, targetVersions) && plan.subjectDigest !== subjectDigest
+    !retired.has(plan.planDigest) && overlaps(plan.plan, loaded.candidate.prepared) && plan.subjectDigest !== subjectDigest
   ));
   if (differentBasis.length > 0) {
     throw new ReleaseError(GATE_FAILED, 'a different formal acceptance basis already exists for this target', {

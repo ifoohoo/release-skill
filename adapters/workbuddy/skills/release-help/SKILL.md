@@ -37,9 +37,9 @@ description: "Discoverable entry point for release-skill: dependency and environ
 
 诊断只运行 `release-skill` 自身只读检查，不调用目标 Skill、业务脚本、构建、hook 或发布动作。`prepare`、`verify`、`release-finish` 不作为静态治理入口。用户要求实际接入或发布时，应将已有授权带入对应原业务入口，各入口继续执行原有确认、副作用与状态机规则。
 
-## 0.9.38 能力与证据边界
+## 0.10.0 能力与证据边界
 
-`release-project` 的四类材料：公开正式（`publicFiles`：`sourceScope`、`from`、`to`、`mode`）、运行必需（`requiredPublicFiles`）、私有正式与非正式。公开≠正式。`requiredPublicFiles` 须被同单元的 `publicFiles[].to` 精确覆盖。私有材料由 `forbiddenPaths`、`forbiddenContentPatterns` 拦截，不进 `publicFiles`。`npm` 包由 `package.json.files`、入口闭包与映射共同限定；`delivery.include`、`delivery.exclude` 仅选宿主，不删必需资源，冲突拒绝。字段见 [配置](https://github.com/ifoohoo/release-skill/blob/release-skill-v0.9.38/references/02-project-config.md)及 `release-prepare`。
+`release-project` 的四类材料：公开正式（`publicFiles`：`sourceScope`、`from`、`to`、`mode`）、运行必需（`requiredPublicFiles`）、私有正式与非正式。公开≠正式。`requiredPublicFiles` 须被同单元的 `publicFiles[].to` 精确覆盖。私有材料由 `forbiddenPaths`、`forbiddenContentPatterns` 拦截，不进 `publicFiles`。`npm` 包由 `package.json.files`、入口闭包与映射共同限定；`delivery.include`、`delivery.exclude` 仅选宿主，不删必需资源，冲突拒绝。字段见 [配置](https://github.com/ifoohoo/release-skill/blob/release-skill-v0.10.0/references/02-project-config.md)及 `release-prepare`。
 
 首次 `release-setup`：若已有配置（`ALREADY_CONFIGURED`/`CONFIG_EXISTS`），不得覆盖；合法旧字段保留。增量操作（`release-assess` / `release-config`）：先运行 `route`，仅 `config-only` 走 `prepare --workflow config`；`full-happy-end` / `mixed` 走完整流程。Foundation 0.25.0 版本精确，不因邻仓升级而变更。
 

@@ -91,7 +91,7 @@ export async function isProvenPreAuthorityFailure(runDir, runName, { strictHisto
   if (legacyValid) return !strictHistory && await hasNoState(runDir);
 
   const producerVersion = summary?.producer?.version;
-  const historical = ['0.9.3', '0.9.14', '0.9.17', '0.9.33', '0.9.37'].includes(producerVersion);
+  const historical = ['0.9.3', '0.9.14', '0.9.17', '0.9.33', '0.9.37', '0.9.38'].includes(producerVersion);
   if (!historical && producerVersion !== resolveProducerVersion()) return false;
   const sameProducer = (value) => value && typeof value === 'object' && !Array.isArray(value)
     && Object.keys(value).length === 2
@@ -185,6 +185,7 @@ async function hasNoState(runDir) {
 
 // A finite prefix of the audited publish writer, not a target inference.
 function closedPublishPrefix(events, summary, version) {
+  const auditedCurrentPrefix = ['0.9.38', '0.10.0'].includes(version);
   let i = 0;
   const take = (phase, status, gate) => {
     const e = events[i];
@@ -197,10 +198,10 @@ function closedPublishPrefix(events, summary, version) {
     ['plan-digest', 'started'], ['plan-digest', 'passed'],
     ['action-completeness', 'started'], ['action-completeness', 'passed'],
   ]) if (!gate(name, status)) return false;
-  if (version !== '0.9.38' || events[i]?.details?.gate === 'frozen-artifacts') {
+  if (!auditedCurrentPrefix || events[i]?.details?.gate === 'frozen-artifacts') {
     if (!gate('frozen-artifacts', 'started') || !gate('frozen-artifacts', 'passed')) return false;
   }
-  if (version !== '0.9.38' || events[i]?.details?.gate === 'skill-resource-closure') {
+  if (!auditedCurrentPrefix || events[i]?.details?.gate === 'skill-resource-closure') {
     if (!gate('skill-resource-closure', 'started') || !gate('skill-resource-closure', 'passed')) return false;
   }
   if (!gate('approval-load', 'started')) return false;
@@ -210,14 +211,14 @@ function closedPublishPrefix(events, summary, version) {
       && JSON.stringify(e.error) === JSON.stringify(summary.error)
       && summary.details?.recoveryActionCode === summary.recoveryActionCode;
   };
-  if (['0.9.33', '0.9.38'].includes(version) && summary.recoveryActionCode === 'DIAGNOSE') return terminal();
+  if ((version === '0.9.33' || auditedCurrentPrefix) && summary.recoveryActionCode === 'DIAGNOSE') return terminal();
   if (summary.recoveryActionCode !== 'RETRY_COMMAND' || !gate('approval-validated', 'passed')) return false;
   for (const name of ['adapter-availability', 'baseline-check']) {
     if (!gate(name, 'started') || !gate(name, 'passed')) return false;
   }
   while (events[i]?.details?.gate === 'previous-public-baseline') {
     const unit = events[i].details.unitId;
-    if (version === '0.9.38' && events[i].status === 'passed' && events[i].details.reason === 'fresh repository') {
+    if (auditedCurrentPrefix && events[i].status === 'passed' && events[i].details.reason === 'fresh repository') {
       if (typeof unit !== 'string' || !gate('previous-public-baseline', 'passed')) return false;
       continue;
     }
@@ -226,16 +227,16 @@ function closedPublishPrefix(events, summary, version) {
       || events[i]?.details?.unitId !== unit || !gate('previous-public-baseline', 'passed')) return false;
   }
   const sourceGate = events[i]?.details?.gate === 'source-authority';
-  if ((sourceGate || version !== '0.9.38') && !gate('source-authority', 'started')) return false;
-  if (['0.9.3', '0.9.14', '0.9.33', '0.9.37', '0.9.38'].includes(version)
+  if ((sourceGate || !auditedCurrentPrefix) && !gate('source-authority', 'started')) return false;
+  if ((['0.9.3', '0.9.14', '0.9.33', '0.9.37'].includes(version) || auditedCurrentPrefix)
     && events[i]?.status === 'failed') {
     return gate('source-authority', 'failed') && terminal();
   }
-  if (!['0.9.17', '0.9.38'].includes(version) || (sourceGate && !gate('source-authority', 'passed')) || !gate('global-preflight', 'started')) return false;
+  if (!(version === '0.9.17' || auditedCurrentPrefix) || (sourceGate && !gate('source-authority', 'passed')) || !gate('global-preflight', 'started')) return false;
   let observed = 0;
   while (events[i]?.phase === 'global-preflight-arbitration') {
     if (!take('global-preflight-arbitration', 'pre-observe', undefined)) return false;
     observed += 1;
   }
-  return (version === '0.9.38' || observed > 0) && terminal();
+  return (auditedCurrentPrefix || observed > 0) && terminal();
 }

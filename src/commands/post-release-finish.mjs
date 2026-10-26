@@ -369,6 +369,13 @@ export async function runPostReleaseFinish({
   }
 
   const setupSkill = loaded.config.releaseFinish?.setupSkill;
+  const setupPlugin = typeof setupSkill === 'string' ? /^([^:\s]+):[^:\s]+$/.exec(setupSkill)?.[1] : undefined;
+  const declaredSetupOwners = setupPlugin
+    ? loaded.config.releaseUnits.filter((unit) => unit.postPublish?.localHostUpdate?.plugin === setupPlugin)
+    : [];
+  const unselectedSetupOwner = !hasTargets && declaredSetupOwners.length === 1
+    && !plan.units.some((unit) => unit.id === declaredSetupOwners[0].id)
+    ? declaredSetupOwners[0] : null;
   const candidates = observations.filter((entry) => (
     entry.installation === 'current' && entry.loaded === true && typeof entry.skillFile === 'string'
   ));
@@ -379,6 +386,8 @@ export async function runPostReleaseFinish({
     setupStep = step('SKIPPED', '项目未配置 releaseFinish.setupSkill。');
   } else if (skipLocalHosts) {
     setupStep = step('SKIPPED', '调用者已明确跳过宿主更新和加载，本轮不执行 setup。', { setupSkill });
+  } else if (unselectedSetupOwner) {
+    setupStep = step('SKIPPED', `目标入口 ${setupSkill} 属于未选单元 ${unselectedSetupOwner.id}，本轮不适用。`, { setupSkill });
   } else if (candidateOwners.size > 1) {
     setupStep = step('PENDING', `目标入口 ${setupSkill} 存在多个插件身份归属，不能用单个 setup 反馈完整收尾。`, {
       setupSkill, candidates,

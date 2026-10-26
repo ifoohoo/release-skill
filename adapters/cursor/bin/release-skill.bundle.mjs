@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.9.38"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.10.0"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "b585be7eaf4abad85305d30b7a5f5ed6922ed95a44a7d4dea599d32f0539f608";
+const __bundleSourceDigest = "c6bd45e86fdc44358e1235537c26ba3501d34c9e7685e95b87036421bcb7cbd2";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -125118,7 +125118,7 @@ async function isProvenPreAuthorityFailure(runDir, runName, { strictHistory = fa
   const legacyValid = summary && summary.status === "FAILED" && validLegacyError(summary.error) && typeof summary.error.message === "string" && legacyInputFailure.test(summary.error.message) && !legacyUnsafeFailure.test(summary.error.message) && (summary.recoveryActionCode === void 0 || summary.recoveryActionCode === "RETRY_COMMAND") && summary.runPath === void 0 && summary.finalRunDigest === void 0 && summary.latestStatePath === void 0 && summary.checkpointStatuses === void 0 && Array.isArray(events) && events.length >= 2 && events.every((event, index) => validLegacyEvent(event, legacyRunId) && event.sequence === index + 1) && legacyTerminal.phase === "publish" && legacyTerminal.status === "failed" && validLegacyError(legacyTerminal.error) && legacyTerminal.error.code === summary.error.code && events.slice(0, -1).filter((event) => event.status === "failed").every((event) => event.phase === "safety-gate" && legacyPreAuthorityGates.has(event.gate) && validLegacyError(event.error)) && !events.some((event) => event.phase === "global-preflight-arbitration" && event.status !== "pre-observe") && !events.slice(0, -1).some((event) => event.phase === "publish" || /checkpoint|execute|postpublish/i.test(event.phase) || Object.hasOwn(event, "prePersistedRunPath") || Object.hasOwn(event, "checkpointCount") || Object.hasOwn(event, "checkpointStatuses"));
   if (legacyValid) return !strictHistory && await hasNoState(runDir);
   const producerVersion = summary?.producer?.version;
-  const historical = ["0.9.3", "0.9.14", "0.9.17", "0.9.33", "0.9.37"].includes(producerVersion);
+  const historical = ["0.9.3", "0.9.14", "0.9.17", "0.9.33", "0.9.37", "0.9.38"].includes(producerVersion);
   if (!historical && producerVersion !== resolveProducerVersion()) return false;
   const sameProducer = /* @__PURE__ */ __name((value) => value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 2 && value.name === "release-skill" && value.version === producerVersion, "sameProducer");
   const envelopeKeys = /* @__PURE__ */ new Set([
@@ -125183,6 +125183,7 @@ async function hasNoState(runDir) {
   return true;
 }
 function closedPublishPrefix(events, summary, version) {
+  const auditedCurrentPrefix = ["0.9.38", "0.10.0"].includes(version);
   let i = 0;
   const take = /* @__PURE__ */ __name((phase, status, gate2) => {
     const e = events[i];
@@ -125199,10 +125200,10 @@ function closedPublishPrefix(events, summary, version) {
     ["action-completeness", "started"],
     ["action-completeness", "passed"]
   ]) if (!gate(name, status)) return false;
-  if (version !== "0.9.38" || events[i]?.details?.gate === "frozen-artifacts") {
+  if (!auditedCurrentPrefix || events[i]?.details?.gate === "frozen-artifacts") {
     if (!gate("frozen-artifacts", "started") || !gate("frozen-artifacts", "passed")) return false;
   }
-  if (version !== "0.9.38" || events[i]?.details?.gate === "skill-resource-closure") {
+  if (!auditedCurrentPrefix || events[i]?.details?.gate === "skill-resource-closure") {
     if (!gate("skill-resource-closure", "started") || !gate("skill-resource-closure", "passed")) return false;
   }
   if (!gate("approval-load", "started")) return false;
@@ -125210,31 +125211,31 @@ function closedPublishPrefix(events, summary, version) {
     const e = events[i];
     return i === events.length - 1 && e?.phase === "publish" && e.status === "failed" && JSON.stringify(e.error) === JSON.stringify(summary.error) && summary.details?.recoveryActionCode === summary.recoveryActionCode;
   }, "terminal");
-  if (["0.9.33", "0.9.38"].includes(version) && summary.recoveryActionCode === "DIAGNOSE") return terminal();
+  if ((version === "0.9.33" || auditedCurrentPrefix) && summary.recoveryActionCode === "DIAGNOSE") return terminal();
   if (summary.recoveryActionCode !== "RETRY_COMMAND" || !gate("approval-validated", "passed")) return false;
   for (const name of ["adapter-availability", "baseline-check"]) {
     if (!gate(name, "started") || !gate(name, "passed")) return false;
   }
   while (events[i]?.details?.gate === "previous-public-baseline") {
     const unit = events[i].details.unitId;
-    if (version === "0.9.38" && events[i].status === "passed" && events[i].details.reason === "fresh repository") {
+    if (auditedCurrentPrefix && events[i].status === "passed" && events[i].details.reason === "fresh repository") {
       if (typeof unit !== "string" || !gate("previous-public-baseline", "passed")) return false;
       continue;
     }
     if (typeof unit !== "string" || !gate("previous-public-baseline", "started") || !take("re-observe-previous-public-baseline", "consistent", void 0) || events[i]?.details?.unitId !== unit || !gate("previous-public-baseline", "passed")) return false;
   }
   const sourceGate = events[i]?.details?.gate === "source-authority";
-  if ((sourceGate || version !== "0.9.38") && !gate("source-authority", "started")) return false;
-  if (["0.9.3", "0.9.14", "0.9.33", "0.9.37", "0.9.38"].includes(version) && events[i]?.status === "failed") {
+  if ((sourceGate || !auditedCurrentPrefix) && !gate("source-authority", "started")) return false;
+  if ((["0.9.3", "0.9.14", "0.9.33", "0.9.37"].includes(version) || auditedCurrentPrefix) && events[i]?.status === "failed") {
     return gate("source-authority", "failed") && terminal();
   }
-  if (!["0.9.17", "0.9.38"].includes(version) || sourceGate && !gate("source-authority", "passed") || !gate("global-preflight", "started")) return false;
+  if (!(version === "0.9.17" || auditedCurrentPrefix) || sourceGate && !gate("source-authority", "passed") || !gate("global-preflight", "started")) return false;
   let observed = 0;
   while (events[i]?.phase === "global-preflight-arbitration") {
     if (!take("global-preflight-arbitration", "pre-observe", void 0)) return false;
     observed += 1;
   }
-  return (version === "0.9.38" || observed > 0) && terminal();
+  return (auditedCurrentPrefix || observed > 0) && terminal();
 }
 var init_pre_authority_failure = __esm({
   async "src/core/pre-authority-failure.mjs"() {
@@ -126780,9 +126781,6 @@ function sameVersions(left, right) {
 function targetVersionsOf(plan) {
   return [...new Set((Array.isArray(plan?.units) ? plan.units : []).map((unit) => unit?.targetVersion).filter((version) => typeof version === "string" && version.length > 0))];
 }
-function sameTargetVersions(left, right) {
-  return left.length === right.length && left.every((version) => right.includes(version));
-}
 async function sameAuthorityFile(left, right) {
   const identity2 = /* @__PURE__ */ __name(async (value) => {
     const absolute2 = resolve31(value);
@@ -126934,7 +126932,7 @@ async function decideTestCandidateHandoff({
   const predecessor = loaded.candidate.prepared.replacesPlanDigest;
   const retired = new Set(formalPlans.map((entry) => entry.plan.replacesPlanDigest).filter(Boolean));
   if (predecessor) retired.add(predecessor);
-  const differentBasis = formalPlans.filter((plan) => !retired.has(plan.planDigest) && sameTargetVersions(plan.targetVersions, targetVersions2) && plan.subjectDigest !== subjectDigest);
+  const differentBasis = formalPlans.filter((plan) => !retired.has(plan.planDigest) && overlaps(plan.plan, loaded.candidate.prepared) && plan.subjectDigest !== subjectDigest);
   if (differentBasis.length > 0) {
     throw new ReleaseError(GATE_FAILED, "a different formal acceptance basis already exists for this target", {
       reason: "TEST_CANDIDATE_REPREPARE",
@@ -127090,7 +127088,6 @@ var init_test_candidate = __esm({
     __name(sameStringList, "sameStringList");
     __name(sameVersions, "sameVersions");
     __name(targetVersionsOf, "targetVersionsOf");
-    __name(sameTargetVersions, "sameTargetVersions");
     __name(sameAuthorityFile, "sameAuthorityFile");
     __name(authoritativeRunStatus, "authoritativeRunStatus");
     __name(locateAcceptedPlans, "locateAcceptedPlans");
@@ -150953,6 +150950,9 @@ async function runPostReleaseFinish({
     if (unloaded.length > 0) nextActions.push({ type: "check-host-load", projectRoot, observations: unloaded });
   }
   const setupSkill = loaded.config.releaseFinish?.setupSkill;
+  const setupPlugin = typeof setupSkill === "string" ? /^([^:\s]+):[^:\s]+$/.exec(setupSkill)?.[1] : void 0;
+  const declaredSetupOwners = setupPlugin ? loaded.config.releaseUnits.filter((unit) => unit.postPublish?.localHostUpdate?.plugin === setupPlugin) : [];
+  const unselectedSetupOwner = !hasTargets && declaredSetupOwners.length === 1 && !plan.units.some((unit) => unit.id === declaredSetupOwners[0].id) ? declaredSetupOwners[0] : null;
   const candidates = observations.filter((entry) => entry.installation === "current" && entry.loaded === true && typeof entry.skillFile === "string");
   const candidateOwners = new Set(candidates.map((entry) => `${entry.unitId}\0${entry.plugin}\0${entry.version}`));
   const effectiveSetup = updateKeepsFeedback ? feedback.setup : null;
@@ -150961,6 +150961,8 @@ async function runPostReleaseFinish({
     setupStep = step("SKIPPED", "\u9879\u76EE\u672A\u914D\u7F6E releaseFinish.setupSkill\u3002");
   } else if (skipLocalHosts) {
     setupStep = step("SKIPPED", "\u8C03\u7528\u8005\u5DF2\u660E\u786E\u8DF3\u8FC7\u5BBF\u4E3B\u66F4\u65B0\u548C\u52A0\u8F7D\uFF0C\u672C\u8F6E\u4E0D\u6267\u884C setup\u3002", { setupSkill });
+  } else if (unselectedSetupOwner) {
+    setupStep = step("SKIPPED", `\u76EE\u6807\u5165\u53E3 ${setupSkill} \u5C5E\u4E8E\u672A\u9009\u5355\u5143 ${unselectedSetupOwner.id}\uFF0C\u672C\u8F6E\u4E0D\u9002\u7528\u3002`, { setupSkill });
   } else if (candidateOwners.size > 1) {
     setupStep = step("PENDING", `\u76EE\u6807\u5165\u53E3 ${setupSkill} \u5B58\u5728\u591A\u4E2A\u63D2\u4EF6\u8EAB\u4EFD\u5F52\u5C5E\uFF0C\u4E0D\u80FD\u7528\u5355\u4E2A setup \u53CD\u9988\u5B8C\u6574\u6536\u5C3E\u3002`, {
       setupSkill,

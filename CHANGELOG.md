@@ -1,5 +1,29 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.10.0 locale=en baseline=sha256:dfff93ef727de178ff140fc2de189fdab65205a99cc4c5734bc8c9889ef28e54 -->
+## [0.10.0] - 2026-10-26
+
+0.10.0 enables explicit testing provider selection via Agent Method Registry 0.2.0 on codex and claude-code, while maintaining TEST 0.2.0 as the default testing Skill family. Foundation dependencies remain pinned to 0.25.0. This description is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Method selection does not alter result contracts, domain acceptance, business permissions, or release approval. Foundation dependencies remain pinned to 0.25.0. Full release gates, channel checks, and host verification remain separate requirements; these notes do not confirm their completion. The inherited Skill Family Hub remains the unified marketplace. Binding to observed branch heads is achieved via GitHub Git Data API and compare-and-swap (CAS). Partial publication is never rolled back or force-pushed.
+
+### Added
+
+- The preparation Skill resolves and verifies a single testing provider for testing/skill-family/plan and run using existing source selection and v1 overlay. Project Skills and explicitly selected external catalogs are supported on codex and claude-code; other hosts retain their original path. Disabled, missing, ambiguous, or invalid providers halt dependent calls without fallback or waiver of testIntake obligations.
+
+### Fixed
+
+- Candidate acceptance now compares both unit.id and targetVersion. Conflicts no longer occur between different units sharing the same version; acceptance remains denied for the same unit and version with differing acceptance bases, including partial overlaps in multi-unit plans. Existing checks for authority, history, replacement, and writer remain unchanged.
+- When no frozen host targets are present, a plugin-qualified setup is skipped only if the current configuration has exactly one matching localHostUpdate.plugin owner and that unit is not selected. Unknown or ambiguous ownership, unqualified setups, or selected owners remain pending; selected hosts require actual loading and setup feedback.
+
+### Upgrade Notes
+
+Upgrading from writer version 0.9.38 to 0.10.0 requires a fresh prepare, candidate generation, and result file creation. Preserve all prior candidates, results, approvals, and run records; do not modify writerVersion. The documented local-checkout CLI is a development entry point and does not indicate that 0.10.0 is published or loaded by a host. The release-skill standalone marketplace is deprecated; use ifoohoo/skill-family-hub with plugin id release-skill@skill-family-hub instead.
+<!-- release-skill:changelog:end version=0.10.0 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.9.38 locale=en baseline=sha256:471af07096474e6d8585e3f246e041bf94452bb9ed91019087f759079dc7d13d -->
 ## [0.9.38] - 2026-10-25
 

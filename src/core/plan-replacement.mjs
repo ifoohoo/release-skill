@@ -178,7 +178,7 @@ function targetIdentity(plan) {
   });
 }
 
-function overlaps(left, right) {
+export function overlaps(left, right) {
   return left.units.some((a) => right.units.some((b) => a.id === b.id && a.targetVersion === b.targetVersion));
 }
 
