@@ -1,5 +1,24 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.10.1 locale=en baseline=sha256:4c8696eca88b6cb635146c722bd2bd82c119cfc47d2fb4e938a5efbe13d8da9b -->
+## [0.10.1] - 2026-11-03
+
+0.10.1 fixes source-input dirty checks that cannot start when a large set of public source paths exceeds the operating system argument capacity. Preparation now checks the complete set through bounded Git invocations. Foundation dependencies remain pinned to 0.25.0. This description is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- The inherited Skill Family Hub remains the unified marketplace. GitHub Git Data API with compare-and-swap binds updates to the observed branch head. Partial publication is never rolled back or force-pushed. These existing boundaries do not change release authorization or gates.
+
+### Fixed
+
+- Source-input dirty checks retain the complete selection, frozen content, digest algorithm and protocol. Staged, unstaged, untracked and ignored changes remain rejected for selected inputs; rename and copy endpoints retain full directory-boundary matching. Unrelated dirty files remain allowed. A Git error in any batch still fails the entire check. Foundation dependencies remain pinned to 0.25.0.
+
+### Upgrade Notes
+
+Run prepare with 0.10.1 to create a new candidate and provide a new test result file. Preserve previous candidates, results, approvals and run records; do not edit their writerVersion. The release-skill standalone marketplace is deprecated; use ifoohoo/skill-family-hub with plugin id release-skill@skill-family-hub instead. The unified marketplace does not replace GitHub Release or npm distribution.
+<!-- release-skill:changelog:end version=0.10.1 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.10.0 locale=en baseline=sha256:dfff93ef727de178ff140fc2de189fdab65205a99cc4c5734bc8c9889ef28e54 -->
 ## [0.10.0] - 2026-10-26
 

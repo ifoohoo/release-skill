@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.10.0 -->
+<!-- release-skill:release-version: 0.10.1 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -18,30 +18,25 @@ report stays in a temporary session directory.
 A release unit is a release object with independently configured version, public files, and distribution targets. A release plan is a record for review before approval, linking target versions, frozen artifacts, and proposed external actions; see the [human review and approval steps](#release-plan-review).
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.10.0** (2026-10-26)
+**0.10.1** (2026-11-03)
 
-0.10.0 enables explicit testing provider selection via Agent Method Registry 0.2.0 on codex and claude-code, while maintaining TEST 0.2.0 as the default testing Skill family. Foundation dependencies remain pinned to 0.25.0. This description is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.10.1 fixes source-input dirty checks that cannot start when a large set of public source paths exceeds the operating system argument capacity. Preparation now checks the complete set through bounded Git invocations. Foundation dependencies remain pinned to 0.25.0. This description is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- Method selection does not alter result contracts, domain acceptance, business permissions, or release approval. Foundation dependencies remain pinned to 0.25.0. Full release gates, channel checks, and host verification remain separate requirements; these notes do not confirm their completion. The inherited Skill Family Hub remains the unified marketplace. Binding to observed branch heads is achieved via GitHub Git Data API and compare-and-swap (CAS). Partial publication is never rolled back or force-pushed.
-
-**Added**
-
-- The preparation Skill resolves and verifies a single testing provider for testing/skill-family/plan and run using existing source selection and v1 overlay. Project Skills and explicitly selected external catalogs are supported on codex and claude-code; other hosts retain their original path. Disabled, missing, ambiguous, or invalid providers halt dependent calls without fallback or waiver of testIntake obligations.
+- The inherited Skill Family Hub remains the unified marketplace. GitHub Git Data API with compare-and-swap binds updates to the observed branch head. Partial publication is never rolled back or force-pushed. These existing boundaries do not change release authorization or gates.
 
 **Fixed**
 
-- Candidate acceptance now compares both unit.id and targetVersion. Conflicts no longer occur between different units sharing the same version; acceptance remains denied for the same unit and version with differing acceptance bases, including partial overlaps in multi-unit plans. Existing checks for authority, history, replacement, and writer remain unchanged.
-- When no frozen host targets are present, a plugin-qualified setup is skipped only if the current configuration has exactly one matching localHostUpdate.plugin owner and that unit is not selected. Unknown or ambiguous ownership, unqualified setups, or selected owners remain pending; selected hosts require actual loading and setup feedback.
+- Source-input dirty checks retain the complete selection, frozen content, digest algorithm and protocol. Staged, unstaged, untracked and ignored changes remain rejected for selected inputs; rename and copy endpoints retain full directory-boundary matching. Unrelated dirty files remain allowed. A Git error in any batch still fails the entire check. Foundation dependencies remain pinned to 0.25.0.
 
 **Upgrade Notes**
 
-Upgrading from writer version 0.9.38 to 0.10.0 requires a fresh prepare, candidate generation, and result file creation. Preserve all prior candidates, results, approvals, and run records; do not modify writerVersion. The documented local-checkout CLI is a development entry point and does not indicate that 0.10.0 is published or loaded by a host. The release-skill standalone marketplace is deprecated; use ifoohoo/skill-family-hub with plugin id release-skill@skill-family-hub instead.
+Run prepare with 0.10.1 to create a new candidate and provide a new test result file. Preserve previous candidates, results, approvals and run records; do not edit their writerVersion. The release-skill standalone marketplace is deprecated; use ifoohoo/skill-family-hub with plugin id release-skill@skill-family-hub instead. The unified marketplace does not replace GitHub Release or npm distribution.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.10.0: this README records capabilities and verification boundaries;
+> **Current boundary:** v0.10.1: this README records capabilities and verification boundaries;
 > it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -65,7 +60,7 @@ Upgrading from writer version 0.9.38 to 0.10.0 requires a fresh prepare, candida
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; for v0.10.0,
+> **Production path verified since the v0.1.1 milestone; for v0.10.1,
 > publication, consumer-installation verification, and independent acceptance
 > require version-specific release records and verification results.**
 > The npm-installed CLI is the supported user entry. Source checkout

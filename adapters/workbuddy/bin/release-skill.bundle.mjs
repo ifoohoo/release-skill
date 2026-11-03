@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.10.0"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.10.1"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "c6bd45e86fdc44358e1235537c26ba3501d34c9e7685e95b87036421bcb7cbd2";
+const __bundleSourceDigest = "fd667051e4d84ce78c483c5f073cea893c1ca395132086c05268ade57326716e";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -37354,21 +37354,33 @@ function sharesDirectoryBoundary(recordPath, requestedPath) {
 async function checkSourceInputDirty({ closure, root, execFn = execFile }) {
   const paths = (closure?.entries ?? []).map((entry) => entry.path);
   if (paths.length === 0) return { dirty: false, dirtyPaths: [] };
-  let stdout;
+  const records = [];
   try {
-    ({ stdout } = await execFn(
-      "git",
-      [
-        "status",
-        "--porcelain=v1",
-        "-z",
-        "--untracked-files=all",
-        "--ignored=matching",
-        "--",
-        ...paths
-      ],
-      { cwd: root, encoding: "utf8", shell: false }
-    ));
+    for (let offset = 0; offset < paths.length; ) {
+      const batch = [];
+      let bytes = 0;
+      while (offset < paths.length) {
+        const size = Buffer.byteLength(paths[offset], "utf8") + 1;
+        if (batch.length > 0 && bytes + size > 16 * 1024) break;
+        batch.push(paths[offset]);
+        bytes += size;
+        offset += 1;
+      }
+      const { stdout } = await execFn(
+        "git",
+        [
+          "status",
+          "--porcelain=v1",
+          "-z",
+          "--untracked-files=all",
+          "--ignored=matching",
+          "--",
+          ...batch
+        ],
+        { cwd: root, encoding: "utf8", shell: false }
+      );
+      records.push(...String(stdout).split("\0").filter(Boolean));
+    }
   } catch (error) {
     throw new ReleaseError(
       DIRTY_SOURCE_INPUT,
@@ -37377,7 +37389,6 @@ async function checkSourceInputDirty({ closure, root, execFn = execFile }) {
     );
   }
   const dirtyPaths = [];
-  const records = String(stdout).split("\0").filter(Boolean);
   for (let index = 0; index < records.length; index += 1) {
     const record = records[index];
     if (record.length < 4) continue;
@@ -125118,7 +125129,7 @@ async function isProvenPreAuthorityFailure(runDir, runName, { strictHistory = fa
   const legacyValid = summary && summary.status === "FAILED" && validLegacyError(summary.error) && typeof summary.error.message === "string" && legacyInputFailure.test(summary.error.message) && !legacyUnsafeFailure.test(summary.error.message) && (summary.recoveryActionCode === void 0 || summary.recoveryActionCode === "RETRY_COMMAND") && summary.runPath === void 0 && summary.finalRunDigest === void 0 && summary.latestStatePath === void 0 && summary.checkpointStatuses === void 0 && Array.isArray(events) && events.length >= 2 && events.every((event, index) => validLegacyEvent(event, legacyRunId) && event.sequence === index + 1) && legacyTerminal.phase === "publish" && legacyTerminal.status === "failed" && validLegacyError(legacyTerminal.error) && legacyTerminal.error.code === summary.error.code && events.slice(0, -1).filter((event) => event.status === "failed").every((event) => event.phase === "safety-gate" && legacyPreAuthorityGates.has(event.gate) && validLegacyError(event.error)) && !events.some((event) => event.phase === "global-preflight-arbitration" && event.status !== "pre-observe") && !events.slice(0, -1).some((event) => event.phase === "publish" || /checkpoint|execute|postpublish/i.test(event.phase) || Object.hasOwn(event, "prePersistedRunPath") || Object.hasOwn(event, "checkpointCount") || Object.hasOwn(event, "checkpointStatuses"));
   if (legacyValid) return !strictHistory && await hasNoState(runDir);
   const producerVersion = summary?.producer?.version;
-  const historical = ["0.9.3", "0.9.14", "0.9.17", "0.9.33", "0.9.37", "0.9.38"].includes(producerVersion);
+  const historical = ["0.9.3", "0.9.14", "0.9.17", "0.9.33", "0.9.37", "0.9.38", "0.10.0"].includes(producerVersion);
   if (!historical && producerVersion !== resolveProducerVersion()) return false;
   const sameProducer = /* @__PURE__ */ __name((value) => value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 2 && value.name === "release-skill" && value.version === producerVersion, "sameProducer");
   const envelopeKeys = /* @__PURE__ */ new Set([
@@ -125183,7 +125194,7 @@ async function hasNoState(runDir) {
   return true;
 }
 function closedPublishPrefix(events, summary, version) {
-  const auditedCurrentPrefix = ["0.9.38", "0.10.0"].includes(version);
+  const auditedCurrentPrefix = ["0.9.38", "0.10.0", "0.10.1"].includes(version);
   let i = 0;
   const take = /* @__PURE__ */ __name((phase, status, gate2) => {
     const e = events[i];

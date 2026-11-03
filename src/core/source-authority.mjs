@@ -295,21 +295,37 @@ export async function checkSourceInputDirty({ closure, root, execFn = execFile }
   const paths = (closure?.entries ?? []).map((entry) => entry.path);
   if (paths.length === 0) return { dirty: false, dirtyPaths: [] };
 
-  let stdout;
+  const records = [];
   try {
-    ({ stdout } = await execFn(
-      'git',
-      [
-        'status',
-        '--porcelain=v1',
-        '-z',
-        '--untracked-files=all',
-        '--ignored=matching',
-        '--',
-        ...paths,
-      ],
-      { cwd: root, encoding: 'utf8', shell: false },
-    ));
+    // Keep the complete selection, but bound each Git invocation well below
+    // platform argv limits. Git status does not accept --pathspec-from-file.
+    // Retain pathspec-scoped ignored reporting: a whole-repository scan can
+    // collapse an ignored sibling into an ancestor of a clean selected file.
+    for (let offset = 0; offset < paths.length;) {
+      const batch = [];
+      let bytes = 0;
+      while (offset < paths.length) {
+        const size = Buffer.byteLength(paths[offset], 'utf8') + 1;
+        if (batch.length > 0 && bytes + size > 16 * 1024) break;
+        batch.push(paths[offset]);
+        bytes += size;
+        offset += 1;
+      }
+      const { stdout } = await execFn(
+        'git',
+        [
+          'status',
+          '--porcelain=v1',
+          '-z',
+          '--untracked-files=all',
+          '--ignored=matching',
+          '--',
+          ...batch,
+        ],
+        { cwd: root, encoding: 'utf8', shell: false },
+      );
+      records.push(...String(stdout).split('\0').filter(Boolean));
+    }
   } catch (error) {
     throw new ReleaseError(
       DIRTY_SOURCE_INPUT,
@@ -319,7 +335,6 @@ export async function checkSourceInputDirty({ closure, root, execFn = execFile }
   }
 
   const dirtyPaths = [];
-  const records = String(stdout).split('\0').filter(Boolean);
   for (let index = 0; index < records.length; index += 1) {
     const record = records[index];
     if (record.length < 4) continue;
