@@ -10,6 +10,8 @@
  *
  * @module producers/render-public-assets
  */
+// @decision D-RS-003
+// @decision D-RS-005
 
 import { readFile, writeFile, readdir, stat, mkdir } from 'node:fs/promises';
 import { join, relative } from 'node:path';

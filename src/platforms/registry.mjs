@@ -30,6 +30,9 @@
  *
  * @module platforms/registry
  */
+// @decision D-RS-005
+// @feature REL002
+// @scenario S-003
 
 import { join } from 'node:path';
 
@@ -551,6 +554,7 @@ const CURSOR = Object.freeze({
   actionType: null,
   adapter: null,
   automatable: true,
+  foundationDriverAvailable: true,
   installMethod: 'foundation-host-verification',
   refStrength: 'local-payload',
   outputProtocol: 'structured',
@@ -590,10 +594,67 @@ const CURSOR = Object.freeze({
   }),
 });
 
-/** Ordered platform registry. Order is significant. */
-export const PLATFORMS = Object.freeze([CLAUDE, CODEX, KIMI, CODEBUDDY, QODER, CURSOR]);
+const ANTIGRAVITY = Object.freeze({
+  id: 'antigravity',
+  skillProjectionSurface: 'platforms/antigravity',
+  distributionType: 'antigravity-plugin',
+  actionType: null,
+  adapter: null,
+  // 上游 Foundation 实机验证驱动目前仅支持 cursor，antigravity 实机驱动待开放，
+  // 诚实标记为 false 以免在 foundation-host-verification.mjs 触发 "preparation supports only cursor" 假绿预期。
+  automatable: false,
+  foundationDriverAvailable: false,
+  installMethod: 'foundation-host-verification',
+  refStrength: 'local-payload',
+  outputProtocol: 'structured',
+  identityEvidence: 'host-verification-result',
+  degradationPolicy: 'block',
+  cli: null,
+  jsonProtocol: Object.freeze({
+    listOutput: null,
+    installPathSource: null,
+    marketplaceAddOutput: null,
+    pluginInstallOutput: null,
+  }),
+  isolationEnv: null,
+  isolationSubdirs: Object.freeze([]),
+  manifestPaths: Object.freeze({ plugin: null, marketplace: null }),
+  marketplaceSourceForm: null,
+  marketplaceEntryCarriesVersion: null,
+  marketplaceRefForm: null,
+  knownHostArtifacts: Object.freeze([]),
+  schemaRequiredFields: Object.freeze(['entrySkill']),
+  skillRendering: null,
+  buildAdapter: Object.freeze({
+    name: 'antigravity',
+    pluginDirName: '.',
+    templateFileName: 'plugin.json',
+    marketplaceFileName: null,
+    hasMarketplace: false,
+    enabled: true,
+  }),
+  strategy: Object.freeze({
+    parseListOutput: null,
+    extractInstallPath: null,
+    extractListIdentity: null,
+    crossValidateListEntry: null,
+    buildManualRequirement: null,
+    readManifest: null,
+  }),
+});
 
-const VALID_DISTRIBUTION_TYPES = new Set(['claude-plugin', 'codex-plugin', 'kimi-plugin', 'codebuddy-plugin', 'qoder-plugin', 'cursor-plugin']);
+/** Ordered platform registry. Order is significant. */
+export const PLATFORMS = Object.freeze([CLAUDE, CODEX, KIMI, CODEBUDDY, QODER, CURSOR, ANTIGRAVITY]);
+
+const VALID_DISTRIBUTION_TYPES = new Set([
+  'claude-plugin',
+  'codex-plugin',
+  'kimi-plugin',
+  'codebuddy-plugin',
+  'qoder-plugin',
+  'cursor-plugin',
+  'antigravity-plugin',
+]);
 const VALID_ACTION_TYPES = new Set(['claude-marketplace-install', 'codex-marketplace-install', 'kimi-marketplace-install', 'codebuddy-marketplace-install', 'qoder-marketplace-install', null]);
 const VALID_SOURCE_FORMS = new Set(['string', 'local-path-object', null]);
 const VALID_MARKETPLACE_REF_FORMS = new Set(['sha', 'name', null]);
@@ -817,6 +878,23 @@ export function assertRegistry(registry = PLATFORMS) {
     if (typeof platform.buildAdapter.name !== 'string' || platform.buildAdapter.name.length === 0) {
       throw new Error(`platform registry: ${label} buildAdapter needs a non-empty name (its adapter directory name)`);
     }
+    if (platform.buildAdapter.enabled) {
+      const dir = platform.buildAdapter.pluginDirName;
+      const validDir = typeof dir === 'string' && (
+        dir === '' || dir === '.' || (
+          !dir.startsWith('/') && !dir.endsWith('/') && !dir.includes('\\') && !dir.includes(':') && !dir.includes('\0')
+          && dir.split('/').every((segment) => segment !== '' && segment !== '.' && segment !== '..')
+        )
+      );
+      if (!validDir) {
+        throw new Error(`platform registry: ${label} buildAdapter.pluginDirName "${dir}" must be ".", "", or a safe relative directory`);
+      }
+      const tpl = platform.buildAdapter.templateFileName;
+      if (typeof tpl !== 'string' || tpl.length === 0 || tpl === '.' || tpl === '..'
+          || tpl.includes('/') || tpl.includes('\\') || tpl.includes(':') || tpl.includes('\0')) {
+        throw new Error(`platform registry: ${label} buildAdapter.templateFileName must be a safe file name`);
+      }
+    }
     if (typeof platform.skillProjectionSurface !== 'string'
         || !SKILL_PROJECTION_SURFACE_PATTERN.test(platform.skillProjectionSurface)) {
       throw new Error(`platform registry: ${label} skillProjectionSurface must match platforms/<slug>`);
@@ -861,6 +939,9 @@ export function assertRegistry(registry = PLATFORMS) {
     if (platform.installMethod === 'foundation-host-verification') {
       if (platform.cli !== null) {
         throw new Error(`platform registry: ${label} Foundation host verification must have cli === null`);
+      }
+      if (platform.foundationDriverAvailable === false && platform.automatable !== false) {
+        throw new Error(`platform registry: ${label} lacks Foundation host driver and must set automatable=false`);
       }
     } else if (platform.automatable) {
       if (!platform.cli || typeof platform.cli.marketplaceAdd !== 'function'
@@ -992,8 +1073,8 @@ export function resolveCapabilityConflicts(platform) {
     }
   }
 
-  // 非自动化平台必须 cli === null，且有手动策略函数
-  if (automatable === false) {
+  // 非自动化平台必须 cli === null，且除等待上游 Foundation 驱动的平台外须有手动策略函数
+  if (automatable === false && installMethod !== 'foundation-host-verification') {
     if (cli !== null) {
       conflicts.push(`automatable=false but cli is not null`);
     }
@@ -1013,18 +1094,21 @@ export function resolveCapabilityConflicts(platform) {
 }
 
 /**
- * 从 installMethod 派生 automatable 标志。
+ * 从 installMethod 与上游驱动可用性派生 automatable 标志。
  *
  * 现行描述符允许两类自动化安装方式：structured-cli 与
- * foundation-host-verification。人工方式（interactive-only /
- * human-attestation）派生为 false。未知方式不视为可自动。
+ * 上游驱动已开放的 foundation-host-verification（如 cursor；antigravity 待开放故为 false）。
+ * 人工方式（interactive-only / human-attestation）派生为 false。未知方式不视为可自动。
  *
  * @param {object} platform - 平台描述符
  * @returns {boolean}
  */
 export function deriveAutomatable(platform) {
-  return platform.installMethod === 'structured-cli'
-    || platform.installMethod === 'foundation-host-verification';
+  if (platform.installMethod === 'structured-cli') return true;
+  if (platform.installMethod === 'foundation-host-verification') {
+    return platform.foundationDriverAvailable !== false;
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -1041,6 +1125,17 @@ let cachedHostsRoot = null;
 /** @type {Map<string, string>} canonicalized hostId cache */
 const normalizedHostIds = new Map();
 
+/**
+ * Registered host-verification platforms whose profiles may lag in a pinned
+ * Foundation release (e.g. antigravity before Foundation 0.26+). Foundation
+ * remains authoritative whenever resolveHostId recognizes the host.
+ */
+const REGISTERED_HOST_VERIFICATION_COMPAT_IDS = new Set(
+  PLATFORMS
+    .filter((platform) => platform.installMethod === 'foundation-host-verification')
+    .map((platform) => platform.buildAdapter.name),
+);
+
 async function foundationHostsRoot() {
   if (cachedHostsRoot === null) {
     cachedHostsRoot = bundledHostProfilesRoot();
@@ -1056,7 +1151,9 @@ async function foundationHostsRoot() {
  * instead of shipping an unregistered identity. The checker's free-form
  * adapter-surface inference passes `{ fallback: true }` so an unregistered
  * adapter directory name degrades to its raw label instead of aborting the
- * scan.
+ * scan. Registered `foundation-host-verification` hosts absent from a pinned
+ * Foundation profile matrix (`antigravity` under 0.25.0) resolve to their
+ * canonical registry adapter id once Foundation returns SFC2003.
  *
  * @param {string} hostId - raw host identity (registry buildAdapter.name or
  *   an observed adapter surface directory name).
@@ -1074,7 +1171,7 @@ export async function normalizeHostId(hostId, { fallback = false } = {}) {
     normalizedHostIds.set(key, canonical);
     return canonical;
   } catch (err) {
-    if (fallback && err?.code === 'SFC2003' && hostId) {
+    if (err?.code === 'SFC2003' && hostId && (fallback || REGISTERED_HOST_VERIFICATION_COMPAT_IDS.has(hostId))) {
       normalizedHostIds.set(key, hostId);
       return hostId;
     }

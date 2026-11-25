@@ -18,32 +18,40 @@
       "bytes": 2488
     },
     "evidence-event-v2.schema.json": {
-      "digest": "693430e636afc85bf4a79e3f7bf3fb87254cbd62f2e3f35c35d6f84e5e8e0be1",
-      "bytes": 6058
+      "digest": "b622feb6761eb35773a09d8259173f3bbdda1452c486858ccf4e037fba256372",
+      "bytes": 6169
     },
     "evidence-event.schema.json": {
       "digest": "b7e14522a5aba818cab191545f23d2323be0e4c80566e9d3e4da576103a00490",
       "bytes": 2390
+    },
+    "lifecycle-advisory.schema.json": {
+      "digest": "248c3359a15d7086008a645e65dc3f9bbca88c497cd1ec79b73589d4244cc23f",
+      "bytes": 9360
+    },
+    "offline-bundle.schema.json": {
+      "digest": "0d0bd938507ca2bb569d36fb004915b1b15cc9daf314da3da9b2a3a7b2b1289c",
+      "bytes": 6844
     },
     "postpublish-approval-record.schema.json": {
       "digest": "e365c9e9f5aa189ca6788e68dbedfa718aa120f2c197534417c21e019b9a29a4",
       "bytes": 1744
     },
     "release-plan.schema.json": {
-      "digest": "a1e748edeb36b00aa59cbcce893141a30b5c96e75d7fbdbc85b932cde9cc413c",
-      "bytes": 68944
+      "digest": "8613bba5b61c419883aba4a36d86104770806751b7c0c05ec20ccaf0c4e6d3f9",
+      "bytes": 69454
     },
     "release-project.schema.json": {
-      "digest": "e996238c58067fbe1228ab012da53e8edde1b9d3c8f135d4d5848349f4392148",
-      "bytes": 57111
+      "digest": "d55aa047a8a469c892ba6a2857673f86149a741ae5971c32e44dd9ab2f096ee4",
+      "bytes": 77058
     },
     "release-run.schema.json": {
       "digest": "26c44ddf1ed42f266a2ddee7f6132cee94c59593e37f24359c9c48f12612ec22",
       "bytes": 21874
     },
     "test-intake.schema.json": {
-      "digest": "654e91ce518cb2b8aca84947d0c3bb8c4262ab047d86081e7e93dc07a9c6c739",
-      "bytes": 6982
+      "digest": "679b6a0ab93ef7120622d4dcbe7ab4157d193f5846c7ced1b86eb31bc055a848",
+      "bytes": 8630
     }
   }
 }

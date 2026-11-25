@@ -21,7 +21,7 @@ description: "Config-only workflow profile: route confirms config-only diff, ass
 
 `release-config` 是工作流配置文件（§4）定义的独立工作流之一，专门处理仅配置变更场景。其遵循简化生命周期，专注于配置验证与发布路径决策分支。
 
-**机械实现**：`prepare --workflow config` 确定性地裁剪代码类门禁（H5），并比较当前 per-unit `snapshotDigest` 与最新冻结 plan——公开字节未变 → `publishPath: 'no-publish-needed'`（`externalActions` 被移除，无 publish 路径）；字节变化或无对比 plan → `publishPath: 'publish-needed'`（fail-safe）。决策以 `workflowDecision` 绑定进 plan digest，不可篡改。**不存在** `NO_PUBLISH_NEEDED`/`REPORTED` 虚构状态：prepare 的真实输出是 plan 内的 `workflowDecision`。
+**机械实现**：`prepare --workflow config` 确定性地裁剪代码类门禁（H5），并比较当前各单元 `snapshotDigest` 与最新冻结计划——公开字节未变时输出 `publishPath: 'no-publish-needed'`（清空 `externalActions`，不进入发布路径）；公开字节有变化或无前序计划可对比时，按安全保守原则进入 `publishPath: 'publish-needed'`。决策结果通过 `workflowDecision` 绑定进计划摘要，不可篡改。系统**不存在** `NO_PUBLISH_NEEDED` 或 `REPORTED` 等顶层虚构状态，`prepare` 的真实输出即为计划内的 `workflowDecision`。
 
 **边界**：裁剪代码类检查（declared hooks、snapshot-verify gates、skill-resource-closure），保留基线、快照、计划冻结和文档新鲜度检查。来源权威检查按发布分支决定，不能一并裁掉：
 
@@ -59,10 +59,12 @@ description: "Config-only workflow profile: route confirms config-only diff, ass
 2. 若推荐 `workflowKind === 'config-only'`，则使用本技能
 3. 执行步骤②：运行 `release-skill assess --root <path> --offline --json` 进行 schema validation
 4. 进入本入口新一轮生产准备前完成接入选择：按 `release-prepare` 同一完整流程核对 `testIntake`，默认推动 `skill-family-test:skill-family-test-plan` 与授权范围内的 `skill-family-test-run`。跳过须先明确征询再依据本轮匹配答复决定。未完成接入且无有效跳过时，不进入下一步 `prepare`。该分支只决定后续是否进入发布链，不改变生产 prepare 前的测试接入要求。
-5. 执行步骤③：运行 `release-skill prepare --offline --workflow config --target-version <ver> --json`
+5. 执行步骤③：
+   - 仅本地预检（不接 `publish`）：`release-skill prepare --offline --workflow config --target-version <ver> --json`
+   - 正式进入发布链（接 `approve -> publish -> verify`）：`release-skill prepare --online --production --workflow config --target-version <ver> --json`（或使用 `release-skill ship --target-version <ver>`）
 6. 读取输出中的 `workflowDecision`：
    - **A**：`publishPath === 'no-publish-needed'` → 记录决策（plan 已冻结，无 `externalActions`），结束。无需 approve/publish/verify
-   - **B**：`publishPath === 'publish-needed'` → 继续 approve → publish → verify 链条
+   - **B**：`publishPath === 'publish-needed'` → 基于第 5 步产生的 `--online --production` 计划继续 `approve → publish → verify` 链条（`--offline` 产物仅用于本地预检，不能接 `publish`）
 7. （场景 B 续）执行步骤⑥：运行 `release-skill approve --plan <path> --actor <name>`
 8. （场景 B 续）执行步骤⑦：运行 `release-skill publish --plan <path> --approval <path>`
 9. （场景 B 续）执行步骤⑧：运行 `release-skill verify --plan <path> --run <path> --json`
@@ -78,8 +80,12 @@ node "$RELEASE_SKILL_ENTRY" route \
 # Step 2: Assess with schema validation
 node "$RELEASE_SKILL_ENTRY" assess --root <path> --offline --json
 
-# Step 3: Prepare --workflow config (local freeze + publish-path decision)
+# Step 3a: Local preflight only (does not proceed to publish)
 node "$RELEASE_SKILL_ENTRY" prepare --offline \
+  --workflow config --target-version <version> --json
+
+# Step 3b: Production prepare --workflow config (required before approve -> publish -> verify)
+node "$RELEASE_SKILL_ENTRY" prepare --online --production \
   --workflow config --target-version <version> --json
 # Output (JSON): { workflowKind: 'config',
 #   workflowDecision: { decision: 'public-bytes-unchanged'|'public-bytes-changed'|'indeterminable',
@@ -88,7 +94,7 @@ node "$RELEASE_SKILL_ENTRY" prepare --offline \
 # Decision Branch A (no-publish-needed): plan frozen with zero externalActions;
 # the decision is bound into the plan digest. No publish commands run.
 
-# Decision Branch B (publish-needed): light chain execution
+# Decision Branch B (publish-needed): light chain execution (using Step 3b production plan)
 node "$RELEASE_SKILL_ENTRY" approve \
   --plan <path> --actor <person-name>
 node "$RELEASE_SKILL_ENTRY" publish \
@@ -102,11 +108,10 @@ node "$RELEASE_SKILL_ENTRY" verify \
 | 场景 | 状态 | 处理 |
 |------|------|------|
 | 非纯配置变更（mixed=true） | full-happy-end | 路由到 `release-skill ship` 完整工作流 |
-| schema validation 失败 | CONFIG_SCHEMA_INVALID | 修正 project.yaml 或 schemas 结构错误后重试 step② |
-| contract verification 失败 | CONFIG_CONFLICT | 解决配置冲突后重试 step② |
-| prepare 检测到基线漂移 | BASELINE_DRIFT_DETECTED | 人工审查 drift 后决定是否继续或回滚 |
+| schema validation 或配置语义冲突失败 | `CONFIG_INVALID` | 修正 `project.yaml` 或配置冲突后重试 step② |
+| prepare 或发布前检测到基线漂移 | `BASELINE_CHANGED` | 人工审查基线变化后决定重新 `prepare` 或回滚 |
 | workflowDecision 不可判定（无对比 plan） | indeterminable | fail-safe 到 publish-needed，走场景 B |
-| approval expired | APPROVAL_EXPIRED | 重新执行 approve，digest 必须匹配 |
+| approval expired | APPROVAL_EXPIRED | 重新执行 `release-skill approve`，digest 必须匹配 |
 | remote conflict at publish | REMOTE_CONFLICT | 人工决策；不得 force override 或覆盖远端状态 |
 
 ## 决策树 (Step 4)
@@ -142,12 +147,12 @@ node "$RELEASE_SKILL_ENTRY" verify \
 - **marketplace-only**：仅 marketplace 变更时使用独立工作流
 - **full-happy-end**：混合变更（code+config+docs）时降级到此完整路径
 
-## 关联技能
+## 关联技能与命令
 
 - `release-skill route`：快速入门决策路由（§4.3）
 - `release-assess`：配置 schema/contract 验证入口
-- `release-prepare`：离线冻结检查（`--workflow config` 输出 publish-path 决策）
-- `release-approve`：Plan approval（仅场景 B）
+- `release-prepare`：冻结计划检查（`--workflow config` 输出 `publishPath` 决策；正式发布须加 `--online --production`）
+- `release-skill approve`：Plan approval 命令（仅场景 B，无独立 `release-approve` Skill）
 - `release-publish`：制品发布（仅在 public surface 变化时执行）
 - `release-verify`：消费者验证（场景 B 的最终验证门）
 

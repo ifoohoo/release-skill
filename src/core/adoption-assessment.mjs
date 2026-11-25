@@ -38,6 +38,11 @@
  *
  * @module adoption-assessment
  */
+// @decision D-RS-007
+// @feature REL003
+// @feature REL005
+// @scenario S-004
+// @scenario S-006
 
 import { getPlatform, normalizeHostId } from '../platforms/registry.mjs';
 import { canonicalJson, sha256Hex } from './digest.mjs';

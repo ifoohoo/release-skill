@@ -4,6 +4,8 @@
  * Domain mapping stays here. Path containment, exclusive publication, and
  * schema validation are Foundation 0.22.0 calls, not local copies.
  */
+// @decision D-RS-004
+// @decision D-RS-005
 
 import { readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';

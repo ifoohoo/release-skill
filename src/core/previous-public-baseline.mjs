@@ -1,3 +1,5 @@
+// @decision D-RS-001
+
 import { ReleaseError, GATE_FAILED } from './errors.mjs';
 
 /**

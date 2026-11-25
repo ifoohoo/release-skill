@@ -55,6 +55,8 @@
  *
  * @module src/commands/docs
  */
+// @decision D-RS-004
+// @decision D-RS-005
 
 import {
   ReleaseError,

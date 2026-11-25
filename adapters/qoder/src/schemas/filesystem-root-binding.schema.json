@@ -8,7 +8,12 @@
   "properties": {
     "kind": { "const": "trusted-filesystem-root-binding" },
     "digestAlgorithm": { "const": "sha256" },
-    "basis": { "const": "canonical-realpath-device-inode-type-mode-v1" },
+    "basis": {
+      "enum": [
+        "canonical-realpath-device-inode-type-mode-v1",
+        "canonical-finalpath-volume-fileid-type-security-v1"
+      ]
+    },
     "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
   }
 }

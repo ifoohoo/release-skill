@@ -12,6 +12,7 @@
  *
  * @module readme/parity
  */
+// @decision D-RS-003
 
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';

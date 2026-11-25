@@ -4,6 +4,7 @@
 
 | Version | Supported |
 | ------- | --------- |
+| 0.10.x  | Yes       |
 | 0.7.x   | Yes       |
 | 0.6.x and earlier | No |
 
@@ -29,15 +30,21 @@ disclosure.
 
 release-skill is designed with the following security guarantees:
 
-- **No automatic external writes**: The `prepare` phase never pushes,
-  creates releases, or publishes packages itself. User-configured hooks
-  and gates may produce arbitrary side effects. Configuring a command and
-  invoking the workflow authorizes its execution without an extra confirmation
-  point. The legacy `--acknowledge-hook-side-effects` and
-  `--acknowledge-gate-side-effects` flags remain accepted only as no-effect
-  compatibility inputs.
+- **No automatic external writes & explicit side-effect hook confirmation**:
+  The `prepare` phase never pushes, creates releases, or publishes packages
+  itself. Standard read-only / built-in hooks and verification gates have no OS
+  sandbox: configuring a command and invoking the workflow authorizes its
+  execution without an extra confirmation point (the legacy
+  `--acknowledge-gate-side-effects` flag remains accepted only as a no-effect
+  compatibility input). Custom hooks that explicitly declare write or external
+  side effects (`mutating: true` or `sideEffects: local-write | network-or-external`)
+  disclose their exact command, working directory, and impact scope before
+  spawning and require `--acknowledge-hook-side-effects` explicit confirmation.
+  Lifecycle governance commands (`deprecate` and `retire`) generate local
+  advisory receipts, consumer rollback guides, and marketplace proposals in
+  offline / dry-run mode without performing remote npm or GitHub writes.
 - **Approval-gated publishing**: The `publish` phase requires an explicit,
-  non-expired approval record bound to an immutable plan v2, its frozen
+  non-expired approval record bound to an immutable plan v2/v3, its frozen
   artifact, release action, and target version. Approval expires after 24
   hours. Workspace tree or hash drift is retained as audit evidence rather
   than an approval binding, while a remote conflict blocks publish preflight
@@ -50,5 +57,14 @@ release-skill is designed with the following security guarantees:
   relative cwd, timeout, and environment allowlist. Shell strings are not
   accepted. Project overlays cannot disable secret scanning, plan
   validation, approval gates, or post-publish verification.
-- **Credential safety**: Logs never record tokens, authentication headers,
-  npm config content, or unredacted environment variables.
+- **Credential safety & controlled source isolation**: Logs never record tokens,
+  authentication headers, npm config content, or unredacted environment
+  variables. Remote Git URLs, `marketplaceSource`, and npm `registry` fields
+  fail closed whenever embedded `user:token@...` credentials appear, without
+  echoing the offending URL. Public source policy strictly locks `github.com`
+  and `https://registry.npmjs.org`, while enterprise internal sources require an
+  explicit `policy.sourcePolicy` allowlist (`mode: "controlled-private"`) and
+  prevent `visibility: "private"` units from leaking into public targets. Offline
+  archive bundles (`bundle-offline` / `verify-offline`) export exclusively
+  outside the inspected repository root and verify SHA-256 integrity, version
+  parity, zero external network dependencies, and zero credential leaks offline.

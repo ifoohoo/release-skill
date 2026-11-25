@@ -25,6 +25,7 @@
  *
  * @module hook-cache
  */
+// @decision D-RS-001
 
 import { readdir, realpath, stat } from 'node:fs/promises';
 import { release as osRelease } from 'node:os';

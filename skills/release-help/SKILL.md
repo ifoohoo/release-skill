@@ -30,34 +30,22 @@ description: "Discoverable entry point for release-skill: dependency and environ
 | 意图 | 推荐入口 | 说明 |
 |------|----------|------|
 | 了解能力、依赖或安全边界 | `release-help`（当前入口） | 仅提供能力说明与分诊 |
-| 检查接入状态 | `release-setup --assess-adoption` | `NOT_CONFIGURED` 表示首次接入，不创建配置 |
+| 检查接入状态 | `release-setup`（调用 `setup --assess-adoption`） | `NOT_CONFIGURED` 表示尚未首次接入，不创建配置 |
 | 分析配置、文档与发布就绪缺口 | `release-assess --offline` | 离线诊断，不运行构建或发布动作 |
 | 核对历史记录 | `release-assess`（显式提供 plan/approval/run 文件） | 仅读取用户提供的文件，不重新扫描 |
 | 读取已有证明 | `release-skill read-proof --proof-root <root> --proof <relative> --json`，只读现有文件、不扫描目标 | 三个只读入口可用 `--conclusion-output <absolute-path>` 排他输出共同证明 |
 
-诊断只运行 `release-skill` 自身只读检查，不调用目标 Skill、业务脚本、构建、hook 或发布动作。`prepare`、`verify`、`release-finish` 不作为静态治理入口。用户要求实际接入或发布时，应将已有授权带入对应原业务入口，各入口继续执行原有确认、副作用与状态机规则。
+治理诊断只运行 `release-skill` 自身的只读检查，不调用目标 Skill、业务脚本、构建、钩子或发布动作；`prepare`、`verify`、`release-finish` 不充当静态治理入口。当用户要求实际接入或发布时，将已有授权带入对应原业务入口，各入口继续严格执行各自的确认、副作用披露与状态机规则。
 
-## 0.10.1 能力与证据边界
+## 0.10.2 能力与证据边界
 
-`release-project` 的四类材料：公开正式（`publicFiles`：`sourceScope`、`from`、`to`、`mode`）、运行必需（`requiredPublicFiles`）、私有正式与非正式。公开≠正式。`requiredPublicFiles` 须被同单元的 `publicFiles[].to` 精确覆盖。私有材料由 `forbiddenPaths`、`forbiddenContentPatterns` 拦截，不进 `publicFiles`。`npm` 包由 `package.json.files`、入口闭包与映射共同限定；`delivery.include`、`delivery.exclude` 仅选宿主，不删必需资源，冲突拒绝。字段见 [配置](https://github.com/ifoohoo/release-skill/blob/release-skill-v0.10.1/references/02-project-config.md)及 `release-prepare`。
-
-首次 `release-setup`：若已有配置（`ALREADY_CONFIGURED`/`CONFIG_EXISTS`），不得覆盖；合法旧字段保留。增量操作（`release-assess` / `release-config`）：先运行 `route`，仅 `config-only` 走 `prepare --workflow config`；`full-happy-end` / `mixed` 走完整流程。Foundation 0.25.0 版本精确，不因邻仓升级而变更。
-
-`REQUIRED_PUBLIC_FILE_MISSING`：仅 `setup --assess-adoption` 触发，按 `requiredPublicFiles` 匹配 `publicFiles[].to`，再检查仓根相对 `from` 是否存在。普通 `assess` / `verify-records` 无此码；`prepare` 原有 `PUBLIC_FILE_MISSING` / `CONFIG_INVALID`。`LICENSE_MISSING` 不能替代运行必需资源。仅禁路径类 `config-only` 增量在离线非生产 `prepare` 中可为 `PREPARED`，`workflowDecision` 为 `indeterminable` / `publish-needed`；`npm-entry-closure` / `entry_missing` 触发 `GATE_FAILED`。Foundation 建议不是发布批准。
-
-GitHub Git Data API `compare-and-swap` 绑定已观察分支头，远端授权不变。冻结安装 URL/ref/sha，安装后核对 name/version/载荷，门禁失败不写入。独立 checkpoint 批准；不支持回滚覆盖强推或重放旧计划。`ALREADY_CURRENT` 仍需核验。市场使用 `ifoohoo/skill-family-hub` 及 `release-skill@skill-family-hub`，旧独立市场弃用。
-
-`release-finish`：Kimi 2.2.0 变动行/无换行与 0.40.1 旧确认措辞兼容，始终核精确 ID/完整帧/唯一选中项再提交。未知歧义/未移动/不完整/timeout/EOF 拒绝。共享环境 setup 按 `unitId/plugin/version` 归并，Claude/Codex 的不同物理 `skillFile` 不会分裂 setup 归属。一个已加载宿主的精确 setup 反馈可满足共享环境，但各宿主安装加载专属配置分别核，反馈绑定 `host/unit/path/plan/config/root`。真正多插件归属仍须消歧；任一宿主失败则收尾为 `FAILED`，不改 `VERIFIED` / `DISTRIBUTED`。
-
-`--host-coverage <file>` / `--observe-hosts` 仍可诊断。Codex 0.154.0 对 11 份真实 Skill 的原字节静态检查不证明安装、会话选择或业务通过。批准、发布和验证状态以对应计划、批准及执行记录为准。
-
-Qoder 支持路径：`./adapters/qoder/skills/` 与 `./skills/`，核对 `name/version/skills`、包含性与载荷。私有 Hub 的 `RELEASE_SKILL_HUB_RELEASE_EVIDENCE` 必须由原始描述符指向已有普通文件的绝对路径，拒绝 `symlink`。交 `npm run release:check -- --release-evidence <file>` 核验。
-
-冻结前 `prepare` / 新 `ship` 可重复 `--unit <id>`，默认全部；延期不进计划，不获状态。完整配置、生成物新鲜度及顶层 Hook 仍作用于全项目。`publicSourceAuthorityReceipt` 的 coordinator 与全部 subjects 必须共同选择。冻结后 `publish` / `reconcile` / `verify` / `distribute` 拒 `--unit`，只认 `plan.units`。
-
-推荐 production ship 或转入新生产准备前核对 `testIntake`。缺失时默认推动 `skill-family-test:skill-family-test-plan` → 授权内 `skill-family-test:skill-family-test-run`。跳过须先征询，并取得本轮项目、版本、范围匹配的明确同意。沉默/拒绝/普通发布预授权/旧轮次、其他项目、版本或范围不匹配均不可跳过。本轮匹配答复可复用。不得把跳过写成测试已达标。只读路径只报告缺口。声明后仅生产 `prepare`：首次 `NEEDS_INPUT` / `exit13` 非正式候选，`--candidate` 续接才正式。候选不可 `approve` / `publish`，不能清除 `PARTIAL` / `PUBLISHED` / `VERIFIED`。轻量工作流和单元选择不免除项目级要求，未声明时原 hook 与完整门不变。非生产 `CONFIG_INVALID`；非交互 CLI 仍可选 `testIntake`，不新增选择参数。
-
-每个单元必须声明 `previousPublicBaseline`；确认无前版为 `none`，否则为 `bound` + `repo/ref/commit`。`none` 不绕唯一性预检。Hook cache v2 仅绝对或真实 `cwd` 核验相对可执行身份复用；裸 `PATH` / `PATHEXT` / `Windows` / 观察不可用冷执行且失败关闭。隔离安装树仅宿主退出 + 隔离 + 扫描无并发才记录；附加链接记录不跟随，声明载荷 `symlink` 拒绝。
+- **四类工程材料边界**：项目配置明确区分公开正式资源（`publicFiles`：`sourceScope`、`from`、`to`、`mode`）、必需运行文件（`requiredPublicFiles`，须被同单元 `publicFiles[].to` 精确覆盖）、私有正式设计稿与非正式运行记录。公开不等于正式；私有内容由 `forbiddenPaths` 与 `forbiddenContentPatterns` 拦截，严禁写入 `publicFiles`。npm 载荷由 `package.json.files`、入口静态闭包与映射共同约束；`delivery.include` / `delivery.exclude` 只选择宿主，不得剔除必需运行文件。详见 [项目配置规范](https://github.com/ifoohoo/release-skill/blob/release-skill-v0.10.2/references/02-project-config.md) 与 `release-prepare`。
+- **接入与工作流路由**：首次运行 `release-setup` 若发现已有配置（`ALREADY_CONFIGURED` / `CONFIG_EXISTS`），绝不覆盖旧文件；增量调整先运行 `route`，仅纯配置修改走 `prepare --workflow config`，代码或混合改动走完整流程。底层固定绑定 Foundation 0.39.0 精确版本。`REQUIRED_PUBLIC_FILE_MISSING` 仅由 `setup --assess-adoption` 报告，普通 `assess` 与 `prepare` 保持原生错误码（`PUBLIC_FILE_MISSING` / `CONFIG_INVALID`）。
+- **冻结发布与多宿主核验**：GitHub 分支推进使用 Git Data API `compare-and-swap` 绑定已观察分支头；市场安装固定冻结 URL/ref/sha 并在安装后复核载荷，统一汇聚至 `ifoohoo/skill-family-hub`（`release-skill@skill-family-hub`）。`release-finish` 兼容 Kimi 终端交互界面核验、Claude/Codex 共享环境 `setup` 归并与 Qoder 双清单包含性复验；任一宿主本机更新失败只把收尾标为 `FAILED`，绝不回退已达成的 `VERIFIED` 或 `DISTRIBUTED`。`--host-coverage <file>` 与 `--observe-hosts` 仅作只读覆盖诊断。批准、发布和验证状态以对应计划、批准及执行记录为准。
+- **范围选择与基线完整性**：计划冻结前可通过 `--unit <id>` 选择部分发布单元（涉及 `publicSourceAuthorityReceipt` 时须同时选齐 coordinator 与全部 subjects）；冻结后 `publish`、`reconcile`、`verify`、`distribute` 只认 `plan.units`。每个单元必须声明 `previousPublicBaseline`（无前序版本用 `none`，有前序版本用 `bound` + `repo/ref/commit`）。Hook cache v2 仅在可执行身份与输入指纹完整匹配时复用，否则冷执行。
+- **测试核收与可选跳过收据**：推荐 production ship 或转入新生产准备前，必须核对 `testIntake`。缺失时默认推动 `skill-family-test:skill-family-test-plan`，再在授权范围内运行 `skill-family-test:skill-family-test-run`。跳过前必须先征询维护者，取得本轮项目、版本、范围匹配的明确同意；沉默、拒绝、普通发布预授权、旧轮次、其他项目、版本或范围不匹配均不可跳过，本轮匹配答复可复用，且不得把跳过写成测试已达标；只读路径只报告缺口。已声明 `testIntake` 的项目仅支持生产 `prepare`（首次返回 `NEEDS_INPUT` / 退出码 13，补齐结果后用 `--candidate` 续接）；标记 `optional: true` 的可选测试项允许凭 `explicitly_skipped` 收据（非空 `limitations`、严禁冒充 `passed`）记入 `skippedOptionalRequirementIds`。非交互 CLI 仍保持可选 `testIntake`，不新增选择参数。
+- **钩子副作用确认与版本风险退出/退役**：标准只读内建钩子调用即执行；显式声明 `mutating: true` 或非只读 `sideEffects` 的钩子在执行前强制披露命令与影响范围，须传入 `--acknowledge-hook-side-effects` 放行。已发布版本发现严重缺陷需紧急回退，或整族停止维护下架时，使用离线零远端写入的 `deprecate` / `retire` 子命令生成结构化通告收据、消费者回退指南 Markdown 与 `skill-family-hub` 提案 JSON。
+- **受控私有源白名单与离线分发归档包**：默认公开模式严格锁定 `github.com` 与 `https://registry.npmjs.org`；企业内网 GitLab / Gitea 或私有 npm 注册表须显式配置 `policy.sourcePolicy.mode: "controlled-private"` 及 `allowedGitHosts`、`allowedNpmRegistries` 白名单，任何内嵌明文凭据的 URL（`https://user:token@...`）或私有单元混入公开目标均立即阻断。无外网隔离环境使用 `bundle-offline` 在受检仓库根之外导出自包含离线归档包（含 `.tgz` 载荷、`offline-manifest.json`、本地市场索引片段与中文 `OFFLINE-INSTALL.md`），并在安装前通过 `verify-offline` 逐字节核验哈希完整性、版本一致性与零外网/零凭据残留。
 
 ## 最短路径
 
@@ -79,9 +67,9 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill.mjs" route --root <path> --target-
 
 只有用户明确要求生产发布，且冻结计划摘要已经人工审阅，才进入 `release-publish`。冻结计划批准是发布级唯一批准门；publish 会自行核对 plan、approval、digest、目标版本、远端冲突和允许动作。route、help、`READY`、历史成功或 `VERIFIED` 都不能替代批准。
 
-`requiresApproval: true` 的 postPublish hook 还需要独立 checkpoint 批准。项目配置中的其他 hook 是任意本地进程，没有文件系统或网络隔离；执行相应命令即授权运行，help 不替用户作出该授权。
+`requiresApproval: true` 的 `postPublish` 钩子需要绑定 `(planDigest, hookId)` 的独立检查点批准（有效期最长 24 小时）。开发钩子无沙箱隔离：常规只读钩子随命令运行，声明了写或外部副作用的钩子必须经 `--acknowledge-hook-side-effects` 显式放行，help 不代用户作出授权。
 
-外部写入按 checkpoint 停止；部分成功进入 `PARTIAL`。不得自动删除远端标签、覆盖 Release、unpublish npm 或从头重跑。使用 `release-reconcile` 查询远端实际状态，只重试安全且未完成的动作；冲突交回人工决定。
+外部写入按检查点推进，中断时记录 `PARTIAL`。禁止删远端标签、覆盖 Release、执行 npm unpublish 或从头强跑；统一用 `release-reconcile` 核对远端实况并幂等补齐未完成步骤，遇到已发布版本需紧急风险下线或整族退役时用 `deprecate` / `retire` 生成本地回退通告与市场提案。
 
 ## VERIFIED 后收尾
 
@@ -132,4 +120,4 @@ node "${CLAUDE_PLUGIN_ROOT}/bin/release-skill-local-finish.mjs" \
 
 新正式计划排他原子写入 `plans/<digest>.json` 才生效；写前失败无效，写后即使最新计划指针、FROZEN 标记或证据封口失败，也不得恢复旧计划发布资格，保留失败记录，沿原幂等路径核对新权威。新计划须新批准，旧批准不可跨用；`approve`、`publish`、`ship` 拒绝已替代计划。已发布或部分发布走原恢复谱系，不得以替代冒充恢复。来源提交须与远端 `main` 精确相等，`TEST`、远端冲突和批准门不变。Foundation 0.25.0 机制不变；0.9.38 入口不承诺全局撤销任意旧软件。
 
-字段、精确历史 writer 分支及失败处理见 `release-prepare`、`release-reconcile` 与[状态机](https://github.com/ifoohoo/release-skill/blob/release-skill-v0.9.38/references/01-state-machine.md)。
+字段、精确历史 writer 分支及失败处理见 `release-prepare`、`release-reconcile` 与[状态机规范](https://github.com/ifoohoo/release-skill/blob/release-skill-v0.10.2/references/01-state-machine.md)。

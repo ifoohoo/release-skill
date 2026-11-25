@@ -2,7 +2,7 @@
 
 [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.10.1 -->
+<!-- release-skill:release-version: 0.10.2 -->
 ## Prerequisites
 
 - Node.js `>=22.22.2 <23` (22.22.2 or newer, and below 23)
@@ -125,7 +125,7 @@ tag pinned to the exact version (never the bare repository URL, which installs
 the latest release or default branch), confirm the trust prompt, then reload:
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.10.1
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.10.2
    /plugins reload
    ```
 
@@ -216,6 +216,22 @@ modifying the host.
 For a single session from a source checkout you can also point CodeBuddy at the
 generated plugin directory with `--plugin-dir <path>/adapters/workbuddy`; the
 adapter never references files outside its own directory.
+
+## Install as an Antigravity plugin
+
+The npm package ships root `plugin.json` alongside the self-contained
+`adapters/antigravity/` tree (`plugin.json`, `skills/`, `bin/`, `schemas/`, and
+`native/`). Unlike Claude, Codex, Qoder, or Cursor, Google Antigravity reads
+`plugin.json` directly at the plugin root (not inside a hidden `.*-plugin/`
+directory), discovers Skills automatically from `skills/<name>/SKILL.md`, and
+accepts only the 10 whitelisted top-level manifest keys (`name`, `description`,
+`logo`, `suggestedPrompts`, `displayName`, `version`, `author`, `homepage`,
+`repository`, `disabled` — never `license` or `skills`).
+
+Each generated Skill under `adapters/antigravity/skills/<name>/SKILL.md`
+resolves the entry CLI from the host-supplied `SKILL.md` path and checks
+`PLUGIN_ROOT/plugin.json` inside the plugin root; no plugin-root environment
+variable is required.
 
 ## Install as a Cursor Local plugin
 

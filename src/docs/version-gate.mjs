@@ -19,6 +19,7 @@
  *
  * @module src/docs/version-gate
  */
+// @decision D-RS-003
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';

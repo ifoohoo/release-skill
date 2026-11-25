@@ -56,6 +56,7 @@
  *
  * @module src/docs/notes-loader
  */
+// @decision D-RS-003
 
 import { loadSafeFs } from '../artifacts/safe-fs.mjs';
 import { canonicalArtifactPath } from '../artifacts/path-key.mjs';

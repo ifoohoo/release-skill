@@ -7,6 +7,8 @@
  *
  * @module artifacts/git-authority
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import { promisify } from 'node:util';
 import { execFile } from 'node:child_process';

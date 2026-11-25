@@ -51,12 +51,15 @@ releaseUnits:               # 发布单元数组，至少 1 个
       source: <string>      # 版本来源，如 "package.json"
       tagTemplate: <string> # tag 模板，如 "artifact-graph-v{version}"
     distributions:          # 必填；分发渠道数组，也可显式设为 []
-      - type: <string>      # "npm" | "claude-plugin" | "codex-plugin"
+      - type: <string>      # "npm" | "claude-plugin" | "codex-plugin" | "kimi-plugin" | "codebuddy-plugin" | "qoder-plugin" | "cursor-plugin" | "antigravity-plugin"
         package: <string>   # npm 包名（type 为 npm 时必填）
-        # 插件渠道（claude-plugin/codex-plugin/kimi-plugin/codebuddy-plugin）
+        # 插件市场渠道（claude-plugin/codex-plugin/kimi-plugin/codebuddy-plugin/qoder-plugin）
         # 另含 plugin/marketplace/entrySkill 与可选 timeoutMs。
+        # 单 Skill 宿主核验渠道（cursor-plugin/antigravity-plugin）填写 entrySkill 与
+        # hostVerificationContract（由 Foundation 宿主驱动校验；其中 antigravity 实机驱动待开放，
+        # 严禁携带 marketplace/marketplaceRepo/marketplaceSource/marketplaceSourceType 等市场字段）。
         marketplaceRepo: <string>  # 可选；外部独立市场仓库 owner/name。仅
-          # claude-plugin/codex-plugin 可声明，出现即启用外部市场形态：marketplace
+          # claude-plugin/codex-plugin/qoder-plugin 可声明，出现即启用外部市场形态：marketplace
           # 索引集中于该外部仓库，插件冻结快照只含 plugin 清单；prepare 在线冻结
           # 市场 HEAD（codex sha 冻 / claude 名冻）。kimi/codebuddy 声明会被 plan
           # 完整性与 prepare 失败关闭。详见 standards/06 §2.3/§2.4。
@@ -256,7 +259,7 @@ unit 恰好声明一个 npm distribution。prepare 等所有 subject tarball 冻
 重新下载远端字节并核对 SHA-256。离线消费者只需该文件和其中 subjects 对应的精确 tarball，便可
 核对包名、版本、文件名、tarball SHA-256、源码仓库与源码基线提交。
 
-### 2.1 显式发布范围（v0.9.4）
+### 2.2 显式发布范围（v0.9.4）
 
 发布范围不增加配置字段。`releaseUnits[]` 继续声明项目可发布的全部单元；操作者可以在
 `prepare` 或新建 `ship` 状态时重复传入 `--unit <id>`，从中选择本轮范围。未传参数时
@@ -434,6 +437,8 @@ squash、rebase 和默认分支上的无关后续提交可以通过；冲突解�
 | `cacheable` | 布尔 | 否 | `true` 时启用增量结果缓存：`cacheInputs` 指纹未变且上次运行成功时，prepare 回放缓存结果而不重跑；缺省（或 `false`）恒为全量执行。`cacheable: true` 必须同时声明非空 `cacheInputs`（运行时强制，见 `src/core/hooks.mjs`） |
 | `cacheInputs` | 字符串数组 | 否 | 根相对 glob，声明 hook 的完整输入集（源码、脚本、配置、锁文件等）。缓存键对每个匹配文件的内容取指纹；任何 glob 匹配不到文件时拒绝缓存（fail closed）。必须覆盖全部输入，否则缓存可能返回假命中。输入完整性只能由项目自己声明并证明，工具不会代猜或代写 |
 | `testSelection` | 枚举 | 否 | 仅对 test hook 有意义：`full`（缺省同义）表示运行完整测试套件，prepare 的内置全量测试冻结门要求计算计划摘要前必须是全量；`incremental` 保留给未来 preflight 模式，冻结时拒绝（`incremental selection is not allowed at freeze time`）。内置门，项目 overlay 不能禁用 |
+| `sideEffects` | 枚举 | 否 | 声明钩子副作用边界：`read-only`（缺省同义，常规只读/内建检查，调用即执行）、`local-write`（改写本地工作区或生成物）、`network-or-external`（发起网络请求或调用外部服务）。声明为后两者时，执行前强制披露命令与影响范围，并要求 `--acknowledge-hook-side-effects` 显式放行 |
+| `mutating` | 布尔 | 否 | `true` 时显式标记该钩子具有写入或外部副作用，强制触发事前披露与 `--acknowledge-hook-side-effects` 确认拦截；不得与 `sideEffects: "read-only"` 同时设为 `true` |
 
 缓存回放只表示"上次成功结果的复用"，`cached: true` 的 hook 事件不构成真实执行成本；接入评估只从受信 producer 的 started/completed 事件对推导实际耗时，从不把 `timeoutMs` 当作实际成本，也从不替项目补写 `cacheable`/`cacheInputs`。
 
@@ -473,7 +478,7 @@ hooks:
 
 `snapshot-verify` 获得冻结公开快照的一次性可写副本；副本销毁后重新摘要原快照，失败时还没有远端写入。`consumer-verify` 只在精确 npm 或 Claude/Codex 隔离安装成功后，从安装根执行；结果摘要进入 verify run，失败不得达到 VERIFIED。
 
-gate 与 legacy hook 都是没有网络沙箱的本地进程。在 `.release-skill/project.yaml` 中配置命令即完成授权，调用对应命令时直接执行，不再增加触发前确认点。旧参数 `--acknowledge-hook-side-effects` 和 `--acknowledge-gate-side-effects` 只作为无效果的兼容输入保留。release-skill 会限制环境、路径、超时和证据输出，但不能替项目保证命令不会写文件或访问网络。恢复触发前强制确认门属于后续设计变更，0.7.6 不提供该确认门。Git push、tag、默认分支、GitHub Release 和 npm publish 只能是冻结计划里的 adapter action，不能注册为 hook/gate。
+gate 与开发 hook 都是没有操作系统级网络沙箱的本地子进程。对未声明写或外部副作用的标准只读/内建检查钩子（`sideEffects` 缺省或为 `read-only`，且 `mutating` 未设为 `true`）及 `verificationGates`，在 `.release-skill/project.yaml` 中配置命令并调用工作流即完成授权，触发前不再增加确认点（旧参数 `--acknowledge-gate-side-effects` 仅作为无效果的兼容输入保留）。对显式声明了 `mutating: true` 或 `sideEffects: local-write | network-or-external` 的自定义有副作用钩子，`prepare` 与 `hooks validate` 会在启动任何子进程前披露完整命令、工作目录与影响范围，并强制要求显式传入 `--acknowledge-hook-side-effects` 放行；缺少该确认时以 `GATE_FAILED`（`HOOK_SIDE_EFFECTS_ACKNOWLEDGEMENT_REQUIRED`）阻断。Git push、tag、默认分支、GitHub Release 和 npm publish 只能作为冻结计划里的 adapter action 执行，严禁注册为 hook 或 gate。
 
 ### 4.2 首次接入 setup
 
@@ -566,8 +571,9 @@ profile 是预设的默认配置模板，提供常见发布拓扑的开箱配置
 10. gate id 唯一，unit/distribution scope 引用真实配置。
 11. 分支推进策略使用 bound 基线；默认分支初始化具备显式旧/新分支断言。
 12. 所有路径字段不包含 `<project-root>/` 前缀。
+13. 所有远端 Git URL、`marketplaceSource` 与 npm `registry` 严禁内嵌账号、密码或令牌凭据（如 `https://user:token@...`）；默认公开模式（未配置 `policy.sourcePolicy` 或 `mode: "public"` 时）始终严格锁定 `github.com` 与 `https://registry.npmjs.org`，`mode: "controlled-private"` 仅放行显式列入 `allowedGitHosts` 与 `allowedNpmRegistries` 白名单的受控内网源，且标记 `visibility: "private"` 的专有发布单元严禁混入公开分发目标。
 
-验证失败返回 `CONFIG_INVALID` 错误码，附带具体失败原因。
+验证失败返回 `CONFIG_INVALID` 错误码，附带具体失败原因（绝不回显含凭据的原始 URL）。
 
 ---
 
@@ -592,7 +598,7 @@ profile 是预设的默认配置模板，提供常见发布拓扑的开箱配置
 
 针对 reconcile 失败，仅核实 0.9.22 与 0.9.27 两个 writer 的两条旧记录，分别归属于 0.22.0 与 0.25.0 目标；其 `sourceRunId` 与 `sourceRunDigest` 必须与当前项目原父运行一致，子事件流须符合已审 writer 的完整必要前缀，且 `source-run-load passed` 与 `reconcile started` 必须指向同一父运行，每个 `actionId`/`actionType` 必须对应父计划原动作。仅在完整核验后，方可确认其真实目标并排除替代阻断，失败状态本身不构成零外写，也不赋予恢复、替代或 TEST 权威。
 
-针对 verify 失败，仅 0.9.7 与 0.9.12 两条记录可被用于核实真实目标归属，其唯一父引用取自真实 `source-run-load passed` 的 `sourceRunId`，不接受补造 `sourceRunDigest`，仅接受已核实 writer 的完整有限前后缀。通过当前项目原 `runs` 内父文件，复用 `loadRun`、现行计划 Schema、不可变计划路径、完整谱系与检查点映射，确认父运行 `PUBLISHED`，再根据父计划核实其为 `foundation-adoption-review@0.1.0`，与 0.28.0 不同。每个动作身份必须对应父计划；同目标、不完整父权威、未知阶段、关系冲突或矛盾仍拒。其中 0.9.7 实际执行过隔离消费者安装，包含 `execute` 及本地写入，不能声称“零 execute”或“零本地写入”，亦不得由此授予发布外写权限。verify 失败不构成 publish 零外写证明，不赋予发布、恢复、替代或 TEST 权威。
+针对 verify 失败，仅 0.9.7 与 0.9.12 两条记录可被用于核实真实目标归属，其唯一父引用取自真实 `source-run-load passed` 的 `sourceRunId`，不接受补造 `sourceRunDigest`，仅接受已核实 writer 的完整有限前后缀。通过当前项目原 `runs` 内父文件，复用 `loadRun`、现行计划 Schema、不可变计划路径、完整谱系与检查点映射，确认父运行 `PUBLISHED`，再根据父计划核实其目标发布单元与目标版本均不同于当前发布目标。每个动作身份必须对应父计划；同目标、不完整父权威、未知阶段、关系冲突或矛盾仍拒。其中 0.9.7 实际执行过隔离消费者安装，包含 `execute` 及本地写入，不能声称“零 execute”或“零本地写入”，亦不得由此授予发布外写权限。verify 失败不构成 publish 零外写证明，不赋予发布、恢复、替代或 TEST 权威。
 
 所有未知、损坏、矛盾、不连续、封口不符或关系冲突的历史记录一律不可用。原件不得删除、搬移、补字段或重建。自引用、环、多有效后继或坏后继均不得使旧计划复活。
 

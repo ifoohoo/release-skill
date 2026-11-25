@@ -2,7 +2,7 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.10.1 -->
+<!-- release-skill:release-version: 0.10.2 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
@@ -12,27 +12,29 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 发布单元是独立配置版本、公开文件和分发目标的发布对象。发布计划是供批准前审阅的记录，将目标版本、冻结产物和拟执行的外部动作关联起来；详见[人工审阅与批准步骤](#release-plan-review)。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.10.1** (2026-11-03)
+**0.10.2** (2026-11-25)
 
-0.10.1 修复在公开来源路径集合较大时，Git 来源脏状态检查因操作系统参数容量上限而无法启动的问题。该检查用于确认待发布来源文件已提交，现改为分批读取完整来源集合，确保检查过程可稳定执行。本版本不新增功能或共享 API，仅修复参数兼容性问题，版本号为 0.10.1，Foundation 三包精确使用 0.25.0。本版本不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.10.2 新增 Antigravity 第七宿主适配器投影、受控私有源白名单策略、离线归档包生成与核验命令，以及准备阶段底座依赖健康度分级预检与残留 workspace 协议拦截。版本号为 0.10.2，Foundation 三包精确使用 0.39.0。本版本不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- 本版继续沿用 Skill Family Hub 统一市场机制，通过 GitHub Git Data API 执行比较后写入（compare-and-swap）操作，绑定已观察分支头。部分发布不回滚、不覆盖。上述机制为既定边界，非本版新增能力，亦不改变原有发布授权与门禁策略。
+- 继续沿用 Skill Family Hub 统一市场机制，通过 GitHub Git Data API 执行比较后写入（compare-and-swap）绑定已观察分支头；部分发布不回滚、不覆盖，内嵌明文凭据的远端地址一律拒绝。
+
+**新增**
+
+- 支持 Antigravity 官方宿主描述符、根级 `plugin.json` 字段白名单校验与七宿主适配器投影；支持 `controlled-private` 受控私有源域名白名单、`bundle-offline` / `verify-offline` 离线归档包构建与逐字节核验，以及 `prepare` 阶段的底座依赖版本新旧与高危弃用风险预检。
 
 **修复**
 
-- 来源选择、冻结内容、摘要算法与协议保持不变。检查仍严格拒绝所选来源中任何暂存、未暂存、未跟踪或被忽略的改动，继续核对重命名与复制记录中的相关路径，并依据完整目录边界进行匹配。无关文件的改动允许保留。任一批次 Git 读取操作失败，即判定整项检查失败。Foundation 三包版本精确锁定为 0.25.0，不随本版升级。所有检查边界与行为规则沿用现有规范，未作扩展或变更。
+- 补齐默认公开源策略校验、打包前残留 `workspace:*` 依赖协议拦截、分布式状态机一致性核验及公开面专有路径清理，Foundation 三包继续精确锁定在 0.39.0。
 
 **升级说明**
 
-升级至 0.10.1 后，需使用新工具版本重新执行 `prepare` 命令，生成新候选。测试结果由测试接受职责方提供，不通过 `prepare` 生成结果文件。原有候选、结果、批准及运行记录予以保留，其 `writerVersion` 不得手动修改。原独立的 `release-skill` 市场已弃用，统一市场为 ifoohoo/skill-family-hub，插件标识为 release-skill@skill-family-hub。统一市场不取代 GitHub Release 或 npm 发布渠道。
+升级至 0.10.2 后，请用新版本重新运行 `prepare` 生成候选，并由测试验收职责方提供对应测试结果文件。原有候选、结果、批准及运行记录原样保留，不得手工改写 `writerVersion`。原独立的 `release-skill` 市场已弃用，统一市场为 ifoohoo/skill-family-hub，插件标识为 release-skill@skill-family-hub；统一市场不取代 GitHub Release 或 npm 发布渠道。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.10.1 的能力范围与验证边界见本 README，
-> 不代表已经发布、完成消费者安装验证或通过独立验收。
-> 版本可用性以对应发布记录及发布后验证结果为准。
+> **当前边界：** v0.10.2 的能力范围与验证边界见本 README，具体版本的发布状态与消费者安装验证结果以对应发布记录为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的真实生产发布，是首次生产验证的历史里程碑。
 > 该版本还从冻结 Git ref 完成精确 npm 安装及 Claude/Codex 消费者安装验证。
@@ -42,11 +44,11 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 协议级 fake。该套件没有
 > 提供 OS 级网络隔离，也不能证明其他项目的认证、权限、限流和最终一致性行为
 > 与本次发布相同；每个项目的第一次生产发布仍应作为受监控 canary。
-> `prepare --online` 观察 bound 前序公开基线，漂移或不可观察时失败关闭；
+> `prepare --online` 会核对已绑定（bound）的前序公开基线，一旦发现漂移或无法读取远端基线便异常即拦截；
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.10.1 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.10.2 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**
@@ -74,7 +76,7 @@ Skill Family Hub 仍是唯一市场来源。
 当前仍不包含 R-02 安全整树盘点。市场安装与真实调用继续作为各宿主的发布后检查；Cursor
 通过其支持的本机插件目录分发，不进入 Hub 市场条目。本范围说明不构成远端发布记录或消费者升级指引。
 
-Foundation 三包精确依赖已发布的 0.25.0。仍采用 bundled-family 分发形态的
+Foundation 三包精确依赖已发布的 0.39.0。仍采用 bundled-family 分发形态的
 Kimi/CodeBuddy 计划会在 verify 阶段调用正式 `runPluginVerification`，把完整冻结载荷
 交给 Foundation，并记录最小的 `install-only` 观察收据。Kimi 映射为 `kimi-code`，
 CodeBuddy 映射为兼容的 `workbuddy`。`observed` 与 `payloadMatches` 只表示机制观察结果，
@@ -83,7 +85,7 @@ CodeBuddy 映射为兼容的 `workbuddy`。`observed` 与 `payloadMatches` 只�
 
 <!-- release-skill:maturity:distribute-v1 -->
 <!-- release-skill:capability:distribute -->
-> **分发能力 v1.0（W2 完成）：** postPublish 分发作为独立的 `distribute` 命令可用，支持镜像和 Marketplace 索引动作。`publish` 达到 PUBLISHED 状态后，可运行 `ship distribute` 或手动调用 `release-skill distribute --plan <path> --approval <path> --json`。分发动作实现 fail-closed 语义：空差异时 NO_CHANGE（不创建 commit/tag/push），tag 移动尝试时 REMOTE_CONFLICT（永不 force-push），外部写未授权时 AUTH_MISSING。支持的模式：`--dry-run`（仅本地提交+tag）、`--json`（结构化输出）、`--help`（命令参考）。标签承诺保证版本一致性——分发的 plugin.json.version 必须与输入 tag 匹配。详见 [docs/design/2026-08-17-postpublish-distribution.md](../../docs/design/2026-08-17-postpublish-distribution.md) 中的架构说明。
+> **分发能力 v1.0（W2 完成）：** postPublish 分发作为独立的 `distribute` 命令可用，支持镜像和 Marketplace 索引动作。`publish` 达到 PUBLISHED 状态后，可运行 `ship distribute` 或手动调用 `release-skill distribute --plan <path> --approval <path> --json`。分发动作遵循异常即拦截原则：空差异时 NO_CHANGE（不创建 commit/tag/push），tag 移动尝试时 REMOTE_CONFLICT（永不 force-push），外部写未授权时 AUTH_MISSING。支持的模式：`--dry-run`（仅本地提交+tag）、`--json`（结构化输出）、`--help`（命令参考）。标签承诺保证版本一致性——分发的 plugin.json.version 必须与输入 tag 匹配。详见 [docs/design/2026-08-17-postpublish-distribution.md](../../docs/design/2026-08-17-postpublish-distribution.md) 中的架构说明。
 <!-- release-skill:capability:distribute -->
 
 <!-- release-skill:maturity:postpublish-hooks-v2 -->
@@ -111,8 +113,8 @@ CodeBuddy 映射为兼容的 `workbuddy`。`observed` 与 `payloadMatches` 只�
 > `notify-handoff`（以 `hooks` 形态声明）。`proposal-inbox` 通过 git-push 或
 > local-file 传输投递机器可读更新提案，并记录送达结果。接收端按照接收端自己的 runbook
 > 和治理要求应用、渲染并公开同步；送达成功不证明这些接收端步骤已经完成。未声明 target 时
-> 退化为 `notify-handoff` 行为而非报错。`notify-handoff` 是零写地板：
-> 只渲染确定性的人工同步清单。
+> 退化为 `notify-handoff` 行为而非报错。`notify-handoff` 是零写入兜底模式：
+> 不执行任何外部写入，只生成确定性的人工同步清单。
 <!-- release-skill:capability:postpublish-presets -->
 
 <!-- release-skill:capability:postverify-stage -->
@@ -129,7 +131,7 @@ CodeBuddy 映射为兼容的 `workbuddy`。`observed` 与 `payloadMatches` 只�
 > `help` 与 `assess` 只读；`prepare --offline` 中由 release-skill 自身控制的部分只写
 > `.release-skill/`，且不调用远端发布适配器。但配置的 hook 和 gate 是无操作系统沙箱的进程，
 > 可以写出项目目录、访问凭据、发起网络请求或执行远端发布。只有未配置这些进程，或已单独审计并
-> 显式确认其副作用时，才可以把 `prepare` 视为”仅本地”。生产发布使用
+> 显式确认其副作用时，才可以把 `prepare` 视为“仅本地”。生产发布使用
 > `ship --target-version <ver> → ship --approve --actor <name>`。
 > 正常发布级流程只有一次人工批准：批准冻结计划。
 > 这里的“唯一”仅指正常发布级流程。
@@ -221,7 +223,12 @@ TUI 路径，见 [INSTALL.zh-CN.md](INSTALL.zh-CN.md#安装为-kimi-code-插件)
 并显式传入 `--cursor-plugins-root`。旧版保存在 `local/` 外；重启后的加载和技能调用
 另行验证。操作说明见[Cursor 本地插件安装](INSTALL.zh-CN.md#安装为-cursor-本地插件)。
 
-CodeBuddy、Codex、Kimi Code、Qoder 和 Cursor 的完整命令见 [INSTALL.zh-CN.md](INSTALL.zh-CN.md)。
+**Antigravity：** 包根提供符合官方 10 字段白名单的 `plugin.json`，并在
+`adapters/antigravity/` 下产出完整的自包含插件目录（含根目录 `plugin.json`、`skills/`、
+`bin/`、`schemas/` 与 `native/`；不写入 `license` 或 `skills` 字段，技能由宿主从
+`skills/<name>/SKILL.md` 自动发现）。说明见[Antigravity 插件安装](INSTALL.zh-CN.md#安装为-antigravity-插件)。
+
+CodeBuddy、Codex、Kimi Code、Qoder、Cursor 和 Antigravity 的完整命令见 [INSTALL.zh-CN.md](INSTALL.zh-CN.md)。
 
 ### 只读治理诊断
 
@@ -650,7 +657,7 @@ hooks:
     envAllowlist: []
 ```
 
-hook 在 `prepare` 调用时运行；配置命令并调用工作流即授权执行，不再增加触发前确认点。旧参数 `--acknowledge-hook-side-effects` 和 `--acknowledge-gate-side-effects` 只作为无效果的兼容输入保留。gate 是发布校准的受控扩展点（见 `references/02-project-config.md`）。
+hook 在 `prepare` 调用时运行：对常规只读/内建钩子，配置命令并调用工作流即授权执行，不再增加触发前确认点（旧参数 `--acknowledge-gate-side-effects` 只作为无效果的兼容输入保留）；若自定义钩子显式声明了 `mutating: true` 或非只读 `sideEffects`（`local-write` / `network-or-external`），CLI 会在启动子进程前披露完整命令与影响范围，并强制要求 `--acknowledge-hook-side-effects` 显式放行。gate 是发布校准的受控扩展点（见 `references/02-project-config.md`）。
 
 ### postPublish hook
 
@@ -718,6 +725,8 @@ release-skill ship --root "$PROJECT" --hook-approval "$HOOK_APPROVAL_PATH" --jso
 | `codex-plugin` | `adapters/codex/` 下的自包含闭包 | 自动化 marketplace 检查点 |
 | `kimi-plugin` | 自包含闭包（release-skill 无可脚本化安装接口接入） | 发布后非阻塞人工任务 |
 | `codebuddy-plugin` | 生成的 `adapters/workbuddy/`，带 `.codebuddy-plugin/plugin.json` | 发布后非阻塞人工任务 |
+| `cursor-plugin` | 生成的 `adapters/cursor/`，带 `.cursor-plugin/plugin.json` | Foundation 宿主核验桥（`cursor`） |
+| `antigravity-plugin` | 生成的 `adapters/antigravity/`，根目录自带 10 字段白名单 `plugin.json` | Foundation 宿主核验桥（`antigravity`） |
 
 Qoder 不属于上表的 `distributions` 类型。它是 `adapters/qoder/` 下的 build-only
 公开投影，根清单为 `.qoder-plugin/plugin.json`；发布计划不会因此新增 `qoder-plugin`
@@ -779,18 +788,28 @@ GitHub Release 和受控终端交互，保留三个代理变量；只有仓库 U
 - 不承诺 Windows 或广泛的跨平台原生写入；
 - 不会隐藏地 commit、push、打 tag、创建 Release 或发布包。
 
+## 未发布计划替代与生命周期风险退出
+
+- **替代未发布计划（`--replace-unpublished-plan`）**：仅在生产 `testIntake` 路径下启用。当同一项目、相同发布单元集合、目标版本与外部目标下的旧正式计划仍停留在 `PREPARED` 且从未产生任何运行记录时，可预先配置独立的 `resultFile` 并运行 `prepare --production --replace-unpublished-plan <old-plan-path>` 生成绑定前驱摘要（`replacesPlanDigest`）的新候选，再经 `--candidate <path>` 续接核收。新正式计划原子写入成功后，旧计划与旧批准自动失效；已进入 `PARTIAL`、`PUBLISHED` 或 `VERIFIED` 的计划一律走原有恢复谱系，禁止通过替代绕过。
+- **版本风险退出与整族退役（`deprecate` / `retire`）**：已发布版本事后暴露严重缺陷或整族停止维护时，不得删标签或覆盖远端历史，而应运行离线零远端写入的治理子命令生成本地收据（`advisory-receipt.json`）、消费者迁移与回退指南（`migration-guide.md`）以及面向 `skill-family-hub` 的市场提案（`hub-proposal.json`）：
+
+```bash
+# 单版本风险退出与消费端回退通告（离线本地生成，支持 --dry-run）
+release-skill deprecate --root <path> --unit <id> --target-version <semver> \
+  --severity high --reason "<风险原因>" --fallback-version <safe-semver> --actor <name> --offline
+
+# 整族退役与市场下架提案
+release-skill retire --root <path> --unit <id> --severity medium \
+  --reason "<退役原因>" --superseded-by <replacement-plugin> --actor <name> --offline
+```
+
+- **受控私有源白名单与离线归档分发（`policy.sourcePolicy` / `bundle-offline` / `verify-offline`）**：默认公开模式严格锁定 `github.com` 与 `https://registry.npmjs.org`，零放宽；面向企业内网 GitLab / Gitea 与私有 npm Registry 分发专有技能族时，须在 `policy.sourcePolicy` 中显式开启 `mode: "controlled-private"` 并配置 `allowedGitHosts`、`allowedNpmRegistries` 白名单，任何内嵌账号密码或令牌的 URL（`https://user:token@...`）以及将 `visibility: "private"` 单元混入公开目标的配置都会立即阻断。针对无外网或强代理内网机器，可将自包含离线载荷、逐文件 SHA-256 清单 `offline-manifest.json`、本地市场索引片段与中文安装说明 `OFFLINE-INSTALL.md` 导出至受检仓库根之外，并在安装前离线逐字节核验：
+
+```bash
+release-skill bundle-offline --root <path> --unit <id> --output-dir <仓库外空目录> --offline
+release-skill verify-offline --bundle-dir <仓库外空目录> --unit <id> --target-version <semver>
+```
+
 ## 许可证
 
 Apache License 2.0，见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。
-
-## 0.9.38：替代未发布计划
-
-本功能适用于同一项目、相同发布单元ID集合、目标版本及外部目标下，旧正式计划处于 `PREPARED` 状态且未产生任何发布运行权威的场景。仅在生产环境的 `testIntake` 入口启用，用于显式替代尚未发布的正式计划。已有首个运行状态，或处于 `PARTIAL`、`PUBLISHED`、`VERIFIED` 的计划，不属于这一例外。替代不代表发布成功或独立验收。
-
-替代操作必须预先配置另一个固定 `resultFile`，保留旧要求、判据、结果、候选及引用原件在原路径、原摘要下可核验；新结果不能覆盖旧结果，也不能根据尚未形成的 `subjectDigest` 命名配置造成循环依赖。旧原件缺失或变化即拒绝，不从新文件重建旧依据。0.9.38 必须重新生成本版候选，不豁免 0.9.37 的 `writerVersion` 检查。原接受方需重新判断适用性；字节相同不自动通过。
-
-执行替代需在首次 `prepare` 阶段显式指定 `--replace-unpublished-plan <path>`，其中 `<path>` 必须指向当前项目 `.release-skill/plans/<digest>.json` 中的不可变旧正式计划。该参数仅接受与当前项目、单元、版本和外部目标完全一致的旧计划，禁止用于切换仓库、分支、npm包或发布渠道。首次保存的新候选将在 `prepared` 根部携带可选字段 `replacesPlanDigest`，其值为旧正式计划摘要，并沿用原 `computePlanDigest` 机制进入对象、计划与批准绑定层。若未设置该字段，则保持原有摘要与行为逻辑，候选版本及计划版本不另起协议。后续使用 `--candidate <path>` 续接，前驱已在候选中冻结，不可事后补写；若重复提供选择参数，必须与冻结前驱一致，否则拒绝。
-
-替代生效的唯一条件是：有效新正式计划成功排他原子写入原 `plans/<digest>.json`。写入前失败则不生效；写入后，即使最新计划指针、FROZEN 标记或证据封口失败，也不能恢复旧计划的可发布状态，必须保留失败记录并沿原幂等路径续接核对新权威。新批准仅绑定新计划，旧批准不可跨用。`approve`、`publish` 及其 `ship` 调用均不得继续处理已替代计划，`reconcile` 仍需具备原 `PARTIAL` 源和完整运行谱系，不能将无权威诊断视为恢复输入。
-
-替代操作不放宽来源提交与远端 main 的精确相等要求、`TEST` 状态、远端冲突或批准门限制。继续精确执行 Foundation 0.25.0 机制，目标归属由 Release Skill 领域责任判断，不依赖目录名、时间或错误文本推断。本轮未删除或重命名产品能力，替代仅作用于符合条件的运行计划。未发布候选或本地自测不代表发布成功，亦不构成独立验收。所有操作均基于 0.9.38 支持入口，不能撤销任意旧软件或绕过现有协议。

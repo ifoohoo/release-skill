@@ -26,6 +26,8 @@
  *
  * @module artifacts/adoption
  */
+// @decision D-RS-004
+// @feature REL003
 
 import {
   ReleaseError,

@@ -35,8 +35,8 @@ description: "从已批准的生产计划发布冻结 Git branch/tag、npm tarba
 - `help` → 无变更，无需 publish  
 
 > **注意**：`release-publish` 是标准工作流中的第⑦步，必须在以下步骤之后执行：  
-> - 步骤⑤：`release-prepare`（或轻量级 prepare）  
-> - 步骤⑥：`release-approve`（非过期 approval record）
+> - 步骤⑤：`release-prepare`（生产正式计划须使用 `--online --production`）  
+> - 步骤⑥：`release-skill approve`（非过期 approval record）
 
 接收已有冻结计划时沿原合同执行，不回头追加接入义务。仅当本入口转入新一轮生产准备时，才按 `release-prepare` 同一完整流程核对 `testIntake`：若缺失，则说明缺项并默认推动 `skill-family-test:skill-family-test-plan`，再在授权范围内调用 `skill-family-test:skill-family-test-run`，由 TEST 组织检查并交回结果。跳过须先明确征询，再依据本轮适用且范围匹配的明确同意决定。沉默、拒绝、仅普通发布预授权、旧轮次、其他项目、版本或范围不匹配均不可跳过。本轮匹配答复可复用。不得把跳过写成测试已达标，也不得用跳过清除已声明的适用要求。只读、非生产准备不新增接入义务。直接非交互 CLI 仍接受可选 `testIntake`，不新增选择参数。答复与适用范围记入既有任务或执行计划。未完成接入且无有效跳过时，不进入新一轮正式 prepare。
 
@@ -48,11 +48,11 @@ description: "从已批准的生产计划发布冻结 Git branch/tag、npm tarba
 
 ## 授权门
 
-1. 读取本次批准所绑定的不可变计划，按其中实际存在的 `units`、`externalActions`、`waivers` 和 `postPublish` 整理并展示人可读批准摘要。版本、公开仓库、分支策略、branch/tag、npm 与 GitHub Release 目标、全部 actions、例外，以及需要独立 checkpoint 批准的 postPublish hook，仅展示计划中已写入的值；未出现字段保持缺失，不猜测。  
-2. 必须存在未过期且由系统绑定同一内部 digest 的 approval record；批准后不再要求用户复制摘要做二次确认。  
-3. 只有 CLI exit code 0 且结构化状态为 `PUBLISHED` 才算外写阶段通过；随后必须运行 `release-verify`，只有 `VERIFIED` 才是完整终态。
+1. 读取本次批准所绑定的不可变计划（`plans/<planDigest>.json`），按其中实际写入的 `units`、`externalActions`、`waivers` 与 `postPublish` 整理清晰的人类可读批准摘要：逐项列出版本、公开仓库、分支策略、`branch` / `tag`、npm 与 GitHub Release 目标、全部外部动作、豁免项，以及需要独立检查点批准的 `postPublish` 钩子；计划未出现的字段保持缺失，绝不猜测。  
+2. 必须持有未过期（最长 24 小时有效期）且由系统绑定同一内部 `planDigest` 与显式动作清单（`approvedActions`）的 `approval-record.json`；批准后不再要求维护者手动复制哈希做二次确认。  
+3. 只有 CLI 退出码为 `0` 且结构化状态为 `PUBLISHED` 时，外写阶段才算完成；随后必须衔接 `release-verify`，只有达成 `VERIFIED` 才是完整发布终态。
 
-冻结计划批准是正常发布级流程的唯一批准门。它包含计划内的外部动作和验证门禁，不包含有效 `requiresApproval: true` 的 postPublish checkpoint。此类 hook 仍须使用绑定 `(planDigest, hookId)` 且最长有效 24 小时的独立批准记录。
+冻结计划批准是常规发布级流程的唯一批准门，覆盖计划内的外部动作与验证门禁，但不覆盖有效 `requiresApproval: true` 的 `postPublish` 检查点——该类钩子必须持有绑定 `(planDigest, hookId)` 且最长有效 24 小时的独立检查点批准记录。
 
 ## 确定性执行
 

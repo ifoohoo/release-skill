@@ -18,6 +18,13 @@
       "scope": "project",
       "anchor": "project-root",
       "relPath": "skills"
+    },
+    {
+      "id": "workbuddy-project-skills",
+      "role": "skill-root",
+      "scope": "project",
+      "anchor": "project-root",
+      "relPath": ".workbuddy/skills"
     }
   ],
   "probeCapabilities": [

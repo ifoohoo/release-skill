@@ -32,6 +32,8 @@
         "APPROVED",
         "PUBLISHING",
         "PUBLISHED",
+        "DISTRIBUTING",
+        "DISTRIBUTED",
         "VERIFIED",
         "NEEDS_INPUT",
         "BLOCKED",
@@ -405,7 +407,8 @@
                     "kimi-plugin",
                     "codebuddy-plugin",
                     "qoder-plugin",
-                    "cursor-plugin"
+                    "cursor-plugin",
+                    "antigravity-plugin"
                   ]
                 },
                 "package": {
@@ -587,7 +590,10 @@
                   "additionalProperties": false,
                   "properties": {
                     "hostId": {
-                      "const": "cursor"
+                      "enum": [
+                        "cursor",
+                        "antigravity"
+                      ]
                     },
                     "payloadDigest": {
                       "type": "string",
@@ -679,7 +685,10 @@
                   "if": {
                     "properties": {
                       "type": {
-                        "const": "cursor-plugin"
+                        "enum": [
+                          "cursor-plugin",
+                          "antigravity-plugin"
+                        ]
                       }
                     }
                   },
@@ -1397,7 +1406,7 @@
     },
     "testAcceptance": {
       "type": "object",
-      "description": "Binding-layer acceptance of pre-freeze test requirements. Included in the plan digest. Not a record-layer field.",
+      "description": "冻结前测试需求的绑定层核收记录（纳入计划摘要计算，非记录层字段）。",
       "additionalProperties": false,
       "required": [
         "formatVersion",
@@ -1416,6 +1425,11 @@
         "requirements": { "$ref": "#/definitions/testFileRef" },
         "result": { "$ref": "#/definitions/testFileRef" },
         "acceptedRequirementIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "skippedOptionalRequirementIds": {
           "type": "array",
           "uniqueItems": true,
           "items": { "type": "string", "minLength": 1 }

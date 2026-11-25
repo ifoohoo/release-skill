@@ -7,7 +7,7 @@
   "additionalProperties": false,
   "required": ["schemaVersion", "kind", "operationId", "root", "rootBinding", "recoveryRelPath", "allowAdjacentStaging", "environment", "validationTimeoutMs", "operations"],
   "properties": {
-    "schemaVersion": { "const": 1 },
+    "schemaVersion": { "enum": [1, 2] },
     "kind": { "const": "skill-family.file-set-apply-request" },
     "operationId": { "$ref": "#/$defs/operationId" },
     "root": { "$ref": "#/$defs/root" },
@@ -18,18 +18,20 @@
     "validationTimeoutMs": { "type": "integer", "minimum": 1, "maximum": 2147483647 },
     "operations": {
       "type": "array", "minItems": 1, "maxItems": 1024, "uniqueItems": true,
-      "items": { "$ref": "#/$defs/operation" }
+      "items": { "oneOf": [{ "$ref": "#/$defs/operation" }, { "$ref": "#/$defs/windowsOperation" }] }
     }
   },
   "$defs": {
     "operationId": { "type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" },
-    "root": { "type": "string", "pattern": "^/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[\\\\\\u0000])(?:[^/]+(?:/[^/]+)*)?$" },
+    "posixRoot": { "type": "string", "pattern": "^/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[\\\\\\u0000])(?:[^/]+(?:/[^/]+)*)?$" },
+    "windowsRoot": { "type": "string", "pattern": "^[A-Za-z]:/(?:[^/\\\\:*?\"<>|\\u0000]+/)*[^/\\\\:*?\"<>|\\u0000]+$" },
+    "root": { "oneOf": [{ "$ref": "#/$defs/posixRoot" }, { "$ref": "#/$defs/windowsRoot" }] },
     "path": { "type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)(?:\\.|\\.\\.|\\.git|\\.foundation-file-apply)(?:/|$))(?!.*[\\\\\\u0000])[^/]+(?:/[^/]+)*$" },
     "environment": {
       "type": "object", "additionalProperties": false,
       "required": ["filesystem", "cooperativeWriters"],
       "properties": {
-        "filesystem": { "enum": ["apfs", "ext4"] },
+        "filesystem": { "enum": ["apfs", "ext4", "ntfs"] },
         "cooperativeWriters": { "const": true }
       }
     },
@@ -73,6 +75,90 @@
         { "if": { "properties": { "action": { "const": "replace" } }, "required": ["action"] }, "then": { "properties": { "expected": { "$ref": "#/$defs/present" }, "next": { "$ref": "#/$defs/next" } } } },
         { "if": { "properties": { "action": { "const": "delete" } }, "required": ["action"] }, "then": { "properties": { "expected": { "$ref": "#/$defs/present" }, "next": { "type": "null" } } } }
       ]
+    },
+    "windowsPermissionObservation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "attributes", "securityDigest"],
+      "properties": {
+        "kind": { "const": "windows-security-v1" },
+        "attributes": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+        "securityDigest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "windowsInherited": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind"], "properties": { "kind": { "const": "windows-inherited" } }
+    },
+    "windowsPreserve": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind"], "properties": { "kind": { "const": "windows-preserve" } }
+    },
+    "windowsNextCreate": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sha256", "size", "permissions"],
+      "properties": {
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "size": { "$ref": "#/$defs/size" },
+        "permissions": { "$ref": "#/$defs/windowsInherited" }
+      }
+    },
+    "windowsNextReplace": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sha256", "size", "permissions"],
+      "properties": {
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "size": { "$ref": "#/$defs/size" },
+        "permissions": { "$ref": "#/$defs/windowsPreserve" }
+      }
+    },
+    "windowsPresent": {
+      "type": "object", "additionalProperties": false,
+      "required": ["exists", "sha256", "size", "permissions"],
+      "properties": {
+        "exists": { "const": true },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "size": { "$ref": "#/$defs/size" },
+        "permissions": { "$ref": "#/$defs/windowsPermissionObservation" }
+      }
+    },
+    "windowsOperation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "action", "expected", "next"],
+      "properties": {
+        "path": { "$ref": "#/$defs/path" },
+        "action": { "enum": ["create", "replace", "delete"] },
+        "expected": { "oneOf": [{ "$ref": "#/$defs/absent" }, { "$ref": "#/$defs/windowsPresent" }] },
+        "next": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/windowsNextCreate" }, { "$ref": "#/$defs/windowsNextReplace" }] }
+      },
+      "allOf": [
+        { "if": { "properties": { "action": { "const": "create" } }, "required": ["action"] }, "then": { "properties": { "expected": { "$ref": "#/$defs/absent" }, "next": { "$ref": "#/$defs/windowsNextCreate" } } } },
+        { "if": { "properties": { "action": { "const": "replace" } }, "required": ["action"] }, "then": { "properties": { "expected": { "$ref": "#/$defs/windowsPresent" }, "next": { "$ref": "#/$defs/windowsNextReplace" } } } },
+        { "if": { "properties": { "action": { "const": "delete" } }, "required": ["action"] }, "then": { "properties": { "expected": { "$ref": "#/$defs/windowsPresent" }, "next": { "type": "null" } } } }
+      ]
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "schemaVersion": { "const": 1 } }, "required": ["schemaVersion"] },
+      "then": {
+        "properties": {
+          "root": { "$ref": "#/$defs/posixRoot" },
+          "rootBinding": { "type": "object", "properties": { "basis": { "const": "canonical-realpath-device-inode-type-mode-v1" } } },
+          "environment": { "type": "object", "properties": { "filesystem": { "enum": ["apfs", "ext4"] } } },
+          "operations": { "type": "array", "items": { "$ref": "#/$defs/operation" } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "schemaVersion": { "const": 2 } }, "required": ["schemaVersion"] },
+      "then": {
+        "properties": {
+          "root": { "$ref": "#/$defs/windowsRoot" },
+          "rootBinding": { "type": "object", "properties": { "basis": { "const": "canonical-finalpath-volume-fileid-type-security-v1" } } },
+          "environment": { "type": "object", "properties": { "filesystem": { "const": "ntfs" } } },
+          "operations": { "type": "array", "items": { "$ref": "#/$defs/windowsOperation" } }
+        }
+      }
+    }
+  ]
 }

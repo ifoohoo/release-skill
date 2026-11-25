@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/public-boundary-declaration.json",
+  "title": "PublicBoundaryDeclaration",
+  "description": "Public release boundary declaration (audit SG-17). Declares the boundary between the public release file set and the internal working set of a project: the public roots under which public files may live, the files that are explicitly public, the paths that must be present in the release set, and the paths that must never enter it. Mechanical verification (required paths present, forbidden paths absent, no undeclared file under a public root) is performed by the engineering-kit public-boundary check against the actual file set; this contract freezes only the declaration shape.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "declarationId",
+    "declaredVersion",
+    "publicRoots",
+    "requiredPaths",
+    "forbiddenPaths",
+    "publicFiles"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.public-boundary-declaration" },
+    "declarationId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "description": "Stable kebab-case identifier of this boundary declaration."
+    },
+    "declaredVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Release version this boundary declaration applies to."
+    },
+    "publicRoots": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+      },
+      "description": "Project-root-relative POSIX directory roots; only files under these roots may belong to the public release set."
+    },
+    "requiredPaths": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+      },
+      "description": "Paths that must exist in the release set; a missing required path is a boundary violation."
+    },
+    "forbiddenPaths": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+      },
+      "description": "Paths that must never enter the public release set; presence of a forbidden path is a boundary violation."
+    },
+    "publicFiles": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+      },
+      "description": "Explicit enumeration of the public files. Any file under a public root that is not listed here is an undeclared leak."
+    },
+    "note": {
+      "type": "string",
+      "description": "Optional human rationale; not consumed mechanically."
+    }
+  }
+}

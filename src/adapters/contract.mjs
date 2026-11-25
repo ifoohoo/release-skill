@@ -12,6 +12,8 @@
  *
  * @module adapters/contract
  */
+// @decision D-RS-002
+// @decision D-RS-003
 
 import { dirname, basename } from 'node:path';
 

@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/platform-difference-registry.json",
+  "title": "PlatformDifferenceRegistry",
+  "description": "Platform difference registry (audit SG-08, clause PSG-02). Records how each supported platform differs across the seven mandatory dimensions: directory, manifest, discovery, invocation, internalIsolation, capabilityGaps, degradationConditions. Degradation entries may only express platform implementation differences or an unverified state; they must never lower the primary platform's status and must never loosen the common business semantics. Aligned with the audit-side platform-difference-registry contract; this foundation object freezes the same seven-dimension shape under the foundation envelope.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "primaryPlatforms",
+    "requiredDimensions",
+    "platforms"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.platform-difference-registry" },
+    "description": { "type": "string" },
+    "primaryPlatforms": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "requiredDimensions": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "directory",
+          "manifest",
+          "discovery",
+          "invocation",
+          "internalIsolation",
+          "capabilityGaps",
+          "degradationConditions"
+        ]
+      }
+    },
+    "platforms": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "$ref": "#/$defs/platformEntry" }
+    },
+    "registryDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "sha256 hex of the canonical JSON of all top-level fields except registryDigest itself."
+    },
+    "thirdPartyNotes": { "type": "string" },
+    "thirdPartyContract": {
+      "type": "string",
+      "description": "Path or $id reference by which a third-party instance points at this contract."
+    }
+  },
+  "$defs": {
+    "platformEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "platformId",
+        "primaryPlatform",
+        "directory",
+        "manifest",
+        "discovery",
+        "invocation",
+        "internalIsolation",
+        "capabilityGaps",
+        "degradationConditions"
+      ],
+      "properties": {
+        "platformId": { "type": "string", "minLength": 1 },
+        "primaryPlatform": { "type": "boolean" },
+        "lowersPrimaryPlatformStatus": {
+          "const": false,
+          "description": "Must be false: a difference entry may never lower the primary platform's status."
+        },
+        "loosensCommonBusinessSemantics": {
+          "const": false,
+          "description": "Must be false: a difference entry may never loosen the common business semantics."
+        },
+        "directory": { "type": "string", "minLength": 1 },
+        "manifest": { "$ref": "#/$defs/dimensionFact" },
+        "discovery": { "$ref": "#/$defs/dimensionFact" },
+        "invocation": { "$ref": "#/$defs/dimensionFact" },
+        "internalIsolation": { "$ref": "#/$defs/dimensionFact" },
+        "capabilityGaps": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "degradationConditions": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "dimensionFact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "minLength": 1 },
+        "format": { "type": "string" },
+        "mechanism": { "type": "string" }
+      }
+    }
+  }
+}

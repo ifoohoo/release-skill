@@ -19,24 +19,17 @@ description: Post-publish verification including remote state recheck, exact npm
 
 ## 当前状态
 
-verify 是发布流程的最终验证阶段，是唯一能将状态提升到 `VERIFIED` 的命令。
-它执行远端状态重检、精确 npm 安装烟雾测试和消费者插件安装验证。
-verify 只接受 `PUBLISHED` 状态的源 run；`VERIFIED` 是终态，不会再次派生运行。
+`release-verify` 是发布流水线的终态核验门，也是唯一能将状态推进到 `VERIFIED` 的入口：它重新核对远端分支/标签/Release 状态，并在全新隔离环境中完成精确版本的 npm 安装烟雾检查与插件市场消费者安装核验。`verify` 只接收 `PUBLISHED` 状态的源运行记录（`--run`）；达成 `VERIFIED` 后状态即封口，不再派生后续发布运行。
 
-计划声明 `postVerify` hook 时，`postverify` 命令负责执行独立的收尾阶段。它接收
-`VERIFIED` verify run、同一计划的 approval，以及逐个传入的 checkpoint approval，
-然后原样调用现有 `postVerifyRelease`。该命令产生独立的 `postverify` run，不读取或写入
-ship state；hook approval 缺失、错误或过期时，在 hook 执行前失败关闭。
+若冻结计划声明了 `postVerify` 钩子，则在 `VERIFIED` 之后由独立的 `postverify` 命令承接执行：传入该 `VERIFIED` 运行记录、同一计划批准记录，以及逐项绑定的检查点批准记录（`--hook-approval`），生成独立的 `postverify` 运行目录，绝不读写 `ship` 状态文件；任何检查点批准缺失、不匹配或过期，都会在启动钩子前失败关闭。
 
-**注意**: distribute gate (W1) 已经实现并集成在标准 verify 流程中。verify 现在会检查 postPublish 分发状态（git mirror + marketplace index），只有当所有外部动作都完成并通过验证时才达到 VERIFIED。
+`distribute` 门禁已集成在标准核验链中：`verify` 会同步校验 `postPublish` 分发目标（Git 镜像仓库与市场索引）的完成状态，所有外部动作均落定并通过核验后才写入 `VERIFIED`。若已达 `VERIFIED` 的历史版本事后发现严重回归风险，应使用 `release-skill deprecate`（单版本回退引导）或 `release-skill retire`（整族退役下架）离线生成通告收据、迁移说明与市场提案，绝不篡改既有 `VERIFIED` 记录。
 
-**工作流兼容性**:
-- `docs-only`: consumer-verify preserved (步骤⑧)
-- `config-only`: scene B completes full chain including verify
-- `marketplace-only`: delegates to workspace's exclusive skill for final verification
-- `full-happy-end`: standard complete path with all gates
-
-所有工作流 profile 最终都路由到此 verify 命令作为终态验证门。
+**各工作流终态衔接**：
+- `docs-only`：保留消费者安装核验（步骤⑧）
+- `config-only`：公开字节有变化的场景 B 走完包含 `verify` 的完整链条
+- `marketplace-only`：委托目标市场工作区自有发布技能完成最终核验
+- `full-happy-end`：运行全套门禁的标准路径
 
 ## 职责与边界
 

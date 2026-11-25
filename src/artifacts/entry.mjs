@@ -10,6 +10,8 @@
  *
  * @module artifacts/entry
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import { lstat, readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';

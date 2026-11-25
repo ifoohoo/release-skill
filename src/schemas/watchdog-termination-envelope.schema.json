@@ -16,7 +16,7 @@
     "evidence"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
+    "schemaVersion": { "enum": [1, 2] },
     "kind": { "const": "skill-family.watchdog-termination-envelope" },
     "ok": { "type": "boolean" },
     "exitStatus": { "type": "integer", "minimum": 0 },
@@ -97,8 +97,8 @@
             "required": ["signal", "requestedMode"],
             "properties": {
               "signal": { "type": "string" },
-              "requestedMode": { "enum": ["process_group", "child_process"] },
-              "successfulMode": { "enum": ["process_group", "child_process"] }
+              "requestedMode": { "enum": ["process_group", "child_process", "job_object"] },
+              "successfulMode": { "enum": ["process_group", "child_process", "job_object"] }
             }
           }
         },
@@ -123,6 +123,18 @@
         "residualGroupCleanupCompleted": { "type": "boolean" },
         "outputByteLimits": { "$ref": "#/$defs/outputByteLimits" },
         "outputLimitExceeded": { "enum": ["stdout", "stderr", null] },
+        "windowsJob": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["associatedBeforeResume", "terminationRequested", "activeProcessZeroObserved", "handleClosed", "cleanupCompleted"],
+          "properties": {
+            "associatedBeforeResume": { "type": "boolean" },
+            "terminationRequested": { "type": "boolean" },
+            "activeProcessZeroObserved": { "type": "boolean" },
+            "handleClosed": { "type": "boolean" },
+            "cleanupCompleted": { "type": "boolean" }
+          }
+        },
         "guarantees": {
           "type": "array",
           "minItems": 1,
@@ -141,6 +153,58 @@
       }
     }
   },
+  "allOf": [
+    {
+      "if": { "properties": { "schemaVersion": { "const": 1 } }, "required": ["schemaVersion"] },
+      "then": {
+        "properties": {
+          "evidence": {
+            "type": "object",
+            "properties": {
+              "windowsJob": false,
+              "signalSequence": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "requestedMode": { "enum": ["process_group", "child_process"] },
+                    "successfulMode": { "enum": ["process_group", "child_process"] }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "schemaVersion": { "const": 2 } }, "required": ["schemaVersion"] },
+      "then": {
+        "properties": {
+          "evidence": {
+            "type": "object",
+            "required": ["windowsJob"],
+            "properties": {
+              "processGroupId": false,
+              "childSignal": { "not": { "enum": ["SIGTERM", "SIGKILL"] } },
+              "windowsJob": { "type": "object" },
+              "signalSequence": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "signal": { "const": "TerminateJobObject" },
+                    "requestedMode": { "const": "job_object" },
+                    "successfulMode": { "const": "job_object" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
   "$defs": {
     "outputByteLimits": {
       "description": "Optional per-stream raw-byte caps for bounded subprocess supervision (FND-DES-014 section 6.2). A closed object with at least one stream; each value is an integer byte count between 0 (no bytes allowed) and Number.MAX_SAFE_INTEGER. Absent streams stay unlimited. The mechanism counts raw Buffer.length bytes per data event; the first stream whose cumulative count exceeds its cap latches the fact and enters the existing termination path.",

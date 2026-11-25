@@ -58,6 +58,14 @@
 | `TEST_ACCEPTANCE_TAMPERED` | `GATE_FAILED` | 计划绑定的原件与摘要不符 |
 | `TEST_ACCEPTANCE_SUBJECT` | `GATE_FAILED` | `testAcceptance.subjectDigest` 与计划对象不一致 |
 | `TEST_ACCEPTANCE_ROOT` | `GATE_FAILED` | 无法从计划路径确定项目根 |
+| `TEST_SKIP_NOT_OPTIONAL` | `GATE_FAILED` | 未标 `optional: true` 的必测需求试图使用 `explicitly_skipped` 跳过 |
+| `TEST_SKIP_VERDICT_INVALID` | `GATE_FAILED` | `explicitly_skipped` 收据的 `verdict` 非法（不得冒充 `passed` 或写为 `failed`） |
+| `TEST_SKIP_LIMITATIONS_EMPTY` | `GATE_FAILED` | `explicitly_skipped` 收据缺少 `limitations` 残余风险引用 |
+| `HOOK_SIDE_EFFECTS_ACKNOWLEDGEMENT_REQUIRED` | `GATE_FAILED` | 项目声明了有写入或外部副作用的开发钩子，未传入 `--acknowledge-hook-side-effects` 确认放行 |
+| `DEPRECATED_BASE_DEPENDENCY_BLOCKED` | `GATE_FAILED` | 目标项目 `package.json` 锁定了已弃用或存在已知高危漏洞的底座依赖（或市场台账标为 `deprecated`），生产 `prepare` 未传入 `--acknowledge-deprecated-deps` 确认放行 |
+| `LIFECYCLE_REMOTE_WRITE_DISABLED` | `GATE_FAILED` | `deprecate` / `retire` 被传入 `--online`；生命周期通告与退役提案仅允许本地离线或 `dry-run` 生成 |
+| `SAFE_EXIT_TARGET_REQUIRED` | `MISSING_PARAMETERS` | `deprecate` 未提供 `--fallback-version` 或 `--superseded-by` 安全退出去向 |
+| `RETIRE_REQUIRES_REPLACEMENT_OR_ARCHIVE` | `CONFIG_INVALID` / `MISSING_PARAMETERS` | `retire` 未提供 `--superseded-by` 替代插件或 `--archive-notice` 停服归档说明 |
 | `unknown` | `GATE_FAILED` | 失败、未完成或未覆盖，且没有更具体的稳定原因 |
 
 安装证据、加载证据和业务证据继续按原字段分开保存。测试接入不把它们收成一个全局 PASS 或单一证据类别。

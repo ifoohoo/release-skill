@@ -3,6 +3,7 @@
  *
  * @module core/node-version
  */
+// @decision D-RS-005
 
 /**
  * 解析 Node.js --version 输出（如 "v24.0.0"），返回主版本号。

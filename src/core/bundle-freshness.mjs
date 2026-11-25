@@ -21,6 +21,7 @@
  *
  * @module core/bundle-freshness
  */
+// @decision D-RS-001
 
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';

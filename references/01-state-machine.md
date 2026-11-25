@@ -102,13 +102,23 @@ postPublish hooks 分两个阶段，各自对应独立的 distribute run：
 外部写入开始后不得缩小范围。任一检查点成功后出现失败，仍进入 PARTIAL，并由
 `reconcile` 在原冻结计划内向前恢复；延期单元需要另行 prepare、审阅和批准。
 
-### 2.4 显式测试接入的同候选续接
+### 2.4 显式测试接入的同候选续接与可选跳过收据
 
-声明 `testIntake` 的生产 prepare 不新增状态。首次准备在冻结适用快照和 tarball 后保存一份非正式候选，命令返回 `NEEDS_INPUT`（`GATE_FAILED`，退出码 13）。这一步不写正式计划，不进入 `PREPARED`，也不写 `FROZEN`。
+声明 `testIntake` 的生产 `prepare` 不新增主状态。首次准备在冻结适用快照和 tarball 后保存一份非正式候选，命令返回 `NEEDS_INPUT`（`GATE_FAILED`，退出码 13）。这一步不写正式计划，不进入 `PREPARED`，也不写 `FROZEN`。
 
-同一候选通过 `prepare --candidate <path>` 续接。适用的预冻结要求核验通过后，才写入正式计划并进入 `PREPARED`。续接使用新的运行目录，不覆盖旧证据，也不再生成第二份候选。对象、配置或权威要求等实质输入变化时拒绝续接，原候选保持不变；只补齐仍绑定该对象的结果不算漂移。
+同一候选通过 `prepare --candidate <path>` 续接。适用的预冻结要求核验通过后，才写入正式计划并进入 `PREPARED`：
+- 常规通过项（`executed`、`reused`、`not-applicable` 且 `verdict: "passed"`）进入 `testAcceptance.acceptedRequirementIds`；
+- 显式声明 `optional: true` 的可选测试需求允许凭 `disposition: "explicitly_skipped"`（搭配 `verdict: "skipped"` 或 `"not-evaluated"` 及非空 `limitations` 残余风险文件引用）完成核收，单独记入 `testAcceptance.skippedOptionalRequirementIds`，既不误判为漏测，也绝不冒充已执行通过；必测项（未标 `optional: true`）一律禁止跳过。
+
+续接使用新的运行目录，不覆盖旧证据，也不再生成第二份候选。对象、配置或权威要求等实质输入变化时拒绝续接，原候选保持不变；只补齐仍绑定该对象的结果不算漂移。
 
 候选不是计划。它不能进入批准或发布，也不能把 `PARTIAL`、`PUBLISHED`、`VERIFIED` 或任何已成功的外部检查点改成完成。`ship` 在接受前保持持久状态 `NEW`，并带上同一个 `testCandidate`。未声明 `testIntake` 的项目仍按原转换进入 `PREPARED`。
+
+### 2.5 已发布版本风险退出与整族退役（离线治理旁路）
+
+对于已经达到 `PUBLISHED` 或 `VERIFIED` 的历史版本，若事后发现严重回归风险需要引导消费者回退，或整个发布单元停止维护需要退役下架，状态机**禁止**回退、篡改既有 `VERIFIED` 运行记录，也禁止自动删除远端标签或执行 `npm unpublish`。
+
+此类场景统一走离线零远端写入的生命周期治理旁路命令 `deprecate`（单版本风险退出与安全回退指引）与 `retire`（整族退役下架）：校验严重级别、原因及安全去向（`--fallback-version`、`--superseded-by` 或 `--archive-notice`）后，在本地 `.release-skill/advisories/` 生成经 Schema 校验的通告收据、消费者迁移指南 Markdown 与面向 `skill-family-hub` 的 `incoming/` 提案 JSON。
 
 ---
 
@@ -240,6 +250,6 @@ plan、approval、冻结制品身份、远端状态、检查点和 `PARTIAL` 血
 
 针对 reconcile 失败，两条旧记录分别对应 0.22.0 与 0.25.0，仅用于核实其真实绑定目标后，从当前 0.28.0 替代的阻挡记录中排除。沿用已有 `sourceRunId`/`sourceRunDigest`、当前项目原父运行与完整父权威核验，子事件流必须符合已审 writer 的完整必要前缀；`source-run-load passed` 与 `reconcile started` 必须指向同一父运行。每个 `actionId`/`actionType` 必须对应父计划原动作。仅在完整核验后，方可确认其真实目标归属并排除替代阻断，失败状态本身不构成零外写，也不赋予恢复、替代或 TEST 权威。
 
-针对 verify 失败，两条旧记录分别来自 0.9.7 与 0.9.12；核实属于其他目标后，才可从当前替代的阻挡记录中排除。仅接受这两个已核实 writer 的完整必要前缀与后续有限形状。唯一父引用取自真实 `source-run-load passed` 的 `sourceRunId`；这两个失败 writer 不写 `sourceRunDigest`，不可补造，也拒绝其不会写出的字段。通过当前项目原 `runs` 内父文件，复用 `loadRun`、当前计划 Schema、不可变计划路径、完整谱系与检查点映射，确认父运行 `PUBLISHED`，再根据父计划核实其为 `foundation-adoption-review@0.1.0`，与 0.28.0 不同。每个动作身份必须对应父计划；同目标、不完整父权威或未知阶段继续阻断。其中 0.9.7 实际执行过隔离消费者安装，包含 `execute` 及本地写入，不能声称“零 execute”或“零本地写入”，亦不得由此授予其发布外写权限。verify 失败不构成 publish 零外写证明，不赋予发布、恢复、替代或 TEST 权威。
+针对 verify 失败，两条旧记录分别来自 0.9.7 与 0.9.12；核实属于其他目标后，才可从当前替代的阻挡记录中排除。仅接受这两个已核实 writer 的完整必要前缀与后续有限形状。唯一父引用取自真实 `source-run-load passed` 的 `sourceRunId`；这两个失败 writer 不写 `sourceRunDigest`，不可补造，也拒绝其不会写出的字段。通过当前项目原 `runs` 内父文件，复用 `loadRun`、当前计划 Schema、不可变计划路径、完整谱系与检查点映射，确认父运行 `PUBLISHED`，再根据父计划核实其目标发布单元与目标版本均不同于当前发布目标。每个动作身份必须对应父计划；同目标、不完整父权威或未知阶段继续阻断。其中 0.9.7 实际执行过隔离消费者安装，包含 `execute` 及本地写入，不能声称“零 execute”或“零本地写入”，亦不得由此授予其发布外写权限。verify 失败不构成 publish 零外写证明，不赋予发布、恢复、替代或 TEST 权威。
 
 替代操作不放宽来源提交与远端 main 的精确相等要求、`TEST` 状态、远端冲突或批准门限制。继续精确执行 Foundation 0.25.0 机制，目标归属由 Release Skill 领域责任判断，不依赖目录名、时间或错误文本推断。本轮未删除或重命名产品能力，替代仅作用于符合条件的运行计划。未发布候选或本地自测不代表发布成功，亦不构成独立验收。所有操作均基于 0.9.38 支持入口，不能撤销任意旧软件或绕过现有协议。

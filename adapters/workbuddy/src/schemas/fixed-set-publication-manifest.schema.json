@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schemaVersion", "kind", "source", "target", "members", "digest"],
   "properties": {
-    "schemaVersion": { "const": 1 },
+    "schemaVersion": { "enum": [1, 2] },
     "kind": { "const": "skill-family.fixed-set-publication-manifest" },
     "source": { "$ref": "#/$defs/sourceClosure" },
     "target": { "$ref": "#/$defs/targetClosure" },
@@ -34,11 +34,26 @@
       "properties": {
         "kind": { "const": "trusted-filesystem-root-binding" },
         "digestAlgorithm": { "const": "sha256" },
-        "basis": { "const": "canonical-realpath-device-inode-type-mode-v1" },
+        "basis": {
+          "enum": [
+            "canonical-realpath-device-inode-type-mode-v1",
+            "canonical-finalpath-volume-fileid-type-security-v1"
+          ]
+        },
         "digest": { "$ref": "#/$defs/sha256" }
       }
     },
-    "directoryIdentity": {
+    "permissionObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "attributes", "securityDigest"],
+      "properties": {
+        "kind": { "const": "windows-security-v1" },
+        "attributes": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+        "securityDigest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "posixDirectoryIdentity": {
       "type": "object",
       "additionalProperties": false,
       "required": ["type", "mode", "device", "inode"],
@@ -49,7 +64,24 @@
         "inode": { "$ref": "#/$defs/decimalIdentity" }
       }
     },
-    "directoryMember": {
+    "windowsDirectoryIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "volumeSerial", "fileId", "permissionObservation"],
+      "properties": {
+        "type": { "const": "directory" },
+        "volumeSerial": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+        "fileId": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+        "permissionObservation": { "$ref": "#/$defs/permissionObservation" }
+      }
+    },
+    "directoryIdentity": {
+      "oneOf": [
+        { "$ref": "#/$defs/posixDirectoryIdentity" },
+        { "$ref": "#/$defs/windowsDirectoryIdentity" }
+      ]
+    },
+    "posixDirectoryMember": {
       "type": "object",
       "additionalProperties": false,
       "required": ["path", "type", "mode", "device", "inode"],
@@ -60,6 +92,24 @@
         "device": { "$ref": "#/$defs/decimalIdentity" },
         "inode": { "$ref": "#/$defs/decimalIdentity" }
       }
+    },
+    "windowsDirectoryMember": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "type", "volumeSerial", "fileId", "permissionObservation"],
+      "properties": {
+        "path": { "$ref": "#/$defs/relativePath" },
+        "type": { "const": "directory" },
+        "volumeSerial": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+        "fileId": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+        "permissionObservation": { "$ref": "#/$defs/permissionObservation" }
+      }
+    },
+    "directoryMember": {
+      "oneOf": [
+        { "$ref": "#/$defs/posixDirectoryMember" },
+        { "$ref": "#/$defs/windowsDirectoryMember" }
+      ]
     },
     "sourceClosure": {
       "type": "object",
@@ -92,7 +142,7 @@
         "expectation": { "const": "absent" }
       }
     },
-    "member": {
+    "posixMember": {
       "type": "object",
       "additionalProperties": false,
       "required": ["path", "type", "mode", "bytes", "sha256"],
@@ -103,6 +153,74 @@
         "bytes": { "type": "integer", "minimum": 0 },
         "sha256": { "$ref": "#/$defs/sha256" }
       }
+    },
+    "windowsMember": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "type", "permissionObservation", "bytes", "sha256"],
+      "properties": {
+        "path": { "$ref": "#/$defs/relativePath" },
+        "type": { "const": "regular" },
+        "permissionObservation": { "$ref": "#/$defs/permissionObservation" },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "member": {
+      "oneOf": [
+        { "$ref": "#/$defs/posixMember" },
+        { "$ref": "#/$defs/windowsMember" }
+      ]
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "schemaVersion": { "const": 1 } }, "required": ["schemaVersion"] },
+      "then": {
+        "properties": {
+          "source": {
+            "type": "object",
+            "properties": {
+              "rootBinding": { "type": "object", "properties": { "basis": { "const": "canonical-realpath-device-inode-type-mode-v1" } } },
+              "root": { "$ref": "#/$defs/posixDirectoryIdentity" },
+              "directories": { "type": "array", "items": { "$ref": "#/$defs/posixDirectoryMember" } }
+            }
+          },
+          "target": {
+            "type": "object",
+            "properties": {
+              "rootBinding": { "type": "object", "properties": { "basis": { "const": "canonical-realpath-device-inode-type-mode-v1" } } },
+              "root": { "$ref": "#/$defs/posixDirectoryIdentity" },
+              "directories": { "type": "array", "items": { "$ref": "#/$defs/posixDirectoryMember" } }
+            }
+          },
+          "members": { "type": "array", "items": { "$ref": "#/$defs/posixMember" } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "schemaVersion": { "const": 2 } }, "required": ["schemaVersion"] },
+      "then": {
+        "properties": {
+          "source": {
+            "type": "object",
+            "properties": {
+              "rootBinding": { "type": "object", "properties": { "basis": { "const": "canonical-finalpath-volume-fileid-type-security-v1" } } },
+              "root": { "$ref": "#/$defs/windowsDirectoryIdentity" },
+              "directories": { "type": "array", "items": { "$ref": "#/$defs/windowsDirectoryMember" } }
+            }
+          },
+          "target": {
+            "type": "object",
+            "properties": {
+              "rootBinding": { "type": "object", "properties": { "basis": { "const": "canonical-finalpath-volume-fileid-type-security-v1" } } },
+              "root": { "$ref": "#/$defs/windowsDirectoryIdentity" },
+              "directories": { "type": "array", "items": { "$ref": "#/$defs/windowsDirectoryMember" } }
+            }
+          },
+          "members": { "type": "array", "items": { "$ref": "#/$defs/windowsMember" } }
+        }
+      }
+    }
+  ]
 }

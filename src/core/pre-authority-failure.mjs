@@ -1,3 +1,5 @@
+// @decision D-RS-002
+
 import { readFile, lstat } from 'node:fs/promises';
 import { join, basename } from 'node:path';
 import { resolveProducerVersion } from './evidence.mjs';
@@ -91,7 +93,7 @@ export async function isProvenPreAuthorityFailure(runDir, runName, { strictHisto
   if (legacyValid) return !strictHistory && await hasNoState(runDir);
 
   const producerVersion = summary?.producer?.version;
-  const historical = ['0.9.3', '0.9.14', '0.9.17', '0.9.33', '0.9.37', '0.9.38', '0.10.0'].includes(producerVersion);
+  const historical = ['0.9.3', '0.9.14', '0.9.17', '0.9.33', '0.9.37', '0.9.38', '0.10.0', '0.10.1'].includes(producerVersion);
   if (!historical && producerVersion !== resolveProducerVersion()) return false;
   const sameProducer = (value) => value && typeof value === 'object' && !Array.isArray(value)
     && Object.keys(value).length === 2
@@ -185,7 +187,8 @@ async function hasNoState(runDir) {
 
 // A finite prefix of the audited publish writer, not a target inference.
 function closedPublishPrefix(events, summary, version) {
-  const auditedCurrentPrefix = ['0.9.38', '0.10.0', '0.10.1'].includes(version);
+  const auditedCurrentPrefix = ['0.9.38', '0.10.0', '0.10.1'].includes(version)
+    || version === resolveProducerVersion();
   let i = 0;
   const take = (phase, status, gate) => {
     const e = events[i];

@@ -15,6 +15,7 @@
  *
  * @module snapshot/scan
  */
+// @decision D-RS-003
 
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { join, relative, extname, posix, win32 } from 'node:path';

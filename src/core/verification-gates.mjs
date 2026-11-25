@@ -4,6 +4,7 @@
  * Gates are local checks only. They use spawn without a shell, receive a
  * minimal environment, and never participate in remote publication writes.
  */
+// @decision D-RS-001
 
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';

@@ -55,6 +55,7 @@
  *
  * @module core/derived-artifact-gates
  */
+// @decision D-RS-003
 
 import { lstat } from 'node:fs/promises';
 import { join } from 'node:path';

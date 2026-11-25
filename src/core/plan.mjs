@@ -14,6 +14,7 @@
  *
  * @module core/plan
  */
+// @decision D-RS-001
 
 import { readFile, mkdir, lstat } from 'node:fs/promises';
 import { basename, dirname, join, resolve, parse, sep } from 'node:path';

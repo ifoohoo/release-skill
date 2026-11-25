@@ -21,6 +21,7 @@
  * - the bound host is `normalizeHostId(platform.buildAdapter.name)` — one
  *   canonical identity per platform, never a user-fillable string.
  */
+// @decision D-RS-005
 
 import { dirname, isAbsolute, join, normalize, resolve, sep } from 'node:path';
 import { lstat } from 'node:fs/promises';

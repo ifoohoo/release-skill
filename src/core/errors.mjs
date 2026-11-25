@@ -1,3 +1,5 @@
+// @decision D-RS-005
+
 // Stable error codes and exit codes for the release-skill system.
 // Error codes are grouped by phase; each maps to a unique stable exit code.
 

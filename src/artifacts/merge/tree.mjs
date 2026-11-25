@@ -11,6 +11,8 @@
  *
  * @module artifacts/merge/tree
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import { digestEntryManifest } from '../entry.mjs';
 import { mergeEntry } from './entry-merge.mjs';

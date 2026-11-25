@@ -15,6 +15,8 @@
  *
  * @module artifacts/transaction-journal
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import { readdir, readFile, rm, stat } from 'node:fs/promises';
 import { join } from 'node:path';

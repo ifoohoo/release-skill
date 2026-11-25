@@ -1,0 +1,196 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://release-skill.dev/schemas/lifecycle-advisory/v1",
+  "title": "Release Lifecycle Advisory & Proposal",
+  "description": "版本风险退出、消费端回退指引与整族退役治理收据及下游市场提案契约（离线确定性本地生成，严禁包含本机绝对路径或触发真实远端写入）。",
+  "$ref": "#/definitions/advisoryReceipt",
+  "definitions": {
+    "severity": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low"],
+      "description": "风险通告严重级别：critical（紧急高危）、high（高风险）、medium（中风险）、low（常规维护下线）。"
+    },
+    "semverString": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\\+([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?$",
+      "description": "符合 SemVer 2.0.0 规范的严格语义化版本号。"
+    },
+    "advisoryReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "保留在本地 .release-skill/advisories/ 下的完整生命周期治理审计收据。",
+      "required": [
+        "schemaVersion",
+        "kind",
+        "lifecycleAction",
+        "executionMode",
+        "remoteWritesPerformed",
+        "projectName",
+        "unitId",
+        "publicRepo",
+        "affectedVersion",
+        "severity",
+        "reason",
+        "actor",
+        "createdAt",
+        "safeExit",
+        "distributions",
+        "artifacts",
+        "advisoryDigest"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1, "description": "收据协议版本号，固定为 1。" },
+        "kind": { "const": "release-skill/lifecycle-advisory", "description": "收据文档类型常量。" },
+        "lifecycleAction": {
+          "type": "string",
+          "enum": ["deprecate", "retire"],
+          "description": "治理动作：deprecate 表示单版本风险退出与回退引导，retire 表示整个发布单元/技能族退役下架。"
+        },
+        "executionMode": {
+          "type": "string",
+          "enum": ["offline", "dry-run"],
+          "description": "执行模式：仅允许本地离线写入收据或 dry-run 预览，不触发远端 npm/GitHub 写请求。"
+        },
+        "remoteWritesPerformed": {
+          "const": false,
+          "description": "硬性安全不变量：本阶段恒为 false，远端渠道需凭生成收据与提案经审阅后独立执行。"
+        },
+        "projectName": { "type": "string", "minLength": 1, "description": "发布项目名称。" },
+        "unitId": {
+          "type": "string",
+          "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "description": "目标发布单元标识。"
+        },
+        "publicRepo": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$",
+          "description": "发布单元对应的公开 GitHub 仓库（owner/repo）。"
+        },
+        "affectedVersion": {
+          "type": "string",
+          "minLength": 1,
+          "description": "受影响版本范围说明（版本风险退出时为具体 SemVer；整族退役时可为具体版本或 all）。"
+        },
+        "severity": { "$ref": "#/definitions/severity" },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "退出或退役原因（直白说明风险表现与影响边界）。"
+        },
+        "actor": {
+          "type": "string",
+          "minLength": 1,
+          "description": "签发本次退出/退役通告的责任人标识。"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "通告收据签发时间（ISO 8601 UTC 时间戳）。"
+        },
+        "safeExit": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "面向消费者的安全退出或替代迁移策略。",
+          "required": ["strategy"],
+          "properties": {
+            "strategy": {
+              "type": "string",
+              "enum": ["rollback-version", "replacement-plugin", "archived-end-of-life"],
+              "description": "退出策略类型：回退至安全旧版本、迁移至替代插件/包，或正式归档停护。"
+            },
+            "fallbackVersion": { "type": "string", "minLength": 1, "description": "推荐回退的安全 SemVer 版本号。" },
+            "supersededBy": { "type": "string", "minLength": 1, "description": "接替当前能力的替代插件或包标识。" },
+            "archiveNotice": { "type": "string", "minLength": 1, "description": "无替代方案时的归档停服说明。" }
+          }
+        },
+        "distributions": {
+          "type": "array",
+          "description": "按单元声明的分发渠道逐项生成的消费者回退或卸载指引。",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "consumerAction"],
+            "properties": {
+              "type": { "type": "string", "minLength": 1, "description": "分发渠道类型（如 npm、claude-plugin）。" },
+              "identifier": { "type": "string", "minLength": 1, "description": "对应渠道下的包名或插件引用。" },
+              "consumerAction": { "type": "string", "minLength": 1, "description": "推荐消费者执行的具体命令或迁移步骤。" }
+            }
+          }
+        },
+        "artifacts": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "本次治理生成的本地相对产物路径及下游市场目标投递路径。",
+          "required": ["receiptFile", "migrationGuideFile", "hubProposalFile", "hubProposalTargetPath"],
+          "properties": {
+            "receiptFile": { "type": "string", "minLength": 1, "description": "本地审计收据 JSON 相对路径。" },
+            "migrationGuideFile": { "type": "string", "minLength": 1, "description": "消费者迁移通告 Markdown 相对路径。" },
+            "hubProposalFile": { "type": "string", "minLength": 1, "description": "本地生成的市场提案 JSON 相对路径。" },
+            "hubProposalTargetPath": { "type": "string", "minLength": 1, "description": "投递至 skill-family-hub 的受控相对路径（incoming/<unitId>-<deprecation|retirement>-<version>.json）。" }
+          }
+        },
+        "advisoryDigest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "扣除 advisoryDigest 自身后按 canonicalJson 计算的 SHA-256 摘要。"
+        }
+      }
+    },
+    "hubLifecycleProposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "投递至 skill-family-hub/scripts/proposal-inbox.mjs 的受控生命周期提案契约（与接收端 LIFECYCLE_PROPOSAL_KEYS 闭世界白名单严格一致）。",
+      "required": [
+        "schemaVersion",
+        "kind",
+        "unitId",
+        "version",
+        "deprecationNotice",
+        "issuedAt",
+        "changeSummary"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1, "description": "市场提案协议版本号，固定为 1。" },
+        "kind": {
+          "type": "string",
+          "enum": ["release-skill/deprecation-proposal", "release-skill/retirement-proposal"],
+          "description": "提案类型：deprecate 输出 release-skill/deprecation-proposal，retire 输出 release-skill/retirement-proposal。"
+        },
+        "unitId": {
+          "type": "string",
+          "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$",
+          "description": "市场已登记的目标插件标识（小写连字符格式）。"
+        },
+        "version": {
+          "$ref": "#/definitions/semverString",
+          "description": "当前市场登记的目标插件严格 SemVer 版本号（整族退役未指定具体版本时由当前仓库清单解析得出）。"
+        },
+        "fallbackVersion": {
+          "$ref": "#/definitions/semverString",
+          "description": "风险降级时推荐用户回退的安全旧版本号（严格低于当前 version）。"
+        },
+        "supersededBy": {
+          "type": ["string", "null"],
+          "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$",
+          "description": "推荐迁移的目标市场插件标识（kebab-case，不得指向自身）；无替代插件时省略或为 null。"
+        },
+        "deprecationNotice": {
+          "type": "string",
+          "minLength": 1,
+          "description": "面向市场清单与公开 README 展示的风险回退或退役归档通告文案。"
+        },
+        "issuedAt": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$",
+          "format": "date-time",
+          "description": "提案签发时间，须为毫秒级规范 ISO 8601 UTC 字符串（YYYY-MM-DDTHH:mm:ss.sssZ）。"
+        },
+        "changeSummary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "供市场提案审阅与冻结计划记录的非空变更摘要。"
+        }
+      }
+    }
+  }
+}

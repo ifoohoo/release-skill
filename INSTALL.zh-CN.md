@@ -2,7 +2,7 @@
 
 [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.10.1 -->
+<!-- release-skill:release-version: 0.10.2 -->
 ## 前置条件
 
 - Node.js `>=22.22.2 <23`（22.22.2 及以上，且低于 23）
@@ -113,7 +113,7 @@ release-skill 当前只采用并验证 Kimi Code 的交互式 TUI 路径，**无
 （切勿使用裸仓库地址，它会安装最新 release 或默认分支），确认信任提示后重新加载：
 
    ```
-   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.10.1
+   /plugins install https://github.com/ifoohoo/release-skill/releases/tag/release-skill-v0.10.2
    /plugins reload
    ```
 
@@ -200,6 +200,18 @@ qoder plugins install release-skill@skill-family-hub --scope user --json
 `UPDATED` 只证明安装载荷已更新，不代表当前 Qoder 会话已经加载新版。必须重新加载插件
 或新开会话，再由真实发现的 release-skill 完成一次只读发布业务调用，才能宣称新版已
 生效。这些本机结果不会改变 `VERIFIED`。
+
+## 安装为 Antigravity 插件
+
+包根提供 `plugin.json`，并在 `adapters/antigravity/` 下提供自包含插件目录（包含根目录
+`plugin.json`、全部公开 `skills/`、`bin/`、`schemas/` 与 `native/`）。与其他宿主将清单放入
+隐藏 `.*-plugin/` 子目录不同，Google Antigravity 直接读取插件根目录的 `plugin.json`，
+默认从 `skills/<name>/SKILL.md` 自动发现技能，且顶层清单只允许官方白名单的 10 个字段
+（`name`、`description`、`logo`、`suggestedPrompts`、`displayName`、`version`、`author`、
+`homepage`、`repository`、`disabled`，不得写入 `license` 或 `skills`）。
+
+`adapters/antigravity/skills/<name>/SKILL.md` 根据宿主加载的 `SKILL.md` 真实路径定位插件根，
+并在校验根目录 `PLUGIN_ROOT/plugin.json` 后调用内置 CLI，不依赖额外环境变量。
 
 ## 安装为 Cursor 本地插件
 

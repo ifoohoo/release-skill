@@ -7,6 +7,8 @@
  *
  * @module artifacts/state
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import { ReleaseError, PATH_UNSAFE, STRUCTURE_INVALID } from '../core/errors.mjs';
 

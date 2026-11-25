@@ -8,7 +8,15 @@
   "sourceAliases": [
     "dsh"
   ],
-  "pathCategories": [],
+  "pathCategories": [
+    {
+      "id": "deepseek-harness-project-skills",
+      "role": "skill-root",
+      "scope": "project",
+      "anchor": "project-root",
+      "relPath": ".dsh/skills"
+    }
+  ],
   "probeCapabilities": [
     "cli",
     "version",

@@ -995,16 +995,85 @@
           "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256"
         },
         "installedRoot": {
-          "type": "string",
-          "pattern": "^/(?:[^/\\\\\\u0000]+(?:/[^/\\\\\\u0000]+)*)?$",
-          "not": {
-            "pattern": "(?:^|/)\\.{1,2}(?:/|$)"
-          }
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^/(?:[^/\\\\\\u0000]+(?:/[^/\\\\\\u0000]+)*)?$",
+              "not": {
+                "pattern": "(?:^|/)\\.{1,2}(?:/|$)"
+              }
+            },
+            {
+              "allOf": [
+                {
+                  "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/windowsRoot"
+                },
+                {
+                  "not": {
+                    "pattern": "(?:^|/)\\.{1,2}(?:/|$)|[. ](?:/|$)|(?:^|/)(?:[Cc][Oo][Nn]|[Pp][Rr][Nn]|[Aa][Uu][Xx]|[Nn][Uu][Ll]|[Cc][Oo][Mm][1-9]|[Ll][Pp][Tt][1-9])(?:\\.|/|$)",
+                    "type": "string"
+                  }
+                }
+              ],
+              "type": "string"
+            }
+          ]
         },
         "observation": {
           "$ref": "https://contracts.skill-family.example/v1/filesystem-tree-observation.json"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "observation": {
+                "properties": {
+                  "schemaVersion": {
+                    "const": 1
+                  }
+                },
+                "required": [
+                  "schemaVersion"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "object"
+          },
+          "then": {
+            "properties": {
+              "installedRoot": {
+                "type": "string",
+                "pattern": "^/(?:[^/\\\\\\u0000]+(?:/[^/\\\\\\u0000]+)*)?$",
+                "not": {
+                  "pattern": "(?:^|/)\\.{1,2}(?:/|$)"
+                }
+              }
+            },
+            "type": "object"
+          },
+          "else": {
+            "properties": {
+              "installedRoot": {
+                "allOf": [
+                  {
+                    "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/windowsRoot"
+                  },
+                  {
+                    "not": {
+                      "pattern": "(?:^|/)\\.{1,2}(?:/|$)|[. ](?:/|$)|(?:^|/)(?:[Cc][Oo][Nn]|[Pp][Rr][Nn]|[Aa][Uu][Xx]|[Nn][Uu][Ll]|[Cc][Oo][Mm][1-9]|[Ll][Pp][Tt][1-9])(?:\\.|/|$)",
+                      "type": "string"
+                    }
+                  }
+                ],
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        }
+      ]
     },
     "lifecycle": {
       "type": "object",

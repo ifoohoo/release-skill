@@ -2,11 +2,11 @@
   "schemaVersion": "1.0.0",
   "platformId": "release-skill",
   "platformName": "release-skill Plugin Platform",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "logicalRoot": "skills-src/",
-  "logicalRootDigest": "02c4cbbd7b5ea82ca5e396d49c557ba6cafe1681b514fb243aaf6b2e02ac2a1e",
-  "projectionDigest": "0993537e6be267a2fdf6747690903c45114c04a5b98049fe5b9a0c23fab22e7e",
-  "projectionId": "release-skill:platform:0.10.1",
+  "logicalRootDigest": "31a63c796a9b3d4d5cc32856a46aaf76db72ab1ee944450a2fe026748ae4247f",
+  "projectionDigest": "bbfeac189890b11bae32fcc5712a629fac27d36df65b44146b8d65981918fdd2",
+  "projectionId": "release-skill:platform:0.10.2",
   "manifestRequired": true,
   "projectionSources": {
     "skills-src-root": {
@@ -183,9 +183,35 @@
         "adapters/cursor/skills/release-setup/SKILL.md",
         "adapters/cursor/skills/release-verify/SKILL.md"
       ]
+    },
+    {
+      "name": "adapters-antigravity-skills",
+      "type": "adapter-skill-projection",
+      "targetPath": "adapters/antigravity/skills",
+      "generator": "scripts/build-adapters.mjs",
+      "generatorDescription": "antigravity 平台适配器投影：由 skills-src/ 经 build-adapters 产出。",
+      "relationship": "projection",
+      "projectionNotes": "adapters/*/skills/ 是各平台适配投影，由 build-adapters 产出；修改必须回到 skills-src/。",
+      "artifacts": [
+        "adapters/antigravity/skills/release-assess/SKILL.md",
+        "adapters/antigravity/skills/release-config/SKILL.md",
+        "adapters/antigravity/skills/release-docs/SKILL.md",
+        "adapters/antigravity/skills/release-finish/SKILL.md",
+        "adapters/antigravity/skills/release-help/SKILL.md",
+        "adapters/antigravity/skills/release-marketplace/SKILL.md",
+        "adapters/antigravity/skills/release-prepare/SKILL.md",
+        "adapters/antigravity/skills/release-publish/SKILL.md",
+        "adapters/antigravity/skills/release-reconcile/SKILL.md",
+        "adapters/antigravity/skills/release-setup/SKILL.md",
+        "adapters/antigravity/skills/release-verify/SKILL.md"
+      ]
     }
   ],
   "logicalMappings": [
+    {
+      "logicalName": "release-assess",
+      "path": "adapters/antigravity/skills/release-assess/SKILL.md"
+    },
     {
       "logicalName": "release-assess",
       "path": "adapters/claude/skills/release-assess/SKILL.md"
@@ -213,6 +239,10 @@
     {
       "logicalName": "release-assess",
       "path": "skills/release-assess/SKILL.md"
+    },
+    {
+      "logicalName": "release-config",
+      "path": "adapters/antigravity/skills/release-config/SKILL.md"
     },
     {
       "logicalName": "release-config",
@@ -244,6 +274,10 @@
     },
     {
       "logicalName": "release-docs",
+      "path": "adapters/antigravity/skills/release-docs/SKILL.md"
+    },
+    {
+      "logicalName": "release-docs",
       "path": "adapters/claude/skills/release-docs/SKILL.md"
     },
     {
@@ -269,6 +303,10 @@
     {
       "logicalName": "release-docs",
       "path": "skills/release-docs/SKILL.md"
+    },
+    {
+      "logicalName": "release-finish",
+      "path": "adapters/antigravity/skills/release-finish/SKILL.md"
     },
     {
       "logicalName": "release-finish",
@@ -300,6 +338,10 @@
     },
     {
       "logicalName": "release-help",
+      "path": "adapters/antigravity/skills/release-help/SKILL.md"
+    },
+    {
+      "logicalName": "release-help",
       "path": "adapters/claude/skills/release-help/SKILL.md"
     },
     {
@@ -325,6 +367,10 @@
     {
       "logicalName": "release-help",
       "path": "skills/release-help/SKILL.md"
+    },
+    {
+      "logicalName": "release-marketplace",
+      "path": "adapters/antigravity/skills/release-marketplace/SKILL.md"
     },
     {
       "logicalName": "release-marketplace",
@@ -356,6 +402,10 @@
     },
     {
       "logicalName": "release-prepare",
+      "path": "adapters/antigravity/skills/release-prepare/SKILL.md"
+    },
+    {
+      "logicalName": "release-prepare",
       "path": "adapters/claude/skills/release-prepare/SKILL.md"
     },
     {
@@ -381,6 +431,10 @@
     {
       "logicalName": "release-prepare",
       "path": "skills/release-prepare/SKILL.md"
+    },
+    {
+      "logicalName": "release-publish",
+      "path": "adapters/antigravity/skills/release-publish/SKILL.md"
     },
     {
       "logicalName": "release-publish",
@@ -412,6 +466,10 @@
     },
     {
       "logicalName": "release-reconcile",
+      "path": "adapters/antigravity/skills/release-reconcile/SKILL.md"
+    },
+    {
+      "logicalName": "release-reconcile",
       "path": "adapters/claude/skills/release-reconcile/SKILL.md"
     },
     {
@@ -440,6 +498,10 @@
     },
     {
       "logicalName": "release-setup",
+      "path": "adapters/antigravity/skills/release-setup/SKILL.md"
+    },
+    {
+      "logicalName": "release-setup",
       "path": "adapters/claude/skills/release-setup/SKILL.md"
     },
     {
@@ -465,6 +527,10 @@
     {
       "logicalName": "release-setup",
       "path": "skills/release-setup/SKILL.md"
+    },
+    {
+      "logicalName": "release-verify",
+      "path": "adapters/antigravity/skills/release-verify/SKILL.md"
     },
     {
       "logicalName": "release-verify",

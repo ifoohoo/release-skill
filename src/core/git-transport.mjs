@@ -1,3 +1,7 @@
+// @decision D-RS-001
+// @feature REL006
+// @scenario S-007
+
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
 

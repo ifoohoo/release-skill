@@ -4,6 +4,8 @@
  * This module never discovers records or performs I/O. The CLI layer supplies
  * the exact bytes and source labels selected by the caller.
  */
+// @decision D-RS-004
+// @decision D-RS-005
 
 import { digestBytes } from 'skill-family-harness-node';
 

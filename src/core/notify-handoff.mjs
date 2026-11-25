@@ -13,6 +13,7 @@
  *
  * @module core/notify-handoff
  */
+// @decision D-RS-002
 
 /** Context fields rendered into the checklist, in deterministic order. */
 const CHECKLIST_FACT_FIELDS = ['unitId', 'version', 'tag', 'commit', 'tree', 'manifestDigest', 'planDigest', 'runId', 'publishedAt'];

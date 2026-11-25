@@ -6,6 +6,8 @@
  *
  * @module artifacts/path-key
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import { normalize } from 'node:path';
 import { ReleaseError, PATH_UNSAFE } from '../core/errors.mjs';

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/file-set-result.json",
+  "title": "File set result",
+  "type": "object", "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "operationId", "operation", "outcome", "preflight", "businessWrite", "validation", "recovery", "paths", "errors", "materials"],
+  "properties": {
+    "schemaVersion": { "const": 1 }, "kind": { "const": "skill-family.file-set-result" },
+    "operationId": { "anyOf": [{ "type": "null" }, { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/operationId" }] },
+    "operation": { "enum": ["apply", "recover", "prune"] },
+    "outcome": { "enum": ["committed", "commit-unconfirmed", "rejected", "rolled-back", "recovery-required", "already-committed", "already-rolled-back", "pruned", "already-pruned"] },
+    "preflight": { "enum": ["not-run", "failed", "passed"] },
+    "businessWrite": { "enum": ["none", "started", "unknown"] },
+    "validation": { "$ref": "#/$defs/validation" },
+    "recovery": {
+      "type": "object", "additionalProperties": false, "required": ["attempted", "status"],
+      "properties": { "attempted": { "type": "boolean" }, "status": { "enum": ["not-needed", "complete", "partial", "blocked"] } }
+    },
+    "paths": { "$ref": "#/$defs/paths" },
+    "errors": { "type": "array", "items": { "$ref": "#/$defs/error" } },
+    "materials": {
+      "type": "object", "additionalProperties": false,
+      "required": ["relPath", "status", "durable", "adjacentStaging"],
+      "properties": {
+        "relPath": { "const": ".foundation-file-apply" },
+        "status": { "enum": ["none", "retained", "partial", "pruned"] },
+        "durable": { "type": "boolean" },
+        "adjacentStaging": { "enum": ["none-observed", "possible-unknown"] }
+      }
+    }
+  },
+  "allOf": [{
+    "if": { "properties": { "operationId": { "type": "null" } }, "required": ["operationId"] },
+    "then": { "properties": { "paths": { "type": "array", "maxItems": 0 } } }
+  }],
+  "$defs": {
+    "errorKind": { "enum": ["invalid-request", "unsupported-environment", "unsafe-path", "precondition-mismatch", "locked", "unfinished-operation", "operation-id-reused", "commit-unconfirmed", "persistence-failed", "apply-failed", "validation-failed", "validation-incomplete", "restore-conflict", "restore-failed", "recovery-corrupt", "root-changed", "ownership-lost", "operation-not-found", "prune-refused", "lock-release-failed"] },
+    "errorKinds": { "type": "array", "items": { "$ref": "#/$defs/errorKind" } },
+    "error": {
+      "type": "object", "additionalProperties": false, "required": ["code", "message", "details"],
+      "properties": {
+        "code": { "const": "SFC2004" }, "message": { "type": "string", "minLength": 1 },
+        "details": {
+          "type": "object", "additionalProperties": false, "required": ["kind", "phase"],
+          "properties": {
+            "kind": { "$ref": "#/$defs/errorKind" },
+            "phase": { "enum": ["input", "preflight", "prepare", "apply", "validate", "restore", "finalize", "prune"] },
+            "path": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/path" }
+          }
+        }
+      }
+    },
+    "validation": {
+      "type": "object", "additionalProperties": false, "required": ["status", "reason"],
+      "properties": {
+        "status": { "enum": ["not-run", "passed", "failed", "incomplete"] },
+        "reason": { "enum": [null, "returned-false", "exception", "timeout", "invalid-result", "interrupted"] }
+      },
+      "allOf": [
+        { "if": { "properties": { "status": { "enum": ["not-run", "passed"] } }, "required": ["status"] }, "then": { "properties": { "reason": { "type": "null" } } }, "else": { "properties": { "reason": { "type": "string" } } } },
+        { "if": { "properties": { "status": { "const": "failed" } }, "required": ["status"] }, "then": { "properties": { "reason": { "const": "returned-false" } } } },
+        { "if": { "properties": { "status": { "const": "incomplete" } }, "required": ["status"] }, "then": { "properties": { "reason": { "enum": ["exception", "timeout", "invalid-result", "interrupted"] } } } }
+      ]
+    },
+    "paths": { "type": "array", "maxItems": 1024, "items": { "$ref": "#/$defs/pathResult" } },
+    "pathResult": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "action", "apply", "restore", "current", "errorKinds"],
+      "properties": {
+        "path": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/path" },
+        "action": { "enum": ["create", "replace", "delete"] },
+        "apply": { "enum": ["not-started", "intent-recorded", "applied", "unknown"] },
+        "restore": { "enum": ["not-needed", "restored", "already-original", "conflict", "failed", "unknown"] },
+        "current": { "enum": ["original", "expected-new", "other", "unknown"] },
+        "errorKinds": { "$ref": "#/$defs/errorKinds" }
+      }
+    }
+  }
+}

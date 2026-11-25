@@ -3,52 +3,528 @@
   "$id": "https://contracts.skill-family.example/v1/file-set-event-payload.json",
   "title": "File set event payload",
   "description": "File recovery facts within the existing state-event envelope. Event order, request and path bindings are checked by Harness; no second sequence or hash chain is introduced.",
-  "type": "object", "additionalProperties": false,
-  "required": ["schemaVersion", "kind", "operationId", "type"],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "operationId",
+    "type"
+  ],
   "properties": {
-    "schemaVersion": { "const": 1 }, "kind": { "const": "skill-family.file-set-event-payload" },
-    "operationId": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/operationId" },
-    "type": { "enum": ["prepared", "apply-intent", "applied", "restore-intent", "restored", "validation-started", "validation-finished", "committed", "rolled-back", "recovery-required", "prune-intent", "pruned"] },
-    "request": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json" },
-    "requestDigest": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/sha256" },
-    "rootBinding": { "$ref": "https://contracts.skill-family.example/v1/filesystem-root-binding.json" },
-    "materialIdentity": { "$ref": "#/$defs/directoryIdentity" },
-    "entries": { "type": "array", "minItems": 1, "maxItems": 1024, "items": { "$ref": "#/$defs/materialEntry" } },
-    "index": { "type": "integer", "minimum": 0, "maximum": 1023 },
-    "current": { "enum": ["original", "expected-new"] },
-    "validation": { "$ref": "https://contracts.skill-family.example/v1/file-set-result.json#/$defs/validation" },
-    "paths": { "$ref": "https://contracts.skill-family.example/v1/file-set-result.json#/$defs/paths" },
-    "errorKinds": { "$ref": "https://contracts.skill-family.example/v1/file-set-result.json#/$defs/errorKinds" }
+    "schemaVersion": {
+      "enum": [
+        1,
+        2
+      ]
+    },
+    "kind": {
+      "const": "skill-family.file-set-event-payload"
+    },
+    "operationId": {
+      "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/operationId"
+    },
+    "type": {
+      "enum": [
+        "prepared",
+        "apply-intent",
+        "applied",
+        "restore-intent",
+        "restored",
+        "validation-started",
+        "validation-finished",
+        "committed",
+        "rolled-back",
+        "recovery-required",
+        "prune-intent",
+        "pruned"
+      ]
+    },
+    "request": {
+      "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json"
+    },
+    "requestDigest": {
+      "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/sha256"
+    },
+    "rootBinding": {
+      "$ref": "https://contracts.skill-family.example/v1/filesystem-root-binding.json"
+    },
+    "materialIdentity": {
+      "$ref": "#/$defs/directoryIdentity"
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1024,
+      "items": {
+        "$ref": "#/$defs/materialEntry"
+      }
+    },
+    "index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1023
+    },
+    "current": {
+      "enum": [
+        "original",
+        "expected-new"
+      ]
+    },
+    "validation": {
+      "$ref": "https://contracts.skill-family.example/v1/file-set-result.json#/$defs/validation"
+    },
+    "paths": {
+      "$ref": "https://contracts.skill-family.example/v1/file-set-result.json#/$defs/paths"
+    },
+    "errorKinds": {
+      "$ref": "https://contracts.skill-family.example/v1/file-set-result.json#/$defs/errorKinds"
+    }
   },
   "allOf": [
-    { "if": { "properties": { "type": { "const": "prepared" } }, "required": ["type"] },
-      "then": { "properties": { "request": {}, "requestDigest": {}, "rootBinding": {}, "materialIdentity": {}, "entries": {} }, "required": ["request", "requestDigest", "rootBinding", "materialIdentity", "entries"] },
-      "else": { "properties": { "request": false, "requestDigest": false, "rootBinding": false, "materialIdentity": false, "entries": false } } },
-    { "if": { "properties": { "type": { "enum": ["apply-intent", "applied", "restore-intent", "restored"] } }, "required": ["type"] },
-      "then": { "properties": { "index": {} }, "required": ["index"] }, "else": { "properties": { "index": false } } },
-    { "if": { "properties": { "type": { "enum": ["applied", "restored"] } }, "required": ["type"] },
-      "then": { "properties": { "current": {} }, "required": ["current"] }, "else": { "properties": { "current": false } } },
-    { "if": { "properties": { "type": { "const": "applied" } }, "required": ["type"] },
-      "then": { "properties": { "current": { "const": "expected-new" } } } },
-    { "if": { "properties": { "type": { "const": "restored" } }, "required": ["type"] },
-      "then": { "properties": { "current": { "const": "original" } } } },
-    { "if": { "properties": { "type": { "const": "validation-finished" } }, "required": ["type"] },
-      "then": { "properties": { "validation": {} }, "required": ["validation"] }, "else": { "properties": { "validation": false } } },
-    { "if": { "properties": { "type": { "enum": ["committed", "rolled-back", "recovery-required"] } }, "required": ["type"] },
-      "then": { "properties": { "paths": {}, "errorKinds": {} }, "required": ["paths", "errorKinds"] }, "else": { "properties": { "paths": false, "errorKinds": false } } }
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "prepared"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "request": {},
+          "requestDigest": {},
+          "rootBinding": {},
+          "materialIdentity": {},
+          "entries": {}
+        },
+        "required": [
+          "request",
+          "requestDigest",
+          "rootBinding",
+          "materialIdentity",
+          "entries"
+        ]
+      },
+      "else": {
+        "properties": {
+          "request": false,
+          "requestDigest": false,
+          "rootBinding": false,
+          "materialIdentity": false,
+          "entries": false
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "apply-intent",
+              "applied",
+              "restore-intent",
+              "restored"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "index": {}
+        },
+        "required": [
+          "index"
+        ]
+      },
+      "else": {
+        "properties": {
+          "index": false
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "applied",
+              "restored"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "current": {}
+        },
+        "required": [
+          "current"
+        ]
+      },
+      "else": {
+        "properties": {
+          "current": false
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "applied"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "current": {
+            "const": "expected-new"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "restored"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "current": {
+            "const": "original"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "validation-finished"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "validation": {}
+        },
+        "required": [
+          "validation"
+        ]
+      },
+      "else": {
+        "properties": {
+          "validation": false
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "committed",
+              "rolled-back",
+              "recovery-required"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "paths": {},
+          "errorKinds": {}
+        },
+        "required": [
+          "paths",
+          "errorKinds"
+        ]
+      },
+      "else": {
+        "properties": {
+          "paths": false,
+          "errorKinds": false
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 1
+          },
+          "type": {
+            "const": "prepared"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "before": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/next"
+                    }
+                  ]
+                },
+                "after": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/next"
+                    }
+                  ]
+                },
+                "parentIdentity": {
+                  "$ref": "https://contracts.skill-family.example/v1/state-store-recovery-observation.json#/$defs/posixIdentity"
+                }
+              }
+            }
+          },
+          "request": {
+            "type": "object",
+            "properties": {
+              "schemaVersion": {
+                "const": 1
+              }
+            }
+          },
+          "rootBinding": {
+            "type": "object",
+            "properties": {
+              "basis": {
+                "const": "canonical-realpath-device-inode-type-mode-v1"
+              }
+            }
+          },
+          "materialIdentity": {
+            "$ref": "https://contracts.skill-family.example/v1/state-store-recovery-observation.json#/$defs/posixIdentity"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 2
+          },
+          "type": {
+            "const": "prepared"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "before": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/$defs/windowsMaterial"
+                    }
+                  ]
+                },
+                "after": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/$defs/windowsMaterial"
+                    }
+                  ]
+                },
+                "parentIdentity": {
+                  "$ref": "https://contracts.skill-family.example/v1/state-store-recovery-observation.json#/$defs/windowsIdentity"
+                }
+              }
+            }
+          },
+          "request": {
+            "type": "object",
+            "properties": {
+              "schemaVersion": {
+                "const": 2
+              }
+            }
+          },
+          "rootBinding": {
+            "type": "object",
+            "properties": {
+              "basis": {
+                "const": "canonical-finalpath-volume-fileid-type-security-v1"
+              }
+            }
+          },
+          "materialIdentity": {
+            "$ref": "https://contracts.skill-family.example/v1/state-store-recovery-observation.json#/$defs/windowsIdentity"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 2
+          }
+        },
+        "required": [
+          "schemaVersion"
+        ]
+      },
+      "then": {
+        "properties": {
+          "request": {
+            "type": "object",
+            "properties": {
+              "schemaVersion": {
+                "const": 2
+              }
+            }
+          }
+        }
+      }
+    }
   ],
   "$defs": {
     "directoryIdentity": {
       "$ref": "https://contracts.skill-family.example/v1/state-store-recovery-observation.json#/$defs/identity",
-      "type": "object", "properties": { "type": { "const": "directory" } }
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "directory"
+        }
+      }
+    },
+    "windowsMaterial": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "size",
+        "permissions",
+        "securityMaterial"
+      ],
+      "properties": {
+        "sha256": {
+          "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/sha256"
+        },
+        "size": {
+          "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/size"
+        },
+        "permissions": {
+          "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/windowsPermissionObservation"
+        },
+        "securityMaterial": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "descriptorBase64",
+            "attributes"
+          ],
+          "properties": {
+            "descriptorBase64": {
+              "type": "string",
+              "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+            },
+            "attributes": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            }
+          }
+        }
+      }
     },
     "materialEntry": {
-      "type": "object", "additionalProperties": false,
-      "required": ["before", "after", "parentIdentity"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "before",
+        "after",
+        "parentIdentity"
+      ],
       "properties": {
-        "before": { "anyOf": [{ "type": "null" }, { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/next" }] },
-        "after": { "anyOf": [{ "type": "null" }, { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/next" }] },
-        "parentIdentity": { "$ref": "#/$defs/directoryIdentity" }
+        "before": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/next"
+            },
+            {
+              "$ref": "#/$defs/windowsMaterial"
+            }
+          ]
+        },
+        "after": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/next"
+            },
+            {
+              "$ref": "#/$defs/windowsMaterial"
+            }
+          ]
+        },
+        "parentIdentity": {
+          "$ref": "#/$defs/directoryIdentity"
+        }
       }
     }
   }

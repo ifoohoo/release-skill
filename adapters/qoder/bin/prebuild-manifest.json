@@ -78,6 +78,45 @@
         "readFileBoundNative",
         "renameDirectoryNoReplace"
       ]
+    },
+    {
+      "platformKey": "win32-x64",
+      "os": "win32",
+      "arch": "x64",
+      "libc": "none",
+      "binary": "prebuilds/win32-x64/bound_read.win32-x64.node",
+      "mode": 420,
+      "sha256": "aa2b04236652eddd852441920d2c8cf723b9067c36db1b740aa126cee89175b9",
+      "napi": 10,
+      "exports": [
+        "applySecurityMaterial",
+        "assignProcessToJob",
+        "captureSecurity",
+        "closeJob",
+        "closeParentDirectory",
+        "createKillOnCloseJob",
+        "createProtectedDirectory",
+        "flushDirectory",
+        "flushFileHandle",
+        "jobActiveProcessCount",
+        "mutatePreparedDirectory",
+        "observeFilesystemTreeNative",
+        "openParentDirectory",
+        "platform",
+        "processExitStatus",
+        "publishProtectedFile",
+        "readCapturedFile",
+        "readFileBoundNative",
+        "readPipe",
+        "renameDirectoryNoReplace",
+        "replaceExistingFile",
+        "resumePrimaryThread",
+        "spawnSuspended",
+        "terminateJob",
+        "terminateProcess",
+        "windowsRestoreCapable",
+        "writeFileHandle"
+      ]
     }
   ]
 }

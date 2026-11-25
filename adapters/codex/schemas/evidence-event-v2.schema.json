@@ -45,9 +45,13 @@
         "verify",
         "distribute",
         "postverify",
-        "hooks-validate"
+        "hooks-validate",
+        "deprecate",
+        "retire",
+        "bundle-offline",
+        "verify-offline"
       ],
-      "description": "The command that triggered this event"
+      "description": "触发本次证据流的子命令标识（闭集枚举）"
     },
     "phase": {
       "type": "string",

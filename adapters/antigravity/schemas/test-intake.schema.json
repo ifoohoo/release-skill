@@ -1,0 +1,232 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://release-skill.dev/schemas/test-intake/v1",
+  "title": "Release test intake documents",
+  "description": "显式测试核收（testIntake）的四类文档契约：需求清单（requirementsDocument）、执行收据（resultDocument）、冻结候选（candidate）与绑定态测试验收记录（testAcceptance）；任何未知字段均按闭世界原则拒绝。",
+  "$ref": "#/definitions/candidate",
+  "definitions": {
+    "fileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*\\\\)(?!.*\\u0000)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)(?!.*/$).+$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "anchor": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "source", "criterion", "owner", "scope", "phase", "acceptor"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "source": { "$ref": "#/definitions/fileRef" },
+        "criterion": { "$ref": "#/definitions/fileRef" },
+        "owner": { "type": "string", "minLength": 1 },
+        "scope": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind"],
+              "properties": { "kind": { "const": "project" } }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "unitId"],
+              "properties": {
+                "kind": { "const": "unit" },
+                "unitId": { "type": "string", "minLength": 1 }
+              }
+            }
+          ]
+        },
+        "phase": {
+          "type": "string",
+          "enum": ["pre-freeze", "consumer-verify", "postverify", "finish"]
+        },
+        "acceptor": { "type": "string", "minLength": 1 },
+        "optional": {
+          "type": "boolean",
+          "description": "是否为可选测试项：缺省或 false 表示必测硬门禁（不得跳过）；设为 true 时允许凭 explicitly_skipped 收据显式跳过，既不误判为漏测，也不计入已执行通过。"
+        },
+        "handoff": { "$ref": "#/definitions/handoff" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "phase": { "const": "pre-freeze" } },
+            "required": ["phase"]
+          },
+          "then": { "not": { "required": ["handoff"] } }
+        },
+        {
+          "if": {
+            "properties": { "phase": { "enum": ["consumer-verify", "postverify", "finish"] } },
+            "required": ["phase"]
+          },
+          "then": { "required": ["handoff"] }
+        }
+      ]
+    },
+    "handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["gate", "hook", "finish"] },
+        "id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "requirementsDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["formatVersion", "requirements"],
+      "properties": {
+        "formatVersion": { "const": 1 },
+        "requirements": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/requirement" }
+        }
+      }
+    },
+    "resultItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requirementId",
+        "disposition",
+        "verdict",
+        "acceptedBy",
+        "decision",
+        "evidence",
+        "applicability",
+        "limitations"
+      ],
+      "properties": {
+        "requirementId": { "type": "string", "minLength": 1 },
+        "disposition": {
+          "type": "string",
+          "enum": ["executed", "reused", "not-applicable", "explicitly_skipped", "failed", "incomplete", "uncovered"],
+          "description": "测试处置结论：executed/reused/not-applicable 表示已完成闭环；explicitly_skipped 仅允许用于 optional: true 的可选测试项（须携带非空 limitations 说明残余风险，verdict 不得冒充 passed）；failed/incomplete/uncovered 表示存在未闭合缺口。"
+        },
+        "verdict": {
+          "type": "string",
+          "enum": ["passed", "failed", "not-evaluated", "skipped"],
+          "description": "测试裁决结果：passed 仅允许真实执行、有效复用或不适用确认；explicitly_skipped 须使用 skipped 或 not-evaluated。"
+        },
+        "acceptedBy": { "type": "string", "minLength": 1 },
+        "decision": { "$ref": "#/definitions/fileRef" },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/fileRef" }
+        },
+        "applicability": { "$ref": "#/definitions/fileRef" },
+        "limitations": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/fileRef" }
+        }
+      }
+    },
+    "resultDocument": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["formatVersion", "subjectDigest", "requirementsSha256", "results"],
+      "properties": {
+        "formatVersion": { "const": 1 },
+        "subjectDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "requirementsSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "results": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/resultItem" }
+        }
+      }
+    },
+    "testAcceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "formatVersion",
+        "subjectDigest",
+        "requirements",
+        "result",
+        "acceptedRequirementIds",
+        "deferredRequirementIds"
+      ],
+      "properties": {
+        "formatVersion": { "const": 1 },
+        "subjectDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "requirements": { "$ref": "#/definitions/fileRef" },
+        "result": { "$ref": "#/definitions/fileRef" },
+        "acceptedRequirementIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "已通过执行、有效复用或不适用确认完成核收的冻结前测试需求 ID 列表（升序）。"
+        },
+        "skippedOptionalRequirementIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "凭 explicitly_skipped 收据显式跳过的可选测试需求 ID 列表（升序，单独记账，绝不混入 acceptedRequirementIds）。"
+        },
+        "deferredRequirementIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "移交发布后阶段（consumer-verify / postverify / finish）继续核验的需求 ID 列表（升序）。"
+        }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidateVersion", "writerVersion", "prepareOptions", "requirements", "prepared"],
+      "properties": {
+        "candidateVersion": { "const": 1 },
+        "writerVersion": { "type": "string", "minLength": 1 },
+        "prepareOptions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["workflow", "offline", "production", "unitIds", "unitVersions"],
+          "properties": {
+            "workflow": { "type": "string", "enum": ["full", "docs", "config", "marketplace"] },
+            "offline": { "type": "boolean" },
+            "production": { "const": true },
+            "unitIds": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            },
+            "unitVersions": {
+              "type": "object",
+              "additionalProperties": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "requirements": { "$ref": "#/definitions/fileRef" },
+        "prepared": {
+          "type": "object",
+          "properties": {
+            "replacesPlanDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "status": false,
+            "digest": false,
+            "testAcceptance": false
+          }
+        }
+      }
+    }
+  }
+}

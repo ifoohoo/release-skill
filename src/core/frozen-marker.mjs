@@ -19,6 +19,7 @@
  *
  * @module core/frozen-marker
  */
+// @decision D-RS-001
 
 import { readFile, writeFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';

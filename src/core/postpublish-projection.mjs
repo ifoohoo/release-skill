@@ -34,6 +34,7 @@
  *
  * @module core/postpublish-projection
  */
+// @decision D-RS-002
 
 import { chmod, lstat, mkdir, realpath, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';

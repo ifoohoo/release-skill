@@ -25,6 +25,7 @@
  *
  * @module core/marketplace-registry-entry
  */
+// @decision D-RS-005
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';

@@ -5,36 +5,79 @@
   "description": "A single, private observation of an executable lookup and its explicit launch image. Absolute roots and file bytes are intentionally represented only by the bound root and digest facts.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "kind", "lookup", "canonicalEntry", "interpreter", "launch", "observationDigest"],
+  "required": [
+    "schemaVersion",
+    "kind",
+    "lookup",
+    "canonicalEntry",
+    "interpreter",
+    "launch",
+    "observationDigest"
+  ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "skill-family.executable-identity-observation" },
-    "lookup": { "$ref": "#/$defs/lookup" },
-    "canonicalEntry": { "$ref": "#/$defs/canonicalEntry" },
+    "schemaVersion": {
+      "enum": [
+        1,
+        2
+      ]
+    },
+    "kind": {
+      "const": "skill-family.executable-identity-observation"
+    },
+    "lookup": {
+      "$ref": "#/$defs/lookup"
+    },
+    "canonicalEntry": {
+      "$ref": "#/$defs/canonicalEntry"
+    },
     "interpreter": {
       "oneOf": [
-        { "type": "null" },
+        {
+          "type": "null"
+        },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["request", "canonicalEntry", "shebangArgs"],
+          "required": [
+            "request",
+            "canonicalEntry",
+            "shebangArgs"
+          ],
           "properties": {
             "request": {
               "oneOf": [
-                { "$ref": "#/$defs/bareCommand" },
-                { "$ref": "#/$defs/absolutePath" }
+                {
+                  "$ref": "#/$defs/bareCommand"
+                },
+                {
+                  "$ref": "#/$defs/absolutePath"
+                }
               ]
             },
             "canonicalEntry": {
               "allOf": [
-                { "$ref": "#/$defs/canonicalEntry" },
-                { "type": "object", "properties": { "entryKind": { "const": "native-binary" } } }
+                {
+                  "$ref": "#/$defs/canonicalEntry"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "entryKind": {
+                      "const": "native-binary"
+                    }
+                  }
+                }
               ]
             },
             "shebangArgs": {
               "type": "array",
               "maxItems": 8,
-              "items": { "type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\u0000\\r\\n]+$" }
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[^\\u0000\\r\\n]+$"
+              }
             }
           }
         }
@@ -43,49 +86,281 @@
     "launch": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["file", "argvPrefix"],
+      "required": [
+        "file",
+        "argvPrefix"
+      ],
       "properties": {
-        "file": { "$ref": "#/$defs/absolutePath" },
+        "file": {
+          "$ref": "#/$defs/absolutePath"
+        },
         "argvPrefix": {
           "type": "array",
           "maxItems": 8,
-          "items": { "$ref": "#/$defs/absolutePath" }
+          "items": {
+            "$ref": "#/$defs/absolutePath"
+          }
         }
       }
     },
-    "observationDigest": { "$ref": "#/$defs/sha256" }
+    "observationDigest": {
+      "$ref": "#/$defs/sha256"
+    }
   },
   "allOf": [
     {
       "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 1
+          }
+        },
+        "required": [
+          "schemaVersion"
+        ]
+      },
+      "then": {
+        "properties": {
+          "canonicalEntry": {
+            "type": "object",
+            "properties": {
+              "statMode": {
+                "type": "integer"
+              },
+              "permissionObservation": false,
+              "path": {
+                "type": "string",
+                "pattern": "^/"
+              },
+              "binding": {
+                "type": "object",
+                "properties": {
+                  "basis": {
+                    "const": "canonical-realpath-device-inode-type-mode-v1"
+                  }
+                }
+              }
+            }
+          },
+          "interpreter": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "canonicalEntry": {
+                    "type": "object",
+                    "properties": {
+                      "statMode": {
+                        "type": "integer"
+                      },
+                      "permissionObservation": false,
+                      "path": {
+                        "type": "string",
+                        "pattern": "^/"
+                      },
+                      "binding": {
+                        "type": "object",
+                        "properties": {
+                          "basis": {
+                            "const": "canonical-realpath-device-inode-type-mode-v1"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 2
+          }
+        },
+        "required": [
+          "schemaVersion"
+        ]
+      },
+      "then": {
+        "properties": {
+          "canonicalEntry": {
+            "type": "object",
+            "required": [
+              "permissionObservation"
+            ],
+            "properties": {
+              "statMode": {
+                "type": "null"
+              },
+              "permissionObservation": {
+                "type": "object"
+              },
+              "path": {
+                "type": "string",
+                "pattern": "^[A-Za-z]:/"
+              },
+              "binding": {
+                "type": "object",
+                "properties": {
+                  "basis": {
+                    "const": "canonical-finalpath-volume-fileid-type-security-v1"
+                  }
+                }
+              }
+            }
+          },
+          "interpreter": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "request": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z]:/"
+                  },
+                  "shebangArgs": {
+                    "type": "array",
+                    "maxItems": 0
+                  },
+                  "canonicalEntry": {
+                    "type": "object",
+                    "required": [
+                      "permissionObservation"
+                    ],
+                    "properties": {
+                      "statMode": {
+                        "type": "null"
+                      },
+                      "permissionObservation": {
+                        "type": "object"
+                      },
+                      "path": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z]:/"
+                      },
+                      "binding": {
+                        "type": "object",
+                        "properties": {
+                          "basis": {
+                            "const": "canonical-finalpath-volume-fileid-type-security-v1"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "launch": {
+            "type": "object",
+            "properties": {
+              "file": {
+                "type": "string",
+                "pattern": "^[A-Za-z]:/"
+              },
+              "argvPrefix": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z]:/"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
         "type": "object",
-        "properties": { "canonicalEntry": { "type": "object", "properties": { "entryKind": { "const": "interpreter-script" } }, "required": ["entryKind"] } },
-        "required": ["canonicalEntry"]
+        "properties": {
+          "canonicalEntry": {
+            "type": "object",
+            "properties": {
+              "entryKind": {
+                "const": "interpreter-script"
+              }
+            },
+            "required": [
+              "entryKind"
+            ]
+          }
+        },
+        "required": [
+          "canonicalEntry"
+        ]
       },
       "then": {
         "type": "object",
         "properties": {
-          "interpreter": { "type": "object" },
-          "launch": { "type": "object", "properties": { "argvPrefix": { "type": "array", "minItems": 1 } } }
+          "interpreter": {
+            "type": "object"
+          },
+          "launch": {
+            "type": "object",
+            "properties": {
+              "argvPrefix": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
         }
       },
       "else": {
         "type": "object",
         "properties": {
-          "interpreter": { "type": "null" },
-          "launch": { "type": "object", "properties": { "argvPrefix": { "type": "array", "maxItems": 0 } } }
+          "interpreter": {
+            "type": "null"
+          },
+          "launch": {
+            "type": "object",
+            "properties": {
+              "argvPrefix": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          }
         }
       }
     }
   ],
   "$defs": {
-    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-    "absolutePath": {
+    "sha256": {
       "type": "string",
-      "minLength": 1,
-      "maxLength": 4096,
-      "pattern": "^/(?:[^/\\\\\\u0000]+(?:/[^/\\\\\\u0000]+)*)?$",
-      "not": { "pattern": "(?:^|/)\\.{1,2}(?:/|$)" }
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "absolutePath": {
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "pattern": "^/(?:[^/\\\\\\u0000]+(?:/[^/\\\\\\u0000]+)*)?$",
+          "not": {
+            "pattern": "(?:^|/)\\.{1,2}(?:/|$)"
+          }
+        },
+        {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 4096,
+          "pattern": "^[A-Za-z]:/(?:[^/\\\\:*?\"<>|\\u0000]+/)*[^/\\\\:*?\"<>|\\u0000]+$"
+        }
+      ]
     },
     "relativePath": {
       "type": "string",
@@ -99,36 +374,77 @@
       "maxLength": 256,
       "pattern": "^[^/\\\\\\u0000]+$"
     },
-    "rootBinding": { "$ref": "https://contracts.skill-family.example/v1/filesystem-root-binding.json" },
+    "rootBinding": {
+      "$ref": "https://contracts.skill-family.example/v1/filesystem-root-binding.json"
+    },
     "lookup": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["requested", "mode", "selectedPath"],
+      "required": [
+        "requested",
+        "mode",
+        "selectedPath"
+      ],
       "properties": {
-        "requested": { "type": "string", "minLength": 1, "maxLength": 4096 },
-        "mode": { "enum": ["absolute-path", "explicit-path-search"] },
-        "path": { "$ref": "#/$defs/absolutePath" },
+        "requested": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "mode": {
+          "enum": [
+            "absolute-path",
+            "explicit-path-search"
+          ]
+        },
+        "path": {
+          "$ref": "#/$defs/absolutePath"
+        },
         "pathEntries": {
           "type": "array",
           "minItems": 1,
           "maxItems": 64,
           "uniqueItems": true,
-          "items": { "$ref": "#/$defs/absolutePath" }
+          "items": {
+            "$ref": "#/$defs/absolutePath"
+          }
         },
-        "selectedPath": { "$ref": "#/$defs/absolutePath" }
+        "selectedPath": {
+          "$ref": "#/$defs/absolutePath"
+        }
       },
       "allOf": [
         {
-          "if": { "type": "object", "properties": { "mode": { "const": "absolute-path" } }, "required": ["mode"] },
+          "if": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "const": "absolute-path"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          },
           "then": {
             "type": "object",
-            "required": ["path"],
-            "properties": { "path": {}, "pathEntries": false }
+            "required": [
+              "path"
+            ],
+            "properties": {
+              "path": {},
+              "pathEntries": false
+            }
           },
           "else": {
             "type": "object",
-            "required": ["pathEntries"],
-            "properties": { "pathEntries": {}, "path": false }
+            "required": [
+              "pathEntries"
+            ],
+            "properties": {
+              "pathEntries": {},
+              "path": false
+            }
           }
         }
       ]
@@ -136,26 +452,105 @@
     "symlink": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path", "targetBase64", "bytes"],
+      "required": [
+        "path",
+        "targetBase64",
+        "bytes"
+      ],
       "properties": {
-        "path": { "$ref": "#/$defs/absolutePath" },
-        "targetBase64": { "type": "string", "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$" },
-        "bytes": { "type": "integer", "minimum": 0, "maximum": 1048576 }
+        "path": {
+          "$ref": "#/$defs/absolutePath"
+        },
+        "targetBase64": {
+          "type": "string",
+          "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1048576
+        }
       }
     },
     "canonicalEntry": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path", "symlinkChain", "binding", "relPath", "sha256", "bytes", "statMode", "entryKind"],
+      "required": [
+        "path",
+        "symlinkChain",
+        "binding",
+        "relPath",
+        "sha256",
+        "bytes",
+        "statMode",
+        "entryKind"
+      ],
       "properties": {
-        "path": { "$ref": "#/$defs/absolutePath" },
-        "symlinkChain": { "type": "array", "maxItems": 40, "items": { "$ref": "#/$defs/symlink" } },
-        "binding": { "$ref": "#/$defs/rootBinding" },
-        "relPath": { "$ref": "#/$defs/relativePath" },
-        "sha256": { "$ref": "#/$defs/sha256" },
-        "bytes": { "type": "integer", "minimum": 0, "maximum": 1073741824 },
-        "statMode": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
-        "entryKind": { "enum": ["native-binary", "interpreter-script", "opaque-executable"] }
+        "path": {
+          "$ref": "#/$defs/absolutePath"
+        },
+        "symlinkChain": {
+          "type": "array",
+          "maxItems": 40,
+          "items": {
+            "$ref": "#/$defs/symlink"
+          }
+        },
+        "binding": {
+          "$ref": "#/$defs/rootBinding"
+        },
+        "relPath": {
+          "$ref": "#/$defs/relativePath"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1073741824
+        },
+        "statMode": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "permissionObservation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "attributes",
+            "securityDigest"
+          ],
+          "properties": {
+            "kind": {
+              "const": "windows-security-v1"
+            },
+            "attributes": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            "securityDigest": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        },
+        "entryKind": {
+          "enum": [
+            "native-binary",
+            "interpreter-script",
+            "opaque-executable"
+          ]
+        }
       }
     }
   }

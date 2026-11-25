@@ -6,6 +6,7 @@
  *
  * @module blackbox-hard-gates
  */
+// @decision D-RS-001
 
 import { validateVersionConsistency } from './version-consistency.mjs';
 import { validatePlanActionCompleteness } from './plan.mjs';

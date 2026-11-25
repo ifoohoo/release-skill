@@ -21,9 +21,9 @@ description: "Marketplace-only workflow profile: route confirms marketplace-only
 
 `release-marketplace` 是工作流配置文件（§4）定义的独立工作流之一，专门处理仅 marketplace 索引变更的场景。
 
-**机械实现**：`prepare --workflow marketplace` 确定性地裁剪代码类门禁（H5），记录 `workflowKind: 'marketplace'` 与 `workflowDecision`。**本工作流不执行发布**：发布动作委托给目标 workspace 的专属发布技能（如 `publish-marketplace`，具体路径依 workspace 而定，如 `artifact-skill-set-workspace`、`glaf4-skill-set-workspace`、`skill-family-hub-workspace` 等）。`release-skill` CLI 无 `sync` 命令，也无 `exclusive-release.mjs` 接口——这些接口不存在，不得调用。
+**机械实现**：`prepare --workflow marketplace` 确定性地裁剪代码类门禁（H5），记录 `workflowKind: 'marketplace'` 与 `workflowDecision`。**本工作流不执行发布**：发布动作委托给目标 `<marketplace-workspace>` 的专属发布技能（如 `publish-marketplace`，具体路径依目标工作区而定）。`release-skill` CLI 无 `sync` 命令，也无 `exclusive-release.mjs` 接口——这些接口不存在，不得调用。
 
-**边界**：插件源码未被修改（plugin source unmodified）。市场索引一致性、快照字节、平台清单（platform manifest）是核心校验门禁，由目标 workspace 自身的生成器与 `generate-platform-manifest.mjs --check` 机械保证。
+**边界**：插件自身源码未发生改动；市场索引一致性、公开快照字节与平台清单（`platform-manifest.json`）是核心校验门禁，由目标工作区自身的生成器与 `generate-platform-manifest.mjs --check` 机械保证。
 
 ## 职责与边界
 
@@ -136,15 +136,14 @@ node "$RELEASE_SKILL_ENTRY" prepare --offline \
 
 - `release-skill route`：快速入门决策路由（§4.3）
 - `release-prepare`：冻结计划（`--workflow marketplace`）
-- 各 workspace 的专属发布技能（`publish-marketplace`，如 `artifact-skill-set-workspace`、`glaf4-skill-set-workspace`、`skill-family-hub-workspace` 等）
+- 目标 `<marketplace-workspace>` 的专属发布技能（如 `publish-marketplace`）
 - `generate-platform-manifest.mjs`：平台清单漂移检测（`--check`）
 
 ## Workspace Coordination Notes
 
-每个 workspace 管理自己的 marketplace 入口和制品，并通过其专属发布技能发布：
-- `artifact-skill-set-workspace`：`plugins.mjs` 是条目唯一事实源，`publish-marketplace` 技能执行发布
-- `glaf4-skill-set-workspace`：同上，项目专属 `publish-marketplace` 技能
-- `skill-family-hub-workspace`：`plugins.mjs` 只记录已满足公开收录条件的插件
+每个市场工作区管理自身的 marketplace 入口与派生制品，并通过专属发布技能完成发布：
+- `<marketplace-workspace>`：`plugins.mjs` 是市场条目的唯一事实源，由该工作区专属的 `publish-marketplace` 技能执行发布
+- 公开汇总市场工作区：`plugins.mjs` 只记录已满足公开收录条件的插件
 
 本技能作为协调器，确认 route 分类并冻结 marketplace 工作流计划，但发布动作必须委托给目标 workspace 自己的发布技能执行，`release-skill` 不直接操作其他 workspace 的代码库。
 

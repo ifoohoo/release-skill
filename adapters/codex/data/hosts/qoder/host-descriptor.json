@@ -11,7 +11,15 @@
     "authStrategy": "existing-user-state",
     "credentialMutation": "host-managed"
   },
-  "pathCategories": [],
+  "pathCategories": [
+    {
+      "id": "qoder-project-skills",
+      "role": "skill-root",
+      "scope": "project",
+      "anchor": "project-root",
+      "relPath": ".qoder/skills"
+    }
+  ],
   "probeCapabilities": [
     "cli",
     "version",

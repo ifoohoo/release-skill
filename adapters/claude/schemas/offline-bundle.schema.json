@@ -1,0 +1,174 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://release-skill.dev/schemas/offline-bundle/v1",
+  "title": "Release Skill Offline Distribution Bundle",
+  "description": "离线分发归档包清单（offline-manifest.json）与本地离线市场索引片段（marketplace/offline-marketplace-index.json）的结构契约（US-061）。",
+  "definitions": {
+    "relativeSafePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\u0000)(?!.*\\/$).+$",
+      "description": "归档包内规范相对路径（禁止绝对路径、./、.. 跳转、反斜杠、协议前缀或尾随斜杠）。"
+    },
+    "localPayloadRef": {
+      "type": "string",
+      "minLength": 3,
+      "pattern": "^\\.\\/payload\\/[A-Za-z0-9._-]+\\.tgz$",
+      "description": "离线市场片段引用的本地载荷归档相对路径（固定指向 ./payload/*.tgz，严禁携带任何外网 URL）。"
+    },
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "64 位小写十六进制 SHA-256 摘要。"
+    },
+    "fileChecksumEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "size"],
+      "properties": {
+        "path": { "$ref": "#/definitions/relativeSafePath" },
+        "sha256": { "$ref": "#/definitions/sha256Hex" },
+        "size": { "type": "integer", "minimum": 0, "description": "文件字节长度。" }
+      }
+    },
+    "offlineMarketplaceIndex": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "离线环境专用的本地多宿主市场索引片段，仅绑定本地归档相对路径与 SHA-256，零外网地址依赖。",
+      "required": [
+        "schemaVersion",
+        "kind",
+        "unitId",
+        "version",
+        "tag",
+        "networkDependencies",
+        "snapshotArchive",
+        "snapshotSha256",
+        "hostEntries"
+      ],
+      "properties": {
+        "schemaVersion": { "type": "integer", "const": 1 },
+        "kind": { "type": "string", "const": "release-skill/offline-marketplace-index" },
+        "unitId": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string", "minLength": 1 },
+        "networkDependencies": { "type": "string", "const": "none" },
+        "snapshotArchive": { "$ref": "#/definitions/localPayloadRef" },
+        "snapshotSha256": { "$ref": "#/definitions/sha256Hex" },
+        "npmTarball": {
+          "oneOf": [
+            { "$ref": "#/definitions/localPayloadRef" },
+            { "type": "null" }
+          ]
+        },
+        "npmPackage": { "type": ["string", "null"] },
+        "hostEntries": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["claude", "codebuddy", "codex", "kimi", "qoder"],
+          "properties": {
+            "claude": { "type": ["object", "null"] },
+            "codebuddy": { "type": ["object", "null"] },
+            "codex": { "type": ["object", "null"] },
+            "kimi": { "type": ["object", "null"] },
+            "qoder": { "type": ["object", "null"] },
+            "cursor": { "type": ["object", "null"] },
+            "antigravity": { "type": ["object", "null"] },
+            "workbuddy": { "type": ["object", "null"] }
+          }
+        }
+      }
+    },
+    "offlineBundleManifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "离线分发归档包的顶层完整性与版本一致性契约清单（offline-manifest.json）。",
+      "required": [
+        "schemaVersion",
+        "kind",
+        "projectName",
+        "unitId",
+        "publicRepo",
+        "visibility",
+        "version",
+        "tag",
+        "sourceCommit",
+        "createdAt",
+        "offlineSelfContained",
+        "remoteWritesPerformed",
+        "networkDependencies",
+        "payload",
+        "snapshotFiles",
+        "bundleFiles",
+        "bundleDigest"
+      ],
+      "properties": {
+        "schemaVersion": { "type": "integer", "const": 1 },
+        "kind": { "type": "string", "const": "release-skill/offline-bundle-manifest" },
+        "projectName": { "type": "string", "minLength": 1 },
+        "unitId": { "type": "string", "minLength": 1 },
+        "publicRepo": { "type": "string", "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$" },
+        "visibility": { "type": "string", "enum": ["public", "private"] },
+        "version": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string", "minLength": 1 },
+        "sourceCommit": {
+          "oneOf": [
+            { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+            { "type": "null" }
+          ]
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "offlineSelfContained": { "type": "boolean", "const": true },
+        "remoteWritesPerformed": { "type": "boolean", "const": false },
+        "networkDependencies": { "type": "string", "const": "none" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "snapshotArchive",
+            "snapshotSha256",
+            "snapshotContentDigest",
+            "snapshotFileCount",
+            "npmTarball",
+            "npmPackage",
+            "npmTarballSha256",
+            "marketplaceIndexFile",
+            "installGuideFile"
+          ],
+          "properties": {
+            "snapshotArchive": { "$ref": "#/definitions/relativeSafePath" },
+            "snapshotSha256": { "$ref": "#/definitions/sha256Hex" },
+            "snapshotContentDigest": { "$ref": "#/definitions/sha256Hex" },
+            "snapshotFileCount": { "type": "integer", "minimum": 1 },
+            "npmTarball": {
+              "oneOf": [
+                { "$ref": "#/definitions/relativeSafePath" },
+                { "type": "null" }
+              ]
+            },
+            "npmPackage": { "type": ["string", "null"] },
+            "npmTarballSha256": {
+              "oneOf": [
+                { "$ref": "#/definitions/sha256Hex" },
+                { "type": "null" }
+              ]
+            },
+            "marketplaceIndexFile": { "$ref": "#/definitions/relativeSafePath" },
+            "installGuideFile": { "$ref": "#/definitions/relativeSafePath" }
+          }
+        },
+        "snapshotFiles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/fileChecksumEntry" }
+        },
+        "bundleFiles": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/definitions/fileChecksumEntry" }
+        },
+        "bundleDigest": { "$ref": "#/definitions/sha256Hex" }
+      }
+    }
+  }
+}

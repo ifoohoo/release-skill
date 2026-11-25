@@ -14,6 +14,8 @@
  *
  * @module artifacts/artifact-plan
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import { writeFile, mkdir, readFile, rename, open } from 'node:fs/promises';
 import { dirname } from 'node:path';

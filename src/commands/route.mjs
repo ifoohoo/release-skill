@@ -1,3 +1,6 @@
+// @decision D-RS-004
+// @decision D-RS-005
+
 import { isProvenPreAuthorityFailure } from '../core/pre-authority-failure.mjs';
 /**
  * release-route command: Deterministic quickstart routing for workflow profiles.

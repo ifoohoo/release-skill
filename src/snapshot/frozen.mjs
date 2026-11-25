@@ -1,3 +1,7 @@
+// @decision D-RS-001
+// @feature REL004
+// @scenario S-005
+
 import { createHash } from 'node:crypto';
 import { execFile as execFileCb, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -624,7 +628,49 @@ export async function buildNpmTarballFileIndex({ tarballBytes, tarballDir }) {
   return new Map(packed.entries.map((entry) => [entry.path, { type: entry.type }]));
 }
 
+const RUNTIME_DEPENDENCY_FIELDS = Object.freeze([
+  'dependencies',
+  'optionalDependencies',
+  'peerDependencies',
+]);
+
+async function assertNoWorkspaceProtocolDependencies(snapshotDir) {
+  const manifestPhysical = await resolveFrozenPath(snapshotDir, 'package.json', 'npm package.json');
+  const { bytes } = await readStableRegularFile(manifestPhysical, 'package.json');
+  let manifest;
+  try {
+    manifest = JSON.parse(bytes.toString('utf8'));
+  } catch {
+    throw frozenError('待打包的 package.json 不是合法的 JSON 对象，已中止 npm 打包');
+  }
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    throw frozenError('待打包的 package.json 顶层必须是 JSON 对象，已中止 npm 打包');
+  }
+  const violations = [];
+  for (const field of RUNTIME_DEPENDENCY_FIELDS) {
+    const deps = manifest[field];
+    if (!deps || typeof deps !== 'object' || Array.isArray(deps)) continue;
+    for (const [depName, rawSpec] of Object.entries(deps)) {
+      if (typeof rawSpec === 'string' && /^\s*workspace:/i.test(rawSpec)) {
+        violations.push({ field, dependency: depName, specifier: rawSpec.trim() });
+      }
+    }
+  }
+  if (violations.length > 0) {
+    const summary = violations
+      .map((item) => `${item.field}.${item.dependency}="${item.specifier}"`)
+      .join(', ');
+    throw frozenError(
+      `待打包的 package.json 运行时依赖仍残留未解析的 workspace: 协议（${summary}），` +
+      '直接执行 npm pack 会生成触发 EUNSUPPORTEDPROTOCOL 的损坏包；请先将运行时依赖改为明确的已发布版本号后再打包。',
+      { reason: 'WORKSPACE_PROTOCOL_DEPENDENCY', violations },
+    );
+  }
+}
+
 export async function buildFrozenNpmTarball({ snapshotDir, tarballDir, expectedSnapshotDigest, exec = execFile }) {
+  if (!expectedSnapshotDigest) throw frozenError('npm tarball build requires the sealed snapshot digest');
+  await assertNoWorkspaceProtocolDependencies(snapshotDir);
   await mkdir(tarballDir, { recursive: true });
   const { stdout } = await exec(
     'npm',
@@ -643,7 +689,6 @@ export async function buildFrozenNpmTarball({ snapshotDir, tarballDir, expectedS
   }
   const tarballPath = join(tarballDir, info.filename);
   const { bytes } = await readStableRegularFile(tarballPath, info.filename);
-  if (!expectedSnapshotDigest) throw frozenError('npm tarball build requires the sealed snapshot digest');
   await verifyNpmTarballContent({
     snapshotDir,
     tarballBytes: bytes,

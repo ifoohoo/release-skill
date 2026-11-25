@@ -12,6 +12,8 @@
  *
  * @module artifacts/merge/text
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 // ---------------------------------------------------------------------------
 // Diff helpers

@@ -26,6 +26,7 @@
  *
  * @module src/docs/notes
  */
+// @decision D-RS-003
 
 import YAML from 'yaml';
 import {

@@ -15,6 +15,7 @@
  *
  * @module core/checkpoints
  */
+// @decision D-RS-002
 
 /**
  * Checkpoint order for the publish/reconcile sagas.

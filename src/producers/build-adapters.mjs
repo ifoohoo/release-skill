@@ -3,12 +3,12 @@
  *
  * Reads skill metadata from skills-src/ and plugin.json templates,
  * generates self-contained adapter directories for each platform
- * enabled by the platform registry (currently claude, codex, kimi,
- * workbuddy, and qoder).
+ * enabled by the platform registry (claude, codex, kimi,
+ * workbuddy, qoder, cursor, and antigravity).
  *
  * Each adapter root contains:
  * - Plugin manifest (.claude-plugin/, .codex-plugin/, .kimi-plugin/,
- *   .codebuddy-plugin/, or .qoder-plugin/)
+ *   .codebuddy-plugin/, .qoder-plugin/, .cursor-plugin/, or root plugin.json)
  * - Skills with host-specific root resolution
  * - bin/release-skill.mjs (wrapper) + bin/release-skill.bundle.mjs (self-contained bundle)
  * - schemas/ (JSON Schema files)
@@ -18,6 +18,8 @@
  *
  * @module producers/build-adapters
  */
+// @decision D-RS-003
+// @decision D-RS-005
 
 import { readdir, mkdir, lstat, realpath, open, rm } from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
@@ -161,9 +163,56 @@ async function assertOwnedOutputRoot(rootPath, identity, label) {
   }
 }
 
+function normalizePluginDirName(pluginDirName, label = 'buildAdapter.pluginDirName') {
+  if (pluginDirName === '' || pluginDirName === '.') return '';
+  if (typeof pluginDirName !== 'string') {
+    throw new Error(`SECURITY: ${label} must be a string`);
+  }
+  if (
+    pluginDirName.startsWith('/')
+    || pluginDirName.endsWith('/')
+    || pluginDirName.includes('\\')
+    || pluginDirName.includes(':')
+    || pluginDirName.includes('\0')
+  ) {
+    throw new Error(`SECURITY: ${label} must be '.', '', or a safe relative directory: ${pluginDirName}`);
+  }
+  const segments = pluginDirName.split('/');
+  if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
+    throw new Error(`SECURITY: ${label} contains unsafe path segment: ${pluginDirName}`);
+  }
+  return join(...segments);
+}
+
+function resolveAdapterManifestPath(pluginDirName, fileName, label = 'buildAdapter.templateFileName') {
+  if (
+    typeof fileName !== 'string'
+    || fileName.length === 0
+    || fileName === '.'
+    || fileName === '..'
+    || fileName.includes('/')
+    || fileName.includes('\\')
+    || fileName.includes(':')
+    || fileName.includes('\0')
+  ) {
+    throw new Error(`SECURITY: ${label} must be a safe single file name: ${fileName}`);
+  }
+  const normalizedDir = normalizePluginDirName(pluginDirName);
+  const relPath = normalizedDir ? join(normalizedDir, fileName) : fileName;
+  const displayPath = normalizedDir ? `${normalizedDir.split(sep).join('/')}/${fileName}` : fileName;
+  return { relPath, displayPath };
+}
+
 async function ensureTrustedOutputDirectory(rootPath, rootIdentity, relativeDir, label) {
+  await assertOwnedOutputRoot(rootPath, rootIdentity, label);
+  if (relativeDir === '' || relativeDir === '.') {
+    return rootPath;
+  }
   let cursor = rootPath;
-  for (const segment of relativeDir.split(sep).filter(Boolean)) {
+  for (const segment of relativeDir.split(sep)) {
+    if (segment === '' || segment === '.' || segment === '..') {
+      throw new Error(`SECURITY: ${label} output relative directory is unsafe: ${relativeDir}`);
+    }
     await assertOwnedOutputRoot(rootPath, rootIdentity, label);
     cursor = join(cursor, segment);
     try {
@@ -354,6 +403,11 @@ const CURSOR_PREAMBLE = CODEX_PREAMBLE.replaceAll('Codex', 'Cursor').replace(
   '> 校验 `PLUGIN_ROOT/.cursor-plugin/plugin.json` 是根内的普通文件，且名称为 `release-skill`；清单缺失或不一致时停止。Cursor 不保证注入插件根变量。\n> 令 `RELEASE_SKILL_ENTRY',
 );
 
+const ANTIGRAVITY_PREAMBLE = CODEX_PREAMBLE.replaceAll('Codex', 'Antigravity').replace(
+  '> 令 `RELEASE_SKILL_ENTRY',
+  '> 校验 `PLUGIN_ROOT/plugin.json` 是根内的普通文件，且名称为 `release-skill`；清单缺失或不一致时停止。Antigravity 不保证注入插件根变量。\n> 令 `RELEASE_SKILL_ENTRY',
+);
+
 /**
  * Render SKILL.md content for a specific platform.
  *
@@ -362,13 +416,15 @@ const CURSOR_PREAMBLE = CODEX_PREAMBLE.replaceAll('Codex', 'Cursor').replace(
  *   and prepends the path resolution protocol preamble.
  * - Kimi: same substitution as Codex, with the Kimi Code preamble.
  * - Qoder: same substitution, with a host-loaded-path preamble.
+ * - Cursor: same substitution, with a Cursor host-loaded-path preamble.
+ * - Antigravity: same substitution, with an Antigravity root plugin.json preamble.
  * - WorkBuddy: pure variable substitution (${CLAUDE_PLUGIN_ROOT} ->
  *   ${CODEBUDDY_PLUGIN_ROOT}); CodeBuddy expands the variable inline in
  *   skill content (official plugin reference), the same mechanism Claude
  *   uses, so no entry-resolution preamble is needed.
  *
  * @param {string} content - Canonical SKILL.md content.
- * @param {string} platformName - 'claude', 'codex', 'kimi', 'workbuddy', or 'qoder'.
+ * @param {string} platformName - 'claude', 'codex', 'kimi', 'workbuddy', 'qoder', 'cursor', or 'antigravity'.
  * @returns {string}
  */
 function renderSkillForPlatform(content, platformName) {
@@ -378,13 +434,26 @@ function renderSkillForPlatform(content, platformName) {
     return content.replaceAll('${CLAUDE_PLUGIN_ROOT}', '${CODEBUDDY_PLUGIN_ROOT}');
   }
 
-  if (platformName === 'codex' || platformName === 'kimi' || platformName === 'qoder' || platformName === 'cursor') {
-    const hostLabel = { codex: 'Codex', kimi: 'Kimi', qoder: 'Qoder', cursor: 'Cursor' }[platformName];
+  if (
+    platformName === 'codex'
+    || platformName === 'kimi'
+    || platformName === 'qoder'
+    || platformName === 'cursor'
+    || platformName === 'antigravity'
+  ) {
+    const hostLabel = {
+      codex: 'Codex',
+      kimi: 'Kimi',
+      qoder: 'Qoder',
+      cursor: 'Cursor',
+      antigravity: 'Antigravity',
+    }[platformName];
     const preamble = {
       codex: CODEX_PREAMBLE,
       kimi: KIMI_PREAMBLE,
       qoder: QODER_PREAMBLE,
       cursor: CURSOR_PREAMBLE,
+      antigravity: ANTIGRAVITY_PREAMBLE,
     }[platformName];
     let rendered = content.replaceAll(
       '${CLAUDE_PLUGIN_ROOT}/bin/release-skill-local-finish.mjs',
@@ -410,8 +479,9 @@ function renderSkillForPlatform(content, platformName) {
         .replaceAll('RELEASE_SKILL_ENTRY', 'RELEASE_SKILL_LOCAL_FINISH_ENTRY')
         .replaceAll('release-skill.mjs', 'release-skill-local-finish.mjs');
     }
-    if (platformName === 'cursor' && /\$\{(?:CLAUDE|CURSOR|CODEBUDDY|KIMI)[A-Z_]*\}/u.test(rendered)) {
-      throw new Error('Cursor rendering contains a residual host-specific placeholder');
+    if ((platformName === 'cursor' || platformName === 'antigravity')
+      && /\$\{(?:CLAUDE|CURSOR|ANTIGRAVITY|CODEBUDDY|KIMI)[A-Z_]*\}/u.test(rendered)) {
+      throw new Error(`${hostLabel} rendering contains a residual host-specific placeholder`);
     }
     // A remaining bare host-root reference has no safe path-derived equivalent.
     if (rendered.includes('${CLAUDE_PLUGIN_ROOT}')) {
@@ -477,40 +547,151 @@ async function collectBinaryFiles(baseDir, physicalRoot, relPrefix = '', exclude
  * @param {object|null} marketplaceTemplateJson - Parsed marketplace template.
  * @returns {Promise<Array<{relPath:string,content:Buffer,isBinary:boolean}>>}
  */
+/** Official Google Antigravity plugin.json 10-field top-level whitelist. */
+const ANTIGRAVITY_PLUGIN_MANIFEST_KEY_SET = new Set([
+  'name',
+  'description',
+  'logo',
+  'suggestedPrompts',
+  'displayName',
+  'version',
+  'author',
+  'homepage',
+  'repository',
+  'disabled',
+]);
+
+function validateAntigravityPluginManifest(manifest) {
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    throw new Error('Antigravity plugin.json 顶层必须是 JSON 对象');
+  }
+  const invalidKeys = Object.keys(manifest).filter((key) => !ANTIGRAVITY_PLUGIN_MANIFEST_KEY_SET.has(key));
+  if (invalidKeys.length > 0) {
+    throw new Error(`Antigravity plugin.json 包含不在官方 10 字段白名单内的字段: ${invalidKeys.join(', ')}`);
+  }
+  if (typeof manifest.name !== 'string' || manifest.name.trim().length === 0) {
+    throw new Error('Antigravity plugin.json 必须声明非空字符串 name');
+  }
+  if (manifest.version !== undefined && (typeof manifest.version !== 'string' || manifest.version.trim().length === 0)) {
+    throw new Error('Antigravity plugin.json 的 version 字段必须是非空字符串');
+  }
+  for (const field of ['displayName', 'description', 'logo']) {
+    if (manifest[field] !== undefined && typeof manifest[field] !== 'string') {
+      throw new Error(`Antigravity plugin.json 的 ${field} 字段必须是字符串`);
+    }
+  }
+  if (manifest.disabled !== undefined && typeof manifest.disabled !== 'boolean') {
+    throw new Error('Antigravity plugin.json 的 disabled 字段必须是布尔值');
+  }
+  if (manifest.homepage !== undefined) {
+    if (typeof manifest.homepage !== 'string' || !/^https?:\/\/\S+$/u.test(manifest.homepage)) {
+      throw new Error('Antigravity plugin.json 的 homepage 字段必须是合法 HTTP(S) URL 字符串');
+    }
+  }
+  if (manifest.suggestedPrompts !== undefined) {
+    if (
+      !Array.isArray(manifest.suggestedPrompts)
+      || manifest.suggestedPrompts.some((item) => typeof item !== 'string' || item.trim().length === 0)
+    ) {
+      throw new Error('Antigravity plugin.json 的 suggestedPrompts 必须是非空字符串数组');
+    }
+  }
+  if (manifest.author !== undefined) {
+    if (typeof manifest.author === 'string') {
+      if (manifest.author.trim().length === 0) {
+        throw new Error('Antigravity plugin.json 的 author 字符串不能为空');
+      }
+    } else if (manifest.author && typeof manifest.author === 'object' && !Array.isArray(manifest.author)) {
+      const authorKeys = Object.keys(manifest.author);
+      const extraAuthorKeys = authorKeys.filter((key) => key !== 'name' && key !== 'url');
+      if (extraAuthorKeys.length > 0) {
+        throw new Error(`Antigravity plugin.json 的 author 对象仅允许 name 与 url（禁止 ${extraAuthorKeys.join(', ')}）`);
+      }
+      if (typeof manifest.author.name !== 'string' || manifest.author.name.trim().length === 0) {
+        throw new Error('Antigravity plugin.json 的 author.name 必须是非空字符串');
+      }
+      if (
+        manifest.author.url !== undefined
+        && (typeof manifest.author.url !== 'string' || !/^https?:\/\/\S+$/u.test(manifest.author.url))
+      ) {
+        throw new Error('Antigravity plugin.json 的 author.url 必须是合法 HTTP(S) URL 字符串');
+      }
+    } else {
+      throw new Error('Antigravity plugin.json 的 author 必须是非空字符串或 { name, url? } 对象');
+    }
+  }
+  if (manifest.repository !== undefined) {
+    if (typeof manifest.repository === 'string') {
+      if (!/^https:\/\/\S+$/u.test(manifest.repository)) {
+        throw new Error('Antigravity plugin.json 的 repository 字符串必须以 https:// 开头');
+      }
+    } else if (manifest.repository && typeof manifest.repository === 'object' && !Array.isArray(manifest.repository)) {
+      const repoKeys = Object.keys(manifest.repository);
+      const extraRepoKeys = repoKeys.filter((key) => key !== 'type' && key !== 'url');
+      if (extraRepoKeys.length > 0) {
+        throw new Error(`Antigravity plugin.json 的 repository 对象仅允许 type 与 url（禁止 ${extraRepoKeys.join(', ')}）`);
+      }
+      if (manifest.repository.type !== 'git') {
+        throw new Error('Antigravity plugin.json 的 repository.type 必须为 "git"');
+      }
+      if (typeof manifest.repository.url !== 'string' || !/^https:\/\/\S+$/u.test(manifest.repository.url)) {
+        throw new Error('Antigravity plugin.json 的 repository.url 必须是以 https:// 开头的字符串');
+      }
+    } else {
+      throw new Error('Antigravity plugin.json 的 repository 必须是 https:// 字符串或 { type: "git", url } 对象');
+    }
+  }
+}
+
 async function generateAdapterFiles(platform, skills, templateJson, root, marketplaceTemplateJson = null) {
   const files = [];
 
-  // Transform plugin.json: rewrite source paths
+  // Transform plugin.json: rewrite source paths (except Antigravity, whose
+  // official schema only recognizes the 10-field whitelist and rejects skills/license).
   const adapted = JSON.parse(JSON.stringify(templateJson));
 
-  // Preserve platform-supported directory auto-discovery in generated adapters.
-  // The CodeBuddy server-side validator (`codebuddy plugin validate`) requires
-  // `skills` to be an array of component paths, so the workbuddy adapter emits
-  // ["./skills/"]; claude/codex/kimi hosts keep the directory-string form.
-  if (typeof adapted.skills === 'string') {
-    adapted.skills = platform.name === 'workbuddy' ? ['./skills/'] : './skills/';
-  } else if (Array.isArray(adapted.skills)) {
-    // Handle both string array and object array forms
-    adapted.skills = adapted.skills.map((skill) => {
-      if (typeof skill === 'string') {
-        // String array: transform to relative path for the adapter
-        return platform.name === 'workbuddy' ? './skills/' : skill;
-      }
-      // Object array: preserve existing behavior
-      skill.source = `../skills/${skill.name}/SKILL.md`;
-      return skill;
-    });
+  if (platform.name === 'antigravity') {
+    validateAntigravityPluginManifest(adapted);
+  } else {
+    // Preserve platform-supported directory auto-discovery in generated adapters.
+    // The CodeBuddy server-side validator (`codebuddy plugin validate`) requires
+    // `skills` to be an array of component paths, so the workbuddy adapter emits
+    // ["./skills/"]; claude/codex/kimi hosts keep the directory-string form.
+    if (typeof adapted.skills === 'string') {
+      adapted.skills = platform.name === 'workbuddy' ? ['./skills/'] : './skills/';
+    } else if (Array.isArray(adapted.skills)) {
+      // Handle both string array and object array forms
+      adapted.skills = adapted.skills.map((skill) => {
+        if (typeof skill === 'string') {
+          // String array: transform to relative path for the adapter
+          return platform.name === 'workbuddy' ? './skills/' : skill;
+        }
+        // Object array: preserve existing behavior
+        skill.source = `../skills/${skill.name}/SKILL.md`;
+        return skill;
+      });
+    }
   }
 
+  const manifestTarget = resolveAdapterManifestPath(
+    platform.pluginDirName,
+    platform.templateFileName ?? 'plugin.json',
+    `${platform.name} plugin manifest`,
+  );
   const pluginJsonContent = JSON.stringify(adapted, null, 2) + '\n';
   files.push({
-    relPath: join(platform.pluginDirName, 'plugin.json'),
+    relPath: manifestTarget.relPath,
     content: Buffer.from(pluginJsonContent, 'utf-8'),
     isBinary: false,
   });
 
   // Generate marketplace.json for platforms that need it
   if (platform.hasMarketplace) {
+    const marketplaceTarget = resolveAdapterManifestPath(
+      platform.pluginDirName,
+      platform.marketplaceFileName ?? 'marketplace.json',
+      `${platform.name} marketplace manifest`,
+    );
     const marketplace = JSON.parse(JSON.stringify(marketplaceTemplateJson));
     marketplace.name = adapted.name;
     marketplace.description = adapted.description;
@@ -524,7 +705,7 @@ async function generateAdapterFiles(platform, skills, templateJson, root, market
     }];
     const marketplaceContent = JSON.stringify(marketplace, null, 2) + '\n';
     files.push({
-      relPath: join(platform.pluginDirName, 'marketplace.json'),
+      relPath: marketplaceTarget.relPath,
       content: Buffer.from(marketplaceContent, 'utf-8'),
       isBinary: false,
     });
@@ -747,21 +928,34 @@ export async function produceBuildAdapters({ inputs, output, outputRoots, platfo
   }
 
   // ── Phase 3: Validate all platform inputs (no writes yet) ──
+  const resolvedTemplateTargets = new Map();
   for (const platform of selectedPlatforms) {
+    const templateTarget = resolveAdapterManifestPath(
+      platform.pluginDirName,
+      platform.templateFileName,
+      `${platform.name} plugin template`,
+    );
     await readTrustedFile(
-      join(root, platform.pluginDirName, platform.templateFileName),
+      join(root, templateTarget.relPath),
       root,
-      `${platform.pluginDirName}/${platform.templateFileName}`,
+      templateTarget.displayPath,
       'utf-8',
     );
+    let marketplaceTarget = null;
     if (platform.hasMarketplace) {
+      marketplaceTarget = resolveAdapterManifestPath(
+        platform.pluginDirName,
+        platform.marketplaceFileName,
+        `${platform.name} marketplace template`,
+      );
       await readTrustedFile(
-        join(root, platform.pluginDirName, platform.marketplaceFileName),
+        join(root, marketplaceTarget.relPath),
         root,
-        `${platform.pluginDirName}/${platform.marketplaceFileName}`,
+        marketplaceTarget.displayPath,
         'utf-8',
       );
     }
+    resolvedTemplateTargets.set(platform.name, { templateTarget, marketplaceTarget });
   }
 
   // ── Phase 4: Validate every output root before any target is created ──
@@ -777,11 +971,12 @@ export async function produceBuildAdapters({ inputs, output, outputRoots, platfo
   // ── Phase 5: Generate files (all inputs already validated) ──
   const allPlatformFiles = [];
   for (const platform of selectedPlatforms) {
-    const templatePath = join(root, platform.pluginDirName, platform.templateFileName);
+    const { templateTarget, marketplaceTarget } = resolvedTemplateTargets.get(platform.name);
+    const templatePath = join(root, templateTarget.relPath);
     const templateRaw = await readTrustedFile(
       templatePath,
       root,
-      `${platform.pluginDirName}/${platform.templateFileName}`,
+      templateTarget.displayPath,
       'utf-8',
     );
     const templateJson = JSON.parse(templateRaw);
@@ -789,9 +984,9 @@ export async function produceBuildAdapters({ inputs, output, outputRoots, platfo
     if (platform.hasMarketplace) {
       marketplaceTemplateJson = JSON.parse(
         await readTrustedFile(
-          join(root, platform.pluginDirName, platform.marketplaceFileName),
+          join(root, marketplaceTarget.relPath),
           root,
-          `${platform.pluginDirName}/${platform.marketplaceFileName}`,
+          marketplaceTarget.displayPath,
           'utf-8',
         ),
       );

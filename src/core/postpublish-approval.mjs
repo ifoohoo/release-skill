@@ -35,6 +35,7 @@
  *
  * @module core/postpublish-approval
  */
+// @decision D-RS-002
 
 import { basename, dirname, relative, resolve, sep } from 'node:path';
 

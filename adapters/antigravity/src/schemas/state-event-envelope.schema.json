@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/state-event-envelope.json",
+  "title": "StateEventEnvelope",
+  "description": "Business-neutral append-only state event. Sequence, digest links and writer fencing are mechanism-owned; event type, producer and payload meaning remain consumer-owned.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "eventId",
+    "eventType",
+    "payloadSchemaVersion",
+    "producer",
+    "idempotencyKey",
+    "writerOwner",
+    "writerFencing",
+    "sequence",
+    "prevDigest",
+    "payload",
+    "recordDigest"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.state-event-envelope" },
+    "eventId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
+    "eventType": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._-]{0,127}$" },
+    "payloadSchemaVersion": { "type": "integer", "minimum": 1 },
+    "producer": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" },
+    "idempotencyKey": { "type": "string", "pattern": "^[!-~]{1,256}$" },
+    "writerOwner": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "writerFencing": { "type": "integer", "minimum": 1 },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "prevDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "payload": {},
+    "recordDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

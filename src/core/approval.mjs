@@ -22,6 +22,7 @@
  *
  * @module core/approval
  */
+// @decision D-RS-002
 
 import { ReleaseError, GATE_FAILED } from './errors.mjs';
 import { computePlanDigest } from './plan.mjs';

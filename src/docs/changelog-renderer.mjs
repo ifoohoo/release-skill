@@ -62,6 +62,7 @@
  *
  * @module src/docs/changelog-renderer
  */
+// @decision D-RS-003
 
 import { RELEASE_NOTES_CATEGORIES } from './notes.mjs';
 import { sha256Hex } from '../core/digest.mjs';

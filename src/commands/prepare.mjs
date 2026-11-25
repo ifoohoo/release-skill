@@ -1,3 +1,9 @@
+// @decision D-RS-001
+// @feature REL001
+// @feature REL003
+// @scenario S-001
+// @scenario S-004
+
 import { bindReplacement } from '../core/plan-replacement.mjs';
 /**
  * Prepare command: freeze a release plan with snapshots and gates.
@@ -29,7 +35,7 @@ const execFile = promisify(execFileCb);
 import { classifyPathInput, writeFileAtomic, withTemporaryWorkspace, resolveContained, readFileStrict } from 'skill-family-harness-node';
 import { loadProjectConfig } from '../core/config.mjs';
 import { captureBaseline } from '../core/baseline.mjs';
-import { runHook } from '../core/hooks.mjs';
+import { runHook, describeDeclaredHookSideEffects } from '../core/hooks.mjs';
 import { computeHookCacheKey, readHookCache, writeHookCache } from '../core/hook-cache.mjs';
 import {
   assertExpectedPublicSurface,
@@ -75,7 +81,7 @@ import {
   assertSelfBootstrapFacts,
 } from '../core/derived-artifact-gates.mjs';
 import { isFoundationPluginVerificationEligible } from '../core/foundation-plugin-verification.mjs';
-import { assertCursorHostScenario } from '../core/foundation-host-verification.mjs';
+import { assertCursorHostScenario, assertHostVerificationScenario } from '../core/foundation-host-verification.mjs';
 import { PKG_ROOT } from '../core/pkg-root.mjs';
 import { writeFrozenMarker, FROZEN_MARKER_FILENAME } from '../core/frozen-marker.mjs';
 import {
@@ -87,6 +93,7 @@ import {
   verifySnapshotSourcesMatchClosure,
 } from '../core/source-authority.mjs';
 import { acquireProjectLock } from '../artifacts/project-lock.mjs';
+import { checkDependencyFreshness } from '../core/dependency-freshness.mjs';
 import { observePreviousPublicBaseline } from '../core/previous-public-baseline.mjs';
 import { verifyFrozenNpmTarballContract } from '../adapters/npm.mjs';
 import { createProductionPrepareRunDir } from '../core/run.mjs';
@@ -2650,7 +2657,7 @@ async function resolveDistributionManifestFacts(unitResults, resolvedVersions) {
       const key = `${unit.id} ${dist.type}`;
 
       if (platform.installMethod === 'foundation-host-verification') {
-        assertCursorHostScenario(dist.hostVerification);
+        assertHostVerificationScenario(dist.hostVerification, { hostId: platform.id });
         const entrySkillPath = resolve(snapshotDir, 'skills', dist.entrySkill, 'SKILL.md');
         let entrySkillStat;
         try {
@@ -3623,6 +3630,13 @@ async function reattachTestCandidate({
       { failures },
     );
   }
+  const reattachFreshness = await evaluatePrepareDependencyFreshness({
+    realRoot,
+    units: config.releaseUnits ?? [],
+    production,
+    options,
+    evidence,
+  });
   const latestPlanPath = output ?? resolve(releaseDir, 'release-plan.json');
   const plannedDigest = computePlanDigest(plan);
   const immutablePlanPath = resolve(dirname(latestPlanPath), 'plans', `${plannedDigest}.json`);
@@ -3655,9 +3669,64 @@ async function reattachTestCandidate({
     planDigest,
     evidenceDir,
     warnings: runWarnings,
+    advisories: reattachFreshness.advisories,
+    dependencyFreshness: reattachFreshness,
     nextSteps: [],
     status: 'PREPARED',
   };
+}
+
+async function evaluatePrepareDependencyFreshness({
+  realRoot,
+  units,
+  production,
+  options,
+  evidence,
+}) {
+  const dependencyFreshnessFn = options?.dependencyFreshnessFn ?? checkDependencyFreshness;
+  const dependencyFreshness = await dependencyFreshnessFn({
+    root: realRoot,
+    units,
+    production,
+    acknowledgeDeprecatedDeps: options?.acknowledgeDeprecatedDeps === true,
+    marketplaceSnapshot: options?.marketplaceSnapshot ?? null,
+    marketplaceSnapshotPath: options?.marketplaceSnapshotPath ?? null,
+  });
+  for (const advisory of dependencyFreshness.advisories) {
+    await evidence.append({
+      phase: 'dependency-freshness',
+      status: advisory.blocking ? 'blocked' : 'advisory',
+      ...advisory,
+    });
+  }
+  if (dependencyFreshness.blocked) {
+    const blockedDetails = dependencyFreshness.deprecatedAdvisories
+      .map(
+        (item) =>
+          `${item.packageName}@${item.lockedVersion}（声明文件：${item.manifestPath}，风险原因：${item.reason}，推荐稳定版：${item.latestStableVersion}）`,
+      )
+      .join('；');
+    const remediation =
+      '请先将上述底座依赖升级至推荐稳定版后再执行生产预检；如已充分评估并接受已知风险，可显式传入 --acknowledge-deprecated-deps 放行。';
+    throw new ReleaseError(
+      GATE_FAILED,
+      `生产发布预检已阻断高危弃用底座依赖：${blockedDetails}。${remediation}`,
+      {
+        reason: 'DEPRECATED_BASE_DEPENDENCY_BLOCKED',
+        requiredFlag: '--acknowledge-deprecated-deps',
+        advisories: dependencyFreshness.deprecatedAdvisories,
+        deprecatedDependencies: dependencyFreshness.deprecatedAdvisories.map((item) => ({
+          packageName: item.packageName,
+          lockedVersion: item.lockedVersion,
+          latestStableVersion: item.latestStableVersion,
+          manifestPath: item.manifestPath,
+          reason: item.reason,
+        })),
+        remediation,
+      },
+    );
+  }
+  return dependencyFreshness;
 }
 
 export async function prepareRelease(options) {
@@ -3670,6 +3739,9 @@ export async function prepareRelease(options) {
     clock,
     hooksAuthorized,
     verificationGatesAuthorized,
+    acknowledgeDeprecatedDeps = false,
+    marketplaceSnapshot = null,
+    marketplaceSnapshotPath = null,
     production = false,
     workflow = 'full',
     observePreviousPublicBaselineFn,
@@ -4112,6 +4184,20 @@ export async function prepareRelease(options) {
       postPublishDeclarations.map(({ unit }) => ({ ...unit.postPublish, unitId: unit.id })),
     );
 
+    // --- Step 1e: Base dependency freshness check ([B-07 ②]) ---
+    const dependencyFreshness = await evaluatePrepareDependencyFreshness({
+      realRoot,
+      units: configUnits,
+      production,
+      options: {
+        ...options,
+        acknowledgeDeprecatedDeps,
+        marketplaceSnapshot,
+        marketplaceSnapshotPath,
+      },
+      evidence,
+    });
+
     // --- Step 2: Hook authorization gate ---
     // Hooks are user-configured arbitrary local processes without filesystem
     // or network isolation. They may write outside the project, access local
@@ -4129,17 +4215,62 @@ export async function prepareRelease(options) {
         cwd: hook.cwd ?? '.',
       }));
 
-    // Hook and gate authorization: the command invocation itself authorizes
-    // execution of configured commands. Old acknowledgement parameters
-    // (--acknowledge-hook-side-effects, --acknowledge-gate-side-effects) are
-    // accepted as no-effect compatibility inputs but are not required.
+    // Standard unannotated hooks (read-only / built-in lint, build, test,
+    // typecheck) execute directly on workflow invocation. Hooks explicitly
+    // declaring write or external side effects (`mutating: true` or
+    // `sideEffects: 'local-write' | 'network-or-external'`) disclose their
+    // exact command and impact scope up front and require explicit
+    // `--acknowledge-hook-side-effects` authorization (`US-043`).
+    const sideEffectDisclosure = describeDeclaredHookSideEffects(config.hooks, HOOK_EXECUTION_ORDER);
+    if (!skipDeclaredHooks && sideEffectDisclosure.requiresAcknowledgement && hooksAuthorized !== true) {
+      await evidence.append({
+        phase: 'hook-authorization',
+        status: 'blocking',
+        reason: 'HOOK_SIDE_EFFECTS_ACKNOWLEDGEMENT_REQUIRED',
+        requiredFlag: '--acknowledge-hook-side-effects',
+        disclosedHooks: sideEffectDisclosure.disclosedHooks,
+      });
+      const disclosureLines = [
+        `发布准备门禁已阻断：检测到 ${sideEffectDisclosure.disclosedHooks.length} 个声明了外部或写入副作用的开发钩子，未传入 --acknowledge-hook-side-effects 前不会启动任何钩子进程：`,
+        ...sideEffectDisclosure.disclosedHooks.map((entry) => `  - ${entry.impactSummary}`),
+        '恢复方式：审阅上述待执行命令与影响范围后，追加 --acknowledge-hook-side-effects 重新运行 release-skill prepare。',
+      ];
+      throw new ReleaseError(
+        GATE_FAILED,
+        disclosureLines.join('\n'),
+        {
+          reason: 'HOOK_SIDE_EFFECTS_ACKNOWLEDGEMENT_REQUIRED',
+          requiredFlag: '--acknowledge-hook-side-effects',
+          disclosedHooks: sideEffectDisclosure.disclosedHooks,
+          nextSteps: [{
+            code: 'ACKNOWLEDGE_HOOK_SIDE_EFFECTS',
+            message: '审阅披露的副作用钩子命令与影响范围后，追加 --acknowledge-hook-side-effects 重新执行 prepare',
+            argv: ['release-skill', 'prepare', '--acknowledge-hook-side-effects'],
+          }],
+        },
+      );
+    }
+
     if (!skipDeclaredHooks && declaredHooks.length > 0) {
       await evidence.append({
         phase: 'hook-authorization',
         status: 'authorized',
         hookCount: declaredHooks.length,
         hooks: declaredHooks.map((h) => `${h.name}: ${h.executable} ${h.args.join(' ')}`),
+        ...(sideEffectDisclosure.requiresAcknowledgement
+          ? {
+              sideEffectsAcknowledged: true,
+              disclosedHooks: sideEffectDisclosure.disclosedHooks,
+            }
+          : {}),
       });
+      if (sideEffectDisclosure.requiresAcknowledgement) {
+        runWarnings.push({
+          code: 'HOOK_SIDE_EFFECTS_ACKNOWLEDGED',
+          message: `已显式确认并放行 ${sideEffectDisclosure.disclosedHooks.length} 个有副作用钩子：${sideEffectDisclosure.disclosedHooks.map((h) => `${h.name} (${h.sideEffects}: ${h.commandLine})`).join('; ')}`,
+          disclosedHooks: sideEffectDisclosure.disclosedHooks,
+        });
+      }
     }
 
     const declaredVerificationGates = (config.verificationGates ?? [])
@@ -5477,6 +5608,8 @@ export async function prepareRelease(options) {
           message: 'Call TEST on this subject, bind the result file to subjectDigest, then re-run prepare with the same candidate.',
         }],
         warnings: runWarnings,
+        advisories: dependencyFreshness.advisories,
+        dependencyFreshness,
       };
     }
 
@@ -5562,6 +5695,8 @@ export async function prepareRelease(options) {
       planDigest,
       evidenceDir,
       warnings: runWarnings,
+      advisories: dependencyFreshness.advisories,
+      dependencyFreshness,
       nextSteps,
       ...(releaseSelection.explicit ? {
         releaseScope: {

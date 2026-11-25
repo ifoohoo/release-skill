@@ -9,6 +9,8 @@
  *
  * @module artifacts/producer-registry
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import { readFile, readdir, stat, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';

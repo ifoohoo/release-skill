@@ -26,6 +26,7 @@
  * vendor/foundation-pin 与 scripts/materialize-foundation-pin.mjs 因语义失效
  * （pin 指向工作树在途字节）按 D4 裁决退役并归档，不再存在检查期漂移证据。
  */
+// @decision D-RS-005
 
 import {
   publishFileExclusive,

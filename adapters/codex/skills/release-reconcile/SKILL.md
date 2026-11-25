@@ -19,10 +19,9 @@ description: Query remote actual state, handle partial publish successes, safe r
 
 ## 当前状态
 
-reconcile 是 PARTIAL 恢复能力，不是冲突覆盖工具：只能基于已记录 run 观察和补做
-未完成动作，远端状态冲突时必须停止并要求人工介入。reconcile 可重建失败的
-marketplace 隔离消费者 checkpoint，但只恢复到 `PUBLISHED`；最终 npm 精确安装和
-另一组全新插件消费者安装仍由后续 `verify` 完成。
+`release-reconcile` 专门用于 `PARTIAL` 部分成功现场的幂等续接恢复，绝不是远端冲突覆盖工具：它只基于既有运行记录观察远端实况并补齐未完成动作；一旦遇到远端引用冲突或状态不明，立即停止并交回人工决策。`reconcile` 可以重建失败的市场隔离消费者检查点，但最高只恢复到 `PUBLISHED`；最终精确 npm 安装与全新插件消费者安装仍须由后续 `release-verify` 完成。
+
+若某个已完成发布的版本事后暴露严重缺陷、需要引导消费者回退或将整个技能族退役下架，不得通过删标签或重跑旧计划回滚，而应运行离线零远端写入的 `release-skill deprecate` 或 `release-skill retire` 生成结构化通告收据、消费者回退指南 Markdown 与 `skill-family-hub` 提案 JSON。
 
 ## 职责与边界
 
@@ -93,7 +92,7 @@ PUBLISHED 后立即用新 `runPath` 运行 verify。VERIFIED 后发布完成。P
 
 针对 reconcile 失败，仅核实 0.9.22 与 0.9.27 两个 writer 的两条旧记录，分别归属于 0.22.0 与 0.25.0 目标；其 `sourceRunId` 与 `sourceRunDigest` 必须与当前项目原父运行一致，子事件流须符合已审 writer 的完整必要前缀，且 `source-run-load passed` 与 `reconcile started` 必须指向同一父运行，每个 `actionId`/`actionType` 必须对应父计划原动作。仅在完整核验后，方可确认其真实目标并排除替代阻断，失败状态本身不构成零外写，也不赋予恢复、替代或 TEST 权威。
 
-针对 verify 失败，仅 0.9.7 与 0.9.12 两条记录可被用于核实真实目标归属，其唯一父引用取自真实 `source-run-load passed` 的 `sourceRunId`，不接受补造 `sourceRunDigest`，仅接受已核实 writer 的完整有限前后缀。通过当前项目原 `runs` 内父文件，复用 `loadRun`、现行计划 Schema、不可变计划路径、完整谱系与检查点映射，确认父运行 `PUBLISHED`，再根据父计划核实其为 `foundation-adoption-review@0.1.0`，与 0.28.0 不同。每个动作身份必须对应父计划；同目标、不完整父权威、未知阶段、关系冲突或矛盾仍拒。其中 0.9.7 实际执行过隔离消费者安装，包含 `execute` 及本地写入，不能声称“零 execute”或“零本地写入”，亦不得由此授予发布外写权限。verify 失败不构成 publish 零外写证明，不赋予发布、恢复、替代或 TEST 权威。
+针对 verify 失败，仅 0.9.7 与 0.9.12 两条记录可被用于核实真实目标归属，其唯一父引用取自真实 `source-run-load passed` 的 `sourceRunId`，不接受补造 `sourceRunDigest`，仅接受已核实 writer 的完整有限前后缀。通过当前项目原 `runs` 内父文件，复用 `loadRun`、现行计划 Schema、不可变计划路径、完整谱系与检查点映射，确认父运行 `PUBLISHED`，再根据父计划核实其目标发布单元与目标版本均不同于当前发布目标。每个动作身份必须对应父计划；同目标、不完整父权威、未知阶段、关系冲突或矛盾仍拒。其中 0.9.7 实际执行过隔离消费者安装，包含 `execute` 及本地写入，不能声称“零 execute”或“零本地写入”，亦不得由此授予发布外写权限。verify 失败不构成 publish 零外写证明，不赋予发布、恢复、替代或 TEST 权威。
 
 所有未知、损坏、矛盾、不连续、封口不符或关系冲突的历史记录一律不可用。原件不得删除、搬移、补字段或重建。自引用、环、多有效后继或坏后继均不得使旧计划复活。
 

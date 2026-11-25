@@ -40,6 +40,7 @@
  *
  * @module core/redact
  */
+// @decision D-RS-005
 
 import { redactEmbeddedUrlCredentials } from './git-url-policy.mjs';
 
@@ -55,7 +56,7 @@ export const REDACTED_PATH_PLACEHOLDER = '<redacted-path>';
 // (c) POSIX absolute paths: a '/' anchored at the start of the string or
 //     preceded by a delimiter (whitespace, quote, '=', ':', ',', '(', '[',
 //     '{', '<'). Non-final '/'-separated segments may contain spaces (a
-//     volume name such as /Volumes/Samsung 990 pro 4T/src/file), so the
+//     volume name such as /Volumes/ExternalDisk/src/file), so the
 //     token continues across those spaces and stops before trailing prose
 //     ('plan.json rejected: ...'). The left boundary keeps redaction from
 //     firing inside relative fragments ('src/core/x.mjs'), fragment-anchored

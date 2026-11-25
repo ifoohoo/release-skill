@@ -1,0 +1,2088 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://release-skill.dev/schemas/release-project/v1",
+  "title": "Release Project Configuration",
+  "description": "发布项目配置文件 .release-skill/project.yaml 的结构契约：声明项目身份、发布单元、分发渠道、公开文件映射、发布前开发钩子与发布后分发目标。",
+  "type": "object",
+  "required": [
+    "apiVersion",
+    "kind",
+    "project",
+    "releaseUnits"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "release-skill/v1",
+      "description": "项目配置协议版本，固定为 release-skill/v1。"
+    },
+    "kind": {
+      "type": "string",
+      "const": "ReleaseProject",
+      "description": "配置文档类型标识，固定为 ReleaseProject。"
+    },
+    "project": {
+      "type": "object",
+      "description": "项目全局身份与远端源码权威分支配置。",
+      "required": [
+        "name",
+        "defaultBranch"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "项目名称标识。"
+        },
+        "defaultBranch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "源码仓库的默认主干分支名（如 main）。"
+        },
+        "sourceRepository": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$",
+          "description": "工作区源码所属的 GitHub 仓库（owner/repo 格式），用于在生产发布前校验冻结源文件与远端默认分支内容一致。"
+        }
+      }
+    },
+    "releaseFinish": {
+      "type": "object",
+      "description": "可选的发布后本机收尾配置；省略 sourceBranchCheck 时默认采用 remind 提醒。",
+      "additionalProperties": false,
+      "properties": {
+        "sourceBranchCheck": {
+          "type": "string",
+          "enum": [
+            "remind",
+            "skip"
+          ],
+          "description": "本机收尾时的源码分支只读提醒策略：remind 为提示核对，skip 为跳过提醒。"
+        },
+        "setupSkill": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*(?::[a-z0-9][a-z0-9-]*)?$",
+          "description": "宿主插件更新后可调用的已安装初始化技能标识（格式为 skill-name 或 plugin-name:skill-name，禁止传入 shell 命令字符串）。"
+        }
+      }
+    },
+    "testIntake": {
+      "type": "object",
+      "description": "可选的显式测试核收配置（仅在生产模式 prepare --production 下生效；未声明的项目保持既有钩子与门禁路径）。",
+      "additionalProperties": false,
+      "required": ["requirementsFile", "resultFile"],
+      "properties": {
+        "requirementsFile": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*\\\\)(?!.*\\u0000)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)(?!.*/$).+$",
+          "description": "测试要求文件的项目内普通相对路径（禁止以 / 开头、禁止包含反斜杠、空字符、.. 上级跳转、连续双斜杠或尾随斜杠）。"
+        },
+        "resultFile": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*\\\\)(?!.*\\u0000)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)(?!.*/$).+$",
+          "description": "测试核收结果文件的项目内普通相对路径（禁止以 / 开头、禁止包含反斜杠、空字符、.. 上级跳转、连续双斜杠或尾随斜杠）。"
+        }
+      }
+    },
+    "publicSourceAuthorityReceipt": {
+      "type": "object",
+      "description": "可选的多单元公开源码权威收据配置：在全部受管 npm 包 tarball 冻结后生成收据，并随协调单元的 GitHub Release 一并上传。",
+      "required": [
+        "coordinatorUnitId",
+        "subjectUnitIds"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "coordinatorUnitId": {
+          "type": "string",
+          "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "description": "负责承载公开源码权威收据的协调发布单元 ID（以字母或数字开头，仅含字母、数字及 ._-，且不得为 . 或 ..）。"
+        },
+        "subjectUnitIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "纳入源码权威收据范围的受管发布单元 ID 列表（显式按单元选择发布范围时必须与协调单元整组同时选中）。",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$"
+          }
+        }
+      }
+    },
+    "releaseUnits": {
+      "type": "array",
+      "minItems": 1,
+      "description": "项目声明的发布单元列表（每个发布单元具备独立的版本源、公开仓库、文件映射与分发渠道）。",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "publicRepo",
+          "version",
+          "distributions",
+          "publicFiles",
+          "requiredPublicFiles",
+          "previousPublicBaseline"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$",
+            "description": "发布单元唯一标识（以字母或数字开头，仅含字母、数字及 ._-，禁止为 . 或 ..）。"
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$",
+            "description": "发布单元在工作区内的根目录相对路径：填 \".\" 表示工作区根，或填写不含前导 /、./、..、反斜杠、冒号、双斜杠及尾随斜杠的规范相对路径。"
+          },
+          "publicRepo": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$",
+            "description": "发布单元对应的目标代码仓库坐标（owner/repo 格式）。"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "private"
+            ],
+            "default": "public",
+            "description": "发布单元分发可见性：public 为公开渠道（默认），private 为内部专有渠道（必须同时声明 policy.sourcePolicy.mode: controlled-private，且严禁声明 npm access: public 或推送至 visibility: public 的分发目标）。"
+          },
+          "production": {
+            "type": "object",
+            "description": "生产发布专属的远端 GitHub 分支、标题模板与默认分支推进策略。",
+            "additionalProperties": false,
+            "properties": {
+              "githubHost": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9.-]+$",
+                "description": "目标 GitHub 主机域名（缺省为 github.com，仅含字母、数字、点与连字符）。"
+              },
+              "branchTemplate": {
+                "type": "string",
+                "minLength": 1,
+                "description": "生产发布分支名模板（例如 release/{tag} 或 main）。"
+              },
+              "releaseTitleTemplate": {
+                "type": "string",
+                "minLength": 1,
+                "description": "GitHub Release 标题模板。"
+              },
+              "releaseNotes": {
+                "type": "string",
+                "description": "可选的内联发布说明文本。"
+              },
+              "branchStrategy": {
+                "type": "string",
+                "enum": [
+                  "create-release-branch",
+                  "advance-existing-branch",
+                  "initialize-default-branch"
+                ],
+                "description": "远端分支更新策略：create-release-branch 创建新发布分支，advance-existing-branch 快进已有分支，initialize-default-branch 初始化并切换空仓或初始默认分支。"
+              },
+              "setAsDefaultBranch": {
+                "type": "boolean",
+                "description": "是否在 initialize-default-branch 策略下将新发布的分支设为远端默认分支。"
+              },
+              "expectedCurrentDefaultBranch": {
+                "type": "string",
+                "minLength": 1,
+                "description": "切换默认分支前预期远端当前所处的默认分支名（用于比较并安全切换）。"
+              }
+            }
+          },
+          "version": {
+            "type": "object",
+            "description": "发布单元版本号读取来源与 Git 标签命名模板。",
+            "required": [
+              "source",
+              "tagTemplate"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "source": {
+                "type": "string",
+                "minLength": 1,
+                "description": "相对于发布单元 source 目录解析的版本源文件（如 package.json 或 VERSION）。"
+              },
+              "tagTemplate": {
+                "type": "string",
+                "minLength": 1,
+                "description": "包含 {version} 占位符的 Git 标签模板（如 v{version} 或 my-skill-v{version}）。"
+              }
+            }
+          },
+          "distributions": {
+            "type": "array",
+            "description": "分发渠道发布与消费者安装核验声明。显式设为空数组 [] 时仅发布该单元的 GitHub 快照、标签与 GitHub Release；postPublish 声明（含 postVerify 阶段钩子）仍独立生效。",
+            "items": {
+              "type": "object",
+              "required": [
+                "type"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "npm",
+                    "claude-plugin",
+                    "codex-plugin",
+                    "kimi-plugin",
+                    "codebuddy-plugin",
+                    "qoder-plugin",
+                    "cursor-plugin",
+                    "antigravity-plugin"
+                  ],
+                  "description": "目标分发渠道类型（npm 包或对应宿主的插件分发形态）。"
+                },
+                "package": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 214,
+                  "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$",
+                  "description": "npm 包名称（支持普通小写包名或 @scope/name 作用域包名，最长 214 字符）。"
+                },
+                "access": {
+                  "type": "string",
+                  "enum": [
+                    "public",
+                    "restricted"
+                  ],
+                  "description": "npm 包访问级别（public 公开或 restricted 受限）。"
+                },
+                "provenance": {
+                  "type": "boolean",
+                  "description": "是否在 npm 发布时启用构建溯源签名（provenance）。"
+                },
+                "tag": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "npm 发布所使用的 dist-tag（如 latest）。"
+                },
+                "registry": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^https://[^@\\s?#]+$",
+                  "description": "目标 npm 注册表的规范 HTTPS 地址（默认公开模式为 https://registry.npmjs.org；严禁在 URL 中内嵌 user:token@ 明文凭据、查询参数或片段）。"
+                },
+                "publisher": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                  "description": "预期在该 npm 注册表通过 npm whoami 核验的发布者用户名。"
+                },
+                "plugin": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                  "description": "宿主市场中登记的插件标识名。"
+                },
+                "marketplace": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                  "description": "插件所属的市场名称标识（如 skill-family-hub）。"
+                },
+                "marketplaceSource": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^(?!.*://[^/\\s]*@).+$",
+                  "description": "消费者添加统一市场所用的来源地址（如 codebuddy plugin marketplace add）；可选，严禁内嵌 user:token@ 明文凭据。"
+                },
+                "marketplaceRepo": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*$",
+                  "description": "外部独立市场仓库 owner/name；存在即启用外部市场形态"
+                },
+                "entrySkill": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[a-z0-9][a-z0-9-]*$",
+                  "description": "用于发布后消费者验证或加载核验的入口技能名称（小写连字符格式）。"
+                },
+                "smokeBin": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "可选的 npm 消费者安装后可执行命令名（用于冒烟检查）。"
+                },
+                "smokeArgs": {
+                  "type": "array",
+                  "description": "传给 smokeBin 冒烟命令的参数列表。",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "smokeExpectedJson": {
+                  "type": "object",
+                  "description": "期望 smokeBin 标准输出 JSON 中匹配的子集字段。"
+                },
+                "timeoutMs": {
+                  "type": "integer",
+                  "minimum": 30000,
+                  "maximum": 900000,
+                  "description": "插件安装或宿主核验的最大超时时间（毫秒，30 秒至 15 分钟）。对无脚本化钉版安装入口的 Kimi Code 与 CodeBuddy 仅约束只读载荷观察时长；对 Cursor 约束冻结单技能调用时长。"
+                },
+                "marketplaceSourceType": {
+                  "type": "string",
+                  "enum": [
+                    "bundled-family",
+                    "standalone-index"
+                  ],
+                  "description": "市场来源类型：bundled-family（技能族自带市场文件）或 standalone-index（独立市场仓库）；每个平台每次发布只冻结一种来源"
+                },
+                "firstReleaseBootstrap": {
+                  "type": "string",
+                  "enum": [
+                    "manual-index-checkpoint"
+                  ],
+                  "description": "首次 standalone-index 发布的人工索引停点；仅显式 opt-in 时启用"
+                },
+                "marketplaceIndexPath": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$",
+                  "description": "市场索引文件的规范相对路径覆盖（禁止前导 /、./、..、反斜杠、双斜杠或尾随斜杠；仅插件分发渠道允许声明）。"
+                },
+                "hostVerification": {
+                  "$ref": "#/definitions/cursorHostScenario"
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "npm"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "package",
+                      "registry",
+                      "publisher"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "required": [
+                      "timeoutMs"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
+                          "kimi-plugin",
+                          "codebuddy-plugin",
+                          "qoder-plugin",
+                          "cursor-plugin",
+                          "antigravity-plugin"
+                        ]
+                      }
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
+                          "qoder-plugin"
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "plugin",
+                      "marketplace",
+                      "entrySkill"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "kimi-plugin"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "plugin",
+                      "entrySkill"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "cursor-plugin",
+                          "antigravity-plugin"
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "entrySkill",
+                      "hostVerification"
+                    ],
+                    "not": {
+                      "anyOf": [
+                        {
+                          "required": [
+                            "marketplace"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "marketplaceSource"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "marketplaceRepo"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "marketplaceSourceType"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "marketplaceIndexPath"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "firstReleaseBootstrap"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "codebuddy-plugin"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "plugin",
+                      "marketplace",
+                      "entrySkill"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
+                          "kimi-plugin",
+                          "codebuddy-plugin",
+                          "qoder-plugin"
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "marketplaceSourceType"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
+                          "kimi-plugin",
+                          "codebuddy-plugin",
+                          "qoder-plugin"
+                        ]
+                      },
+                      "marketplaceSourceType": {
+                        "const": "bundled-family"
+                      }
+                    },
+                    "required": [
+                      "marketplaceSourceType"
+                    ]
+                  },
+                  "then": {
+                    "not": {
+                      "required": [
+                        "marketplaceRepo"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
+                          "kimi-plugin",
+                          "codebuddy-plugin",
+                          "qoder-plugin"
+                        ]
+                      },
+                      "marketplaceSourceType": {
+                        "const": "bundled-family"
+                      }
+                    },
+                    "required": [
+                      "marketplaceSourceType"
+                    ]
+                  },
+                  "then": {
+                    "not": {
+                      "required": [
+                        "marketplaceRepo"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
+                          "kimi-plugin",
+                          "codebuddy-plugin",
+                          "qoder-plugin"
+                        ]
+                      },
+                      "marketplaceSourceType": {
+                        "const": "standalone-index"
+                      }
+                    },
+                    "required": [
+                      "marketplaceSourceType"
+                    ]
+                  },
+                  "then": {
+                    "required": [
+                      "marketplaceRepo"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "required": [
+                      "firstReleaseBootstrap"
+                    ]
+                  },
+                  "then": {
+                    "required": [
+                      "marketplaceSourceType",
+                      "marketplaceRepo"
+                    ],
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin"
+                        ]
+                      },
+                      "marketplaceSourceType": {
+                        "const": "standalone-index"
+                      }
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "required": [
+                      "smokeExpectedJson"
+                    ],
+                    "properties": {
+                      "smokeBin": {
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "smokeBin"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "required": [
+                      "smokeArgs"
+                    ],
+                    "properties": {
+                      "smokeBin": {
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "smokeBin"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "required": [
+                      "hostVerification"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "cursor-plugin",
+                          "antigravity-plugin"
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "expectedPublicSurface": {
+            "$ref": "#/definitions/expectedPublicSurface"
+          },
+          "publicFiles": {
+            "type": "array",
+            "minItems": 1,
+            "description": "允许进入公开快照的文件映射白名单（仅列入此清单的文件会被复制到公开快照）。",
+            "items": {
+              "type": "object",
+              "required": [
+                "from",
+                "to",
+                "mode"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "sourceScope": {
+                  "type": "string",
+                  "enum": [
+                    "unit",
+                    "workspace"
+                  ],
+                  "default": "unit",
+                  "description": "from 源路径的解析基准：unit 相对于发布单元目录（默认），workspace 相对于工作区根目录。"
+                },
+                "from": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$",
+                  "description": "源文件规范相对路径（禁止绝对路径、./、.. 跳转、反斜杠、冒号、双斜杠或尾随斜杠）。"
+                },
+                "to": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$",
+                  "description": "公开快照内的目标规范相对路径（禁止绝对路径、./、.. 跳转、反斜杠、冒号、双斜杠或尾随斜杠）。"
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "preserve"
+                  ],
+                  "description": "复制模式：固定为 preserve（逐字节原样复制，绝不改写源文件）。"
+                }
+              }
+            }
+          },
+          "requiredPublicFiles": {
+            "type": "array",
+            "uniqueItems": true,
+            "description": "公开快照必须包含的关键目标路径列表（每项都必须被 publicFiles[].to 覆盖，且不能包含绝对路径或 .. 跳转）。",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$"
+            }
+          },
+          "previousPublicBaseline": {
+            "type": "object",
+            "description": "发布单元的前序公开发布基线声明：首次发布选 none，已有历史版本必须选 bound 并绑定精确远端坐标。",
+            "required": [
+              "mode"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "bound"
+                ],
+                "description": "前序基线模式：none 表示尚无公开历史版本，bound 表示绑定已有远端仓库引用与提交。"
+              },
+              "githubHost": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9.-]+$",
+                "description": "前序公开仓库所在的 GitHub 主机域名（缺省为 github.com）。"
+              },
+              "repo": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$",
+                "description": "前序公开仓库（owner/repo 格式，mode 为 bound 时必填）。"
+              },
+              "ref": {
+                "type": "string",
+                "minLength": 1,
+                "description": "前序公开基线的 Git 引用（如 refs/heads/main，mode 为 bound 时必填）。"
+              },
+              "commit": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{40,64}$",
+                "description": "前序公开基线的完整小写十六进制 Git 提交哈希（40 至 64 位，mode 为 bound 时必填）。"
+              },
+              "tree": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{40,64}$",
+                "description": "可选的前序公开基线 Git Tree 哈希（40 至 64 位小写十六进制）。"
+              },
+              "manifestDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$",
+                "description": "可选的前序公开快照清单 64 位小写十六进制 SHA-256 摘要。"
+              }
+            },
+            "if": {
+              "properties": {
+                "mode": {
+                  "const": "bound"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "repo",
+                "ref",
+                "commit"
+              ]
+            },
+            "else": {
+              "allOf": [
+                {
+                  "not": {
+                    "required": [
+                      "repo"
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "required": [
+                      "githubHost"
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "required": [
+                      "ref"
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "required": [
+                      "commit"
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "required": [
+                      "tree"
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "required": [
+                      "manifestDigest"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "releaseDocuments": {
+            "$ref": "#/definitions/releaseDocuments"
+          },
+          "postPublish": {
+            "$ref": "#/definitions/postPublish"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "production"
+              ],
+              "properties": {
+                "production": {
+                  "required": [
+                    "branchStrategy"
+                  ],
+                  "properties": {
+                    "branchStrategy": {
+                      "enum": [
+                        "advance-existing-branch",
+                        "initialize-default-branch"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "previousPublicBaseline": {
+                  "properties": {
+                    "mode": {
+                      "const": "bound"
+                    }
+                  },
+                  "required": [
+                    "mode"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "production"
+              ],
+              "properties": {
+                "production": {
+                  "required": [
+                    "branchStrategy"
+                  ],
+                  "properties": {
+                    "branchStrategy": {
+                      "const": "initialize-default-branch"
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "production": {
+                  "required": [
+                    "setAsDefaultBranch",
+                    "expectedCurrentDefaultBranch"
+                  ],
+                  "properties": {
+                    "setAsDefaultBranch": {
+                      "const": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "production"
+              ],
+              "properties": {
+                "production": {
+                  "required": [
+                    "setAsDefaultBranch"
+                  ],
+                  "properties": {
+                    "setAsDefaultBranch": {
+                      "const": true
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "production": {
+                  "required": [
+                    "branchStrategy"
+                  ],
+                  "properties": {
+                    "branchStrategy": {
+                      "const": "initialize-default-branch"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "verificationGates": {
+      "type": "array",
+      "description": "项目自定义的快照核验或消费者安装后验证门禁列表。",
+      "items": {
+        "$ref": "#/definitions/verificationGate"
+      }
+    },
+    "hooks": {
+      "type": "object",
+      "description": "快照冻结前按固定顺序执行的项目级开发钩子集合（lint -> docs -> typecheck -> build -> test）。",
+      "additionalProperties": false,
+      "properties": {
+        "docs": {
+          "$ref": "#/definitions/hook"
+        },
+        "build": {
+          "$ref": "#/definitions/hook"
+        },
+        "test": {
+          "$ref": "#/definitions/hook"
+        },
+        "typecheck": {
+          "$ref": "#/definitions/hook"
+        },
+        "lint": {
+          "$ref": "#/definitions/hook"
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "description": "公开快照的隐私防泄漏路径黑名单、敏感内容正则、受控远端源白名单与前置闭包检查策略。",
+      "additionalProperties": false,
+      "properties": {
+        "forbiddenPaths": {
+          "type": "array",
+          "description": "严禁出现在公开快照中的目标相对路径前缀或匹配规则列表（如 runs/、docs/）。",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbiddenContentPatterns": {
+          "type": "array",
+          "description": "严禁出现在公开快照任意文件内容中的正则表达式列表（如私有令牌、本机路径前缀）。",
+          "items": {
+            "type": "string"
+          }
+        },
+        "preHookPublicSurfaceCheck": {
+          "type": "boolean",
+          "description": "是否在启动声明的开发钩子之前先执行临时公开表面闭包预检。"
+        },
+        "sourcePolicy": {
+          "$ref": "#/definitions/sourcePolicy"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "sourcePolicy": {
+      "type": "object",
+      "description": "远端 Git 与 npm 源地址受控白名单策略（US-060）：默认 public 模式严格锁定 github.com 与 https://registry.npmjs.org；controlled-private 模式显式声明企业内部 GitLab/Gitea 与私有 npm 注册表白名单，并阻断任何 URL 内嵌凭据及公私混用。",
+      "additionalProperties": false,
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "public",
+            "controlled-private"
+          ],
+          "description": "源策略模式：public 为严格公开模式（零放宽），controlled-private 为显式白名单受控私有源模式。"
+        },
+        "allowedGitHosts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "允许用于生产发布、基线核验与内部镜像推送的 Git 主机域名白名单（格式为 hostname 或 hostname:port，严禁带协议前缀、路径或 @ 凭据）。",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?(?::[1-9][0-9]{0,4})?$"
+          }
+        },
+        "allowedNpmRegistries": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "允许用于 npm 发布与安装核验的规范 HTTPS 注册表地址白名单（严禁内嵌 user:token@ 凭据、查询参数、片段或尾随斜杠）。",
+          "items": {
+            "type": "string",
+            "pattern": "^https://[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?(?::[1-9][0-9]{0,4})?(?:/[^@\\s?#]*[^/@\\s?#])?$"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "const": "public"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          },
+          "then": {
+            "properties": {
+              "allowedGitHosts": {
+                "maxItems": 1,
+                "items": {
+                  "const": "github.com"
+                }
+              },
+              "allowedNpmRegistries": {
+                "maxItems": 1,
+                "items": {
+                  "const": "https://registry.npmjs.org"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "expectedPublicSurface": {
+      "type": "object",
+      "description": "预期的公开表面扫描范围声明，用于核对 publicFiles 映射无遗漏或意外文件混入。",
+      "additionalProperties": false,
+      "required": [
+        "scanRoots"
+      ],
+      "properties": {
+        "scanRoots": {
+          "type": "array",
+          "minItems": 1,
+          "description": "需要扫描核对的目录根列表。",
+          "items": {
+            "$ref": "#/definitions/publicSurfaceScanRoot"
+          }
+        }
+      }
+    },
+    "publicSurfaceScanRoot": {
+      "type": "object",
+      "description": "单个公开表面扫描根及其包含/排除 glob 规则。",
+      "additionalProperties": false,
+      "required": [
+        "include",
+        "exclude"
+      ],
+      "properties": {
+        "sourceScope": {
+          "type": "string",
+          "enum": [
+            "unit",
+            "workspace"
+          ],
+          "default": "unit",
+          "description": "root 扫描目录的解析基准：unit 相对于发布单元目录（默认），workspace 相对于工作区根目录。"
+        },
+        "root": {
+          "type": "string",
+          "minLength": 1,
+          "default": ".",
+          "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$",
+          "description": "扫描起始相对目录：填 \".\" 或不含前导 /、./、..、反斜杠、冒号及尾随斜杠的规范相对路径。"
+        },
+        "include": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "纳入公开表面比对的文件 glob 列表。",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "exclude": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "从公开表面扫描中明确排除的私有或构建目录 glob 列表。",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "hook": {
+      "type": "object",
+      "description": "发布准备阶段的本地开发钩子（lint/docs/build/test/typecheck）：仅接受 executable + 参数数组，禁止 shell 字符串。",
+      "required": [
+        "command"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "description": "可执行文件与参数数组（例如 [\"pnpm\", \"test\"]），严禁传入整段 shell 命令字符串。"
+        },
+        "cwd": {
+          "type": "string",
+          "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$",
+          "description": "相对于项目根目录的工作目录；运行前经 realpath 校验，禁止逃逸出项目根。"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 7200000,
+          "description": "子进程最大运行时间（毫秒，1 秒至 2 小时）；超时后终止进程并报 HOOK_TIMEOUT。"
+        },
+        "envAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z_][A-Z0-9_]*$"
+          },
+          "uniqueItems": true,
+          "description": "除平台基础变量外允许显式透传给子进程的环境变量名白名单；未列入的环境变量一律剥离。"
+        },
+        "cacheable": {
+          "type": "boolean",
+          "description": "是否启用基于输入内容指纹的增量收据缓存：为 true 时必须同时声明非空 cacheInputs；输入与配置未变且上次退出码为 0 时直接复用缓存结果。"
+        },
+        "cacheInputs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true,
+          "description": "相对于项目根目录的输入文件 glob 列表（覆盖源码、脚本、配置与锁文件）；任一 glob 零命中即按声明错误阻断。"
+        },
+        "testSelection": {
+          "type": "string",
+          "enum": [
+            "full",
+            "incremental"
+          ],
+          "description": "仅对 test 钩子生效：缺省或 'full' 表示运行全量测试套件（满足冻结门禁要求）；'incremental' 保留给未来预检模式，在计划冻结时会被直接拒绝。"
+        },
+        "sideEffects": {
+          "type": "string",
+          "enum": [
+            "read-only",
+            "local-write",
+            "network-or-external"
+          ],
+          "description": "显式声明钩子的副作用边界：缺省或 'read-only' 视为常规只读/内建检查，调用即执行；声明为 'local-write'（改写工作区文件或生成物）或 'network-or-external'（发起网络请求或调用外部服务）时，prepare 与 hooks validate 会在执行前披露完整命令与影响范围，并强制要求 --acknowledge-hook-side-effects 显式放行。"
+        },
+        "mutating": {
+          "type": "boolean",
+          "description": "显式标记该钩子具有写文件或外部副作用（true 时强制执行事前披露与 --acknowledge-hook-side-effects 授权拦截；不得与 sideEffects: 'read-only' 同时设为 true）。"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "sideEffects": {
+                "const": "read-only"
+              },
+              "mutating": {
+                "const": true
+              }
+            },
+            "required": [
+              "sideEffects",
+              "mutating"
+            ]
+          },
+          "then": false
+        }
+      ]
+    },
+    "postPublish": {
+      "type": "object",
+      "description": "发布后分发声明：载荷要么由 materialize 钩子从冻结 tag 工作树物化，要么（省略 materialize 时）由冻结的 publicFiles 映射经 Foundation Engineering Kit 托管投影物化（F-06/T6）；targets 将载荷镜像或渲染市场索引推送到独立 git 远端。分发在 publish 之后由 distribute 命令执行，时序契约禁止读取工作区状态。",
+      "required": [
+        "commitIdentity"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "materialize": {
+          "$ref": "#/definitions/postPublishMaterialize"
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/postPublishTarget"
+          }
+        },
+        "hooks": {
+          "type": "array",
+          "description": "发布后钩子声明（v0.6.3 R1）：每项为命名 preset（+config）或自定义 command 钩子（executable+参数数组，禁止 shell 字符串）。schema 层只校验形状；preset 与 command 互斥、preset 注册表归属等语义在运行时 fail-closed 校验（POSTPUBLISH_HOOK_INVALID）",
+          "items": {
+            "$ref": "#/definitions/postPublishHook"
+          }
+        },
+        "commitIdentity": {
+          "type": "object",
+          "description": "分发仓库提交者身份（bot 身份），通过 git -c user.name/-c user.email 注入，绝不读取或修改全局 git 配置",
+          "required": [
+            "name",
+            "email"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "email": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "steps": {
+          "type": "array",
+          "description": "物化之后、推送之前按序执行的只读检查步骤；任一步失败即 fail-closed",
+          "items": {
+            "$ref": "#/definitions/postPublishStep"
+          }
+        },
+        "assertMainVersionAhead": {
+          "type": "boolean",
+          "description": "分发前校验主干版本源仍领先于目标版本，防止在已推进的主干上分发旧版本"
+        },
+        "executionFiles": {
+          "type": "array",
+          "description": "私有执行输入闭世界清单（F-01）：仅列出发布后命令需要、但冻结 tag 中不存在的父工作区领域文件；辅助文件（helper）必须显式列入，执行时不做任何临时发现。每个路径经 Foundation 路径分类与受收容读取；列表排序去重后随计划冻结为 executionBundle.closure，字节发布到计划权威 .release-skill 下的摘要寻址目录。tag 中已有的文件继续由 tagCommit 绑定，不得在此声明（执行包不得覆盖 tag 文件）。路径语法只由 schema 做第一层形状检查，最终以运行时 Foundation 分类为准。",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$",
+            "description": "相对于父工作区根目录的辅助文件相对路径（禁止以 / 开头、禁止包含 .. 上级路径段或反斜杠）。"
+          },
+          "uniqueItems": true
+        },
+        "localHostUpdate": {
+          "$ref": "#/definitions/localHostUpdate"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "localHostUpdate"
+            ]
+          },
+          "then": {
+            "required": [
+              "hooks"
+            ],
+            "properties": {
+              "hooks": {
+                "contains": {
+                  "type": "object",
+                  "required": [
+                    "phase"
+                  ],
+                  "properties": {
+                    "phase": {
+                      "const": "postVerify"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "localHostUpdate": {
+      "type": "object",
+      "description": "发布后经中央 Hub 触发的本机宿主插件升级声明（要求同时声明 postVerify 阶段钩子）。",
+      "additionalProperties": false,
+      "required": [
+        "plugin",
+        "hosts",
+        "hub"
+      ],
+      "properties": {
+        "plugin": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": ".*\\S.*",
+          "description": "本机待更新的插件名称（包含非空白字符；当 hosts 包含 cursor 时须符合小写字母数字及 .- 格式）。"
+        },
+        "hosts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "允许在 release-finish 阶段选择更新的目标本机宿主列表。",
+          "items": {
+            "type": "string",
+            "enum": [
+              "claude",
+              "codex",
+              "kimi",
+              "codebuddy",
+              "workbuddy",
+              "qoder",
+              "cursor"
+            ]
+          }
+        },
+        "hub": {
+          "$ref": "#/definitions/localHostHub"
+        },
+        "cursor": {
+          "$ref": "#/definitions/cursorLocalPlugin"
+        }
+      },
+      "allOf": [{ "if": { "properties": { "hosts": { "contains": { "const": "cursor" } } } }, "then": { "required": ["cursor"], "properties": { "plugin": { "pattern": "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$" } } }, "else": { "not": { "required": ["cursor"] } } }]
+    },
+    "cursorLocalPlugin": {
+      "type": "object",
+      "description": "Cursor 本机本地插件升级的冻结来源目录与依赖安装方式。",
+      "additionalProperties": false,
+      "required": ["sourcePath"],
+      "properties": {
+        "sourcePath": {
+          "type": "string",
+          "pattern": "^(?!/)(?!.*\\\\)(?!.*:)(?!.*\\u0000)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)(?!.*\\/$).+$",
+          "description": "冻结快照内完整 Cursor 插件目录的相对路径（禁止前导 /、反斜杠、冒号、空字符、. 或 .. 路径段、双斜杠及尾随斜杠）。"
+        },
+        "dependencyInstall": {
+          "const": "npm-ci-ignore-scripts",
+          "description": "受控依赖安装策略，固定为 npm-ci-ignore-scripts（禁用任意生命周期脚本）。"
+        }
+      }
+    },
+    "localHostHub": {
+      "type": "object",
+      "description": "本机宿主插件升级所绑定的统一插件市场（Hub）仓库与分支引用。",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "repo",
+        "ref"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": ".*\\S.*",
+          "description": "市场名称标识（如 skill-family-hub）。"
+        },
+        "githubHost": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$",
+          "description": "市场仓库所在的 GitHub 主机域名（仅含字母、数字、点与连字符，不得含协议前缀）。"
+        },
+        "repo": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+\\/[A-Za-z0-9._-]+$",
+          "description": "市场公开 GitHub 仓库（owner/repo 格式）。"
+        },
+        "ref": {
+          "type": "string",
+          "pattern": "^refs\\/heads\\/[A-Za-z0-9][A-Za-z0-9._-]*(?:\\/[A-Za-z0-9][A-Za-z0-9._-]*)*$",
+          "description": "市场仓库的完整分支引用（必须以 refs/heads/ 开头，如 refs/heads/main）。"
+        }
+      }
+    },
+    "postPublishHook": {
+      "type": "object",
+      "description": "发布后钩子声明项：preset（命名预设 + config）与 command（自定义命令）在运行时互斥校验；phase 缺省为 distribute（VERIFIED 之前执行），postVerify 在 verify 通过后作为独立 run 执行（R3）；blocksVerified 缺省 true，仅 preset 可声明 false",
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "description": "发布后钩子唯一标识（小写字母、数字及 ._-）。"
+        },
+        "preset": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "description": "预设注册表中的预设名（R2 起）；R1 无注册表，任何 preset 引用在运行时 fail-closed"
+        },
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          },
+          "description": "executable+参数数组（禁止 shell 字符串）；在冻结 tag 工作树中执行"
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "distribute",
+            "postVerify"
+          ],
+          "description": "执行阶段；缺省 distribute"
+        },
+        "config": {
+          "type": "object",
+          "description": "preset 钩子的配置对象；语义由预设注册表校验（R2 起）"
+        },
+        "cwd": {
+          "type": "string",
+          "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$",
+          "description": "command 钩子执行目录（相对冻结 tag 工作树）；preset 钩子禁止声明（运行时 fail-closed）"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 7200000
+        },
+        "envAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!.*(?:TOKEN|SECRET|PASSWORD|PASSPHRASE|API_KEY|CREDENTIAL))[A-Z_][A-Z0-9_]*$"
+          },
+          "uniqueItems": true,
+          "description": "允许透传给钩子进程的环境变量白名单；TOKEN/SECRET 等敏感子串在 schema 层即被拒绝"
+        },
+        "requiresApproval": {
+          "type": "boolean",
+          "description": "执行前需要 checkpoint 级批准（绑定 planDigest + hookId）；public-write preset 缺省 true"
+        },
+        "blocksVerified": {
+          "type": "boolean",
+          "description": "失败时是否阻断 VERIFIED；缺省 true；仅 preset 可声明 false（运行时 fail-closed 校验）"
+        }
+      }
+    },
+    "postPublishMaterialize": {
+      "type": "object",
+      "description": "载荷物化钩子：executable+参数数组（禁止 shell 字符串），stdout 中 outputMarker 行之后为载荷目录路径；可选 requireReport 对 stdout 首个 JSON 对象做字段断言",
+      "required": [
+        "command",
+        "outputMarker"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "cwd": {
+          "type": "string",
+          "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$",
+          "description": "物化钩子相对于冻结标签工作树的执行目录（禁止绝对路径或 .. 跳转）。"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 7200000,
+          "description": "物化钩子最大运行超时时间（毫秒）。"
+        },
+        "envAllowlist": {
+          "type": "array",
+          "description": "允许透传给物化进程的环境变量名白名单（禁止包含 TOKEN/SECRET/PASSWORD/API_KEY 等敏感词）。",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!.*(?:TOKEN|SECRET|PASSWORD|PASSPHRASE|API_KEY|CREDENTIAL))[A-Z_][A-Z0-9_]*$"
+          },
+          "uniqueItems": true
+        },
+        "outputMarker": {
+          "type": "string",
+          "minLength": 1,
+          "description": "stdout 中标识载荷目录路径的前缀标记（如 \"isolated dir kept: \"）"
+        },
+        "requireReport": {
+          "type": "object",
+          "required": [
+            "parse"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "parse": {
+              "const": "stdout-first-json",
+              "description": "解析 stdout 中第一个完整 JSON 对象作为报告"
+            },
+            "equals": {
+              "type": "object",
+              "description": "报告字段等值断言；任一字段缺失或不等即 fail-closed"
+            }
+          }
+        }
+      }
+    },
+    "postPublishStep": {
+      "type": "object",
+      "description": "物化后按序执行的检查步骤；executable+参数数组（禁止 shell 字符串）",
+      "required": [
+        "name",
+        "command"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "description": "物化后检查步骤标识名称（小写字母、数字及 ._-）。"
+        },
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "description": "可执行文件与参数数组（禁止传入 shell 字符串）。",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cwd": {
+          "type": "string",
+          "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$",
+          "description": "检查步骤相对于载荷目录的执行相对路径。"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 7200000,
+          "description": "检查步骤最大运行超时时间（毫秒）。"
+        },
+        "envAllowlist": {
+          "type": "array",
+          "description": "允许透传给检查步骤的环境变量名白名单（禁止包含 TOKEN/SECRET 等敏感子串）。",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!.*(?:TOKEN|SECRET|PASSWORD|PASSPHRASE|API_KEY|CREDENTIAL))[A-Z_][A-Z0-9_]*$"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "postPublishTarget": {
+      "type": "object",
+      "description": "分发目标 git 远端：payload-mirror 镜像载荷，marketplace-index 渲染市场索引清单；dependsOn 语义（引用、无环）在运行时异常即拦截校验",
+      "required": [
+        "id",
+        "kind",
+        "remoteUrl",
+        "visibility",
+        "branch"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "description": "分发目标唯一标识（小写字母、数字及 ._-）。"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "payload-mirror",
+            "marketplace-index"
+          ],
+          "description": "分发目标类型：payload-mirror 为载荷镜像，marketplace-index 为市场索引渲染。"
+        },
+        "remoteUrl": {
+          "type": "string",
+          "pattern": "^(?:https?|file)://[^@]+\\.git$",
+          "description": "仅允许 http(s) 或 file（测试传输）且以 .git 结尾的远端 URL；禁止任何 userinfo（user:password@）形态——凭证只属于宿主 git credential helper。schema 只是第一道门，运行时 Git URL 策略（new URL 解析）是最终权威"
+        },
+        "visibility": {
+          "type": "string",
+          "enum": [
+            "internal",
+            "public"
+          ],
+          "description": "目标远端仓库可见性（internal 内部或 public 公开）。"
+        },
+        "branch": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$",
+          "description": "目标分发仓库推送的分支名（如 main）。"
+        },
+        "dependsOn": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "description": "消费另一目标（须为 payload-mirror）推送后的 commit sha；运行时校验引用存在且无环"
+        },
+        "marketplace": {
+          "type": "object",
+          "description": "marketplace-index 目标必填：渲染 .claude-plugin/marketplace.json 所用的市场元数据",
+          "required": [
+            "form",
+            "name",
+            "owner"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "form": {
+              "type": "string",
+              "enum": [
+                "github",
+                "url"
+              ]
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "owner": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sourceRepo": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$",
+              "description": "可选 owner/repo；github form 缺省时以 owner/name 组装"
+            }
+          }
+        },
+        "staticFiles": {
+          "type": "array",
+          "description": "随目标一起写入的静态文件（from 为源仓库相对路径，to 为目标仓库相对路径）",
+          "items": {
+            "type": "object",
+            "required": [
+              "from",
+              "to"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$",
+                "description": "源仓库内的规范相对路径（禁止前导 /、./、.. 跳转、反斜杠、冒号或尾随斜杠）。"
+              },
+              "to": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$",
+                "description": "目标分发仓库内的规范相对路径（禁止前导 /、./、.. 跳转、反斜杠、冒号或尾随斜杠）。"
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "marketplace-index"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "marketplace"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "payload-mirror"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "marketplace"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "releaseDocuments": {
+      "type": "object",
+      "description": "可选的多语种发布文档配置驱动刷新声明：未配置时保持原有人工维护方式；Schema 层校验路径与语种词法格式，运行时进一步执行路径收容、语种归属与冲突检查。",
+      "required": [
+        "notesSource",
+        "locales",
+        "changelogs",
+        "readmes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "notesSource": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$)(?!.*\\{(?!version\\}))(?!.*(?<!\\{version)\\}).+\\.(?:yaml|yml|json)$",
+          "description": "相对于发布单元目录的发布说明源文件模板路径（如 release-notes/{version}.yaml）：仅支持 .yaml/.yml/.json 后缀与唯一合法占位符 {version}，禁止绝对路径或 .. 跳转。"
+        },
+        "locales": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "本发布单元受管刷新的语种标签列表（遵循 BCP-47 词法格式，如 en、zh-CN）。",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z]{2,3}(?:-[A-Za-z0-9]{2,8})*$"
+          }
+        },
+        "changelogs": {
+          "type": "array",
+          "minItems": 1,
+          "description": "受管更新的变更日志（CHANGELOG）目标文件列表。",
+          "items": {
+            "$ref": "#/definitions/releaseDocumentsChangelog"
+          }
+        },
+        "readmes": {
+          "type": "array",
+          "minItems": 1,
+          "description": "受管刷新托管区块与版本标记的 README 目标文件列表。",
+          "items": {
+            "$ref": "#/definitions/releaseDocumentsReadme"
+          }
+        }
+      }
+    },
+    "releaseDocumentsChangelog": {
+      "type": "object",
+      "description": "单个受管 CHANGELOG 文件的路径与对应语种。",
+      "required": [
+        "path",
+        "locale"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$",
+          "description": "相对于发布单元目录的 CHANGELOG 规范相对路径（禁止绝对路径或 .. 跳转）。"
+        },
+        "locale": {
+          "type": "string",
+          "pattern": "^[a-zA-Z]{2,3}(?:-[A-Za-z0-9]{2,8})*$",
+          "description": "该变更日志对应的语种标签（须存在于 releaseDocuments.locales 中）。"
+        }
+      }
+    },
+    "releaseDocumentsReadme": {
+      "type": "object",
+      "description": "单个受管 README 文件的路径、语种、托管区块与版本注释标记配置。",
+      "required": [
+        "path",
+        "locale",
+        "regions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$",
+          "description": "相对于发布单元目录的 README 规范相对路径（禁止绝对路径或 .. 跳转）。"
+        },
+        "locale": {
+          "type": "string",
+          "pattern": "^[a-zA-Z]{2,3}(?:-[A-Za-z0-9]{2,8})*$",
+          "description": "该 README 对应的语种标签（须存在于 releaseDocuments.locales 中）。"
+        },
+        "regions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "README 内允许刷新的受管注释区块 ID 列表（如 latest-release）。",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          }
+        },
+        "versionMarkers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "可选的内联版本号注释标记列表。",
+          "items": {
+            "$ref": "#/definitions/releaseDocumentsVersionMarker"
+          }
+        }
+      }
+    },
+    "releaseDocumentsVersionMarker": {
+      "type": "object",
+      "description": "README 内单处版本号替换标记的标识与模板。",
+      "required": [
+        "id",
+        "pattern"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "description": "版本标记唯一标识。"
+        },
+        "pattern": {
+          "type": "string",
+          "minLength": 1,
+          "description": "包含 {version} 占位符的精确匹配模板字符串。"
+        }
+      }
+    },
+    "verificationGate": {
+      "type": "object",
+      "description": "项目自定义的快照核验或消费者安装后验证门禁：以可执行文件与参数数组运行，禁止 shell 字符串。",
+      "required": [
+        "id",
+        "phase",
+        "scope",
+        "command",
+        "cwd",
+        "timeoutMs",
+        "envAllowlist"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "description": "验证门禁唯一标识（小写字母、数字及 ._-）。"
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "snapshot-verify",
+            "consumer-verify"
+          ],
+          "description": "门禁执行阶段：snapshot-verify 在本地快照冻结时校验，consumer-verify 在发布后消费者安装验证时校验。"
+        },
+        "scope": {
+          "type": "object",
+          "description": "门禁绑定的发布单元及可选分发渠道范围。",
+          "required": [
+            "unit"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "unit": {
+              "type": "string",
+              "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$",
+              "description": "目标发布单元 ID。"
+            },
+            "distribution": {
+              "type": "string",
+              "enum": [
+                "npm",
+                "claude-plugin",
+                "codex-plugin",
+                "kimi-plugin",
+                "codebuddy-plugin",
+                "qoder-plugin"
+              ],
+              "description": "consumer-verify 阶段必填的目标分发渠道类型（snapshot-verify 阶段不得声明）。"
+            }
+          }
+        },
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "description": "可执行文件与参数数组（禁止传入 shell 字符串）。",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cwd": {
+          "type": "string",
+          "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$",
+          "description": "门禁进程运行时的规范相对目录（填 \".\" 或不含前导 /、./、..、反斜杠、冒号及尾随斜杠的相对路径）。"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 7200000,
+          "description": "门禁进程最大运行超时时间（毫秒，1 秒至 2 小时）。"
+        },
+        "envAllowlist": {
+          "type": "array",
+          "description": "允许显式透传给门禁子进程的大写环境变量名白名单。",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z_][A-Z0-9_]*$"
+          },
+          "uniqueItems": true
+        },
+        "expectedJson": {
+          "type": "object",
+          "description": "可选的标准输出 JSON 子集匹配断言。"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "phase": {
+                "const": "consumer-verify"
+              }
+            },
+            "required": [
+              "phase"
+            ]
+          },
+          "then": {
+            "properties": {
+              "scope": {
+                "required": [
+                  "unit",
+                  "distribution"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "phase": {
+                "const": "snapshot-verify"
+              }
+            },
+            "required": [
+              "phase"
+            ]
+          },
+          "then": {
+            "properties": {
+              "scope": {
+                "not": {
+                  "required": [
+                    "distribution"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "cursorHostScenario": {
+      "type": "object",
+      "description": "Cursor 本地插件单技能冻结核验场景定义。",
+      "additionalProperties": false,
+      "required": [
+        "workloadDocument",
+        "fixtureFiles",
+        "protectedWorkspaceFiles",
+        "platformManifest",
+        "effectivePrompt",
+        "expectedResult"
+      ],
+      "properties": {
+        "workloadDocument": {
+          "type": "string",
+          "minLength": 1,
+          "description": "核验工作负载说明正文。"
+        },
+        "fixtureFiles": {
+          "$ref": "#/definitions/cursorScenarioFiles"
+        },
+        "protectedWorkspaceFiles": {
+          "$ref": "#/definitions/cursorScenarioFiles"
+        },
+        "platformManifest": {
+          "type": "object",
+          "description": "宿主平台清单元数据对象。"
+        },
+        "effectivePrompt": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000]*$",
+          "description": "触发入口技能的有效提示词文本（禁止包含空字符 \\u0000）。"
+        },
+        "expectedResult": {
+          "type": "string",
+          "description": "预期的核验输出或结论文本。"
+        }
+      }
+    },
+    "cursorScenarioFiles": {
+      "type": "array",
+      "minItems": 1,
+      "description": "冻结进 Cursor 核验沙箱的文件列表。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "content"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*\\\\)(?!.*:)(?!.*\\u0000)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*(?:^|/)\\.cursor(?:/|$))(?!.*//)(?!.*\\/$).+$",
+            "description": "沙箱内普通文件的相对路径（禁止绝对路径、反斜杠、冒号、空字符、. 或 .. 路径段、写入 .cursor 宿主配置目录、双斜杠或尾随斜杠）。"
+          },
+          "content": {
+            "type": "string",
+            "description": "文件 UTF-8 文本内容。"
+          }
+        }
+      }
+    }
+  }
+}

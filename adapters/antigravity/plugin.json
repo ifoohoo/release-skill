@@ -1,0 +1,9 @@
+{
+  "name": "release-skill",
+  "version": "0.10.2",
+  "displayName": "Release Skill",
+  "description": "Safe preparation and frozen GitHub/npm production publishing with full happy end verification",
+  "author": "广州市风荷科技有限公司",
+  "homepage": "https://github.com/ifoohoo/release-skill#readme",
+  "repository": "https://github.com/ifoohoo/release-skill.git"
+}

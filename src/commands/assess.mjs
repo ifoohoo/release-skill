@@ -15,6 +15,8 @@
  *
  * @module commands/assess
  */
+// @decision D-RS-004
+// @decision D-RS-005
 
 import { readFile, stat, writeFile, mkdir } from 'node:fs/promises';
 import { resolve, dirname, relative } from 'node:path';
@@ -23,6 +25,7 @@ import { promisify } from 'node:util';
 
 import { loadProjectConfig } from '../core/config.mjs';
 import { ReleaseError, CONFIG_INVALID, GATE_FAILED } from '../core/errors.mjs';
+import { describeDeclaredHookSideEffects } from '../core/hooks.mjs';
 import { collectExpectedPublicSurfaceAdoptionWarnings } from '../core/public-surface.mjs';
 import {
   PROVIDER_ENTRY,
@@ -1128,6 +1131,19 @@ export async function assessProject(options) {
       severity: Severity.WARNING,
       code: warning.code,
       message: warning.message,
+      file: '.release-skill/project.yaml',
+    }));
+  }
+
+  // --- 3b. Declared hook side-effect disclosure (US-043) ---
+  const hookDisclosure = describeDeclaredHookSideEffects(config.hooks);
+  if (hookDisclosure.requiresAcknowledgement) {
+    allGaps.push(createGap({
+      scope: GapScope.PROJECT,
+      category: GapCategory.POLICY,
+      severity: Severity.WARNING,
+      code: 'HOOK_SIDE_EFFECTS_DECLARED',
+      message: `项目声明了 ${hookDisclosure.disclosedHooks.length} 个有副作用开发钩子（${hookDisclosure.disclosedHooks.map((h) => `${h.name}: ${h.commandLine}`).join('；')}）；执行 prepare 或 hooks validate 时须审阅命令影响范围并显式传入 --acknowledge-hook-side-effects`,
       file: '.release-skill/project.yaml',
     }));
   }

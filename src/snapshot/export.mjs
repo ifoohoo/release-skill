@@ -14,6 +14,7 @@
  *
  * @module snapshot/export
  */
+// @decision D-RS-003
 
 import { buildPublicStaging } from './public-map.mjs';
 import { ReleaseError, CONFIG_INVALID } from '../core/errors.mjs';

@@ -28,6 +28,8 @@
  *
  * @module artifacts/project-lock
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import { mkdir, writeFile, lstat, open } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';

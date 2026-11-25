@@ -1,3 +1,7 @@
+// @decision D-RS-002
+// @feature REL006
+// @scenario S-007
+
 import { createHash, randomUUID } from 'node:crypto';
 import { execFile as execFileCb, spawn } from 'node:child_process';
 import { gunzipSync } from 'node:zlib';
@@ -21,6 +25,7 @@ import {
   buildTarballFileIndex,
 } from '../npm/npm-entry-closure.mjs';
 import { ReleaseError, GATE_FAILED } from '../core/errors.mjs';
+import { hasEmbeddedUrlCredentials, redactUrlCredentialsIfPresent } from '../core/git-url-policy.mjs';
 
 const execFile = promisify(execFileCb);
 const NAME = 'npm';
@@ -44,12 +49,15 @@ export function normalizeRegistry(registry) {
   if (typeof registry !== 'string' || registry.trim().length === 0) {
     throw new Error('registry must be a non-empty string');
   }
+  if (hasEmbeddedUrlCredentials(registry)) {
+    throw new Error('npm registry URL must not contain credentials, query, or fragment');
+  }
 
   let parsed;
   try {
     parsed = new URL(registry.trim());
   } catch {
-    throw new Error(`invalid registry URL: ${registry}`);
+    throw new Error(`invalid registry URL: ${redactUrlCredentialsIfPresent(registry)}`);
   }
   if (parsed.protocol !== 'https:') throw new Error('npm registry must use https');
   if (parsed.username || parsed.password || parsed.search || parsed.hash) {

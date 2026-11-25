@@ -1,3 +1,6 @@
+// @decision D-RS-004
+// @decision D-RS-005
+
 import { readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 

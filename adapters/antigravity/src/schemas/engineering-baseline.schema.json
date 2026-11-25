@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/engineering-baseline.json",
+  "title": "EngineeringBaseline",
+  "description": "Business-neutral identity for an engineering baseline. The contract carries the provider-owned baseline identity, canonical rule lineage references, and the Foundation reference implementation identity; it does not carry rule bodies, effects, equivalence, or exemption semantics.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "provider",
+    "id",
+    "version",
+    "digest",
+    "canonicalRuleRefs",
+    "referenceImplementation"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.engineering-baseline" },
+    "provider": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Provider that owns the baseline identity, for example an independent Audit implementation."
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Provider-scoped stable baseline identifier."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of the provider-owned baseline identity."
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 digest of the canonical JSON of this document with digest omitted."
+    },
+    "canonicalRuleRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/canonicalRuleRef" },
+      "description": "Sorted, unique references to provider-owned canonical rule lineages. Rule bodies and decisions remain outside this contract."
+    },
+    "referenceImplementation": {
+      "$ref": "#/$defs/referenceImplementation",
+      "description": "Identity of the Foundation reference implementation used by the baseline provider."
+    }
+  },
+  "$defs": {
+    "canonicalRuleRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "revision", "revisionDigest"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "revision": { "type": "integer", "minimum": 1 },
+        "revisionDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "referenceImplementation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["foundationVersion", "profile", "skeletonDigest"],
+      "properties": {
+        "foundationVersion": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "profile": { "type": "string", "minLength": 1 },
+        "skeletonDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    }
+  }
+}

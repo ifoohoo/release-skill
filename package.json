@@ -1,6 +1,6 @@
 {
   "name": "release-skill",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "description": "Safe preparation and frozen GitHub/npm production publishing with full happy end verification",
   "author": {
     "name": "\u5e7f\u5dde\u5e02\u98ce\u8377\u79d1\u6280\u6709\u9650\u516c\u53f8"
@@ -23,6 +23,7 @@
     "release-skill": "./bin/release-skill.mjs"
   },
   "files": [
+    "plugin.json",
     ".claude-plugin/",
     ".codebuddy-plugin/",
     ".codex-plugin/",
@@ -81,9 +82,9 @@
     "agent-method-registry": "0.2.0",
     "libnpmpublish": "11.2.0",
     "npm-registry-fetch": "18.0.2",
-    "skill-family-contracts": "0.25.0",
-    "skill-family-engineering-kit": "0.25.0",
-    "skill-family-harness-node": "0.25.0",
+    "skill-family-contracts": "0.39.0",
+    "skill-family-engineering-kit": "0.39.0",
+    "skill-family-harness-node": "0.39.0",
     "yaml": "2.9.0"
   },
   "devDependencies": {
@@ -102,7 +103,8 @@
     "codex",
     "kimi-code",
     "qoder",
-    "cursor"
+    "cursor",
+    "antigravity"
   ],
   "license": "Apache-2.0"
 }

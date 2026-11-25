@@ -108,12 +108,14 @@ function deriveManifestPaths(platform) {
 function deriveAdapterManifestPaths(platform) {
   const paths = [];
   const ba = platform.buildAdapter;
+  const normalizedDir = ba.pluginDirName === '.' ? '' : (ba.pluginDirName ?? '');
 
-  // Plugin manifest directory
-  if (ba.pluginDirName) {
-    paths.push(`${ba.pluginDirName}/${ba.templateFileName}`);
+  // Plugin manifest directory ('.' and '' refer to the adapter root itself)
+  if (ba.pluginDirName !== undefined && ba.pluginDirName !== null && ba.templateFileName) {
+    const prefix = normalizedDir ? `${normalizedDir}/` : '';
+    paths.push(`${prefix}${ba.templateFileName}`);
     if (ba.marketplaceFileName) {
-      paths.push(`${ba.pluginDirName}/${ba.marketplaceFileName}`);
+      paths.push(`${prefix}${ba.marketplaceFileName}`);
     }
   }
 

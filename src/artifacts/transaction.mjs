@@ -9,6 +9,8 @@
  *
  * @module artifacts/transaction
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import { randomBytes } from 'node:crypto';
 import { relative } from 'node:path';

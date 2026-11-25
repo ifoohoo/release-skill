@@ -9,6 +9,8 @@
  * Fail-safe by construction: any unit whose plan data is missing or
  * malformed is skipped rather than guessed.
  */
+// @decision D-RS-001
+
 import { readFile, writeFile } from 'node:fs/promises';
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';

@@ -14,6 +14,9 @@
  *
  * @module platforms/codex
  */
+// @decision D-RS-005
+// @feature REL002
+// @scenario S-003
 
 import { readFile } from 'node:fs/promises';
 import { join, resolve, relative, isAbsolute } from 'node:path';

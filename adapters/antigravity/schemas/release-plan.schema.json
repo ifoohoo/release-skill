@@ -1,0 +1,2326 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://release-skill.dev/schemas/release-plan/v1",
+  "title": "Release Plan",
+  "description": "Schema for frozen release plan produced by the prepare phase",
+  "type": "object",
+  "required": [
+    "planVersion",
+    "status",
+    "baseline",
+    "units",
+    "externalActions"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "replacesPlanDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "planVersion": {
+      "type": "integer",
+      "enum": [
+        1,
+        2,
+        3
+      ],
+      "description": "Plan format and digest-scoping version. 1: legacy (every field except the top-level digest binds; commitTimestamp must equal createdAt). 2: T1.2 digest layering (record-layer fields status/createdAt/baseline/per-action status are excluded from the plan digest; commitTimestamp is derived from the HEAD commit committer date). 3: multi-release-unit postPublish v3 (postPublish is a declaration ARRAY, one entry per declaring unit in plan.units order, possibly empty; v3 inherits the v2 record-layer semantics and only changes the postPublish shape)."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "DISCOVERED",
+        "ASSESSED",
+        "PREPARED",
+        "APPROVED",
+        "PUBLISHING",
+        "PUBLISHED",
+        "DISTRIBUTING",
+        "DISTRIBUTED",
+        "VERIFIED",
+        "NEEDS_INPUT",
+        "BLOCKED",
+        "PARTIAL"
+      ]
+    },
+    "production": {
+      "type": "object",
+      "required": [
+        "mode",
+        "assetRoot"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "const": "github-npm-v1"
+        },
+        "assetRoot": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "publicSourceAuthorityReceipt": {
+      "type": "object",
+      "required": [
+        "coordinatorUnitId",
+        "subjectUnitIds",
+        "asset"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "coordinatorUnitId": {
+          "type": "string",
+          "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        "subjectUnitIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$"
+          }
+        },
+        "asset": {
+          "type": "object",
+          "required": [
+            "name",
+            "path",
+            "sha256"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "const": "source-authority-receipt.json"
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "required": [
+        "gitTreeHash"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "gitTreeHash": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspaceDigest": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Deterministic digest of workspace file state at plan freeze time"
+        },
+        "workspaceDigestAlgorithm": {
+          "type": "string",
+          "const": "git-workspace-v2",
+          "description": "Versioned algorithm authority for workspaceDigest"
+        },
+        "headCommit": {
+          "type": "string"
+        },
+        "dirtyFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "capturedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "units": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "targetVersion",
+          "previousPublicBaseline"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$"
+          },
+          "targetVersion": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "type": "string"
+          },
+          "publicRepo": {
+            "type": "string"
+          },
+          "tagTemplate": {
+            "type": "string"
+          },
+          "snapshotDigest": {
+            "type": "string",
+            "description": "SHA-256 digest of the snapshot content"
+          },
+          "productionConfig": {
+            "type": "object",
+            "required": [
+              "githubHost",
+              "branchTemplate",
+              "branchStrategy"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "githubHost": {
+                "type": "string"
+              },
+              "branchTemplate": {
+                "type": "string"
+              },
+              "releaseTitleTemplate": {
+                "type": "string"
+              },
+              "releaseNotes": {
+                "type": "string"
+              },
+              "branchStrategy": {
+                "type": "string",
+                "enum": [
+                  "create-release-branch",
+                  "advance-existing-branch",
+                  "initialize-default-branch"
+                ]
+              },
+              "setAsDefaultBranch": {
+                "type": "boolean"
+              },
+              "expectedCurrentDefaultBranch": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "branchStrategy": {
+                      "const": "initialize-default-branch"
+                    }
+                  },
+                  "required": [
+                    "branchStrategy"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "setAsDefaultBranch",
+                    "expectedCurrentDefaultBranch"
+                  ],
+                  "properties": {
+                    "setAsDefaultBranch": {
+                      "const": true
+                    }
+                  }
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "setAsDefaultBranch": {
+                      "const": true
+                    }
+                  },
+                  "required": [
+                    "setAsDefaultBranch"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "branchStrategy": {
+                      "const": "initialize-default-branch"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "frozenSnapshot": {
+            "type": "object",
+            "required": [
+              "path",
+              "manifestDigest",
+              "gitObjectDir",
+              "branch",
+              "branchStrategy",
+              "commit",
+              "tree",
+              "commitTimestamp"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "manifestDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "gitObjectDir": {
+                "type": "string",
+                "minLength": 1
+              },
+              "branch": {
+                "type": "string",
+                "minLength": 1
+              },
+              "commit": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{40,64}$"
+              },
+              "tree": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{40,64}$"
+              },
+              "commitTimestamp": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\+00:00$",
+                "description": "Frozen release commit timestamp in canonical UTC second precision. Written verbatim to GIT_AUTHOR_DATE and GIT_COMMITTER_DATE of the frozen release commit, so it always equals the commit's %aI and %cI byte-for-byte. v1 plans: the freeze timestamp sampled exactly once during production prepare, equal to the plan's createdAt. planVersion 2 plans: derived deterministically from the baseline headCommit's committer date, so identical sources freeze identical commits (not equal to createdAt, which remains the record-layer real clock)."
+              },
+              "parentCommit": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{40,64}$"
+              },
+              "branchStrategy": {
+                "type": "string",
+                "enum": [
+                  "create-release-branch",
+                  "advance-existing-branch",
+                  "initialize-default-branch"
+                ]
+              },
+              "npm": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "type": "object",
+                    "required": [
+                      "tarballPath",
+                      "tarballSha256",
+                      "integrity",
+                      "size"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "tarballPath": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "tarballSha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      },
+                      "integrity": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "size": {
+                        "type": "integer",
+                        "minimum": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "branchStrategy": {
+                      "enum": [
+                        "advance-existing-branch",
+                        "initialize-default-branch"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "branchStrategy"
+                  ]
+                },
+                "then": {
+                  "required": [
+                    "parentCommit"
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "branchStrategy": {
+                      "const": "create-release-branch"
+                    }
+                  },
+                  "required": [
+                    "branchStrategy"
+                  ]
+                },
+                "then": {
+                  "not": {
+                    "required": [
+                      "parentCommit"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "distributions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "type"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "npm",
+                    "claude-plugin",
+                    "codex-plugin",
+                    "kimi-plugin",
+                    "codebuddy-plugin",
+                    "qoder-plugin",
+                    "cursor-plugin",
+                    "antigravity-plugin"
+                  ]
+                },
+                "package": {
+                  "type": "string",
+                  "maxLength": 214,
+                  "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*|[a-z0-9][a-z0-9._-]*)$"
+                },
+                "access": {
+                  "type": "string",
+                  "enum": [
+                    "public",
+                    "restricted"
+                  ]
+                },
+                "provenance": {
+                  "type": "boolean"
+                },
+                "tag": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "registry": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^https://[^\\s]+$",
+                  "description": "Normalized HTTPS URL of the npm registry"
+                },
+                "publisher": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                  "description": "Expected npm whoami username for this registry"
+                },
+                "plugin": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                "marketplace": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                "marketplaceSource": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "消费者添加统一市场所用的来源 URL（如 codebuddy plugin marketplace add）；可选，仅在可知时声明"
+                },
+                "marketplaceRepo": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9._-]*/[a-z0-9][a-z0-9._-]*$",
+                  "description": "外部独立市场仓库 owner/name；存在即启用外部市场形态"
+                },
+                "entrySkill": {
+                  "type": "string",
+                  "minLength": 1,
+                  "pattern": "^[a-z0-9][a-z0-9-]*$"
+                },
+                "smokeBin": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "smokeArgs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "smokeExpectedJson": {
+                  "type": "object"
+                },
+                "installationContract": {
+                  "type": "object",
+                  "description": "可审计的安装契约规范对象",
+                  "additionalProperties": false,
+                  "properties": {
+                    "algorithmVersion": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "distributionType": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "manifestRelativePath": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "normalizedManifest": {
+                      "type": "object"
+                    },
+                    "marketplaceSourceType": {
+                      "type": "string",
+                      "enum": [
+                        "bundled-family",
+                        "standalone-index"
+                      ]
+                    },
+                    "includeMarketplaceEntry": {
+                      "type": "boolean"
+                    },
+                    "marketplaceIndexRelativePath": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "normalizedSelectedEntry": {
+                      "type": "object"
+                    },
+                    "verificationRecipeVersion": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "algorithmVersion",
+                    "distributionType",
+                    "manifestRelativePath",
+                    "normalizedManifest",
+                    "marketplaceSourceType",
+                    "includeMarketplaceEntry",
+                    "verificationRecipeVersion"
+                  ]
+                },
+                "installationContractDigest": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$",
+                  "description": "安装契约摘要，用于在远端状态未变化时跳过重复验证"
+                },
+                "marketplaceSourceType": {
+                  "type": "string",
+                  "enum": [
+                    "bundled-family",
+                    "standalone-index"
+                  ],
+                  "description": "市场来源类型：bundled-family（技能族自带市场文件）或 standalone-index（独立市场仓库）；每个平台每次发布只冻结一种来源"
+                },
+                "firstReleaseBootstrap": {
+                  "type": "string",
+                  "enum": [
+                    "manual-index-checkpoint"
+                  ],
+                  "description": "首次 standalone-index 发布的人工索引停点；仅显式 opt-in 时启用"
+                },
+                "marketplaceIndexSha": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "pattern": "^[0-9a-f]{40}$",
+                  "description": "最终市场索引提交 SHA；首次 bootstrap prepare 阶段必须保持 null，verify 仅记录实际观察值"
+                },
+                "marketplaceCommitSha": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{40}$",
+                  "description": "独立市场仓库冻结提交 SHA（standalone-index 专用）"
+                },
+                "marketplaceRef": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "独立市场仓库冻结引用（standalone-index 专用）"
+                },
+                "marketplaceIndexPath": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "独立市场索引相对路径（standalone-index 专用）"
+                },
+                "marketplaceName": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "独立市场名称（standalone-index 专用）"
+                },
+                "selectedEntry": {
+                  "type": "object",
+                  "description": "冻结的唯一选中市场条目（standalone-index 专用）"
+                },
+                "hostVerificationContract": {
+                  "type": "object",
+                  "description": "项目级单 Skill 宿主原生验证的冻结领域绑定；进程与工作区合同由 Foundation 管理",
+                  "additionalProperties": false,
+                  "properties": {
+                    "hostId": {
+                      "enum": [
+                        "cursor",
+                        "antigravity"
+                      ]
+                    },
+                    "payloadDigest": {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    "manifestRelativePath": {
+                      "type": "string",
+                      "pattern": "^skills/[a-z0-9][a-z0-9-]*/SKILL\\.md$"
+                    },
+                    "entrySkill": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9][a-z0-9-]*$"
+                    },
+                    "contractVersion": {
+                      "const": 1
+                    },
+                    "scenario": {
+                      "$ref": "#/definitions/cursorHostScenario"
+                    }
+                  },
+                  "required": [
+                    "hostId",
+                    "payloadDigest",
+                    "manifestRelativePath",
+                    "entrySkill",
+                    "contractVersion",
+                    "scenario"
+                  ]
+                },
+                "timeoutMs": {
+                  "type": "integer",
+                  "minimum": 30000,
+                  "maximum": 900000
+                }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "npm"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "package",
+                      "registry",
+                      "publisher"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
+                          "qoder-plugin"
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "plugin",
+                      "marketplace",
+                      "entrySkill"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "kimi-plugin"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "plugin",
+                      "entrySkill"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "cursor-plugin",
+                          "antigravity-plugin"
+                        ]
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "entrySkill",
+                      "hostVerificationContract"
+                    ],
+                    "not": {
+                      "anyOf": [
+                        {
+                          "required": [
+                            "marketplace"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "marketplaceSource"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "marketplaceRepo"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "marketplaceSourceType"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "marketplaceIndexPath"
+                          ]
+                        },
+                        {
+                          "required": [
+                            "firstReleaseBootstrap"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "const": "codebuddy-plugin"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "plugin",
+                      "entrySkill"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
+                          "kimi-plugin",
+                          "codebuddy-plugin",
+                          "qoder-plugin"
+                        ]
+                      }
+                    }
+                  },
+                  "then": {}
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
+                          "kimi-plugin",
+                          "codebuddy-plugin",
+                          "qoder-plugin"
+                        ]
+                      },
+                      "marketplaceSourceType": {
+                        "const": "bundled-family"
+                      }
+                    },
+                    "required": [
+                      "marketplaceSourceType"
+                    ]
+                  },
+                  "then": {
+                    "not": {
+                      "required": [
+                        "marketplaceRepo"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin",
+                          "kimi-plugin",
+                          "codebuddy-plugin",
+                          "qoder-plugin"
+                        ]
+                      },
+                      "marketplaceSourceType": {
+                        "const": "standalone-index"
+                      }
+                    },
+                    "required": [
+                      "marketplaceSourceType"
+                    ]
+                  },
+                  "then": {
+                    "required": [
+                      "marketplaceRepo"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "required": [
+                      "firstReleaseBootstrap"
+                    ]
+                  },
+                  "then": {
+                    "required": [
+                      "marketplaceSourceType",
+                      "marketplaceRepo"
+                    ],
+                    "properties": {
+                      "type": {
+                        "enum": [
+                          "claude-plugin",
+                          "codex-plugin"
+                        ]
+                      },
+                      "marketplaceSourceType": {
+                        "const": "standalone-index"
+                      }
+                    }
+                  }
+                },
+                {
+                  "if": {
+                    "required": [
+                      "smokeExpectedJson"
+                    ],
+                    "properties": {
+                      "smokeBin": {
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "smokeBin"
+                    ]
+                  }
+                },
+                {
+                  "if": {
+                    "required": [
+                      "smokeArgs"
+                    ],
+                    "properties": {
+                      "smokeBin": {
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "smokeBin"
+                    ]
+                  }
+                }
+              ]
+            }
+          },
+          "previousPublicBaseline": {
+            "type": "object",
+            "required": [
+              "mode",
+              "status"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "bound"
+                ]
+              },
+              "githubHost": {
+                "type": "string"
+              },
+              "repo": {
+                "type": "string"
+              },
+              "ref": {
+                "type": "string"
+              },
+              "commit": {
+                "type": "string"
+              },
+              "tree": {
+                "type": "string"
+              },
+              "manifestDigest": {
+                "type": "string"
+              },
+              "observedCommit": {
+                "type": "string"
+              },
+              "observedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "consistent",
+                  "drifted",
+                  "unknown",
+                  "unobserved-offline",
+                  "blocking"
+                ]
+              }
+            },
+            "if": {
+              "properties": {
+                "mode": {
+                  "const": "bound"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "repo",
+                "ref",
+                "commit"
+              ]
+            },
+            "else": {
+              "allOf": [
+                {
+                  "not": {
+                    "required": [
+                      "repo"
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "required": [
+                      "githubHost"
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "required": [
+                      "ref"
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "required": [
+                      "commit"
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "required": [
+                      "tree"
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "required": [
+                      "manifestDigest"
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "required": [
+                      "observedCommit"
+                    ]
+                  }
+                },
+                {
+                  "not": {
+                    "required": [
+                      "observedAt"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "configDigest": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Digest of the project configuration at plan freeze time"
+    },
+    "skillResourceClosure": {
+      "type": "object",
+      "description": "Skill resource closure gate receipts from prepare phase (per-unit bound)",
+      "additionalProperties": false,
+      "properties": {
+        "unitReceipts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "unitId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "checkerVersion": {
+                "type": "string",
+                "minLength": 1
+              },
+              "inputDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "surfaceCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "skillCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "referenceCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "sourceOnlyCount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "findingCount": {
+                "const": 0
+              },
+              "preparedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Deterministic freeze timestamp of the prepare run that produced this receipt (production: the baseline HEAD commit committer date in canonical UTC form; non-production: null). Never a wall-clock sample, so identical sources freeze byte-identical receipts."
+              },
+              "exitCode": {
+                "const": 0
+              },
+              "receiptDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            },
+            "required": [
+              "unitId",
+              "checkerVersion",
+              "inputDigest",
+              "surfaceCount",
+              "skillCount",
+              "referenceCount",
+              "sourceOnlyCount",
+              "findingCount",
+              "preparedAt",
+              "exitCode",
+              "receiptDigest"
+            ]
+          }
+        },
+        "checkerVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "totalSkillCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "totalReferenceCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "totalSourceOnlyCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "totalFindingCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "unitReceipts",
+        "checkerVersion",
+        "totalSkillCount",
+        "totalReferenceCount",
+        "totalSourceOnlyCount",
+        "totalFindingCount"
+      ]
+    },
+    "verificationGates": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/verificationGate"
+      }
+    },
+    "externalActions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "adapter"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "push-commit",
+              "push-snapshot",
+              "create-tag",
+              "npm-publish",
+              "github-release",
+              "claude-marketplace-install",
+              "codex-marketplace-install",
+              "kimi-marketplace-install",
+              "codebuddy-marketplace-install",
+              "qoder-marketplace-install",
+              "set-default-branch"
+            ]
+          },
+          "adapter": {
+            "type": "string",
+            "minLength": 1
+          },
+          "unitId": {
+            "type": "string"
+          },
+          "parameters": {
+            "type": "object"
+          },
+          "expected": {
+            "type": "object",
+            "description": "Expected observation state for verification"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "SUCCEEDED",
+              "FAILED",
+              "SKIPPED"
+            ],
+            "description": "Action execution status"
+          }
+        }
+      }
+    },
+    "testAcceptance": {
+      "$ref": "#/definitions/testAcceptance"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "publishedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the plan was published"
+    },
+    "reconciledAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp when the plan was last reconciled"
+    },
+    "snapshotDigest": {
+      "type": "string",
+      "description": "Overall snapshot digest across all units"
+    },
+    "humanConsumersStrategy": {
+      "type": "string",
+      "enum": [
+        "manualFollowUps",
+        "foundationPayloadThenManualFollowUps"
+      ],
+      "description": "Human consumer strategy marker. 'foundationPayloadThenManualFollowUps': verify first observes the complete frozen plugin through Foundation, then preserves non-blocking Kimi/CodeBuddy marketplace/invocation follow-ups. 'manualFollowUps': legacy 0.8 behavior without the Foundation payload observation. Absent: legacy attestation closed loop."
+    },
+    "workflowKind": {
+      "type": "string",
+      "enum": [
+        "full",
+        "docs",
+        "config",
+        "marketplace"
+      ],
+      "description": "Workflow profile (H5). 'full' runs the complete gate set; 'docs'/'config'/'marketplace' deterministically trim code-class gates (declared hooks, snapshot-verify gates, source-authority closure, skill-resource-closure) and record the trim in workflowDecision. Binding-layer field: included in the plan digest."
+    },
+    "workflowDecision": {
+      "type": "object",
+      "description": "Workflow trim decision bound into the plan digest. Present when workflowKind != 'full'. For config workflows it also reports whether the public bytes are unchanged (no publish path) or changed/indeterminable (publish needed, fail-safe).",
+      "required": [
+        "workflowKind",
+        "decision",
+        "publishPath",
+        "trimmedGates"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "workflowKind": {
+          "type": "string",
+          "enum": [
+            "docs",
+            "config",
+            "marketplace"
+          ]
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "code-gates-trimmed",
+            "public-bytes-unchanged",
+            "public-bytes-changed",
+            "indeterminable"
+          ]
+        },
+        "publishPath": {
+          "type": "string",
+          "enum": [
+            "publish-needed",
+            "no-publish-needed"
+          ]
+        },
+        "trimmedGates": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "declared-hooks",
+              "snapshot-verify-gates",
+              "source-authority-closure",
+              "skill-resource-closure"
+            ]
+          }
+        },
+        "comparedPlan": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Digest-addressed immutable plan file compared for the config publish-path decision"
+        }
+      }
+    },
+    "postPublish": {
+      "type": [
+        "object",
+        "array"
+      ],
+      "description": "Frozen post-release distribution block. planVersion 1/2: a single declaration object, or absent (normalized to the empty array view at runtime). planVersion 3: a declaration ARRAY, one entry per declaring unit in plan.units order, possibly empty — never a single object, never absent. The exact allowed shape is enforced conditionally on planVersion (root allOf); readers must never guess the shape from the field value."
+    },
+    "digest": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sourceAuthority": {
+      "type": "object",
+      "description": "Source authority content closure gate binding: proves frozen source inputs exist in the workspace remote default branch",
+      "required": [
+        "sourceRepository",
+        "defaultBranch",
+        "entries",
+        "inputDigest",
+        "algorithmVersion"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sourceRepository": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$",
+          "description": "GitHub owner/repo of the workspace source repository"
+        },
+        "defaultBranch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Workspace remote default branch name"
+        },
+        "entries": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Frozen workspace-relative source inputs compared with the remote default branch",
+          "items": {
+            "type": "object",
+            "required": [
+              "path",
+              "digest",
+              "mode"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
+              },
+              "digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "100644",
+                  "100755"
+                ]
+              }
+            }
+          }
+        },
+        "inputDigest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "SHA-256 digest of the deterministic source-input closure"
+        },
+        "algorithmVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Source-input closure algorithm version"
+        }
+      }
+    },
+    "waivers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "rule",
+          "reason",
+          "responsible",
+          "expiresAt"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "rule": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "responsible": {
+            "type": "string",
+            "minLength": 1
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "testFileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*\\\\)(?!.*\\u0000)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*//)(?!.*/$).+$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "anchor": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "testAcceptance": {
+      "type": "object",
+      "description": "冻结前测试需求的绑定层核收记录（纳入计划摘要计算，非记录层字段）。",
+      "additionalProperties": false,
+      "required": [
+        "formatVersion",
+        "subjectDigest",
+        "requirements",
+        "result",
+        "acceptedRequirementIds",
+        "deferredRequirementIds"
+      ],
+      "properties": {
+        "formatVersion": { "const": 1 },
+        "subjectDigest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "requirements": { "$ref": "#/definitions/testFileRef" },
+        "result": { "$ref": "#/definitions/testFileRef" },
+        "acceptedRequirementIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "skippedOptionalRequirementIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "deferredRequirementIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "verificationGate": {
+      "type": "object",
+      "required": [
+        "id",
+        "phase",
+        "scope",
+        "command",
+        "cwd",
+        "timeoutMs",
+        "envAllowlist"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "snapshot-verify",
+            "consumer-verify"
+          ]
+        },
+        "scope": {
+          "type": "object",
+          "required": [
+            "unit"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "unit": {
+              "type": "string",
+              "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$"
+            },
+            "distribution": {
+              "type": "string",
+              "enum": [
+                "npm",
+                "claude-plugin",
+                "codex-plugin",
+                "kimi-plugin",
+                "codebuddy-plugin",
+                "qoder-plugin"
+              ]
+            }
+          }
+        },
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "cwd": {
+          "type": "string",
+          "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 7200000
+        },
+        "envAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z_][A-Z0-9_]*$"
+          },
+          "uniqueItems": true
+        },
+        "expectedJson": {
+          "type": "object"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "phase": {
+                "const": "consumer-verify"
+              }
+            },
+            "required": [
+              "phase"
+            ]
+          },
+          "then": {
+            "properties": {
+              "scope": {
+                "required": [
+                  "unit",
+                  "distribution"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "phase": {
+                "const": "snapshot-verify"
+              }
+            },
+            "required": [
+              "phase"
+            ]
+          },
+          "then": {
+            "properties": {
+              "scope": {
+                "not": {
+                  "required": [
+                    "distribution"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "planPostPublish": {
+      "type": "object",
+      "description": "冻结的发布后分发块：声明本身 + tag/tagCommit/unitId/payloadSource 绑定。整体参与 plan digest（planVersion 2 记录层剥离不包含该块），任何配置变更都会改变 planDigest。tagCommit 仅在 prepare 能冻结 create-tag 预期 commit 时存在（production 资产）；缺省时 distribute fail-closed。materialize 钩子自 T6 起可选：载荷物化要么由消费者 materialize 钩子完成，要么由冻结 executionBundle.publicFiles 经 Foundation Engineering Kit 托管投影完成（两者至少其一，见 anyOf）。",
+      "required": [
+        "commitIdentity",
+        "tag",
+        "unitId",
+        "payloadSource"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "materialize": {
+          "$ref": "#/definitions/planPostPublishMaterialize"
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/planPostPublishTarget"
+          }
+        },
+        "hooks": {
+          "type": "array",
+          "description": "冻结的发布后钩子声明（v0.6.3 R1）；随整块参与 plan digest",
+          "items": {
+            "$ref": "#/definitions/planPostPublishHook"
+          }
+        },
+        "commitIdentity": {
+          "type": "object",
+          "required": [
+            "name",
+            "email"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "email": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/planPostPublishStep"
+          }
+        },
+        "assertMainVersionAhead": {
+          "type": "boolean"
+        },
+        "tag": {
+          "type": "string",
+          "minLength": 1,
+          "description": "冻结的分发 tag（tagTemplate 以 targetVersion 渲染）"
+        },
+        "tagCommit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40}$",
+          "description": "create-tag 预期 commit（production prepare 冻结）；distribute 以 git rev-parse --verify <tag>^{commit} 校验相等"
+        },
+        "unitId": {
+          "type": "string",
+          "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "description": "声明该 postPublish 的发布单元 id"
+        },
+        "payloadSource": {
+          "const": "tag-worktree",
+          "description": "时序契约：载荷只能来自 tagCommit 处的 detached worktree，绝不读取工作区状态"
+        },
+        "localHostUpdate": {
+          "$ref": "#/definitions/planLocalHostUpdate"
+        },
+        "executionBundle": {
+          "type": "object",
+          "description": "冻结的私有执行包（F-01/T1）：closure 直接采用 Foundation computeResourceClosure() 的返回（排序、去重、受收容读取与摘要均由 Foundation 完成），publicFiles 是从发布单元投影的公开映射。计划是该执行包的唯一事实源：随整个 plan digest 绑定，不维护平行 manifest，也不另造 bundle digest。字节写入计划权威 .release-skill 的 postpublish-bundles/<closure.digest>/<resource.path>；distribute/postVerify 在任何 hook/外部写之前经 Foundation 严格复验并重算闭包，任何不一致即失败。",
+          "required": [
+            "foundationMechanism",
+            "closure",
+            "publicFiles"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "foundationMechanism": {
+              "const": "foundation.harness.resource-closure"
+            },
+            "closure": {
+              "type": "object",
+              "description": "Foundation skill-family.resource-closure（schemaVersion 1）原样冻结",
+              "required": [
+                "schemaVersion",
+                "kind",
+                "digestAlgorithm",
+                "digest",
+                "resources"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "schemaVersion": {
+                  "const": 1
+                },
+                "kind": {
+                  "const": "skill-family.resource-closure"
+                },
+                "digestAlgorithm": {
+                  "const": "sha256"
+                },
+                "digest": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "resources": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "path",
+                      "role",
+                      "exists",
+                      "sha256"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
+                      },
+                      "role": {
+                        "const": "input",
+                        "description": "私有执行输入只有 input 资源；output 角色不属于执行包"
+                      },
+                      "exists": {
+                        "const": true
+                      },
+                      "sha256": {
+                        "type": "string",
+                        "pattern": "^[a-f0-9]{64}$"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "publicFiles": {
+              "type": "array",
+              "description": "从已通过 schema 与运行时校验的发布单元投影进冻结计划的公开映射（T6 托管投影输入）",
+              "items": {
+                "type": "object",
+                "required": [
+                  "from",
+                  "to",
+                  "mode"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "sourceScope": {
+                    "type": "string",
+                    "enum": [
+                      "unit",
+                      "workspace"
+                    ]
+                  },
+                  "from": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$"
+                  },
+                  "to": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$"
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "preserve"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "materialize"
+          ]
+        },
+        {
+          "description": "无 materialize 钩子时，冻结的 executionBundle.publicFiles 必须非空：载荷由 Foundation 托管投影物化（F-06/T6）",
+          "required": [
+            "executionBundle"
+          ],
+          "properties": {
+            "executionBundle": {
+              "properties": {
+                "publicFiles": {
+                  "minItems": 1
+                }
+              }
+            }
+          }
+        }
+      ],
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "localHostUpdate"
+            ]
+          },
+          "then": {
+            "required": [
+              "hooks"
+            ],
+            "properties": {
+              "hooks": {
+                "contains": {
+                  "type": "object",
+                  "required": [
+                    "phase"
+                  ],
+                  "properties": {
+                    "phase": {
+                      "const": "postVerify"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "planLocalHostUpdate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plugin",
+        "hosts",
+        "hub"
+      ],
+      "properties": {
+        "plugin": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": ".*\\S.*"
+        },
+        "hosts": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "claude",
+              "codex",
+              "kimi",
+              "codebuddy",
+              "workbuddy",
+              "qoder",
+              "cursor"
+            ]
+          }
+        },
+        "hub": {
+          "$ref": "#/definitions/planLocalHostHub"
+        },
+        "cursor": {
+          "$ref": "#/definitions/cursorLocalPlugin"
+        }
+      },
+      "allOf": [{ "if": { "properties": { "hosts": { "contains": { "const": "cursor" } } } }, "then": { "required": ["cursor"], "properties": { "plugin": { "pattern": "^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$" } } }, "else": { "not": { "required": ["cursor"] } } }]
+    },
+    "cursorLocalPlugin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourcePath"],
+      "properties": {
+        "sourcePath": { "type": "string", "pattern": "^(?!/)(?!.*\\\\)(?!.*:)(?!.*\\u0000)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)(?!.*\\/$).+$" },
+        "dependencyInstall": { "const": "npm-ci-ignore-scripts" }
+      }
+    },
+    "planLocalHostHub": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "repo",
+        "ref"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": ".*\\S.*"
+        },
+        "githubHost": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$"
+        },
+        "repo": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]+\\/[A-Za-z0-9._-]+$"
+        },
+        "ref": {
+          "type": "string",
+          "pattern": "^refs\\/heads\\/[A-Za-z0-9][A-Za-z0-9._-]*(?:\\/[A-Za-z0-9][A-Za-z0-9._-]*)*$"
+        }
+      }
+    },
+    "planPostPublishHook": {
+      "type": "object",
+      "description": "冻结的发布后钩子声明项（v0.6.3 R1）：preset 与 command 运行时互斥；phase 缺省 distribute；blocksVerified 缺省 true 且仅 preset 可声明 false",
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "preset": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "phase": {
+          "type": "string",
+          "enum": [
+            "distribute",
+            "postVerify"
+          ]
+        },
+        "config": {
+          "type": "object"
+        },
+        "cwd": {
+          "type": "string",
+          "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 7200000
+        },
+        "envAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!.*(?:TOKEN|SECRET|PASSWORD|PASSPHRASE|API_KEY|CREDENTIAL))[A-Z_][A-Z0-9_]*$"
+          },
+          "uniqueItems": true
+        },
+        "requiresApproval": {
+          "type": "boolean"
+        },
+        "blocksVerified": {
+          "type": "boolean"
+        }
+      }
+    },
+    "planPostPublishMaterialize": {
+      "type": "object",
+      "required": [
+        "command",
+        "outputMarker"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "cwd": {
+          "type": "string",
+          "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 7200000
+        },
+        "envAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!.*(?:TOKEN|SECRET|PASSWORD|PASSPHRASE|API_KEY|CREDENTIAL))[A-Z_][A-Z0-9_]*$"
+          },
+          "uniqueItems": true
+        },
+        "outputMarker": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requireReport": {
+          "type": "object",
+          "required": [
+            "parse"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "parse": {
+              "const": "stdout-first-json"
+            },
+            "equals": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "planPostPublishStep": {
+      "type": "object",
+      "required": [
+        "name",
+        "command"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "command": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "cwd": {
+          "type": "string",
+          "pattern": "^(?:\\.$|(?!\\/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(?:\\/|$))(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/\\/$)(?!.*\\/$).*)$"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 7200000
+        },
+        "envAllowlist": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(?!.*(?:TOKEN|SECRET|PASSWORD|PASSPHRASE|API_KEY|CREDENTIAL))[A-Z_][A-Z0-9_]*$"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "planPostPublishTarget": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "remoteUrl",
+        "visibility",
+        "branch"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "payload-mirror",
+            "marketplace-index"
+          ]
+        },
+        "remoteUrl": {
+          "type": "string",
+          "pattern": "^(?:https?|file)://[^@]+\\.git$"
+        },
+        "visibility": {
+          "type": "string",
+          "enum": [
+            "internal",
+            "public"
+          ]
+        },
+        "branch": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"
+        },
+        "dependsOn": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "marketplace": {
+          "type": "object",
+          "required": [
+            "form",
+            "name",
+            "owner"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "form": {
+              "type": "string",
+              "enum": [
+                "github",
+                "url"
+              ]
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "owner": {
+              "type": "string",
+              "minLength": 1
+            },
+            "sourceRepo": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$"
+            }
+          }
+        },
+        "staticFiles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "from",
+              "to"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$"
+              },
+              "to": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?!/)(?!\\.\\/)(?!.*\\\\)(?!.*:)(?!\\.\\.(/|$))(?!\\.$)(?!.*\\/\\.\\.\\/)(?!.*\\/\\.\\.$)(?!.*\\/\\.\\/)(?!.*\\/\\/)(?!.*\\0)(?!.*\\/\\.$)(?!.*\\/$).*$"
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "marketplace-index"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "marketplace"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "payload-mirror"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "marketplace"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "cursorHostScenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workloadDocument",
+        "fixtureFiles",
+        "protectedWorkspaceFiles",
+        "platformManifest",
+        "effectivePrompt",
+        "expectedResult"
+      ],
+      "properties": {
+        "workloadDocument": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fixtureFiles": {
+          "$ref": "#/definitions/cursorScenarioFiles"
+        },
+        "protectedWorkspaceFiles": {
+          "$ref": "#/definitions/cursorScenarioFiles"
+        },
+        "platformManifest": {
+          "type": "object"
+        },
+        "effectivePrompt": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\u0000]*$"
+        },
+        "expectedResult": {
+          "type": "string"
+        }
+      }
+    },
+    "cursorScenarioFiles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "content"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*\\\\)(?!.*:)(?!.*\\u0000)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*(?:^|/)\\.cursor(?:/|$))(?!.*//)(?!.*\\/$).+$"
+          },
+          "content": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "planVersion": {
+            "const": 3
+          }
+        },
+        "required": [
+          "planVersion"
+        ]
+      },
+      "then": {
+        "properties": {
+          "postPublish": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/planPostPublish"
+            }
+          }
+        },
+        "required": [
+          "postPublish"
+        ]
+      },
+      "else": {
+        "properties": {
+          "postPublish": {
+            "$ref": "#/definitions/planPostPublish"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "workflowDecision": {
+            "properties": {
+              "decision": {
+                "const": "public-bytes-unchanged"
+              }
+            },
+            "required": [
+              "decision"
+            ]
+          }
+        },
+        "required": [
+          "workflowDecision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "externalActions": {
+            "type": "array",
+            "minItems": 0
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "externalActions": {
+            "type": "array",
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "production": {
+            "required": ["mode"]
+          }
+        },
+        "required": ["production"]
+      },
+      "then": {
+        "properties": {
+          "units": {
+            "items": {
+              "properties": {
+                "frozenSnapshot": {
+                  "required": [
+                    "gitObjectDir",
+                    "branch",
+                    "branchStrategy",
+                    "commit",
+                    "tree",
+                    "commitTimestamp"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

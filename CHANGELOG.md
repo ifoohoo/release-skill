@@ -1,9 +1,32 @@
 # Changelog
 
-<!-- release-skill:changelog:start version=0.10.1 locale=en baseline=sha256:4c8696eca88b6cb635146c722bd2bd82c119cfc47d2fb4e938a5efbe13d8da9b -->
+<!-- release-skill:changelog:start version=0.10.2 locale=en baseline=sha256:35a401ce4312c09881f022d73d2c43fd9b8cdc14be4f5b0e31b55e733a996305 -->
+## [0.10.2] - 2026-11-25
+
+0.10.2 adds Antigravity seventh-host adapter projection, controlled-private source allowlist policy, offline archive bundle verification, Foundation dependency freshness preflight checks, and workspace-protocol tarball blocking before publication. Foundation dependencies are pinned to 0.39.0. This description is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- The inherited Skill Family Hub remains the unified marketplace. GitHub Git Data API with compare-and-swap binds updates to the observed branch head. Partial publication is never rolled back or force-pushed. Controlled-private URLs carrying embedded credentials remain rejected.
+
+### Added
+
+- Added Antigravity host descriptor, root plugin.json whitelist schema check, seven-host adapter projection, controlled-private source allowlists, offline archive bundle creation and verification commands, and prepare-time Foundation dependency freshness and deprecation advisories.
+
+### Fixed
+
+- Hardened default public source policy validation, pre-publish tarball workspace-protocol rejection, distributed state-machine consistency checks, and public-surface path sanitization while keeping Foundation dependencies pinned to 0.39.0.
+
+### Upgrade Notes
+
+Run prepare with 0.10.2 to create a new candidate and provide a new test result file. Preserve previous candidates, results, approvals and run records; do not edit their writerVersion. The release-skill standalone marketplace is deprecated; use ifoohoo/skill-family-hub with plugin id release-skill@skill-family-hub instead. The unified marketplace does not replace GitHub Release or npm distribution.
+<!-- release-skill:changelog:end version=0.10.2 locale=en -->
+
+
+<!-- release-skill:changelog:start version=0.10.1 locale=en baseline=sha256:e3a82712673db398258d291ae6f23c294a62529cc3abaceb30da75721ba74d98 -->
 ## [0.10.1] - 2026-11-03
 
-0.10.1 fixes source-input dirty checks that cannot start when a large set of public source paths exceeds the operating system argument capacity. Preparation now checks the complete set through bounded Git invocations. Foundation dependencies remain pinned to 0.25.0. This description is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.10.1 fixes source-input dirty checks that cannot start when a large set of public source paths exceeds the operating system argument capacity. Preparation now checks the complete set through bounded Git invocations. Foundation dependencies are pinned to 0.39.0. This description is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 ### Security
 
@@ -11,7 +34,7 @@
 
 ### Fixed
 
-- Source-input dirty checks retain the complete selection, frozen content, digest algorithm and protocol. Staged, unstaged, untracked and ignored changes remain rejected for selected inputs; rename and copy endpoints retain full directory-boundary matching. Unrelated dirty files remain allowed. A Git error in any batch still fails the entire check. Foundation dependencies remain pinned to 0.25.0.
+- Source-input dirty checks retain the complete selection, frozen content, digest algorithm and protocol. Staged, unstaged, untracked and ignored changes remain rejected for selected inputs; rename and copy endpoints retain full directory-boundary matching. Unrelated dirty files remain allowed. A Git error in any batch still fails the entire check. Foundation dependencies are pinned to 0.39.0.
 
 ### Upgrade Notes
 
@@ -1971,7 +1994,7 @@ Claude and Codex marketplace installs now use an explicit, configurable timeout 
   legacy-hook side effects still require separate explicit acknowledgements.
 - Compatibility configurations for artifact-graph, flow-architect, loop-agent,
   and agent-method-registry now bind real tag/channel/baseline semantics and
-  project-owned verification behavior. glaf4-test is represented as local-only
+  project-owned verification behavior. example-domain-skill is represented as local-only
   instead of receiving an invented remote channel.
 - README and installation guidance now begin with safe setup, explain the three
   branch strategies, and distinguish pre-freeze hooks from frozen-snapshot and

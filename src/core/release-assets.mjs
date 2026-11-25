@@ -5,6 +5,7 @@
  * paths and their already-computed SHA-256 values, while remote observation
  * reduces the downloaded bytes to the same name/digest identity list.
  */
+// @decision D-RS-003
 
 import { basename } from 'node:path';
 

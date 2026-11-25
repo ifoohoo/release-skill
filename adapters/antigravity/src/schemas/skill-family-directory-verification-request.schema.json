@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/skill-family-directory-verification-request.json",
+  "title": "Skill-family directory verification request",
+  "description": "A public, closed request for the Kimi skill-family directory adapter. Family roots, member tables, executable identity inputs and authentication sources are private bindings and never occur here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "operation", "verificationSetId", "host", "expectedSkills", "familyTree", "workload", "auth"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.skill-family-directory-verification-request" },
+    "operation": { "const": "skill-family-directory-verification" },
+    "verificationSetId": { "$ref": "#/$defs/opaque" },
+    "host": { "$ref": "#/$defs/host" },
+    "expectedSkills": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "sourceSha256"],
+        "properties": {
+          "name": { "$ref": "#/$defs/skillName" },
+          "sourceSha256": { "$ref": "#/$defs/sha256" }
+        }
+      }
+    },
+    "familyTree": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceManifestSha256", "membersDigest"],
+      "properties": {
+        "sourceManifestSha256": { "$ref": "#/$defs/sha256" },
+        "membersDigest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "workload": { "$ref": "#/$defs/workload" },
+    "auth": { "$ref": "#/$defs/auth" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "opaque": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^[^\\u0000\\r\\n]+$" },
+    "skillName": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hostId", "descriptorSha256", "driverId", "driverVersion", "cliVersion"],
+      "properties": {
+        "hostId": { "const": "kimi-code" },
+        "descriptorSha256": { "$ref": "#/$defs/sha256" },
+        "driverId": { "const": "kimi-code-print-v1" },
+        "driverVersion": { "const": "1.0.0" },
+        "cliVersion": { "const": "0.39.1" }
+      }
+    },
+    "semver": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$" },
+    "timeoutPolicy": {
+      "$ref": "https://contracts.skill-family.example/v1/timeout-policy.json"
+    },
+    "workload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["effectivePromptSha256", "fixtureClosureDigest", "protectedWorkspaceClosureDigest", "timeoutPolicy", "modelOverridePolicy", "restrictions"],
+      "properties": {
+        "effectivePromptSha256": { "$ref": "#/$defs/sha256" },
+        "fixtureClosureDigest": { "$ref": "#/$defs/sha256" },
+        "protectedWorkspaceClosureDigest": { "$ref": "#/$defs/sha256" },
+        "timeoutPolicy": { "$ref": "#/$defs/timeoutPolicy" },
+        "modelOverridePolicy": { "const": "forbidden" },
+        "restrictions": { "$ref": "#/$defs/restrictions" }
+      }
+    },
+    "restrictions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "approvalPolicy": { "const": "deny-unattended" },
+        "tools": { "const": "skill-only" },
+        "mcp": { "const": "disabled" },
+        "settingsSources": { "const": "empty" },
+        "sessionPersistence": { "const": "disabled" },
+        "history": { "const": "fresh" },
+        "browserIntegration": { "const": "disabled" },
+        "maxTurns": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "maxBudgetUsd": { "type": "number", "exclusiveMinimum": 0, "maximum": 100 }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy", "credentialMutation"],
+      "properties": {
+        "strategy": { "const": "existing-user-state" },
+        "credentialMutation": { "const": "host-managed" }
+      }
+    }
+  }
+}

@@ -31,11 +31,11 @@ description: "Docs-only workflow profile: route confirms docs-only diff, style-g
 ## 职责与边界
 
 - **步骤① diff 分类确认**：调用 `release-skill route` 命令对工作树 diff 分类，确认仅含文档变更  
-- **步骤② style-guard 三道门**：调用 `check-style.mjs`（仅接受文件路径参数，exit 0/1/2）执行事实性、可读性、风格检查  
-- **步骤③ render-public-site --check**：调用 `render-public-site.mjs --check [--repo <name>]` 执行渲染漂移扫描（内存泄漏扫描 + 树基线对比）  
+- **步骤② style-guard 三道门**：通过目标仓库已声明的文档风格钩子或已安装的公开 `skill-family-docs-style-guard` 命令执行事实性、可读性、风格检查（只传文件路径参数，exit 0/1/2）  
+- **步骤③ 公开站点渲染检查**：通过目标仓库配置的渲染门禁或已安装的公开 `skill-family-doc-render` 入口执行渲染漂移扫描（泄漏扫描 + 树基线对比）  
 - **步骤④ docs refresh**：执行 rehearsal → binder 写入（本地文档更新，不 commit/push）  
-- **步骤⑤ prepare --workflow docs**：轻量级冻结（裁剪代码类 gates，保留 docs freshness/public-surface/baseline/snapshots/plan freeze）  
-- **步骤⑥–⑧**：approve → publish → verify（consumer-verify 保留）
+- **步骤⑤ prepare --workflow docs**：本地预检用 `--offline --workflow docs`；正式进入发布链（接 `approve → publish → verify`）必须运行 `prepare --online --production --workflow docs`（或 `ship`），裁剪代码类 gates，保留 docs freshness/public-surface/baseline/snapshots/plan freeze 与 `sourceAuthority`  
+- **步骤⑥–⑧**：`release-skill approve` → `publish` → `verify`（consumer-verify 保留）
 
 **授权边界**：命令调用本身即授权执行配置的 hooks/gates。本地文档写入授权仅覆盖声明的本地文档目标，**不等同于 Git commit/push/publish 或安装的授权**。
 
@@ -47,12 +47,14 @@ description: "Docs-only workflow profile: route confirms docs-only diff, style-g
 
 1. 运行 `release-skill route --root <path> [--target-version <ver>] --json` 获取 diff 分类和工作流建议；已知目标版本时显式传入，`route` 不承担发布授权  
 2. 若推荐 `workflowKind === 'docs-only'`，则使用本技能  
-3. 执行步骤②：调用 `check-style.mjs <doc-path>...` 执行事实/可读性/风格检查  
-4. 执行步骤③：调用 `render-public-site.mjs --check [--repo <name>]` 验证渲染无漂移  
+3. 执行步骤②：运行目标仓库在 `.release-skill/project.yaml` 中声明的文档风格钩子（`release-skill hooks --root <path> --hook docs --json`）或已安装的公开 `skill-family-docs-style-guard` 入口，对 `<doc-path>...` 执行事实/可读性/风格检查  
+4. 执行步骤③：运行目标仓库配置门禁或已安装的公开 `skill-family-doc-render` 漂移检查入口，验证渲染无漂移  
 5. 执行步骤④：运行 `release-skill docs refresh --unit <id> --write --confirm-refresh <digest> --ack-local-document-write`  
 6. 进入本入口新一轮生产准备前完成接入选择：按 `release-prepare` 同一完整流程核对 `testIntake`，默认推动 `skill-family-test:skill-family-test-plan` 与授权范围内的 `skill-family-test:skill-family-test-run`。跳过须先明确征询再依据本轮匹配答复决定。未完成接入且无有效跳过时，不进入下一步 `prepare`  
-7. 执行步骤⑤：运行 `release-skill prepare --offline --workflow docs --target-version <ver>`  
-8. 执行步骤⑥：人工审阅后运行 `release-skill approve --plan <path> --actor <name>`  
+7. 执行步骤⑤：
+   - 仅本地预检（不接 `publish`）：`release-skill prepare --offline --workflow docs --target-version <ver>`
+   - 正式进入发布链（接 `approve -> publish -> verify`）：`release-skill prepare --online --production --workflow docs --target-version <ver>`（或使用 `release-skill ship --target-version <ver>`）  
+8. 执行步骤⑥：人工审阅第 7 步生产的正式计划后，运行 `release-skill approve --plan <path> --actor <name>`  
 9. 执行步骤⑦：运行 `release-skill publish --plan <path> --approval <path>`  
 10. 执行步骤⑧：运行 `release-skill verify --plan <path> --run <path>`
 
@@ -64,12 +66,11 @@ node "$RELEASE_SKILL_ENTRY" route --root <path> --json
 node "$RELEASE_SKILL_ENTRY" route \
   --root <path> --target-version <version> --json
 
-# Step 2: Style-guard three gates (check-style.mjs takes file paths only)
-node "${WORKBUDDY_ROOT}/adapters/workbuddy/skills/skill-family-docs-style-guard/scripts/check-style.mjs" \
-  <doc-path-1> <doc-path-2>
-
-# Step 3: Render site check (drift + leak scan against committed baseline)
-node "${DOC_RENDER_ROOT}/packages/skill-family-doc-render/scripts/render-public-site.mjs" --check [--repo <repo-name>] # source-only
+# Step 2 & 3: Project-declared docs gates / installed public docs check commands
+# (run configured hooks in target repo rather than hardcoded machine paths)
+node "$RELEASE_SKILL_ENTRY" hooks --root <path> --hook docs --json
+# Or invoke the installed public skill-family-docs-style-guard / skill-family-doc-render commands
+# against <doc-path-1> <doc-path-2>
 
 # Step 4: Docs refresh with rehearsal
 node "$RELEASE_SKILL_ENTRY" docs refresh --unit <id> --json
@@ -77,11 +78,15 @@ node "$RELEASE_SKILL_ENTRY" docs refresh --unit <id> --json
 node "$RELEASE_SKILL_ENTRY" docs refresh --unit <id> \
   --write --confirm-refresh <refreshDigest> --ack-local-document-write --json
 
-# Step 5: Lightweight prepare --workflow docs
+# Step 5a: Local preflight only (does not proceed to publish)
 node "$RELEASE_SKILL_ENTRY" prepare --offline \
   --workflow docs --target-version <version> --json
 
-# Step 6: Approval
+# Step 5b: Production prepare --workflow docs (required before approve -> publish -> verify)
+node "$RELEASE_SKILL_ENTRY" prepare --online --production \
+  --workflow docs --target-version <version> --json
+
+# Step 6: Approval (on Step 5b production plan)
 node "$RELEASE_SKILL_ENTRY" approve \
   --plan <path> --actor <person-name>
 
@@ -99,10 +104,12 @@ node "$RELEASE_SKILL_ENTRY" verify \
 | 场景 | 状态 | 处理 |
 |------|------|------|
 | 非纯文档变更（mixed=true） | full-happy-end | 路由到 `release-skill ship` 完整工作流 |
-| style-guard 检查失败 | exit 1（check-style.mjs） | 修正文档问题后重试 step② |
-| check-style.mjs 运行错误 | exit 2 | 检查参数（只接受文件路径）与文件存在性 |
-| render-site 漂移 | RENDER_SITE_DRIFT | 重新渲染并提交基线后重试 step③ |
-| prepare 检测到未刷新文档 | PREPARE_STALE_DOCS | 重新执行 step④ → 提交 → 重新 prepare |
+| style-guard 检查失败 | exit 1（style-guard 检查门） | 修正文档问题后重试 step② |
+| style-guard 运行参数错误 | exit 2 | 检查参数（只接受文件路径）与文件存在性 |
+| render-site 漂移或配置失效 | `CONFIG_INVALID` / 渲染基线漂移 | 重新渲染并提交基线后重试 step③ |
+| prepare 检测到未刷新文档 | `RELEASE_DOCS_STALE` | 重新执行 step④ → 提交 → 重新 prepare |
+| 配置校验失败 | `CONFIG_INVALID` | 修正 `.release-skill/project.yaml` 文档映射后重试 |
+| 基线漂移阻断 | `BASELINE_CHANGED` | 核对基线提交与远端状态后重新 `prepare` |
 | 非 VERIFIED 终态 | NEEDS_INPUT / BLOCKED | 根据错误码诊断具体问题 |
 
 ## 与其他工作流的关系

@@ -21,6 +21,7 @@
  *
  * @module core/preset-executor
  */
+// @decision D-RS-003
 
 import { rm } from 'node:fs/promises';
 

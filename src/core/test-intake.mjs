@@ -6,6 +6,12 @@
  *
  * @module core/test-intake
  */
+// @decision D-RS-006
+// @feature REL001
+// @feature REL005
+// @scenario S-001
+// @scenario S-002
+// @scenario S-006
 
 import { resolve, sep } from 'node:path';
 import Ajv from 'ajv';
@@ -482,12 +488,44 @@ export async function acceptTestResults({ root, requirements, prepared }) {
     if (requirement.phase !== 'pre-freeze' && DONE_DISPOSITIONS.has(item.disposition) && item.verdict === 'passed') {
       gaps.push(gap(item.requirementId, 'TEST_RESULT_EARLY_PHASE', { phase: requirement.phase }));
     }
+    if (requirement.phase !== 'pre-freeze' && item.disposition === 'explicitly_skipped') {
+      if (requirement.optional !== true) {
+        gaps.push(gap(item.requirementId, 'TEST_SKIP_NOT_OPTIONAL', { phase: requirement.phase }));
+      } else if (item.verdict !== 'skipped' && item.verdict !== 'not-evaluated') {
+        gaps.push(gap(item.requirementId, 'TEST_SKIP_VERDICT_INVALID', { verdict: item.verdict }));
+      }
+    }
   }
 
+  const acceptedPreFreezeIds = [];
+  const skippedOptionalIds = [];
   for (const requirement of requirements.preFreeze) {
     const item = byId.get(requirement.id);
     if (!item) {
       gaps.push(gap(requirement.id, 'TEST_REQUIREMENT_MISSING'));
+      continue;
+    }
+    if (item.disposition === 'explicitly_skipped') {
+      if (requirement.optional !== true) {
+        gaps.push(gap(requirement.id, 'TEST_SKIP_NOT_OPTIONAL', { disposition: item.disposition }));
+        continue;
+      }
+      if (item.verdict !== 'skipped' && item.verdict !== 'not-evaluated') {
+        gaps.push(gap(requirement.id, 'TEST_SKIP_VERDICT_INVALID', {
+          disposition: item.disposition,
+          verdict: item.verdict,
+        }));
+        continue;
+      }
+      if (item.acceptedBy !== requirement.acceptor) {
+        gaps.push(gap(requirement.id, 'TEST_ACCEPTOR_MISMATCH'));
+        continue;
+      }
+      if (!Array.isArray(item.limitations) || item.limitations.length === 0) {
+        gaps.push(gap(requirement.id, 'TEST_SKIP_LIMITATIONS_EMPTY'));
+        continue;
+      }
+      skippedOptionalIds.push(requirement.id);
       continue;
     }
     if (OPEN_DISPOSITIONS.has(item.disposition)) {
@@ -508,14 +546,17 @@ export async function acceptTestResults({ root, requirements, prepared }) {
     }
     if (item.disposition !== 'not-applicable' && item.evidence.length === 0) {
       gaps.push(gap(requirement.id, 'TEST_EVIDENCE_EMPTY'));
+      continue;
     }
+    acceptedPreFreezeIds.push(requirement.id);
   }
 
   if (gaps.length > 0) {
     return { accepted: false, gaps, subjectDigest };
   }
 
-  const acceptedRequirementIds = requirements.preFreeze.map((item) => item.id).sort();
+  const acceptedRequirementIds = acceptedPreFreezeIds.sort();
+  const skippedOptionalRequirementIds = skippedOptionalIds.sort();
   const deferredRequirementIds = requirements.deferred.map((item) => item.id).sort();
   const testAcceptance = {
     formatVersion: 1,
@@ -523,6 +564,7 @@ export async function acceptTestResults({ root, requirements, prepared }) {
     requirements: { path: requirements.file.path, sha256: requirements.file.sha256 },
     result: { path: requirements.resultFile, sha256: loaded.sha256 },
     acceptedRequirementIds,
+    ...(skippedOptionalRequirementIds.length > 0 ? { skippedOptionalRequirementIds } : {}),
     deferredRequirementIds,
   };
   if (!validateAcceptance(testAcceptance)) schemaFailure(validateAcceptance, 'testAcceptance');
@@ -626,13 +668,35 @@ export async function verifyTestAcceptance({ root, plan }) {
   }
   const accepted = [...plan.testAcceptance.acceptedRequirementIds].sort();
   const deferred = [...plan.testAcceptance.deferredRequirementIds].sort();
+  const rawSkipped = plan.testAcceptance.skippedOptionalRequirementIds ?? [];
+  const skipped = [...rawSkipped].sort();
   if (
     accepted.join('\0') !== plan.testAcceptance.acceptedRequirementIds.join('\0')
     || deferred.join('\0') !== plan.testAcceptance.deferredRequirementIds.join('\0')
+    || skipped.join('\0') !== rawSkipped.join('\0')
   ) {
     throw new ReleaseError(GATE_FAILED, 'testAcceptance requirement ids are not sorted', {
       reason: 'TEST_ACCEPTANCE_SUBJECT',
     });
+  }
+  if (rawSkipped.length > 0) {
+    const acceptedSet = new Set(accepted);
+    const reqMap = new Map(requirementsDoc.requirements.map((item) => [item.id, item]));
+    const resMap = new Map(resultDoc.results.map((item) => [item.requirementId, item]));
+    for (const skippedId of rawSkipped) {
+      if (acceptedSet.has(skippedId)) {
+        throw new ReleaseError(GATE_FAILED, `testAcceptance requirement "${skippedId}" cannot be both accepted and explicitly_skipped`, {
+          reason: 'TEST_ACCEPTANCE_TAMPERED',
+        });
+      }
+      const req = reqMap.get(skippedId);
+      const res = resMap.get(skippedId);
+      if (!req || req.optional !== true || !res || res.disposition !== 'explicitly_skipped') {
+        throw new ReleaseError(GATE_FAILED, `testAcceptance skipped requirement "${skippedId}" does not match optional explicitly_skipped originals`, {
+          reason: 'TEST_ACCEPTANCE_TAMPERED',
+        });
+      }
+    }
   }
   for (const item of requirementsDoc.requirements) {
     await verifyFileRef(root, item.source, `requirement ${item.id} source`);

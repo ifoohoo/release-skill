@@ -5,6 +5,11 @@
  * mode can only create an absent `.release-skill/project.yaml` after the
  * caller confirms the exact digest of the current facts and answers.
  */
+// @decision D-RS-004
+// @feature REL003
+// @feature REL005
+// @scenario S-004
+// @scenario S-006
 
 import { execFile as execFileCb } from 'node:child_process';
 import { createHash } from 'node:crypto';

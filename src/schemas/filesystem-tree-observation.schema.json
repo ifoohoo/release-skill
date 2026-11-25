@@ -2,34 +2,81 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/filesystem-tree-observation.json",
   "title": "Filesystem tree observation",
-  "description": "A complete same-pass fact observation of a bound filesystem tree (FND-DES-014 section 6.1). Private data only: it is returned by the public read-only harness entry, but never enters a public plugin verification result. The record keeps the original root binding so consumers re-verify the same bound root and never re-bind a replacement. Default and explicit reject preserve the 0.14 UTF-16 order; record mode uses Unicode code point order. Directories carry identity/type/permission facts only; file bytes come from the same native descriptor that supplies statMode.",
+  "description": "A complete same-pass fact observation of a bound filesystem tree (FND-DES-014 section 6.1). Private data only: it is returned by the public read-only harness entry, but never enters a public plugin verification result. The record keeps the original root binding so consumers re-verify the same bound root and never re-bind a replacement. Default and explicit reject preserve the 0.14 UTF-16 order; record mode uses Unicode code point order. Directories carry identity/type/permission facts only; for schemaVersion 1 (POSIX), file bytes come from the same native descriptor that supplies statMode. SchemaVersion 2 is the Windows observation: statMode is null, permissionObservation is required, and a recorded symlink carries reparseTag. v1 does not accept a Windows basis.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "kind", "rootBinding", "members", "membersDigest"],
   "properties": {
-    "schemaVersion": { "const": 1 },
+    "schemaVersion": { "enum": [1, 2] },
     "kind": { "const": "skill-family.filesystem-tree-observation" },
     "rootBinding": { "$ref": "https://contracts.skill-family.example/v1/filesystem-root-binding.json" },
     "members": {
       "type": "array",
       "uniqueItems": true,
-      "items": { "$ref": "#/$defs/member" }
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/posixFile" },
+          { "$ref": "#/$defs/posixDirectory" },
+          { "$ref": "#/$defs/posixSymlink" },
+          { "$ref": "#/$defs/windowsFile" },
+          { "$ref": "#/$defs/windowsDirectory" },
+          { "$ref": "#/$defs/windowsSymlink" }
+        ]
+      }
     },
-    "membersDigest": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{64}$"
-    }
+    "membersDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
   },
+  "allOf": [
+    {
+      "if": { "properties": { "schemaVersion": { "const": 1 } }, "required": ["schemaVersion"] },
+      "then": {
+        "properties": {
+          "rootBinding": { "type": "object", "properties": { "basis": { "const": "canonical-realpath-device-inode-type-mode-v1" } } },
+          "members": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                { "$ref": "#/$defs/posixFile" },
+                { "$ref": "#/$defs/posixDirectory" },
+                { "$ref": "#/$defs/posixSymlink" }
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "schemaVersion": { "const": 2 } }, "required": ["schemaVersion"] },
+      "then": {
+        "properties": {
+          "rootBinding": { "type": "object", "properties": { "basis": { "const": "canonical-finalpath-volume-fileid-type-security-v1" } } },
+          "members": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                { "$ref": "#/$defs/windowsFile" },
+                { "$ref": "#/$defs/windowsDirectory" },
+                { "$ref": "#/$defs/windowsSymlink" }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
   "$defs": {
     "statMode": { "type": "integer", "minimum": 0, "maximum": 65535 },
-    "member": {
-      "oneOf": [
-        { "$ref": "#/$defs/fileMember" },
-        { "$ref": "#/$defs/directoryMember" },
-        { "$ref": "#/$defs/symlinkMember" }
-      ]
+    "permissionObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "attributes", "securityDigest"],
+      "properties": {
+        "kind": { "const": "windows-security-v1" },
+        "attributes": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+        "securityDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
     },
-    "fileMember": {
+    "posixFile": {
       "type": "object",
       "additionalProperties": false,
       "required": ["path", "type", "sha256", "bytes", "statMode", "contentBase64"],
@@ -42,7 +89,7 @@
         "contentBase64": { "type": "string" }
       }
     },
-    "directoryMember": {
+    "posixDirectory": {
       "type": "object",
       "additionalProperties": false,
       "required": ["path", "type", "statMode"],
@@ -52,19 +99,55 @@
         "statMode": { "$ref": "#/$defs/statMode" }
       }
     },
-    "symlinkMember": {
+    "posixSymlink": {
       "type": "object",
       "additionalProperties": false,
       "required": ["path", "type", "targetBase64", "bytes", "statMode"],
       "properties": {
         "path": { "type": "string", "minLength": 1 },
         "type": { "const": "symlink" },
-        "targetBase64": {
-          "type": "string",
-          "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
-        },
+        "targetBase64": { "type": "string", "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$" },
         "bytes": { "type": "integer", "minimum": 0, "maximum": 1048576 },
         "statMode": { "$ref": "#/$defs/statMode" }
+      }
+    },
+    "windowsFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "type", "sha256", "bytes", "statMode", "contentBase64", "permissionObservation"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "type": { "const": "file" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "statMode": { "type": "null" },
+        "contentBase64": { "type": "string" },
+        "permissionObservation": { "$ref": "#/$defs/permissionObservation" }
+      }
+    },
+    "windowsDirectory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "type", "statMode", "permissionObservation"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "type": { "const": "directory" },
+        "statMode": { "type": "null" },
+        "permissionObservation": { "$ref": "#/$defs/permissionObservation" }
+      }
+    },
+    "windowsSymlink": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "type", "targetBase64", "bytes", "statMode", "reparseTag", "permissionObservation"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "type": { "const": "symlink" },
+        "targetBase64": { "type": "string", "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$" },
+        "bytes": { "type": "integer", "minimum": 0, "maximum": 1048576 },
+        "statMode": { "type": "null" },
+        "reparseTag": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+        "permissionObservation": { "$ref": "#/$defs/permissionObservation" }
       }
     }
   }

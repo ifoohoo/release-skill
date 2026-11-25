@@ -1,26 +1,34 @@
+// @decision D-RS-004
+// @decision D-RS-005
+
 import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import { loadProjectConfig } from '../core/config.mjs';
-import { asError, createEvidenceWriter } from '../core/evidence.mjs';
-import { runDeclaredHooks } from './prepare.mjs';
-// ReleaseError and GATE_FAILED removed: no authorization gate remains.
+import { createEvidenceWriter } from '../core/evidence.mjs';
+import { ReleaseError, GATE_FAILED } from '../core/errors.mjs';
+import { describeDeclaredHookSideEffects } from '../core/hooks.mjs';
+import { HOOK_EXECUTION_ORDER, runDeclaredHooks } from './prepare.mjs';
 
 /**
  * Run the declared development gates and populate the exact same content-bound
  * hook receipts consumed by prepare. A later ship/prepare reuses only
  * cacheable hooks whose declared input closure is byte-identical.
+ *
+ * Hooks that explicitly declare write or external side effects (`mutating: true`
+ * or `sideEffects: 'local-write' | 'network-or-external'`) disclose their
+ * command and scope up front and require `hooksAuthorized: true`
+ * (`--acknowledge-hook-side-effects`) before execution (`US-043`).
  */
 export async function validateDeclaredHooks(options = {}) {
   const {
     root = process.cwd(),
-    hooksAuthorized: _hooksAuthorized,
+    hooksAuthorized = false,
     hookCache = true,
     runDir = resolve(root, '.release-skill', 'runs', `hooks-${Date.now()}`),
   } = options;
-  // The command invocation itself authorizes execution of configured hooks.
-  // Old --acknowledge-hook-side-effects is accepted as a no-effect compatibility input.
   const { config, configDigest } = await loadProjectConfig({ root });
+  const sideEffectDisclosure = describeDeclaredHookSideEffects(config.hooks, HOOK_EXECUTION_ORDER);
   await mkdir(runDir, { recursive: true });
   const evidence = createEvidenceWriter({
     runDir,
@@ -31,6 +39,42 @@ export async function validateDeclaredHooks(options = {}) {
   const now = () => new Date().toISOString();
   await evidence.append({ phase: 'hooks', status: 'started' });
   try {
+    if (sideEffectDisclosure.requiresAcknowledgement && hooksAuthorized !== true) {
+      await evidence.append({
+        phase: 'hook-authorization',
+        status: 'blocking',
+        reason: 'HOOK_SIDE_EFFECTS_ACKNOWLEDGEMENT_REQUIRED',
+        requiredFlag: '--acknowledge-hook-side-effects',
+        disclosedHooks: sideEffectDisclosure.disclosedHooks,
+      });
+      const disclosureLines = [
+        `钩子核验门禁已阻断：检测到 ${sideEffectDisclosure.disclosedHooks.length} 个声明了副作用的开发钩子，未传入 --acknowledge-hook-side-effects 前不会启动子进程：`,
+        ...sideEffectDisclosure.disclosedHooks.map((entry) => `  - ${entry.impactSummary}`),
+        '恢复方式：审阅上述待执行命令与影响范围后，追加 --acknowledge-hook-side-effects 重新运行 release-skill hooks validate。',
+      ];
+      throw new ReleaseError(
+        GATE_FAILED,
+        disclosureLines.join('\n'),
+        {
+          reason: 'HOOK_SIDE_EFFECTS_ACKNOWLEDGEMENT_REQUIRED',
+          requiredFlag: '--acknowledge-hook-side-effects',
+          disclosedHooks: sideEffectDisclosure.disclosedHooks,
+          nextSteps: [{
+            code: 'ACKNOWLEDGE_HOOK_SIDE_EFFECTS',
+            message: '审阅披露的副作用钩子命令后，追加 --acknowledge-hook-side-effects 重新执行 hooks validate',
+            argv: ['release-skill', 'hooks', 'validate', '--acknowledge-hook-side-effects'],
+          }],
+        },
+      );
+    }
+    if (sideEffectDisclosure.requiresAcknowledgement) {
+      await evidence.append({
+        phase: 'hook-authorization',
+        status: 'authorized',
+        sideEffectsAcknowledged: true,
+        disclosedHooks: sideEffectDisclosure.disclosedHooks,
+      });
+    }
     await runDeclaredHooks(config, root, evidence, undefined, {
       hookCache,
       // Explicit env delivery (0.5.1 hook-env-delivery fix): same semantics as
@@ -68,6 +112,9 @@ export async function validateDeclaredHooks(options = {}) {
     status: 'PASSED',
     configDigest,
     hooks: Object.keys(config.hooks ?? {}).sort(),
+    ...(sideEffectDisclosure.requiresAcknowledgement
+      ? { disclosedHooks: sideEffectDisclosure.disclosedHooks }
+      : {}),
     cacheEnabled: hookCache,
     evidenceDir: runDir,
     startedAt,

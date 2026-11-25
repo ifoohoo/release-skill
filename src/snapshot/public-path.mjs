@@ -8,6 +8,7 @@
  *
  * @module snapshot/public-path
  */
+// @decision D-RS-003
 
 import { ReleaseError, PUBLIC_PATH_FORBIDDEN, PATH_UNSAFE } from '../core/errors.mjs';
 import { canonicalArtifactPath } from '../artifacts/path-key.mjs';

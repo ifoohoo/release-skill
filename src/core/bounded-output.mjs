@@ -10,6 +10,7 @@
  *
  * @module core/bounded-output
  */
+// @decision D-RS-005
 
 /** Maximum number of output lines preserved in a hook-failure tail. */
 export const HOOK_OUTPUT_TAIL_MAX_LINES = 50;

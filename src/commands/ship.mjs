@@ -1,9 +1,12 @@
+// @decision D-RS-002
+
 import { readFile, lstat, mkdir, realpath } from 'node:fs/promises';
 import { basename, dirname, resolve } from 'node:path';
 import { publishFileOrReplace } from 'skill-family-harness-node';
 
 import { MAX_APPROVAL_MS } from '../core/approval.mjs';
 import { canonicalJson, sha256Hex } from '../core/digest.mjs';
+import { describeDeclaredHookSideEffects } from '../core/hooks.mjs';
 import {
   effectiveHookRequiresApproval,
   normalizePostPublishView,
@@ -257,6 +260,7 @@ function publicState(state, { postRelease } = {}) {
       evidenceDir: state.evidenceDir,
       warnings: state.warnings ?? [],
     } : {}),
+    ...(Array.isArray(state.advisories) && state.advisories.length > 0 ? { advisories: state.advisories } : {}),
     ...(state.approvalSummary ? { approvalSummary: state.approvalSummary } : {}),
     ...(state.approvalPath ? { approvalPath: state.approvalPath } : {}),
     ...(state.sourceRunPath ? { sourceRunPath: state.sourceRunPath } : {}),
@@ -564,6 +568,7 @@ export async function advanceShip(options = {}, injected = {}) {
         reason: continuation.reason,
       });
     }
+    const requiresHookAck = describeDeclaredHookSideEffects(loaded.config?.hooks).requiresAcknowledgement;
     const prepared = await deps.prepareRelease({
       root,
       candidatePath: continuation.candidatePath,
@@ -575,9 +580,11 @@ export async function advanceShip(options = {}, injected = {}) {
       workflowExplicit: false,
       version: state.targetVersion ?? undefined,
       versionExplicit: state.targetVersion != null,
-      hooksAuthorized: true,
+      hooksAuthorized: requiresHookAck ? options.hooksAuthorized === true : (options.hooksAuthorized ?? true),
       verificationGatesAuthorized: true,
       hookCache: true,
+      ...(options.acknowledgeDeprecatedDeps === true ? { acknowledgeDeprecatedDeps: true } : {}),
+      ...(options.marketplaceSnapshotPath ? { marketplaceSnapshotPath: options.marketplaceSnapshotPath } : {}),
       ...(Array.isArray(state.selectedUnitIds) ? { unitIds: state.selectedUnitIds } : {}),
     });
     if (prepared?.status === 'NEEDS_INPUT') {
@@ -591,6 +598,9 @@ export async function advanceShip(options = {}, injected = {}) {
             evidenceDir: prepared.evidenceDir ?? state.testCandidate.evidenceDir,
           },
         }),
+        ...(Array.isArray(prepared.advisories) && prepared.advisories.length > 0
+          ? { advisories: prepared.advisories }
+          : {}),
         updatedAt: new Date().toISOString(),
       };
       await writeJsonAtomic(statePath, state);
@@ -606,6 +616,9 @@ export async function advanceShip(options = {}, injected = {}) {
         : null;
       state = {
         ...outcome,
+        ...(Array.isArray(prepared?.advisories) && prepared.advisories.length > 0
+          ? { advisories: prepared.advisories }
+          : {}),
         ...(continuation ?? {}),
         updatedAt: new Date().toISOString(),
       };
@@ -618,6 +631,9 @@ export async function advanceShip(options = {}, injected = {}) {
     const approvalSummary = await buildApprovalSummary(prepared.planPath, maxApprovalMs);
     state = {
       ...outcome,
+      ...(Array.isArray(prepared?.advisories) && prepared.advisories.length > 0
+        ? { advisories: prepared.advisories }
+        : {}),
       approvalSummary,
       updatedAt: new Date().toISOString(),
     };
@@ -667,14 +683,17 @@ export async function advanceShip(options = {}, injected = {}) {
       stateChanged = true;
     }
     if (stateChanged) await writeJsonAtomic(statePath, state);
+    const requiresHookAck = describeDeclaredHookSideEffects(loaded.config?.hooks).requiresAcknowledgement;
     const prepared = await deps.prepareRelease({
       root,
       version: state.targetVersion ?? undefined,
       offline: false,
       production: true,
-      hooksAuthorized: true,
+      hooksAuthorized: requiresHookAck ? options.hooksAuthorized === true : (options.hooksAuthorized ?? true),
       verificationGatesAuthorized: true,
       hookCache: true,
+      ...(options.acknowledgeDeprecatedDeps === true ? { acknowledgeDeprecatedDeps: true } : {}),
+      ...(options.marketplaceSnapshotPath ? { marketplaceSnapshotPath: options.marketplaceSnapshotPath } : {}),
       ...(state.selectedUnitIds ? { unitIds: state.selectedUnitIds } : {}),
     });
     if (prepared?.status === 'NEEDS_INPUT') {
@@ -689,6 +708,9 @@ export async function advanceShip(options = {}, injected = {}) {
           },
           requirements: prepared.requirements,
         }),
+        ...(Array.isArray(prepared.advisories) && prepared.advisories.length > 0
+          ? { advisories: prepared.advisories }
+          : {}),
         updatedAt: new Date().toISOString(),
       };
       await writeJsonAtomic(statePath, state);
@@ -724,6 +746,9 @@ export async function advanceShip(options = {}, injected = {}) {
       planDigest: prepared.planDigest,
       evidenceDir: prepared.evidenceDir,
       warnings: prepared.warnings,
+      ...(Array.isArray(prepared?.advisories) && prepared.advisories.length > 0
+        ? { advisories: prepared.advisories }
+        : {}),
       approvalSummary,
       ...(transportPreflight ? {
         gitTransport: transportPreflight.transport,
@@ -869,6 +894,8 @@ export async function advanceShip(options = {}, injected = {}) {
         root,
         verificationGatesAuthorized: state.verificationGatesAuthorized === true,
         cursorHostRuntime: options.cursorHostRuntime,
+        ...(options.antigravityHostRuntime ? { antigravityHostRuntime: options.antigravityHostRuntime } : {}),
+        ...(options.hostVerificationRuntimes ? { hostVerificationRuntimes: options.hostVerificationRuntimes } : {}),
       });
       state = {
         ...state,

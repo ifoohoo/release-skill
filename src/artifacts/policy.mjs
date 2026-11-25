@@ -8,6 +8,8 @@
  *
  * @module artifacts/policy
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';

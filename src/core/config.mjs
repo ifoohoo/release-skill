@@ -15,6 +15,7 @@
  *
  * @module config
  */
+// @decision D-RS-001
 
 import { readFile } from 'node:fs/promises';
 import { resolve, isAbsolute, relative, normalize } from 'node:path';
@@ -28,6 +29,11 @@ import { canonicalPublicPath, publicPathCollisionKey } from '../snapshot/public-
 import { isReservedReleaseControlPath } from './baseline.mjs';
 import { readTrustedPackageResource } from './trusted-resource.mjs';
 import { assertTestIntakePaths } from './test-intake.mjs';
+import {
+  enforceProjectSourcePolicy,
+  hasEmbeddedUrlCredentials,
+  GIT_REMOTE_URL_REASONS,
+} from './git-url-policy.mjs';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -402,11 +408,62 @@ export async function loadProjectConfig({ root, configPath } = {}) {
     for (const unit of config.releaseUnits) {
       if (!unit?.distributions) continue;
       for (const dist of unit.distributions) {
-        if (dist.type === 'npm' || dist.type === 'cursor-plugin') continue;
+        if (dist.type === 'npm' || dist.type === 'cursor-plugin' || dist.type === 'antigravity-plugin') continue;
         if (dist.marketplaceSourceType === undefined || dist.marketplaceSourceType === null) {
           dist.marketplaceSourceType = dist.marketplaceRepo ? 'standalone-index' : 'bundled-family';
         }
       }
+    }
+  }
+
+  // --- Pre-schema URL credential isolation guard (never echo raw URLs) ---
+  if (Array.isArray(config.releaseUnits)) {
+    for (const unit of config.releaseUnits) {
+      if (!unit || typeof unit !== 'object') continue;
+      for (const dist of Array.isArray(unit.distributions) ? unit.distributions : []) {
+        if (!dist || typeof dist !== 'object') continue;
+        if (hasEmbeddedUrlCredentials(dist.registry)) {
+          throw new ReleaseError(
+            CONFIG_INVALID,
+            `发布单元 "${unit.id ?? '<unknown>'}" 的 npm registry 严禁在 URL 中内嵌账号或令牌凭据（请改用宿主环境变量或 .npmrc）`,
+            { unitId: unit.id ?? null, field: 'distributions[].registry', reason: GIT_REMOTE_URL_REASONS.CREDENTIALS_PRESENT },
+          );
+        }
+        if (hasEmbeddedUrlCredentials(dist.marketplaceSource)) {
+          throw new ReleaseError(
+            CONFIG_INVALID,
+            `发布单元 "${unit.id ?? '<unknown>'}" 的 marketplaceSource 严禁在 URL 中内嵌账号或令牌凭据`,
+            { unitId: unit.id ?? null, field: 'distributions[].marketplaceSource', reason: GIT_REMOTE_URL_REASONS.CREDENTIALS_PRESENT },
+          );
+        }
+      }
+      for (const target of Array.isArray(unit.postPublish?.targets) ? unit.postPublish.targets : []) {
+        if (target && typeof target === 'object' && hasEmbeddedUrlCredentials(target.remoteUrl)) {
+          throw new ReleaseError(
+            CONFIG_INVALID,
+            `发布单元 "${unit.id ?? '<unknown>'}" 的 postPublish.targets "${target.id ?? '<unknown>'}" remoteUrl 严禁在 URL 中内嵌账号或密码凭据`,
+            { unitId: unit.id ?? null, field: 'postPublish.targets[].remoteUrl', reason: GIT_REMOTE_URL_REASONS.CREDENTIALS_PRESENT },
+          );
+        }
+      }
+    }
+  }
+  for (const rawReg of Array.isArray(config.policy?.sourcePolicy?.allowedNpmRegistries) ? config.policy.sourcePolicy.allowedNpmRegistries : []) {
+    if (hasEmbeddedUrlCredentials(rawReg)) {
+      throw new ReleaseError(
+        CONFIG_INVALID,
+        'policy.sourcePolicy.allowedNpmRegistries 严禁在 URL 中内嵌账号或令牌凭据',
+        { field: 'policy.sourcePolicy.allowedNpmRegistries', reason: GIT_REMOTE_URL_REASONS.CREDENTIALS_PRESENT },
+      );
+    }
+  }
+  for (const rawHost of Array.isArray(config.policy?.sourcePolicy?.allowedGitHosts) ? config.policy.sourcePolicy.allowedGitHosts : []) {
+    if (hasEmbeddedUrlCredentials(rawHost) || (typeof rawHost === 'string' && rawHost.includes('@'))) {
+      throw new ReleaseError(
+        CONFIG_INVALID,
+        'policy.sourcePolicy.allowedGitHosts 严禁包含账号或令牌凭据（@）',
+        { field: 'policy.sourcePolicy.allowedGitHosts', reason: GIT_REMOTE_URL_REASONS.CREDENTIALS_PRESENT },
+      );
     }
   }
 
@@ -423,6 +480,8 @@ export async function loadProjectConfig({ root, configPath } = {}) {
       { configPath: absConfigPath, validationErrors: errors },
     );
   }
+
+  enforceProjectSourcePolicy(config);
 
   if (config.testIntake) {
     assertTestIntakePaths(config.testIntake);

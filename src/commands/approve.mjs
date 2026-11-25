@@ -1,3 +1,5 @@
+// @decision D-RS-002
+
 import { acquireProjectLock } from '../artifacts/project-lock.mjs';
 import { assertPlanNotReplaced } from '../core/plan-replacement.mjs';
 /**

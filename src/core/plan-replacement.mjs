@@ -1,3 +1,5 @@
+// @decision D-RS-001
+
 import { readdir, lstat, realpath } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import Ajv from 'ajv';

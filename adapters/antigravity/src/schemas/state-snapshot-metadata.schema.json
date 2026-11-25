@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/state-snapshot-metadata.json",
+  "title": "StateSnapshotMetadata",
+  "description": "Derived snapshot bound to one fully verified event prefix. Corrupt snapshots are disposable; event history remains authoritative.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "lastSequence",
+    "chainHeadDigest",
+    "stateDigest",
+    "state"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.state-snapshot-metadata" },
+    "lastSequence": { "type": "integer", "minimum": 0 },
+    "chainHeadDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "stateDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "state": {},
+    "hostSessionRef": { "type": "string", "minLength": 1, "maxLength": 512 }
+  }
+}

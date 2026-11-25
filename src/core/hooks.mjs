@@ -11,6 +11,7 @@
  *
  * @module hooks
  */
+// @decision D-RS-001
 
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -39,6 +40,13 @@ const PLATFORM_REQUIRED_VARS = (() => {
 /** Pattern that every envAllowlist key must satisfy. */
 const ENV_KEY_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
 
+/** Supported explicit side-effect declarations on project hooks. */
+export const HOOK_SIDE_EFFECT_MODES = Object.freeze([
+  'read-only',
+  'local-write',
+  'network-or-external',
+]);
+
 // ---------------------------------------------------------------------------
 // Validation
 // ---------------------------------------------------------------------------
@@ -59,7 +67,17 @@ export function validateHook(hook) {
     throw new ReleaseError('INVALID_HOOK', 'hook must be a non-null object');
   }
 
-  const { command, cwd, timeoutMs, envAllowlist, cacheable, cacheInputs, testSelection } = hook;
+  const {
+    command,
+    cwd,
+    timeoutMs,
+    envAllowlist,
+    cacheable,
+    cacheInputs,
+    testSelection,
+    sideEffects,
+    mutating,
+  } = hook;
 
   // command: required, non-empty array of strings
   if (!Array.isArray(command) || command.length === 0) {
@@ -142,6 +160,91 @@ export function validateHook(hook) {
       'hook.testSelection must be "full" or "incremental" when provided',
     );
   }
+
+  if (sideEffects !== undefined && (typeof sideEffects !== 'string' || !HOOK_SIDE_EFFECT_MODES.includes(sideEffects))) {
+    throw new ReleaseError(
+      'INVALID_HOOK',
+      'hook.sideEffects must be "read-only", "local-write", or "network-or-external" when provided',
+    );
+  }
+
+  if (mutating !== undefined && typeof mutating !== 'boolean') {
+    throw new ReleaseError(
+      'INVALID_HOOK',
+      'hook.mutating must be a boolean when provided',
+    );
+  }
+
+  if (sideEffects === 'read-only' && mutating === true) {
+    throw new ReleaseError(
+      'INVALID_HOOK',
+      'hook.mutating=true conflicts with hook.sideEffects="read-only"',
+    );
+  }
+}
+
+/**
+ * Determine whether a declared hook requires explicit pre-execution side-effect
+ * disclosure and `--acknowledge-hook-side-effects` authorization.
+ *
+ * Standard unannotated hooks (`sideEffects` omitted or `'read-only'`, `mutating`
+ * omitted or `false`) execute directly when invoked; hooks explicitly marked
+ * with `mutating: true` or `sideEffects: 'local-write' | 'network-or-external'`
+ * require explicit operator acknowledgement before spawning.
+ *
+ * @param {unknown} hook
+ * @returns {boolean}
+ */
+export function requiresHookSideEffectAck(hook) {
+  if (!hook || typeof hook !== 'object' || Array.isArray(hook)) return false;
+  if (hook.mutating === true) return true;
+  if (typeof hook.sideEffects === 'string' && hook.sideEffects !== 'read-only') return true;
+  return false;
+}
+
+/**
+ * Collect structured pre-execution disclosure entries for declared hooks that
+ * carry write or external side effects (`US-043`).
+ *
+ * @param {Record<string, any>} [hooksObj]
+ * @param {readonly string[]} [executionOrder]
+ * @returns {{ requiresAcknowledgement: boolean, disclosedHooks: Array<object> }}
+ */
+export function describeDeclaredHookSideEffects(
+  hooksObj = {},
+  executionOrder = ['lint', 'docs', 'build', 'test', 'typecheck'],
+) {
+  const disclosedHooks = [];
+  if (!hooksObj || typeof hooksObj !== 'object') {
+    return { requiresAcknowledgement: false, disclosedHooks };
+  }
+  for (const name of executionOrder) {
+    const hook = hooksObj[name];
+    if (!hook || !Array.isArray(hook.command) || hook.command.length === 0) continue;
+    if (!requiresHookSideEffectAck(hook)) continue;
+    const effectiveSideEffects = typeof hook.sideEffects === 'string' && hook.sideEffects !== 'read-only'
+      ? hook.sideEffects
+      : 'local-write';
+    const scopeLabel = effectiveSideEffects === 'network-or-external'
+      ? '发起外部网络请求或调用外部服务（无网络沙箱隔离）'
+      : '改写本地工作区文件或派生生成物（无文件系统沙箱隔离）';
+    const commandLine = hook.command.join(' ');
+    const cwd = hook.cwd ?? '.';
+    disclosedHooks.push({
+      name,
+      command: [...hook.command],
+      commandLine,
+      cwd,
+      sideEffects: effectiveSideEffects,
+      mutating: true,
+      envAllowlist: Array.isArray(hook.envAllowlist) ? [...hook.envAllowlist] : [],
+      impactSummary: `hooks.${name} 将在目录 "${cwd}" 执行 "${commandLine}"，影响范围：${scopeLabel}`,
+    });
+  }
+  return {
+    requiresAcknowledgement: disclosedHooks.length > 0,
+    disclosedHooks,
+  };
 }
 
 // ---------------------------------------------------------------------------

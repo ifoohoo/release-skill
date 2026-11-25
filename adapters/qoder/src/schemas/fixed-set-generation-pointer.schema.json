@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/fixed-set-generation-pointer.json",
+  "title": "Fixed-set generation pointer",
+  "description": "The only commit pointer for a fixed-set generation store. It names one generation directory segment and the closure digest. It does not store an absolute root.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "generation", "closureDigest"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.fixed-set-generation-pointer" },
+    "generation": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$", "not": { "const": "current" } },
+    "closureDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  }
+}

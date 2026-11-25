@@ -1,3 +1,10 @@
+// @decision D-RS-006
+// @feature REL001
+// @feature REL005
+// @scenario S-001
+// @scenario S-002
+// @scenario S-006
+
 import { readFormalPlans, bindReplacement, canonicalFormalPlanPath, overlaps } from './plan-replacement.mjs';
 /**
  * One test-intake candidate: exclusive save, strict read, and the no-git

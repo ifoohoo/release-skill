@@ -14,6 +14,8 @@
  *
  * @module artifacts/merge/yaml
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import YAML from 'yaml';
 

@@ -20,6 +20,13 @@
       "scope": "project",
       "anchor": "project-root",
       "relPath": "skills"
+    },
+    {
+      "id": "kimi-code-project-skills",
+      "role": "skill-root",
+      "scope": "project",
+      "anchor": "project-root",
+      "relPath": ".kimi-code/skills"
     }
   ],
   "probeCapabilities": [

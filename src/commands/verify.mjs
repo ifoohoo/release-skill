@@ -11,6 +11,9 @@
  *
  * @module commands/verify
  */
+// @decision D-RS-004
+// @feature REL004
+// @scenario S-005
 
 import { readFile, writeFile, mkdtemp, rm, mkdir, lstat, realpath, readdir } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
@@ -72,7 +75,10 @@ import {
   isFoundationPluginVerificationEligible,
   verifyFrozenPluginWithFoundation,
 } from '../core/foundation-plugin-verification.mjs';
-import { verifyFrozenCursorSkillWithFoundation } from '../core/foundation-host-verification.mjs';
+import {
+  verifyFrozenCursorSkillWithFoundation,
+  verifyFrozenHostSkillWithFoundation,
+} from '../core/foundation-host-verification.mjs';
 import { resolveUnitScopedPath } from '../snapshot/public-path.mjs';
 import { canonicalJson } from '../core/digest.mjs';
 import {
@@ -187,51 +193,70 @@ function frozenSnapshotRelativePath(unit, actions, unitId) {
   return action?.parameters?.snapshotPath ?? null;
 }
 
-/** Verify actionless Cursor distributions through their frozen host contract. */
-export async function verifyCursorHostDistributions({
+/** Verify all actionless foundation-host-verification distributions through their frozen host contracts. */
+export async function verifyHostVerificationDistributions({
   plan,
   root,
   cursorHostRuntime,
+  antigravityHostRuntime,
+  hostVerificationRuntimes,
+  prepareHostVerificationFn,
   runHostVerificationFn,
   clock = defaultClock,
   evidence,
 } = {}) {
   const checks = [];
+  const hostVerificationPlatforms = PLATFORMS.filter(
+    (platform) => platform.installMethod === 'foundation-host-verification',
+  );
   for (const unit of plan?.units ?? []) {
-    const cursorDistribution = (unit.distributions ?? []).find(
-      (distribution) => distribution.type === 'cursor-plugin',
-    );
-    if (!cursorDistribution) continue;
-    const result = await verifyFrozenCursorSkillWithFoundation({
-      plan,
-      unitId: unit.id,
-      root,
-      cursorHostRuntime,
-      ...(runHostVerificationFn ? { runHostVerificationFn } : {}),
-      clock,
-    });
-    checks.push({
-      actionId: `cursor-host-verification-${unit.id}`,
-      actionType: 'cursor-host-verification',
-      unitId: unit.id,
-      distributionType: cursorDistribution.type,
-      status: VERIFICATION_RESOLVED_TYPES.PASSED_AUTOMATIC,
-      observation: result,
-    });
-    await evidence?.append({
-      phase: 'verify-host',
-      unitId: unit.id,
-      distributionType: cursorDistribution.type,
-      status: VERIFICATION_RESOLVED_TYPES.PASSED_AUTOMATIC,
-      hostId: result.hostId,
-      driverId: result.driverId,
-      requestDigest: result.requestDigest,
-      payloadDigest: result.payloadDigest,
-      entrySkill: result.entrySkill,
-      observation: result,
-    });
+    for (const platform of hostVerificationPlatforms) {
+      const dist = (unit.distributions ?? []).find(
+        (distribution) => distribution.type === platform.distributionType,
+      );
+      if (!dist) continue;
+      const runtime = hostVerificationRuntimes?.[platform.id]
+        ?? (platform.id === 'cursor' ? cursorHostRuntime : platform.id === 'antigravity' ? antigravityHostRuntime : undefined);
+      const result = await verifyFrozenHostSkillWithFoundation({
+        plan,
+        unitId: unit.id,
+        root,
+        distributionType: platform.distributionType,
+        hostRuntime: runtime,
+        ...(platform.id === 'cursor' ? { cursorHostRuntime } : {}),
+        ...(prepareHostVerificationFn ? { prepareHostVerificationFn } : {}),
+        ...(runHostVerificationFn ? { runHostVerificationFn } : {}),
+        clock,
+      });
+      const actionType = `${platform.id}-host-verification`;
+      checks.push({
+        actionId: `${actionType}-${unit.id}`,
+        actionType,
+        unitId: unit.id,
+        distributionType: dist.type,
+        status: VERIFICATION_RESOLVED_TYPES.PASSED_AUTOMATIC,
+        observation: result,
+      });
+      await evidence?.append({
+        phase: 'verify-host',
+        unitId: unit.id,
+        distributionType: dist.type,
+        status: VERIFICATION_RESOLVED_TYPES.PASSED_AUTOMATIC,
+        hostId: result.hostId,
+        driverId: result.driverId,
+        requestDigest: result.requestDigest,
+        payloadDigest: result.payloadDigest,
+        entrySkill: result.entrySkill,
+        observation: result,
+      });
+    }
   }
   return checks;
+}
+
+/** Compatibility export preserved for callers passing only Cursor verification options. */
+export async function verifyCursorHostDistributions(options = {}) {
+  return verifyHostVerificationDistributions(options);
 }
 
 /** Re-read every frozen subject tarball before consuming the public receipt. */
@@ -1203,8 +1228,11 @@ export async function verifyRelease(options) {
     execFn,
     configPath: configPathOpt,
     runPluginVerificationFn,
+    prepareHostVerificationFn,
     runHostVerificationFn,
     cursorHostRuntime,
+    antigravityHostRuntime,
+    hostVerificationRuntimes,
     observeFirstReleaseMarketplaceHeadFn,
     fetchFirstReleaseMarketplaceIndexFn,
   } = options ?? {};
@@ -1684,15 +1712,17 @@ export async function verifyRelease(options) {
     const manualFollowUps = [];
     const foundationPluginVerificationReceipts = [];
 
-    // Cursor has no marketplace action or publish checkpoint. Verify each
-    // declared Cursor distribution directly from its frozen unit contract,
+    // Host-verification distributions (cursor-plugin, antigravity-plugin) have
+    // no marketplace action or publish checkpoint. Verify each declared
+    // host-verification distribution directly from its frozen unit contract,
     // using explicit runtime roots that never enter the release run record.
-    // Plans without Cursor distributions do not enter
-    // this branch and retain their existing action-only behavior.
-    adapterChecks.push(...await verifyCursorHostDistributions({
+    adapterChecks.push(...await verifyHostVerificationDistributions({
       plan,
       root,
       cursorHostRuntime,
+      antigravityHostRuntime,
+      hostVerificationRuntimes,
+      prepareHostVerificationFn,
       runHostVerificationFn,
       clock: clockFn,
       evidence,

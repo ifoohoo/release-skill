@@ -1,3 +1,8 @@
+// @decision D-RS-002
+// @decision D-RS-004
+// @feature REL002
+// @scenario S-003
+
 import { access, readFile, mkdir, mkdtemp, cp, rename, rm, lstat, realpath, chmod } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join, relative, isAbsolute, normalize } from 'node:path';

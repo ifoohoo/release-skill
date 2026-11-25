@@ -7,6 +7,8 @@
  *
  * @module artifacts/graph
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import { ReleaseError, ARTIFACT_POLICY_INVALID } from '../core/errors.mjs';
 

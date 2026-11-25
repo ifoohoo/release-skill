@@ -1,3 +1,5 @@
+// @decision D-RS-003
+
 import { lstat, readFile } from 'node:fs/promises';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import YAML from 'yaml';

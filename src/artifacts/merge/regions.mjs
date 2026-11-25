@@ -13,6 +13,8 @@
  *
  * @module artifacts/merge/regions
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import { ReleaseError, STRUCTURE_INVALID } from '../../core/errors.mjs';
 

@@ -11,6 +11,7 @@
  *
  * @module core/run
  */
+// @decision D-RS-002
 
 import { lstat, mkdir, readFile, stat } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';

@@ -23,6 +23,9 @@
  *
  * @module commands/postverify
  */
+// @decision D-RS-004
+// @feature REL004
+// @scenario S-005
 
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -69,6 +72,14 @@ import { verifyAndInstallExecutionBundle, verifyExecutionBundle } from '../core/
 import { assertPostPublishApprovalAuthority, validatePostPublishApproval } from '../core/postpublish-approval.mjs';
 import { executePresetHook, preflightPresetHook } from '../core/preset-executor.mjs';
 import {
+  DISTRIBUTING,
+  DISTRIBUTED,
+  PARTIAL,
+  BLOCKED,
+  NEEDS_INPUT,
+  assertTransition,
+} from '../core/state-machine.mjs';
+import {
   ReleaseError,
   GATE_FAILED,
   POST_PUBLISH_VERIFY_FAILED,
@@ -95,13 +106,6 @@ const SCHEMA_ERROR_CODES = new Set([
   'PARTIAL_RELEASE',
   'POST_PUBLISH_VERIFY_FAILED',
 ]);
-
-/** Run statuses. */
-const DISTRIBUTING = 'DISTRIBUTING';
-const DISTRIBUTED = 'DISTRIBUTED';
-const PARTIAL = 'PARTIAL';
-const BLOCKED = 'BLOCKED';
-const NEEDS_INPUT = 'NEEDS_INPUT';
 
 function defaultClock() {
   return new Date().toISOString();
@@ -928,6 +932,7 @@ export async function postVerifyRelease(options) {
     }
 
     const finishedAt = clockFn();
+    assertTransition(DISTRIBUTING, overallStatus);
     await snapshot(overallStatus);
     await writeRunAtomic(runPath, buildPersistedState(overallStatus, finishedAt));
     finalRecordWritten = true;

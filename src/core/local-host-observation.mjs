@@ -6,6 +6,9 @@
  * host/plugin/marketplace identity; command binaries and argv never come from
  * caller-controlled input.
  */
+// @decision D-RS-005
+// @feature REL002
+// @scenario S-003
 
 import { homedir } from 'node:os';
 import { join } from 'node:path';

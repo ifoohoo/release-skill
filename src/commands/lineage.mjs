@@ -26,6 +26,8 @@
  *
  * @module commands/lineage
  */
+// @decision D-RS-004
+// @decision D-RS-005
 
 import { execFile as execFileCb, spawn } from 'node:child_process';
 import { promisify } from 'node:util';

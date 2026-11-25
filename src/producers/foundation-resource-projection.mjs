@@ -43,6 +43,8 @@
  *
  * @module producers/foundation-resource-projection
  */
+// @decision D-RS-003
+// @decision D-RS-005
 
 import { chmod, lstat, mkdir, readFile, readdir, realpath, writeFile } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
@@ -55,9 +57,9 @@ import { digestBytes, publishFileOrReplace, readFileStrict, withTemporaryWorkspa
 import { canonicalJson } from '../core/digest.mjs';
 
 export const FOUNDATION_PACKAGES = Object.freeze({
-  'skill-family-contracts': '0.25.0',
-  'skill-family-engineering-kit': '0.25.0',
-  'skill-family-harness-node': '0.25.0',
+  'skill-family-contracts': '0.39.0',
+  'skill-family-engineering-kit': '0.39.0',
+  'skill-family-harness-node': '0.39.0',
 });
 
 export const BINDING_RECORD_PATH = 'bin/foundation-resource-binding.json';

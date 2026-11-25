@@ -1,3 +1,5 @@
+// @decision D-RS-002
+
 import { assertPlanNotReplaced } from '../core/plan-replacement.mjs';
 /**
  * Reconcile command: idempotent recovery from partial publish.

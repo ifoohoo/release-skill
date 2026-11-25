@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.host-descriptor",
+  "hostId": "deepseek-harness",
+  "displayName": "DeepSeek Harness",
+  "support": "manual",
+  "maturity": "developer-preview",
+  "sourceAliases": [
+    "dsh"
+  ],
+  "pathCategories": [
+    {
+      "id": "deepseek-harness-project-skills",
+      "role": "skill-root",
+      "scope": "project",
+      "anchor": "project-root",
+      "relPath": ".dsh/skills"
+    }
+  ],
+  "probeCapabilities": [
+    "cli",
+    "version",
+    "payload",
+    "registry",
+    "discover",
+    "enabled",
+    "reload",
+    "smoke",
+    "uninstall"
+  ]
+}

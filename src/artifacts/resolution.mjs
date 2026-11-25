@@ -3,6 +3,8 @@
  *
  * @module artifacts/resolution
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import { mkdir, open, readFile, stat, lstat, chmod } from 'node:fs/promises';
 import { join, resolve, relative, isAbsolute, basename } from 'node:path';

@@ -46,6 +46,7 @@
  *
  * @module src/docs/refresh-planner
  */
+// @decision D-RS-003
 
 import { canonicalJson, sha256Hex } from '../core/digest.mjs';
 import { ReleaseError, RELEASE_DOCS_INVALID } from '../core/errors.mjs';

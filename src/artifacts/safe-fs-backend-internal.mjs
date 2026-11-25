@@ -7,6 +7,8 @@
  * @module artifacts/safe-fs-backend-internal
  * @internal
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 // Namespace import (not `import { createRequire }`): the harness 0.11.0
 // native loader (inlined into the same bundle) also imports createRequire,

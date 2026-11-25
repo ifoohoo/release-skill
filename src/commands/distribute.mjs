@@ -61,6 +61,7 @@
  *
  * @module commands/distribute
  */
+// @decision D-RS-002
 
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -119,6 +120,14 @@ import {
   REMOTE_CONFLICT,
   REMOTE_UNAVAILABLE,
 } from '../core/errors.mjs';
+import {
+  DISTRIBUTING,
+  DISTRIBUTED,
+  PARTIAL,
+  BLOCKED,
+  NEEDS_INPUT,
+  assertTransition,
+} from '../core/state-machine.mjs';
 import { ActionType } from '../adapters/contract.mjs';
 
 const execFileAsync = promisify(execFileCb);
@@ -142,13 +151,6 @@ const SCHEMA_ERROR_CODES = new Set([
   'PARTIAL_RELEASE',
   'POST_PUBLISH_VERIFY_FAILED',
 ]);
-
-/** Run statuses. */
-const DISTRIBUTING = 'DISTRIBUTING';
-const DISTRIBUTED = 'DISTRIBUTED';
-const PARTIAL = 'PARTIAL';
-const BLOCKED = 'BLOCKED';
-const NEEDS_INPUT = 'NEEDS_INPUT';
 
 function defaultClock() {
   return new Date().toISOString();
@@ -547,6 +549,7 @@ export async function distributeRelease(options) {
         reason: 'ZERO_DECLARATIONS',
         planVersion: plan.planVersion,
       });
+      assertTransition(sourceRun.status, DISTRIBUTED);
       await snapshot(DISTRIBUTED);
       await writeRunAtomic(runPath, buildPersistedState(DISTRIBUTED, clockFn()));
       finalRecordWritten = true;
@@ -757,6 +760,7 @@ export async function distributeRelease(options) {
     const checkpointById = new Map(checkpoints.map((cp) => [cp.actionId, cp]));
 
     // Durable pre-execute authority (seq 0).
+    assertTransition(sourceRun.status, DISTRIBUTING);
     await snapshot(DISTRIBUTING);
 
     // =======================================================================
@@ -1887,6 +1891,7 @@ export async function distributeRelease(options) {
     }
 
     const finishedAt = clockFn();
+    assertTransition(DISTRIBUTING, overallStatus);
     await snapshot(overallStatus);
     await writeRunAtomic(runPath, buildPersistedState(overallStatus, finishedAt));
     finalRecordWritten = true;

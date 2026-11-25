@@ -25,6 +25,7 @@
  *
  * @module core/preset-gitwrite
  */
+// @decision D-RS-003
 
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';

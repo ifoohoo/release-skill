@@ -45,6 +45,7 @@
  *
  * @module src/docs/refresh-service
  */
+// @decision D-RS-003
 
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 

@@ -53,6 +53,7 @@
  *
  * @module core/presets
  */
+// @decision D-RS-003
 
 import { realpath, stat } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';

@@ -8,6 +8,11 @@
  *
  * @module core/foundation-plugin-verification
  */
+// @decision D-RS-005
+// @feature REL002
+// @feature REL004
+// @scenario S-003
+// @scenario S-005
 
 import { join } from 'node:path';
 

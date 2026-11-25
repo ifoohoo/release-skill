@@ -18,6 +18,8 @@
  * @param {string} [options.expectedUnitId] - 必须存在的 unit id
  * @returns {{ passed: boolean, details: object }}
  */
+// @decision D-RS-003
+
 export function validateVersionConsistency(plan, expectedVersion, options = {}) {
   const failures = [];
 

@@ -135,7 +135,7 @@
 - **权威分布**：marketplace 索引（`marketplace.json`）集中于外部独立市场仓库（如 `ifoohoo/artifact-skill-set`），插件仓库的冻结快照**只含 plugin 清单**（claude=`.claude-plugin/plugin.json`、codex=`.codex-plugin/plugin.json`），**不含自市场 marketplace.json**。marketplaceAdd 目标即外部市场仓库（action `repo=marketplaceRepo`），`marketplace` 字段为外部市场名（不必等于 unit.id）。
 - **ref 冻结的不对称**（CLI 实测结论）：prepare 仅在 `--online` 生产路径经 `git ls-remote --symref` 解析外部市场仓库当前 HEAD，并经 GitHub contents API 校验该 sha 处的索引条目（`name` 匹配、`plugins[]` 中目标插件恰一条、claude 形态 `entry.version` 等于目标版本）后冻结。**codex 能钉裸 commit sha**（`--ref <sha>`，强冻）→ action `ref` 取 HEAD sha；**claude 只能钉分支/tag 名**（`@<sha>` 失败、`@<name>` 成功，且本地不存解析 sha，弱冻）→ action `ref` 取默认分支名。二者**始终**把解析出的 HEAD sha 冻结为 `marketplaceCommitSha`（审计/期望字段；claude 弱冻下它是 prepare 时刻的快照状态）。非在线而声明 `marketplaceRepo` → 失败关闭。外部仓库全程**只读**（`git ls-remote`/`gh api` 读，绝不写）。
 - **载荷权威不变**：安装侧载荷权威仍是**本单元冻结快照整树**（`snapshotPath`/`manifestDigest` 指本单元快照），marketplace 索引只在远端、不进快照权威。校验契约见 §2.4 `external-marketplace-v1`。
-- **时序约束（先市场后插件）**：外部市场索引必须先于插件发布定版——即先在外部市场仓库（artifact-skill-set-workspace 的 `plugins.mjs`）定版并 publish 市场，使索引 `entry.version` 等于目标发布版本（claude 形态强校验该条），prepare 才能冻结到**含该条目**的市场 sha。若市场索引尚未定版到目标版本，prepare 在线索引校验即失败关闭。
+- **时序约束（先市场后插件）**：外部市场索引必须先于插件发布定版——即先在外部市场源工作区（`<marketplace-workspace>` 的 `plugins.mjs`）定版并 publish 市场，使索引 `entry.version` 等于目标发布版本（claude 形态强校验该条），prepare 才能冻结到**含该条目**的市场 sha。若市场索引尚未定版到目标版本，prepare 在线索引校验即失败关闭。
 - **范围与边界**：kimi/codebuddy 无 marketplace add 能力，distribution 出现 `marketplaceRepo` 在 plan 完整性与 prepare 均失败关闭；本形态不写外部仓库（市场索引更新属另立项的 Phase B）。
 
 ### 2.4 安装载荷校验契约（declared-manifest-v1 / external-marketplace-v1）

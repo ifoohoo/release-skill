@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://release-skill.dev/schemas/test-intake/v1",
   "title": "Release test intake documents",
-  "description": "Requirements, results, candidate, and testAcceptance documents for an explicit testIntake release. Unknown fields are rejected.",
+  "description": "显式测试核收（testIntake）的四类文档契约：需求清单（requirementsDocument）、执行收据（resultDocument）、冻结候选（candidate）与绑定态测试验收记录（testAcceptance）；任何未知字段均按闭世界原则拒绝。",
   "$ref": "#/definitions/candidate",
   "definitions": {
     "fileRef": {
@@ -58,6 +58,10 @@
           "enum": ["pre-freeze", "consumer-verify", "postverify", "finish"]
         },
         "acceptor": { "type": "string", "minLength": 1 },
+        "optional": {
+          "type": "boolean",
+          "description": "是否为可选测试项：缺省或 false 表示必测硬门禁（不得跳过）；设为 true 时允许凭 explicitly_skipped 收据显式跳过，既不误判为漏测，也不计入已执行通过。"
+        },
         "handoff": { "$ref": "#/definitions/handoff" }
       },
       "allOf": [
@@ -116,11 +120,13 @@
         "requirementId": { "type": "string", "minLength": 1 },
         "disposition": {
           "type": "string",
-          "enum": ["executed", "reused", "not-applicable", "failed", "incomplete", "uncovered"]
+          "enum": ["executed", "reused", "not-applicable", "explicitly_skipped", "failed", "incomplete", "uncovered"],
+          "description": "测试处置结论：executed/reused/not-applicable 表示已完成闭环；explicitly_skipped 仅允许用于 optional: true 的可选测试项（须携带非空 limitations 说明残余风险，verdict 不得冒充 passed）；failed/incomplete/uncovered 表示存在未闭合缺口。"
         },
         "verdict": {
           "type": "string",
-          "enum": ["passed", "failed", "not-evaluated"]
+          "enum": ["passed", "failed", "not-evaluated", "skipped"],
+          "description": "测试裁决结果：passed 仅允许真实执行、有效复用或不适用确认；explicitly_skipped 须使用 skipped 或 not-evaluated。"
         },
         "acceptedBy": { "type": "string", "minLength": 1 },
         "decision": { "$ref": "#/definitions/fileRef" },
@@ -168,12 +174,20 @@
         "acceptedRequirementIds": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 }
+          "items": { "type": "string", "minLength": 1 },
+          "description": "已通过执行、有效复用或不适用确认完成核收的冻结前测试需求 ID 列表（升序）。"
+        },
+        "skippedOptionalRequirementIds": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "凭 explicitly_skipped 收据显式跳过的可选测试需求 ID 列表（升序，单独记账，绝不混入 acceptedRequirementIds）。"
         },
         "deferredRequirementIds": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 }
+          "items": { "type": "string", "minLength": 1 },
+          "description": "移交发布后阶段（consumer-verify / postverify / finish）继续核验的需求 ID 列表（升序）。"
         }
       }
     },

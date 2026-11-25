@@ -13,6 +13,8 @@
  *
  * @module artifacts/merge/json
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import { mergeText } from './text.mjs';
 

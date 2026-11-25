@@ -22,6 +22,7 @@
  *
  * @module core/postpublish
  */
+// @decision D-RS-002
 
 import { ReleaseError, GATE_FAILED, POSTPUBLISH_HOOK_INVALID } from './errors.mjs';
 import {
@@ -29,7 +30,11 @@ import {
   validatePresetHook,
   resolvePresetRequiresApproval,
 } from './presets.mjs';
-import { checkGitRemoteUrl, describeGitRemoteUrlFailure } from './git-url-policy.mjs';
+import {
+  checkGitRemoteUrl,
+  DEFAULT_PUBLIC_GIT_HOSTS,
+  describeGitRemoteUrlFailure,
+} from './git-url-policy.mjs';
 import { classifyPathInput } from 'skill-family-harness-node';
 
 /** Secret-ish environment variable denylist (R3 credential hygiene). */
@@ -112,7 +117,7 @@ function validateHookCommand(where, hook) {
   }
 }
 
-function validateTarget(target, index) {
+function validateTarget(target, index, sourcePolicy) {
   const where = `targets[${index}]`;
   if (!target || typeof target !== 'object' || Array.isArray(target)) {
     fail(`${where} must be a non-null object`);
@@ -123,15 +128,23 @@ function validateTarget(target, index) {
   if (target.kind !== 'payload-mirror' && target.kind !== 'marketplace-index') {
     fail(`${where}.kind must be "payload-mirror" or "marketplace-index"`, { kind: target.kind });
   }
-  const remoteUrlVerdict = checkGitRemoteUrl(target.remoteUrl);
+  if (target.visibility !== 'internal' && target.visibility !== 'public') {
+    fail(`${where}.visibility must be "internal" or "public"`, { visibility: target.visibility });
+  }
+  const urlPolicyOptions = sourcePolicy
+    ? {
+      mode: sourcePolicy.mode,
+      allowedGitHosts: target.visibility === 'public'
+        ? DEFAULT_PUBLIC_GIT_HOSTS
+        : sourcePolicy.allowedGitHosts,
+    }
+    : undefined;
+  const remoteUrlVerdict = checkGitRemoteUrl(target.remoteUrl, urlPolicyOptions);
   if (!remoteUrlVerdict.ok) {
     fail(
       `${where}.remoteUrl ${describeGitRemoteUrlFailure(remoteUrlVerdict.reason)}`,
       { reason: remoteUrlVerdict.reason },
     );
-  }
-  if (target.visibility !== 'internal' && target.visibility !== 'public') {
-    fail(`${where}.visibility must be "internal" or "public"`, { visibility: target.visibility });
   }
   if (typeof target.branch !== 'string' || !BRANCH_RE.test(target.branch)) {
     fail(`${where}.branch is not a safe Git branch name`, { branch: target.branch });
@@ -403,7 +416,7 @@ export function validatePostPublishDeclaration(postPublish, options = {}) {
   }
   const ids = new Set();
   targets.forEach((target, index) => {
-    validateTarget(target, index);
+    validateTarget(target, index, options.sourcePolicy);
     if (ids.has(target.id)) {
       fail(`${unitLabel}duplicate target id "${target.id}"`);
     }

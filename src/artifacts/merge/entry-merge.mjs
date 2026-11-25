@@ -12,6 +12,8 @@
  *
  * @module artifacts/merge/entry-merge
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import { sha256Hex } from '../../core/digest.mjs';
 import { mergeText } from './text.mjs';

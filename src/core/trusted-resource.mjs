@@ -11,6 +11,7 @@
  *   词法分类委托同步纯函数 `classifyPathInput`，其余本地同步实现保留
  *   （残留，见 1.6 run-report 剩余风险）。
  */
+// @decision D-RS-005
 
 import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { lstat } from 'node:fs/promises';

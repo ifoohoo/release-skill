@@ -80,7 +80,8 @@
             "spdx": {
               "enum": [
                 "Apache-2.0",
-                "MIT"
+                "MIT",
+                "CC-BY-NC-SA-4.0"
               ]
             },
             "noticeRequired": {
@@ -94,11 +95,32 @@
               ]
             },
             "copyrightYear": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "minimum": 2000,
               "maximum": 9999
             }
-          }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "spdx": {
+                    "const": "CC-BY-NC-SA-4.0"
+                  }
+                }
+              },
+              "else": {
+                "properties": {
+                  "copyrightYear": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          ]
         },
         "identity": {
           "type": "object",

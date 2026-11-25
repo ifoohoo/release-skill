@@ -20,6 +20,7 @@
  *
  * @module snapshot/public-map
  */
+// @decision D-RS-003
 
 import { lstat, readFile, mkdir, readdir, realpath, chmod as fsChmod } from 'node:fs/promises';
 import { open as fsOpen } from 'node:fs/promises';

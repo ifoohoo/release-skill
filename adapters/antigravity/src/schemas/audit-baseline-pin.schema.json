@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/audit-baseline-pin.json",
+  "title": "AuditBaselinePin",
+  "description": "Audit baseline pin contract (GAP-5 / SG-28, FVD-005 lineage). The frozen document an independent audit uses to pin one approved Contracts version: the audit-surface digest, per-document digests (registry, error codes, rules, kernel protocol), per-schema digests, and the frozen engine facts. Pins are append-only, one file per contracts version, generated mechanically from describeAuditSurface(); a live surface that no longer matches its pin is AUD-BASE-001, a failed pin/lock comparison is AUD-LOCK-001 (codes owned by the audit namespace). The supersedes field records the predecessor pin file name so the pin lineage stays mechanically traceable.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "provenance",
+    "frozenAt",
+    "contractsVersion",
+    "auditSurfaceVersion",
+    "digestAlgorithm",
+    "note",
+    "surfaceDigest",
+    "documentDigests",
+    "schemaDigests",
+    "facts"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.audit-baseline-pin" },
+    "provenance": {
+      "enum": ["product-compatibility-fixture", "independent-audit"],
+      "description": "Authorship class of the pin. product-compatibility-fixture: generated mechanically on the product side from describeAuditSurface(); independent-audit: authored by an independent audit consumer."
+    },
+    "frozenAt": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "Calendar date (YYYY-MM-DD) on which the pin was frozen."
+    },
+    "contractsVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Contracts version this pin freezes."
+    },
+    "auditSurfaceVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Audit consumption surface version the pin was derived from."
+    },
+    "digestAlgorithm": {
+      "const": "sha256",
+      "description": "Digest algorithm; sha256 is the only admitted value."
+    },
+    "note": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable provenance note."
+    },
+    "supersedes": {
+      "type": "string",
+      "pattern": "^contracts-[0-9]+\\.[0-9]+\\.[0-9]+\\.pin\\.json$",
+      "description": "File name of the predecessor baseline pin this pin supersedes (FVD-005 lineage); omitted only for the first pin of a lineage."
+    },
+    "surfaceDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "sha256 hex of the canonical JSON of the full audit surface (digestAuditSurface)."
+    },
+    "documentDigests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["registry", "errorCodes", "rules", "kernelProtocol"],
+      "properties": {
+        "registry": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "errorCodes": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "rules": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "kernelProtocol": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "schemaDigests": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+      "description": "Map of schema $id to the sha256 hex digest of the canonical JSON of that schema document."
+    },
+    "facts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contractObjects",
+        "checkTypes",
+        "mandatoryRuleIds",
+        "ruleBudget",
+        "errorCodes",
+        "kernelOperations",
+        "kernelTerminalStates",
+        "validationPolicies",
+        "supportedDialects",
+        "errorCodeStabilityPolicy",
+        "schemaIdNamespace"
+      ],
+      "properties": {
+        "contractObjects": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "checkTypes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "mandatoryRuleIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "ruleBudget": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["firstVersionMax", "absoluteMax"],
+          "properties": {
+            "firstVersionMax": { "type": "integer", "minimum": 1 },
+            "absoluteMax": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "errorCodes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^SFC[0-9]{4}$" }
+        },
+        "kernelOperations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "kernelTerminalStates": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "validationPolicies": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "anyOf": [{ "type": "boolean" }, { "type": "string" }]
+            }
+          }
+        },
+        "supportedDialects": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "errorCodeStabilityPolicy": { "type": "string", "minLength": 1 },
+        "schemaIdNamespace": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

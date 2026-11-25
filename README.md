@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.10.1 -->
+<!-- release-skill:release-version: 0.10.2 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -18,25 +18,29 @@ report stays in a temporary session directory.
 A release unit is a release object with independently configured version, public files, and distribution targets. A release plan is a record for review before approval, linking target versions, frozen artifacts, and proposed external actions; see the [human review and approval steps](#release-plan-review).
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.10.1** (2026-11-03)
+**0.10.2** (2026-11-25)
 
-0.10.1 fixes source-input dirty checks that cannot start when a large set of public source paths exceeds the operating system argument capacity. Preparation now checks the complete set through bounded Git invocations. Foundation dependencies remain pinned to 0.25.0. This description is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.10.2 adds Antigravity seventh-host adapter projection, controlled-private source allowlist policy, offline archive bundle verification, Foundation dependency freshness preflight checks, and workspace-protocol tarball blocking before publication. Foundation dependencies are pinned to 0.39.0. This description is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- The inherited Skill Family Hub remains the unified marketplace. GitHub Git Data API with compare-and-swap binds updates to the observed branch head. Partial publication is never rolled back or force-pushed. These existing boundaries do not change release authorization or gates.
+- The inherited Skill Family Hub remains the unified marketplace. GitHub Git Data API with compare-and-swap binds updates to the observed branch head. Partial publication is never rolled back or force-pushed. Controlled-private URLs carrying embedded credentials remain rejected.
+
+**Added**
+
+- Added Antigravity host descriptor, root plugin.json whitelist schema check, seven-host adapter projection, controlled-private source allowlists, offline archive bundle creation and verification commands, and prepare-time Foundation dependency freshness and deprecation advisories.
 
 **Fixed**
 
-- Source-input dirty checks retain the complete selection, frozen content, digest algorithm and protocol. Staged, unstaged, untracked and ignored changes remain rejected for selected inputs; rename and copy endpoints retain full directory-boundary matching. Unrelated dirty files remain allowed. A Git error in any batch still fails the entire check. Foundation dependencies remain pinned to 0.25.0.
+- Hardened default public source policy validation, pre-publish tarball workspace-protocol rejection, distributed state-machine consistency checks, and public-surface path sanitization while keeping Foundation dependencies pinned to 0.39.0.
 
 **Upgrade Notes**
 
-Run prepare with 0.10.1 to create a new candidate and provide a new test result file. Preserve previous candidates, results, approvals and run records; do not edit their writerVersion. The release-skill standalone marketplace is deprecated; use ifoohoo/skill-family-hub with plugin id release-skill@skill-family-hub instead. The unified marketplace does not replace GitHub Release or npm distribution.
+Run prepare with 0.10.2 to create a new candidate and provide a new test result file. Preserve previous candidates, results, approvals and run records; do not edit their writerVersion. The release-skill standalone marketplace is deprecated; use ifoohoo/skill-family-hub with plugin id release-skill@skill-family-hub instead. The unified marketplace does not replace GitHub Release or npm distribution.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.10.1: this README records capabilities and verification boundaries;
+> **Current boundary:** v0.10.2: this README records capabilities and verification boundaries;
 > it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -60,7 +64,7 @@ Run prepare with 0.10.1 to create a new candidate and provide a new test result 
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; for v0.10.1,
+> **Production path verified since the v0.1.1 milestone; for v0.10.2,
 > publication, consumer-installation verification, and independent acceptance
 > require version-specific release records and verification results.**
 > The npm-installed CLI is the supported user entry. Source checkout
@@ -103,7 +107,7 @@ the selected host has loaded the released plugin. This scope still excludes
 R-02 safe full-tree inventory. Marketplace installation and live invocation
 remain host-level post-release checks; Cursor is distributed through its
 supported local-plugin directory rather than a Hub marketplace entry.
-Foundation dependencies are pinned to the three released 0.25.0 packages.
+Foundation dependencies are pinned to the three released 0.39.0 packages.
 For Kimi/CodeBuddy plans that still use the bundled-family distribution form,
 verify calls the released
 `runPluginVerification` entry with the complete frozen payload and records a
@@ -274,7 +278,13 @@ Cursor is closed. It requires an explicit `--cursor-plugins-root` and preserves
 the displaced version outside `local/`. Restart and real Skill invocation remain
 separate checks. See [the Cursor instructions](INSTALL.md#install-as-a-cursor-local-plugin).
 
-See [INSTALL.md](INSTALL.md) for CodeBuddy, Codex, Kimi Code, Qoder, and Cursor commands.
+**Antigravity:** the package ships a root `plugin.json` and the self-contained
+`adapters/antigravity/` projection (`plugin.json`, `skills/`, `bin/`, `schemas/`,
+and `native/`). Antigravity reads `plugin.json` at the plugin root using only the
+official 10-field whitelist (no `license` or `skills`) and discovers Skills from
+`skills/<name>/SKILL.md`. See [the Antigravity instructions](INSTALL.md#install-as-an-antigravity-plugin).
+
+See [INSTALL.md](INSTALL.md) for CodeBuddy, Codex, Kimi Code, Qoder, Cursor, and Antigravity commands.
 
 ### Read-only governance diagnosis
 
@@ -786,11 +796,8 @@ hooks:
     envAllowlist: []
 ```
 
-Hooks run when `prepare` is invoked. Configuring the command and invoking the
-workflow authorizes execution without an extra confirmation point. The legacy
-`--acknowledge-hook-side-effects` and `--acknowledge-gate-side-effects` flags
-remain accepted as no-effect compatibility inputs. Gates are the controlled
-extension point for release calibration (see `references/02-project-config.md`).
+Hooks run when `prepare` is invoked. For standard read-only/built-in hooks,
+configuring the command and invoking the workflow authorizes execution without an extra confirmation point (the legacy `--acknowledge-gate-side-effects` flag remains accepted as a no-effect compatibility input). Custom hooks that explicitly declare `mutating: true` or non-read-only `sideEffects` (`local-write` / `network-or-external`) disclose their command and impact scope up front and require `--acknowledge-hook-side-effects` explicit confirmation. Gates are the controlled extension point for release calibration (see `references/02-project-config.md`).
 
 ### postPublish hooks
 
@@ -874,6 +881,8 @@ closures. A release unit declares what reaches users via `distributions`:
 | `codex-plugin` | self-contained closure under `adapters/codex/` | automated marketplace checkpoint |
 | `kimi-plugin` | self-contained closure (release-skill invokes no scriptable install API) | non-blocking post-release manual task |
 | `codebuddy-plugin` | generated `adapters/workbuddy/` with `.codebuddy-plugin/plugin.json` | non-blocking post-release manual task |
+| `cursor-plugin` | generated `adapters/cursor/` with `.cursor-plugin/plugin.json` | Foundation host-verification bridge (`cursor`) |
+| `antigravity-plugin` | generated `adapters/antigravity/` with root `plugin.json` (10-field whitelist only) | Foundation host-verification bridge (`antigravity`) |
 
 Qoder is intentionally outside this `distributions` table: it is a build-only
 public projection at `adapters/qoder/`, with root manifest
@@ -970,18 +979,28 @@ declaration is narrowed to concrete targets.
 - no promise of Windows or broad multi-platform native write support;
 - no hidden commit, push, tag, release, or package publication.
 
+## Unpublished plan replacement and lifecycle governance
+
+- **Replacing an unpublished plan (`--replace-unpublished-plan`)**: Supported exclusively on production `testIntake` flows when a prior official plan for the exact same project, unit ID set, target version, and external targets is still in `PREPARED` with zero release-run records. Configure a distinct fixed `resultFile`, run `prepare --production --replace-unpublished-plan <old-plan-path>` to freeze `replacesPlanDigest` on the new candidate, and continue with `--candidate <path>`. Once the new plan is atomically written, the replaced plan and its old approvals are permanently retired; `PARTIAL`, `PUBLISHED`, and `VERIFIED` runs always stay on the normal recovery lineage.
+- **Version deprecation and family retirement (`deprecate` / `retire`)**: When a published version exhibits critical defects or an entire unit is retired, run the offline zero-remote-write governance commands to deterministically emit `advisory-receipt.json`, consumer rollback/migration Markdown (`migration-guide.md`), and a downstream `skill-family-hub` proposal (`hub-proposal.json`):
+
+```bash
+# Single-version risk exit and consumer rollback advisory (offline, supports --dry-run)
+release-skill deprecate --root <path> --unit <id> --target-version <semver> \
+  --severity high --reason "<defect summary>" --fallback-version <safe-semver> --actor <name> --offline
+
+# Whole-unit retirement and marketplace delisting proposal
+release-skill retire --root <path> --unit <id> --severity medium \
+  --reason "<retirement reason>" --superseded-by <replacement-plugin> --actor <name> --offline
+```
+
+- **Controlled private source policy & offline distribution bundles (`policy.sourcePolicy` / `bundle-offline` / `verify-offline`)**: Public mode strictly locks `github.com` and `https://registry.npmjs.org` with zero relaxation. Enterprise internal GitLab / Gitea / private npm registries opt in via `policy.sourcePolicy` (`mode: "controlled-private"`, `allowedGitHosts`, `allowedNpmRegistries`), unconditionally blocking URL-embedded credentials (`https://user:token@...`) and preventing `visibility: "private"` units from entering public targets. For air-gapped or strict-proxy environments, export and verify a self-contained offline bundle outside the repository root:
+
+```bash
+release-skill bundle-offline --root <path> --unit <id> --output-dir <external-empty-dir> --offline
+release-skill verify-offline --bundle-dir <external-empty-dir> --unit <id> --target-version <semver>
+```
+
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
-
-## Replacing an unpublished plan (0.9.38)
-
-This feature applies to the same project, identical release unit ID set, target version, and external target, where the prior official plan is in `PREPARED` state and has not yet generated any release-run authority. It is enabled only at the production `testIntake` entry point, for explicit replacement of an unpublished official plan. Plans that already have a first run state, or are in `PARTIAL`, `PUBLISHED`, or `VERIFIED` states, are excluded from this exception. Replacement does not imply successful release or independent acceptance.
-
-Configure another, distinct fixed `resultFile` before preparing the replacement. The original requirements, criteria, results, candidates, and reference originals must remain in their original paths with their original digests for verification. New results must not overwrite old results, nor may they create circular dependencies via `subjectDigest` naming based on unformed data. If the original reference is missing or has changed, replacement is rejected; old evidence is not reconstructed from new files. Version 0.9.38 must regenerate the candidate for this version and does not waive the `writerVersion` check from 0.9.37. The original acceptor must re-evaluate applicability; byte-for-byte equivalence does not automatically pass.
-
-The replacement operation must be explicitly specified during the first `prepare` phase using `--replace-unpublished-plan <path>`, where `<path>` must point to the immutable prior official plan in the current project’s `.release-skill/plans/<digest>.json`. This parameter accepts only plans that exactly match the current project, unit, version, and external target; it is prohibited for switching repositories, branches, npm packages, or release channels. The first saved candidate will carry an optional field `replacesPlanDigest` at the `prepared` root, with the value being the digest of the prior official plan, and will follow the original `computePlanDigest` mechanism into the object, plan, and approval binding layer. If this field is not set, the original digest and behavior logic are preserved, and no new versioning protocol is initiated for the candidate or plan version. Subsequent use of `--candidate <path>` continues from the frozen predecessor; post-facto updates are not allowed. If the selection parameter is repeated, it must match the frozen predecessor; otherwise, it is rejected.
-
-The sole condition for replacement to take effect is: successful exclusive atomic write of the valid new official plan into the original `plans/<digest>.json`. If the write fails before completion, the replacement does not take effect. After a successful write, even if the latest plan pointer, `FROZEN` flag, or evidence sealing fails, the prior plan’s publishable state cannot be restored. Failure records must be retained, and verification must continue along the original idempotent path. New approvals bind only to the new plan; old approvals cannot be reused across plans. The `approve`, `publish`, and their `ship` invocations must not process the replaced plan further. The `reconcile` operation must still maintain access to the original `PARTIAL` source and full run lineage; a lack of authority must not be treated as a recovery input.
-
-The replacement operation does not relax the exact equality requirement between source submission and remote `main`, `TEST` state, remote conflicts, or approval gate restrictions. The Foundation 0.25.0 mechanism continues to be enforced precisely. Target assignment is determined by Release Skill domain responsibility and must not be inferred from directory names, timestamps, or error text. No product capability was removed or renamed in this round; replacement applies only to qualifying run plans. An unpublished candidate or local test does not constitute a successful release or independent acceptance. All operations are based on the 0.9.38-supported entry point and cannot revoke any legacy software or bypass existing protocols.

@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.filesystem-bound-read-prebuild-manifest",
+  "status": "stable",
+  "entries": [
+    {
+      "platformKey": "darwin-arm64",
+      "os": "darwin",
+      "arch": "arm64",
+      "libc": "none",
+      "binary": "prebuilds/darwin-arm64/bound_read.darwin-arm64.node",
+      "mode": 420,
+      "sha256": "afcda237922692e147a800d7d291496d7055e5054bf09ba2e3d2f1ac5d1e445d",
+      "napi": 10,
+      "exports": [
+        "closeParentDirectory",
+        "exchangeDirectories",
+        "observeFilesystemTreeNative",
+        "openParentDirectory",
+        "platform",
+        "readFileBoundNative",
+        "renameDirectoryNoReplace"
+      ]
+    },
+    {
+      "platformKey": "darwin-x64",
+      "os": "darwin",
+      "arch": "x64",
+      "libc": "none",
+      "binary": "prebuilds/darwin-x64/bound_read.darwin-x64.node",
+      "mode": 420,
+      "sha256": "d3316e4d9dfb8f99ec64b0e495760bb12e4ce95f8522d9779971a82d5ee0c7fb",
+      "napi": 10,
+      "exports": [
+        "closeParentDirectory",
+        "exchangeDirectories",
+        "observeFilesystemTreeNative",
+        "openParentDirectory",
+        "platform",
+        "readFileBoundNative",
+        "renameDirectoryNoReplace"
+      ]
+    },
+    {
+      "platformKey": "linux-arm64-gnu",
+      "os": "linux",
+      "arch": "arm64",
+      "libc": "glibc",
+      "binary": "prebuilds/linux-arm64-gnu/bound_read.linux-arm64-gnu.node",
+      "mode": 420,
+      "sha256": "748f6154d01b8873100f288dafba1b6bc542596951ab7978231e67daa9122e5b",
+      "napi": 10,
+      "exports": [
+        "closeParentDirectory",
+        "exchangeDirectories",
+        "observeFilesystemTreeNative",
+        "openParentDirectory",
+        "platform",
+        "readFileBoundNative",
+        "renameDirectoryNoReplace"
+      ]
+    },
+    {
+      "platformKey": "linux-x64-gnu",
+      "os": "linux",
+      "arch": "x64",
+      "libc": "glibc",
+      "binary": "prebuilds/linux-x64-gnu/bound_read.linux-x64-gnu.node",
+      "mode": 420,
+      "sha256": "ec40dc02bb666ccae585c78f59211951dcc2001bf71c828a59b0d5b821ebfae0",
+      "napi": 10,
+      "exports": [
+        "closeParentDirectory",
+        "exchangeDirectories",
+        "observeFilesystemTreeNative",
+        "openParentDirectory",
+        "platform",
+        "readFileBoundNative",
+        "renameDirectoryNoReplace"
+      ]
+    },
+    {
+      "platformKey": "win32-x64",
+      "os": "win32",
+      "arch": "x64",
+      "libc": "none",
+      "binary": "prebuilds/win32-x64/bound_read.win32-x64.node",
+      "mode": 420,
+      "sha256": "aa2b04236652eddd852441920d2c8cf723b9067c36db1b740aa126cee89175b9",
+      "napi": 10,
+      "exports": [
+        "applySecurityMaterial",
+        "assignProcessToJob",
+        "captureSecurity",
+        "closeJob",
+        "closeParentDirectory",
+        "createKillOnCloseJob",
+        "createProtectedDirectory",
+        "flushDirectory",
+        "flushFileHandle",
+        "jobActiveProcessCount",
+        "mutatePreparedDirectory",
+        "observeFilesystemTreeNative",
+        "openParentDirectory",
+        "platform",
+        "processExitStatus",
+        "publishProtectedFile",
+        "readCapturedFile",
+        "readFileBoundNative",
+        "readPipe",
+        "renameDirectoryNoReplace",
+        "replaceExistingFile",
+        "resumePrimaryThread",
+        "spawnSuspended",
+        "terminateJob",
+        "terminateProcess",
+        "windowsRestoreCapable",
+        "writeFileHandle"
+      ]
+    }
+  ]
+}

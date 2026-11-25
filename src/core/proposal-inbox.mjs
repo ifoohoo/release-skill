@@ -33,6 +33,7 @@
  *
  * @module core/proposal-inbox
  */
+// @decision D-RS-002
 
 import { execFile as execFileCb } from 'node:child_process';
 import { promisify } from 'node:util';

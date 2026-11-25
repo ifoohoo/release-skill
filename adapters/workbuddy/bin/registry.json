@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "skill-family.contracts.registry",
-  "contractsVersion": "1.20.0",
+  "contractsVersion": "1.21.0",
   "note": "Protocol-name and schema-$id registry. Registration mechanically rejects duplicate protocol name/version (SFC1004) and duplicate $id (SFC1003). This file is the single registration surface; adding an entry is a contracts change.",
   "protocols": [
     {
@@ -383,6 +383,27 @@
       "dialect": "2020-12",
       "status": "candidate",
       "file": "src/schemas/state-store-recovery-observation.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/fixed-set-generation-pointer.json",
+      "object": "fixed-set-generation-pointer",
+      "dialect": "2020-12",
+      "status": "candidate",
+      "file": "src/schemas/fixed-set-generation-pointer.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/fixed-set-generation-result.json",
+      "object": "fixed-set-generation-result",
+      "dialect": "2020-12",
+      "status": "candidate",
+      "file": "src/schemas/fixed-set-generation-result.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/fixed-set-generation-resolution.json",
+      "object": "fixed-set-generation-resolution",
+      "dialect": "2020-12",
+      "status": "candidate",
+      "file": "src/schemas/fixed-set-generation-resolution.schema.json"
     }
   ],
   "dialects": {

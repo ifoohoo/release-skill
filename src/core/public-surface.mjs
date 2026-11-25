@@ -7,6 +7,7 @@
  *
  * @module core/public-surface
  */
+// @decision D-RS-003
 
 import { lstat, readdir, realpath } from 'node:fs/promises';
 import {

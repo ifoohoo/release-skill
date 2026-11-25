@@ -37,6 +37,7 @@
  *
  * @module core/postpublish-bundle
  */
+// @decision D-RS-002
 
 import { mkdir } from 'node:fs/promises';
 import { basename, join, resolve, sep } from 'node:path';

@@ -1,5 +1,9 @@
 #!/usr/bin/env node
 
+// @decision D-RS-004
+// @feature REL001
+// @feature REL006
+
 import { readFile } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join, normalize, resolve } from 'node:path';
 import { execFile as execFileCb } from 'node:child_process';
@@ -37,7 +41,12 @@ registerPathRedactor(redactSensitivePaths);
 
 const execFile = promisify(execFileCb);
 
-const COMMANDS = new Set(['help', 'setup', 'assess', 'prepare', 'approve', 'publish', 'reconcile', 'verify', 'verify-records', 'read-proof', 'postverify', 'ship', 'post-release', 'attest', 'hooks', 'artifacts', 'docs', 'distribute', 'route', 'lineage']);
+const COMMANDS = new Set([
+  'help', 'setup', 'assess', 'prepare', 'approve', 'publish', 'reconcile',
+  'verify', 'verify-records', 'read-proof', 'postverify', 'ship', 'post-release',
+  'attest', 'hooks', 'artifacts', 'docs', 'distribute', 'route', 'lineage',
+  'deprecate', 'retire', 'bundle-offline', 'verify-offline',
+]);
 
 function printHubManualTargets(targets = []) {
   for (const target of targets) {
@@ -45,6 +54,18 @@ function printHubManualTargets(targets = []) {
       console.log(`Manual host update: ${target.plugin} via Hub ${target.hub.name} (${target.host}). ${target.message}`);
     }
   }
+}
+
+function printDeprecatedDependencyBlockedError(err) {
+  console.error(`错误［${err.details.reason}］：生产发布预检发现高危弃用底座依赖，已阻断本次操作：`);
+  for (const dep of err.details?.deprecatedDependencies ?? []) {
+    console.error(
+      `  - ${dep.packageName}@${dep.lockedVersion}｜声明文件：${dep.manifestPath}｜风险原因：${dep.reason}｜推荐稳定版：${dep.latestStableVersion}`,
+    );
+  }
+  const remediation = err.details?.remediation
+    ?? '请先将上述底座依赖升级至推荐稳定版后再执行生产预检；如已充分评估并接受已知风险，可显式传入 --acknowledge-deprecated-deps 放行。';
+  console.error(`处理方式：${remediation}`);
 }
 
 /**
@@ -270,11 +291,26 @@ async function performEnvironmentChecks() {
     usage: '仅供发布后的人工安装使用；release-skill 不核验 CodeBuddy/WorkBuddy 安装',
   };
 
-  const qoderCheck = await checkDependency('qoder', ['--version']);
+  const qoderCliCheck = await checkDependency('qodercli', ['--version']);
+  const qoderAliasCheck = qoderCliCheck.available ? qoderCliCheck : await checkDependency('qoder', ['--version']);
   checks.qoder = {
-    ...qoderCheck,
+    ...qoderAliasCheck,
     required: false,
-    usage: '仅供发布后的可选 Qoder 本机更新使用；不影响生产发布就绪度',
+    usage: '声明 qoder-plugin distribution 时用于消费者安装验证（支持 qodercli/qoder），并用于发布后可选本机更新',
+  };
+
+  const cursorCheck = await checkDependency('cursor-agent', ['--version']);
+  checks.cursor = {
+    ...cursorCheck,
+    required: false,
+    usage: '声明 cursor-plugin distribution 时用于 Foundation 宿主实机验证（verify/ship 须传 --cursor-executable-root 与 --cursor-user-state-root）',
+  };
+
+  const antigravityCheck = await checkDependency('agy', ['--version']);
+  checks.antigravity = {
+    ...antigravityCheck,
+    required: false,
+    usage: '声明 antigravity-plugin distribution 时核验冻结契约与快照；上游 Foundation 实机驱动待开放（automatable: false）',
   };
 
   return checks;
@@ -300,7 +336,7 @@ function getCapabilityMaturity() {
     prepare: {
       available: true,
       mode: 'offline local writes',
-      description: 'Freeze a release plan with snapshots and gates; the command invocation authorizes hook and gate execution',
+      description: 'Freeze a release plan with snapshots and gates; standard read-only hooks run on invocation while declared mutating/external hooks require explicit confirmation',
     },
     docs: {
       available: true,
@@ -310,7 +346,7 @@ function getCapabilityMaturity() {
     publish: {
       available: true,
       mode: 'controlled production (protocol-tested; no OS/network sandbox)',
-      description: 'Publishes frozen GitHub/npm artifacts after one readable-plan approval, runs automated Claude/Codex checkpoints, and emits non-blocking Kimi/CodeBuddy manual follow-ups plus the optional Qoder post-release update',
+      description: 'Publishes frozen GitHub/npm artifacts after one readable-plan approval, runs automated Claude/Codex/Qoder checkpoints, and emits non-blocking Kimi/CodeBuddy manual follow-ups',
     },
     reconcile: {
       available: true,
@@ -320,7 +356,7 @@ function getCapabilityMaturity() {
     verify: {
       available: true,
       mode: 'fresh consumer verification (protocol-tested; no OS/network sandbox)',
-      description: 'Recheck remote state, exact npm installation, CLI help, and automated Claude/Codex installs before VERIFIED; Kimi/CodeBuddy remain unverified manual follow-ups and Qoder remains optional post-release local work',
+      description: 'Recheck remote state, exact npm installation, CLI help, automated Claude/Codex/Qoder installs, and Foundation Cursor verification before VERIFIED; Kimi/CodeBuddy remain manual follow-ups and Antigravity awaits upstream Foundation driver support',
     },
     verifyRecords: {
       available: true,
@@ -346,6 +382,26 @@ function getCapabilityMaturity() {
       available: true,
       mode: 'diagnostic and repair tool for git tag lineage',
       description: 'Lineage Repair Tool (§2.2 option A of handoff): analyze git tag lineage, identify missing/dangling tags, verify version ordering, and repair tag consistency',
+    },
+    deprecate: {
+      available: true,
+      mode: 'offline local receipts / dry-run preview',
+      description: 'Generate structured version risk-exit / rollback advisory receipt, consumer migration guide Markdown, and skill-family-hub deprecation proposal without remote writes',
+    },
+    retire: {
+      available: true,
+      mode: 'offline local receipts / dry-run preview',
+      description: 'Generate whole-unit retirement receipt, migration/archive guide Markdown, and skill-family-hub retirement proposal without remote writes',
+    },
+    bundleOffline: {
+      available: true,
+      mode: 'offline external archive export / dry-run preview',
+      description: 'Export a self-contained offline distribution bundle (snapshot archive, optional npm tarball, per-file SHA-256 offline-manifest.json, local marketplace index fragment, and Chinese OFFLINE-INSTALL.md) into an external directory without polluting the project root',
+    },
+    verifyOffline: {
+      available: true,
+      mode: 'offline explicit-bundle verification',
+      description: 'Verify an exported offline distribution bundle byte-for-byte for SHA-256 integrity, multi-manifest version consistency, zero external network dependencies, and zero credential or private-path leakage',
     },
   };
 }
@@ -379,6 +435,10 @@ Commands:
   distribute Distribute releases to post-publish targets (git mirror + marketplace) after PUBLISHED; plan.postPublish required; reconciles PARTIAL runs; verification gate before VERIFIED
   route      Deterministic quickstart routing: classify git diff changes and recommend workflow profile (docs-only/config-only/marketplace-only/full-happy-end)
   lineage    Lineage Repair Tool (§2.2 option A of handoff): analyze git tag lineage, identify missing/dangling tags, verify version ordering, repair consistency
+  deprecate  Generate offline version risk-exit / rollback receipt, migration Markdown, and Hub proposal
+  retire     Generate offline unit retirement receipt, archive/replacement Markdown, and Hub proposal
+  bundle-offline Export self-contained offline installable archive, SHA-256 manifest, local index, and OFFLINE-INSTALL.md
+  verify-offline Verify an offline bundle byte-for-byte (integrity, version parity, zero network/credential leaks)
 
 Options:
   --root <path>    Project root directory (default: cwd)
@@ -413,6 +473,7 @@ Options:
   --answers <path> Human-reviewed setup answers JSON
   --write          Create an absent project.yaml during setup; never overwrites
   --confirm-setup <digest> Confirm exact setup facts and answers before create
+  --candidate <path> Continue production TEST prepare from an existing test-candidate.json
   --replace-unpublished-plan <path> Explicitly replace an unpublished immutable plan during production TEST prepare
   --discover-downstream Read-only discovery of downstream candidates (git remotes, marketplace/docs
                    clues, artifact-graph.config.yaml, foundation profile). Never writes
@@ -435,6 +496,8 @@ Options:
   --state <path>    Override the durable ship state file
   --cursor-executable-root <absolute-directory> Directory containing cursor-agent (verify/ship)
   --cursor-user-state-root <absolute-directory> Explicit existing Cursor user state (verify/ship)
+  --antigravity-executable-root <absolute-directory> Directory containing agy (verify/ship)
+  --antigravity-user-state-root <absolute-directory> Explicit existing Antigravity user state (verify/ship)
   --update-local-hosts Update installed plugins for selected local hosts after VERIFIED
   --hosts <ids>     Comma-separated local hosts for post-release update: claude,codex,kimi,codebuddy,workbuddy,qoder,cursor. No local host is updated unless --hosts contains at least one id
   --cursor-plugins-root <absolute-directory> Required for Cursor Local installation/update; quit Cursor before running
@@ -443,6 +506,9 @@ Options:
   --finish-feedback <absolute-json-file> Read bound agent-reported host loading and setup results
   --skip-local-hosts Explicitly skip host update, loading, and setup for this finish run
   --no-hook-cache  Force every prepare hook to run in full; neither read nor write the hook cache
+  --acknowledge-hook-side-effects Explicitly authorize declared mutating or external-side-effect hooks
+  --acknowledge-deprecated-deps Explicit confirmation to proceed despite deprecated core base dependencies
+  --marketplace-snapshot <path> Optional marketplace ledger JSON snapshot for dependency freshness check
   --json           Output results as JSON
   --version        Show version and exit
   -h, --help       Show this help message and exit
@@ -452,8 +518,11 @@ Safety:
   Production happy end: ship --target-version <ver> -> ship --approve --actor <name>.
   The ship command runs configured hooks and gates automatically. Frozen plan approval is the only
   normal release-level approval; requiresApproval postPublish hooks keep independent checkpoint approvals.
-  Kimi/CodeBuddy installations are non-blocking manual follow-up tasks (not verified by system).
-  Qoder is an optional post-release local update; it never becomes a release distribution checkpoint.
+  Claude/Codex/Qoder marketplace checkpoints are automated when declared; Kimi/CodeBuddy installations
+  remain non-blocking manual follow-up tasks (not verified by system).
+  Cursor host verification runs via Foundation when cursor-plugin is declared;
+  Antigravity remains non-automatable until upstream Foundation host driver support opens.
+  Qoder also supports optional post-release local host updates after VERIFIED.
   prepare copies current public files into a local snapshot; it does not rewrite source files.
   - Default mode is offline (release-skill pipeline does no remote writes)
   - prepare output goes to .release-skill/ directory only
@@ -547,11 +616,13 @@ if (!command || command === 'help') {
           missingRequired: productionMissing,
           authentication: '运行生产发布前还需验证 gh auth、Git HTTPS credential 与 npm auth；help 不发起网络认证检查。',
           conditionalConsumers: {
-            claude: '声明 claude-plugin distribution 时必须可用',
-            codex: '声明 codex-plugin distribution 时必须可用',
-            kimi: '发布后人工安装待办；不影响生产发布就绪度，系统不核验',
-            codebuddy: '发布后人工安装待办；不影响生产发布就绪度，系统不核验',
-            qoder: '发布后可选本机更新；不影响生产发布就绪度，不是 release distribution checkpoint',
+            claude: '声明 claude-plugin distribution 时必须可用（自动化发布检查点）',
+            codex: '声明 codex-plugin distribution 时必须可用（自动化发布检查点）',
+            qoder: '声明 qoder-plugin distribution 时作为发布检查点执行消费者安装验证，也支持发布后可选本机更新',
+            kimi: '发布后人工安装待办（human-attestation）；不影响生产发布就绪度，系统不核验',
+            codebuddy: '发布后人工安装待办（human-attestation）；不影响生产发布就绪度，系统不核验',
+            cursor: '声明 cursor-plugin distribution 时由 Foundation 实机驱动验证（verify/ship 须传 --cursor-executable-root 与 --cursor-user-state-root）',
+            antigravity: '声明 antigravity-plugin distribution 时校验冻结契约与快照；上游 Foundation 实机驱动待开放（automatable: false）',
           },
         },
       },
@@ -563,9 +634,9 @@ if (!command || command === 'help') {
         prepare: 'offline local writes; the command invocation authorizes configured hook and gate execution',
         docs: 'read-only dry-run by default; write requires --write, exact --confirm-refresh, and --ack-local-document-write; never commits, pushes, or publishes',
         onlinePrepare: 'previous-public-baseline observation available; production mode freezes publish artifacts and fails closed on drift or unknown state',
-        publish: 'GitHub/npm plus automated Claude/Codex consumer checkpoints are protocol-tested without an OS/network sandbox; one approval is required and the internal plan digest is checked automatically',
+        publish: 'GitHub/npm plus automated Claude/Codex/Qoder consumer checkpoints are protocol-tested without an OS/network sandbox; one approval is required and the internal plan digest is checked automatically',
         reconcile: 'PARTIAL recovery is protocol-tested without an OS/network sandbox; remote conflicts require human intervention',
-        verify: 'fresh exact npm and Claude/Codex consumer installation checks are protocol-tested without an OS/network sandbox; Kimi/CodeBuddy are unverified manual follow-ups and Qoder is optional post-release local work; command invocation authorizes configured gates',
+        verify: 'fresh exact npm, Claude/Codex/Qoder consumer installation checks, and Foundation Cursor host verification are protocol-tested without an OS/network sandbox; Kimi/CodeBuddy are manual follow-ups and Antigravity awaits upstream Foundation driver support; command invocation authorizes configured gates',
       },
       recommendations: [],
     };
@@ -649,13 +720,19 @@ Options:
   --run-dir <path>                      Override the prepare run directory
   --test-selection <full|incremental>   Freeze-time test selection (only full is accepted)
   --no-hook-cache                       Run declared hooks without cache reuse
-  --acknowledge-hook-side-effects       Deprecated no-op compatibility input
+  --candidate <path>                    Continue production TEST prepare from an existing test-candidate.json
+  --replace-unpublished-plan <path>     Explicitly replace an unpublished immutable plan during production TEST prepare
+  --acknowledge-hook-side-effects       Explicitly authorize declared mutating or external-side-effect hooks
+  --acknowledge-deprecated-deps         Explicitly confirm known risk when deprecated core base dependencies are detected
+  --marketplace-snapshot <path>         Optional marketplace ledger JSON snapshot for dependency freshness check
   --acknowledge-gate-side-effects       Deprecated no-op compatibility input
   --json                                Output results as JSON
   -h, --help                            Show this help message and exit
 
-Invoking prepare authorizes configured hook and gate execution; the deprecated
-acknowledgement flags do not add a separate authorization step.`;
+Standard read-only/built-in hooks run directly on prepare invocation; hooks
+explicitly declaring write or external side effects (mutating: true or
+sideEffects: local-write | network-or-external) disclose their command and
+impact scope and require --acknowledge-hook-side-effects.`;
   if (hasJson) {
     console.log(JSON.stringify({
       command: 'prepare',
@@ -673,12 +750,16 @@ acknowledgement flags do not add a separate authorization step.`;
         '--run-dir': 'Override the prepare run directory',
         '--test-selection': 'Freeze-time test selection: only full is accepted',
         '--no-hook-cache': 'Run declared hooks without cache reuse',
-        '--acknowledge-hook-side-effects': 'Deprecated no-op compatibility input',
+        '--candidate': 'Continue production TEST prepare from an existing test-candidate.json',
+        '--replace-unpublished-plan': 'Explicitly replace an unpublished immutable plan during production TEST prepare',
+        '--acknowledge-hook-side-effects': 'Explicitly authorize declared mutating or external-side-effect hooks',
+        '--acknowledge-deprecated-deps': 'Explicitly confirm known risk when deprecated core base dependencies are detected',
+        '--marketplace-snapshot': 'Optional marketplace ledger JSON snapshot for dependency freshness check',
         '--acknowledge-gate-side-effects': 'Deprecated no-op compatibility input',
         '--json': 'Output results as JSON',
         '-h, --help': 'Show this help message and exit',
       },
-      message: 'Invoking prepare authorizes configured hook and gate execution; deprecated acknowledgement flags do not add a separate authorization step.',
+      message: 'Standard read-only hooks run on invocation; declared mutating or external-side-effect hooks disclose their scope and require --acknowledge-hook-side-effects.',
     }, null, 2));
   } else {
     console.log(helpText);
@@ -699,8 +780,13 @@ if (command === 'ship' && (args.includes('--help') || args.includes('-h'))) {
         state: '--state <path>',
         unit: '--unit <id> (repeatable before plan freeze)',
         approve: '--approve --actor <name>',
+        acknowledgeHookSideEffects: '--acknowledge-hook-side-effects',
+        acknowledgeDeprecatedDeps: '--acknowledge-deprecated-deps',
+        marketplaceSnapshot: '--marketplace-snapshot <path>',
         cursorExecutableRoot: '--cursor-executable-root <absolute-directory>',
         cursorUserStateRoot: '--cursor-user-state-root <absolute-directory>',
+        antigravityExecutableRoot: '--antigravity-executable-root <absolute-directory>',
+        antigravityUserStateRoot: '--antigravity-user-state-root <absolute-directory>',
       },
       message: 'Repeat the same command to resume from the same state. For parallel or cross-session versions, use .release-skill/ships/<version>.json.',
     }, null, 2));
@@ -715,8 +801,13 @@ Options:
   --state <path>              Specify the durable state file
   --unit <id>                 Select a release unit before plan freeze (repeatable)
   --approve --actor <name>    Approve the plan bound to the current state
+  --acknowledge-hook-side-effects Explicitly authorize declared mutating or external-side-effect hooks
+  --acknowledge-deprecated-deps Explicit confirmation to proceed despite deprecated core base dependencies
+  --marketplace-snapshot <path> Optional marketplace ledger JSON snapshot for dependency freshness check
   --cursor-executable-root <absolute-directory> Directory containing cursor-agent
   --cursor-user-state-root <absolute-directory> Existing Cursor user-state directory
+  --antigravity-executable-root <absolute-directory> Directory containing agy
+  --antigravity-user-state-root <absolute-directory> Existing Antigravity user-state directory
 
 Cursor verification requires both directories on each verification attempt.
 Runtime directories are private and are not saved in the plan or ship state.
@@ -1105,11 +1196,27 @@ if (command === 'assess') {
 
 // --- Reusable hook receipt routing ---
 if (command === 'hooks') {
+  if (args.includes('--help') || args.includes('-h')) {
+    const helpText = `release-skill hooks - Run declared development hooks and populate reusable receipts
+
+Usage:
+  release-skill hooks validate [--root <path>] [--acknowledge-hook-side-effects] [--no-hook-cache] [--json]`;
+    if (hasJson) {
+      console.log(JSON.stringify({
+        command: 'hooks',
+        status: 'HELP',
+        usage: 'release-skill hooks validate [--root <path>] [--acknowledge-hook-side-effects] [--no-hook-cache] [--json]',
+      }, null, 2));
+    } else {
+      console.log(helpText);
+    }
+    await exitAfterFlush(0);
+  }
   const subcommand = positional[1];
   const rootIdx = args.indexOf('--root');
   const root = resolve(rootIdx !== -1 && args[rootIdx + 1] ? args[rootIdx + 1] : process.cwd());
   if (subcommand !== 'validate') {
-    const message = 'hooks requires subcommand: hooks validate';
+    const message = '缺少子命令：请运行 release-skill hooks validate [--root <path>]';
     if (hasJson) console.log(JSON.stringify({ error: 'MISSING_PARAMETERS', message }));
     else console.error(`Error: ${message}`);
     await exitAfterFlush(1);
@@ -1118,13 +1225,15 @@ if (command === 'hooks') {
     const { validateDeclaredHooks } = await import('../src/commands/hooks.mjs');
     const result = await validateDeclaredHooks({
       root,
-      // --acknowledge-hook-side-effects is accepted as a no-effect compatibility input
       hooksAuthorized: args.includes('--acknowledge-hook-side-effects'),
       hookCache: !args.includes('--no-hook-cache'),
     });
     if (hasJson) console.log(JSON.stringify(result, null, 2));
     else {
       console.log(`Declared hooks: ${result.status}`);
+      for (const hook of result.disclosedHooks ?? []) {
+        console.log(`  Disclosed side-effect hook: ${hook.impactSummary}`);
+      }
       console.log(`Reusable receipt evidence: ${result.evidenceDir}`);
     }
     await exitAfterFlush(0);
@@ -1136,7 +1245,12 @@ if (command === 'hooks') {
         details: err.details ?? {},
         exitCode: err.exitCode ?? 1,
       }));
-    } else console.error(`Error: ${err.message}`);
+    } else {
+      console.error(`Error: ${err.message}`);
+      for (const step of err.details?.nextSteps ?? []) {
+        console.error(`Next [${step.code}] ${step.message}${step.argv ? ` (${step.argv.join(' ')})` : ''}`);
+      }
+    }
     await exitAfterFlush(err.exitCode ?? 1);
   }
 }
@@ -1226,6 +1340,9 @@ if (command === 'ship') {
       statePath: value('--state'),
       targetVersion: value('--target-version') ?? value('--version'),
       approve: args.includes('--approve'),
+      ...(args.includes('--acknowledge-hook-side-effects') ? { hooksAuthorized: true } : {}),
+      ...(args.includes('--acknowledge-deprecated-deps') ? { acknowledgeDeprecatedDeps: true } : {}),
+      ...(value('--marketplace-snapshot') ? { marketplaceSnapshotPath: value('--marketplace-snapshot') } : {}),
       planApprovalDigest: value('--approve-plan'),
       actor: value('--actor'),
       adapterRegistry,
@@ -1235,6 +1352,14 @@ if (command === 'ship') {
         executableRoot: value('--cursor-executable-root'),
         existingUserStateRoot: value('--cursor-user-state-root'),
       },
+      ...(value('--antigravity-executable-root') || value('--antigravity-user-state-root')
+        ? {
+            antigravityHostRuntime: {
+              executableRoot: value('--antigravity-executable-root'),
+              existingUserStateRoot: value('--antigravity-user-state-root'),
+            },
+          }
+        : {}),
     });
     if (hasJson) {
       console.log(JSON.stringify(result, null, 2));
@@ -1243,6 +1368,9 @@ if (command === 'ship') {
       console.log(`State: ${result.statePath}`);
       for (const warning of result.warnings ?? []) {
         console.log(`Warning [${warning.code}] ${warning.message}`);
+      }
+      for (const advisory of result.advisories ?? []) {
+        console.log(`Advisory [${advisory.code}] ${advisory.message}`);
       }
       if (result.planDigest && result.status === 'NEEDS_PLAN_APPROVAL') {
         printShipApprovalSummary(result);
@@ -1294,6 +1422,8 @@ if (command === 'ship') {
         details: err.details ?? {},
         exitCode: err.exitCode ?? 1,
       }));
+    } else if (err?.details?.reason === 'DEPRECATED_BASE_DEPENDENCY_BLOCKED') {
+      printDeprecatedDependencyBlockedError(err);
     } else {
       console.error(`Error: ${err.message}`);
     }
@@ -1362,6 +1492,11 @@ if (command === 'prepare') {
 
   const hooksAuthorized = args.includes('--acknowledge-hook-side-effects');
   const verificationGatesAuthorized = args.includes('--acknowledge-gate-side-effects');
+  const acknowledgeDeprecatedDeps = args.includes('--acknowledge-deprecated-deps');
+  const marketplaceSnapshotIdx = args.indexOf('--marketplace-snapshot');
+  const marketplaceSnapshotPath = marketplaceSnapshotIdx !== -1 && args[marketplaceSnapshotIdx + 1] && !args[marketplaceSnapshotIdx + 1].startsWith('--')
+    ? args[marketplaceSnapshotIdx + 1]
+    : undefined;
   const hookCache = !args.includes('--no-hook-cache');
   const candidateIdx = args.indexOf('--candidate');
   const candidatePath = candidateIdx !== -1 && args[candidateIdx + 1] && !args[candidateIdx + 1].startsWith('--')
@@ -1396,6 +1531,9 @@ if (command === 'prepare') {
     if (candidateIdx !== -1 && !candidatePath) {
       throw new ReleaseError(MISSING_PARAMETERS, '--candidate requires a path value');
     }
+    if (marketplaceSnapshotIdx !== -1 && !marketplaceSnapshotPath) {
+      throw new ReleaseError(MISSING_PARAMETERS, '--marketplace-snapshot requires a path value');
+    }
     const { prepareRelease } = await import('../src/commands/prepare.mjs');
     const { readFile: readFileFs } = await import('node:fs/promises');
     const result = await prepareRelease({
@@ -1406,6 +1544,8 @@ if (command === 'prepare') {
       offlineExplicit: args.includes('--offline') || args.includes('--online'),
       hooksAuthorized,
       verificationGatesAuthorized,
+      acknowledgeDeprecatedDeps,
+      ...(marketplaceSnapshotPath ? { marketplaceSnapshotPath } : {}),
       hookCache,
       production,
       workflow,
@@ -1430,12 +1570,16 @@ if (command === 'prepare') {
         evidenceDir: result.evidenceDir,
         requirements: result.requirements ?? [],
         gaps: result.gaps ?? [],
+        advisories: result.advisories ?? [],
         nextSteps: result.nextSteps ?? [],
         exitCode: result.exitCode ?? 13,
       };
       if (hasJson) {
         console.log(JSON.stringify(payload, null, 2));
       } else {
+        for (const advisory of result.advisories ?? []) {
+          console.error(`Advisory [${advisory.code}] ${advisory.message}`);
+        }
         console.error(`Error: ${result.message}`);
         if (result.candidatePath) console.error(`Candidate: ${result.candidatePath}`);
       }
@@ -1468,6 +1612,7 @@ if (command === 'prepare') {
           unitId: action.unitId,
         })),
         warnings: result.warnings,
+        advisories: result.advisories ?? [],
         nextSteps: result.nextSteps ?? [],
         ...(result.releaseScope ? { releaseScope: result.releaseScope } : {}),
       }, null, 2));
@@ -1475,9 +1620,25 @@ if (command === 'prepare') {
       for (const warning of result.warnings) {
         console.log(`Warning [${warning.code}] ${warning.message}`);
       }
+      for (const advisory of result.advisories ?? []) {
+        console.log(`Advisory [${advisory.code}] ${advisory.message}`);
+      }
       console.log(`Plan frozen at: ${result.planPath}`);
       console.log(`Plan digest: ${result.planDigest}`);
       console.log(`Evidence: ${result.evidenceDir}`);
+      const unitSummary = (plan.units ?? []).map((u) => `${u.id}@${u.targetVersion ?? u.version}`).join(', ');
+      if (unitSummary) {
+        console.log(`Units (${plan.units.length}): ${unitSummary}`);
+      }
+      console.log(`External actions: ${(plan.externalActions ?? []).length}`);
+      if (plan.testAcceptance) {
+        const acceptedCount = (plan.testAcceptance.acceptedRequirementIds ?? []).length;
+        const skippedCount = (plan.testAcceptance.skippedOptionalRequirementIds ?? []).length;
+        const deferredCount = (plan.testAcceptance.deferredRequirementIds ?? []).length;
+        console.log(
+          `Test intake acceptance: accepted=${acceptedCount}, explicitly_skipped_optional=${skippedCount}, deferred=${deferredCount}`,
+        );
+      }
       for (const step of result.nextSteps ?? []) {
         console.log(`Next [${step.code}] ${step.message}${step.argv ? ` (${step.argv.join(' ')})` : ''}`);
       }
@@ -1506,8 +1667,13 @@ if (command === 'prepare') {
         exitCode: err.exitCode ?? 1,
       };
       console.log(JSON.stringify(errOutput));
+    } else if (err?.details?.reason === 'DEPRECATED_BASE_DEPENDENCY_BLOCKED') {
+      printDeprecatedDependencyBlockedError(err);
     } else {
       console.error(`Error: ${err.message}`);
+      for (const step of err.details?.nextSteps ?? []) {
+        console.error(`Next [${step.code}] ${step.message}${step.argv ? ` (${step.argv.join(' ')})` : ''}`);
+      }
     }
     await exitAfterFlush(err.exitCode ?? 1);
   }
@@ -1602,8 +1768,10 @@ if (command === 'approve') {
       console.log(JSON.stringify(record, null, 2));
     } else {
       console.log(`Plan approved by ${record.actor}`);
+      console.log(`Bound plan digest: ${record.planDigest}`);
+      console.log(`Approved actions: ${(record.approvedActions ?? []).length} (${(record.approvedActions ?? []).join(', ') || 'none'})`);
       console.log(`Approval record: ${record.approvalPath}`);
-      console.log(`Expires at: ${record.expiresAt}`);
+      console.log(`Expires at: ${record.expiresAt} (24h window bound to baseline & planDigest)`);
     }
 
     await exitAfterFlush(0);
@@ -1929,6 +2097,14 @@ if (command === 'verify') {
         executableRoot: cursorValue('--cursor-executable-root'),
         existingUserStateRoot: cursorValue('--cursor-user-state-root'),
       },
+      ...(cursorValue('--antigravity-executable-root') || cursorValue('--antigravity-user-state-root')
+        ? {
+            antigravityHostRuntime: {
+              executableRoot: cursorValue('--antigravity-executable-root'),
+              existingUserStateRoot: cursorValue('--antigravity-user-state-root'),
+            },
+          }
+        : {}),
     });
     if (result.status === 'VERIFIED') {
       const {
@@ -2593,6 +2769,213 @@ if (command === 'lineage') {
     }
 
     await exitAfterFlush(result.status === 'ERROR' ? 1 : 0);
+  } catch (err) {
+    if (hasJson) {
+      console.log(JSON.stringify({
+        error: err.code ?? 'UNKNOWN_ERROR',
+        message: err.message,
+        details: err.details ?? {},
+        exitCode: err.exitCode ?? 1,
+      }, null, 2));
+    } else {
+      console.error(`Error: ${err.message}`);
+    }
+    await exitAfterFlush(err.exitCode ?? 1);
+  }
+}
+
+// --- Lifecycle governance routing: deprecate & retire (US-073, US-077, US-078) ---
+if (command === 'deprecate' || command === 'retire') {
+  const effectiveAction = command === 'retire' || args.includes('--retire') ? 'retire' : 'deprecate';
+  if (args.includes('--help') || args.includes('-h')) {
+    const helpText = `release-skill ${command} - 生成本地版本风险退出通告或整族退役提案（离线零远端写入）
+
+Usage:
+  release-skill deprecate [--root <path>] [--unit <id>] --target-version <semver> --severity <critical|high|medium|low> --reason <text> (--fallback-version <semver> | --superseded-by <id>) --actor <name> [--offline] [--dry-run] [--json]
+  release-skill retire    [--root <path>] [--unit <id>] [--target-version <semver|all>] --severity <critical|high|medium|low> --reason <text> (--superseded-by <id> | --archive-notice <text>) --actor <name> [--offline] [--dry-run] [--json]
+
+Options:
+  --root <path>                        项目根目录（默认当前工作目录）
+  --unit <id>                          目标发布单元 ID（单单元项目可省略）
+  --target-version <version>           受影响版本（deprecate 必填合法 SemVer；retire 可选）
+  --severity <critical|high|medium|low> 风险严重级别（必填）
+  --reason <text>                      风险退出或退役原因说明（必填）
+  --fallback-version <semver>          安全回退版本（deprecate 推荐，不得与受影响版本相同）
+  --superseded-by <plugin-or-package>  替代包或替代插件标识
+  --archive-notice <text>              无替代插件整族退役时的正式停服归档说明
+  --actor <name>                       签发责任人标识（必填）
+  --output-dir <relative-path>         自定义项目内收据输出目录（默认 .release-skill/advisories/...）
+  --retire                             将 deprecate 切换为整族退役模式
+  --offline                            仅生成本地收据与提案，不访问远端（默认）
+  --dry-run                            仅在内存中校验并预览生成内容，不写入磁盘
+  --json                               输出结构化 JSON
+  -h, --help                           显示帮助并退出`;
+    if (hasJson) {
+      console.log(JSON.stringify({
+        command,
+        status: 'HELP',
+        lifecycleAction: effectiveAction,
+        remoteWritesPerformed: false,
+        options: {
+          '--root': '项目根目录（默认当前目录）',
+          '--unit': '目标发布单元 ID（单单元项目可省略）',
+          '--target-version': '受影响版本（deprecate 必填 SemVer）',
+          '--severity': '风险严重级别：critical | high | medium | low（必填）',
+          '--reason': '风险退出或退役原因说明（必填）',
+          '--fallback-version': '安全回退版本（deprecate 安全退出路径之一）',
+          '--superseded-by': '替代插件或包名',
+          '--archive-notice': '无替代整族退役时的正式归档说明',
+          '--actor': '签发责任人标识（必填）',
+          '--output-dir': '项目内相对输出目录',
+          '--offline': '本地离线生成收据与市场提案（默认）',
+          '--dry-run': '仅预览校验，不落盘',
+          '--json': '输出 JSON',
+          '-h, --help': '显示帮助并退出',
+        },
+      }, null, 2));
+    } else {
+      console.log(helpText);
+    }
+    await exitAfterFlush(0);
+  }
+
+  const value = (flag) => {
+    const idx = args.indexOf(flag);
+    return idx !== -1 && args[idx + 1] && !args[idx + 1].startsWith('--')
+      ? args[idx + 1]
+      : undefined;
+  };
+  const root = resolve(value('--root') ?? process.cwd());
+  try {
+    const { generateLifecycleAdvisory } = await import('../src/commands/deprecate.mjs');
+    const result = await generateLifecycleAdvisory({
+      root,
+      lifecycleAction: effectiveAction,
+      unitId: value('--unit'),
+      targetVersion: value('--target-version') ?? value('--version'),
+      severity: value('--severity'),
+      reason: value('--reason'),
+      fallbackVersion: value('--fallback-version'),
+      supersededBy: value('--superseded-by'),
+      archiveNotice: value('--archive-notice'),
+      actor: value('--actor'),
+      outputDir: value('--output-dir'),
+      dryRun: args.includes('--dry-run'),
+      online: args.includes('--online'),
+    });
+    if (hasJson) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log(result.summary);
+    }
+    await exitAfterFlush(0);
+  } catch (err) {
+    if (hasJson) {
+      console.log(JSON.stringify({
+        error: err.code ?? 'UNKNOWN_ERROR',
+        message: err.message,
+        details: err.details ?? {},
+        exitCode: err.exitCode ?? 1,
+      }, null, 2));
+    } else {
+      console.error(`Error: ${err.message}`);
+      for (const step of err.details?.nextSteps ?? []) {
+        console.error(`Next [${step.code}] ${step.message}${step.argv ? ` (${step.argv.join(' ')})` : ''}`);
+      }
+    }
+    await exitAfterFlush(err.exitCode ?? 1);
+  }
+}
+
+// --- Offline archive export & verification routing: bundle-offline & verify-offline (US-061) ---
+if (command === 'bundle-offline' || command === 'verify-offline') {
+  if (args.includes('--help') || args.includes('-h')) {
+    const helpText = command === 'bundle-offline'
+      ? `release-skill bundle-offline - 导出离线自包含可安装归档包、SHA-256 清单与本地市场片段（零远端写入）
+
+Usage:
+  release-skill bundle-offline [--root <path>] [--unit <id>] --output-dir <external-dir> [--target-version <semver>] [--offline] [--dry-run] [--json]
+
+Options:
+  --root <path>                受检项目根目录（默认当前工作目录）
+  --unit <id>                  目标发布单元 ID（单单元项目可省略）
+  --output-dir <external-dir>  工作区外的空输出目录（必填；严禁位于 --root 目录内）
+  --target-version <semver>    期望匹配的目标版本号（可选）
+  --offline                    纯本地离线构建（默认）
+  --dry-run                    仅在内存中完成快照扫描与摘要预览，不落盘
+  --json                       输出结构化 JSON
+  -h, --help                   显示帮助并退出`
+      : `release-skill verify-offline - 纯离线逐字节核验离线分发归档包完整性与安全边界
+
+Usage:
+  release-skill verify-offline --bundle-dir <path> [--unit <id>] [--target-version <semver>] [--json]
+
+Options:
+  --bundle-dir <path>          待核验的离线归档包根目录（必填；兼容 --input-dir）
+  --unit <id>                  期望匹配的发布单元 ID（可选）
+  --target-version <semver>    期望匹配的版本号（可选）
+  --json                       输出结构化 JSON
+  -h, --help                   显示帮助并退出`;
+
+    if (hasJson) {
+      console.log(JSON.stringify({
+        command,
+        status: 'HELP',
+        remoteWritesPerformed: false,
+        options: command === 'bundle-offline'
+          ? {
+            '--root': '受检项目根目录（默认当前目录）',
+            '--unit': '目标发布单元 ID（单单元项目可省略）',
+            '--output-dir': '工作区外的空输出目录（必填，禁止位于受检仓库根内）',
+            '--target-version': '期望匹配的 SemVer 版本号（可选）',
+            '--offline': '纯本地离线构建（默认）',
+            '--dry-run': '仅预览校验，不落盘',
+            '--json': '输出 JSON',
+            '-h, --help': '显示帮助并退出',
+          }
+          : {
+            '--bundle-dir': '待核验的离线归档包根目录（必填，兼容 --input-dir）',
+            '--unit': '期望匹配的发布单元 ID（可选）',
+            '--target-version': '期望匹配的 SemVer 版本号（可选）',
+            '--json': '输出 JSON',
+            '-h, --help': '显示帮助并退出',
+          },
+      }, null, 2));
+    } else {
+      console.log(helpText);
+    }
+    await exitAfterFlush(0);
+  }
+
+  const value = (flag) => {
+    const idx = args.indexOf(flag);
+    return idx !== -1 && args[idx + 1] && !args[idx + 1].startsWith('--')
+      ? args[idx + 1]
+      : undefined;
+  };
+  try {
+    const { bundleOfflineRelease, verifyOfflineBundle } = await import('../src/commands/offline-bundle.mjs');
+    const result = command === 'bundle-offline'
+      ? await bundleOfflineRelease({
+        root: resolve(value('--root') ?? process.cwd()),
+        unitId: value('--unit'),
+        outputDir: value('--output-dir') ?? value('--output'),
+        targetVersion: value('--target-version') ?? value('--version'),
+        dryRun: args.includes('--dry-run'),
+        online: args.includes('--online'),
+      })
+      : await verifyOfflineBundle({
+        bundleDir: value('--bundle-dir') ?? value('--input-dir') ?? value('--dir'),
+        unitId: value('--unit'),
+        targetVersion: value('--target-version') ?? value('--version'),
+        online: args.includes('--online'),
+      });
+    if (hasJson) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log(result.summary);
+    }
+    await exitAfterFlush(0);
   } catch (err) {
     if (hasJson) {
       console.log(JSON.stringify({

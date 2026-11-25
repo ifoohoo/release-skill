@@ -10,6 +10,8 @@
  *
  * @module artifacts/safe-fs
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import { realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';

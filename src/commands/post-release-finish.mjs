@@ -1,3 +1,8 @@
+// @decision D-RS-002
+// @decision D-RS-004
+// @feature REL002
+// @scenario S-003
+
 import { realpath } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, normalize, resolve } from 'node:path';
 

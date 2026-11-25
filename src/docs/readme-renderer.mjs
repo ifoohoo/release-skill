@@ -33,6 +33,7 @@
  *
  * @module src/docs/readme-renderer
  */
+// @decision D-RS-003
 
 import { parseManagedRegions } from '../artifacts/merge/regions.mjs';
 import { RELEASE_NOTES_CATEGORIES } from './notes.mjs';

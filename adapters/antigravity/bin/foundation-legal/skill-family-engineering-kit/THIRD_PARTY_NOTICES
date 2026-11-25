@@ -1,0 +1,142 @@
+THIRD-PARTY SOFTWARE NOTICES AND ATTRIBUTION
+=============================================
+
+The public documentation site for skill-family-engineering-kit bundles the
+following third-party assets in docs/assets/ (delivered as docs/ in the
+published Pages site). This file provides the required attribution for
+those assets.
+
+The project's own source code is licensed under Apache-2.0; see LICENSE.
+The notices below cover only the frontend assets distributed with the
+public documentation site.
+
+
+1. MkDocs Material (CSS, JavaScript, favicon)
+----------------------------------------------
+
+Version: 9.7.7
+License: MIT
+Copyright: Copyright (c) 2016-2025 Martin Donath (squidfunk)
+Files:
+  - docs/assets/stylesheets/main.*.min.css
+  - docs/assets/stylesheets/palette.*.min.css
+  - docs/assets/javascripts/bundle.*.min.js
+  - docs/assets/javascripts/workers/search.*.min.js
+  - docs/assets/images/favicon.png
+
+MIT License
+
+Copyright (c) 2016-2025 Martin Donath
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to
+deal in the Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+sell copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.
+
+
+2. lunr (search library core)
+-----------------------------
+
+Version: 2.3.9
+License: MIT
+Copyright: Copyright (C) 2013 by Oliver Nightingale
+
+The lunr core is embedded inside the MkDocs Material JavaScript bundle
+(docs/assets/javascripts/bundle.*.min.js, covered by entry 1 above); no
+standalone lunr core files are distributed with this site. The two
+support files under docs/assets/javascripts/lunr/min/ that earlier
+revisions of this notice attributed to lunr (lunr.stemmer.support.min.js
+and lunr.multi.min.js) are distributed by the lunr-languages project and
+are covered by entry 3 below.
+
+MIT License
+
+Copyright (C) 2013 by Oliver Nightingale
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.
+
+
+3. lunr-languages (language stemmers and word cutters)
+-------------------------------------------------------
+
+Version: 1.14.0
+Source: MihaiValentin/lunr-languages (tag 1.14.0); the files listed below
+        are byte-identical to that tag. Bundled by mkdocs-material 9.7.7
+        (pinned in scripts/docs/toolchain.json).
+License: MPL-1.1
+License text: LICENSES/MPL-1.1.txt (repository root of the private workspace)
+Copyright: Mihai Valentin (and individual language stemmer authors)
+Files:
+  - docs/assets/javascripts/lunr/min/lunr.ar.min.js
+  - docs/assets/javascripts/lunr/min/lunr.da.min.js
+  - docs/assets/javascripts/lunr/min/lunr.de.min.js
+  - docs/assets/javascripts/lunr/min/lunr.du.min.js
+  - docs/assets/javascripts/lunr/min/lunr.el.min.js
+  - docs/assets/javascripts/lunr/min/lunr.es.min.js
+  - docs/assets/javascripts/lunr/min/lunr.fi.min.js
+  - docs/assets/javascripts/lunr/min/lunr.fr.min.js
+  - docs/assets/javascripts/lunr/min/lunr.he.min.js
+  - docs/assets/javascripts/lunr/min/lunr.hi.min.js
+  - docs/assets/javascripts/lunr/min/lunr.hu.min.js
+  - docs/assets/javascripts/lunr/min/lunr.hy.min.js
+  - docs/assets/javascripts/lunr/min/lunr.it.min.js
+  - docs/assets/javascripts/lunr/min/lunr.ja.min.js
+  - docs/assets/javascripts/lunr/min/lunr.jp.min.js
+  - docs/assets/javascripts/lunr/min/lunr.kn.min.js
+  - docs/assets/javascripts/lunr/min/lunr.ko.min.js
+  - docs/assets/javascripts/lunr/min/lunr.multi.min.js
+  - docs/assets/javascripts/lunr/min/lunr.nl.min.js
+  - docs/assets/javascripts/lunr/min/lunr.no.min.js
+  - docs/assets/javascripts/lunr/min/lunr.pt.min.js
+  - docs/assets/javascripts/lunr/min/lunr.ro.min.js
+  - docs/assets/javascripts/lunr/min/lunr.ru.min.js
+  - docs/assets/javascripts/lunr/min/lunr.sa.min.js
+  - docs/assets/javascripts/lunr/min/lunr.stemmer.support.min.js
+  - docs/assets/javascripts/lunr/min/lunr.sv.min.js
+  - docs/assets/javascripts/lunr/min/lunr.ta.min.js
+  - docs/assets/javascripts/lunr/min/lunr.te.min.js
+  - docs/assets/javascripts/lunr/min/lunr.th.min.js
+  - docs/assets/javascripts/lunr/min/lunr.tr.min.js
+  - docs/assets/javascripts/lunr/min/lunr.vi.min.js
+  - docs/assets/javascripts/lunr/min/lunr.zh.min.js
+  - docs/assets/javascripts/lunr/tinyseg.js
+  - docs/assets/javascripts/lunr/wordcut.js
+
+These files are licensed under the Mozilla Public License Version 1.1
+(MPL-1.1). The full text of MPL-1.1 is shipped with the private workspace
+repository at LICENSES/MPL-1.1.txt and is also available from the Mozilla
+project at mozilla.org (path: /en-US/MPL/1.1/).
+
+MPL-1.1 requires that recipients of a larger work containing MPL-covered
+files be informed of the location of the MPL source. The source for these
+files is the lunr-languages project, version 1.14.0 (GitHub user:
+MihaiValentin, repo: lunr-languages, tag 1.14.0).

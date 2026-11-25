@@ -23,6 +23,7 @@
  *
  * @module core/observe-retry
  */
+// @decision D-RS-002
 
 /**
  * Default retry policy.

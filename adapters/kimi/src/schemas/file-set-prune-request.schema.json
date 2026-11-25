@@ -5,7 +5,7 @@
   "type": "object", "additionalProperties": false,
   "required": ["schemaVersion", "kind", "operationId", "root", "rootBinding", "recoveryRelPath", "environment"],
   "properties": {
-    "schemaVersion": { "const": 1 },
+    "schemaVersion": { "enum": [1, 2] },
     "kind": { "const": "skill-family.file-set-prune-request" },
     "operationId": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/operationId" },
     "root": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/root" },
@@ -13,5 +13,29 @@
     "recoveryRelPath": { "const": ".foundation-file-apply" },
     "environment": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/environment" },
     "maintenance": { "$ref": "https://contracts.skill-family.example/v1/file-set-recovery-request.json#/$defs/maintenance" }
-  }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "schemaVersion": { "const": 1 } }, "required": ["schemaVersion"] },
+      "then": {
+        "properties": {
+          "root": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/posixRoot" },
+          "rootBinding": { "type": "object", "properties": { "basis": { "const": "canonical-realpath-device-inode-type-mode-v1" } } },
+          "environment": { "type": "object", "properties": { "filesystem": { "enum": ["apfs", "ext4"] } } },
+          "maintenance": { "type": "object", "properties": { "observation": { "type": "object", "properties": { "schemaVersion": { "const": 1 } } } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "schemaVersion": { "const": 2 } }, "required": ["schemaVersion"] },
+      "then": {
+        "properties": {
+          "root": { "$ref": "https://contracts.skill-family.example/v1/file-set-apply-request.json#/$defs/windowsRoot" },
+          "rootBinding": { "type": "object", "properties": { "basis": { "const": "canonical-finalpath-volume-fileid-type-security-v1" } } },
+          "environment": { "type": "object", "properties": { "filesystem": { "const": "ntfs" } } },
+          "maintenance": { "type": "object", "properties": { "observation": { "type": "object", "properties": { "schemaVersion": { "const": 2 } } } } }
+        }
+      }
+    }
+  ]
 }

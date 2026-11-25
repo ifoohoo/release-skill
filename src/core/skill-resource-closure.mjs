@@ -7,6 +7,7 @@
  * the nearest `skills/` directory or from a registered platform projection
  * root when the projection publishes a singular `skill/` entry.
  */
+// @decision D-RS-003
 
 import { lstat, readFile, readdir } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
@@ -322,8 +323,9 @@ async function inferSurfaceHost(surfaceId, defaultHost) {
   if (platformMatch) {
     const registeredHost = resolveSkillProjectionSurfaceHost(surfaceId);
     if (registeredHost === null) return `unknown-platform:${platformMatch[1]}`;
-    // Registered platform hosts must resolve in the Foundation profiles;
-    // an SFC2003 here fails closed instead of silently relabeling.
+    // Foundation remains authoritative first; registered host-verification
+    // platforms absent from pinned Foundation 0.25.0 (antigravity) map back
+    // cleanly via normalizeHostId while unregistered hosts still fail SFC2003.
     return normalizeHostId(registeredHost);
   }
   return defaultHost;

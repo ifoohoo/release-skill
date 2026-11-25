@@ -8,6 +8,8 @@
  *
  * @module producers/sync-skills
  */
+// @decision D-RS-003
+// @decision D-RS-005
 
 import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';

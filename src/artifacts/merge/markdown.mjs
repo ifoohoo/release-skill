@@ -11,6 +11,8 @@
  *
  * @module artifacts/merge/markdown
  */
+// @decision D-RS-001
+// @decision D-RS-003
 
 import { parseManagedRegions } from './regions.mjs';
 import { mergeText } from './text.mjs';

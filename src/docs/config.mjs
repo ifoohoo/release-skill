@@ -26,6 +26,7 @@
  *
  * @module src/docs/config
  */
+// @decision D-RS-003
 
 import { canonicalArtifactPath } from '../artifacts/path-key.mjs';
 import { ReleaseError, RELEASE_DOCS_INVALID } from '../core/errors.mjs';

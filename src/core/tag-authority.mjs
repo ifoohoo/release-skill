@@ -25,6 +25,7 @@
  *
  * @module core/tag-authority
  */
+// @decision D-RS-001
 
 import { cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';

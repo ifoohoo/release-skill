@@ -6,6 +6,9 @@
  * without node_modules. Fails closed with a clear error when the bundle
  * is missing — never falls back to source CLI in installed state.
  */
+// @decision D-RS-004
+// @feature REL001
+// @feature REL006
 
 import { stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';

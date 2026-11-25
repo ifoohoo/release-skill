@@ -19,6 +19,7 @@
  *
  * @module digest
  */
+// @decision D-RS-001
 
 import { canonicalJson as contractsCanonicalJson } from 'skill-family-contracts';
 import { digestBytes } from 'skill-family-harness-node';

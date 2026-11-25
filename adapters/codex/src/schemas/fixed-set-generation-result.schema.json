@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/fixed-set-generation-result.json",
+  "title": "Fixed-set generation publication result",
+  "description": "Closed result of publishFixedSetGeneration. POSIX success uses namespace-synced. Windows success uses flush-requested. A post-commit verification failure is not reported as unpublished, and an indeterminate commit must not be retried blindly.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "kind", "status", "commitState", "verification", "durability", "generationRoot", "pointer", "previous", "error"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "skill-family.fixed-set-generation-result" },
+    "status": { "enum": ["succeeded", "failed", "indeterminate"] },
+    "commitState": { "enum": ["not-committed", "committed", "indeterminate"] },
+    "verification": { "enum": ["not-performed", "verified", "failed"] },
+    "durability": { "enum": ["not-requested", "flush-requested", "namespace-synced", "indeterminate"] },
+    "generationRoot": { "type": "string", "minLength": 1 },
+    "pointer": { "anyOf": [{ "type": "null" }, { "$ref": "https://contracts.skill-family.example/v1/fixed-set-generation-pointer.json" }] },
+    "previous": { "anyOf": [{ "type": "null" }, { "$ref": "https://contracts.skill-family.example/v1/fixed-set-generation-pointer.json" }] },
+    "error": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "message"],
+          "properties": {
+            "kind": { "type": "string", "minLength": 1 },
+            "message": { "type": "string", "minLength": 1 }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "succeeded" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "commitState": { "const": "committed" },
+          "verification": { "const": "verified" },
+          "durability": { "enum": ["flush-requested", "namespace-synced"] },
+          "pointer": { "type": "object" },
+          "error": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "failed" }, "commitState": { "const": "not-committed" } }, "required": ["status", "commitState"] },
+      "then": {
+        "properties": {
+          "verification": { "const": "not-performed" },
+          "durability": { "const": "not-requested" },
+          "error": { "type": "object" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "failed" }, "commitState": { "const": "committed" }, "verification": { "const": "failed" } }, "required": ["status", "commitState", "verification"] },
+      "then": {
+        "properties": {
+          "durability": { "enum": ["indeterminate", "flush-requested", "namespace-synced"] },
+          "error": { "type": "object" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "failed" }, "commitState": { "const": "committed" }, "verification": { "const": "verified" } }, "required": ["status", "commitState", "verification"] },
+      "then": {
+        "properties": {
+          "durability": { "const": "indeterminate" },
+          "error": { "type": "object" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "indeterminate" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "commitState": { "const": "indeterminate" },
+          "verification": { "const": "not-performed" },
+          "durability": { "const": "indeterminate" },
+          "error": { "type": "object" }
+        }
+      }
+    },
+    {
+      "anyOf": [
+        {
+          "properties": {
+            "status": { "const": "succeeded" },
+            "commitState": { "const": "committed" },
+            "verification": { "const": "verified" },
+            "durability": { "enum": ["flush-requested", "namespace-synced"] },
+            "pointer": { "type": "object" },
+            "error": { "type": "null" }
+          },
+          "required": ["status", "commitState", "verification", "durability", "pointer", "error"]
+        },
+        {
+          "properties": {
+            "status": { "const": "failed" },
+            "commitState": { "const": "not-committed" },
+            "verification": { "const": "not-performed" },
+            "durability": { "const": "not-requested" },
+            "error": { "type": "object" }
+          },
+          "required": ["status", "commitState", "verification", "durability", "error"]
+        },
+        {
+          "properties": {
+            "status": { "const": "failed" },
+            "commitState": { "const": "committed" },
+            "verification": { "const": "failed" },
+            "durability": { "enum": ["indeterminate", "flush-requested", "namespace-synced"] },
+            "error": { "type": "object" }
+          },
+          "required": ["status", "commitState", "verification", "durability", "error"]
+        },
+        {
+          "properties": {
+            "status": { "const": "failed" },
+            "commitState": { "const": "committed" },
+            "verification": { "const": "verified" },
+            "durability": { "const": "indeterminate" },
+            "error": { "type": "object" }
+          },
+          "required": ["status", "commitState", "verification", "durability", "error"]
+        },
+        {
+          "properties": {
+            "status": { "const": "indeterminate" },
+            "commitState": { "const": "indeterminate" },
+            "verification": { "const": "not-performed" },
+            "durability": { "const": "indeterminate" },
+            "error": { "type": "object" }
+          },
+          "required": ["status", "commitState", "verification", "durability", "error"]
+        }
+      ]
+    },
+    {
+      "properties": {
+        "generationRoot": {
+          "anyOf": [
+            { "type": "string", "pattern": "^/" },
+            { "type": "string", "pattern": "^[A-Za-z]:/" }
+          ]
+        }
+      }
+    }
+  ]
+}
