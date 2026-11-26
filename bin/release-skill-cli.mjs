@@ -1166,10 +1166,31 @@ if (command === 'assess') {
   const conclusionOutput = conclusionIdx !== -1 && args[conclusionIdx + 1] && !args[conclusionIdx + 1].startsWith('--')
     ? args[conclusionIdx + 1]
     : undefined;
+  const auditConcIdx = args.indexOf('--audit-conclusion');
+  const auditConclusionPath = auditConcIdx !== -1 && args[auditConcIdx + 1] && !args[auditConcIdx + 1].startsWith('--')
+    ? args[auditConcIdx + 1]
+    : undefined;
+  const auditShaIdx = args.indexOf('--audit-conclusion-sha256');
+  const auditConclusionDigest = auditShaIdx !== -1 && args[auditShaIdx + 1] && !args[auditShaIdx + 1].startsWith('--')
+    ? args[auditShaIdx + 1]
+    : undefined;
 
   try {
+    if (auditConcIdx !== -1 && !auditConclusionPath) {
+      throw new ReleaseError(MISSING_PARAMETERS, '--audit-conclusion requires a path value');
+    }
+    if (auditShaIdx !== -1 && !auditConclusionDigest) {
+      throw new ReleaseError(MISSING_PARAMETERS, '--audit-conclusion-sha256 requires a 64-hex sha256 value');
+    }
     const { assessProject } = await import('../src/commands/assess.mjs');
-    const report = await assessProject({ root, offline, output, conclusionOutput });
+    const report = await assessProject({
+      root,
+      offline,
+      output,
+      conclusionOutput,
+      auditConclusionPath,
+      auditConclusionDigest,
+    });
 
     if (hasJson) {
       console.log(JSON.stringify(report, null, 2));
@@ -1518,6 +1539,14 @@ if (command === 'prepare') {
   const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve(args[outputIdx + 1]) : undefined;
   const runDirIdx = args.indexOf('--run-dir');
   const runDir = runDirIdx !== -1 && args[runDirIdx + 1] ? resolve(args[runDirIdx + 1]) : undefined;
+  const auditConcIdx = args.indexOf('--audit-conclusion');
+  const auditConclusionPath = auditConcIdx !== -1 && args[auditConcIdx + 1] && !args[auditConcIdx + 1].startsWith('--')
+    ? args[auditConcIdx + 1]
+    : undefined;
+  const auditShaIdx = args.indexOf('--audit-conclusion-sha256');
+  const auditConclusionDigest = auditShaIdx !== -1 && args[auditShaIdx + 1] && !args[auditShaIdx + 1].startsWith('--')
+    ? args[auditShaIdx + 1]
+    : undefined;
   const hasUnitSelection = args.includes('--unit');
   const unitIds = [];
   for (let i = 0; i < args.length; i += 1) {
@@ -1533,6 +1562,12 @@ if (command === 'prepare') {
     }
     if (marketplaceSnapshotIdx !== -1 && !marketplaceSnapshotPath) {
       throw new ReleaseError(MISSING_PARAMETERS, '--marketplace-snapshot requires a path value');
+    }
+    if (auditConcIdx !== -1 && !auditConclusionPath) {
+      throw new ReleaseError(MISSING_PARAMETERS, '--audit-conclusion requires a path value');
+    }
+    if (auditShaIdx !== -1 && !auditConclusionDigest) {
+      throw new ReleaseError(MISSING_PARAMETERS, '--audit-conclusion-sha256 requires a 64-hex sha256 value');
     }
     const { prepareRelease } = await import('../src/commands/prepare.mjs');
     const { readFile: readFileFs } = await import('node:fs/promises');
@@ -1556,6 +1591,8 @@ if (command === 'prepare') {
       ...(candidatePath ? { candidatePath } : {}),
       ...(replaceUnpublishedPlan ? { replaceUnpublishedPlan } : {}),
       ...(hasUnitSelection ? { unitIds } : {}),
+      ...(auditConclusionPath ? { auditConclusionPath } : {}),
+      ...(auditConclusionDigest ? { auditConclusionDigest } : {}),
     });
 
     if (result?.status === 'NEEDS_INPUT') {

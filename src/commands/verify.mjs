@@ -2364,7 +2364,7 @@ export async function verifyRelease(options) {
               const frozenDir = await resolveFrozenPath(root, frozenRel, 'frozen snapshot path');
               const frozenClosure = await checkSkillResourceClosure({
                 snapshotDir: frozenDir,
-                host: surface.host,
+                host: 'root',
                 surfaceHostBindings: [{ surfaceId: surface.surfaceId, host: surface.host }],
               });
               const frozenReceipt = createSkillResourceClosureReceipt(frozenClosure, {

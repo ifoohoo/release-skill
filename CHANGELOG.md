@@ -1,5 +1,28 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.10.3 locale=en baseline=sha256:608b30111f1cd12ae98695c16f3e3f71455b818c5009cdafa1278b8cdd586d9a -->
+## [0.10.3] - 2026-11-26
+
+0.10.3 adds unidirectional professional-conclusion digest verification (--audit-conclusion and --audit-conclusion-sha256) in assess and prepare, and aligns single-plugin root snapshot recomputation during verify. Foundation dependencies remain pinned to 0.39.0. This description is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Enforced mandatory SHA-256 digest matching on external audit professional-conclusions and severed bidirectional subprocess coupling with skill-family-audit. The inherited Skill Family Hub remains the unified marketplace; GitHub Git Data API with compare-and-swap binds updates to the observed branch head, and partial publication is never rolled back or force-pushed.
+
+### Added
+
+- Added unidirectional audit professional-conclusion intake (--audit-conclusion and --audit-conclusion-sha256) on assess and prepare with strict subject-reference and zero-blocking-count verification.
+
+### Fixed
+
+- Aligned single-plugin root frozen snapshot recomputation contract (host='root') in verify while keeping Foundation dependencies pinned to 0.39.0.
+
+### Upgrade Notes
+
+Run prepare with 0.10.3 to create a new candidate and provide a new test result file. Preserve previous candidates, results, approvals and run records; do not edit their writerVersion. The release-skill standalone marketplace is deprecated; use ifoohoo/skill-family-hub with plugin id release-skill@skill-family-hub instead. The unified marketplace does not replace GitHub Release or npm distribution.
+<!-- release-skill:changelog:end version=0.10.3 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.10.2 locale=en baseline=sha256:35a401ce4312c09881f022d73d2c43fd9b8cdc14be4f5b0e31b55e733a996305 -->
 ## [0.10.2] - 2026-11-25
 

@@ -10,7 +10,7 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 
-import { findSchemaByObject, validateDocument } from 'skill-family-contracts';
+import { digestDocument, findSchemaByObject, validateDocument } from 'skill-family-contracts';
 import {
   HARNESS_ERROR_KINDS,
   publishFileExclusive,
@@ -503,6 +503,184 @@ export async function readProfessionalProof({
     status: mapped.status,
     reason: mapped.reason,
     provider: mapped.provider,
+    conclusion: document,
+  };
+}
+
+export const AUDIT_PROVIDER_ID = 'skill-family-audit';
+
+export const AUDIT_PASS_CODES = Object.freeze([
+  'AUDIT_RELEASE_GATE_CLEAR',
+  'BLUEPRINT_AUDIT_CLEAR',
+  'AUDIT_PASS',
+  'RELEASE_AUDIT_PASS',
+  'CONFORMANT',
+  'CLEAR',
+]);
+
+/**
+ * 单向消费核验 skill-family-audit 签发的 professional-conclusion（零子进程反向调用 audit）。
+ */
+export async function readAuditProfessionalProof({
+  proofRoot,
+  proofPath,
+  expectedSubjectRef = null,
+  expectedSubjectRevision = null,
+  expectedDigestSha256 = null,
+  requireDigest = false,
+} = {}) {
+  if (
+    typeof proofRoot !== 'string' ||
+    proofRoot.length === 0 ||
+    typeof proofPath !== 'string' ||
+    proofPath.length === 0
+  ) {
+    return unavailableRead('proofRoot 与 proofPath 均为必填');
+  }
+
+  let receipt;
+  try {
+    await resolveContained(proofRoot, proofPath);
+    receipt = await readFileStrict(proofRoot, proofPath, { encoding: 'utf8' });
+  } catch (cause) {
+    return unavailableRead(`无法读取审计专业结论: ${cause?.message ?? 'unknown'}`);
+  }
+
+  let document;
+  try {
+    document = JSON.parse(receipt.content);
+  } catch {
+    return unavailableRead('审计专业结论不是合法 JSON');
+  }
+
+  const schema = validateProfessionalConclusion(document);
+  const provider = extractProvider(document);
+  if (!schema.valid) {
+    return unavailableRead(
+      `审计专业结论未通过 professional-conclusion 结构校验（${schema.errorCode ?? 'invalid'}）`,
+      { provider },
+    );
+  }
+
+  if (provider?.id !== AUDIT_PROVIDER_ID) {
+    return unavailableRead(`证明提供方不是 ${AUDIT_PROVIDER_ID}`, { provider, conclusion: document });
+  }
+
+  const digestSha256 = digestDocument(document);
+  if (requireDigest && (!expectedDigestSha256 || !/^[0-9a-f]{64}$/.test(expectedDigestSha256))) {
+    return {
+      status: 'not_pass',
+      reason: '缺少合法的 64 位审计结论摘要绑定（--audit-conclusion-sha256）',
+      provider,
+      digestSha256,
+      conclusion: document,
+    };
+  }
+
+  if (expectedDigestSha256 !== null && expectedDigestSha256 !== undefined) {
+    if (typeof expectedDigestSha256 !== 'string' || !/^[0-9a-f]{64}$/.test(expectedDigestSha256)) {
+      return {
+        status: 'not_pass',
+        reason: 'expectedDigestSha256 必须为 64 位小写十六进制 SHA-256 摘要',
+        provider,
+        digestSha256,
+        conclusion: document,
+      };
+    }
+    if (digestSha256 !== expectedDigestSha256) {
+      return {
+        status: 'not_pass',
+        reason: `审计结论规范化摘要失配：期望 ${expectedDigestSha256}，实际 ${digestSha256}`,
+        provider,
+        digestSha256,
+        conclusion: document,
+      };
+    }
+  }
+
+  const actualSubjectRef = document.subject?.ref;
+  if (typeof actualSubjectRef !== 'string' || actualSubjectRef.trim().length === 0) {
+    return {
+      status: 'not_pass',
+      reason: '审计结论缺少合法的 subject.ref',
+      provider,
+      digestSha256,
+      conclusion: document,
+    };
+  }
+
+  if (expectedSubjectRef !== null && expectedSubjectRef !== undefined) {
+    const allowedRefs = Array.isArray(expectedSubjectRef)
+      ? expectedSubjectRef.filter((item) => typeof item === 'string' && item.length > 0)
+      : [expectedSubjectRef];
+    if (allowedRefs.length === 0 || !allowedRefs.includes(actualSubjectRef)) {
+      return {
+        status: 'not_pass',
+        reason: `审计结论绑定目标不一致：期望 [${allowedRefs.join(', ')}]，实际 ${actualSubjectRef}`,
+        provider,
+        digestSha256,
+        conclusion: document,
+      };
+    }
+  }
+
+  const actualRevision = document.subject?.revision;
+  if (typeof actualRevision !== 'string' || actualRevision.trim().length === 0) {
+    return {
+      status: 'not_pass',
+      reason: '审计结论缺少合法的 subject.revision',
+      provider,
+      digestSha256,
+      conclusion: document,
+    };
+  }
+
+  if (expectedSubjectRevision && actualRevision !== expectedSubjectRevision) {
+    return {
+      status: 'not_pass',
+      reason: `审计结论绑定版本摘要不一致：期望 ${expectedSubjectRevision}，实际 ${actualRevision}`,
+      provider,
+      digestSha256,
+      conclusion: document,
+    };
+  }
+
+  if (document.outcome?.completion !== 'complete') {
+    return {
+      status: 'not_pass',
+      reason: `审计声明范围尚未完整执行（completion=${document.outcome?.completion}），不能作为完整通过依据`,
+      provider,
+      digestSha256,
+      conclusion: document,
+    };
+  }
+
+  const rawBlocking = document.details?.blockingFindingsCount;
+  if (!Number.isInteger(rawBlocking) || rawBlocking < 0) {
+    return {
+      status: 'not_pass',
+      reason: `审计结论缺少合法的非负整数 details.blockingFindingsCount（实际=${JSON.stringify(rawBlocking)}）`,
+      provider,
+      digestSha256,
+      conclusion: document,
+    };
+  }
+
+  if (!AUDIT_PASS_CODES.includes(document.outcome?.code) || rawBlocking > 0) {
+    return {
+      status: 'not_pass',
+      reason: `静态审计未通过（code=${document.outcome?.code}，阻断发现数=${rawBlocking}）`,
+      provider,
+      digestSha256,
+      conclusion: document,
+    };
+  }
+
+  return {
+    status: 'pass',
+    reason: '已单向核验通过 skill-family-audit 静态合规专业结论。',
+    provider,
+    digestSha256,
     conclusion: document,
   };
 }

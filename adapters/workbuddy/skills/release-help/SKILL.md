@@ -37,9 +37,9 @@ description: "Discoverable entry point for release-skill: dependency and environ
 
 治理诊断只运行 `release-skill` 自身的只读检查，不调用目标 Skill、业务脚本、构建、钩子或发布动作；`prepare`、`verify`、`release-finish` 不充当静态治理入口。当用户要求实际接入或发布时，将已有授权带入对应原业务入口，各入口继续严格执行各自的确认、副作用披露与状态机规则。
 
-## 0.10.2 能力与证据边界
+## 0.10.3 能力与证据边界
 
-- **四类工程材料边界**：项目配置明确区分公开正式资源（`publicFiles`：`sourceScope`、`from`、`to`、`mode`）、必需运行文件（`requiredPublicFiles`，须被同单元 `publicFiles[].to` 精确覆盖）、私有正式设计稿与非正式运行记录。公开不等于正式；私有内容由 `forbiddenPaths` 与 `forbiddenContentPatterns` 拦截，严禁写入 `publicFiles`。npm 载荷由 `package.json.files`、入口静态闭包与映射共同约束；`delivery.include` / `delivery.exclude` 只选择宿主，不得剔除必需运行文件。详见 [项目配置规范](https://github.com/ifoohoo/release-skill/blob/release-skill-v0.10.2/references/02-project-config.md) 与 `release-prepare`。
+- **四类工程材料边界**：项目配置明确区分公开正式资源（`publicFiles`：`sourceScope`、`from`、`to`、`mode`）、必需运行文件（`requiredPublicFiles`，须被同单元 `publicFiles[].to` 精确覆盖）、私有正式设计稿与非正式运行记录。公开不等于正式；私有内容由 `forbiddenPaths` 与 `forbiddenContentPatterns` 拦截，严禁写入 `publicFiles`。npm 载荷由 `package.json.files`、入口静态闭包与映射共同约束；`delivery.include` / `delivery.exclude` 只选择宿主，不得剔除必需运行文件。详见 [项目配置规范](https://github.com/ifoohoo/release-skill/blob/release-skill-v0.10.3/references/02-project-config.md) 与 `release-prepare`。
 - **接入与工作流路由**：首次运行 `release-setup` 若发现已有配置（`ALREADY_CONFIGURED` / `CONFIG_EXISTS`），绝不覆盖旧文件；增量调整先运行 `route`，仅纯配置修改走 `prepare --workflow config`，代码或混合改动走完整流程。底层固定绑定 Foundation 0.39.0 精确版本。`REQUIRED_PUBLIC_FILE_MISSING` 仅由 `setup --assess-adoption` 报告，普通 `assess` 与 `prepare` 保持原生错误码（`PUBLIC_FILE_MISSING` / `CONFIG_INVALID`）。
 - **冻结发布与多宿主核验**：GitHub 分支推进使用 Git Data API `compare-and-swap` 绑定已观察分支头；市场安装固定冻结 URL/ref/sha 并在安装后复核载荷，统一汇聚至 `ifoohoo/skill-family-hub`（`release-skill@skill-family-hub`）。`release-finish` 兼容 Kimi 终端交互界面核验、Claude/Codex 共享环境 `setup` 归并与 Qoder 双清单包含性复验；任一宿主本机更新失败只把收尾标为 `FAILED`，绝不回退已达成的 `VERIFIED` 或 `DISTRIBUTED`。`--host-coverage <file>` 与 `--observe-hosts` 仅作只读覆盖诊断。批准、发布和验证状态以对应计划、批准及执行记录为准。
 - **范围选择与基线完整性**：计划冻结前可通过 `--unit <id>` 选择部分发布单元（涉及 `publicSourceAuthorityReceipt` 时须同时选齐 coordinator 与全部 subjects）；冻结后 `publish`、`reconcile`、`verify`、`distribute` 只认 `plan.units`。每个单元必须声明 `previousPublicBaseline`（无前序版本用 `none`，有前序版本用 `bound` + `repo/ref/commit`）。Hook cache v2 仅在可执行身份与输入指纹完整匹配时复用，否则冷执行。
@@ -120,4 +120,4 @@ node "${CODEBUDDY_PLUGIN_ROOT}/bin/release-skill-local-finish.mjs" \
 
 新正式计划排他原子写入 `plans/<digest>.json` 才生效；写前失败无效，写后即使最新计划指针、FROZEN 标记或证据封口失败，也不得恢复旧计划发布资格，保留失败记录，沿原幂等路径核对新权威。新计划须新批准，旧批准不可跨用；`approve`、`publish`、`ship` 拒绝已替代计划。已发布或部分发布走原恢复谱系，不得以替代冒充恢复。来源提交须与远端 `main` 精确相等，`TEST`、远端冲突和批准门不变。Foundation 0.25.0 机制不变；0.9.38 入口不承诺全局撤销任意旧软件。
 
-字段、精确历史 writer 分支及失败处理见 `release-prepare`、`release-reconcile` 与[状态机规范](https://github.com/ifoohoo/release-skill/blob/release-skill-v0.10.2/references/01-state-machine.md)。
+字段、精确历史 writer 分支及失败处理见 `release-prepare`、`release-reconcile` 与[状态机规范](https://github.com/ifoohoo/release-skill/blob/release-skill-v0.10.3/references/01-state-machine.md)。

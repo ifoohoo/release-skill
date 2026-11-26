@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.10.2"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.10.3"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "e5b3ae82f87f80efe6304992fbfd0f0611a2fec6a3cc09cd5170841cf193e4be";
+const __bundleSourceDigest = "348cfdc35499bdd1ffe9c640e9db8fb70b09fa7b55366e4383bc86c3289e0346";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -63693,6 +63693,8 @@ var init_run = __esm({
 // src/commands/professional-proof.mjs
 var professional_proof_exports = {};
 __export(professional_proof_exports, {
+  AUDIT_PASS_CODES: () => AUDIT_PASS_CODES,
+  AUDIT_PROVIDER_ID: () => AUDIT_PROVIDER_ID,
   PROVIDER_ENTRY: () => PROVIDER_ENTRY,
   READ_EXIT_CODES: () => READ_EXIT_CODES,
   RELEASE_PROVIDER_ID: () => RELEASE_PROVIDER_ID,
@@ -63700,6 +63702,7 @@ __export(professional_proof_exports, {
   attachProfessionalConclusion: () => attachProfessionalConclusion,
   interpretReleaseConclusion: () => interpretReleaseConclusion,
   projectReleaseConclusion: () => projectReleaseConclusion,
+  readAuditProfessionalProof: () => readAuditProfessionalProof,
   readProfessionalProof: () => readProfessionalProof2
 });
 import { readFileSync as readFileSync16, realpathSync as realpathSync5 } from "node:fs";
@@ -64113,7 +64116,149 @@ async function readProfessionalProof2({
     conclusion: document2
   };
 }
-var RELEASE_PROVIDER_ID, PROVIDER_ENTRY, READ_EXIT_CODES, PASS_CODES, NOT_PASS_CODES, INCOMPLETE_RECORD_CODES;
+async function readAuditProfessionalProof({
+  proofRoot,
+  proofPath,
+  expectedSubjectRef = null,
+  expectedSubjectRevision = null,
+  expectedDigestSha256 = null,
+  requireDigest = false
+} = {}) {
+  if (typeof proofRoot !== "string" || proofRoot.length === 0 || typeof proofPath !== "string" || proofPath.length === 0) {
+    return unavailableRead("proofRoot \u4E0E proofPath \u5747\u4E3A\u5FC5\u586B");
+  }
+  let receipt;
+  try {
+    await resolveContained(proofRoot, proofPath);
+    receipt = await readFileStrict(proofRoot, proofPath, { encoding: "utf8" });
+  } catch (cause) {
+    return unavailableRead(`\u65E0\u6CD5\u8BFB\u53D6\u5BA1\u8BA1\u4E13\u4E1A\u7ED3\u8BBA: ${cause?.message ?? "unknown"}`);
+  }
+  let document2;
+  try {
+    document2 = JSON.parse(receipt.content);
+  } catch {
+    return unavailableRead("\u5BA1\u8BA1\u4E13\u4E1A\u7ED3\u8BBA\u4E0D\u662F\u5408\u6CD5 JSON");
+  }
+  const schema2 = validateProfessionalConclusion(document2);
+  const provider = extractProvider(document2);
+  if (!schema2.valid) {
+    return unavailableRead(
+      `\u5BA1\u8BA1\u4E13\u4E1A\u7ED3\u8BBA\u672A\u901A\u8FC7 professional-conclusion \u7ED3\u6784\u6821\u9A8C\uFF08${schema2.errorCode ?? "invalid"}\uFF09`,
+      { provider }
+    );
+  }
+  if (provider?.id !== AUDIT_PROVIDER_ID) {
+    return unavailableRead(`\u8BC1\u660E\u63D0\u4F9B\u65B9\u4E0D\u662F ${AUDIT_PROVIDER_ID}`, { provider, conclusion: document2 });
+  }
+  const digestSha256 = digestDocument(document2);
+  if (requireDigest && (!expectedDigestSha256 || !/^[0-9a-f]{64}$/.test(expectedDigestSha256))) {
+    return {
+      status: "not_pass",
+      reason: "\u7F3A\u5C11\u5408\u6CD5\u7684 64 \u4F4D\u5BA1\u8BA1\u7ED3\u8BBA\u6458\u8981\u7ED1\u5B9A\uFF08--audit-conclusion-sha256\uFF09",
+      provider,
+      digestSha256,
+      conclusion: document2
+    };
+  }
+  if (expectedDigestSha256 !== null && expectedDigestSha256 !== void 0) {
+    if (typeof expectedDigestSha256 !== "string" || !/^[0-9a-f]{64}$/.test(expectedDigestSha256)) {
+      return {
+        status: "not_pass",
+        reason: "expectedDigestSha256 \u5FC5\u987B\u4E3A 64 \u4F4D\u5C0F\u5199\u5341\u516D\u8FDB\u5236 SHA-256 \u6458\u8981",
+        provider,
+        digestSha256,
+        conclusion: document2
+      };
+    }
+    if (digestSha256 !== expectedDigestSha256) {
+      return {
+        status: "not_pass",
+        reason: `\u5BA1\u8BA1\u7ED3\u8BBA\u89C4\u8303\u5316\u6458\u8981\u5931\u914D\uFF1A\u671F\u671B ${expectedDigestSha256}\uFF0C\u5B9E\u9645 ${digestSha256}`,
+        provider,
+        digestSha256,
+        conclusion: document2
+      };
+    }
+  }
+  const actualSubjectRef = document2.subject?.ref;
+  if (typeof actualSubjectRef !== "string" || actualSubjectRef.trim().length === 0) {
+    return {
+      status: "not_pass",
+      reason: "\u5BA1\u8BA1\u7ED3\u8BBA\u7F3A\u5C11\u5408\u6CD5\u7684 subject.ref",
+      provider,
+      digestSha256,
+      conclusion: document2
+    };
+  }
+  if (expectedSubjectRef !== null && expectedSubjectRef !== void 0) {
+    const allowedRefs = Array.isArray(expectedSubjectRef) ? expectedSubjectRef.filter((item) => typeof item === "string" && item.length > 0) : [expectedSubjectRef];
+    if (allowedRefs.length === 0 || !allowedRefs.includes(actualSubjectRef)) {
+      return {
+        status: "not_pass",
+        reason: `\u5BA1\u8BA1\u7ED3\u8BBA\u7ED1\u5B9A\u76EE\u6807\u4E0D\u4E00\u81F4\uFF1A\u671F\u671B [${allowedRefs.join(", ")}]\uFF0C\u5B9E\u9645 ${actualSubjectRef}`,
+        provider,
+        digestSha256,
+        conclusion: document2
+      };
+    }
+  }
+  const actualRevision = document2.subject?.revision;
+  if (typeof actualRevision !== "string" || actualRevision.trim().length === 0) {
+    return {
+      status: "not_pass",
+      reason: "\u5BA1\u8BA1\u7ED3\u8BBA\u7F3A\u5C11\u5408\u6CD5\u7684 subject.revision",
+      provider,
+      digestSha256,
+      conclusion: document2
+    };
+  }
+  if (expectedSubjectRevision && actualRevision !== expectedSubjectRevision) {
+    return {
+      status: "not_pass",
+      reason: `\u5BA1\u8BA1\u7ED3\u8BBA\u7ED1\u5B9A\u7248\u672C\u6458\u8981\u4E0D\u4E00\u81F4\uFF1A\u671F\u671B ${expectedSubjectRevision}\uFF0C\u5B9E\u9645 ${actualRevision}`,
+      provider,
+      digestSha256,
+      conclusion: document2
+    };
+  }
+  if (document2.outcome?.completion !== "complete") {
+    return {
+      status: "not_pass",
+      reason: `\u5BA1\u8BA1\u58F0\u660E\u8303\u56F4\u5C1A\u672A\u5B8C\u6574\u6267\u884C\uFF08completion=${document2.outcome?.completion}\uFF09\uFF0C\u4E0D\u80FD\u4F5C\u4E3A\u5B8C\u6574\u901A\u8FC7\u4F9D\u636E`,
+      provider,
+      digestSha256,
+      conclusion: document2
+    };
+  }
+  const rawBlocking = document2.details?.blockingFindingsCount;
+  if (!Number.isInteger(rawBlocking) || rawBlocking < 0) {
+    return {
+      status: "not_pass",
+      reason: `\u5BA1\u8BA1\u7ED3\u8BBA\u7F3A\u5C11\u5408\u6CD5\u7684\u975E\u8D1F\u6574\u6570 details.blockingFindingsCount\uFF08\u5B9E\u9645=${JSON.stringify(rawBlocking)}\uFF09`,
+      provider,
+      digestSha256,
+      conclusion: document2
+    };
+  }
+  if (!AUDIT_PASS_CODES.includes(document2.outcome?.code) || rawBlocking > 0) {
+    return {
+      status: "not_pass",
+      reason: `\u9759\u6001\u5BA1\u8BA1\u672A\u901A\u8FC7\uFF08code=${document2.outcome?.code}\uFF0C\u963B\u65AD\u53D1\u73B0\u6570=${rawBlocking}\uFF09`,
+      provider,
+      digestSha256,
+      conclusion: document2
+    };
+  }
+  return {
+    status: "pass",
+    reason: "\u5DF2\u5355\u5411\u6838\u9A8C\u901A\u8FC7 skill-family-audit \u9759\u6001\u5408\u89C4\u4E13\u4E1A\u7ED3\u8BBA\u3002",
+    provider,
+    digestSha256,
+    conclusion: document2
+  };
+}
+var RELEASE_PROVIDER_ID, PROVIDER_ENTRY, READ_EXIT_CODES, PASS_CODES, NOT_PASS_CODES, INCOMPLETE_RECORD_CODES, AUDIT_PROVIDER_ID, AUDIT_PASS_CODES;
 var init_professional_proof = __esm({
   "src/commands/professional-proof.mjs"() {
     init_src();
@@ -64166,6 +64311,16 @@ var init_professional_proof = __esm({
     __name(unavailableRead, "unavailableRead");
     __name(extractProvider, "extractProvider");
     __name(readProfessionalProof2, "readProfessionalProof");
+    AUDIT_PROVIDER_ID = "skill-family-audit";
+    AUDIT_PASS_CODES = Object.freeze([
+      "AUDIT_RELEASE_GATE_CLEAR",
+      "BLUEPRINT_AUDIT_CLEAR",
+      "AUDIT_PASS",
+      "RELEASE_AUDIT_PASS",
+      "CONFORMANT",
+      "CLEAR"
+    ]);
+    __name(readAuditProfessionalProof, "readAuditProfessionalProof");
   }
 });
 
@@ -135609,7 +135764,7 @@ async function verifyRelease(options) {
               const frozenDir = await resolveFrozenPath(root, frozenRel, "frozen snapshot path");
               const frozenClosure = await checkSkillResourceClosure({
                 snapshotDir: frozenDir,
-                host: surface.host,
+                host: "root",
                 surfaceHostBindings: [{ surfaceId: surface.surfaceId, host: surface.host }]
               });
               const frozenReceipt = createSkillResourceClosureReceipt(frozenClosure, {
@@ -138940,7 +139095,14 @@ Profile \u7F3A\u53E3 (${profileGaps.length}):`);
   return lines.join("\n");
 }
 async function assessProject(options) {
-  const { root, offline = true, output, conclusionOutput } = options;
+  const {
+    root,
+    offline = true,
+    output,
+    conclusionOutput,
+    auditConclusionPath,
+    auditConclusionDigest
+  } = options;
   if (!root || typeof root !== "string") {
     throw new ReleaseError(CONFIG_INVALID, "root must be a non-empty string");
   }
@@ -139015,6 +139177,55 @@ async function assessProject(options) {
   }
   const readmeGaps = await checkReadmeStructure(root, config);
   allGaps.push(...readmeGaps);
+  if (auditConclusionPath) {
+    const allowedSubjectRefs = /* @__PURE__ */ new Set();
+    const projectName = typeof config.project?.name === "string" ? config.project.name.trim() : "";
+    for (const unit of config.releaseUnits ?? []) {
+      let unitVersion = null;
+      if (unit.version?.source && typeof unit.version.source === "string" && !unit.version.source.startsWith("/")) {
+        try {
+          const vDoc = JSON.parse(await readFile30(resolve27(root, unit.source, unit.version.source), "utf8"));
+          if (typeof vDoc?.version === "string" && vDoc.version.trim().length > 0) {
+            unitVersion = vDoc.version.trim();
+          }
+        } catch {
+        }
+      }
+      if (unitVersion) {
+        if (projectName) {
+          allowedSubjectRefs.add(`pkg:${projectName}@${unitVersion}`);
+          allowedSubjectRefs.add(`${projectName}@${unitVersion}`);
+        }
+        if (typeof unit.id === "string" && unit.id.trim().length > 0) {
+          allowedSubjectRefs.add(`pkg:${unit.id.trim()}@${unitVersion}`);
+          allowedSubjectRefs.add(`${unit.id.trim()}@${unitVersion}`);
+        }
+        for (const dist of unit.distributions ?? []) {
+          if (typeof dist?.package === "string" && dist.package.trim().length > 0) {
+            allowedSubjectRefs.add(`pkg:${dist.package.trim()}@${unitVersion}`);
+            allowedSubjectRefs.add(`${dist.package.trim()}@${unitVersion}`);
+          }
+        }
+      }
+    }
+    const auditProof = await readAuditProfessionalProof({
+      proofRoot: root,
+      proofPath: auditConclusionPath,
+      expectedSubjectRef: allowedSubjectRefs.size > 0 ? [...allowedSubjectRefs] : [projectName || "__unresolvable_subject__"],
+      expectedDigestSha256: auditConclusionDigest ?? null,
+      requireDigest: true
+    });
+    if (auditProof.status !== "pass") {
+      allGaps.push(createGap({
+        scope: GapScope.PROJECT,
+        category: GapCategory.POLICY,
+        severity: Severity.ERROR,
+        code: "AUDIT_CONCLUSION_NOT_PASSED",
+        message: auditProof.reason,
+        file: auditConclusionPath
+      }));
+    }
+  }
   const hasErrors = allGaps.some((g) => g.severity === Severity.ERROR);
   const status = hasErrors ? "NEEDS_INPUT" : "ASSESSED";
   const report = {
@@ -142507,7 +142718,7 @@ async function isProvenPreAuthorityFailure(runDir, runName, { strictHistory = fa
   const legacyValid = summary && summary.status === "FAILED" && validLegacyError(summary.error) && typeof summary.error.message === "string" && legacyInputFailure.test(summary.error.message) && !legacyUnsafeFailure.test(summary.error.message) && (summary.recoveryActionCode === void 0 || summary.recoveryActionCode === "RETRY_COMMAND") && summary.runPath === void 0 && summary.finalRunDigest === void 0 && summary.latestStatePath === void 0 && summary.checkpointStatuses === void 0 && Array.isArray(events) && events.length >= 2 && events.every((event, index) => validLegacyEvent(event, legacyRunId) && event.sequence === index + 1) && legacyTerminal.phase === "publish" && legacyTerminal.status === "failed" && validLegacyError(legacyTerminal.error) && legacyTerminal.error.code === summary.error.code && events.slice(0, -1).filter((event) => event.status === "failed").every((event) => event.phase === "safety-gate" && legacyPreAuthorityGates.has(event.gate) && validLegacyError(event.error)) && !events.some((event) => event.phase === "global-preflight-arbitration" && event.status !== "pre-observe") && !events.slice(0, -1).some((event) => event.phase === "publish" || /checkpoint|execute|postpublish/i.test(event.phase) || Object.hasOwn(event, "prePersistedRunPath") || Object.hasOwn(event, "checkpointCount") || Object.hasOwn(event, "checkpointStatuses"));
   if (legacyValid) return !strictHistory && await hasNoState(runDir);
   const producerVersion = summary?.producer?.version;
-  const historical = ["0.9.3", "0.9.14", "0.9.17", "0.9.33", "0.9.37", "0.9.38", "0.10.0", "0.10.1"].includes(producerVersion);
+  const historical = ["0.9.3", "0.9.14", "0.9.17", "0.9.33", "0.9.37", "0.9.38", "0.10.0", "0.10.1", "0.10.2"].includes(producerVersion);
   if (!historical && producerVersion !== resolveProducerVersion()) return false;
   const sameProducer = /* @__PURE__ */ __name((value) => value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 2 && value.name === "release-skill" && value.version === producerVersion, "sameProducer");
   const envelopeKeys = /* @__PURE__ */ new Set([
@@ -142572,7 +142783,7 @@ async function hasNoState(runDir) {
   return true;
 }
 function closedPublishPrefix(events, summary, version2) {
-  const auditedCurrentPrefix = ["0.9.38", "0.10.0", "0.10.1"].includes(version2) || version2 === resolveProducerVersion();
+  const auditedCurrentPrefix = ["0.9.38", "0.10.0", "0.10.1", "0.10.2"].includes(version2) || version2 === resolveProducerVersion();
   let i = 0;
   const take = /* @__PURE__ */ __name((phase, status, gate2) => {
     const e = events[i];
@@ -155991,6 +156202,54 @@ async function prepareRelease(options) {
       version2,
       evidence
     );
+    if (options?.auditConclusionPath) {
+      await evidence.append({ phase: "audit-professional-conclusion", status: "started", path: options.auditConclusionPath });
+      const allowedSubjectRefs = /* @__PURE__ */ new Set();
+      const projectName = typeof config.project?.name === "string" ? config.project.name.trim() : "";
+      for (const unit of configUnits) {
+        const unitVersion = resolvedVersions.get(unit.id);
+        if (unitVersion) {
+          if (projectName) {
+            allowedSubjectRefs.add(`pkg:${projectName}@${unitVersion}`);
+            allowedSubjectRefs.add(`${projectName}@${unitVersion}`);
+          }
+          allowedSubjectRefs.add(`pkg:${unit.id}@${unitVersion}`);
+          allowedSubjectRefs.add(`${unit.id}@${unitVersion}`);
+          for (const dist of unit.distributions ?? []) {
+            if (typeof dist?.package === "string" && dist.package.trim().length > 0) {
+              allowedSubjectRefs.add(`pkg:${dist.package.trim()}@${unitVersion}`);
+              allowedSubjectRefs.add(`${dist.package.trim()}@${unitVersion}`);
+            }
+          }
+        }
+      }
+      const auditProof = await readAuditProfessionalProof({
+        proofRoot: realRoot,
+        proofPath: options.auditConclusionPath,
+        expectedSubjectRef: [...allowedSubjectRefs],
+        expectedDigestSha256: options.auditConclusionDigest ?? null,
+        requireDigest: true
+      });
+      if (auditProof.status !== "pass") {
+        await evidence.append({
+          phase: "audit-professional-conclusion",
+          status: "blocking",
+          reason: auditProof.reason,
+          digestSha256: auditProof.digestSha256 ?? null
+        });
+        throw new ReleaseError(
+          GATE_FAILED,
+          `audit professional conclusion rejected: ${auditProof.reason}`,
+          { reason: "AUDIT_CONCLUSION_NOT_PASSED", auditConclusionPath: options.auditConclusionPath }
+        );
+      }
+      await evidence.append({
+        phase: "audit-professional-conclusion",
+        status: "completed",
+        digestSha256: auditProof.digestSha256,
+        provider: auditProof.provider
+      });
+    }
     const preHookDocsBindings = await runReleaseDocsFreshnessGate({
       units: configUnits,
       resolvedVersions,
@@ -157344,6 +157603,7 @@ var init_prepare = __esm({
     init_postpublish();
     init_postpublish_bundle();
     init_release_assets();
+    init_professional_proof();
     init_bounded_output();
     init_bounded_output();
     execFile10 = promisify13(execFileCb13);
@@ -175029,9 +175289,26 @@ if (command === "assess") {
   const output = outputIdx !== -1 && args[outputIdx + 1] ? args[outputIdx + 1] : void 0;
   const conclusionIdx = args.indexOf("--conclusion-output");
   const conclusionOutput = conclusionIdx !== -1 && args[conclusionIdx + 1] && !args[conclusionIdx + 1].startsWith("--") ? args[conclusionIdx + 1] : void 0;
+  const auditConcIdx = args.indexOf("--audit-conclusion");
+  const auditConclusionPath = auditConcIdx !== -1 && args[auditConcIdx + 1] && !args[auditConcIdx + 1].startsWith("--") ? args[auditConcIdx + 1] : void 0;
+  const auditShaIdx = args.indexOf("--audit-conclusion-sha256");
+  const auditConclusionDigest = auditShaIdx !== -1 && args[auditShaIdx + 1] && !args[auditShaIdx + 1].startsWith("--") ? args[auditShaIdx + 1] : void 0;
   try {
+    if (auditConcIdx !== -1 && !auditConclusionPath) {
+      throw new ReleaseError(MISSING_PARAMETERS, "--audit-conclusion requires a path value");
+    }
+    if (auditShaIdx !== -1 && !auditConclusionDigest) {
+      throw new ReleaseError(MISSING_PARAMETERS, "--audit-conclusion-sha256 requires a 64-hex sha256 value");
+    }
     const { assessProject: assessProject2 } = await init_assess().then(() => assess_exports);
-    const report = await assessProject2({ root, offline, output, conclusionOutput });
+    const report = await assessProject2({
+      root,
+      offline,
+      output,
+      conclusionOutput,
+      auditConclusionPath,
+      auditConclusionDigest
+    });
     if (hasJson) {
       console.log(JSON.stringify(report, null, 2));
     } else {
@@ -175350,6 +175627,10 @@ if (command === "prepare") {
   const output = outputIdx !== -1 && args[outputIdx + 1] ? resolve49(args[outputIdx + 1]) : void 0;
   const runDirIdx = args.indexOf("--run-dir");
   const runDir = runDirIdx !== -1 && args[runDirIdx + 1] ? resolve49(args[runDirIdx + 1]) : void 0;
+  const auditConcIdx = args.indexOf("--audit-conclusion");
+  const auditConclusionPath = auditConcIdx !== -1 && args[auditConcIdx + 1] && !args[auditConcIdx + 1].startsWith("--") ? args[auditConcIdx + 1] : void 0;
+  const auditShaIdx = args.indexOf("--audit-conclusion-sha256");
+  const auditConclusionDigest = auditShaIdx !== -1 && args[auditShaIdx + 1] && !args[auditShaIdx + 1].startsWith("--") ? args[auditShaIdx + 1] : void 0;
   const hasUnitSelection = args.includes("--unit");
   const unitIds = [];
   for (let i = 0; i < args.length; i += 1) {
@@ -175364,6 +175645,12 @@ if (command === "prepare") {
     }
     if (marketplaceSnapshotIdx !== -1 && !marketplaceSnapshotPath) {
       throw new ReleaseError(MISSING_PARAMETERS, "--marketplace-snapshot requires a path value");
+    }
+    if (auditConcIdx !== -1 && !auditConclusionPath) {
+      throw new ReleaseError(MISSING_PARAMETERS, "--audit-conclusion requires a path value");
+    }
+    if (auditShaIdx !== -1 && !auditConclusionDigest) {
+      throw new ReleaseError(MISSING_PARAMETERS, "--audit-conclusion-sha256 requires a 64-hex sha256 value");
     }
     const { prepareRelease: prepareRelease2 } = await init_prepare().then(() => prepare_exports);
     const { readFile: readFileFs } = await import("node:fs/promises");
@@ -175386,7 +175673,9 @@ if (command === "prepare") {
       runDir,
       ...candidatePath ? { candidatePath } : {},
       ...replaceUnpublishedPlan ? { replaceUnpublishedPlan } : {},
-      ...hasUnitSelection ? { unitIds } : {}
+      ...hasUnitSelection ? { unitIds } : {},
+      ...auditConclusionPath ? { auditConclusionPath } : {},
+      ...auditConclusionDigest ? { auditConclusionDigest } : {}
     });
     if (result2?.status === "NEEDS_INPUT") {
       const payload = {

@@ -115,6 +115,7 @@ import {
 } from '../core/postpublish.mjs';
 import { freezeExecutionBundle, bundleRootForAuthorityDir, verifyExecutionBundle } from '../core/postpublish-bundle.mjs';
 import { digestReleaseAssetIdentities, normalizeReleaseAssets } from '../core/release-assets.mjs';
+import { readAuditProfessionalProof } from './professional-proof.mjs';
 
 // ---------------------------------------------------------------------------
 // 安装契约常量
@@ -4023,6 +4024,54 @@ export async function prepareRelease(options) {
       version,
       evidence,
     );
+    if (options?.auditConclusionPath) {
+      await evidence.append({ phase: 'audit-professional-conclusion', status: 'started', path: options.auditConclusionPath });
+      const allowedSubjectRefs = new Set();
+      const projectName = typeof config.project?.name === 'string' ? config.project.name.trim() : '';
+      for (const unit of configUnits) {
+        const unitVersion = resolvedVersions.get(unit.id);
+        if (unitVersion) {
+          if (projectName) {
+            allowedSubjectRefs.add(`pkg:${projectName}@${unitVersion}`);
+            allowedSubjectRefs.add(`${projectName}@${unitVersion}`);
+          }
+          allowedSubjectRefs.add(`pkg:${unit.id}@${unitVersion}`);
+          allowedSubjectRefs.add(`${unit.id}@${unitVersion}`);
+          for (const dist of unit.distributions ?? []) {
+            if (typeof dist?.package === 'string' && dist.package.trim().length > 0) {
+              allowedSubjectRefs.add(`pkg:${dist.package.trim()}@${unitVersion}`);
+              allowedSubjectRefs.add(`${dist.package.trim()}@${unitVersion}`);
+            }
+          }
+        }
+      }
+      const auditProof = await readAuditProfessionalProof({
+        proofRoot: realRoot,
+        proofPath: options.auditConclusionPath,
+        expectedSubjectRef: [...allowedSubjectRefs],
+        expectedDigestSha256: options.auditConclusionDigest ?? null,
+        requireDigest: true,
+      });
+      if (auditProof.status !== 'pass') {
+        await evidence.append({
+          phase: 'audit-professional-conclusion',
+          status: 'blocking',
+          reason: auditProof.reason,
+          digestSha256: auditProof.digestSha256 ?? null,
+        });
+        throw new ReleaseError(
+          GATE_FAILED,
+          `audit professional conclusion rejected: ${auditProof.reason}`,
+          { reason: 'AUDIT_CONCLUSION_NOT_PASSED', auditConclusionPath: options.auditConclusionPath },
+        );
+      }
+      await evidence.append({
+        phase: 'audit-professional-conclusion',
+        status: 'completed',
+        digestSha256: auditProof.digestSha256,
+        provider: auditProof.provider,
+      });
+    }
     const preHookDocsBindings = await runReleaseDocsFreshnessGate({
       units: configUnits,
       resolvedVersions,

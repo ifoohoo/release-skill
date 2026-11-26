@@ -31,6 +31,7 @@ import {
   PROVIDER_ENTRY,
   assertConclusionOutputOption,
   attachProfessionalConclusion,
+  readAuditProfessionalProof,
 } from './professional-proof.mjs';
 
 const execFile = promisify(execFileCb);
@@ -1071,7 +1072,14 @@ function generateSummary({ config, topology, gaps, offline }) {
  *   - offline: boolean
  */
 export async function assessProject(options) {
-  const { root, offline = true, output, conclusionOutput } = options;
+  const {
+    root,
+    offline = true,
+    output,
+    conclusionOutput,
+    auditConclusionPath,
+    auditConclusionDigest,
+  } = options;
 
   if (!root || typeof root !== 'string') {
     throw new ReleaseError(CONFIG_INVALID, 'root must be a non-empty string');
@@ -1173,6 +1181,58 @@ export async function assessProject(options) {
   // --- 8. README structure check ---
   const readmeGaps = await checkReadmeStructure(root, config);
   allGaps.push(...readmeGaps);
+
+  // --- 9. Optional unidirectional skill-family-audit professional-conclusion check ---
+  if (auditConclusionPath) {
+    const allowedSubjectRefs = new Set();
+    const projectName = typeof config.project?.name === 'string' ? config.project.name.trim() : '';
+    for (const unit of config.releaseUnits ?? []) {
+      let unitVersion = null;
+      if (unit.version?.source && typeof unit.version.source === 'string' && !unit.version.source.startsWith('/')) {
+        try {
+          const vDoc = JSON.parse(await readFile(resolve(root, unit.source, unit.version.source), 'utf8'));
+          if (typeof vDoc?.version === 'string' && vDoc.version.trim().length > 0) {
+            unitVersion = vDoc.version.trim();
+          }
+        } catch {
+          // Version source errors are already captured by earlier metadata/manifest checks
+        }
+      }
+      if (unitVersion) {
+        if (projectName) {
+          allowedSubjectRefs.add(`pkg:${projectName}@${unitVersion}`);
+          allowedSubjectRefs.add(`${projectName}@${unitVersion}`);
+        }
+        if (typeof unit.id === 'string' && unit.id.trim().length > 0) {
+          allowedSubjectRefs.add(`pkg:${unit.id.trim()}@${unitVersion}`);
+          allowedSubjectRefs.add(`${unit.id.trim()}@${unitVersion}`);
+        }
+        for (const dist of unit.distributions ?? []) {
+          if (typeof dist?.package === 'string' && dist.package.trim().length > 0) {
+            allowedSubjectRefs.add(`pkg:${dist.package.trim()}@${unitVersion}`);
+            allowedSubjectRefs.add(`${dist.package.trim()}@${unitVersion}`);
+          }
+        }
+      }
+    }
+    const auditProof = await readAuditProfessionalProof({
+      proofRoot: root,
+      proofPath: auditConclusionPath,
+      expectedSubjectRef: allowedSubjectRefs.size > 0 ? [...allowedSubjectRefs] : [projectName || '__unresolvable_subject__'],
+      expectedDigestSha256: auditConclusionDigest ?? null,
+      requireDigest: true,
+    });
+    if (auditProof.status !== 'pass') {
+      allGaps.push(createGap({
+        scope: GapScope.PROJECT,
+        category: GapCategory.POLICY,
+        severity: Severity.ERROR,
+        code: 'AUDIT_CONCLUSION_NOT_PASSED',
+        message: auditProof.reason,
+        file: auditConclusionPath,
+      }));
+    }
+  }
 
   // --- Determine status ---
   const hasErrors = allGaps.some((g) => g.severity === Severity.ERROR);
