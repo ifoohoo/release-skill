@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.10.3 -->
+<!-- release-skill:release-version: 0.10.4 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -18,29 +18,25 @@ report stays in a temporary session directory.
 A release unit is a release object with independently configured version, public files, and distribution targets. A release plan is a record for review before approval, linking target versions, frozen artifacts, and proposed external actions; see the [human review and approval steps](#release-plan-review).
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.10.3** (2026-11-26)
+**0.10.4** (2026-11-26)
 
-0.10.3 adds unidirectional professional-conclusion digest verification (--audit-conclusion and --audit-conclusion-sha256) in assess and prepare, and aligns single-plugin root snapshot recomputation during verify. Foundation dependencies remain pinned to 0.39.0. This description is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.10.4 fixes resolved-version array indexing during prepare --audit-conclusion subject-reference binding so unidirectional audit professional-conclusions validate cleanly in prepare as well as assess. Foundation dependencies remain pinned to 0.39.0. This description is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- Enforced mandatory SHA-256 digest matching on external audit professional-conclusions and severed bidirectional subprocess coupling with skill-family-audit. The inherited Skill Family Hub remains the unified marketplace; GitHub Git Data API with compare-and-swap binds updates to the observed branch head, and partial publication is never rolled back or force-pushed.
-
-**Added**
-
-- Added unidirectional audit professional-conclusion intake (--audit-conclusion and --audit-conclusion-sha256) on assess and prepare with strict subject-reference and zero-blocking-count verification.
+- Enforced mandatory SHA-256 digest matching on external audit professional-conclusions in both assess and prepare. The inherited Skill Family Hub remains the unified marketplace; GitHub Git Data API with compare-and-swap binds updates to the observed branch head, and partial publication is never rolled back or force-pushed.
 
 **Fixed**
 
-- Aligned single-plugin root frozen snapshot recomputation contract (host='root') in verify while keeping Foundation dependencies pinned to 0.39.0.
+- Fixed resolvedVersions array lookup in prepare when binding --audit-conclusion subject references across configured release units while keeping Foundation dependencies pinned to 0.39.0.
 
 **Upgrade Notes**
 
-Run prepare with 0.10.3 to create a new candidate and provide a new test result file. Preserve previous candidates, results, approvals and run records; do not edit their writerVersion. The release-skill standalone marketplace is deprecated; use ifoohoo/skill-family-hub with plugin id release-skill@skill-family-hub instead. The unified marketplace does not replace GitHub Release or npm distribution.
+Run prepare with 0.10.4 to create a new candidate and provide a new test result file. Preserve previous candidates, results, approvals and run records; do not edit their writerVersion. The release-skill standalone marketplace is deprecated; use ifoohoo/skill-family-hub with plugin id release-skill@skill-family-hub instead. The unified marketplace does not replace GitHub Release or npm distribution.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.10.3: this README records capabilities and verification boundaries;
+> **Current boundary:** v0.10.4: this README records capabilities and verification boundaries;
 > it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -64,7 +60,7 @@ Run prepare with 0.10.3 to create a new candidate and provide a new test result 
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; for v0.10.3,
+> **Production path verified since the v0.1.1 milestone; for v0.10.4,
 > publication, consumer-installation verification, and independent acceptance
 > require version-specific release records and verification results.**
 > The npm-installed CLI is the supported user entry. Source checkout

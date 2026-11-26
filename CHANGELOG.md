@@ -1,5 +1,24 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.10.4 locale=en baseline=sha256:86692db397e3efa2065234c8e32b9f01890b9a248e08161fc53dcc25150a7bb4 -->
+## [0.10.4] - 2026-11-26
+
+0.10.4 fixes resolved-version array indexing during prepare --audit-conclusion subject-reference binding so unidirectional audit professional-conclusions validate cleanly in prepare as well as assess. Foundation dependencies remain pinned to 0.39.0. This description is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Enforced mandatory SHA-256 digest matching on external audit professional-conclusions in both assess and prepare. The inherited Skill Family Hub remains the unified marketplace; GitHub Git Data API with compare-and-swap binds updates to the observed branch head, and partial publication is never rolled back or force-pushed.
+
+### Fixed
+
+- Fixed resolvedVersions array lookup in prepare when binding --audit-conclusion subject references across configured release units while keeping Foundation dependencies pinned to 0.39.0.
+
+### Upgrade Notes
+
+Run prepare with 0.10.4 to create a new candidate and provide a new test result file. Preserve previous candidates, results, approvals and run records; do not edit their writerVersion. The release-skill standalone marketplace is deprecated; use ifoohoo/skill-family-hub with plugin id release-skill@skill-family-hub instead. The unified marketplace does not replace GitHub Release or npm distribution.
+<!-- release-skill:changelog:end version=0.10.4 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.10.3 locale=en baseline=sha256:608b30111f1cd12ae98695c16f3e3f71455b818c5009cdafa1278b8cdd586d9a -->
 ## [0.10.3] - 2026-11-26
 

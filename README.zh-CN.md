@@ -2,7 +2,7 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.10.3 -->
+<!-- release-skill:release-version: 0.10.4 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
@@ -12,29 +12,25 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 发布单元是独立配置版本、公开文件和分发目标的发布对象。发布计划是供批准前审阅的记录，将目标版本、冻结产物和拟执行的外部动作关联起来；详见[人工审阅与批准步骤](#release-plan-review)。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.10.3** (2026-11-26)
+**0.10.4** (2026-11-26)
 
-0.10.3 在 assess 与 prepare 中新增专业审计结论单向摘要核验（--audit-conclusion 与 --audit-conclusion-sha256），并对齐单插件冻结快照在 verify 阶段的根级参数契约。版本号为 0.10.3，Foundation 三包精确使用 0.39.0。本版本不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.10.4 修复 prepare 阶段携带 --audit-conclusion 时单元版本数组取值错误，使专业审计结论单向核验在 assess 与 prepare 两处入口一致生效。版本号为 0.10.4，Foundation 三包精确使用 0.39.0。本版本不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- 对外部审计专业结论强制执行 SHA-256 摘要比对，彻底消除与 `skill-family-audit` 的双向子进程调用环路；继续沿用 Skill Family Hub 统一市场机制，通过 GitHub Git Data API 执行比较后写入（compare-and-swap）绑定已观察分支头，部分发布不回滚、不覆盖。
-
-**新增**
-
-- 在 `assess` 与 `prepare` 中支持 `--audit-conclusion` 与 `--audit-conclusion-sha256` 单向核验，强制校验 `pkg:<id>@<version>` 主体绑定与非负零阻断计数。
+- 在 `assess` 与 `prepare` 双入口强制核验外部审计专业结论 SHA-256 摘要与主体绑定；继续沿用 Skill Family Hub 统一市场机制，通过 GitHub Git Data API 执行比较后写入（compare-and-swap）绑定已观察分支头，部分发布不回滚、不覆盖。
 
 **修复**
 
-- 对齐 `verify` 单插件冻结快照复算的 `host='root'` 参数契约，Foundation 三包继续精确锁定在 0.39.0。
+- 修复 `prepare` 阶段消费 `--audit-conclusion` 时对单元已解析版本数组的索引读取错误，Foundation 三包继续精确锁定在 0.39.0。
 
 **升级说明**
 
-升级至 0.10.3 后，请用新版本重新运行 `prepare` 生成候选，并由测试验收职责方提供对应测试结果文件。原有候选、结果、批准及运行记录原样保留，不得手工改写 `writerVersion`。原独立的 `release-skill` 市场已弃用，统一市场为 ifoohoo/skill-family-hub，插件标识为 release-skill@skill-family-hub；统一市场不取代 GitHub Release 或 npm 发布渠道。
+升级至 0.10.4 后，请用新版本重新运行 `prepare` 生成候选，并由测试验收职责方提供对应测试结果文件。原有候选、结果、批准及运行记录原样保留，不得手工改写 `writerVersion`。原独立的 `release-skill` 市场已弃用，统一市场为 ifoohoo/skill-family-hub，插件标识为 release-skill@skill-family-hub；统一市场不取代 GitHub Release 或 npm 发布渠道。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.10.3 的能力范围与验证边界见本 README，具体版本的发布状态与消费者安装验证结果以对应发布记录为准。
+> **当前边界：** v0.10.4 的能力范围与验证边界见本 README，具体版本的发布状态与消费者安装验证结果以对应发布记录为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的真实生产发布，是首次生产验证的历史里程碑。
 > 该版本还从冻结 Git ref 完成精确 npm 安装及 Claude/Codex 消费者安装验证。
@@ -48,7 +44,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.10.3 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.10.4 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**

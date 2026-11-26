@@ -4028,8 +4028,10 @@ export async function prepareRelease(options) {
       await evidence.append({ phase: 'audit-professional-conclusion', status: 'started', path: options.auditConclusionPath });
       const allowedSubjectRefs = new Set();
       const projectName = typeof config.project?.name === 'string' ? config.project.name.trim() : '';
-      for (const unit of configUnits) {
-        const unitVersion = resolvedVersions.get(unit.id);
+      for (const [unitIdx, unit] of configUnits.entries()) {
+        const unitVersion = resolvedVersions instanceof Map
+          ? resolvedVersions.get(unit.id)
+          : resolvedVersions[unitIdx];
         if (unitVersion) {
           if (projectName) {
             allowedSubjectRefs.add(`pkg:${projectName}@${unitVersion}`);

@@ -9,9 +9,9 @@ const __bundlePkgRoot = __bundleResolve(__bundleDirname(__bundleFileURLToPath(im
 // Provide a real require() for CJS packages bundled into ESM (e.g. yaml, ajv).
 const __bundleRealRequire = __bundleCreateRequire(import.meta.url);
 // Package identity injected at build time — closure-independent --version probe.
-const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.10.3"});
+const __bundlePkg = Object.freeze({"name":"release-skill","version":"0.10.4"});
 // Build-time source digest for the BUNDLE_STALE freshness gate (see above).
-const __bundleSourceDigest = "348cfdc35499bdd1ffe9c640e9db8fb70b09fa7b55366e4383bc86c3289e0346";
+const __bundleSourceDigest = "17ab8324bc8f0f9022c0245407ceec6e84aabf5eb0cf64ffecd5170e212bda3e";
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -142718,7 +142718,7 @@ async function isProvenPreAuthorityFailure(runDir, runName, { strictHistory = fa
   const legacyValid = summary && summary.status === "FAILED" && validLegacyError(summary.error) && typeof summary.error.message === "string" && legacyInputFailure.test(summary.error.message) && !legacyUnsafeFailure.test(summary.error.message) && (summary.recoveryActionCode === void 0 || summary.recoveryActionCode === "RETRY_COMMAND") && summary.runPath === void 0 && summary.finalRunDigest === void 0 && summary.latestStatePath === void 0 && summary.checkpointStatuses === void 0 && Array.isArray(events) && events.length >= 2 && events.every((event, index) => validLegacyEvent(event, legacyRunId) && event.sequence === index + 1) && legacyTerminal.phase === "publish" && legacyTerminal.status === "failed" && validLegacyError(legacyTerminal.error) && legacyTerminal.error.code === summary.error.code && events.slice(0, -1).filter((event) => event.status === "failed").every((event) => event.phase === "safety-gate" && legacyPreAuthorityGates.has(event.gate) && validLegacyError(event.error)) && !events.some((event) => event.phase === "global-preflight-arbitration" && event.status !== "pre-observe") && !events.slice(0, -1).some((event) => event.phase === "publish" || /checkpoint|execute|postpublish/i.test(event.phase) || Object.hasOwn(event, "prePersistedRunPath") || Object.hasOwn(event, "checkpointCount") || Object.hasOwn(event, "checkpointStatuses"));
   if (legacyValid) return !strictHistory && await hasNoState(runDir);
   const producerVersion = summary?.producer?.version;
-  const historical = ["0.9.3", "0.9.14", "0.9.17", "0.9.33", "0.9.37", "0.9.38", "0.10.0", "0.10.1", "0.10.2"].includes(producerVersion);
+  const historical = ["0.9.3", "0.9.14", "0.9.17", "0.9.33", "0.9.37", "0.9.38", "0.10.0", "0.10.1", "0.10.2", "0.10.3"].includes(producerVersion);
   if (!historical && producerVersion !== resolveProducerVersion()) return false;
   const sameProducer = /* @__PURE__ */ __name((value) => value && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === 2 && value.name === "release-skill" && value.version === producerVersion, "sameProducer");
   const envelopeKeys = /* @__PURE__ */ new Set([
@@ -142783,7 +142783,7 @@ async function hasNoState(runDir) {
   return true;
 }
 function closedPublishPrefix(events, summary, version2) {
-  const auditedCurrentPrefix = ["0.9.38", "0.10.0", "0.10.1", "0.10.2"].includes(version2) || version2 === resolveProducerVersion();
+  const auditedCurrentPrefix = ["0.9.38", "0.10.0", "0.10.1", "0.10.2", "0.10.3"].includes(version2) || version2 === resolveProducerVersion();
   let i = 0;
   const take = /* @__PURE__ */ __name((phase, status, gate2) => {
     const e = events[i];
@@ -156206,8 +156206,8 @@ async function prepareRelease(options) {
       await evidence.append({ phase: "audit-professional-conclusion", status: "started", path: options.auditConclusionPath });
       const allowedSubjectRefs = /* @__PURE__ */ new Set();
       const projectName = typeof config.project?.name === "string" ? config.project.name.trim() : "";
-      for (const unit of configUnits) {
-        const unitVersion = resolvedVersions.get(unit.id);
+      for (const [unitIdx, unit] of configUnits.entries()) {
+        const unitVersion = resolvedVersions instanceof Map ? resolvedVersions.get(unit.id) : resolvedVersions[unitIdx];
         if (unitVersion) {
           if (projectName) {
             allowedSubjectRefs.add(`pkg:${projectName}@${unitVersion}`);
