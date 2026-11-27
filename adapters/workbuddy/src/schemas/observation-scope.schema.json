@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/observation-scope.json",
   "title": "ObservationScope",
-  "description": "Observation scope extension (aligned with the audit-side plugin-project observation schema v2). Freezes the controlled vocabularies an observation record may use: observation scopes, the standard platform set (including the qoder/dsh extensions), severity levels, foundation adoption statuses, the path basis, token measurement subjects, missing-platform intents, and consumption forms. An observation record is conformant only when every vocabulary value it uses is contained in the frozen sets declared here; this object is the single mechanical reference so the two repositories never restate the vocabularies independently.",
+  "description": "观测范围受控词表契约（对齐审计侧插件项目观测 Schema v2）：冻结观测记录允许使用的全部受控词表，包括观测范围、标准平台集合（含 qoder/dsh 扩展）、严重级别、Foundation 接入状态、路径基准、Token 计量对象、缺席平台意图及消费形态，作为跨仓库唯一机械参考。",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -18,61 +18,108 @@
     "consumptionForms"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "skill-family.observation-scope" },
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.observation-scope"
+    },
     "alignedObservationSchemaVersions": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "type": "string", "minLength": 1 },
-      "description": "Observation contract document versions these vocabularies align with (e.g. 1.0.0-candidate, 2.0.0-candidate)."
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "本词表对齐的观测契约文档版本列表（如 1.0.0-candidate、2.0.0-candidate）。"
     },
     "scopeVocabulary": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "enum": ["skill", "plugin", "release"] }
+      "items": {
+        "enum": [
+          "skill",
+          "plugin",
+          "release"
+        ]
+      }
     },
     "standardPlatforms": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
       "items": {
-        "enum": ["claude-code", "codex", "kimi-code", "workbuddy", "qoder", "dsh"]
+        "enum": [
+          "claude-code",
+          "codex",
+          "kimi-code",
+          "workbuddy",
+          "qoder",
+          "dsh"
+        ]
       }
     },
     "severityLevels": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "enum": ["block", "error", "warning", "observe"] }
+      "items": {
+        "enum": [
+          "block",
+          "error",
+          "warning",
+          "observe"
+        ]
+      }
     },
     "adoptionStatuses": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
       "items": {
-        "enum": ["foundation-adopted", "self-built", "exempted", "not-adopted", "unknown"]
+        "enum": [
+          "foundation-adopted",
+          "self-built",
+          "exempted",
+          "not-adopted",
+          "unknown"
+        ]
       }
     },
     "pathBasisVocabulary": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "enum": ["project-root-relative"] }
+      "items": {
+        "enum": [
+          "project-root-relative"
+        ]
+      }
     },
     "measurementSubjects": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "enum": ["logical-source", "worst-projection"] }
+      "items": {
+        "enum": [
+          "logical-source",
+          "worst-projection"
+        ]
+      }
     },
     "missingPlatformIntents": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
       "items": {
-        "enum": ["unsupported", "planned", "experimental", "deprecated-host"]
+        "enum": [
+          "unsupported",
+          "planned",
+          "experimental",
+          "deprecated-host"
+        ]
       }
     },
     "consumptionForms": {
@@ -80,12 +127,18 @@
       "minItems": 1,
       "uniqueItems": true,
       "items": {
-        "enum": ["dependencies", "vendored-bundle", "tarball-pin", "none", "other"]
+        "enum": [
+          "dependencies",
+          "vendored-bundle",
+          "tarball-pin",
+          "none",
+          "other"
+        ]
       }
     },
     "note": {
       "type": "string",
-      "description": "Optional human rationale; not consumed mechanically."
+      "description": "可选的人类可读说明备注，不参与机械消费。"
     }
   }
 }

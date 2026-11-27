@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/watchdog-termination-envelope.json",
   "title": "WatchdogTerminationEnvelope",
-  "description": "Termination evidence envelope produced by bounded subprocess supervision (FND-ADR-012). Closed enums, fail-closed direction and mechanism purity are declared in `guarantees`: the mechanism reports the termination fact only; retry/restart policy stays with the upper orchestration layer (workflow-orchestration exclusion), and the mechanism never auto-restarts the supervised process. Liveness is confirmed only by explicit events (exit, signal, process-group probe); ps/process-table observation, if ever used, is restricted to residual-descendant tracking and is never used for liveness guessing. `terminationReason`/`watchdogReason` are the closed vocabulary of FND-ADR-012 section 7 (watchdog_reason 9 values, termination_reason 8 values, process status 7 values), each nullable when no watchdog termination occurred.",
+  "description": "有界子进程监督产出的终止证据信封（FND-ADR-012）：仅报告进程终止事实，重试与重启策略归上层编排负责，机制绝不自动重启受监督进程；存活判定仅依据退出事件、信号与进程组探测；terminationReason、watchdogReason 与进程状态均采用封闭枚举（未触发看门狗终止时为 null）。",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -16,10 +16,22 @@
     "evidence"
   ],
   "properties": {
-    "schemaVersion": { "enum": [1, 2] },
-    "kind": { "const": "skill-family.watchdog-termination-envelope" },
-    "ok": { "type": "boolean" },
-    "exitStatus": { "type": "integer", "minimum": 0 },
+    "schemaVersion": {
+      "enum": [
+        1,
+        2
+      ]
+    },
+    "kind": {
+      "const": "skill-family.watchdog-termination-envelope"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "exitStatus": {
+      "type": "integer",
+      "minimum": 0
+    },
     "processStatus": {
       "enum": [
         "PLANNED",
@@ -78,61 +90,178 @@
         "guarantees"
       ],
       "properties": {
-        "command": { "type": "string" },
-        "args": { "type": "array", "items": { "type": "string" } },
-        "cwd": { "type": "string" },
-        "startedAt": { "type": "string", "format": "date-time" },
-        "finishedAt": { "type": "string", "format": "date-time" },
-        "checkIntervalSeconds": { "type": "number", "exclusiveMinimum": 0 },
-        "pid": { "type": "integer", "minimum": 0 },
-        "processGroupId": { "type": "integer", "minimum": 0 },
-        "childExitCode": { "type": ["integer", "null"], "minimum": 0 },
-        "childSignal": { "type": ["string", "null"] },
-        "spawnError": { "type": "string" },
+        "command": {
+          "type": "string"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cwd": {
+          "type": "string"
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "finishedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "checkIntervalSeconds": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "pid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "processGroupId": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "childExitCode": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "childSignal": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "spawnError": {
+          "type": "string"
+        },
         "signalSequence": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["signal", "requestedMode"],
+            "required": [
+              "signal",
+              "requestedMode"
+            ],
             "properties": {
-              "signal": { "type": "string" },
-              "requestedMode": { "enum": ["process_group", "child_process", "job_object"] },
-              "successfulMode": { "enum": ["process_group", "child_process", "job_object"] }
+              "signal": {
+                "type": "string"
+              },
+              "requestedMode": {
+                "enum": [
+                  "process_group",
+                  "child_process",
+                  "job_object"
+                ]
+              },
+              "successfulMode": {
+                "enum": [
+                  "process_group",
+                  "child_process",
+                  "job_object"
+                ]
+              }
             }
           }
         },
-        "forcedKill": { "type": "boolean" },
-        "startupProgressPaths": { "type": "array", "items": { "type": "string" } },
-        "terminalProgressPaths": { "type": "array", "items": { "type": "string" } },
+        "forcedKill": {
+          "type": "boolean"
+        },
+        "startupProgressPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "terminalProgressPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "timeoutPolicy": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["maxSeconds", "killGraceSeconds"],
+          "required": [
+            "maxSeconds",
+            "killGraceSeconds"
+          ],
           "properties": {
-            "startupStaleSeconds": { "type": "number", "exclusiveMinimum": 0 },
-            "startupIdleSeconds": { "type": "number", "exclusiveMinimum": 0 },
-            "streamIdleSeconds": { "type": "number", "exclusiveMinimum": 0 },
-            "maxSeconds": { "type": "number", "exclusiveMinimum": 0 },
-            "toolLeaseSeconds": { "type": "number", "exclusiveMinimum": 0 },
-            "killGraceSeconds": { "type": "number", "exclusiveMinimum": 0 }
+            "startupStaleSeconds": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "startupIdleSeconds": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "streamIdleSeconds": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "maxSeconds": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "toolLeaseSeconds": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "killGraceSeconds": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
           }
         },
-        "terminalIdentity": { "type": "string" },
-        "terminalStatus": { "type": "string" },
-        "residualGroupCleanupCompleted": { "type": "boolean" },
-        "outputByteLimits": { "$ref": "#/$defs/outputByteLimits" },
-        "outputLimitExceeded": { "enum": ["stdout", "stderr", null] },
+        "terminalIdentity": {
+          "type": "string"
+        },
+        "terminalStatus": {
+          "type": "string"
+        },
+        "residualGroupCleanupCompleted": {
+          "type": "boolean"
+        },
+        "outputByteLimits": {
+          "$ref": "#/$defs/outputByteLimits"
+        },
+        "outputLimitExceeded": {
+          "enum": [
+            "stdout",
+            "stderr",
+            null
+          ]
+        },
         "windowsJob": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["associatedBeforeResume", "terminationRequested", "activeProcessZeroObserved", "handleClosed", "cleanupCompleted"],
+          "required": [
+            "associatedBeforeResume",
+            "terminationRequested",
+            "activeProcessZeroObserved",
+            "handleClosed",
+            "cleanupCompleted"
+          ],
           "properties": {
-            "associatedBeforeResume": { "type": "boolean" },
-            "terminationRequested": { "type": "boolean" },
-            "activeProcessZeroObserved": { "type": "boolean" },
-            "handleClosed": { "type": "boolean" },
-            "cleanupCompleted": { "type": "boolean" }
+            "associatedBeforeResume": {
+              "type": "boolean"
+            },
+            "terminationRequested": {
+              "type": "boolean"
+            },
+            "activeProcessZeroObserved": {
+              "type": "boolean"
+            },
+            "handleClosed": {
+              "type": "boolean"
+            },
+            "cleanupCompleted": {
+              "type": "boolean"
+            }
           }
         },
         "guarantees": {
@@ -155,7 +284,16 @@
   },
   "allOf": [
     {
-      "if": { "properties": { "schemaVersion": { "const": 1 } }, "required": ["schemaVersion"] },
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 1
+          }
+        },
+        "required": [
+          "schemaVersion"
+        ]
+      },
       "then": {
         "properties": {
           "evidence": {
@@ -167,8 +305,18 @@
                 "items": {
                   "type": "object",
                   "properties": {
-                    "requestedMode": { "enum": ["process_group", "child_process"] },
-                    "successfulMode": { "enum": ["process_group", "child_process"] }
+                    "requestedMode": {
+                      "enum": [
+                        "process_group",
+                        "child_process"
+                      ]
+                    },
+                    "successfulMode": {
+                      "enum": [
+                        "process_group",
+                        "child_process"
+                      ]
+                    }
                   }
                 }
               }
@@ -178,24 +326,50 @@
       }
     },
     {
-      "if": { "properties": { "schemaVersion": { "const": 2 } }, "required": ["schemaVersion"] },
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 2
+          }
+        },
+        "required": [
+          "schemaVersion"
+        ]
+      },
       "then": {
         "properties": {
           "evidence": {
             "type": "object",
-            "required": ["windowsJob"],
+            "required": [
+              "windowsJob"
+            ],
             "properties": {
               "processGroupId": false,
-              "childSignal": { "not": { "enum": ["SIGTERM", "SIGKILL"] } },
-              "windowsJob": { "type": "object" },
+              "childSignal": {
+                "not": {
+                  "enum": [
+                    "SIGTERM",
+                    "SIGKILL"
+                  ]
+                }
+              },
+              "windowsJob": {
+                "type": "object"
+              },
               "signalSequence": {
                 "type": "array",
                 "items": {
                   "type": "object",
                   "properties": {
-                    "signal": { "const": "TerminateJobObject" },
-                    "requestedMode": { "const": "job_object" },
-                    "successfulMode": { "const": "job_object" }
+                    "signal": {
+                      "const": "TerminateJobObject"
+                    },
+                    "requestedMode": {
+                      "const": "job_object"
+                    },
+                    "successfulMode": {
+                      "const": "job_object"
+                    }
                   }
                 }
               }
@@ -207,13 +381,21 @@
   ],
   "$defs": {
     "outputByteLimits": {
-      "description": "Optional per-stream raw-byte caps for bounded subprocess supervision (FND-DES-014 section 6.2). A closed object with at least one stream; each value is an integer byte count between 0 (no bytes allowed) and Number.MAX_SAFE_INTEGER. Absent streams stay unlimited. The mechanism counts raw Buffer.length bytes per data event; the first stream whose cumulative count exceeds its cap latches the fact and enters the existing termination path.",
+      "description": "有界子进程监督的可选单流原始字节上限（FND-DES-014 第 6.2 节）：封闭对象至少声明一个输出流，取值为 0 至 Number.MAX_SAFE_INTEGER 的整数；未声明的流不设上限，任一流累计 Buffer 字节数超限时立即锁存事实并进入既有终止路径。",
       "type": "object",
       "additionalProperties": false,
       "minProperties": 1,
       "properties": {
-        "stdout": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
-        "stderr": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+        "stdout": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "stderr": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
       }
     }
   }

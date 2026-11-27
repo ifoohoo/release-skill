@@ -2,10 +2,15 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/profile-descriptor.json",
   "title": "ProfileDescriptor",
-  "description": "Declares one profile: identity, the contracts base it extends, its finite declared differences from the base, and the stable SPI implementations it provides. The common core must not depend on concrete profiles.",
+  "description": "Profile 描述符契约：声明单个 Profile 的身份、所扩展的基础 Contracts 版本、相对基础契约的有限差异清单以及提供的稳定 SPI 实现；公共核心不反向依赖具体 Profile。",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "kind", "profile", "base"],
+  "required": [
+    "schemaVersion",
+    "kind",
+    "profile",
+    "base"
+  ],
   "properties": {
     "schemaVersion": {
       "const": 1
@@ -16,12 +21,16 @@
     "profile": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name", "version"],
+      "required": [
+        "id",
+        "name",
+        "version"
+      ],
       "properties": {
         "id": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
-          "description": "Stable kebab-case profile identifier."
+          "description": "稳定的 kebab-case Profile 标识符。"
         },
         "name": {
           "type": "string",
@@ -36,34 +45,44 @@
     "base": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["contractsVersion"],
+      "required": [
+        "contractsVersion"
+      ],
       "properties": {
         "contractsVersion": {
           "type": "string",
           "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
-          "description": "Contracts version this profile extends."
+          "description": "该 Profile 所扩展的基础 Contracts 版本号。"
         }
       }
     },
     "differences": {
       "type": "array",
-      "description": "Finite declared differences from the base contracts.",
+      "description": "相对于基础 Contracts 的有限显式差异列表。",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "kind", "target"],
+        "required": [
+          "id",
+          "kind",
+          "target"
+        ],
         "properties": {
           "id": {
             "type": "string",
             "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
           },
           "kind": {
-            "enum": ["adds", "overrides", "removes"]
+            "enum": [
+              "adds",
+              "overrides",
+              "removes"
+            ]
           },
           "target": {
             "type": "string",
             "minLength": 1,
-            "description": "What the difference applies to (structure name, file role, or extension point)."
+            "description": "差异作用的目标标识（结构名、文件角色或扩展点）。"
           },
           "note": {
             "type": "string"
@@ -73,11 +92,15 @@
     },
     "spi": {
       "type": "array",
-      "description": "Stable SPI implementations provided by this profile.",
+      "description": "该 Profile 提供的稳定 SPI 入口实现列表。",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "version", "entrypoint"],
+        "required": [
+          "id",
+          "version",
+          "entrypoint"
+        ],
         "properties": {
           "id": {
             "type": "string",
@@ -90,7 +113,7 @@
           "entrypoint": {
             "type": "string",
             "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$",
-            "description": "Relative POSIX path of the SPI entrypoint module."
+            "description": "SPI 入口模块的项目相对 POSIX 路径。"
           }
         }
       }

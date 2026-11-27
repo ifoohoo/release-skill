@@ -2,24 +2,49 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/project-profile.json",
   "title": "ProjectProfile",
-  "description": "Declares a project's Skill Family adoption and tightening overrides.",
+  "description": "声明单个技能族项目的 Profile 接入证明与规则自加严覆盖配置。",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "kind", "project", "adoption", "overrides"],
+  "required": [
+    "schemaVersion",
+    "kind",
+    "project",
+    "adoption",
+    "overrides"
+  ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "skill-family.project-profile" },
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.project-profile"
+    },
     "project": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "workspace"],
+      "required": [
+        "id",
+        "workspace"
+      ],
       "properties": {
-        "id": { "type": "string", "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" },
-        "workspace": { "type": "string", "minLength": 1 }
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+        },
+        "workspace": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
-    "adoption": { "$ref": "https://contracts.skill-family.example/v1/profile-adoption-declaration.json#/$defs/adoption" },
-    "overrides": { "$ref": "https://contracts.skill-family.example/v1/profile-adoption-declaration.json#/$defs/overrides" },
-    "note": { "type": "string" }
+    "adoption": {
+      "$ref": "https://contracts.skill-family.example/v1/profile-adoption-declaration.json#/$defs/adoption"
+    },
+    "overrides": {
+      "$ref": "https://contracts.skill-family.example/v1/profile-adoption-declaration.json#/$defs/overrides"
+    },
+    "note": {
+      "type": "string"
+    }
   }
 }

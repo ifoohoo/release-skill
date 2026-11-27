@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/structured-scan-policy.json",
   "title": "StructuredScanPolicy",
-  "description": "Declarative policy for the structured surface scanner (FND-ADR-011). Consumers declare allowed IP networks (CIDR), approved registries, approved npm coordinates, format adapters and fail-closed symlink/binary modes; the scanner applies the closed rule vocabulary non-public-address, private-npm-scope, unapproved-dependency-coordinate, non-approved-registry, non-reserved-hostname, format-adapter-parse-failed, format-adapter-unknown, binary-unclassified, symlink-forbidden. Relationship to the leak policy (no byte-level compatibility): the consumer-facing policy of the generic surface scanner is surface-scan-policy; leak-policy.json is a workspace-private instance document that is not a subset, not isomorphic and not a migration target of this schema — the two documents share rule vocabulary and fail-closed semantics by design, but their byte-level shapes are independent and must not be compared for compatibility. scanSurface is the execution-core generalization projection: the structured scanner is the public, consumer-parameterized form of the same mechanism family, without any private identity, path, or approval-list interpretation of its own.",
+  "description": "结构化表面扫描器的声明式策略契约（FND-ADR-011）：由消费方声明允许的 CIDR 网段、已批准注册表、已批准 npm 坐标、格式解析适配器及符号链接/二进制封闭失败模式，扫描器执行九类封闭违规规则。本契约面向公开参数化结构扫描器，与工作区私有 leak-policy.json 实例文档共享封闭失败原则但字节结构彼此独立。",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -16,8 +16,12 @@
     "binaryPolicy"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "skill-family.structured-scan-policy" },
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.structured-scan-policy"
+    },
     "allowedNetworks": {
       "type": "array",
       "minItems": 1,
@@ -59,32 +63,56 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["name", "pathPattern"],
+        "required": [
+          "name",
+          "pathPattern"
+        ],
         "properties": {
-          "name": { "type": "string", "minLength": 1, "maxLength": 128 },
-          "pathPattern": { "type": "string", "minLength": 1, "maxLength": 512 }
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "pathPattern": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
         }
       }
     },
     "symlinkPolicy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["mode"],
+      "required": [
+        "mode"
+      ],
       "properties": {
-        "mode": { "const": "forbid" }
+        "mode": {
+          "const": "forbid"
+        }
       }
     },
     "binaryPolicy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["mode", "approvedPaths"],
+      "required": [
+        "mode",
+        "approvedPaths"
+      ],
       "properties": {
-        "mode": { "const": "fail-closed" },
+        "mode": {
+          "const": "fail-closed"
+        },
         "approvedPaths": {
           "type": "array",
           "maxItems": 1024,
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
         }
       }
     },

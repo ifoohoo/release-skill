@@ -1,0 +1,1206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/orchestration-blueprint.json",
+  "title": "Orchestration Blueprint",
+  "description": "多会话与确定性工具编排拓扑、隔离策略、审批门禁与预期证据清单的结构化契约。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "blueprintId",
+    "skillFamilyId",
+    "version",
+    "title",
+    "summary",
+    "entryNodeId",
+    "terminalNodeIds",
+    "toolContracts",
+    "nodes",
+    "edges",
+    "expectedEvidence",
+    "hitlGates",
+    "budgetAndSafetyPolicy"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "description": "固定契约主版本号 1。"
+    },
+    "kind": {
+      "const": "skill-family.orchestration-blueprint",
+      "description": "固定文档类型标识。"
+    },
+    "blueprintId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "非空字符串标识或文本。"
+    },
+    "skillFamilyId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "非空字符串标识或文本。"
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "非空字符串标识或文本。"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "非空字符串标识或文本。"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "非空字符串标识或文本。"
+    },
+    "entryNodeId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "非空字符串标识或文本。"
+    },
+    "terminalNodeIds": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "description": "非空字符串标识或文本。"
+      },
+      "description": "至少一个编排终止节点标识列表。"
+    },
+    "toolContracts": {
+      "type": "array",
+      "description": "编排内声明的脚本、MCP 与宿主内置工具输入输出及退出码契约。",
+      "items": {
+        "$ref": "#/$defs/toolContract"
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "多会话、脚本、工具或人工任务节点列表。",
+      "items": {
+        "$ref": "#/$defs/blueprintNode"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "description": "节点间委派、顺序交接、送审与有界返工边列表。",
+      "items": {
+        "$ref": "#/$defs/blueprintEdge"
+      }
+    },
+    "expectedEvidence": {
+      "type": "array",
+      "description": "编排各节点预期产出的制品、收据与专业结论证据清单。",
+      "items": {
+        "$ref": "#/$defs/expectedEvidenceItem"
+      }
+    },
+    "hitlGates": {
+      "type": "array",
+      "description": "高副作用或关键阶段切换的人工摘要审批门禁列表。",
+      "items": {
+        "$ref": "#/$defs/hitlGate"
+      }
+    },
+    "budgetAndSafetyPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contextPolicy",
+        "maxTotalTokens",
+        "maxCostMicroUsd",
+        "maxWallClockSeconds",
+        "onBudgetExceeded",
+        "sandboxPolicy"
+      ],
+      "description": "全局默认上下文水位万分比、成本时延上限与系统沙箱策略。",
+      "properties": {
+        "contextPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "warnRatioBp",
+            "hardStopRatioBp",
+            "onWarn"
+          ],
+          "description": "上下文窗口使用率预警与硬停阈值（万分比）。",
+          "properties": {
+            "warnRatioBp": {
+              "type": "integer",
+              "minimum": 500,
+              "maximum": 10000,
+              "description": "默认预警万分比（如 4000 表示 40.00%）。"
+            },
+            "hardStopRatioBp": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 500,
+              "maximum": 10000,
+              "description": "可选硬停万分比。"
+            },
+            "onWarn": {
+              "type": "string",
+              "enum": [
+                "warn_and_handoff",
+                "summary_fanout",
+                "fresh_session_split"
+              ],
+              "description": "达到预警线时的缓解策略。"
+            }
+          }
+        },
+        "maxTotalTokens": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "可空非负整数。"
+        },
+        "maxCostMicroUsd": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "可空非负整数。"
+        },
+        "maxWallClockSeconds": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "可空非负整数。"
+        },
+        "onBudgetExceeded": {
+          "type": "string",
+          "enum": [
+            "pause_for_hitl",
+            "abort"
+          ],
+          "description": "超出预算上限时的处置动作。"
+        },
+        "sandboxPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requireOsSandbox",
+            "networkAccess"
+          ],
+          "description": "沙箱与网络访问控制要求。",
+          "properties": {
+            "requireOsSandbox": {
+              "type": "boolean",
+              "description": "是否强制要求操作系统级进程沙箱。"
+            },
+            "networkAccess": {
+              "type": "string",
+              "enum": [
+                "none",
+                "allowlist_only"
+              ],
+              "description": "网络访问边界。"
+            }
+          }
+        }
+      }
+    },
+    "extensions": {
+      "$ref": "#/$defs/extensionsBag"
+    }
+  },
+  "$defs": {
+    "extensionsBag": {
+      "type": "object",
+      "description": "受控扩展槽位（如 UI 布局坐标），仅允许 x- 前缀键名。",
+      "patternProperties": {
+        "^x-[a-z0-9-]+$": {
+          "description": "扩展字段值。"
+        }
+      },
+      "additionalProperties": false
+    },
+    "toolContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "toolId",
+        "kind",
+        "inputSchemaRef",
+        "outputSchemaRef",
+        "sideEffectClass",
+        "deterministic",
+        "timeoutPolicyRef",
+        "exitSemantics"
+      ],
+      "description": "单个工具、脚本或宿主原语的接口与副作用声明。",
+      "properties": {
+        "toolId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "script",
+            "mcp",
+            "host_builtin"
+          ],
+          "description": "工具提供形态。"
+        },
+        "inputSchemaRef": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "可空字符串。"
+        },
+        "outputSchemaRef": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "可空字符串。"
+        },
+        "sideEffectClass": {
+          "type": "string",
+          "enum": [
+            "read_only",
+            "workspace_write",
+            "external_side_effect"
+          ],
+          "description": "工具最大副作用等级。"
+        },
+        "deterministic": {
+          "type": "boolean",
+          "description": "相同输入下输出是否确定。"
+        },
+        "timeoutPolicyRef": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "可空字符串。"
+        },
+        "exitSemantics": {
+          "type": "array",
+          "description": "退出码与业务含义映射表。",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "meaning"
+            ],
+            "properties": {
+              "code": {
+                "type": "integer",
+                "description": "整数退出码。"
+              },
+              "meaning": {
+                "type": "string",
+                "enum": [
+                  "success",
+                  "retryable",
+                  "fatal",
+                  "needs_input"
+                ],
+                "description": "退出码语义。"
+              }
+            }
+          }
+        }
+      }
+    },
+    "blueprintNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nodeId",
+        "executor",
+        "role",
+        "decisionAuthority",
+        "title",
+        "responsibility",
+        "modelTier",
+        "allowedHosts",
+        "sideEffectCeiling",
+        "allowedWriteSet",
+        "allowedTools",
+        "skillBindings",
+        "isolation",
+        "onFailure",
+        "hostRequirements",
+        "hostFallbackPolicy",
+        "completionCriteria"
+      ],
+      "description": "编排节点（正交定义执行器、职责角色与裁决权）。",
+      "properties": {
+        "nodeId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "executor": {
+          "type": "string",
+          "enum": [
+            "llm_session",
+            "deterministic_script",
+            "mcp_tool",
+            "human_task"
+          ],
+          "description": "执行载体类别。"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "coordinator",
+            "worker",
+            "reviewer",
+            "approver"
+          ],
+          "description": "节点职责角色。"
+        },
+        "decisionAuthority": {
+          "type": "string",
+          "enum": [
+            "none",
+            "recommend",
+            "final_veto"
+          ],
+          "description": "节点的裁决授权边界。"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "responsibility": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "modelTier": {
+          "type": "string",
+          "enum": [
+            "flagship_reasoning",
+            "balanced_coding",
+            "fast_lightweight",
+            "deterministic_no_llm"
+          ],
+          "description": "所需模型能力档位；确定性脚本必须且仅能设为 deterministic_no_llm。"
+        },
+        "allowedHosts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": "非空字符串标识或文本。"
+          },
+          "description": "允许运行该节点的宿主标识列表。"
+        },
+        "sideEffectCeiling": {
+          "type": "string",
+          "enum": [
+            "read_only",
+            "workspace_write",
+            "external_side_effect"
+          ],
+          "description": "节点允许触发的最大副作用等级。"
+        },
+        "allowedWriteSet": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": "非空字符串标识或文本。"
+          },
+          "description": "允许写入的受收容相对路径模式列表。"
+        },
+        "allowedTools": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": "非空字符串标识或文本。"
+          },
+          "description": "允许调用的 toolContracts 标识子集。"
+        },
+        "methodBinding": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "amrSlotId",
+                "protocol",
+                "lockRequired",
+                "bypassPolicy"
+              ],
+              "description": "可插拔专业方法槽位锁定要求。",
+              "properties": {
+                "amrSlotId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "非空字符串标识或文本。"
+                },
+                "protocol": {
+                  "const": "registry-v1",
+                  "description": "方法注册协议版本。"
+                },
+                "lockRequired": {
+                  "type": "boolean",
+                  "description": "是否强制要求生成方法锁。"
+                },
+                "bypassPolicy": {
+                  "type": "string",
+                  "enum": [
+                    "forbidden",
+                    "user_bypass_with_evidence"
+                  ],
+                  "description": "绕过策略。"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可选的专业方法槽位绑定。"
+        },
+        "skillBindings": {
+          "type": "array",
+          "description": "节点挂载的技能入口及参考文档渐进加载策略。",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "skillRef",
+              "skillSha256",
+              "entry",
+              "references"
+            ],
+            "properties": {
+              "skillRef": {
+                "type": "string",
+                "minLength": 1,
+                "description": "非空字符串标识或文本。"
+              },
+              "skillSha256": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "description": "小写 64 位十六进制 SHA-256 摘要。"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "可选小写 64 位十六进制 SHA-256 摘要。"
+              },
+              "entry": {
+                "type": "string",
+                "minLength": 1,
+                "description": "非空字符串标识或文本。"
+              },
+              "references": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "path",
+                    "loadPolicy",
+                    "estimatedTokens"
+                  ],
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "非空字符串标识或文本。"
+                    },
+                    "loadPolicy": {
+                      "type": "string",
+                      "enum": [
+                        "eager",
+                        "on_demand",
+                        "forbidden"
+                      ],
+                      "description": "参考材料加载策略。"
+                    },
+                    "estimatedTokens": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 0,
+                      "description": "可空非负整数。"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "isolation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "workspaceMode",
+            "mergeBack",
+            "contextMode"
+          ],
+          "description": "工作区副本、结果合并与上下文继承隔离策略。",
+          "properties": {
+            "workspaceMode": {
+              "type": "string",
+              "enum": [
+                "inherit",
+                "share",
+                "branch",
+                "fresh_readonly"
+              ],
+              "description": "工作区模式。"
+            },
+            "mergeBack": {
+              "type": "string",
+              "enum": [
+                "none",
+                "coordinator_merge",
+                "patch_submission"
+              ],
+              "description": "写集回并方式。"
+            },
+            "contextMode": {
+              "type": "string",
+              "enum": [
+                "fresh",
+                "forked",
+                "summary_handoff"
+              ],
+              "description": "上下文隔离模式。"
+            }
+          }
+        },
+        "fanOut": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "mode",
+                "itemSource",
+                "minBranches",
+                "maxBranches",
+                "maxConcurrency",
+                "joinNodeId"
+              ],
+              "description": "静态或动态多分支并行扇出声明。",
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "static",
+                    "dynamic"
+                  ],
+                  "description": "扇出模式。"
+                },
+                "itemSource": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "kind",
+                    "ref"
+                  ],
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "artifact_list",
+                        "param"
+                      ],
+                      "description": "分片数据源类型。"
+                    },
+                    "ref": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "非空字符串标识或文本。"
+                    }
+                  }
+                },
+                "minBranches": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "maxBranches": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "maxConcurrency": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "joinNodeId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "非空字符串标识或文本。"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可选并行扇出配置。"
+        },
+        "join": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "policy",
+                "quorum",
+                "onBranchFailure"
+              ],
+              "description": "并行分支汇合与分支失败处置策略。",
+              "properties": {
+                "policy": {
+                  "type": "string",
+                  "enum": [
+                    "all",
+                    "quorum",
+                    "any_success"
+                  ],
+                  "description": "汇合通过条件。"
+                },
+                "quorum": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "description": "可空非负整数。"
+                },
+                "onBranchFailure": {
+                  "type": "string",
+                  "enum": [
+                    "fail_all",
+                    "retry_branch",
+                    "proceed_partial_with_disclosure"
+                  ],
+                  "description": "单分支失败时的处置策略。"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可选汇合节点策略。"
+        },
+        "independence": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "reviewsNodes",
+                "requireFreshContext",
+                "requireDistinctModelFamily",
+                "forbidWriteTools"
+              ],
+              "description": "独立审阅节点的被审对象与认知隔离要求。",
+              "properties": {
+                "reviewsNodes": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "非空字符串标识或文本。"
+                  }
+                },
+                "requireFreshContext": {
+                  "type": "boolean"
+                },
+                "requireDistinctModelFamily": {
+                  "type": "boolean"
+                },
+                "forbidWriteTools": {
+                  "type": "boolean"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "审阅节点独立性配置。"
+        },
+        "onFailure": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "route",
+            "maxRetries"
+          ],
+          "description": "节点执行失败时的重试上限与升级路由。",
+          "properties": {
+            "route": {
+              "type": "string",
+              "minLength": 1,
+              "description": "非空字符串标识或文本。"
+            },
+            "maxRetries": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 5
+            }
+          }
+        },
+        "hostRequirements": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requiredCapabilities"
+          ],
+          "description": "对运行宿主的能力要求。",
+          "properties": {
+            "requiredCapabilities": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "subagent_spawn",
+                  "os_sandbox",
+                  "tool_allowlist_enforced",
+                  "per_turn_usage",
+                  "hitl_prompt",
+                  "fs_snapshot"
+                ]
+              }
+            }
+          }
+        },
+        "hostFallbackPolicy": {
+          "type": "array",
+          "description": "宿主缺少某项能力时的确定性降级或阻断规则。",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "hostId",
+              "missingCapability",
+              "action",
+              "variantNodeId"
+            ],
+            "properties": {
+              "hostId": {
+                "type": "string",
+                "minLength": 1,
+                "description": "非空字符串标识或文本。"
+              },
+              "missingCapability": {
+                "type": "string",
+                "minLength": 1,
+                "description": "非空字符串标识或文本。"
+              },
+              "action": {
+                "type": "string",
+                "enum": [
+                  "block",
+                  "degrade_to_variant",
+                  "run_with_disclosure"
+                ]
+              },
+              "variantNodeId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "可空字符串。"
+              }
+            }
+          }
+        },
+        "contextPolicyOverride": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "warnRatioBp",
+                "hardStopRatioBp"
+              ],
+              "properties": {
+                "warnRatioBp": {
+                  "type": "integer",
+                  "minimum": 500,
+                  "maximum": 10000
+                },
+                "hardStopRatioBp": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 500,
+                  "maximum": 10000
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可选节点级上下文水位覆盖。"
+        },
+        "completionCriteria": {
+          "type": "array",
+          "description": "节点完成必须产出的预期证据键列表。",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "evidenceKey"
+            ],
+            "properties": {
+              "evidenceKey": {
+                "type": "string",
+                "minLength": 1,
+                "description": "非空字符串标识或文本。"
+              }
+            }
+          }
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensionsBag"
+        }
+      }
+    },
+    "blueprintEdge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "edgeId",
+        "fromNodeId",
+        "toNodeId",
+        "edgeKind",
+        "condition",
+        "handoff"
+      ],
+      "description": "节点间有向委派、交接、送审或有界返工边。",
+      "properties": {
+        "edgeId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "fromNodeId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "toNodeId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "edgeKind": {
+          "type": "string",
+          "enum": [
+            "delegate_spawn",
+            "sequential_handoff",
+            "review_submission",
+            "rework_feedback"
+          ],
+          "description": "有向边类别。"
+        },
+        "condition": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "可空字符串。"
+        },
+        "handoff": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "contract",
+            "freeTextOnlyForbidden",
+            "requiredUpstreamEvidence"
+          ],
+          "description": "跨节点交接信封协议与前置证据要求。",
+          "properties": {
+            "contract": {
+              "type": "string",
+              "enum": [
+                "task-handoff-envelope",
+                "continuation-package",
+                "professional-conclusion",
+                "artifact_bundle"
+              ],
+              "description": "结构化交接载体契约。"
+            },
+            "freeTextOnlyForbidden": {
+              "type": "boolean",
+              "description": "是否禁止仅使用自由文本口头交接。"
+            },
+            "requiredUpstreamEvidence": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "description": "非空字符串标识或文本。"
+              }
+            }
+          }
+        },
+        "rework": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "maxIterations",
+                "carrier",
+                "preserve",
+                "reviewerOnRetry",
+                "onExhausted"
+              ],
+              "description": "返工回边的轮次上限、保留状态与耗尽升级规则。",
+              "properties": {
+                "maxIterations": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 5
+                },
+                "carrier": {
+                  "const": "continuation-package",
+                  "description": "固定返工交接载体。"
+                },
+                "preserve": {
+                  "type": "array",
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "accepted_artifacts",
+                      "disproved_paths",
+                      "failure_evidence"
+                    ]
+                  }
+                },
+                "reviewerOnRetry": {
+                  "type": "string",
+                  "enum": [
+                    "same",
+                    "fresh"
+                  ]
+                },
+                "onExhausted": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "action",
+                    "gateId"
+                  ],
+                  "properties": {
+                    "action": {
+                      "type": "string",
+                      "enum": [
+                        "escalate_hitl",
+                        "abort"
+                      ]
+                    },
+                    "gateId": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "description": "可空字符串。"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "返工边专属规则；当 edgeKind 为 rework_feedback 时必填。"
+        }
+      }
+    },
+    "expectedEvidenceItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidenceKey",
+        "kind",
+        "pathPattern",
+        "schemaRef",
+        "producedBy",
+        "verifiedBy",
+        "critical"
+      ],
+      "description": "编排预期证据项及生产方、核验方声明。",
+      "properties": {
+        "evidenceKey": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "artifact",
+            "test_receipt",
+            "command_output",
+            "professional_conclusion",
+            "handoff_envelope"
+          ],
+          "description": "预期证据类型。"
+        },
+        "pathPattern": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "schemaRef": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "可空字符串。"
+        },
+        "producedBy": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "verifiedBy": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "可空字符串。"
+        },
+        "critical": {
+          "type": "boolean",
+          "description": "是否为门禁放行关键证据。"
+        }
+      }
+    },
+    "hitlGate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gateId",
+        "placement",
+        "attachToNodeId",
+        "edgeId",
+        "protocol",
+        "coversSideEffects",
+        "approverRole",
+        "triggerReason",
+        "timeoutSeconds",
+        "onTimeout",
+        "onReject"
+      ],
+      "description": "人工摘要审批门禁及其挂载位置与驳回路由。",
+      "properties": {
+        "gateId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "placement": {
+          "type": "string",
+          "enum": [
+            "before_node",
+            "after_node",
+            "on_edge"
+          ],
+          "description": "门禁挂载位置。"
+        },
+        "attachToNodeId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "可空字符串。"
+        },
+        "edgeId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "可空字符串。"
+        },
+        "protocol": {
+          "const": "plan_approve_digest",
+          "description": "固定摘要审批协议。"
+        },
+        "coversSideEffects": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": "非空字符串标识或文本。"
+          },
+          "description": "覆盖的外部副作用类别。"
+        },
+        "approverRole": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "triggerReason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "onTimeout": {
+          "type": "string",
+          "enum": [
+            "block_and_wait",
+            "abort_run"
+          ]
+        },
+        "onReject": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "route"
+          ],
+          "properties": {
+            "route": {
+              "type": "string",
+              "minLength": 1,
+              "description": "非空字符串标识或文本。"
+            }
+          }
+        }
+      }
+    }
+  }
+}

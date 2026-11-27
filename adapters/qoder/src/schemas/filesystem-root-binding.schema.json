@@ -2,18 +2,31 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/filesystem-root-binding.json",
   "title": "Filesystem root binding",
+  "description": "文件系统根目录身份绑定：固定根目录的设备、文件标识或平台等价句柄事实，防止运行期路径替换。",
   "type": "object",
   "additionalProperties": false,
-  "required": ["kind", "digestAlgorithm", "basis", "digest"],
+  "required": [
+    "kind",
+    "digestAlgorithm",
+    "basis",
+    "digest"
+  ],
   "properties": {
-    "kind": { "const": "trusted-filesystem-root-binding" },
-    "digestAlgorithm": { "const": "sha256" },
+    "kind": {
+      "const": "trusted-filesystem-root-binding"
+    },
+    "digestAlgorithm": {
+      "const": "sha256"
+    },
     "basis": {
       "enum": [
         "canonical-realpath-device-inode-type-mode-v1",
         "canonical-finalpath-volume-fileid-type-security-v1"
       ]
     },
-    "digest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
   }
 }

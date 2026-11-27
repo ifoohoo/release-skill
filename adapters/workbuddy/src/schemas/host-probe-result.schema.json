@@ -2,28 +2,103 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/host-probe-result.json",
   "title": "Skill Family host probe result",
+  "description": "宿主环境探测结果：记录宿主 CLI 可用性、版本、技能根目录与注册表状态的只读探测事实。",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "kind", "hostId", "support", "facts"],
+  "required": [
+    "schemaVersion",
+    "kind",
+    "hostId",
+    "support",
+    "facts"
+  ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "skill-family.host-probe-result" },
-    "hostId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
-    "support": { "enum": ["supported", "manual", "unsupported"] },
-    "reason": { "type": "string", "minLength": 1 },
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.host-probe-result"
+    },
+    "hostId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,63}$"
+    },
+    "support": {
+      "enum": [
+        "supported",
+        "manual",
+        "unsupported"
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
     "facts": {
       "type": "array",
-      "items": { "$ref": "https://contracts.skill-family.example/v1/host-capability-fact.json" }
+      "items": {
+        "$ref": "https://contracts.skill-family.example/v1/host-capability-fact.json"
+      }
     }
   },
   "allOf": [
     {
-      "if": { "properties": { "support": { "const": "supported" } }, "required": ["support"] },
-      "then": { "properties": { "reason": false, "facts": { "type": "array", "minItems": 9, "maxItems": 9 } } },
+      "if": {
+        "properties": {
+          "support": {
+            "const": "supported"
+          }
+        },
+        "required": [
+          "support"
+        ]
+      },
+      "then": {
+        "properties": {
+          "reason": false,
+          "facts": {
+            "type": "array",
+            "minItems": 9,
+            "maxItems": 9
+          }
+        }
+      },
       "else": {
-        "if": { "properties": { "support": { "const": "manual" } }, "required": ["support"] },
-        "then": { "required": ["reason"], "properties": { "reason": true, "facts": { "type": "array", "minItems": 9, "maxItems": 9 } } },
-        "else": { "required": ["reason"], "properties": { "reason": true, "facts": { "type": "array", "maxItems": 0 } } }
+        "if": {
+          "properties": {
+            "support": {
+              "const": "manual"
+            }
+          },
+          "required": [
+            "support"
+          ]
+        },
+        "then": {
+          "required": [
+            "reason"
+          ],
+          "properties": {
+            "reason": true,
+            "facts": {
+              "type": "array",
+              "minItems": 9,
+              "maxItems": 9
+            }
+          }
+        },
+        "else": {
+          "required": [
+            "reason"
+          ],
+          "properties": {
+            "reason": true,
+            "facts": {
+              "type": "array",
+              "maxItems": 0
+            }
+          }
+        }
       }
     }
   ]

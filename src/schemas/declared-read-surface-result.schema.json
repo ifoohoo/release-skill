@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/declared-read-surface-result.json",
   "title": "DeclaredReadSurfaceResult",
-  "description": "Static verification result for a declared fs read surface (FND-ADR-010). The mechanism collects every `.mjs`/`.js` module under the scanned root, compares each module's `import {...} from \"node:fs\"` named imports against the consumer-declared reader set, and forbids every write-family fs API across the whole tree. The verdict semantics are a closed three-rule enumeration carried in violations[].rule: undeclared-module-imports-fs, fs-api-outside-declared-set, write-family-fs-api. Scope and bias direction are declared in the contract: static syntax surface only (ESM named imports plus whole-source substring detection), conservative approximation (comments and string literals containing write-family API names also hit; static syntax-level violations are never under-reported), no execution of the scanned modules, no model call, no network. The result carries no timestamp.",
+  "description": "声明式 fs 读取表面静态核验结果（FND-ADR-010）。机制收集扫描根下全部 .mjs/.js 模块，将各模块从 node:fs 具名导入的符号与消费方声明的读取白名单比对，并在整棵目录树内禁止任何写入类 fs API。违规结论采用三枚举封闭集合（undeclared-module-imports-fs、fs-api-outside-declared-set、write-family-fs-api）。本检查仅分析静态语法表面且采取保守近似（注释或字符串字面量中出现写 API 名称同样命中，绝不漏报静态语法违规），不执行被扫模块、不调用模型、不发起网络请求，结果不含时间戳。",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -15,18 +15,33 @@
     "guarantees"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "skill-family.declared-read-surface-result" },
-    "ok": { "type": "boolean" },
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.declared-read-surface-result"
+    },
+    "ok": {
+      "type": "boolean"
+    },
     "violations": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["module", "rule"],
+        "required": [
+          "module",
+          "rule"
+        ],
         "properties": {
-          "module": { "type": "string", "minLength": 1 },
-          "api": { "type": "string", "minLength": 1 },
+          "module": {
+            "type": "string",
+            "minLength": 1
+          },
+          "api": {
+            "type": "string",
+            "minLength": 1
+          },
           "rule": {
             "enum": [
               "undeclared-module-imports-fs",
@@ -40,9 +55,14 @@
     "scannedModules": {
       "type": "array",
       "uniqueItems": true,
-      "items": { "type": "string", "minLength": 1 }
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
-    "scope": { "const": "esm-named-imports-only" },
+    "scope": {
+      "const": "esm-named-imports-only"
+    },
     "guarantees": {
       "type": "array",
       "minItems": 1,

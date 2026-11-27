@@ -1174,6 +1174,14 @@ if (command === 'assess') {
   const auditConclusionDigest = auditShaIdx !== -1 && args[auditShaIdx + 1] && !args[auditShaIdx + 1].startsWith('--')
     ? args[auditShaIdx + 1]
     : undefined;
+  const evalConcIdx = args.indexOf('--eval-conclusion');
+  const evalConclusionPath = evalConcIdx !== -1 && args[evalConcIdx + 1] && !args[evalConcIdx + 1].startsWith('--')
+    ? args[evalConcIdx + 1]
+    : undefined;
+  const evalShaIdx = args.indexOf('--eval-conclusion-sha256');
+  const evalConclusionDigest = evalShaIdx !== -1 && args[evalShaIdx + 1] && !args[evalShaIdx + 1].startsWith('--')
+    ? args[evalShaIdx + 1]
+    : undefined;
 
   try {
     if (auditConcIdx !== -1 && !auditConclusionPath) {
@@ -1181,6 +1189,12 @@ if (command === 'assess') {
     }
     if (auditShaIdx !== -1 && !auditConclusionDigest) {
       throw new ReleaseError(MISSING_PARAMETERS, '--audit-conclusion-sha256 requires a 64-hex sha256 value');
+    }
+    if (evalConcIdx !== -1 && !evalConclusionPath) {
+      throw new ReleaseError(MISSING_PARAMETERS, '--eval-conclusion requires a path value');
+    }
+    if (evalShaIdx !== -1 && !evalConclusionDigest) {
+      throw new ReleaseError(MISSING_PARAMETERS, '--eval-conclusion-sha256 requires a 64-hex sha256 value');
     }
     const { assessProject } = await import('../src/commands/assess.mjs');
     const report = await assessProject({
@@ -1190,6 +1204,8 @@ if (command === 'assess') {
       conclusionOutput,
       auditConclusionPath,
       auditConclusionDigest,
+      evalConclusionPath,
+      evalConclusionDigest,
     });
 
     if (hasJson) {
@@ -1547,6 +1563,14 @@ if (command === 'prepare') {
   const auditConclusionDigest = auditShaIdx !== -1 && args[auditShaIdx + 1] && !args[auditShaIdx + 1].startsWith('--')
     ? args[auditShaIdx + 1]
     : undefined;
+  const evalConcIdx = args.indexOf('--eval-conclusion');
+  const evalConclusionPath = evalConcIdx !== -1 && args[evalConcIdx + 1] && !args[evalConcIdx + 1].startsWith('--')
+    ? args[evalConcIdx + 1]
+    : undefined;
+  const evalShaIdx = args.indexOf('--eval-conclusion-sha256');
+  const evalConclusionDigest = evalShaIdx !== -1 && args[evalShaIdx + 1] && !args[evalShaIdx + 1].startsWith('--')
+    ? args[evalShaIdx + 1]
+    : undefined;
   const hasUnitSelection = args.includes('--unit');
   const unitIds = [];
   for (let i = 0; i < args.length; i += 1) {
@@ -1568,6 +1592,12 @@ if (command === 'prepare') {
     }
     if (auditShaIdx !== -1 && !auditConclusionDigest) {
       throw new ReleaseError(MISSING_PARAMETERS, '--audit-conclusion-sha256 requires a 64-hex sha256 value');
+    }
+    if (evalConcIdx !== -1 && !evalConclusionPath) {
+      throw new ReleaseError(MISSING_PARAMETERS, '--eval-conclusion requires a path value');
+    }
+    if (evalShaIdx !== -1 && !evalConclusionDigest) {
+      throw new ReleaseError(MISSING_PARAMETERS, '--eval-conclusion-sha256 requires a 64-hex sha256 value');
     }
     const { prepareRelease } = await import('../src/commands/prepare.mjs');
     const { readFile: readFileFs } = await import('node:fs/promises');
@@ -1593,6 +1623,8 @@ if (command === 'prepare') {
       ...(hasUnitSelection ? { unitIds } : {}),
       ...(auditConclusionPath ? { auditConclusionPath } : {}),
       ...(auditConclusionDigest ? { auditConclusionDigest } : {}),
+      ...(evalConclusionPath ? { evalConclusionPath } : {}),
+      ...(evalConclusionDigest ? { evalConclusionDigest } : {}),
     });
 
     if (result?.status === 'NEEDS_INPUT') {

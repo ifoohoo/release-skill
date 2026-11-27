@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.host-descriptor",
+  "hostId": "grok",
+  "displayName": "Grok Build",
+  "support": "manual",
+  "maturity": "developer-preview",
+  "sourceAliases": [
+    "grok-build",
+    "grok-cli"
+  ],
+  "pathCategories": [
+    {
+      "id": "grok-user-skills",
+      "role": "skill-root",
+      "scope": "user",
+      "anchor": "user-home",
+      "relPath": ".grok/skills"
+    },
+    {
+      "id": "grok-project-skills",
+      "role": "skill-root",
+      "scope": "project",
+      "anchor": "project-root",
+      "relPath": ".grok/skills"
+    }
+  ],
+  "probeCapabilities": [
+    "cli",
+    "version",
+    "payload",
+    "registry",
+    "discover",
+    "enabled",
+    "reload",
+    "smoke",
+    "uninstall"
+  ]
+}

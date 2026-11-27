@@ -2,180 +2,801 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/state-store-recovery-observation.json",
   "title": "State store recovery observation",
-  "description": "Read-only maintenance observation. The runtime rechecks identities and original bytes before any takeover; confirmation does not itself provide exclusion.",
+  "description": "状态存储恢复前的只读维护观测记录：运行期在任何接管写入前重新核验文件身份与原始字节，观测确认本身不提供互斥锁。",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "kind", "root", "directories", "controls"],
+  "required": [
+    "schemaVersion",
+    "kind",
+    "root",
+    "directories",
+    "controls"
+  ],
   "properties": {
-    "schemaVersion": { "enum": [1, 2] },
-    "kind": { "const": "skill-family.state-store-recovery-observation" },
-    "root": { "oneOf": [
-      { "type": "string", "pattern": "^/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[\\\\\\u0000])(?:[^/]+(?:/[^/]+)*)?$" },
-      { "type": "string", "pattern": "^[A-Za-z]:/(?:[^/\\\\:*?\"<>|\\u0000]+/)*[^/\\\\:*?\"<>|\\u0000]+$" }
-    ] },
+    "schemaVersion": {
+      "enum": [
+        1,
+        2
+      ]
+    },
+    "kind": {
+      "const": "skill-family.state-store-recovery-observation"
+    },
+    "root": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^/(?!.*(?:^|/)(?:\\.|\\.\\.)(?:/|$))(?!.*//)(?!.*[\\\\\\u0000])(?:[^/]+(?:/[^/]+)*)?$"
+        },
+        {
+          "type": "string",
+          "pattern": "^[A-Za-z]:/(?:[^/\\\\:*?\"<>|\\u0000]+/)*[^/\\\\:*?\"<>|\\u0000]+$"
+        }
+      ]
+    },
     "directories": {
-      "type": "array", "minItems": 1, "maxItems": 3, "uniqueItems": true,
-      "items": { "$ref": "#/$defs/directory" },
-      "contains": { "type": "object", "properties": { "path": { "const": "." }, "exists": { "const": true } }, "required": ["path", "exists"] },
-      "minContains": 1, "maxContains": 1
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/directory"
+      },
+      "contains": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "const": "."
+          },
+          "exists": {
+            "const": true
+          }
+        },
+        "required": [
+          "path",
+          "exists"
+        ]
+      },
+      "minContains": 1,
+      "maxContains": 1
     },
     "controls": {
-      "type": "array", "minItems": 3, "maxItems": 3,
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
       "prefixItems": [
-        { "$ref": "#/$defs/control", "properties": { "path": { "const": "writer.lock" }, "record": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/writerRecord" }] } }, "type": "object" },
-        { "$ref": "#/$defs/control", "properties": { "path": { "const": "writer-mutation.lock" }, "record": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/mutationRecord" }] } }, "type": "object" },
-        { "$ref": "#/$defs/control", "properties": { "path": { "const": "writer-recovery.lock" }, "record": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/recoveryRecord" }] } }, "type": "object" }
+        {
+          "$ref": "#/$defs/control",
+          "properties": {
+            "path": {
+              "const": "writer.lock"
+            },
+            "record": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/writerRecord"
+                }
+              ]
+            }
+          },
+          "type": "object"
+        },
+        {
+          "$ref": "#/$defs/control",
+          "properties": {
+            "path": {
+              "const": "writer-mutation.lock"
+            },
+            "record": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/mutationRecord"
+                }
+              ]
+            }
+          },
+          "type": "object"
+        },
+        {
+          "$ref": "#/$defs/control",
+          "properties": {
+            "path": {
+              "const": "writer-recovery.lock"
+            },
+            "record": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/recoveryRecord"
+                }
+              ]
+            }
+          },
+          "type": "object"
+        }
       ],
       "items": false
     }
   },
   "allOf": [
     {
-      "if": { "properties": { "schemaVersion": { "const": 1 } }, "required": ["schemaVersion"] },
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 1
+          }
+        },
+        "required": [
+          "schemaVersion"
+        ]
+      },
       "then": {
         "properties": {
-          "root": { "type": "string", "pattern": "^/" },
-          "directories": { "type": "array", "items": { "type": "object", "properties": { "identity": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/posixIdentity" }] } } } },
-          "controls": { "type": "array", "minItems": 3, "maxItems": 3, "items": false, "prefixItems": [
-            { "type": "object", "properties": { "identity": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/posixIdentity" }] } } },
-            { "type": "object", "properties": { "identity": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/posixIdentity" }] } } },
-            { "type": "object", "properties": { "identity": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/posixIdentity" }] } } }
-          ] }
+          "root": {
+            "type": "string",
+            "pattern": "^/"
+          },
+          "directories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "identity": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/$defs/posixIdentity"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "controls": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": false,
+            "prefixItems": [
+              {
+                "type": "object",
+                "properties": {
+                  "identity": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "$ref": "#/$defs/posixIdentity"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "identity": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "$ref": "#/$defs/posixIdentity"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "identity": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "$ref": "#/$defs/posixIdentity"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
         }
       }
     },
     {
-      "if": { "properties": { "schemaVersion": { "const": 2 } }, "required": ["schemaVersion"] },
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 2
+          }
+        },
+        "required": [
+          "schemaVersion"
+        ]
+      },
       "then": {
         "properties": {
-          "root": { "type": "string", "pattern": "^[A-Za-z]:/" },
-          "directories": { "type": "array", "items": { "type": "object", "properties": { "identity": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/windowsIdentity" }] } } } },
-          "controls": { "type": "array", "minItems": 3, "maxItems": 3, "items": false, "prefixItems": [
-            { "type": "object", "properties": { "identity": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/windowsIdentity" }] } } },
-            { "type": "object", "properties": { "identity": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/windowsIdentity" }] } } },
-            { "type": "object", "properties": { "identity": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/windowsIdentity" }] } } }
-          ] }
+          "root": {
+            "type": "string",
+            "pattern": "^[A-Za-z]:/"
+          },
+          "directories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "identity": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/$defs/windowsIdentity"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "controls": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": false,
+            "prefixItems": [
+              {
+                "type": "object",
+                "properties": {
+                  "identity": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "$ref": "#/$defs/windowsIdentity"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "identity": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "$ref": "#/$defs/windowsIdentity"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "identity": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "$ref": "#/$defs/windowsIdentity"
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          }
         }
       }
     }
   ],
   "$defs": {
     "posixIdentity": {
-      "type": "object", "additionalProperties": false,
-      "required": ["device", "inode", "mode", "type"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "device",
+        "inode",
+        "mode",
+        "type"
+      ],
       "properties": {
-        "device": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
-        "inode": { "type": "string", "pattern": "^(0|[1-9][0-9]*)$" },
-        "mode": { "type": "integer", "minimum": 0, "maximum": 65535 },
-        "type": { "enum": ["file", "directory"] }
+        "device": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "inode": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "mode": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "type": {
+          "enum": [
+            "file",
+            "directory"
+          ]
+        }
       }
     },
     "windowsIdentity": {
-      "type": "object", "additionalProperties": false,
-      "required": ["volumeSerial", "fileId", "permissionObservation", "type"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "volumeSerial",
+        "fileId",
+        "permissionObservation",
+        "type"
+      ],
       "properties": {
-        "volumeSerial": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
-        "fileId": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+        "volumeSerial": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$"
+        },
+        "fileId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{32}$"
+        },
         "permissionObservation": {
-          "type": "object", "additionalProperties": false,
-          "required": ["kind", "attributes", "securityDigest"],
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "attributes",
+            "securityDigest"
+          ],
           "properties": {
-            "kind": { "const": "windows-security-v1" },
-            "attributes": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
-            "securityDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+            "kind": {
+              "const": "windows-security-v1"
+            },
+            "attributes": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            },
+            "securityDigest": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
           }
         },
-        "type": { "enum": ["file", "directory"] }
+        "type": {
+          "enum": [
+            "file",
+            "directory"
+          ]
+        }
       }
     },
-    "identity": { "oneOf": [{ "$ref": "#/$defs/posixIdentity" }, { "$ref": "#/$defs/windowsIdentity" }] },
+    "identity": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/posixIdentity"
+        },
+        {
+          "$ref": "#/$defs/windowsIdentity"
+        }
+      ]
+    },
     "directory": {
-      "type": "object", "additionalProperties": false,
-      "required": ["path", "exists", "identity"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "exists",
+        "identity"
+      ],
       "properties": {
-        "path": { "enum": [".", "events", "snapshots"] },
-        "exists": { "type": "boolean" },
-        "identity": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/identity" }] }
+        "path": {
+          "enum": [
+            ".",
+            "events",
+            "snapshots"
+          ]
+        },
+        "exists": {
+          "type": "boolean"
+        },
+        "identity": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/identity"
+            }
+          ]
+        }
       },
-      "allOf": [{
-        "if": { "properties": { "exists": { "const": true } }, "required": ["exists"] },
-        "then": { "type": "object", "properties": { "identity": { "$ref": "#/$defs/identity", "type": "object", "properties": { "type": { "const": "directory" } } } } },
-        "else": { "type": "object", "properties": { "identity": { "type": "null" } } }
-      }]
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "exists": {
+                "const": true
+              }
+            },
+            "required": [
+              "exists"
+            ]
+          },
+          "then": {
+            "type": "object",
+            "properties": {
+              "identity": {
+                "$ref": "#/$defs/identity",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "directory"
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "type": "object",
+            "properties": {
+              "identity": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
     },
     "control": {
-      "type": "object", "additionalProperties": false,
-      "required": ["path", "exists", "identity", "nlink", "size", "sha256", "record"],
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "exists",
+        "identity",
+        "nlink",
+        "size",
+        "sha256",
+        "record"
+      ],
       "properties": {
-        "path": { "enum": ["writer.lock", "writer-mutation.lock", "writer-recovery.lock"] },
-        "exists": { "type": "boolean" },
-        "identity": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/identity" }] },
-        "nlink": { "enum": [null, 1] },
-        "size": { "type": ["integer", "null"], "minimum": 0, "maximum": 9007199254740991 },
-        "sha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
-        "record": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/record" }] }
+        "path": {
+          "enum": [
+            "writer.lock",
+            "writer-mutation.lock",
+            "writer-recovery.lock"
+          ]
+        },
+        "exists": {
+          "type": "boolean"
+        },
+        "identity": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/identity"
+            }
+          ]
+        },
+        "nlink": {
+          "enum": [
+            null,
+            1
+          ]
+        },
+        "size": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "record": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/record"
+            }
+          ]
+        }
       },
-      "allOf": [{
-        "if": { "properties": { "exists": { "const": true } }, "required": ["exists"] },
-        "then": { "properties": {
-          "identity": { "$ref": "#/$defs/identity", "type": "object", "properties": { "type": { "const": "file" } } },
-          "nlink": { "const": 1 }, "size": { "type": "integer" }, "sha256": { "type": "string" }, "record": { "$ref": "#/$defs/record" }
-        } },
-        "else": { "type": "object", "properties": { "identity": { "type": "null" }, "nlink": { "type": "null" }, "size": { "type": "null" }, "sha256": { "type": "null" }, "record": { "type": "null" } } }
-      }]
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "exists": {
+                "const": true
+              }
+            },
+            "required": [
+              "exists"
+            ]
+          },
+          "then": {
+            "properties": {
+              "identity": {
+                "$ref": "#/$defs/identity",
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "const": "file"
+                  }
+                }
+              },
+              "nlink": {
+                "const": 1
+              },
+              "size": {
+                "type": "integer"
+              },
+              "sha256": {
+                "type": "string"
+              },
+              "record": {
+                "$ref": "#/$defs/record"
+              }
+            }
+          },
+          "else": {
+            "type": "object",
+            "properties": {
+              "identity": {
+                "type": "null"
+              },
+              "nlink": {
+                "type": "null"
+              },
+              "size": {
+                "type": "null"
+              },
+              "sha256": {
+                "type": "null"
+              },
+              "record": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
     },
     "record": {
-      "type": "object", "additionalProperties": false,
-      "required": ["status", "value"],
-      "properties": { "status": { "enum": ["valid", "partial", "unsupported"] }, "value": { "type": ["object", "null"] } },
-      "allOf": [{
-        "if": { "properties": { "status": { "const": "valid" } }, "required": ["status"] },
-        "then": { "properties": { "value": { "type": "object" } } },
-        "else": { "properties": { "value": { "type": "null" } } }
-      }]
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "value"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "valid",
+            "partial",
+            "unsupported"
+          ]
+        },
+        "value": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "valid"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "type": "object"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "value": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
     },
     "writerRecord": {
-      "$ref": "#/$defs/record", "type": "object",
-      "allOf": [{
-        "if": { "properties": { "status": { "const": "valid" } }, "required": ["status"] },
-        "then": { "properties": { "value": {
-          "type": "object", "additionalProperties": false,
-          "required": ["schemaVersion", "owner", "fencing", "acquisitionId", "acquiredAt"],
-          "properties": {
-            "schemaVersion": { "const": 1 }, "owner": { "type": "string", "minLength": 1 },
-            "fencing": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
-            "acquisitionId": { "type": "string", "pattern": "^[0-9a-f]{24}$" },
-            "acquiredAt": { "type": "string", "format": "date-time" }
+      "$ref": "#/$defs/record",
+      "type": "object",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "valid"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "schemaVersion",
+                  "owner",
+                  "fencing",
+                  "acquisitionId",
+                  "acquiredAt"
+                ],
+                "properties": {
+                  "schemaVersion": {
+                    "const": 1
+                  },
+                  "owner": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "fencing": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "acquisitionId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{24}$"
+                  },
+                  "acquiredAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              }
+            }
           }
-        } } }
-      }]
+        }
+      ]
     },
     "mutationRecord": {
-      "$ref": "#/$defs/record", "type": "object",
-      "allOf": [{
-        "if": { "properties": { "status": { "const": "valid" } }, "required": ["status"] },
-        "then": { "properties": { "value": {
-          "type": "object", "additionalProperties": false,
-          "required": ["schemaVersion", "owner", "fencing", "acquisitionId", "operation", "mutationId"],
-          "properties": {
-            "schemaVersion": { "const": 1 }, "owner": { "type": "string", "minLength": 1 },
-            "fencing": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
-            "acquisitionId": { "type": "string", "pattern": "^(?:[0-9a-f]{24}|recovery-claim)$" },
-            "operation": { "type": "string", "minLength": 1 },
-            "mutationId": { "type": "string", "pattern": "^[0-9a-f]{24}$" }
+      "$ref": "#/$defs/record",
+      "type": "object",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "valid"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "schemaVersion",
+                  "owner",
+                  "fencing",
+                  "acquisitionId",
+                  "operation",
+                  "mutationId"
+                ],
+                "properties": {
+                  "schemaVersion": {
+                    "const": 1
+                  },
+                  "owner": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "fencing": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "acquisitionId": {
+                    "type": "string",
+                    "pattern": "^(?:[0-9a-f]{24}|recovery-claim)$"
+                  },
+                  "operation": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "mutationId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{24}$"
+                  }
+                }
+              }
+            }
           }
-        } } }
-      }]
+        }
+      ]
     },
     "recoveryRecord": {
-      "$ref": "#/$defs/record", "type": "object",
-      "allOf": [{
-        "if": { "properties": { "status": { "const": "valid" } }, "required": ["status"] },
-        "then": { "properties": { "value": {
-          "type": "object", "additionalProperties": false, "required": ["schemaVersion", "recoveryId"],
-          "properties": { "schemaVersion": { "const": 1 }, "recoveryId": { "type": "string", "pattern": "^[0-9a-f]{24}$" } }
-        } } }
-      }]
+      "$ref": "#/$defs/record",
+      "type": "object",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "valid"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "value": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "schemaVersion",
+                  "recoveryId"
+                ],
+                "properties": {
+                  "schemaVersion": {
+                    "const": 1
+                  },
+                  "recoveryId": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{24}$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

@@ -2,10 +2,18 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/operation-result.json",
   "title": "OperationResult",
-  "description": "Terminal result of one kernel protocol operation: terminal state, optional outputs, and stable-coded errors. A result never carries non-terminal states.",
+  "description": "内核协议操作的终态结果信封：携带终态、可选输出载荷与稳定错误码列表；结果文档绝不携带非终态。",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "kind", "protocol", "operationId", "operation", "state", "errors"],
+  "required": [
+    "schemaVersion",
+    "kind",
+    "protocol",
+    "operationId",
+    "operation",
+    "state",
+    "errors"
+  ],
   "properties": {
     "schemaVersion": {
       "const": 1
@@ -19,24 +27,31 @@
     "operationId": {
       "type": "string",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
-      "description": "Echoes the request operationId."
+      "description": "原样回显请求中的 operationId。"
     },
     "operation": {
       "type": "string",
       "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
-      "description": "Echoes the request operation."
+      "description": "原样回显请求中的 operation 名称。"
     },
     "state": {
-      "enum": ["succeeded", "failed", "rejected"],
-      "description": "Terminal states only; equals the kernel protocol terminalStates set."
+      "enum": [
+        "succeeded",
+        "failed",
+        "rejected"
+      ],
+      "description": "操作终态，取值集合与内核协议的 terminalStates 完全一致。"
     },
     "outputs": {
-      "type": ["object", "null"],
-      "description": "Operation-specific outputs; meaningful when state is succeeded."
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "操作输出对象；当 state 为 succeeded 时承载有效结果。"
     },
     "errors": {
       "type": "array",
-      "description": "Empty when state is succeeded; at least one stable-coded error otherwise.",
+      "description": "当 state 为 succeeded 时为空数组；处于其他终态时至少包含一条带稳定错误码的错误记录。",
       "items": {
         "$ref": "#/$defs/error"
       }
@@ -44,7 +59,7 @@
     "completedAt": {
       "type": "string",
       "format": "date-time",
-      "description": "Optional RFC 3339 date-time when the operation reached a terminal state."
+      "description": "可选的操作到达终态 RFC 3339 时间戳。"
     }
   },
   "allOf": [
@@ -55,7 +70,9 @@
             "const": "succeeded"
           }
         },
-        "required": ["state"]
+        "required": [
+          "state"
+        ]
       },
       "then": {
         "properties": {
@@ -70,10 +87,15 @@
       "if": {
         "properties": {
           "state": {
-            "enum": ["failed", "rejected"]
+            "enum": [
+              "failed",
+              "rejected"
+            ]
           }
         },
-        "required": ["state"]
+        "required": [
+          "state"
+        ]
       },
       "then": {
         "properties": {
@@ -89,29 +111,35 @@
     "protocolRef": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "version"],
+      "required": [
+        "name",
+        "version"
+      ],
       "properties": {
         "name": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*(\\.[a-z][a-z0-9]*(-[a-z0-9]+)*)*$",
-          "description": "Registered protocol name (dot-separated kebab-case segments)."
+          "description": "已注册的协议名称（点分 kebab-case 段）。"
         },
         "version": {
           "type": "integer",
           "minimum": 1,
-          "description": "Registered protocol version."
+          "description": "已注册的协议整数版本号。"
         }
       }
     },
     "error": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["code", "message"],
+      "required": [
+        "code",
+        "message"
+      ],
       "properties": {
         "code": {
           "type": "string",
           "pattern": "^SFC[0-9]{4}$",
-          "description": "Stable error code from the frozen contracts error registry."
+          "description": "来自冻结 Contracts 错误注册表的稳定错误码。"
         },
         "message": {
           "type": "string",
@@ -119,7 +147,7 @@
         },
         "path": {
           "type": "string",
-          "description": "Optional JSON pointer into the offending document."
+          "description": "可选的指向出错文档位置的 JSON Pointer。"
         },
         "details": {
           "type": "object"

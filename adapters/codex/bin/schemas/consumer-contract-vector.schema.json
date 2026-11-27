@@ -2,73 +2,162 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/consumer-contract-vector.json",
   "title": "ConsumerContractVector",
-  "description": "A public, version-bound input and expected-observation vector for a Foundation consumer contract.",
+  "description": "Foundation 消费方契约的公开版本绑定输入与预期观测测试向量。",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "kind", "vectorId", "vectorSetId", "capabilityId", "foundationVersion", "contractId", "caseClass", "strategy", "request", "expected"],
+  "required": [
+    "schemaVersion",
+    "kind",
+    "vectorId",
+    "vectorSetId",
+    "capabilityId",
+    "foundationVersion",
+    "contractId",
+    "caseClass",
+    "strategy",
+    "request",
+    "expected"
+  ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "skill-family.consumer-contract-vector" },
-    "vectorId": { "type": "string", "minLength": 1 },
-    "vectorSetId": { "type": "string", "minLength": 1 },
-    "capabilityId": { "type": "string", "minLength": 1 },
-    "foundationVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
-    "contractId": { "type": "string", "minLength": 1 },
-    "caseClass": { "enum": ["positive", "negative", "indeterminate"] },
-    "strategy": { "enum": ["real-pure", "official-fake"] },
-    "request": { "type": "object" },
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.consumer-contract-vector"
+    },
+    "vectorId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "vectorSetId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capabilityId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "foundationVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "contractId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "caseClass": {
+      "enum": [
+        "positive",
+        "negative",
+        "indeterminate"
+      ]
+    },
+    "strategy": {
+      "enum": [
+        "real-pure",
+        "official-fake"
+      ]
+    },
+    "request": {
+      "type": "object"
+    },
     "expected": {
       "oneOf": [
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["outcome", "valueRelation"],
+          "required": [
+            "outcome",
+            "valueRelation"
+          ],
           "properties": {
-            "outcome": { "const": "return" },
-            "valueRelation": { "const": "atomic-write-contained-absolute-target" }
+            "outcome": {
+              "const": "return"
+            },
+            "valueRelation": {
+              "const": "atomic-write-contained-absolute-target"
+            }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["outcome", "value"],
+          "required": [
+            "outcome",
+            "value"
+          ],
           "properties": {
-            "outcome": { "const": "return" },
+            "outcome": {
+              "const": "return"
+            },
             "value": {}
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["outcome", "errorCode"],
+          "required": [
+            "outcome",
+            "errorCode"
+          ],
           "properties": {
-            "outcome": { "const": "throw" },
-            "errorCode": { "type": "string", "pattern": "^SFC[0-9]{4}$" }
+            "outcome": {
+              "const": "throw"
+            },
+            "errorCode": {
+              "type": "string",
+              "pattern": "^SFC[0-9]{4}$"
+            }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["outcome", "errorCode", "errorKind"],
+          "required": [
+            "outcome",
+            "errorCode",
+            "errorKind"
+          ],
           "properties": {
-            "outcome": { "const": "throw" },
-            "errorCode": { "type": "string", "pattern": "^SFC[0-9]{4}$" },
-            "errorKind": { "const": "path-traversal" }
+            "outcome": {
+              "const": "throw"
+            },
+            "errorCode": {
+              "type": "string",
+              "pattern": "^SFC[0-9]{4}$"
+            },
+            "errorKind": {
+              "const": "path-traversal"
+            }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["outcome", "allowedStates", "failClosed"],
+          "required": [
+            "outcome",
+            "allowedStates",
+            "failClosed"
+          ],
           "properties": {
-            "outcome": { "const": "indeterminate" },
+            "outcome": {
+              "const": "indeterminate"
+            },
             "allowedStates": {
               "type": "array",
               "minItems": 1,
-              "items": { "enum": ["return", "throw", "indeterminate"] },
+              "items": {
+                "enum": [
+                  "return",
+                  "throw",
+                  "indeterminate"
+                ]
+              },
               "uniqueItems": true
             },
-            "failClosed": { "const": true }
+            "failClosed": {
+              "const": true
+            }
           }
         }
       ]
@@ -77,15 +166,27 @@
   "allOf": [
     {
       "if": {
-        "properties": { "capabilityId": { "const": "foundation.harness.atomic-write" } },
-        "required": ["capabilityId"]
+        "properties": {
+          "capabilityId": {
+            "const": "foundation.harness.atomic-write"
+          }
+        },
+        "required": [
+          "capabilityId"
+        ]
       },
       "then": {
         "properties": {
           "request": {
             "type": "object",
-            "required": ["root"],
-            "properties": { "root": { "$ref": "#/$defs/atomicRoot" } }
+            "required": [
+              "root"
+            ],
+            "properties": {
+              "root": {
+                "$ref": "#/$defs/atomicRoot"
+              }
+            }
           }
         }
       },
@@ -97,8 +198,14 @@
               "root": {
                 "not": {
                   "type": "object",
-                  "required": ["runtimeBinding"],
-                  "properties": { "runtimeBinding": { "const": "atomic-write-canonical-root" } }
+                  "required": [
+                    "runtimeBinding"
+                  ],
+                  "properties": {
+                    "runtimeBinding": {
+                      "const": "atomic-write-canonical-root"
+                    }
+                  }
                 }
               }
             }
@@ -109,17 +216,30 @@
     {
       "if": {
         "properties": {
-          "capabilityId": { "const": "foundation.harness.atomic-write" },
-          "caseClass": { "const": "negative" }
+          "capabilityId": {
+            "const": "foundation.harness.atomic-write"
+          },
+          "caseClass": {
+            "const": "negative"
+          }
         },
-        "required": ["capabilityId", "caseClass"]
+        "required": [
+          "capabilityId",
+          "caseClass"
+        ]
       },
       "then": {
         "properties": {
           "expected": {
             "type": "object",
-            "required": ["errorKind"],
-            "properties": { "errorKind": { "const": "path-traversal" } }
+            "required": [
+              "errorKind"
+            ],
+            "properties": {
+              "errorKind": {
+                "const": "path-traversal"
+              }
+            }
           }
         }
       },
@@ -128,8 +248,12 @@
           "expected": {
             "type": "object",
             "not": {
-              "required": ["errorKind"],
-              "properties": { "errorKind": true }
+              "required": [
+                "errorKind"
+              ],
+              "properties": {
+                "errorKind": true
+              }
             }
           }
         }
@@ -140,9 +264,13 @@
     "atomicRoot": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["runtimeBinding"],
+      "required": [
+        "runtimeBinding"
+      ],
       "properties": {
-        "runtimeBinding": { "const": "atomic-write-canonical-root" }
+        "runtimeBinding": {
+          "const": "atomic-write-canonical-root"
+        }
       }
     }
   }

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "skill-family.contracts.registry",
-  "contractsVersion": "1.21.0",
+  "contractsVersion": "1.23.0",
   "note": "Protocol-name and schema-$id registry. Registration mechanically rejects duplicate protocol name/version (SFC1004) and duplicate $id (SFC1003). This file is the single registration surface; adding an entry is a contracts change.",
   "protocols": [
     {
@@ -404,6 +404,41 @@
       "dialect": "2020-12",
       "status": "candidate",
       "file": "src/schemas/fixed-set-generation-resolution.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/internal-dependency-resolution-receipt.json",
+      "object": "internal-dependency-resolution-receipt",
+      "dialect": "2020-12",
+      "status": "candidate",
+      "file": "src/schemas/internal-dependency-resolution-receipt.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/task-handoff-envelope.json",
+      "object": "task-handoff-envelope",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/task-handoff-envelope.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/consumer-contract-vector.json",
+      "object": "consumer-contract-vector",
+      "dialect": "2020-12",
+      "status": "stable",
+      "file": "src/schemas/consumer-contract-vector.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/session-trace-bundle.json",
+      "object": "session-trace-bundle",
+      "dialect": "2020-12",
+      "status": "candidate",
+      "file": "src/schemas/session-trace-bundle.schema.json"
+    },
+    {
+      "$id": "https://contracts.skill-family.example/v1/orchestration-blueprint.json",
+      "object": "orchestration-blueprint",
+      "dialect": "2020-12",
+      "status": "candidate",
+      "file": "src/schemas/orchestration-blueprint.schema.json"
     }
   ],
   "dialects": {

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/executable-identity-observation.json",
   "title": "Executable identity observation",
-  "description": "A single, private observation of an executable lookup and its explicit launch image. Absolute roots and file bytes are intentionally represented only by the bound root and digest facts.",
+  "description": "可执行文件查找及其显式启动映像的单次私有观测记录；绝对根路径与文件内容仅通过受绑定的根身份与摘要事实表示。",
   "type": "object",
   "additionalProperties": false,
   "required": [

@@ -15,28 +15,28 @@ export const CORE_BASE_PACKAGES = Object.freeze([
 
 export const BUILTIN_BASE_PACKAGE_BENCHMARKS = Object.freeze({
   'skill-family-contracts': Object.freeze({
-    latestStable: '0.39.0',
+    latestStable: '0.39.2',
     deprecatedVersions: Object.freeze([]),
     deprecatedBelow: null,
     deprecatedReason: null,
   }),
   'skill-family-harness-node': Object.freeze({
-    latestStable: '0.39.0',
+    latestStable: '0.39.2',
     deprecatedVersions: Object.freeze([]),
     deprecatedBelow: null,
     deprecatedReason: null,
   }),
   'skill-family-engineering-kit': Object.freeze({
-    latestStable: '0.39.0',
+    latestStable: '0.39.2',
     deprecatedVersions: Object.freeze([]),
     deprecatedBelow: null,
     deprecatedReason: null,
   }),
   'artifact-graph': Object.freeze({
-    latestStable: '1.2.0',
+    latestStable: '1.2.2',
     deprecatedVersions: Object.freeze([]),
     deprecatedBelow: '1.0.0',
-    deprecatedReason: '旧版 0.x 存在已知高危安全缺陷（含 Frontmatter 解析 RCE 风险），请升级至 >=1.2.0',
+    deprecatedReason: '旧版 0.x 存在已知高危安全缺陷（含 Frontmatter 解析 RCE 风险），请升级至 >=1.2.2',
   }),
   'agent-method-registry': Object.freeze({
     latestStable: '0.3.0',

@@ -2,110 +2,257 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/project-manifest.json",
   "title": "ProjectManifest",
-  "description": "Declares one Skill Family project adopting the contracts: stable identity, the contracts version and profile it uses, and the managed files owned by generators.",
+  "description": "声明采用 Contracts 的单个技能族项目：包含稳定项目身份、所采用的契约版本与 Profile、生成器托管文件列表，以及可选的工程结构、内部依赖范围与已采用能力声明。",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "kind", "project", "contracts"],
+  "required": [
+    "schemaVersion",
+    "kind",
+    "project",
+    "contracts"
+  ],
   "properties": {
     "schemaVersion": {
-      "const": 1
+      "const": 1,
+      "description": "结构版本号，固定为 1。"
     },
     "kind": {
-      "const": "skill-family.project-manifest"
+      "const": "skill-family.project-manifest",
+      "description": "文档类型标识，固定为技能族项目清单。"
     },
     "project": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name"],
+      "required": [
+        "id",
+        "name"
+      ],
+      "description": "项目的稳定标识与可读名称。",
       "properties": {
         "id": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
-          "description": "Stable kebab-case project identifier."
+          "description": "稳定的 kebab-case 项目标识符。"
         },
         "name": {
           "type": "string",
           "minLength": 1,
-          "description": "Human-readable project name."
+          "description": "面向人类阅读的项目名称。"
         },
         "description": {
-          "type": "string"
+          "type": "string",
+          "description": "项目的简要职责说明。"
         }
       }
     },
     "contracts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["version", "profile"],
+      "required": [
+        "version",
+        "profile"
+      ],
+      "description": "项目所采用的 Contracts 版本与 Profile 身份。",
       "properties": {
         "version": {
           "type": "string",
           "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
-          "description": "Contracts version the project adopts."
+          "description": "项目采用的 Contracts 语义化版本号。"
         },
         "profile": {
           "type": "string",
           "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
-          "description": "Identifier of the profile the project uses."
+          "description": "项目使用的 Profile 标识符。"
         }
       }
     },
     "managedFiles": {
       "type": "array",
-      "description": "Relative POSIX paths of managed files owned by generators. Path containment beyond shape (escape, traversal) is a mechanism concern owned by the harness.",
+      "description": "由生成器托管的项目相对 POSIX 路径列表；超出路径字面形态的越界与逃逸防护由 Harness 机制层执行。",
       "items": {
         "type": "string",
         "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$"
+      }
+    },
+    "internalDependencies": {
+      "type": "object",
+      "description": "技能族内部包依赖声明映射：键为依赖包名，值支持向下兼容的精确版本字符串（x.y.z）或“固定主版本 + 最低可用版本”范围对象。",
+      "propertyNames": {
+        "$ref": "#/$defs/packageName"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/internalDependencySpec"
+      }
+    },
+    "adoptedCapabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "description": "项目显式声明采用的 Foundation 规范能力 ID 列表（不可重复）。",
+      "items": {
+        "type": "string",
+        "pattern": "^foundation\\.[a-z0-9]+(?:-[a-z0-9]+)*(?:\\.[a-z0-9]+(?:-[a-z0-9]+)*)+$"
       }
     },
     "engineering": {
       "type": "object",
       "additionalProperties": false,
       "minProperties": 1,
+      "description": "可选的声明式工程结构元数据，列出发行单元版本来源与物理入口。",
       "properties": {
         "releaseUnits": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "$ref": "#/$defs/releaseUnit" }
+          "description": "独立或锁步发行单元的版本真源与镜像位置。",
+          "items": {
+            "$ref": "#/$defs/releaseUnit"
+          }
         },
         "entries": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "$ref": "#/$defs/engineeringEntry" }
+          "description": "项目对外暴露的技能或脚本物理入口声明。",
+          "items": {
+            "$ref": "#/$defs/engineeringEntry"
+          }
         }
       }
+    },
+    "repoTier": {
+      "type": "string",
+      "enum": ["support", "business"],
+      "description": "可选的仓库层级身份：support 表示底层支撑技能族（同迭代强制拉齐并支持本地联调覆盖），business 表示业务领域技能族（锁定精确已发布版本并在开工体检输出温和升级提示）。"
     },
     "updatedAt": {
       "type": "string",
       "format": "date-time",
-      "description": "RFC 3339 date-time of the last manifest update; format enforcement is part of the contracts dialect support."
+      "description": "清单最近一次更新的 RFC 3339 时间戳。"
     }
   },
   "$defs": {
+    "packageName": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$",
+      "description": "符合 npm 命名规则的包名（支持可选作用域前缀）。"
+    },
+    "exactSemver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "description": "精确语义化版本号（major.minor.patch，不含前导零与预发布后缀）。"
+    },
+    "internalDependencyRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "major",
+        "minVersion"
+      ],
+      "description": "固定主版本加最低可用版本的内部依赖范围声明。",
+      "properties": {
+        "major": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "允许自动选版的固定主版本轨道（0 表示 0.x 轨道，N>=1 表示 N.x 轨道）。"
+        },
+        "minVersion": {
+          "$ref": "#/$defs/exactSemver",
+          "description": "当前项目所需的最低可用版本（含该版本），其主版本号必须与 major 一致。"
+        },
+        "verifiedCeiling": {
+          "$ref": "#/$defs/exactSemver",
+          "description": "可选的已验证最高兼容版本上限（含该版本），其主版本号必须与 major 一致且不低于 minVersion。"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "major": {
+                "const": 0
+              }
+            },
+            "required": [
+              "major"
+            ]
+          },
+          "then": {
+            "properties": {
+              "minVersion": {
+                "type": "string",
+                "pattern": "^0\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+              },
+              "verifiedCeiling": {
+                "type": "string",
+                "pattern": "^0\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "minVersion": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]*\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+              },
+              "verifiedCeiling": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]*\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "internalDependencySpec": {
+      "description": "单个内部依赖版本声明：可为精确版本字符串，或固定主版本加最低可用版本对象。",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/exactSemver"
+        },
+        {
+          "$ref": "#/$defs/internalDependencyRange"
+        }
+      ]
+    },
     "versionReference": {
+      "description": "指向纯文本版本文件或 JSON 字段指针的版本引用。",
       "oneOf": [
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["path", "format"],
+          "required": [
+            "path",
+            "format"
+          ],
           "properties": {
-            "path": { "$ref": "#/$defs/projectRelativePath" },
-            "format": { "const": "text" }
+            "path": {
+              "$ref": "#/$defs/projectRelativePath"
+            },
+            "format": {
+              "const": "text"
+            }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["path", "format", "jsonPointer"],
+          "required": [
+            "path",
+            "format",
+            "jsonPointer"
+          ],
           "properties": {
-            "path": { "$ref": "#/$defs/projectRelativePath" },
-            "format": { "const": "json" },
+            "path": {
+              "$ref": "#/$defs/projectRelativePath"
+            },
+            "format": {
+              "const": "json"
+            },
             "jsonPointer": {
               "type": "string",
               "pattern": "^(/([^/~]|~[01])*)+$",
-              "description": "Non-empty RFC 6901 JSON Pointer."
+              "description": "非空的 RFC 6901 JSON Pointer 路径。"
             }
           }
         }
@@ -114,35 +261,70 @@
     "releaseUnit": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "versionSource"],
+      "required": [
+        "id",
+        "versionSource"
+      ],
+      "description": "单个发行单元及其版本真源与可选镜像引用。",
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "versionSource": { "$ref": "#/$defs/versionReference" },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "versionSource": {
+          "$ref": "#/$defs/versionReference"
+        },
         "versionMirrors": {
           "type": "array",
           "uniqueItems": true,
-          "items": { "$ref": "#/$defs/versionReference" }
+          "items": {
+            "$ref": "#/$defs/versionReference"
+          }
         }
       }
     },
     "engineeringEntry": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "form", "physicalRef"],
+      "required": [
+        "name",
+        "form",
+        "physicalRef"
+      ],
+      "description": "项目声明的技能入口（SKILL.md）或普通文件入口。",
       "properties": {
-        "name": { "type": "string", "minLength": 1 },
-        "form": { "enum": ["skill_md", "file"] },
-        "physicalRef": { "$ref": "#/$defs/projectRelativePath" }
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "form": {
+          "enum": [
+            "skill_md",
+            "file"
+          ]
+        },
+        "physicalRef": {
+          "$ref": "#/$defs/projectRelativePath"
+        }
       },
       "allOf": [
         {
           "if": {
-            "properties": { "form": { "const": "skill_md" } },
-            "required": ["form"]
+            "properties": {
+              "form": {
+                "const": "skill_md"
+              }
+            },
+            "required": [
+              "form"
+            ]
           },
           "then": {
             "properties": {
-              "physicalRef": { "type": "string", "pattern": "(^|/)SKILL\\.md$" }
+              "physicalRef": {
+                "type": "string",
+                "pattern": "(^|/)SKILL\\.md$"
+              }
             }
           }
         }
@@ -152,7 +334,7 @@
       "type": "string",
       "minLength": 1,
       "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*(?:^|/)\\.(?:/|$))(?!.*\\\\)(?!.*\\u0000)[^/\\\\\\u0000]+(?:/[^/\\\\\\u0000]+)*$",
-      "description": "A non-empty path relative to the caller-provided project root. Containment and file identity are mechanism concerns."
+      "description": "相对于调用方项目根目录的非空 POSIX 路径；目录包含边界与文件身份由机制层核验。"
     }
   }
 }

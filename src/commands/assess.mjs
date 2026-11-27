@@ -32,6 +32,8 @@ import {
   assertConclusionOutputOption,
   attachProfessionalConclusion,
   readAuditProfessionalProof,
+  readEvalProfessionalProof,
+  resolveAllowedConclusionSubjectRefs,
 } from './professional-proof.mjs';
 
 const execFile = promisify(execFileCb);
@@ -1079,6 +1081,8 @@ export async function assessProject(options) {
     conclusionOutput,
     auditConclusionPath,
     auditConclusionDigest,
+    evalConclusionPath,
+    evalConclusionDigest,
   } = options;
 
   if (!root || typeof root !== 'string') {
@@ -1182,10 +1186,10 @@ export async function assessProject(options) {
   const readmeGaps = await checkReadmeStructure(root, config);
   allGaps.push(...readmeGaps);
 
-  // --- 9. Optional unidirectional skill-family-audit professional-conclusion check ---
-  if (auditConclusionPath) {
-    const allowedSubjectRefs = new Set();
+  // --- 9. Optional unidirectional audit & eval professional-conclusion checks ---
+  if (auditConclusionPath || evalConclusionPath) {
     const projectName = typeof config.project?.name === 'string' ? config.project.name.trim() : '';
+    const unitVersions = [];
     for (const unit of config.releaseUnits ?? []) {
       let unitVersion = null;
       if (unit.version?.source && typeof unit.version.source === 'string' && !unit.version.source.startsWith('/')) {
@@ -1198,39 +1202,54 @@ export async function assessProject(options) {
           // Version source errors are already captured by earlier metadata/manifest checks
         }
       }
-      if (unitVersion) {
-        if (projectName) {
-          allowedSubjectRefs.add(`pkg:${projectName}@${unitVersion}`);
-          allowedSubjectRefs.add(`${projectName}@${unitVersion}`);
-        }
-        if (typeof unit.id === 'string' && unit.id.trim().length > 0) {
-          allowedSubjectRefs.add(`pkg:${unit.id.trim()}@${unitVersion}`);
-          allowedSubjectRefs.add(`${unit.id.trim()}@${unitVersion}`);
-        }
-        for (const dist of unit.distributions ?? []) {
-          if (typeof dist?.package === 'string' && dist.package.trim().length > 0) {
-            allowedSubjectRefs.add(`pkg:${dist.package.trim()}@${unitVersion}`);
-            allowedSubjectRefs.add(`${dist.package.trim()}@${unitVersion}`);
-          }
-        }
+      unitVersions.push(unitVersion);
+    }
+    const allowedRefs = resolveAllowedConclusionSubjectRefs({
+      projectName,
+      units: config.releaseUnits ?? [],
+      resolvedVersions: unitVersions,
+    });
+    const expectedSubjectRef = allowedRefs.length > 0 ? allowedRefs : [projectName || '__unresolvable_subject__'];
+
+    if (auditConclusionPath) {
+      const auditProof = await readAuditProfessionalProof({
+        proofRoot: root,
+        proofPath: auditConclusionPath,
+        expectedSubjectRef,
+        expectedDigestSha256: auditConclusionDigest ?? null,
+        requireDigest: true,
+      });
+      if (auditProof.status !== 'pass') {
+        allGaps.push(createGap({
+          scope: GapScope.PROJECT,
+          category: GapCategory.POLICY,
+          severity: Severity.ERROR,
+          code: 'AUDIT_CONCLUSION_NOT_PASSED',
+          message: auditProof.reason,
+          file: auditConclusionPath,
+        }));
       }
     }
-    const auditProof = await readAuditProfessionalProof({
-      proofRoot: root,
-      proofPath: auditConclusionPath,
-      expectedSubjectRef: allowedSubjectRefs.size > 0 ? [...allowedSubjectRefs] : [projectName || '__unresolvable_subject__'],
-      expectedDigestSha256: auditConclusionDigest ?? null,
-      requireDigest: true,
-    });
-    if (auditProof.status !== 'pass') {
-      allGaps.push(createGap({
-        scope: GapScope.PROJECT,
-        category: GapCategory.POLICY,
-        severity: Severity.ERROR,
-        code: 'AUDIT_CONCLUSION_NOT_PASSED',
-        message: auditProof.reason,
-        file: auditConclusionPath,
-      }));
+
+    if (evalConclusionPath) {
+      const evalProof = await readEvalProfessionalProof({
+        proofRoot: root,
+        proofPath: evalConclusionPath,
+        expectedSubjectRef,
+        expectedDigestSha256: evalConclusionDigest ?? null,
+        requireDigest: true,
+        minGrade: config.policy?.minEvalGrade ?? 'B',
+      });
+      if (evalProof.status !== 'pass') {
+        allGaps.push(createGap({
+          scope: GapScope.PROJECT,
+          category: GapCategory.POLICY,
+          severity: Severity.ERROR,
+          code: 'EVAL_CONCLUSION_NOT_PASSED',
+          message: evalProof.reason,
+          file: evalConclusionPath,
+        }));
+      }
     }
   }
 

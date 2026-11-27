@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/token-estimate-record.json",
   "title": "TokenEstimateRecord",
-  "description": "Authoritative deterministic token estimate record (audit remediation C1; promoted from the harness-node token estimator). One measurement of a content text under algorithm cjk-char-whitespace-split: every CJK code point is exactly one token, every maximal run of non-CJK non-whitespace code points is exactly one token, whitespace code points are separators. The record carries the estimator identity and version required by audit SFA-CONTEXT-028 so one threshold decision never silently mixes estimation methods, plus the exact segmentation counts so any consumer can re-derive tokens === segmentation.cjkCharacters + segmentation.otherRuns. Pure measurement convention: no model call, no tokenizer dependency, no network, no timestamp; declares no bias direction relative to any real tokenizer.",
+  "description": "确定性 Token 估算权威记录（审计整改 C1 / SFA-CONTEXT-028）：在 cjk-char-whitespace-split 算法下测量文本，每个中日韩统一表意文字码位计 1 个 token，每段连续非空白非 CJK 码位计 1 个 token，空白符作分隔。记录携带估算器身份、版本与精确分段计数（tokens === segmentation.cjkCharacters + segmentation.otherRuns），无模型调用、无外部依赖、无网络请求且不含时间戳。",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -19,44 +19,86 @@
     "guarantees"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "skill-family.token-estimate-record" },
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.token-estimate-record"
+    },
     "estimator": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "version"],
+      "required": [
+        "id",
+        "version"
+      ],
       "properties": {
-        "id": { "const": "skill-family.token-estimator" },
+        "id": {
+          "const": "skill-family.token-estimator"
+        },
         "version": {
           "type": "string",
           "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
         }
       }
     },
-    "algorithm": { "const": "cjk-char-whitespace-split" },
-    "unit": { "const": "tokens" },
+    "algorithm": {
+      "const": "cjk-char-whitespace-split"
+    },
+    "unit": {
+      "const": "tokens"
+    },
     "input": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["codePoints", "inputBytes"],
+      "required": [
+        "codePoints",
+        "inputBytes"
+      ],
       "properties": {
-        "codePoints": { "type": "integer", "minimum": 0 },
-        "inputBytes": { "type": "integer", "minimum": 0 }
+        "codePoints": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "inputBytes": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "segmentation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["cjkCharacters", "whitespaceSeparators", "otherRuns"],
+      "required": [
+        "cjkCharacters",
+        "whitespaceSeparators",
+        "otherRuns"
+      ],
       "properties": {
-        "cjkCharacters": { "type": "integer", "minimum": 0 },
-        "whitespaceSeparators": { "type": "integer", "minimum": 0 },
-        "otherRuns": { "type": "integer", "minimum": 0 }
+        "cjkCharacters": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "whitespaceSeparators": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "otherRuns": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
-    "tokens": { "type": "integer", "minimum": 0 },
-    "precision": { "const": "deterministic-heuristic" },
-    "scope": { "const": "content-text-only" },
+    "tokens": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "precision": {
+      "const": "deterministic-heuristic"
+    },
+    "scope": {
+      "const": "content-text-only"
+    },
     "guarantees": {
       "type": "array",
       "minItems": 1,

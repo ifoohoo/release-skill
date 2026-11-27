@@ -2,15 +2,32 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/fixed-set-generation-resolution.json",
   "title": "Fixed-set generation resolution",
-  "description": "One complete read of current.json. Callers reuse this rootBinding for the whole read and do not resolve the pointer again per member.",
+  "description": "对世代指针 current.json 的单次完整解析结果：调用方在整次批量只读读取期间复用其中的 rootBinding，避免逐个成员重复解析指针。",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "kind", "pointer", "generationRoot", "rootBinding"],
+  "required": [
+    "schemaVersion",
+    "kind",
+    "pointer",
+    "generationRoot",
+    "rootBinding"
+  ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "skill-family.fixed-set-generation-resolution" },
-    "pointer": { "$ref": "https://contracts.skill-family.example/v1/fixed-set-generation-pointer.json" },
-    "generationRoot": { "type": "string", "minLength": 1 },
-    "rootBinding": { "$ref": "https://contracts.skill-family.example/v1/filesystem-root-binding.json" }
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.fixed-set-generation-resolution"
+    },
+    "pointer": {
+      "$ref": "https://contracts.skill-family.example/v1/fixed-set-generation-pointer.json"
+    },
+    "generationRoot": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rootBinding": {
+      "$ref": "https://contracts.skill-family.example/v1/filesystem-root-binding.json"
+    }
   }
 }

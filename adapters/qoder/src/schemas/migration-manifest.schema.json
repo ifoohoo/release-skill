@@ -2,10 +2,13 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/migration-manifest.json",
   "title": "MigrationManifest",
-  "description": "Declares the migration state of one adoption target: the legacy infrastructure entries that must exit, each bound to its replacement, and any temporary exceptions. Every temporary exception carries exactly four mandatory fields (owner, reason, deadline, migrationTarget); an incomplete exception is never accepted. Path containment beyond shape is a mechanism concern owned by the harness: user-provided paths are only ever read inside the target root.",
+  "description": "存量项目接入迁移清单：声明必须退出的旧基础设施条目（逐项绑定替代机制）及临时豁免。每条临时豁免必须完整携带 owner、reason、deadline、migrationTarget 四个必填字段。超出路径形态的目录包含边界由 Harness 保障，所有路径仅在目标项目根目录内读取。",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "kind"],
+  "required": [
+    "schemaVersion",
+    "kind"
+  ],
   "properties": {
     "schemaVersion": {
       "const": 1
@@ -16,15 +19,27 @@
     "capabilityUseContext": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["scope", "locale"],
+      "required": [
+        "scope",
+        "locale"
+      ],
       "properties": {
         "scope": {
           "type": "string",
-          "enum": ["contracts", "harness", "engineering-kit", "profile", "all"]
+          "enum": [
+            "contracts",
+            "harness",
+            "engineering-kit",
+            "profile",
+            "all"
+          ]
         },
         "locale": {
           "type": "string",
-          "enum": ["en", "zh-CN"]
+          "enum": [
+            "en",
+            "zh-CN"
+          ]
         }
       }
     },
@@ -35,7 +50,12 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["useId", "problemStatement", "constraints", "retainedGuarantees"],
+        "required": [
+          "useId",
+          "problemStatement",
+          "constraints",
+          "retainedGuarantees"
+        ],
         "properties": {
           "useId": {
             "type": "string",
@@ -44,8 +64,13 @@
           },
           "problemStatement": {
             "allOf": [
-              { "$ref": "#/$defs/trimmedCapabilityUseText" },
-              { "type": "string", "maxLength": 1000 }
+              {
+                "$ref": "#/$defs/trimmedCapabilityUseText"
+              },
+              {
+                "type": "string",
+                "maxLength": 1000
+              }
             ]
           },
           "constraints": {
@@ -54,8 +79,13 @@
             "uniqueItems": true,
             "items": {
               "allOf": [
-                { "$ref": "#/$defs/trimmedCapabilityUseText" },
-                { "type": "string", "maxLength": 500 }
+                {
+                  "$ref": "#/$defs/trimmedCapabilityUseText"
+                },
+                {
+                  "type": "string",
+                  "maxLength": 500
+                }
               ]
             }
           },
@@ -66,19 +96,29 @@
             "uniqueItems": true,
             "items": {
               "allOf": [
-                { "$ref": "#/$defs/trimmedCapabilityUseText" },
-                { "type": "string", "maxLength": 500 }
+                {
+                  "$ref": "#/$defs/trimmedCapabilityUseText"
+                },
+                {
+                  "type": "string",
+                  "maxLength": 500
+                }
               ]
             }
           },
-            "catalogFilters": {
+          "catalogFilters": {
             "type": "array",
             "maxItems": 20,
             "uniqueItems": true,
             "items": {
               "allOf": [
-                { "$ref": "#/$defs/trimmedCapabilityUseText" },
-                { "type": "string", "maxLength": 200 }
+                {
+                  "$ref": "#/$defs/trimmedCapabilityUseText"
+                },
+                {
+                  "type": "string",
+                  "maxLength": 200
+                }
               ]
             }
           }
@@ -90,7 +130,11 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["useId", "disposition", "reason"],
+        "required": [
+          "useId",
+          "disposition",
+          "reason"
+        ],
         "properties": {
           "useId": {
             "type": "string",
@@ -99,7 +143,12 @@
           },
           "disposition": {
             "type": "string",
-            "enum": ["direct-adoption", "compatibility-layer", "keep-business", "foundation-gap"]
+            "enum": [
+              "direct-adoption",
+              "compatibility-layer",
+              "keep-business",
+              "foundation-gap"
+            ]
           },
           "targetCapability": {
             "type": "string",
@@ -114,31 +163,53 @@
         "allOf": [
           {
             "if": {
-              "required": ["disposition"],
+              "required": [
+                "disposition"
+              ],
               "properties": {
                 "disposition": {
-                  "enum": ["direct-adoption", "compatibility-layer"]
+                  "enum": [
+                    "direct-adoption",
+                    "compatibility-layer"
+                  ]
                 }
               }
             },
             "then": {
-              "required": ["targetCapability"],
-              "properties": { "targetCapability": { "type": "string" } }
+              "required": [
+                "targetCapability"
+              ],
+              "properties": {
+                "targetCapability": {
+                  "type": "string"
+                }
+              }
             }
           },
           {
             "if": {
-              "required": ["disposition"],
+              "required": [
+                "disposition"
+              ],
               "properties": {
                 "disposition": {
-                  "enum": ["keep-business", "foundation-gap"]
+                  "enum": [
+                    "keep-business",
+                    "foundation-gap"
+                  ]
                 }
               }
             },
             "then": {
               "not": {
-                "required": ["targetCapability"],
-                "properties": { "targetCapability": { "type": "string" } }
+                "required": [
+                  "targetCapability"
+                ],
+                "properties": {
+                  "targetCapability": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
@@ -148,26 +219,34 @@
     "manifestVersion": {
       "type": "integer",
       "minimum": 1,
-      "description": "Monotonic manifest generation; bumped whenever the declared legacy/exception set changes."
+      "description": "单调递增的迁移清单世代号；每当旧设施或豁免集合变更时递增。"
     },
     "legacyInfra": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["path", "replacedBy"],
+        "required": [
+          "path",
+          "replacedBy"
+        ],
         "properties": {
           "path": {
             "type": "string",
             "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$",
-            "description": "Relative POSIX path of one legacy implementation. Shape only: absolute paths, traversal, UNC/drive forms and symlink escapes are rejected by harness containment at assessment time, fail-closed."
+            "description": "待退出旧实现的项目相对 POSIX 路径（仅做字面形态约束；绝对路径、目录穿越、UNC/盘符路径与符号链接逃逸在评估期由 Harness 封闭拒绝）。"
           },
           "replacedBy": {
             "oneOf": [
-              { "type": "string", "minLength": 1 },
-              { "type": "null" }
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
             ],
-            "description": "The replacement facility (tool/command/module) that supersedes this legacy entry. An empty replacement is never a valid exit claim."
+            "description": "替代该旧实现的机制入口（工具、命令或模块）；空值不构成有效退出声明。"
           },
           "useId": {
             "type": "string",
@@ -182,12 +261,24 @@
         "allOf": [
           {
             "if": {
-              "required": ["replacedBy"],
-              "properties": { "replacedBy": { "type": "null" } }
+              "required": [
+                "replacedBy"
+              ],
+              "properties": {
+                "replacedBy": {
+                  "type": "null"
+                }
+              }
             },
             "then": {
-              "required": ["useId"],
-              "properties": { "useId": { "type": "string" } }
+              "required": [
+                "useId"
+              ],
+              "properties": {
+                "useId": {
+                  "type": "string"
+                }
+              }
             }
           }
         ]
@@ -195,28 +286,37 @@
     },
     "legacyReferences": {
       "type": "array",
-      "description": "Legacy text references that must exit from retained files: each entry declares a file that is kept for other purposes, a literal text that must no longer appear in it, and the facility that replaces the old usage. The file itself is never deleted by this mechanism — only the old text must be absent.",
+      "description": "保留文件中必须退出的旧文本引用列表：每项声明因其他职责保留的文件路径、禁止继续出现的精确字面文本以及替代机制；机制不删除该文件本身，仅要求旧引用文本彻底清零。",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["path", "text", "replacedBy"],
+        "required": [
+          "path",
+          "text",
+          "replacedBy"
+        ],
         "properties": {
           "path": {
             "type": "string",
             "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$",
-            "description": "Relative POSIX path of a retained file. Shape only: containment is enforced at assessment time."
+            "description": "保留文件的项目相对 POSIX 路径；目录包含边界在评估期强制执行。"
           },
           "text": {
             "type": "string",
             "minLength": 1,
-            "description": "Exact literal text that must be absent from the file. No regex; byte-exact UTF-8 match."
+            "description": "文件中不得再出现的精确 UTF-8 字面文本（按字节精确匹配，不作正则解释）。"
           },
           "replacedBy": {
             "oneOf": [
-              { "type": "string", "minLength": 1 },
-              { "type": "null" }
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
             ],
-            "description": "The replacement facility that supersedes this old reference. Empty is never valid."
+            "description": "替代该旧引用的新机制标识；不得为空。"
           },
           "useId": {
             "type": "string",
@@ -227,12 +327,24 @@
         "allOf": [
           {
             "if": {
-              "required": ["replacedBy"],
-              "properties": { "replacedBy": { "type": "null" } }
+              "required": [
+                "replacedBy"
+              ],
+              "properties": {
+                "replacedBy": {
+                  "type": "null"
+                }
+              }
             },
             "then": {
-              "required": ["useId"],
-              "properties": { "useId": { "type": "string" } }
+              "required": [
+                "useId"
+              ],
+              "properties": {
+                "useId": {
+                  "type": "string"
+                }
+              }
             }
           }
         ]
@@ -243,7 +355,12 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["owner", "reason", "deadline", "migrationTarget"],
+        "required": [
+          "owner",
+          "reason",
+          "deadline",
+          "migrationTarget"
+        ],
         "properties": {
           "owner": {
             "type": "string",
@@ -256,7 +373,7 @@
           "deadline": {
             "type": "string",
             "minLength": 1,
-            "description": "Parseable deadline; expiry is judged by the planning clock and never auto-renewed. Structural shape only — semantic parseability is a runtime finding."
+            "description": "可解析的到期时间；评估时钟判定过期后绝不自动续期（此处约束字面形态，可解析性在运行期核验）。"
           },
           "migrationTarget": {
             "type": "string",
@@ -268,15 +385,19 @@
     "targetProfile": {
       "type": "string",
       "minLength": 1,
-      "description": "The profile id this target adopts. Completion requires it to equal the profile id of the adoption plan; a missing or mismatched binding is never completion."
+      "description": "目标项目接入的 Profile 标识符；接入收口要求与接入计划中的 Profile 精确一致。"
     },
     "foundationPackages": {
       "type": "array",
-      "description": "Exact Foundation package bindings: every entry pins a published name to an exact version and a sha256 tarball/content digest. Ranges, tags and floating aliases are not bindings.",
+      "description": "精确的 Foundation 包绑定列表：每项将已发布包名锁定到精确版本号与 sha256 制品摘要，不接受浮动标签或别名。",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["name", "version", "digest"],
+        "required": [
+          "name",
+          "version",
+          "digest"
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -285,12 +406,12 @@
           "version": {
             "type": "string",
             "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
-            "description": "Exact semver; no range operators."
+            "description": "精确语义化版本号（不含范围算符）。"
           },
           "digest": {
             "type": "string",
             "pattern": "^sha256:[a-f0-9]{64}$",
-            "description": "Content digest as sha256:<64 lowercase hex>."
+            "description": "格式为 sha256:<64位小写十六进制> 的内容摘要。"
           }
         }
       }
@@ -298,7 +419,7 @@
     "verification": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Evidence documents proving the adoption is verified: unit, integration, consumer and independent-audit evidence. Every value is a relative POSIX path inside the target root; existence and identity matching are judged by the completion gate, fail-closed.",
+      "description": "证明接入已通过验证的四类证据路径（unit、integration、consumer、independent-audit），均为目标项目根目录内的相对 POSIX 路径，由收口门禁按封闭失败原则核验存在性与身份一致性。",
       "properties": {
         "unit": {
           "type": "string",
@@ -329,23 +450,47 @@
   "allOf": [
     {
       "if": {
-        "required": ["capabilityUses"],
-        "properties": { "capabilityUses": { "type": "array" } }
+        "required": [
+          "capabilityUses"
+        ],
+        "properties": {
+          "capabilityUses": {
+            "type": "array"
+          }
+        }
       },
       "then": {
-        "required": ["capabilityUseContext"],
-        "properties": { "capabilityUseContext": { "type": "object" } }
+        "required": [
+          "capabilityUseContext"
+        ],
+        "properties": {
+          "capabilityUseContext": {
+            "type": "object"
+          }
+        }
       },
       "else": {
         "not": {
           "anyOf": [
             {
-              "required": ["capabilityUseContext"],
-              "properties": { "capabilityUseContext": { "type": "object" } }
+              "required": [
+                "capabilityUseContext"
+              ],
+              "properties": {
+                "capabilityUseContext": {
+                  "type": "object"
+                }
+              }
             },
             {
-              "required": ["capabilityDecisions"],
-              "properties": { "capabilityDecisions": { "type": "array" } }
+              "required": [
+                "capabilityDecisions"
+              ],
+              "properties": {
+                "capabilityDecisions": {
+                  "type": "array"
+                }
+              }
             }
           ]
         }
@@ -353,58 +498,101 @@
     },
     {
       "if": {
-        "required": ["capabilityDecisions"],
-        "properties": { "capabilityDecisions": { "type": "array" } }
+        "required": [
+          "capabilityDecisions"
+        ],
+        "properties": {
+          "capabilityDecisions": {
+            "type": "array"
+          }
+        }
       },
       "then": {
-        "required": ["capabilityUses", "capabilityUseContext"],
+        "required": [
+          "capabilityUses",
+          "capabilityUseContext"
+        ],
         "properties": {
-          "capabilityUses": { "type": "array" },
-          "capabilityUseContext": { "type": "object" }
+          "capabilityUses": {
+            "type": "array"
+          },
+          "capabilityUseContext": {
+            "type": "object"
+          }
         }
       }
     },
     {
       "if": {
-        "required": ["legacyInfra"],
+        "required": [
+          "legacyInfra"
+        ],
         "properties": {
           "legacyInfra": {
             "type": "array",
             "contains": {
               "type": "object",
-              "required": ["useId"],
-              "properties": { "useId": { "type": "string" } }
+              "required": [
+                "useId"
+              ],
+              "properties": {
+                "useId": {
+                  "type": "string"
+                }
+              }
             }
           }
         }
       },
       "then": {
-        "required": ["capabilityUses", "capabilityUseContext"],
+        "required": [
+          "capabilityUses",
+          "capabilityUseContext"
+        ],
         "properties": {
-          "capabilityUses": { "type": "array" },
-          "capabilityUseContext": { "type": "object" }
+          "capabilityUses": {
+            "type": "array"
+          },
+          "capabilityUseContext": {
+            "type": "object"
+          }
         }
       }
     },
     {
       "if": {
-        "required": ["legacyReferences"],
+        "required": [
+          "legacyReferences"
+        ],
         "properties": {
           "legacyReferences": {
             "type": "array",
             "contains": {
               "type": "object",
-              "required": ["useId"],
-              "properties": { "useId": { "type": "string" } }
+              "required": [
+                "useId"
+              ],
+              "properties": {
+                "useId": {
+                  "type": "string"
+                }
+              }
             }
           }
         }
       },
       "then": {
-        "required": ["capabilityUses", "capabilityUseContext"],
+        "required": [
+          "capabilityUses",
+          "capabilityUseContext"
+        ],
         "properties": {
-          "capabilityUses": { "type": "array" },
-          "capabilityUseContext": { "type": "object" }
+          "capabilityUses": {
+            "type": "array"
+          },
+          "capabilityUseContext": {
+            "type": "object"
+          }
         }
       }
     }

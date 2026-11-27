@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/token-estimate-result.json",
   "title": "TokenEstimateResult",
-  "description": "Deterministic upper-bound estimate of the UTF-8 byte length of content text. The algorithm, scope and bias direction are declared in the contract: exact UTF-8 byte count, conservative upper bound for byte-level BPE tokenizers, content text only. No model call, no tokenizer dependency, no network, no persistent state; the result carries no timestamp.",
+  "description": "内容文本 UTF-8 字节长度的确定性上界估算结果：精确统计 UTF-8 字节数，作为字节级 BPE 分词器的保守上界；无模型调用、无分词器依赖、无网络与持久化状态，且不含时间戳。",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -17,14 +17,32 @@
     "guarantees"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "skill-family.token-estimate-result" },
-    "algorithm": { "const": "utf8-byte-count" },
-    "unit": { "const": "bytes" },
-    "inputBytes": { "type": "integer", "minimum": 0 },
-    "upperBound": { "type": "integer", "minimum": 0 },
-    "precision": { "const": "exact" },
-    "scope": { "const": "content-text-only" },
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.token-estimate-result"
+    },
+    "algorithm": {
+      "const": "utf8-byte-count"
+    },
+    "unit": {
+      "const": "bytes"
+    },
+    "inputBytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "upperBound": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "precision": {
+      "const": "exact"
+    },
+    "scope": {
+      "const": "content-text-only"
+    },
     "guarantees": {
       "type": "array",
       "minItems": 1,

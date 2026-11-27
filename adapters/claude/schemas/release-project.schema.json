@@ -1015,6 +1015,12 @@
         },
         "sourcePolicy": {
           "$ref": "#/definitions/sourcePolicy"
+        },
+        "minEvalGrade": {
+          "type": "string",
+          "enum": ["S", "A", "B", "C"],
+          "default": "B",
+          "description": "当提供 --eval-conclusion 时要求的最低动态评测等级（默认 B，可选 S / A / B / C）。"
         }
       }
     }

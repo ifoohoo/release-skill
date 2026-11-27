@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/timeout-policy.json",
   "title": "TimeoutPolicy",
-  "description": "Consumer-supplied timeout parameters for bounded subprocess supervision (FND-ADR-012). The mechanism holds no timeout values of its own: every dimension is supplied by the consumer and only shape-validated here. `maxSeconds` (hard ceiling) and `killGraceSeconds` (SIGTERM-to-SIGKILL grace) are required; the remaining dimensions are optional and, when absent, disable that timeout dimension. All values are positive numbers in seconds. `additionalProperties: false` rejects smuggled fields. The mechanism never interprets these values as business policy; it only enforces them deterministically.",
+  "description": "有界子进程监督的消费方超时参数契约（FND-ADR-012）：机制自身不内置默认超时阈值，所有维度均由消费方以正数秒显式提供并在此校验结构；maxSeconds（硬上限）与 killGraceSeconds（SIGTERM 到 SIGKILL 宽限期）必填，其余可选维度缺省时表示不启用该维度。",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -12,13 +12,35 @@
     "killGraceSeconds"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "skill-family.timeout-policy" },
-    "startupStaleSeconds": { "type": "number", "exclusiveMinimum": 0 },
-    "startupIdleSeconds": { "type": "number", "exclusiveMinimum": 0 },
-    "streamIdleSeconds": { "type": "number", "exclusiveMinimum": 0 },
-    "maxSeconds": { "type": "number", "exclusiveMinimum": 0 },
-    "toolLeaseSeconds": { "type": "number", "exclusiveMinimum": 0 },
-    "killGraceSeconds": { "type": "number", "exclusiveMinimum": 0 }
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.timeout-policy"
+    },
+    "startupStaleSeconds": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "startupIdleSeconds": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "streamIdleSeconds": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "maxSeconds": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "toolLeaseSeconds": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "killGraceSeconds": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    }
   }
 }

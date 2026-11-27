@@ -115,7 +115,11 @@ import {
 } from '../core/postpublish.mjs';
 import { freezeExecutionBundle, bundleRootForAuthorityDir, verifyExecutionBundle } from '../core/postpublish-bundle.mjs';
 import { digestReleaseAssetIdentities, normalizeReleaseAssets } from '../core/release-assets.mjs';
-import { readAuditProfessionalProof } from './professional-proof.mjs';
+import {
+  readAuditProfessionalProof,
+  readEvalProfessionalProof,
+  resolveAllowedConclusionSubjectRefs,
+} from './professional-proof.mjs';
 
 // ---------------------------------------------------------------------------
 // 安装契约常量
@@ -4024,55 +4028,76 @@ export async function prepareRelease(options) {
       version,
       evidence,
     );
-    if (options?.auditConclusionPath) {
-      await evidence.append({ phase: 'audit-professional-conclusion', status: 'started', path: options.auditConclusionPath });
-      const allowedSubjectRefs = new Set();
-      const projectName = typeof config.project?.name === 'string' ? config.project.name.trim() : '';
-      for (const [unitIdx, unit] of configUnits.entries()) {
-        const unitVersion = resolvedVersions instanceof Map
-          ? resolvedVersions.get(unit.id)
-          : resolvedVersions[unitIdx];
-        if (unitVersion) {
-          if (projectName) {
-            allowedSubjectRefs.add(`pkg:${projectName}@${unitVersion}`);
-            allowedSubjectRefs.add(`${projectName}@${unitVersion}`);
-          }
-          allowedSubjectRefs.add(`pkg:${unit.id}@${unitVersion}`);
-          allowedSubjectRefs.add(`${unit.id}@${unitVersion}`);
-          for (const dist of unit.distributions ?? []) {
-            if (typeof dist?.package === 'string' && dist.package.trim().length > 0) {
-              allowedSubjectRefs.add(`pkg:${dist.package.trim()}@${unitVersion}`);
-              allowedSubjectRefs.add(`${dist.package.trim()}@${unitVersion}`);
-            }
-          }
-        }
-      }
-      const auditProof = await readAuditProfessionalProof({
-        proofRoot: realRoot,
-        proofPath: options.auditConclusionPath,
-        expectedSubjectRef: [...allowedSubjectRefs],
-        expectedDigestSha256: options.auditConclusionDigest ?? null,
-        requireDigest: true,
+    if (options?.auditConclusionPath || options?.evalConclusionPath) {
+      const allowedSubjectRefs = resolveAllowedConclusionSubjectRefs({
+        projectName: config.project?.name ?? '',
+        units: configUnits,
+        resolvedVersions,
       });
-      if (auditProof.status !== 'pass') {
+
+      if (options?.auditConclusionPath) {
+        await evidence.append({ phase: 'audit-professional-conclusion', status: 'started', path: options.auditConclusionPath });
+        const auditProof = await readAuditProfessionalProof({
+          proofRoot: realRoot,
+          proofPath: options.auditConclusionPath,
+          expectedSubjectRef: allowedSubjectRefs,
+          expectedDigestSha256: options.auditConclusionDigest ?? null,
+          requireDigest: true,
+        });
+        if (auditProof.status !== 'pass') {
+          await evidence.append({
+            phase: 'audit-professional-conclusion',
+            status: 'blocking',
+            reason: auditProof.reason,
+            digestSha256: auditProof.digestSha256 ?? null,
+          });
+          throw new ReleaseError(
+            GATE_FAILED,
+            `audit professional conclusion rejected: ${auditProof.reason}`,
+            { reason: 'AUDIT_CONCLUSION_NOT_PASSED', auditConclusionPath: options.auditConclusionPath },
+          );
+        }
         await evidence.append({
           phase: 'audit-professional-conclusion',
-          status: 'blocking',
-          reason: auditProof.reason,
-          digestSha256: auditProof.digestSha256 ?? null,
+          status: 'completed',
+          digestSha256: auditProof.digestSha256,
+          provider: auditProof.provider,
         });
-        throw new ReleaseError(
-          GATE_FAILED,
-          `audit professional conclusion rejected: ${auditProof.reason}`,
-          { reason: 'AUDIT_CONCLUSION_NOT_PASSED', auditConclusionPath: options.auditConclusionPath },
-        );
       }
-      await evidence.append({
-        phase: 'audit-professional-conclusion',
-        status: 'completed',
-        digestSha256: auditProof.digestSha256,
-        provider: auditProof.provider,
-      });
+
+      if (options?.evalConclusionPath) {
+        await evidence.append({ phase: 'eval-professional-conclusion', status: 'started', path: options.evalConclusionPath });
+        const evalProof = await readEvalProfessionalProof({
+          proofRoot: realRoot,
+          proofPath: options.evalConclusionPath,
+          expectedSubjectRef: allowedSubjectRefs,
+          expectedDigestSha256: options.evalConclusionDigest ?? null,
+          requireDigest: true,
+          minGrade: config.policy?.minEvalGrade ?? 'B',
+        });
+        if (evalProof.status !== 'pass') {
+          await evidence.append({
+            phase: 'eval-professional-conclusion',
+            status: 'blocking',
+            reason: evalProof.reason,
+            digestSha256: evalProof.digestSha256 ?? null,
+          });
+          throw new ReleaseError(
+            GATE_FAILED,
+            `eval professional conclusion rejected: ${evalProof.reason}`,
+            { reason: 'EVAL_CONCLUSION_NOT_PASSED', evalConclusionPath: options.evalConclusionPath },
+          );
+        }
+        await evidence.append({
+          phase: 'eval-professional-conclusion',
+          status: 'completed',
+          digestSha256: evalProof.digestSha256,
+          provider: evalProof.provider,
+          grade: evalProof.grade,
+          overallScoreBp: evalProof.overallScoreBp,
+          scorecardDigestSha256: evalProof.scorecardDigestSha256,
+        });
+      }
     }
     const preHookDocsBindings = await runReleaseDocsFreshnessGate({
       units: configUnits,

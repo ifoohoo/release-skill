@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/plugin-verification-request.json",
   "title": "Plugin verification request",
+  "description": "宿主插件安装与调用核验请求：定义插件制品来源、核验目标阶段与隔离工作区摘要。",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -37,7 +38,9 @@
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "properties": {
         "type": {
           "enum": [
@@ -64,10 +67,17 @@
         "revisions": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["v1", "v2"],
+          "required": [
+            "v1",
+            "v2"
+          ],
           "properties": {
-            "v1": { "$ref": "#/$defs/marketplaceRevision" },
-            "v2": { "$ref": "#/$defs/marketplaceRevision" }
+            "v1": {
+              "$ref": "#/$defs/marketplaceRevision"
+            },
+            "v2": {
+              "$ref": "#/$defs/marketplaceRevision"
+            }
           }
         },
         "channel": {
@@ -102,40 +112,87 @@
       "allOf": [
         {
           "if": {
-            "properties": { "type": { "const": "local-staged" } },
-            "required": ["type"]
+            "properties": {
+              "type": {
+                "const": "local-staged"
+              }
+            },
+            "required": [
+              "type"
+            ]
           },
           "then": {
-            "required": ["candidateRef", "sourceManifestSha256", "membersDigest"],
+            "required": [
+              "candidateRef",
+              "sourceManifestSha256",
+              "membersDigest"
+            ],
             "properties": {
-              "candidateRef": {}, "sourceManifestSha256": {}, "membersDigest": {},
-              "channel": false, "marketplaceId": false, "pluginId": false, "revisions": false
+              "candidateRef": {},
+              "sourceManifestSha256": {},
+              "membersDigest": {},
+              "channel": false,
+              "marketplaceId": false,
+              "pluginId": false,
+              "revisions": false
             }
           }
         },
         {
           "if": {
-            "properties": { "type": { "const": "public-channel" } },
-            "required": ["type"]
+            "properties": {
+              "type": {
+                "const": "public-channel"
+              }
+            },
+            "required": [
+              "type"
+            ]
           },
           "then": {
-            "required": ["candidateRef", "sourceManifestSha256", "membersDigest", "channel"],
+            "required": [
+              "candidateRef",
+              "sourceManifestSha256",
+              "membersDigest",
+              "channel"
+            ],
             "properties": {
-              "candidateRef": {}, "sourceManifestSha256": {}, "membersDigest": {}, "channel": {},
-              "marketplaceId": false, "pluginId": false, "revisions": false
+              "candidateRef": {},
+              "sourceManifestSha256": {},
+              "membersDigest": {},
+              "channel": {},
+              "marketplaceId": false,
+              "pluginId": false,
+              "revisions": false
             }
           }
         },
         {
           "if": {
-            "properties": { "type": { "const": "local-marketplace" } },
-            "required": ["type"]
+            "properties": {
+              "type": {
+                "const": "local-marketplace"
+              }
+            },
+            "required": [
+              "type"
+            ]
           },
           "then": {
-            "required": ["candidateRef", "marketplaceId", "pluginId", "revisions"],
+            "required": [
+              "candidateRef",
+              "marketplaceId",
+              "pluginId",
+              "revisions"
+            ],
             "properties": {
-              "candidateRef": {}, "marketplaceId": {}, "pluginId": {}, "revisions": {},
-              "sourceManifestSha256": false, "membersDigest": false, "channel": false
+              "candidateRef": {},
+              "marketplaceId": {},
+              "pluginId": {},
+              "revisions": {},
+              "sourceManifestSha256": false,
+              "membersDigest": false,
+              "channel": false
             }
           }
         }
@@ -267,13 +324,25 @@
         "anyOf": [
           {
             "type": "object",
-            "properties": { "goal": { "const": "install-and-invoke" } },
-            "required": ["goal"]
+            "properties": {
+              "goal": {
+                "const": "install-and-invoke"
+              }
+            },
+            "required": [
+              "goal"
+            ]
           },
           {
             "type": "object",
-            "properties": { "goal": { "const": "native-lifecycle" } },
-            "required": ["goal"]
+            "properties": {
+              "goal": {
+                "const": "native-lifecycle"
+              }
+            },
+            "required": [
+              "goal"
+            ]
           }
         ]
       },
@@ -344,28 +413,36 @@
           "properties": {
             "source": {
               "type": "object",
-              "properties": { "type": { "const": "local-staged" } },
-              "required": ["type"]
+              "properties": {
+                "type": {
+                  "const": "local-staged"
+                }
+              },
+              "required": [
+                "type"
+              ]
             }
           },
-          "required": ["source"]
+          "required": [
+            "source"
+          ]
         },
         "then": {
-        "properties": {
-          "source": {
-            "type": "object",
-            "properties": {
-              "channel": false
-            }
-          },
-          "install": {
-            "type": "object",
-            "properties": {
-              "timeoutPolicy": false,
-              "outputByteLimits": false
+          "properties": {
+            "source": {
+              "type": "object",
+              "properties": {
+                "channel": false
+              }
+            },
+            "install": {
+              "type": "object",
+              "properties": {
+                "timeoutPolicy": false,
+                "outputByteLimits": false
+              }
             }
           }
-        }
         }
       }
     },
@@ -404,8 +481,14 @@
           },
           {
             "type": "object",
-            "properties": { "goal": { "const": "native-lifecycle" } },
-            "required": ["goal"]
+            "properties": {
+              "goal": {
+                "const": "native-lifecycle"
+              }
+            },
+            "required": [
+              "goal"
+            ]
           }
         ]
       },
@@ -428,15 +511,24 @@
           {
             "if": {
               "type": "object",
-              "properties": { "goal": { "const": "native-lifecycle" } },
-              "required": ["goal"]
+              "properties": {
+                "goal": {
+                  "const": "native-lifecycle"
+                }
+              },
+              "required": [
+                "goal"
+              ]
             },
             "then": {
               "type": "object",
               "properties": {
                 "host": {
                   "type": "object",
-                  "properties": { "cliVersion": false, "executableSha256": false }
+                  "properties": {
+                    "cliVersion": false,
+                    "executableSha256": false
+                  }
                 }
               }
             },
@@ -445,8 +537,14 @@
               "properties": {
                 "host": {
                   "type": "object",
-                  "required": ["cliVersion", "executableSha256"],
-                  "properties": { "cliVersion": {}, "executableSha256": {} }
+                  "required": [
+                    "cliVersion",
+                    "executableSha256"
+                  ],
+                  "properties": {
+                    "cliVersion": {},
+                    "executableSha256": {}
+                  }
                 }
               }
             }
@@ -469,18 +567,33 @@
     },
     {
       "if": {
-        "properties": { "goal": { "const": "native-lifecycle" } },
-        "required": ["goal"]
+        "properties": {
+          "goal": {
+            "const": "native-lifecycle"
+          }
+        },
+        "required": [
+          "goal"
+        ]
       },
       "then": {
         "properties": {
           "source": {
             "type": "object",
-            "properties": { "type": { "const": "local-marketplace" } },
-            "required": ["type"]
+            "properties": {
+              "type": {
+                "const": "local-marketplace"
+              }
+            },
+            "required": [
+              "type"
+            ]
           }
         },
-        "required": ["auth", "invocation"]
+        "required": [
+          "auth",
+          "invocation"
+        ]
       }
     }
   ],
@@ -488,11 +601,21 @@
     "marketplaceRevision": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["version", "sourceManifestSha256", "membersDigest"],
+      "required": [
+        "version",
+        "sourceManifestSha256",
+        "membersDigest"
+      ],
       "properties": {
-        "version": { "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/host/properties/driverVersion" },
-        "sourceManifestSha256": { "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256" },
-        "membersDigest": { "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256" }
+        "version": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/host/properties/driverVersion"
+        },
+        "sourceManifestSha256": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256"
+        },
+        "membersDigest": {
+          "$ref": "https://contracts.skill-family.example/v1/host-verification-request.json#/$defs/sha256"
+        }
       }
     }
   }

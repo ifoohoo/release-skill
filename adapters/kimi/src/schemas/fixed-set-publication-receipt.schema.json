@@ -2,84 +2,257 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/fixed-set-publication-receipt.json",
   "title": "Fixed-set publication receipt",
+  "description": "固定文件集发布收据：记录固定文件集完成原子切换后的闭包摘要与根目录身份事实。",
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schemaVersion", "kind", "manifestDigest", "targetRootBinding", "platform", "primitive",
-    "status", "targetState", "commitState", "verification", "durability"
+    "schemaVersion",
+    "kind",
+    "manifestDigest",
+    "targetRootBinding",
+    "platform",
+    "primitive",
+    "status",
+    "targetState",
+    "commitState",
+    "verification",
+    "durability"
   ],
   "properties": {
-    "schemaVersion": { "enum": [1, 2] },
-    "kind": { "const": "skill-family.fixed-set-publication-receipt" },
-    "manifestDigest": { "$ref": "#/$defs/sha256" },
-    "targetRootBinding": { "$ref": "#/$defs/rootBinding" },
-    "platform": { "enum": ["darwin", "linux", "win32", "other"] },
-    "primitive": { "enum": ["darwin-renameatx-noreplace-v1", "linux-renameat2-noreplace-v1", "windows-rename-noreplace-v1", "none"] },
-    "status": { "enum": ["succeeded", "refused", "failed", "indeterminate"] },
-    "targetState": { "enum": ["absent", "existing", "published", "indeterminate"] },
-    "commitState": { "enum": ["not-committed", "rename-committed", "indeterminate"] },
-    "verification": { "enum": ["not-run", "verified", "failed"] },
-    "durability": { "enum": ["not-attempted", "synced", "flush-requested", "indeterminate"] },
-    "publishedClosureDigest": { "$ref": "#/$defs/sha256" },
-    "memberCount": { "type": "integer", "minimum": 1 },
+    "schemaVersion": {
+      "enum": [
+        1,
+        2
+      ]
+    },
+    "kind": {
+      "const": "skill-family.fixed-set-publication-receipt"
+    },
+    "manifestDigest": {
+      "$ref": "#/$defs/sha256"
+    },
+    "targetRootBinding": {
+      "$ref": "#/$defs/rootBinding"
+    },
+    "platform": {
+      "enum": [
+        "darwin",
+        "linux",
+        "win32",
+        "other"
+      ]
+    },
+    "primitive": {
+      "enum": [
+        "darwin-renameatx-noreplace-v1",
+        "linux-renameat2-noreplace-v1",
+        "windows-rename-noreplace-v1",
+        "none"
+      ]
+    },
+    "status": {
+      "enum": [
+        "succeeded",
+        "refused",
+        "failed",
+        "indeterminate"
+      ]
+    },
+    "targetState": {
+      "enum": [
+        "absent",
+        "existing",
+        "published",
+        "indeterminate"
+      ]
+    },
+    "commitState": {
+      "enum": [
+        "not-committed",
+        "rename-committed",
+        "indeterminate"
+      ]
+    },
+    "verification": {
+      "enum": [
+        "not-run",
+        "verified",
+        "failed"
+      ]
+    },
+    "durability": {
+      "enum": [
+        "not-attempted",
+        "synced",
+        "flush-requested",
+        "indeterminate"
+      ]
+    },
+    "publishedClosureDigest": {
+      "$ref": "#/$defs/sha256"
+    },
+    "memberCount": {
+      "type": "integer",
+      "minimum": 1
+    },
     "error": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["code", "message"],
+      "required": [
+        "code",
+        "message"
+      ],
       "properties": {
         "code": {
           "enum": [
-            "TARGET_EXISTS", "UNSUPPORTED_PLATFORM", "MANIFEST_INVALID", "SOURCE_DRIFT",
-            "PATH_UNSAFE", "PUBLICATION_FAILED", "POST_VERIFY_FAILED", "DIRECTORY_FSYNC_FAILED"
+            "TARGET_EXISTS",
+            "UNSUPPORTED_PLATFORM",
+            "MANIFEST_INVALID",
+            "SOURCE_DRIFT",
+            "PATH_UNSAFE",
+            "PUBLICATION_FAILED",
+            "POST_VERIFY_FAILED",
+            "DIRECTORY_FSYNC_FAILED"
           ]
         },
-        "message": { "type": "string", "minLength": 1, "maxLength": 300 }
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        }
       }
     }
   },
   "$defs": {
-    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
     "rootBinding": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "digestAlgorithm", "basis", "digest"],
+      "required": [
+        "kind",
+        "digestAlgorithm",
+        "basis",
+        "digest"
+      ],
       "properties": {
-        "kind": { "const": "trusted-filesystem-root-binding" },
-        "digestAlgorithm": { "const": "sha256" },
+        "kind": {
+          "const": "trusted-filesystem-root-binding"
+        },
+        "digestAlgorithm": {
+          "const": "sha256"
+        },
         "basis": {
           "enum": [
             "canonical-realpath-device-inode-type-mode-v1",
             "canonical-finalpath-volume-fileid-type-security-v1"
           ]
         },
-        "digest": { "$ref": "#/$defs/sha256" }
+        "digest": {
+          "$ref": "#/$defs/sha256"
+        }
       }
     }
   },
   "allOf": [
     {
-      "if": { "properties": { "schemaVersion": { "const": 1 } }, "required": ["schemaVersion"] },
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 1
+          }
+        },
+        "required": [
+          "schemaVersion"
+        ]
+      },
       "then": {
         "properties": {
-          "platform": { "enum": ["darwin", "linux", "other"] },
-          "primitive": { "enum": ["darwin-renameatx-noreplace-v1", "linux-renameat2-noreplace-v1", "none"] },
-          "commitState": { "enum": ["not-committed", "rename-committed"] },
-          "durability": { "enum": ["not-attempted", "synced", "indeterminate"] },
-          "targetRootBinding": { "type": "object", "properties": { "basis": { "const": "canonical-realpath-device-inode-type-mode-v1" } } }
+          "platform": {
+            "enum": [
+              "darwin",
+              "linux",
+              "other"
+            ]
+          },
+          "primitive": {
+            "enum": [
+              "darwin-renameatx-noreplace-v1",
+              "linux-renameat2-noreplace-v1",
+              "none"
+            ]
+          },
+          "commitState": {
+            "enum": [
+              "not-committed",
+              "rename-committed"
+            ]
+          },
+          "durability": {
+            "enum": [
+              "not-attempted",
+              "synced",
+              "indeterminate"
+            ]
+          },
+          "targetRootBinding": {
+            "type": "object",
+            "properties": {
+              "basis": {
+                "const": "canonical-realpath-device-inode-type-mode-v1"
+              }
+            }
+          }
         }
       }
     },
     {
-      "if": { "properties": { "schemaVersion": { "const": 1 }, "status": { "const": "succeeded" } }, "required": ["schemaVersion", "status"] },
-      "then": {
-        "required": ["publishedClosureDigest", "memberCount"],
+      "if": {
         "properties": {
-          "platform": { "enum": ["darwin", "linux"] },
-          "primitive": { "enum": ["darwin-renameatx-noreplace-v1", "linux-renameat2-noreplace-v1"] },
-          "targetState": { "const": "published" },
-          "commitState": { "const": "rename-committed" },
-          "verification": { "const": "verified" },
-          "durability": { "const": "synced" },
+          "schemaVersion": {
+            "const": 1
+          },
+          "status": {
+            "const": "succeeded"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "publishedClosureDigest",
+          "memberCount"
+        ],
+        "properties": {
+          "platform": {
+            "enum": [
+              "darwin",
+              "linux"
+            ]
+          },
+          "primitive": {
+            "enum": [
+              "darwin-renameatx-noreplace-v1",
+              "linux-renameat2-noreplace-v1"
+            ]
+          },
+          "targetState": {
+            "const": "published"
+          },
+          "commitState": {
+            "const": "rename-committed"
+          },
+          "verification": {
+            "const": "verified"
+          },
+          "durability": {
+            "const": "synced"
+          },
           "publishedClosureDigest": true,
           "memberCount": true,
           "error": false
@@ -87,14 +260,40 @@
       }
     },
     {
-      "if": { "properties": { "schemaVersion": { "const": 1 }, "status": { "const": "refused" } }, "required": ["schemaVersion", "status"] },
-      "then": {
-        "required": ["error"],
+      "if": {
         "properties": {
-          "targetState": { "enum": ["absent", "existing"] },
-          "commitState": { "const": "not-committed" },
-          "verification": { "const": "not-run" },
-          "durability": { "const": "not-attempted" },
+          "schemaVersion": {
+            "const": 1
+          },
+          "status": {
+            "const": "refused"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "targetState": {
+            "enum": [
+              "absent",
+              "existing"
+            ]
+          },
+          "commitState": {
+            "const": "not-committed"
+          },
+          "verification": {
+            "const": "not-run"
+          },
+          "durability": {
+            "const": "not-attempted"
+          },
           "publishedClosureDigest": false,
           "memberCount": false,
           "error": true
@@ -102,14 +301,40 @@
       }
     },
     {
-      "if": { "properties": { "schemaVersion": { "const": 1 }, "status": { "const": "failed" } }, "required": ["schemaVersion", "status"] },
-      "then": {
-        "required": ["error"],
+      "if": {
         "properties": {
-          "targetState": { "const": "absent" },
-          "commitState": { "const": "not-committed" },
-          "verification": { "enum": ["not-run", "failed"] },
-          "durability": { "const": "not-attempted" },
+          "schemaVersion": {
+            "const": 1
+          },
+          "status": {
+            "const": "failed"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "targetState": {
+            "const": "absent"
+          },
+          "commitState": {
+            "const": "not-committed"
+          },
+          "verification": {
+            "enum": [
+              "not-run",
+              "failed"
+            ]
+          },
+          "durability": {
+            "const": "not-attempted"
+          },
           "publishedClosureDigest": false,
           "memberCount": false,
           "error": true
@@ -117,30 +342,87 @@
       }
     },
     {
-      "if": { "properties": { "schemaVersion": { "const": 1 }, "status": { "const": "indeterminate" } }, "required": ["schemaVersion", "status"] },
-      "then": {
-        "required": ["error"],
+      "if": {
         "properties": {
-          "platform": { "enum": ["darwin", "linux"] },
-          "primitive": { "enum": ["darwin-renameatx-noreplace-v1", "linux-renameat2-noreplace-v1"] },
-          "targetState": { "enum": ["published", "indeterminate"] },
-          "commitState": { "const": "rename-committed" },
-          "verification": { "enum": ["verified", "failed"] },
-          "durability": { "const": "indeterminate" },
+          "schemaVersion": {
+            "const": 1
+          },
+          "status": {
+            "const": "indeterminate"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "platform": {
+            "enum": [
+              "darwin",
+              "linux"
+            ]
+          },
+          "primitive": {
+            "enum": [
+              "darwin-renameatx-noreplace-v1",
+              "linux-renameat2-noreplace-v1"
+            ]
+          },
+          "targetState": {
+            "enum": [
+              "published",
+              "indeterminate"
+            ]
+          },
+          "commitState": {
+            "const": "rename-committed"
+          },
+          "verification": {
+            "enum": [
+              "verified",
+              "failed"
+            ]
+          },
+          "durability": {
+            "const": "indeterminate"
+          },
           "error": {
             "type": "object",
-            "properties": { "code": { "enum": ["POST_VERIFY_FAILED", "DIRECTORY_FSYNC_FAILED"] } }
+            "properties": {
+              "code": {
+                "enum": [
+                  "POST_VERIFY_FAILED",
+                  "DIRECTORY_FSYNC_FAILED"
+                ]
+              }
+            }
           }
         },
         "oneOf": [
           {
-            "required": ["publishedClosureDigest", "memberCount"],
+            "required": [
+              "publishedClosureDigest",
+              "memberCount"
+            ],
             "properties": {
-              "targetState": { "const": "published" },
-              "verification": { "const": "verified" },
+              "targetState": {
+                "const": "published"
+              },
+              "verification": {
+                "const": "verified"
+              },
               "error": {
                 "type": "object",
-                "properties": { "code": { "const": "DIRECTORY_FSYNC_FAILED" } }
+                "properties": {
+                  "code": {
+                    "const": "DIRECTORY_FSYNC_FAILED"
+                  }
+                }
               },
               "publishedClosureDigest": true,
               "memberCount": true
@@ -148,11 +430,19 @@
           },
           {
             "properties": {
-              "targetState": { "const": "indeterminate" },
-              "verification": { "const": "failed" },
+              "targetState": {
+                "const": "indeterminate"
+              },
+              "verification": {
+                "const": "failed"
+              },
               "error": {
                 "type": "object",
-                "properties": { "code": { "const": "POST_VERIFY_FAILED" } }
+                "properties": {
+                  "code": {
+                    "const": "POST_VERIFY_FAILED"
+                  }
+                }
               },
               "publishedClosureDigest": false,
               "memberCount": false
@@ -162,93 +452,270 @@
       }
     },
     {
-      "if": { "properties": { "schemaVersion": { "const": 2 } }, "required": ["schemaVersion"] },
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 2
+          }
+        },
+        "required": [
+          "schemaVersion"
+        ]
+      },
       "then": {
         "properties": {
-          "platform": { "const": "win32" },
-          "primitive": { "const": "windows-rename-noreplace-v1" },
-          "targetRootBinding": { "type": "object", "properties": { "basis": { "const": "canonical-finalpath-volume-fileid-type-security-v1" } } }
+          "platform": {
+            "const": "win32"
+          },
+          "primitive": {
+            "const": "windows-rename-noreplace-v1"
+          },
+          "targetRootBinding": {
+            "type": "object",
+            "properties": {
+              "basis": {
+                "const": "canonical-finalpath-volume-fileid-type-security-v1"
+              }
+            }
+          }
         }
       }
     },
     {
-      "if": { "properties": { "schemaVersion": { "const": 2 }, "status": { "const": "succeeded" } }, "required": ["schemaVersion", "status"] },
-      "then": {
-        "required": ["publishedClosureDigest", "memberCount"],
+      "if": {
         "properties": {
-          "targetState": { "const": "published" },
-          "commitState": { "const": "rename-committed" },
-          "verification": { "const": "verified" },
-          "durability": { "const": "flush-requested" },
+          "schemaVersion": {
+            "const": 2
+          },
+          "status": {
+            "const": "succeeded"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "publishedClosureDigest",
+          "memberCount"
+        ],
+        "properties": {
+          "targetState": {
+            "const": "published"
+          },
+          "commitState": {
+            "const": "rename-committed"
+          },
+          "verification": {
+            "const": "verified"
+          },
+          "durability": {
+            "const": "flush-requested"
+          },
           "error": false
         }
       }
     },
     {
-      "if": { "properties": { "schemaVersion": { "const": 2 }, "status": { "const": "refused" } }, "required": ["schemaVersion", "status"] },
-      "then": {
-        "required": ["error"],
+      "if": {
         "properties": {
-          "targetState": { "enum": ["absent", "existing"] },
-          "commitState": { "const": "not-committed" },
-          "verification": { "const": "not-run" },
-          "durability": { "const": "not-attempted" },
+          "schemaVersion": {
+            "const": 2
+          },
+          "status": {
+            "const": "refused"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "targetState": {
+            "enum": [
+              "absent",
+              "existing"
+            ]
+          },
+          "commitState": {
+            "const": "not-committed"
+          },
+          "verification": {
+            "const": "not-run"
+          },
+          "durability": {
+            "const": "not-attempted"
+          },
           "publishedClosureDigest": false,
           "memberCount": false
         }
       }
     },
     {
-      "if": { "properties": { "schemaVersion": { "const": 2 }, "status": { "const": "failed" } }, "required": ["schemaVersion", "status"] },
-      "then": {
-        "required": ["error"],
+      "if": {
         "properties": {
-          "targetState": { "const": "absent" },
-          "commitState": { "const": "not-committed" },
-          "verification": { "enum": ["not-run", "failed"] },
-          "durability": { "const": "not-attempted" },
+          "schemaVersion": {
+            "const": 2
+          },
+          "status": {
+            "const": "failed"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "targetState": {
+            "const": "absent"
+          },
+          "commitState": {
+            "const": "not-committed"
+          },
+          "verification": {
+            "enum": [
+              "not-run",
+              "failed"
+            ]
+          },
+          "durability": {
+            "const": "not-attempted"
+          },
           "publishedClosureDigest": false,
           "memberCount": false
         }
       }
     },
     {
-      "if": { "properties": { "schemaVersion": { "const": 2 }, "status": { "const": "indeterminate" }, "commitState": { "const": "rename-committed" } }, "required": ["schemaVersion", "status", "commitState"] },
-      "then": {
-        "required": ["error"],
+      "if": {
         "properties": {
-          "durability": { "const": "indeterminate" },
-          "error": { "type": "object", "properties": { "code": { "enum": ["POST_VERIFY_FAILED", "DIRECTORY_FSYNC_FAILED"] } } }
+          "schemaVersion": {
+            "const": 2
+          },
+          "status": {
+            "const": "indeterminate"
+          },
+          "commitState": {
+            "const": "rename-committed"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "status",
+          "commitState"
+        ]
+      },
+      "then": {
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "durability": {
+            "const": "indeterminate"
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "enum": [
+                  "POST_VERIFY_FAILED",
+                  "DIRECTORY_FSYNC_FAILED"
+                ]
+              }
+            }
+          }
         },
         "oneOf": [
           {
-            "required": ["publishedClosureDigest", "memberCount"],
+            "required": [
+              "publishedClosureDigest",
+              "memberCount"
+            ],
             "properties": {
-              "targetState": { "const": "published" },
-              "verification": { "const": "verified" },
-              "error": { "type": "object", "properties": { "code": { "const": "DIRECTORY_FSYNC_FAILED" } } }
+              "targetState": {
+                "const": "published"
+              },
+              "verification": {
+                "const": "verified"
+              },
+              "error": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "const": "DIRECTORY_FSYNC_FAILED"
+                  }
+                }
+              }
             }
           },
           {
             "properties": {
-              "targetState": { "const": "indeterminate" },
-              "verification": { "const": "failed" },
+              "targetState": {
+                "const": "indeterminate"
+              },
+              "verification": {
+                "const": "failed"
+              },
               "publishedClosureDigest": false,
               "memberCount": false,
-              "error": { "type": "object", "properties": { "code": { "const": "POST_VERIFY_FAILED" } } }
+              "error": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "const": "POST_VERIFY_FAILED"
+                  }
+                }
+              }
             }
           }
         ]
       }
     },
     {
-      "if": { "properties": { "schemaVersion": { "const": 2 }, "status": { "const": "indeterminate" }, "commitState": { "const": "indeterminate" } }, "required": ["schemaVersion", "status", "commitState"] },
-      "then": {
-        "required": ["error"],
+      "if": {
         "properties": {
-          "targetState": { "const": "indeterminate" },
-          "verification": { "const": "not-run" },
-          "durability": { "const": "indeterminate" },
+          "schemaVersion": {
+            "const": 2
+          },
+          "status": {
+            "const": "indeterminate"
+          },
+          "commitState": {
+            "const": "indeterminate"
+          }
+        },
+        "required": [
+          "schemaVersion",
+          "status",
+          "commitState"
+        ]
+      },
+      "then": {
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "targetState": {
+            "const": "indeterminate"
+          },
+          "verification": {
+            "const": "not-run"
+          },
+          "durability": {
+            "const": "indeterminate"
+          },
           "publishedClosureDigest": false,
           "memberCount": false
         }

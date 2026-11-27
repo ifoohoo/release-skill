@@ -1,0 +1,215 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/internal-dependency-resolution-receipt.json",
+  "title": "InternalDependencyResolutionReceipt",
+  "description": "会话级内部依赖选版收据：记录技能族项目按“固定主版本（0.x 或 N.x）+ 最低可用版本（minVersion）”策略筛选已验证最高兼容版本的结果与自绑定摘要。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "projectId",
+    "policy",
+    "status",
+    "resolvedAt",
+    "manifestDigest",
+    "resolutions",
+    "digest"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "description": "结构版本号，固定为 1。"
+    },
+    "kind": {
+      "const": "skill-family.internal-dependency-resolution-receipt",
+      "description": "文档类型标识，固定为内部依赖会话选版收据。"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+      "description": "发起依赖选版的技能族项目稳定标识（kebab-case）。"
+    },
+    "policy": {
+      "const": "fixed-major-min-version-v1",
+      "description": "选版策略标识：在固定主版本轨道（0.x 或 N.x）且不低于 minVersion（若声明 verifiedCeiling 则同时不高于上限）的已验证候选中选择最高版本。"
+    },
+    "status": {
+      "enum": [
+        "resolved",
+        "unresolved"
+      ],
+      "description": "选版总体状态：全部声明依赖均命中已验证兼容版本时为 resolved，任一依赖未命中时为 unresolved。"
+    },
+    "sessionId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "可选的会话标识，用于在单次执行会话内锁定命中的依赖版本。"
+    },
+    "resolvedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "生成收据的 RFC 3339 时间戳。"
+    },
+    "manifestDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "选版所依据的项目清单（skill-family.project-manifest.json）规范化 JSON SHA-256 摘要。"
+    },
+    "resolutions": {
+      "type": "array",
+      "description": "按包名字典序排列的内部依赖逐项选版记录。",
+      "items": {
+        "$ref": "#/$defs/resolutionEntry"
+      }
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "除 digest 字段外整份收据的规范化 JSON SHA-256 自绑定摘要。"
+    }
+  },
+  "$defs": {
+    "packageName": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$",
+      "description": "符合 npm 命名规则的内部依赖包名（支持可选作用域前缀）。"
+    },
+    "exactSemver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "description": "精确语义化版本号（major.minor.patch，不含前导零与预发布后缀）。"
+    },
+    "resolutionEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packageName",
+        "mode",
+        "major",
+        "minVersion",
+        "verifiedCeiling",
+        "selectedVersion",
+        "status",
+        "candidatesEvaluated",
+        "reason"
+      ],
+      "description": "单个内部依赖包的选版输入约束与命中结果。",
+      "properties": {
+        "packageName": {
+          "$ref": "#/$defs/packageName"
+        },
+        "mode": {
+          "enum": [
+            "range",
+            "exact"
+          ],
+          "description": "声明模式：range 表示固定主版本范围声明，exact 表示向下兼容的精确版本字符串。"
+        },
+        "major": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "锁定的主版本轨道（0 表示 0.x，N>=1 表示 N.x）。"
+        },
+        "minVersion": {
+          "$ref": "#/$defs/exactSemver",
+          "description": "允许命中的最低可用版本（含该版本）。"
+        },
+        "verifiedCeiling": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/exactSemver"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可选的最高已验证兼容版本上限（含该版本）；未设置上限时为 null。"
+        },
+        "selectedVersion": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/exactSemver"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "命中的最高已验证兼容版本；未命中时为 null。"
+        },
+        "selectedDigest": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "命中候选版本的制品或契约 SHA-256 摘要；未提供或未命中时为 null。"
+        },
+        "selectedSource": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "命中候选版本的来源标识（如 workspace、installed、catalog）；未提供或未命中时为 null。"
+        },
+        "status": {
+          "enum": [
+            "resolved",
+            "unresolved"
+          ],
+          "description": "该依赖包的选版状态。"
+        },
+        "candidatesEvaluated": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/exactSemver"
+          },
+          "description": "参与本次筛选且已通过验证的候选版本列表（按版本升序排列）。"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "命中依据说明，或未命中原因及修复指引。"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "resolved"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "properties": {
+              "selectedVersion": {
+                "$ref": "#/$defs/exactSemver"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "selectedVersion": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

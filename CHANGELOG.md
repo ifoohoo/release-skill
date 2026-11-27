@@ -1,5 +1,28 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.10.5 locale=en baseline=sha256:62ee5d0c2bef294aeec11807d5db5fd171459e382d940d14ce6e96961da5ad92 -->
+## [0.10.5] - 2026-11-27
+
+0.10.5 adds unidirectional dynamic evaluation professional-conclusion intake (--eval-conclusion and --eval-conclusion-sha256) with configurable policy.minEvalGrade (default B) across assess and prepare, and upgrades pinned Foundation dependencies to 0.39.2. This description is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Enforced mandatory SHA-256 digest matching, hard-gate pass verification, and scorecard digest validation on external dynamic evaluation conclusions without reverse subprocess execution. The inherited Skill Family Hub remains the unified marketplace; GitHub Git Data API with compare-and-swap binds updates to the observed branch head, and partial publication is never rolled back or force-pushed.
+
+### Added
+
+- Added unidirectional skill-family-eval professional-conclusion verification (--eval-conclusion and --eval-conclusion-sha256) in assess and prepare with configurable policy.minEvalGrade (default B) and shared subject-reference resolution.
+
+### Changed
+
+- Upgraded pinned Foundation dependencies (skill-family-contracts, skill-family-engineering-kit, skill-family-harness-node) from 0.39.0 to 0.39.2.
+
+### Upgrade Notes
+
+Run prepare with 0.10.5 to create a new candidate and provide a new test result file. Preserve previous candidates, results, approvals and run records; do not edit their writerVersion. The release-skill standalone marketplace is deprecated; use ifoohoo/skill-family-hub with plugin id release-skill@skill-family-hub instead. The unified marketplace does not replace GitHub Release or npm distribution.
+<!-- release-skill:changelog:end version=0.10.5 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.10.4 locale=en baseline=sha256:86692db397e3efa2065234c8e32b9f01890b9a248e08161fc53dcc25150a7bb4 -->
 ## [0.10.4] - 2026-11-26
 

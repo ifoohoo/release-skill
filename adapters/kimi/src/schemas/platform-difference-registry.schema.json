@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/platform-difference-registry.json",
   "title": "PlatformDifferenceRegistry",
-  "description": "Platform difference registry (audit SG-08, clause PSG-02). Records how each supported platform differs across the seven mandatory dimensions: directory, manifest, discovery, invocation, internalIsolation, capabilityGaps, degradationConditions. Degradation entries may only express platform implementation differences or an unverified state; they must never lower the primary platform's status and must never loosen the common business semantics. Aligned with the audit-side platform-difference-registry contract; this foundation object freezes the same seven-dimension shape under the foundation envelope.",
+  "description": "多宿主平台差异注册表（审计 SG-08 / PSG-02）：按 directory、manifest、discovery、invocation、internalIsolation、capabilityGaps、degradationConditions 七个必填维度记录各支持宿主的差异。降级条目仅可表达平台实现差异或未核验状态，绝不得拉低主平台状态，也绝不得放宽共同业务语义。",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -13,14 +13,23 @@
     "platforms"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "skill-family.platform-difference-registry" },
-    "description": { "type": "string" },
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.platform-difference-registry"
+    },
+    "description": {
+      "type": "string"
+    },
     "primaryPlatforms": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "type": "string", "minLength": 1 }
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "requiredDimensions": {
       "type": "array",
@@ -42,17 +51,21 @@
     "platforms": {
       "type": "object",
       "minProperties": 1,
-      "additionalProperties": { "$ref": "#/$defs/platformEntry" }
+      "additionalProperties": {
+        "$ref": "#/$defs/platformEntry"
+      }
     },
     "registryDigest": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$",
-      "description": "sha256 hex of the canonical JSON of all top-level fields except registryDigest itself."
+      "description": "除 registryDigest 自身外全部顶层字段规范化 JSON 的 SHA-256 十六进制摘要。"
     },
-    "thirdPartyNotes": { "type": "string" },
+    "thirdPartyNotes": {
+      "type": "string"
+    },
     "thirdPartyContract": {
       "type": "string",
-      "description": "Path or $id reference by which a third-party instance points at this contract."
+      "description": "第三方实例指向本契约所使用的路径或 $id 引用。"
     }
   },
   "$defs": {
@@ -71,39 +84,70 @@
         "degradationConditions"
       ],
       "properties": {
-        "platformId": { "type": "string", "minLength": 1 },
-        "primaryPlatform": { "type": "boolean" },
+        "platformId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "primaryPlatform": {
+          "type": "boolean"
+        },
         "lowersPrimaryPlatformStatus": {
           "const": false,
-          "description": "Must be false: a difference entry may never lower the primary platform's status."
+          "description": "必须固定为 false：任何平台差异条目均不得拉低主平台状态。"
         },
         "loosensCommonBusinessSemantics": {
           "const": false,
-          "description": "Must be false: a difference entry may never loosen the common business semantics."
+          "description": "必须固定为 false：任何平台差异条目均不得放宽共同业务语义。"
         },
-        "directory": { "type": "string", "minLength": 1 },
-        "manifest": { "$ref": "#/$defs/dimensionFact" },
-        "discovery": { "$ref": "#/$defs/dimensionFact" },
-        "invocation": { "$ref": "#/$defs/dimensionFact" },
-        "internalIsolation": { "$ref": "#/$defs/dimensionFact" },
+        "directory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "manifest": {
+          "$ref": "#/$defs/dimensionFact"
+        },
+        "discovery": {
+          "$ref": "#/$defs/dimensionFact"
+        },
+        "invocation": {
+          "$ref": "#/$defs/dimensionFact"
+        },
+        "internalIsolation": {
+          "$ref": "#/$defs/dimensionFact"
+        },
         "capabilityGaps": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "degradationConditions": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
     "dimensionFact": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status"],
+      "required": [
+        "status"
+      ],
       "properties": {
-        "status": { "type": "string", "minLength": 1 },
-        "format": { "type": "string" },
-        "mechanism": { "type": "string" }
+        "status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "format": {
+          "type": "string"
+        },
+        "mechanism": {
+          "type": "string"
+        }
       }
     }
   }

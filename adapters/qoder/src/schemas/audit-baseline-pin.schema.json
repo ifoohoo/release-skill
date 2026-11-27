@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/audit-baseline-pin.json",
   "title": "AuditBaselinePin",
-  "description": "Audit baseline pin contract (GAP-5 / SG-28, FVD-005 lineage). The frozen document an independent audit uses to pin one approved Contracts version: the audit-surface digest, per-document digests (registry, error codes, rules, kernel protocol), per-schema digests, and the frozen engine facts. Pins are append-only, one file per contracts version, generated mechanically from describeAuditSurface(); a live surface that no longer matches its pin is AUD-BASE-001, a failed pin/lock comparison is AUD-LOCK-001 (codes owned by the audit namespace). The supersedes field records the predecessor pin file name so the pin lineage stays mechanically traceable.",
+  "description": "审计基线锁契约（GAP-5 / SG-28，FVD-005 谱系）：独立审计用于锁定已批准 Contracts 版本的冻结文档，记录审计表面总摘要、四类核心文档摘要（registry、errorCodes、rules、kernelProtocol）、逐个 Schema 摘要及校验引擎固定事实。基线锁按 Contracts 版本追加写入，由 describeAuditSurface() 机械派生；活动表面偏离基线锁判为 AUD-BASE-001，锁比对失败判为 AUD-LOCK-001（错误码归属审计命名空间）。supersedes 字段记录前序基线锁文件名以保持谱系可追溯。",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -20,62 +20,89 @@
     "facts"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "skill-family.audit-baseline-pin" },
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.audit-baseline-pin"
+    },
     "provenance": {
-      "enum": ["product-compatibility-fixture", "independent-audit"],
-      "description": "Authorship class of the pin. product-compatibility-fixture: generated mechanically on the product side from describeAuditSurface(); independent-audit: authored by an independent audit consumer."
+      "enum": [
+        "product-compatibility-fixture",
+        "independent-audit"
+      ],
+      "description": "基线锁的生成来源类别：product-compatibility-fixture 表示产品侧由 describeAuditSurface() 机械派生的兼容性夹具；independent-audit 表示由独立审计消费方生成。"
     },
     "frozenAt": {
       "type": "string",
       "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
-      "description": "Calendar date (YYYY-MM-DD) on which the pin was frozen."
+      "description": "基线锁冻结的日历日期（YYYY-MM-DD）。"
     },
     "contractsVersion": {
       "type": "string",
       "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
-      "description": "Contracts version this pin freezes."
+      "description": "本基线锁锁定的 Contracts 版本号。"
     },
     "auditSurfaceVersion": {
       "type": "integer",
       "minimum": 1,
-      "description": "Audit consumption surface version the pin was derived from."
+      "description": "派生本基线锁时使用的审计消费表面协议版本。"
     },
     "digestAlgorithm": {
       "const": "sha256",
-      "description": "Digest algorithm; sha256 is the only admitted value."
+      "description": "摘要算法；仅允许 sha256。"
     },
     "note": {
       "type": "string",
       "minLength": 1,
-      "description": "Human-readable provenance note."
+      "description": "面向人类阅读的来源说明备注。"
     },
     "supersedes": {
       "type": "string",
       "pattern": "^contracts-[0-9]+\\.[0-9]+\\.[0-9]+\\.pin\\.json$",
-      "description": "File name of the predecessor baseline pin this pin supersedes (FVD-005 lineage); omitted only for the first pin of a lineage."
+      "description": "本基线锁所替代的前序基线锁文件名（FVD-005 谱系）；仅谱系首个基线锁可省略。"
     },
     "surfaceDigest": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$",
-      "description": "sha256 hex of the canonical JSON of the full audit surface (digestAuditSurface)."
+      "description": "完整审计表面规范化 JSON 的 SHA-256 十六进制摘要（由 digestAuditSurface 计算）。"
     },
     "documentDigests": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["registry", "errorCodes", "rules", "kernelProtocol"],
+      "required": [
+        "registry",
+        "errorCodes",
+        "rules",
+        "kernelProtocol"
+      ],
       "properties": {
-        "registry": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        "errorCodes": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        "rules": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        "kernelProtocol": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        "registry": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "errorCodes": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "rules": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "kernelProtocol": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
       }
     },
     "schemaDigests": {
       "type": "object",
       "minProperties": 1,
-      "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-      "description": "Map of schema $id to the sha256 hex digest of the canonical JSON of that schema document."
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      },
+      "description": "从各 Schema 的 $id 到该 Schema 文档规范化 JSON SHA-256 十六进制摘要的映射。"
     },
     "facts": {
       "type": "object",
@@ -98,46 +125,73 @@
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "checkTypes": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "mandatoryRuleIds": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "ruleBudget": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["firstVersionMax", "absoluteMax"],
+          "required": [
+            "firstVersionMax",
+            "absoluteMax"
+          ],
           "properties": {
-            "firstVersionMax": { "type": "integer", "minimum": 1 },
-            "absoluteMax": { "type": "integer", "minimum": 1 }
+            "firstVersionMax": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "absoluteMax": {
+              "type": "integer",
+              "minimum": 1
+            }
           }
         },
         "errorCodes": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "type": "string", "pattern": "^SFC[0-9]{4}$" }
+          "items": {
+            "type": "string",
+            "pattern": "^SFC[0-9]{4}$"
+          }
         },
         "kernelOperations": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "kernelTerminalStates": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
         "validationPolicies": {
           "type": "object",
@@ -145,7 +199,14 @@
           "additionalProperties": {
             "type": "object",
             "additionalProperties": {
-              "anyOf": [{ "type": "boolean" }, { "type": "string" }]
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string"
+                }
+              ]
             }
           }
         },
@@ -153,10 +214,19 @@
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 }
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "errorCodeStabilityPolicy": { "type": "string", "minLength": 1 },
-        "schemaIdNamespace": { "type": "string", "minLength": 1 }
+        "errorCodeStabilityPolicy": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schemaIdNamespace": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     }
   }

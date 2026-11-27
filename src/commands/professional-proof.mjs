@@ -684,3 +684,306 @@ export async function readAuditProfessionalProof({
     conclusion: document,
   };
 }
+
+export const EVAL_PROVIDER_ID = 'skill-family-eval';
+
+export const EVAL_GRADE_ORDER = Object.freeze({
+  REJECTED: 0,
+  C: 1,
+  B: 2,
+  A: 3,
+  S: 4,
+});
+
+export const EVAL_OUTCOME_CODES = Object.freeze({
+  S: 'EVAL_GRADE_S',
+  A: 'EVAL_GRADE_A',
+  B: 'EVAL_GRADE_B',
+  C: 'EVAL_GRADE_C',
+  REJECTED: 'EVAL_REJECTED',
+});
+
+export const EVAL_PASS_CODES = Object.freeze([
+  'EVAL_GRADE_S',
+  'EVAL_GRADE_A',
+  'EVAL_GRADE_B',
+]);
+
+const VALID_MIN_EVAL_GRADES = new Set(['S', 'A', 'B', 'C']);
+
+/**
+ * 统一构造发布项目与各发布单元允许绑定的专业结论 subject.ref 候选集合。
+ */
+export function resolveAllowedConclusionSubjectRefs({
+  projectName = '',
+  units = [],
+  resolvedVersions = null,
+} = {}) {
+  const allowedSubjectRefs = new Set();
+  const normalizedProject = typeof projectName === 'string' ? projectName.trim() : '';
+  for (const [unitIdx, unit] of (units ?? []).entries()) {
+    const unitVersion = resolvedVersions instanceof Map
+      ? resolvedVersions.get(unit.id)
+      : Array.isArray(resolvedVersions)
+        ? resolvedVersions[unitIdx]
+        : null;
+    if (typeof unitVersion !== 'string' || unitVersion.trim().length === 0) continue;
+    const ver = unitVersion.trim();
+    if (normalizedProject) {
+      allowedSubjectRefs.add(`pkg:${normalizedProject}@${ver}`);
+      allowedSubjectRefs.add(`${normalizedProject}@${ver}`);
+    }
+    if (typeof unit?.id === 'string' && unit.id.trim().length > 0) {
+      const uid = unit.id.trim();
+      allowedSubjectRefs.add(`pkg:${uid}@${ver}`);
+      allowedSubjectRefs.add(`${uid}@${ver}`);
+    }
+    for (const dist of unit?.distributions ?? []) {
+      if (typeof dist?.package === 'string' && dist.package.trim().length > 0) {
+        const pkgName = dist.package.trim();
+        allowedSubjectRefs.add(`pkg:${pkgName}@${ver}`);
+        allowedSubjectRefs.add(`${pkgName}@${ver}`);
+      }
+    }
+  }
+  return [...allowedSubjectRefs];
+}
+
+/**
+ * 单向消费核验 skill-family-eval 签发的动态质量评测 professional-conclusion（零子进程反向调用评测引擎）。
+ */
+export async function readEvalProfessionalProof({
+  proofRoot,
+  proofPath,
+  expectedSubjectRef = null,
+  expectedSubjectRevision = null,
+  expectedDigestSha256 = null,
+  requireDigest = false,
+  minGrade = 'B',
+} = {}) {
+  if (
+    typeof proofRoot !== 'string' ||
+    proofRoot.length === 0 ||
+    typeof proofPath !== 'string' ||
+    proofPath.length === 0
+  ) {
+    return unavailableRead('proofRoot 与 proofPath 均为必填');
+  }
+
+  let receipt;
+  try {
+    await resolveContained(proofRoot, proofPath);
+    receipt = await readFileStrict(proofRoot, proofPath, { encoding: 'utf8' });
+  } catch (cause) {
+    return unavailableRead(`无法读取动态评测专业结论: ${cause?.message ?? 'unknown'}`);
+  }
+
+  let document;
+  try {
+    document = JSON.parse(receipt.content);
+  } catch {
+    return unavailableRead('动态评测专业结论不是合法 JSON');
+  }
+
+  const schema = validateProfessionalConclusion(document);
+  const provider = extractProvider(document);
+  if (!schema.valid) {
+    return unavailableRead(
+      `动态评测专业结论未通过 professional-conclusion 结构校验（${schema.errorCode ?? 'invalid'}）`,
+      { provider },
+    );
+  }
+
+  if (provider?.id !== EVAL_PROVIDER_ID) {
+    return unavailableRead(`证明提供方不是 ${EVAL_PROVIDER_ID}`, { provider, conclusion: document });
+  }
+
+  if (typeof minGrade !== 'string' || !VALID_MIN_EVAL_GRADES.has(minGrade)) {
+    return {
+      status: 'not_pass',
+      reason: `非法的最低评测准入等级 minGrade=${JSON.stringify(minGrade)}（仅支持 S / A / B / C）`,
+      provider,
+      conclusion: document,
+    };
+  }
+
+  const digestSha256 = digestDocument(document);
+  if (requireDigest && (!expectedDigestSha256 || !/^[0-9a-f]{64}$/.test(expectedDigestSha256))) {
+    return {
+      status: 'not_pass',
+      reason: '缺少合法的 64 位动态评测结论摘要绑定（--eval-conclusion-sha256）',
+      provider,
+      digestSha256,
+      conclusion: document,
+    };
+  }
+
+  if (expectedDigestSha256 !== null && expectedDigestSha256 !== undefined) {
+    if (typeof expectedDigestSha256 !== 'string' || !/^[0-9a-f]{64}$/.test(expectedDigestSha256)) {
+      return {
+        status: 'not_pass',
+        reason: 'expectedDigestSha256 必须为 64 位小写十六进制 SHA-256 摘要',
+        provider,
+        digestSha256,
+        conclusion: document,
+      };
+    }
+    if (digestSha256 !== expectedDigestSha256) {
+      return {
+        status: 'not_pass',
+        reason: `动态评测结论规范化摘要失配：期望 ${expectedDigestSha256}，实际 ${digestSha256}`,
+        provider,
+        digestSha256,
+        conclusion: document,
+      };
+    }
+  }
+
+  const actualSubjectRef = document.subject?.ref;
+  if (typeof actualSubjectRef !== 'string' || actualSubjectRef.trim().length === 0) {
+    return {
+      status: 'not_pass',
+      reason: '动态评测结论缺少合法的 subject.ref',
+      provider,
+      digestSha256,
+      conclusion: document,
+    };
+  }
+
+  if (expectedSubjectRef !== null && expectedSubjectRef !== undefined) {
+    const allowedRefs = Array.isArray(expectedSubjectRef)
+      ? expectedSubjectRef.filter((item) => typeof item === 'string' && item.length > 0)
+      : [expectedSubjectRef];
+    if (allowedRefs.length === 0 || !allowedRefs.includes(actualSubjectRef)) {
+      return {
+        status: 'not_pass',
+        reason: `动态评测结论绑定目标不一致：期望 [${allowedRefs.join(', ')}]，实际 ${actualSubjectRef}`,
+        provider,
+        digestSha256,
+        conclusion: document,
+      };
+    }
+  }
+
+  const actualRevision = document.subject?.revision;
+  if (typeof actualRevision !== 'string' || actualRevision.trim().length === 0) {
+    return {
+      status: 'not_pass',
+      reason: '动态评测结论缺少合法的 subject.revision',
+      provider,
+      digestSha256,
+      conclusion: document,
+    };
+  }
+
+  if (expectedSubjectRevision && actualRevision !== expectedSubjectRevision) {
+    return {
+      status: 'not_pass',
+      reason: `动态评测结论绑定源码摘要不一致：期望 ${expectedSubjectRevision}，实际 ${actualRevision}`,
+      provider,
+      digestSha256,
+      conclusion: document,
+    };
+  }
+
+  if (document.outcome?.completion !== 'complete') {
+    return {
+      status: 'not_pass',
+      reason: `动态评测声明范围尚未完整执行（completion=${document.outcome?.completion}），不能作为完整通过依据`,
+      provider,
+      digestSha256,
+      conclusion: document,
+    };
+  }
+
+  const grade = document.details?.grade;
+  const expectedCode = typeof grade === 'string' && Object.hasOwn(EVAL_OUTCOME_CODES, grade)
+    ? EVAL_OUTCOME_CODES[grade]
+    : null;
+  if (!expectedCode || document.outcome?.code !== expectedCode) {
+    return {
+      status: 'not_pass',
+      reason: `动态评测等级与领域码不一致（grade=${JSON.stringify(grade)}，code=${JSON.stringify(document.outcome?.code)}）`,
+      provider,
+      digestSha256,
+      conclusion: document,
+    };
+  }
+
+  const rawBlocking = document.details?.blockingFindingsCount;
+  if (!Number.isInteger(rawBlocking) || rawBlocking < 0) {
+    return {
+      status: 'not_pass',
+      reason: `动态评测结论缺少合法的非负整数 details.blockingFindingsCount（实际=${JSON.stringify(rawBlocking)}）`,
+      provider,
+      digestSha256,
+      conclusion: document,
+    };
+  }
+
+  const scorecardDigestSha256 = document.details?.scorecardDigestSha256;
+  if (typeof scorecardDigestSha256 !== 'string' || !/^[0-9a-f]{64}$/.test(scorecardDigestSha256)) {
+    return {
+      status: 'not_pass',
+      reason: '动态评测结论缺少合法的 64 位 details.scorecardDigestSha256',
+      provider,
+      digestSha256,
+      conclusion: document,
+    };
+  }
+
+  const overallScoreBp = document.details?.overallScoreBp;
+  if (!Number.isInteger(overallScoreBp) || overallScoreBp < 0 || overallScoreBp > 10000) {
+    return {
+      status: 'not_pass',
+      reason: `动态评测结论缺少合法的万分比整数 details.overallScoreBp（实际=${JSON.stringify(overallScoreBp)}）`,
+      provider,
+      digestSha256,
+      conclusion: document,
+    };
+  }
+
+  if (
+    document.details?.hardGatePassed !== true ||
+    document.details?.redCardZeroed === true ||
+    rawBlocking > 0 ||
+    grade === 'REJECTED'
+  ) {
+    return {
+      status: 'not_pass',
+      reason: `动态评测硬闸未通过（grade=${grade}，hardGatePassed=${document.details?.hardGatePassed}，阻断数=${rawBlocking}）`,
+      provider,
+      digestSha256,
+      grade,
+      overallScoreBp,
+      scorecardDigestSha256,
+      conclusion: document,
+    };
+  }
+
+  const floorOrder = EVAL_GRADE_ORDER[minGrade];
+  const actualOrder = EVAL_GRADE_ORDER[grade] ?? 0;
+  if (actualOrder < floorOrder) {
+    return {
+      status: 'not_pass',
+      reason: `动态评测等级 ${grade} 低于项目最低准入要求 ${minGrade}`,
+      provider,
+      digestSha256,
+      grade,
+      overallScoreBp,
+      scorecardDigestSha256,
+      conclusion: document,
+    };
+  }
+
+  return {
+    status: 'pass',
+    reason: `已单向核验通过 skill-family-eval 动态质量评测结论（等级 ${grade}，综合得分 ${overallScoreBp} Bp）。`,
+    provider,
+    digestSha256,
+    grade,
+    overallScoreBp,
+    scorecardDigestSha256,
+    conclusion: document,
+  };
+}

@@ -2,10 +2,15 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/managed-file-lock.json",
   "title": "ManagedFileLock",
-  "description": "Locks the managed files of one project: each entry binds a relative path to a content hash and the generator that owns it, so drift between generated and hand-edited state can be detected mechanically.",
+  "description": "单个项目的托管文件锁：将每条相对路径绑定到内容哈希与所属生成器，以便机械检出生成产物与手工修改之间的漂移。",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "kind", "lockVersion", "entries"],
+  "required": [
+    "schemaVersion",
+    "kind",
+    "lockVersion",
+    "entries"
+  ],
   "properties": {
     "schemaVersion": {
       "const": 1
@@ -16,7 +21,7 @@
     "lockVersion": {
       "type": "integer",
       "minimum": 1,
-      "description": "Monotonic lock generation; bumped whenever the locked set is re-projected."
+      "description": "单调递增的锁世代号；每当受锁文件集合重新投影时递增。"
     },
     "entries": {
       "type": "array",
@@ -24,33 +29,45 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["path", "hash", "generator"],
+        "required": [
+          "path",
+          "hash",
+          "generator"
+        ],
         "properties": {
           "path": {
             "type": "string",
             "pattern": "^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$",
-            "description": "Relative POSIX path of the managed file. Path containment beyond shape is a mechanism concern owned by the harness."
+            "description": "托管文件的项目相对 POSIX 路径；超出字面形态的路径包含边界由 Harness 机制层负责。"
           },
           "hash": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["algorithm", "value"],
+            "required": [
+              "algorithm",
+              "value"
+            ],
             "properties": {
               "algorithm": {
-                "enum": ["sha256"],
-                "description": "v1 freezes a single hash algorithm."
+                "enum": [
+                  "sha256"
+                ],
+                "description": "v1 固定采用单一哈希算法（sha256）。"
               },
               "value": {
                 "type": "string",
                 "pattern": "^[0-9a-f]{64}$",
-                "description": "Lowercase hex digest of the managed file content."
+                "description": "托管文件内容的十六进制小写摘要。"
               }
             }
           },
           "generator": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["tool", "version"],
+            "required": [
+              "tool",
+              "version"
+            ],
             "properties": {
               "tool": {
                 "type": "string",
@@ -67,8 +84,10 @@
             }
           },
           "policy": {
-            "enum": ["managed"],
-            "description": "v1 freezes a single policy class."
+            "enum": [
+              "managed"
+            ],
+            "description": "v1 固定采用单一托管策略类别。"
           }
         }
       }

@@ -1,0 +1,2660 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/session-trace-bundle.json",
+  "title": "Session Trace Bundle",
+  "description": "多会话执行轨迹与证据引用的纯客观事实追溯包契约（不含语义审查或对账判定结论）。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "bundleId",
+    "createdAt",
+    "clock",
+    "producer",
+    "subject",
+    "attempt",
+    "rawSources",
+    "rootSessionId",
+    "sessions",
+    "interactions",
+    "skillActivations",
+    "methodLocks",
+    "hitlDecisions",
+    "toolCalls",
+    "sandboxEvents",
+    "claims",
+    "evidenceRefs",
+    "seal"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "description": "固定契约主版本号 1。"
+    },
+    "kind": {
+      "const": "skill-family.session-trace-bundle",
+      "description": "固定文档类型标识。"
+    },
+    "bundleId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "非空字符串标识或文本。"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 日期时间字符串。"
+    },
+    "clock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "maxSkewMs"
+      ],
+      "description": "时间戳来源与最大时钟偏斜毫秒估计。",
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": [
+            "driver_monotonic",
+            "host_timestamp"
+          ],
+          "description": "时钟源类型。"
+        },
+        "maxSkewMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "非负安全整数。"
+        }
+      }
+    },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "driverId",
+        "driverVersion",
+        "captureMode"
+      ],
+      "description": "生成本追溯包的执行驱动或采集器身份。",
+      "properties": {
+        "driverId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "driverVersion": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "captureMode": {
+          "type": "string",
+          "enum": [
+            "live_acp",
+            "managed_cli",
+            "offline_transcript"
+          ],
+          "description": "轨迹采集模式。"
+        },
+        "executableSha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "小写 64 位十六进制 SHA-256 摘要。"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可选的小写 64 位十六进制 SHA-256 摘要；缺失时为 null。"
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensionsBag"
+        }
+      }
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "sourceTreeSha256"
+      ],
+      "description": "被记录的执行目标身份与源码树摘要。",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "skill-family",
+            "skill",
+            "workspace_task"
+          ],
+          "description": "目标对象类别。"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "可空字符串；不可观测或未设置时为 null。"
+        },
+        "sourceTreeSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "小写 64 位十六进制 SHA-256 摘要。"
+        },
+        "blueprintRef": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "blueprintId",
+                "sha256"
+              ],
+              "description": "关联的编排蓝图标识与文档摘要。",
+              "properties": {
+                "blueprintId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "非空字符串标识或文本。"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "description": "小写 64 位十六进制 SHA-256 摘要。"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可选关联的编排蓝图引用。"
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensionsBag"
+        }
+      }
+    },
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attemptId",
+        "candidateSha256",
+        "criteriaCommitmentSha256",
+        "allowedWriteSetSha256"
+      ],
+      "description": "单次执行尝试的候选摘要与前置承诺锚点。",
+      "properties": {
+        "attemptId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "candidateSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "小写 64 位十六进制 SHA-256 摘要。"
+        },
+        "criteriaCommitmentSha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "小写 64 位十六进制 SHA-256 摘要。"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可选的小写 64 位十六进制 SHA-256 摘要；缺失时为 null。"
+        },
+        "allowedWriteSetSha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "小写 64 位十六进制 SHA-256 摘要。"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可选的小写 64 位十六进制 SHA-256 摘要；缺失时为 null。"
+        }
+      }
+    },
+    "run": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "runId",
+            "caseId",
+            "repetitionIndex",
+            "repetitionTotal",
+            "matrixCell"
+          ],
+          "description": "跨宿主与跨模型矩阵实跑的批次坐标。",
+          "properties": {
+            "runId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "非空字符串标识或文本。"
+            },
+            "caseId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "非空字符串标识或文本。"
+            },
+            "repetitionIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "非负安全整数。"
+            },
+            "repetitionTotal": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "总重复运行次数。"
+            },
+            "matrixCell": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "hostId",
+                "hostVersion",
+                "modelId"
+              ],
+              "description": "矩阵单元格中的宿主与模型标识。",
+              "properties": {
+                "hostId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "非空字符串标识或文本。"
+                },
+                "hostVersion": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "非空字符串标识或文本。"
+                },
+                "modelId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "非空字符串标识或文本。"
+                }
+              }
+            },
+            "seed": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "description": "可选随机种子。"
+            }
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "可选的批量评测运行矩阵元数据。"
+    },
+    "rawSources": {
+      "type": "array",
+      "description": "原始会话日志来源及读取完整度披露列表。",
+      "items": {
+        "$ref": "#/$defs/rawSource"
+      }
+    },
+    "rootSessionId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "非空字符串标识或文本。"
+    },
+    "sessions": {
+      "type": "array",
+      "minItems": 1,
+      "description": "主会话与派生会话节点列表。",
+      "items": {
+        "$ref": "#/$defs/sessionNode"
+      }
+    },
+    "interactions": {
+      "type": "array",
+      "description": "会话间派生、结果返回、同级消息与交接交互记录。",
+      "items": {
+        "$ref": "#/$defs/interactionRecord"
+      }
+    },
+    "skillActivations": {
+      "type": "array",
+      "description": "会话期内技能激活及参考文件按需加载记录。",
+      "items": {
+        "$ref": "#/$defs/skillActivation"
+      }
+    },
+    "methodLocks": {
+      "type": "array",
+      "description": "会话期内注册方法槽位锁定与绕过记录。",
+      "items": {
+        "$ref": "#/$defs/methodLock"
+      }
+    },
+    "hitlDecisions": {
+      "type": "array",
+      "description": "运行期内人工审批门禁请求与裁决记录。",
+      "items": {
+        "$ref": "#/$defs/hitlDecision"
+      }
+    },
+    "toolCalls": {
+      "type": "array",
+      "description": "真实工具与命令调用账本。",
+      "items": {
+        "$ref": "#/$defs/toolCall"
+      }
+    },
+    "sandboxEvents": {
+      "type": "array",
+      "description": "系统沙箱或驱动权限拦截与放行事件记录。",
+      "items": {
+        "$ref": "#/$defs/sandboxEvent"
+      }
+    },
+    "claims": {
+      "type": "array",
+      "description": "从智能体输出中提取的客观完成声明列表（不含核验结论）。",
+      "items": {
+        "$ref": "#/$defs/completionClaim"
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "description": "受收容相对路径下的外部证据文件摘要清单。",
+      "items": {
+        "$ref": "#/$defs/evidenceRef"
+      }
+    },
+    "seal": {
+      "$ref": "#/$defs/sealRecord"
+    },
+    "extensions": {
+      "$ref": "#/$defs/extensionsBag"
+    }
+  },
+  "$defs": {
+    "extensionsBag": {
+      "type": "object",
+      "description": "受控前向扩展槽位，仅允许以 x- 开头的扩展属性名。",
+      "patternProperties": {
+        "^x-[a-z0-9-]+$": {
+          "description": "由调用方或后续阶段定义的扩展值。"
+        }
+      },
+      "additionalProperties": false
+    },
+    "rawLocator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceId",
+        "byteOffset",
+        "byteLength",
+        "sliceSha256"
+      ],
+      "description": "指向 rawSources 原始日志切片的字节级定位与哈希锚点。",
+      "properties": {
+        "sourceId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "byteOffset": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "非负安全整数。"
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "非负安全整数。"
+        },
+        "sliceSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "小写 64 位十六进制 SHA-256 摘要。"
+        }
+      }
+    },
+    "rawSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceId",
+        "hostId",
+        "adapterId",
+        "adapterVersion",
+        "evidenceId",
+        "coverage"
+      ],
+      "description": "原始会话日志数据源与完整度披露。",
+      "properties": {
+        "sourceId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "hostId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "adapterId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "adapterVersion": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "evidenceId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "totalBytes",
+            "readBytes",
+            "totalLines",
+            "keptLines",
+            "complete",
+            "droppedRanges"
+          ],
+          "description": "日志读取字节数、行数及丢弃区间披露。",
+          "properties": {
+            "totalBytes": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "非负安全整数。"
+            },
+            "readBytes": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "非负安全整数。"
+            },
+            "totalLines": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "非负安全整数。"
+            },
+            "keptLines": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "非负安全整数。"
+            },
+            "complete": {
+              "type": "boolean",
+              "description": "是否完整读取全部字节。"
+            },
+            "droppedRanges": {
+              "type": "array",
+              "description": "被截断丢弃的起止字节区间列表。",
+              "items": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "非负安全整数。"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "sessionNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sessionId",
+        "parentSessionId",
+        "role",
+        "roleSource",
+        "duty",
+        "binding",
+        "observability",
+        "host",
+        "model",
+        "contextLineage",
+        "exposedToolsSource",
+        "exposedTools",
+        "writeScope",
+        "turns",
+        "appliedContextPolicy",
+        "termination"
+      ],
+      "description": "单个协调、执行、审阅或确定性脚本会话节点。",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "parentSessionId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "可空字符串；不可观测或未设置时为 null。"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "coordinator",
+            "worker",
+            "reviewer",
+            "approver",
+            "deterministic_script"
+          ],
+          "description": "会话节点角色类别。"
+        },
+        "roleSource": {
+          "type": "string",
+          "enum": [
+            "launch_spec",
+            "host_manifest",
+            "heuristic",
+            "unknown"
+          ],
+          "description": "角色身份的确定依据来源。"
+        },
+        "duty": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "binding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "blueprintNodeId",
+            "bindingSource"
+          ],
+          "description": "与设计态编排蓝图节点的对齐绑定信息。",
+          "properties": {
+            "blueprintNodeId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "可空字符串；不可观测或未设置时为 null。"
+            },
+            "bindingSource": {
+              "type": "string",
+              "enum": [
+                "launch_spec",
+                "blueprint_match",
+                "heuristic",
+                "unbound"
+              ],
+              "description": "节点绑定的产生来源。"
+            }
+          }
+        },
+        "observability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tier",
+            "fields"
+          ],
+          "description": "该会话的可观测性分级与逐字段精确度声明。",
+          "properties": {
+            "tier": {
+              "type": "string",
+              "enum": [
+                "T0_live_acp",
+                "T1_structured_log",
+                "T2_partial_log",
+                "T3_exit_only"
+              ],
+              "description": "会话整体可观测性等级。"
+            },
+            "fields": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "perTurnUsage",
+                "toolArgs",
+                "toolOutput",
+                "exitCode",
+                "osProcess",
+                "writeObservation",
+                "sandboxEvents",
+                "exposedTools"
+              ],
+              "description": "八类关键运行事实的采集精确度。",
+              "properties": {
+                "perTurnUsage": {
+                  "type": "string",
+                  "enum": [
+                    "exact",
+                    "derived",
+                    "estimated",
+                    "absent"
+                  ],
+                  "description": "单类可观测数据的采集精确度等级。"
+                },
+                "toolArgs": {
+                  "type": "string",
+                  "enum": [
+                    "exact",
+                    "derived",
+                    "estimated",
+                    "absent"
+                  ],
+                  "description": "单类可观测数据的采集精确度等级。"
+                },
+                "toolOutput": {
+                  "type": "string",
+                  "enum": [
+                    "exact",
+                    "derived",
+                    "estimated",
+                    "absent"
+                  ],
+                  "description": "单类可观测数据的采集精确度等级。"
+                },
+                "exitCode": {
+                  "type": "string",
+                  "enum": [
+                    "exact",
+                    "derived",
+                    "estimated",
+                    "absent"
+                  ],
+                  "description": "单类可观测数据的采集精确度等级。"
+                },
+                "osProcess": {
+                  "type": "string",
+                  "enum": [
+                    "exact",
+                    "derived",
+                    "estimated",
+                    "absent"
+                  ],
+                  "description": "单类可观测数据的采集精确度等级。"
+                },
+                "writeObservation": {
+                  "type": "string",
+                  "enum": [
+                    "exact",
+                    "derived",
+                    "estimated",
+                    "absent"
+                  ],
+                  "description": "单类可观测数据的采集精确度等级。"
+                },
+                "sandboxEvents": {
+                  "type": "string",
+                  "enum": [
+                    "exact",
+                    "derived",
+                    "estimated",
+                    "absent"
+                  ],
+                  "description": "单类可观测数据的采集精确度等级。"
+                },
+                "exposedTools": {
+                  "type": "string",
+                  "enum": [
+                    "exact",
+                    "derived",
+                    "estimated",
+                    "absent"
+                  ],
+                  "description": "单类可观测数据的采集精确度等级。"
+                }
+              }
+            }
+          }
+        },
+        "host": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "version",
+            "boundary",
+            "sandboxPolicySha256"
+          ],
+          "description": "承载该会话的宿主环境与隔离边界。",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "非空字符串标识或文本。"
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1,
+              "description": "非空字符串标识或文本。"
+            },
+            "boundary": {
+              "type": "string",
+              "enum": [
+                "builtin_dsh_sandbox",
+                "external_user_cli",
+                "transcript_replay"
+              ],
+              "description": "宿主接入边界类型。"
+            },
+            "sandboxPolicySha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "description": "小写 64 位十六进制 SHA-256 摘要。"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "可选的小写 64 位十六进制 SHA-256 摘要；缺失时为 null。"
+            }
+          }
+        },
+        "model": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider",
+            "id",
+            "version",
+            "family",
+            "reasoningEffort",
+            "contextWindowTokens",
+            "contextWindowSource"
+          ],
+          "description": "会话使用的模型身份与上下文窗口容量。",
+          "properties": {
+            "provider": {
+              "type": "string",
+              "minLength": 1,
+              "description": "非空字符串标识或文本。"
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "非空字符串标识或文本。"
+            },
+            "version": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "可空字符串；不可观测或未设置时为 null。"
+            },
+            "family": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "可空字符串；不可观测或未设置时为 null。"
+            },
+            "reasoningEffort": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "可空字符串；不可观测或未设置时为 null。"
+            },
+            "contextWindowTokens": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "description": "可空非负整数；缺失或不可观测时必须为 null，禁止填 0 冒充实测值。"
+            },
+            "contextWindowSource": {
+              "type": "string",
+              "enum": [
+                "host_reported",
+                "model_catalog",
+                "unknown"
+              ],
+              "description": "窗口容量数值的来源。"
+            }
+          }
+        },
+        "contextLineage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "resumed",
+            "forkedFromSessionId",
+            "instructionsSha256",
+            "inputArtifacts"
+          ],
+          "description": "会话上下文的恢复、分叉与初始输入制品血缘。",
+          "properties": {
+            "resumed": {
+              "type": "boolean",
+              "description": "是否为续接已有会话。"
+            },
+            "forkedFromSessionId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "可空字符串；不可观测或未设置时为 null。"
+            },
+            "instructionsSha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "description": "小写 64 位十六进制 SHA-256 摘要。"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "可选的小写 64 位十六进制 SHA-256 摘要；缺失时为 null。"
+            },
+            "inputArtifacts": {
+              "type": "array",
+              "description": "显式传入的输入制品路径与摘要。",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path",
+                  "sha256"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "非空字符串标识或文本。"
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "description": "小写 64 位十六进制 SHA-256 摘要。"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "osProcess": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "pid",
+                "pgid",
+                "exitCode",
+                "startedAt",
+                "finishedAt",
+                "durationMs"
+              ],
+              "description": "操作系统进程生命周期观测值。",
+              "properties": {
+                "pid": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "非负安全整数。"
+                },
+                "pgid": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "description": "可空非负整数；缺失或不可观测时必须为 null，禁止填 0 冒充实测值。"
+                },
+                "exitCode": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "description": "进程退出码；未结束或不可知时为 null。"
+                },
+                "startedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "RFC 3339 日期时间字符串。"
+                },
+                "finishedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "RFC 3339 日期时间字符串。"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "可空 RFC 3339 日期时间字符串。"
+                },
+                "durationMs": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "description": "可空非负整数；缺失或不可观测时必须为 null，禁止填 0 冒充实测值。"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可空的进程观测记录。"
+        },
+        "exposedToolsSource": {
+          "type": "string",
+          "enum": [
+            "host_manifest",
+            "launch_spec",
+            "absent"
+          ],
+          "description": "暴露工具清单的采集来源。"
+        },
+        "exposedTools": {
+          "anyOf": [
+            {
+              "type": "array",
+              "description": "会话运行期实际暴露给模型的工具列表。",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "canonicalKind",
+                  "sideEffectClass"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "非空字符串标识或文本。"
+                  },
+                  "canonicalKind": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "非空字符串标识或文本。"
+                  },
+                  "sideEffectClass": {
+                    "type": "string",
+                    "enum": [
+                      "read_only",
+                      "workspace_write",
+                      "external_side_effect",
+                      "unknown"
+                    ],
+                    "description": "工具副作用分类。"
+                  }
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "暴露工具列表；当 exposedToolsSource 为 absent 时必须为 null。"
+        },
+        "writeScope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "allowedPatterns",
+            "allowedPatternsSource",
+            "observation",
+            "observedWrites"
+          ],
+          "description": "允许写入范围与实际文件变更观测。",
+          "properties": {
+            "allowedPatterns": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "description": "非空字符串标识或文本。"
+              },
+              "description": "允许修改的相对路径匹配模式。"
+            },
+            "allowedPatternsSource": {
+              "type": "string",
+              "enum": [
+                "blueprint",
+                "handoff_envelope",
+                "launch_spec",
+                "unconstrained"
+              ],
+              "description": "写集规则来源。"
+            },
+            "observation": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "method",
+                "baselineTreeSha256",
+                "finalTreeSha256"
+              ],
+              "description": "文件变更观测方式与前后文件树摘要。",
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "enum": [
+                    "fs_snapshot_diff",
+                    "tool_call_derived",
+                    "absent"
+                  ],
+                  "description": "写操作观测方法。"
+                },
+                "baselineTreeSha256": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$",
+                      "description": "小写 64 位十六进制 SHA-256 摘要。"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "可选的小写 64 位十六进制 SHA-256 摘要；缺失时为 null。"
+                },
+                "finalTreeSha256": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$",
+                      "description": "小写 64 位十六进制 SHA-256 摘要。"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "可选的小写 64 位十六进制 SHA-256 摘要；缺失时为 null。"
+                }
+              }
+            },
+            "observedWrites": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "description": "观测到的具体文件增删改记录。",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "path",
+                      "op",
+                      "sha256After",
+                      "callId"
+                    ],
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "非空字符串标识或文本。"
+                      },
+                      "op": {
+                        "type": "string",
+                        "enum": [
+                          "create",
+                          "modify",
+                          "delete"
+                        ],
+                        "description": "变更操作类型。"
+                      },
+                      "sha256After": {
+                        "anyOf": [
+                          {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{64}$",
+                            "description": "小写 64 位十六进制 SHA-256 摘要。"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ],
+                        "description": "可选的小写 64 位十六进制 SHA-256 摘要；缺失时为 null。"
+                      },
+                      "callId": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "description": "可空字符串；不可观测或未设置时为 null。"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "观测到的写操作集合；不可观测时为 null。"
+            }
+          }
+        },
+        "turns": {
+          "type": "array",
+          "description": "逐轮推理与整数计量记录。",
+          "items": {
+            "$ref": "#/$defs/turnRecord"
+          }
+        },
+        "appliedContextPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "blueprintPolicyRef",
+            "warnRatioBp",
+            "mitigations"
+          ],
+          "description": "本会话生效的上下文水位预警阈值（万分比）及已执行的缓解动作记录。",
+          "properties": {
+            "blueprintPolicyRef": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "可空字符串；不可观测或未设置时为 null。"
+            },
+            "warnRatioBp": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000,
+              "description": "上下文窗口预警万分比（如 4000 表示 40.00%）。"
+            },
+            "mitigations": {
+              "type": "array",
+              "description": "运行期实际执行的上下文减压与交接动作。",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "action",
+                  "turnIndex",
+                  "recordedAt",
+                  "evidenceId"
+                ],
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "selective_load",
+                      "summary_fanout",
+                      "fresh_session_split"
+                    ],
+                    "description": "缓解动作类别。"
+                  },
+                  "turnIndex": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "非负安全整数。"
+                  },
+                  "recordedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "RFC 3339 日期时间字符串。"
+                  },
+                  "evidenceId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "description": "可空字符串；不可观测或未设置时为 null。"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "termination": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reason",
+            "rawStopReason",
+            "watchdogEnvelopeRef"
+          ],
+          "description": "会话终止原因与监督器信封引用。",
+          "properties": {
+            "reason": {
+              "type": "string",
+              "enum": [
+                "completed",
+                "child_exit",
+                "failed_to_start",
+                "hard_ceiling",
+                "startup_idle",
+                "stream_idle",
+                "tool_lease_expired",
+                "context_budget_exhausted",
+                "output_limit_exceeded",
+                "aborted_by_caller",
+                "process_failed",
+                "unknown"
+              ],
+              "description": "标准化终止原因（复用 watchdog-termination-envelope 枚举并扩展 unknown 等会话态原因）。"
+            },
+            "rawStopReason": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "可空字符串；不可观测或未设置时为 null。"
+            },
+            "watchdogEnvelopeRef": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "可空字符串；不可观测或未设置时为 null。"
+            }
+          }
+        },
+        "extensions": {
+          "$ref": "#/$defs/extensionsBag"
+        }
+      }
+    },
+    "turnRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "turnIndex",
+        "timestamp",
+        "usageSemantics",
+        "inputTokens",
+        "cacheReadTokens",
+        "cacheWriteTokens",
+        "outputTokens",
+        "occupancyTokens",
+        "windowRatioBp",
+        "measurementSource",
+        "rawLocator"
+      ],
+      "description": "单轮请求与响应的整数 Token 计量、窗口占比万分比与字节定位。",
+      "properties": {
+        "turnIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "非负安全整数。"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC 3339 日期时间字符串。"
+        },
+        "usageSemantics": {
+          "type": "string",
+          "enum": [
+            "cache_exclusive",
+            "cache_inclusive",
+            "unknown"
+          ],
+          "description": "输入 Token 是否已包含缓存命中的计费口径声明。"
+        },
+        "inputTokens": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "可空非负整数；缺失或不可观测时必须为 null，禁止填 0 冒充实测值。"
+        },
+        "cacheReadTokens": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "可空非负整数；缺失或不可观测时必须为 null，禁止填 0 冒充实测值。"
+        },
+        "cacheWriteTokens": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "可空非负整数；缺失或不可观测时必须为 null，禁止填 0 冒充实测值。"
+        },
+        "outputTokens": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "可空非负整数；缺失或不可观测时必须为 null，禁止填 0 冒充实测值。"
+        },
+        "occupancyTokens": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "可空非负整数；缺失或不可观测时必须为 null，禁止填 0 冒充实测值。"
+        },
+        "windowRatioBp": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100000,
+          "description": "当轮实际窗口占用万分比（如 4000 = 40.00%）；不可观测时必须为 null。"
+        },
+        "measurementSource": {
+          "type": "string",
+          "enum": [
+            "host_reported",
+            "foundation_token_estimate",
+            "unavailable"
+          ],
+          "description": "计量值采集来源。"
+        },
+        "latency": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "requestStartedAt",
+                "firstTokenAt",
+                "completedAt",
+                "ttftMs"
+              ],
+              "description": "单轮请求时延指标。",
+              "properties": {
+                "requestStartedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "RFC 3339 日期时间字符串。"
+                },
+                "firstTokenAt": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time",
+                      "description": "RFC 3339 日期时间字符串。"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "可空 RFC 3339 日期时间字符串。"
+                },
+                "completedAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "RFC 3339 日期时间字符串。"
+                },
+                "ttftMs": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "description": "可空非负整数；缺失或不可观测时必须为 null，禁止填 0 冒充实测值。"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可选时延统计。"
+        },
+        "cost": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "hostReportedMicroUsd",
+                "pricingRef"
+              ],
+              "description": "宿主直接报告的整数微美元成本。",
+              "properties": {
+                "hostReportedMicroUsd": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0,
+                  "description": "可空非负整数；缺失或不可观测时必须为 null，禁止填 0 冒充实测值。"
+                },
+                "pricingRef": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "description": "可空字符串；不可观测或未设置时为 null。"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可选宿主报告成本。"
+        },
+        "rawLocator": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/rawLocator"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可空原始日志字节定位锚点。"
+        }
+      }
+    },
+    "interactionRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "interactionId",
+        "kind",
+        "fromSessionId",
+        "toSessionId",
+        "seq",
+        "at",
+        "blueprintEdgeId",
+        "payload"
+      ],
+      "description": "会话间派生、返回、同级通信或交接事件。",
+      "properties": {
+        "interactionId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "spawn",
+            "result_return",
+            "peer_message",
+            "handoff",
+            "rework_request"
+          ],
+          "description": "交互边类别。"
+        },
+        "fromSessionId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "toSessionId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "非负安全整数。"
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC 3339 日期时间字符串。"
+        },
+        "blueprintEdgeId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "可空字符串；不可观测或未设置时为 null。"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "form",
+            "contract",
+            "envelopeSha256",
+            "evidenceId"
+          ],
+          "description": "交接载体形态与摘要锚点。",
+          "properties": {
+            "form": {
+              "type": "string",
+              "enum": [
+                "structured_envelope",
+                "free_text",
+                "absent"
+              ],
+              "description": "载体形态。"
+            },
+            "contract": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "task-handoff-envelope",
+                "continuation-package",
+                "professional-conclusion",
+                "artifact_bundle",
+                null
+              ],
+              "description": "结构化契约类型。"
+            },
+            "envelopeSha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "description": "小写 64 位十六进制 SHA-256 摘要。"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "可选的小写 64 位十六进制 SHA-256 摘要；缺失时为 null。"
+            },
+            "evidenceId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "可空字符串；不可观测或未设置时为 null。"
+            }
+          }
+        },
+        "isolation": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "workspaceMode",
+                "contextMode",
+                "inheritedContextSha256"
+              ],
+              "description": "派生会话的工作区与上下文隔离配置。",
+              "properties": {
+                "workspaceMode": {
+                  "type": "string",
+                  "enum": [
+                    "inherit",
+                    "share",
+                    "branch",
+                    "fresh_readonly"
+                  ],
+                  "description": "工作区隔离模式。"
+                },
+                "contextMode": {
+                  "type": "string",
+                  "enum": [
+                    "fresh",
+                    "forked_full",
+                    "forked_summary",
+                    "resumed"
+                  ],
+                  "description": "上下文继承模式。"
+                },
+                "inheritedContextSha256": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$",
+                      "description": "小写 64 位十六进制 SHA-256 摘要。"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "可选的小写 64 位十六进制 SHA-256 摘要；缺失时为 null。"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "派生隔离属性。"
+        },
+        "parentCapabilitySet": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": "非空字符串标识或文本。"
+          },
+          "description": "父会话能力集快照。"
+        },
+        "effectiveCapabilitySet": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": "非空字符串标识或文本。"
+          },
+          "description": "目标会话实际生效能力集。"
+        }
+      }
+    },
+    "skillActivation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sessionId",
+        "skillName",
+        "skillSha256",
+        "turnIndex",
+        "trigger",
+        "referencesLoaded"
+      ],
+      "description": "技能激活与参考文档按需加载记录。",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "skillName": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "skillSha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "小写 64 位十六进制 SHA-256 摘要。"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可选的小写 64 位十六进制 SHA-256 摘要；缺失时为 null。"
+        },
+        "turnIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "非负安全整数。"
+        },
+        "trigger": {
+          "type": "string",
+          "enum": [
+            "auto_match",
+            "explicit",
+            "inherited",
+            "preloaded"
+          ],
+          "description": "激活触发方式。"
+        },
+        "referencesLoaded": {
+          "type": "array",
+          "description": "加载的附加参考文件列表。",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "sha256",
+              "turnIndex"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "description": "非空字符串标识或文本。"
+              },
+              "sha256": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$",
+                    "description": "小写 64 位十六进制 SHA-256 摘要。"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "可选的小写 64 位十六进制 SHA-256 摘要；缺失时为 null。"
+              },
+              "turnIndex": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "非负安全整数。"
+              }
+            }
+          }
+        }
+      }
+    },
+    "methodLock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sessionId",
+        "amrSlotId",
+        "lockedMethodRef",
+        "lockSha256",
+        "bypass"
+      ],
+      "description": "可插拔专业方法槽位的运行锁定与绕过记录。",
+      "properties": {
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "amrSlotId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "lockedMethodRef": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "lockSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "小写 64 位十六进制 SHA-256 摘要。"
+        },
+        "bypass": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requested",
+            "evidenceId"
+          ],
+          "description": "是否发生方法绕过及其授权证据引用。",
+          "properties": {
+            "requested": {
+              "type": "boolean"
+            },
+            "evidenceId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "可空字符串；不可观测或未设置时为 null。"
+            }
+          }
+        }
+      }
+    },
+    "hitlDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decisionId",
+        "gateId",
+        "sessionId",
+        "requestedAt",
+        "decidedAt",
+        "planDigestSha256",
+        "approvedDigestSha256",
+        "decision",
+        "approver",
+        "channel",
+        "rawLocator"
+      ],
+      "description": "人工审批门禁请求与批准摘要记录。",
+      "properties": {
+        "decisionId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "gateId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "requestedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC 3339 日期时间字符串。"
+        },
+        "decidedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "description": "RFC 3339 日期时间字符串。"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可空 RFC 3339 日期时间字符串。"
+        },
+        "planDigestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "小写 64 位十六进制 SHA-256 摘要。"
+        },
+        "approvedDigestSha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "小写 64 位十六进制 SHA-256 摘要。"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可选的小写 64 位十六进制 SHA-256 摘要；缺失时为 null。"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "approved",
+            "rejected",
+            "timeout_blocked",
+            "timeout_aborted"
+          ],
+          "description": "审批结果。"
+        },
+        "approver": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "principalRef"
+          ],
+          "description": "审批主体身份。",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "human",
+                "policy_auto"
+              ],
+              "description": "审批方类别。"
+            },
+            "principalRef": {
+              "type": "string",
+              "minLength": 1,
+              "description": "非空字符串标识或文本。"
+            }
+          }
+        },
+        "channel": {
+          "type": "string",
+          "enum": [
+            "studio_ui",
+            "cli",
+            "mcp",
+            "host_prompt"
+          ],
+          "description": "审批交互通道。"
+        },
+        "rawLocator": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/rawLocator"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可空原始日志字节定位锚点。"
+        }
+      }
+    },
+    "toolCall": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "callId",
+        "sessionId",
+        "turnIndex",
+        "seq",
+        "startedAt",
+        "finishedAt",
+        "durationMs",
+        "toolName",
+        "category",
+        "argsSha256",
+        "sanitizedCommandOrTarget",
+        "status",
+        "exitCode",
+        "exitCodeSource",
+        "outputByteLength",
+        "outputTruncated",
+        "outputSha256",
+        "spawnedSessionId",
+        "parentCallId",
+        "authorizedByDecisionId",
+        "evidenceId",
+        "rawLocator"
+      ],
+      "description": "单次真实工具或命令调用记录。",
+      "properties": {
+        "callId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "turnIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "非负安全整数。"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "非负安全整数。"
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC 3339 日期时间字符串。"
+        },
+        "finishedAt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time",
+              "description": "RFC 3339 日期时间字符串。"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可空 RFC 3339 日期时间字符串。"
+        },
+        "durationMs": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "可空非负整数；缺失或不可观测时必须为 null，禁止填 0 冒充实测值。"
+        },
+        "toolName": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "command_exec",
+            "file_read",
+            "file_write",
+            "subagent_spawn",
+            "mcp_call",
+            "skill_load",
+            "network",
+            "hitl_request",
+            "other"
+          ],
+          "description": "标准化工具调用类别。"
+        },
+        "argsSha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "小写 64 位十六进制 SHA-256 摘要。"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可选的小写 64 位十六进制 SHA-256 摘要；缺失时为 null。"
+        },
+        "sanitizedCommandOrTarget": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "可空字符串；不可观测或未设置时为 null。"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "succeeded",
+            "failed",
+            "timed_out",
+            "blocked"
+          ],
+          "description": "执行结果状态。"
+        },
+        "exitCode": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "命令整数退出码；非命令或结构化退出码缺失时为 null。"
+        },
+        "exitCodeSource": {
+          "type": "string",
+          "enum": [
+            "structured",
+            "parsed_text",
+            "absent"
+          ],
+          "description": "退出码提取来源。"
+        },
+        "outputByteLength": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "可空非负整数；缺失或不可观测时必须为 null，禁止填 0 冒充实测值。"
+        },
+        "outputTruncated": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "输出是否发生截断。"
+        },
+        "outputSha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "小写 64 位十六进制 SHA-256 摘要。"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可选的小写 64 位十六进制 SHA-256 摘要；缺失时为 null。"
+        },
+        "spawnedSessionId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "可空字符串；不可观测或未设置时为 null。"
+        },
+        "parentCallId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "可空字符串；不可观测或未设置时为 null。"
+        },
+        "authorizedByDecisionId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "可空字符串；不可观测或未设置时为 null。"
+        },
+        "evidenceId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "可空字符串；不可观测或未设置时为 null。"
+        },
+        "rawLocator": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/rawLocator"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可空原始日志字节定位锚点。"
+        }
+      }
+    },
+    "sandboxEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eventId",
+        "sessionId",
+        "callId",
+        "at",
+        "mechanism",
+        "action",
+        "targetSanitized",
+        "decision",
+        "rawLocator"
+      ],
+      "description": "运行期沙箱或权限控制拦截与放行记录。",
+      "properties": {
+        "eventId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "callId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "可空字符串；不可观测或未设置时为 null。"
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC 3339 日期时间字符串。"
+        },
+        "mechanism": {
+          "type": "string",
+          "enum": [
+            "seatbelt",
+            "landlock",
+            "bwrap",
+            "windows_acl",
+            "host_permission",
+            "driver_policy"
+          ],
+          "description": "执行隔离或权限拦截机制。"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "file_read",
+            "file_write",
+            "network",
+            "process_exec",
+            "credential_access"
+          ],
+          "description": "受控动作类型。"
+        },
+        "targetSanitized": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "denied",
+            "prompt_approved",
+            "prompt_denied"
+          ],
+          "description": "拦截或审批结果。"
+        },
+        "rawLocator": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/rawLocator"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可空原始日志字节定位锚点。"
+        }
+      }
+    },
+    "completionClaim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claimId",
+        "sessionId",
+        "turnIndex",
+        "claimType",
+        "statement",
+        "target",
+        "assertedOutcome",
+        "isCritical",
+        "agentCitedCallIds",
+        "agentCitedEvidenceIds",
+        "extraction",
+        "rawLocator"
+      ],
+      "description": "智能体在对话或总结中作出的客观完成声明（不含核验结论）。",
+      "properties": {
+        "claimId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "sessionId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "turnIndex": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "非负安全整数。"
+        },
+        "claimType": {
+          "type": "string",
+          "enum": [
+            "test_pass",
+            "gate_pass",
+            "artifact_written",
+            "independent_review_pass",
+            "handoff_delivered",
+            "rework_completed",
+            "context_mitigated",
+            "goal_completed"
+          ],
+          "description": "完成声明类别。"
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "ref",
+            "sha256"
+          ],
+          "description": "声明指向的测试、门禁、制品或目标对象。",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "test",
+                "artifact",
+                "gate",
+                "review",
+                "goal"
+              ],
+              "description": "声明目标类型。"
+            },
+            "ref": {
+              "type": "string",
+              "minLength": 1,
+              "description": "非空字符串标识或文本。"
+            },
+            "sha256": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "description": "小写 64 位十六进制 SHA-256 摘要。"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "可选的小写 64 位十六进制 SHA-256 摘要；缺失时为 null。"
+            }
+          }
+        },
+        "assertedOutcome": {
+          "type": "string",
+          "enum": [
+            "passed",
+            "completed",
+            "verified"
+          ],
+          "description": "智能体声称达成的结果。"
+        },
+        "isCritical": {
+          "type": "boolean",
+          "description": "是否为影响放行的关键声明。"
+        },
+        "agentCitedCallIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": "非空字符串标识或文本。"
+          },
+          "description": "智能体自身显式引用的工具调用标识。"
+        },
+        "agentCitedEvidenceIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": "非空字符串标识或文本。"
+          },
+          "description": "智能体自身显式引用的证据标识。"
+        },
+        "extraction": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "method",
+            "extractorId",
+            "extractorVersion"
+          ],
+          "description": "声明提取器元数据。",
+          "properties": {
+            "method": {
+              "type": "string",
+              "enum": [
+                "host_structured",
+                "pattern_rule",
+                "llm_extractor"
+              ],
+              "description": "提取方式。"
+            },
+            "extractorId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "非空字符串标识或文本。"
+            },
+            "extractorVersion": {
+              "type": "string",
+              "minLength": 1,
+              "description": "非空字符串标识或文本。"
+            }
+          }
+        },
+        "rawLocator": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/rawLocator"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可空原始日志字节定位锚点。"
+        }
+      }
+    },
+    "evidenceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidenceId",
+        "role",
+        "relativePath",
+        "sha256",
+        "byteLength",
+        "redaction"
+      ],
+      "description": "外部证据文件相对路径、字节长度与脱敏策略记录。",
+      "properties": {
+        "evidenceId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "transcript_chunk",
+            "sft_receipt",
+            "command_output",
+            "artifact_lock",
+            "source_manifest",
+            "fs_snapshot"
+          ],
+          "description": "证据文件角色。"
+        },
+        "relativePath": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "小写 64 位十六进制 SHA-256 摘要。"
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "非负安全整数。"
+        },
+        "redaction": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "policyId",
+            "policyVersion"
+          ],
+          "description": "已执行的敏感信息脱敏规则版本。",
+          "properties": {
+            "policyId": {
+              "type": "string",
+              "minLength": 1,
+              "description": "非空字符串标识或文本。"
+            },
+            "policyVersion": {
+              "type": "string",
+              "minLength": 1,
+              "description": "非空字符串标识或文本。"
+            }
+          }
+        },
+        "chunk": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "seriesId",
+                "index",
+                "total",
+                "prevChunkSha256"
+              ],
+              "description": "分片证据的连续性链。",
+              "properties": {
+                "seriesId": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "非空字符串标识或文本。"
+                },
+                "index": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "非负安全整数。"
+                },
+                "total": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "prevChunkSha256": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[0-9a-f]{64}$",
+                      "description": "小写 64 位十六进制 SHA-256 摘要。"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "可选的小写 64 位十六进制 SHA-256 摘要；缺失时为 null。"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "可选分片信息。"
+        }
+      }
+    },
+    "sealRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attemptId",
+        "sealedAt",
+        "algorithm",
+        "digestScope",
+        "bundleDigestSha256",
+        "quiescence",
+        "externalBinding"
+      ],
+      "description": "整包规范化哈希封存记录、进程静默状态与外部哈希链绑定。",
+      "properties": {
+        "attemptId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "非空字符串标识或文本。"
+        },
+        "sealedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC 3339 日期时间字符串。"
+        },
+        "algorithm": {
+          "const": "sha256",
+          "description": "固定摘要算法 sha256。"
+        },
+        "digestScope": {
+          "const": "bundle_without_seal",
+          "description": "固定摘要计算范围（除 seal 字段外的完整文档）。"
+        },
+        "bundleDigestSha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "小写 64 位十六进制 SHA-256 摘要。"
+        },
+        "quiescence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "processGroupQuiescent",
+            "orphanScanPassed",
+            "bufferFlushCompleted",
+            "sideEffectResolution",
+            "evidenceId"
+          ],
+          "description": "封存时刻的进程组静默与孤儿进程清理核实记录。",
+          "properties": {
+            "processGroupQuiescent": {
+              "type": "boolean",
+              "description": "目标进程组是否已全部退出静默。"
+            },
+            "orphanScanPassed": {
+              "type": "boolean",
+              "description": "孤儿进程扫描是否无残留。"
+            },
+            "bufferFlushCompleted": {
+              "type": [
+                "boolean",
+                "null"
+              ],
+              "description": "输出缓冲区是否已完整刷盘。"
+            },
+            "sideEffectResolution": {
+              "type": "string",
+              "enum": [
+                "none",
+                "idempotent",
+                "compensated",
+                "unknown"
+              ],
+              "description": "外部副作用收口状态。"
+            },
+            "evidenceId": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "可空字符串；不可观测或未设置时为 null。"
+            }
+          }
+        },
+        "externalBinding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "kind",
+            "recordDigest"
+          ],
+          "description": "跨组件外部防篡改账本绑定状态。",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "bound"
+              ],
+              "description": "外部绑定状态。"
+            },
+            "kind": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "foundation_state_event",
+                "artifact_graph_lock",
+                null
+              ],
+              "description": "外部防篡改账本类型。"
+            },
+            "recordDigest": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "description": "小写 64 位十六进制 SHA-256 摘要。"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "可选的小写 64 位十六进制 SHA-256 摘要；缺失时为 null。"
+            }
+          }
+        }
+      }
+    }
+  }
+}

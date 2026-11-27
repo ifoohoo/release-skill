@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/report-model.json",
   "title": "ReportModel",
-  "description": "A caller-authored, machine-validated model that is the only structured source for human-report facts. Harness never interprets business outputs or invents report prose, but it does bind the model to the source operation result's digest, terminal state, and complete stable-coded errors.",
+  "description": "由调用方构造并经机器校验的人类可读报告事实模型：作为报告渲染的唯一结构化事实源，Harness 不解释业务输出也不凭空补充叙述，但强制绑定源操作结果的摘要、终态及完整稳定错误码列表。",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -31,54 +31,73 @@
     "identity": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["runId", "skillFamily", "audience", "locale"],
+      "required": [
+        "runId",
+        "skillFamily",
+        "audience",
+        "locale"
+      ],
       "properties": {
         "runId": {
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
-          "description": "The machine run/operation identity this report is about."
+          "description": "本报告对应的机器运行或操作唯一标识。"
         },
         "skillFamily": {
           "type": "string",
           "minLength": 1,
-          "description": "The skill family whose run produced the underlying machine result."
+          "description": "产出底层机器结果的技能族标识。"
         },
         "stageId": {
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
-          "description": "Optional stage identity echoed from the machine result when present."
+          "description": "可选的阶段标识（当源机器结果包含阶段信息时原样回显）。"
         },
         "audience": {
-          "enum": ["operator", "reviewer", "consumer"],
-          "description": "The declared reader of the report; selection only, never a license to add facts."
+          "enum": [
+            "operator",
+            "reviewer",
+            "consumer"
+          ],
+          "description": "声明的报告目标读者类型；仅用于版式选择，绝不授权捏造事实。"
         },
         "locale": {
-          "enum": ["zh-CN", "en-US"],
-          "description": "Frozen rendering locale set; an unsupported locale is a hard failure (SFC3002), never a silent fallback."
+          "enum": [
+            "zh-CN",
+            "en-US"
+          ],
+          "description": "受控渲染语言区域（zh-CN 或 en-US）；不受支持的语言直接触发硬错误（SFC3002），绝不静默回退。"
         }
       }
     },
     "timeRange": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["startedAt", "completedAt"],
+      "required": [
+        "startedAt",
+        "completedAt"
+      ],
       "properties": {
         "startedAt": {
           "type": "string",
           "format": "date-time",
-          "description": "RFC 3339 start time copied from the machine result; never invented by the renderer."
+          "description": "从源机器结果原样复制的 RFC 3339 起始时间；渲染器绝不自行生成。"
         },
         "completedAt": {
           "type": "string",
           "format": "date-time",
-          "description": "RFC 3339 terminal time copied from the machine result; never invented by the renderer."
+          "description": "从源机器结果原样复制的 RFC 3339 结束时间；渲染器绝不自行生成。"
         }
       }
     },
     "outcome": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["executionStatus", "summary", "counts"],
+      "required": [
+        "executionStatus",
+        "summary",
+        "counts"
+      ],
       "properties": {
         "executionStatus": {
           "enum": [
@@ -90,52 +109,83 @@
             "SKIPPED",
             "CANCELLED"
           ],
-          "description": "The machine execution status, copied verbatim from the machine result vocabulary."
+          "description": "从机器结果状态词表映射的执行状态枚举。"
         },
         "summary": {
           "type": "string",
           "minLength": 1,
-          "description": "The conclusion sentence(s). A report without a conclusion is a missing element (SFC3002), never an empty render."
+          "description": "报告核心结论句；缺少结论按缺失必含要素（SFC3002）拒绝，绝不输出空报告。"
         },
         "blockingReason": {
-          "type": ["string", "null"],
-          "description": "Present only when the machine result carries one (FAILED/BLOCKED); never invented."
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "仅当机器结果处于失败或阻断态时携带的阻断原因；绝不凭空编造。"
         },
         "counts": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["changes", "evidence", "risks", "unresolved", "nextActions", "appendices"],
+          "required": [
+            "changes",
+            "evidence",
+            "risks",
+            "unresolved",
+            "nextActions",
+            "appendices"
+          ],
           "properties": {
-            "changes": { "type": "integer", "minimum": 0 },
-            "evidence": { "type": "integer", "minimum": 0 },
-            "risks": { "type": "integer", "minimum": 0 },
-            "unresolved": { "type": "integer", "minimum": 0 },
-            "nextActions": { "type": "integer", "minimum": 0 },
-            "appendices": { "type": "integer", "minimum": 0 }
+            "changes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "evidence": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "risks": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unresolved": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "nextActions": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "appendices": {
+              "type": "integer",
+              "minimum": 0
+            }
           },
-          "description": "Mechanically derived section counts; must equal the array lengths below. A mismatch is fact drift."
+          "description": "由下方各分节数组长度机械派生的计数；长度不一致按事实漂移（SFC3003）拒绝。"
         }
       }
     },
     "errors": {
       "type": "array",
-      "description": "The source operation-result errors copied without loss. It must be empty for successful outcomes; when a source result is supplied, Harness requires canonical equality with result.errors.",
+      "description": "无损复制的源操作错误列表；成功状态下必须为空，提供源结果时必须与 result.errors 规范化等价。",
       "items": {
         "$ref": "https://contracts.skill-family.example/v1/operation-result.json#/$defs/error"
       }
     },
     "changes": {
       "type": "array",
-      "description": "Changed artifacts declared by the machine result; may legitimately be empty. Order is preserved from the machine result.",
+      "description": "机器结果声明的变更制品列表（允许为空，保留原始顺序）。",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["path", "description"],
+        "required": [
+          "path",
+          "description"
+        ],
         "properties": {
           "path": {
             "type": "string",
             "minLength": 1,
-            "description": "Descriptive artifact path as stated by the machine result; rendering never reads or resolves it."
+            "description": "机器结果声明的制品路径文本；渲染过程不读取或解析文件系统路径。"
           },
           "description": {
             "type": "string",
@@ -147,16 +197,20 @@
     "evidence": {
       "type": "array",
       "minItems": 1,
-      "description": "Traceable evidence entries; a report model without at least one evidence entry is a missing element (SFC3002).",
+      "description": "可追溯证据条目列表；至少包含一条证据，否则触发 SFC3002。",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "title", "reference"],
+        "required": [
+          "id",
+          "title",
+          "reference"
+        ],
         "properties": {
           "id": {
             "type": "string",
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
-            "description": "Stable evidence identifier used for in-report referencing."
+            "description": "用于报告内部引用的稳定证据标识符。"
           },
           "title": {
             "type": "string",
@@ -165,7 +219,7 @@
           "reference": {
             "type": "string",
             "minLength": 1,
-            "description": "The exact reference target of this evidence. A rendered link may only point at a declared reference or an in-report anchor; any other target is fact drift."
+            "description": "该证据指向的精确引用目标；报告内链接仅允许指向已声明引用或报告内锚点，否则判为事实漂移。"
           },
           "note": {
             "type": "string"
@@ -175,7 +229,7 @@
     },
     "risks": {
       "type": "array",
-      "description": "Declared risks; may be empty, but the section itself is mandatory in every rendered report.",
+      "description": "已声明的风险列表（数组可为空，但渲染报告必须保留该章节）。",
       "items": {
         "type": "string",
         "minLength": 1
@@ -183,7 +237,7 @@
     },
     "unresolved": {
       "type": "array",
-      "description": "Unresolved questions carried out of the run; may be empty.",
+      "description": "本次运行遗留的未决事项列表（允许为空）。",
       "items": {
         "type": "string",
         "minLength": 1
@@ -191,7 +245,7 @@
     },
     "nextActions": {
       "type": "array",
-      "description": "Follow-up actions; may be empty, but the section itself is mandatory in every rendered report.",
+      "description": "后续行动建议列表（数组可为空，但渲染报告必须保留该章节）。",
       "items": {
         "type": "string",
         "minLength": 1
@@ -199,11 +253,14 @@
     },
     "appendices": {
       "type": "array",
-      "description": "Supplementary material copied from the machine result; may be empty. Never a place for renderer-added prose.",
+      "description": "从机器结果复制的补充附录（允许为空，禁止塞入渲染器自造文案）。",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["title", "body"],
+        "required": [
+          "title",
+          "body"
+        ],
         "properties": {
           "title": {
             "type": "string",
@@ -219,38 +276,48 @@
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["resultDigest", "resultState"],
+      "required": [
+        "resultDigest",
+        "resultState"
+      ],
       "properties": {
         "resultDigest": {
           "type": "string",
           "pattern": "^[0-9a-f]{64}$",
-          "description": "sha256 hex digest over the canonical JSON of the source machine result document."
+          "description": "源机器结果规范化 JSON 的 SHA-256 十六进制摘要。"
         },
         "resultState": {
-          "enum": ["succeeded", "failed", "rejected"],
-          "description": "The terminal state copied verbatim from the source operation result. Harness verifies it and the compatible human executionStatus without interpreting outputs."
+          "enum": [
+            "succeeded",
+            "failed",
+            "rejected"
+          ],
+          "description": "从源操作结果原样复制的终态枚举；Harness 核验其与 executionStatus 的相容性。"
         },
         "resultKind": {
           "type": "string",
           "minLength": 1,
-          "description": "Optional kind discriminator of the source machine result document."
+          "description": "可选的源机器结果文档 kind 标识。"
         }
       }
     },
     "renderer": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "version"],
+      "required": [
+        "name",
+        "version"
+      ],
       "properties": {
         "name": {
           "type": "string",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$",
-          "description": "Identity of the deterministic renderer that produced the model."
+          "description": "生成该报告模型的确定性渲染器标识。"
         },
         "version": {
           "type": "string",
           "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
-          "description": "Exact semver of the renderer; no ranges."
+          "description": "渲染器的精确语义化版本号（不含范围算符）。"
         }
       }
     }
@@ -263,13 +330,20 @@
             "type": "object",
             "properties": {
               "executionStatus": {
-                "enum": ["SUCCEEDED", "SUCCEEDED_WITH_WARNINGS"]
+                "enum": [
+                  "SUCCEEDED",
+                  "SUCCEEDED_WITH_WARNINGS"
+                ]
               }
             },
-            "required": ["executionStatus"]
+            "required": [
+              "executionStatus"
+            ]
           }
         },
-        "required": ["outcome"]
+        "required": [
+          "outcome"
+        ]
       },
       "then": {
         "properties": {
@@ -287,13 +361,20 @@
             "type": "object",
             "properties": {
               "executionStatus": {
-                "enum": ["FAILED", "BLOCKED"]
+                "enum": [
+                  "FAILED",
+                  "BLOCKED"
+                ]
               }
             },
-            "required": ["executionStatus"]
+            "required": [
+              "executionStatus"
+            ]
           }
         },
-        "required": ["outcome"]
+        "required": [
+          "outcome"
+        ]
       },
       "then": {
         "properties": {

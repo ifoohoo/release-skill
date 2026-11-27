@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "kind": "skill-family.host-descriptor",
+  "hostId": "antigravity",
+  "displayName": "Antigravity",
+  "support": "manual",
+  "maturity": "developer-preview",
+  "sourceAliases": [
+    "antigravity-ide",
+    "agy"
+  ],
+  "pathCategories": [
+    {
+      "id": "antigravity-user-skills",
+      "role": "skill-root",
+      "scope": "user",
+      "anchor": "user-home",
+      "relPath": ".gemini/config/skills"
+    },
+    {
+      "id": "antigravity-user-plugins",
+      "role": "plugin-root",
+      "scope": "user",
+      "anchor": "user-home",
+      "relPath": ".gemini/config/plugins"
+    },
+    {
+      "id": "antigravity-project-skills",
+      "role": "skill-root",
+      "scope": "project",
+      "anchor": "project-root",
+      "relPath": ".agents/skills"
+    },
+    {
+      "id": "antigravity-project-compat-skills",
+      "role": "skill-root",
+      "scope": "project",
+      "anchor": "project-root",
+      "relPath": ".agent/skills"
+    },
+    {
+      "id": "antigravity-project-plugins",
+      "role": "plugin-root",
+      "scope": "project",
+      "anchor": "project-root",
+      "relPath": ".agents/plugins"
+    }
+  ],
+  "probeCapabilities": [
+    "cli",
+    "version",
+    "payload",
+    "registry",
+    "discover",
+    "enabled",
+    "reload",
+    "smoke",
+    "uninstall"
+  ]
+}

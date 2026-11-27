@@ -2,10 +2,18 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/report-binding.json",
   "title": "ReportBinding",
-  "description": "Binds one canonical rendered report to its report model and source machine result: the run identity, sha256 digests of the model, result, and report bytes, and the exact renderer version. Verification requires all three documents, re-renders the model, and recomputes every digest; any mismatch is SFC3001. A binding carries no prose and no facts of its own.",
+  "description": "人类可读报告与源机器结果的摘要绑定契约：绑定运行 ID、报告模型摘要、源机器结果摘要、渲染后报告字节摘要及精确渲染器版本。复核时重新渲染模型并重算全部摘要，任一不一致即报 SFC3001。",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "kind", "runId", "modelDigest", "resultDigest", "reportDigest", "rendererVersion"],
+  "required": [
+    "schemaVersion",
+    "kind",
+    "runId",
+    "modelDigest",
+    "resultDigest",
+    "reportDigest",
+    "rendererVersion"
+  ],
   "properties": {
     "schemaVersion": {
       "const": 1
@@ -16,27 +24,27 @@
     "runId": {
       "type": "string",
       "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
-      "description": "The run identity the bound report and machine result share; a mismatch with either side is never a valid binding."
+      "description": "受绑定报告与源机器结果共享的运行标识；与任一侧不一致均为无效绑定。"
     },
     "resultDigest": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$",
-      "description": "sha256 hex digest over the canonical JSON of the bound machine result document."
+      "description": "受绑定源机器结果规范化 JSON 的 SHA-256 十六进制摘要。"
     },
     "modelDigest": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$",
-      "description": "sha256 hex digest over the canonical JSON of the bound report-model document."
+      "description": "受绑定报告模型（report-model）规范化 JSON 的 SHA-256 十六进制摘要。"
     },
     "reportDigest": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$",
-      "description": "sha256 hex digest over the exact rendered report bytes."
+      "description": "渲染后报告精确字节流的 SHA-256 十六进制摘要。"
     },
     "rendererVersion": {
       "type": "string",
       "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
-      "description": "Exact semver of the renderer that produced the bound report; no ranges."
+      "description": "生成该绑定报告的渲染器精确语义化版本号（不含范围算符）。"
     }
   }
 }

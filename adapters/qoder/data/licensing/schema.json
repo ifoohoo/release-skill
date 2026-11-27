@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "skill-family.licensing-profile-registry",
   "title": "Skill Family Licensing Profile Registry",
+  "description": "技能族许可与版权署名预设注册表：定义开源/非商业许可类型、版权年份与署名策略、历史版权保留规则及商业授权关闭边界。",
   "type": "object",
   "additionalProperties": false,
   "required": [

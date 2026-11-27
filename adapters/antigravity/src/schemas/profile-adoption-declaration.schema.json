@@ -2,25 +2,41 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/profile-adoption-declaration.json",
   "title": "ProfileAdoptionDeclaration",
-  "description": "Profile adoption and override declaration (audit remediation D-6/D-8, SPI v3). Stand-alone contract form of the optional adoption and overrides sections of a provider descriptor and the required sections of a project profile: the adoption block carries the lightweight adoption proof (adopted Foundation profile identity plus the three-package Foundation pin with real-file sha256 digests), and the overrides block carries self-tightening rule declarations that reuse existing rule ids with project-level numeric values. The SPI layer forwards to these definitions and verifies tightening direction against the frozen rule baseline catalog.",
+  "description": "Profile 采用与自加严覆盖声明契约（审计整改 D-6 / D-8，SPI v3）：定义提供方描述符与项目 Profile 共用的 adoption（已采用的 Foundation Profile 身份及三包文件级 sha256 绑定）和 overrides（基于既有规则 ID 的项目级数值自加严声明）结构；SPI 层转发至此处定义并对照规则基线目录核验加严方向。",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "kind", "adoption"],
+  "required": [
+    "schemaVersion",
+    "kind",
+    "adoption"
+  ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "skill-family.profile-adoption-declaration" },
-    "adoption": { "$ref": "#/$defs/adoption" },
-    "overrides": { "$ref": "#/$defs/overrides" },
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.profile-adoption-declaration"
+    },
+    "adoption": {
+      "$ref": "#/$defs/adoption"
+    },
+    "overrides": {
+      "$ref": "#/$defs/overrides"
+    },
     "note": {
       "type": "string",
-      "description": "Optional human rationale; not consumed mechanically."
+      "description": "可选的人类可读说明备注，不参与机械消费。"
     }
   },
   "$defs": {
     "pinnedPackage": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["version", "path", "sha256"],
+      "required": [
+        "version",
+        "path",
+        "sha256"
+      ],
       "properties": {
         "version": {
           "type": "string",
@@ -39,19 +55,35 @@
     "adoption": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["foundation_profile", "foundation_pin", "adopted_at"],
+      "required": [
+        "foundation_profile",
+        "foundation_pin",
+        "adopted_at"
+      ],
       "properties": {
         "foundation_profile": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["id", "version", "stability"],
+          "required": [
+            "id",
+            "version",
+            "stability"
+          ],
           "properties": {
             "id": {
               "type": "string",
               "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
             },
-            "version": { "type": "integer", "minimum": 1 },
-            "stability": { "enum": ["stable", "candidate-only"] }
+            "version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "stability": {
+              "enum": [
+                "stable",
+                "candidate-only"
+              ]
+            }
           }
         },
         "capabilities": {
@@ -65,9 +97,14 @@
         "foundation_pin": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["algorithm", "packages"],
+          "required": [
+            "algorithm",
+            "packages"
+          ],
           "properties": {
-            "algorithm": { "const": "sha256" },
+            "algorithm": {
+              "const": "sha256"
+            },
             "packages": {
               "type": "object",
               "additionalProperties": false,
@@ -77,14 +114,23 @@
                 "skill-family-engineering-kit"
               ],
               "properties": {
-                "skill-family-contracts": { "$ref": "#/$defs/pinnedPackage" },
-                "skill-family-harness-node": { "$ref": "#/$defs/pinnedPackage" },
-                "skill-family-engineering-kit": { "$ref": "#/$defs/pinnedPackage" }
+                "skill-family-contracts": {
+                  "$ref": "#/$defs/pinnedPackage"
+                },
+                "skill-family-harness-node": {
+                  "$ref": "#/$defs/pinnedPackage"
+                },
+                "skill-family-engineering-kit": {
+                  "$ref": "#/$defs/pinnedPackage"
+                }
               }
             }
           }
         },
-        "adopted_at": { "type": "string", "format": "date-time" }
+        "adopted_at": {
+          "type": "string",
+          "format": "date-time"
+        }
       }
     },
     "overrides": {
@@ -92,7 +138,11 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["ruleId", "parameter", "value"],
+        "required": [
+          "ruleId",
+          "parameter",
+          "value"
+        ],
         "properties": {
           "ruleId": {
             "type": "string",
@@ -102,8 +152,12 @@
             "type": "string",
             "pattern": "^[a-zA-Z][a-zA-Z0-9]*$"
           },
-          "value": { "type": "number" },
-          "note": { "type": "string" }
+          "value": {
+            "type": "number"
+          },
+          "note": {
+            "type": "string"
+          }
         }
       }
     }

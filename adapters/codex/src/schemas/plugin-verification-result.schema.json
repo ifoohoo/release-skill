@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/plugin-verification-result.json",
   "title": "Plugin verification result",
+  "description": "宿主插件安装与调用核验结果：记录插件安装闭包、命令流摘要与调用前后目录快照比对事实。",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -338,15 +339,25 @@
     {
       "if": {
         "type": "object",
-        "properties": { "goal": { "const": "native-lifecycle" } },
-        "required": ["goal"]
+        "properties": {
+          "goal": {
+            "const": "native-lifecycle"
+          }
+        },
+        "required": [
+          "goal"
+        ]
       },
       "then": {
         "type": "object",
         "properties": {
           "source": {
             "type": "object",
-            "properties": { "type": { "const": "local-marketplace" } }
+            "properties": {
+              "type": {
+                "const": "local-marketplace"
+              }
+            }
           },
           "host": {
             "type": "object",
@@ -357,7 +368,9 @@
           },
           "facts": {
             "type": "object",
-            "required": ["lifecycle"],
+            "required": [
+              "lifecycle"
+            ],
             "properties": {
               "lifecycle": {},
               "input": false,
@@ -373,8 +386,19 @@
         "properties": {
           "facts": {
             "type": "object",
-            "required": ["input", "install", "discovery", "invocation"],
-            "properties": { "input": {}, "install": {}, "discovery": {}, "invocation": {}, "lifecycle": false }
+            "required": [
+              "input",
+              "install",
+              "discovery",
+              "invocation"
+            ],
+            "properties": {
+              "input": {},
+              "install": {},
+              "discovery": {},
+              "invocation": {},
+              "lifecycle": false
+            }
           }
         }
       }
@@ -383,16 +407,28 @@
       "if": {
         "type": "object",
         "properties": {
-          "goal": { "const": "native-lifecycle" },
-          "status": { "const": "rejected" }
+          "goal": {
+            "const": "native-lifecycle"
+          },
+          "status": {
+            "const": "rejected"
+          }
         },
-        "required": ["goal", "status"]
+        "required": [
+          "goal",
+          "status"
+        ]
       },
       "then": {
         "type": "object",
         "properties": {
-          "reason": { "const": "preflight-rejected" },
-          "requiredActions": { "type": "array", "maxItems": 0 },
+          "reason": {
+            "const": "preflight-rejected"
+          },
+          "requiredActions": {
+            "type": "array",
+            "maxItems": 0
+          },
           "facts": {
             "type": "object",
             "properties": {
@@ -404,24 +440,52 @@
                     "minItems": 12,
                     "maxItems": 12,
                     "prefixItems": [
-                      { "$ref": "#/$defs/stageNotPerformed" },
-                      { "$ref": "#/$defs/stageNotPerformed" },
-                      { "$ref": "#/$defs/stageNotPerformed" },
-                      { "$ref": "#/$defs/stageNotPerformed" },
-                      { "$ref": "#/$defs/stageNotPerformed" },
-                      { "$ref": "#/$defs/stageNotPerformed" },
-                      { "$ref": "#/$defs/stageNotPerformed" },
-                      { "$ref": "#/$defs/stageNotPerformed" },
-                      { "$ref": "#/$defs/stageNotPerformed" },
-                      { "$ref": "#/$defs/stageNotPerformed" },
-                      { "$ref": "#/$defs/stageNotPerformed" },
-                      { "$ref": "#/$defs/stageNotPerformed" }
+                      {
+                        "$ref": "#/$defs/stageNotPerformed"
+                      },
+                      {
+                        "$ref": "#/$defs/stageNotPerformed"
+                      },
+                      {
+                        "$ref": "#/$defs/stageNotPerformed"
+                      },
+                      {
+                        "$ref": "#/$defs/stageNotPerformed"
+                      },
+                      {
+                        "$ref": "#/$defs/stageNotPerformed"
+                      },
+                      {
+                        "$ref": "#/$defs/stageNotPerformed"
+                      },
+                      {
+                        "$ref": "#/$defs/stageNotPerformed"
+                      },
+                      {
+                        "$ref": "#/$defs/stageNotPerformed"
+                      },
+                      {
+                        "$ref": "#/$defs/stageNotPerformed"
+                      },
+                      {
+                        "$ref": "#/$defs/stageNotPerformed"
+                      },
+                      {
+                        "$ref": "#/$defs/stageNotPerformed"
+                      },
+                      {
+                        "$ref": "#/$defs/stageNotPerformed"
+                      }
                     ],
                     "items": false
                   },
                   "cleanup": {
                     "type": "object",
-                    "properties": { "pluginAbsent": { "const": false } }
+                    "properties": {
+                      "pluginAbsent": {
+                        "const": false
+                      }
+                    }
                   }
                 }
               }
@@ -434,16 +498,28 @@
       "if": {
         "type": "object",
         "properties": {
-          "goal": { "const": "native-lifecycle" },
-          "status": { "const": "failed" }
+          "goal": {
+            "const": "native-lifecycle"
+          },
+          "status": {
+            "const": "failed"
+          }
         },
-        "required": ["goal", "status"]
+        "required": [
+          "goal",
+          "status"
+        ]
       },
       "then": {
         "type": "object",
         "properties": {
-          "reason": { "const": "execution-failed" },
-          "requiredActions": { "type": "array", "maxItems": 0 },
+          "reason": {
+            "const": "execution-failed"
+          },
+          "requiredActions": {
+            "type": "array",
+            "maxItems": 0
+          },
           "facts": {
             "type": "object",
             "properties": {
@@ -454,14 +530,24 @@
                     "type": "array",
                     "contains": {
                       "type": "object",
-                      "properties": { "status": { "const": "failed" } },
-                      "required": ["status"]
+                      "properties": {
+                        "status": {
+                          "const": "failed"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
                     },
                     "minContains": 1
                   },
                   "cleanup": {
                     "type": "object",
-                    "properties": { "pluginAbsent": { "const": false } }
+                    "properties": {
+                      "pluginAbsent": {
+                        "const": false
+                      }
+                    }
                   }
                 }
               }
@@ -474,16 +560,29 @@
       "if": {
         "type": "object",
         "properties": {
-          "goal": { "const": "native-lifecycle" },
-          "status": { "const": "indeterminate" }
+          "goal": {
+            "const": "native-lifecycle"
+          },
+          "status": {
+            "const": "indeterminate"
+          }
         },
-        "required": ["goal", "status"]
+        "required": [
+          "goal",
+          "status"
+        ]
       },
       "then": {
         "type": "object",
         "properties": {
-          "reason": { "const": "boundary-state-indeterminate" },
-          "requiredActions": { "const": ["manual-temporary-root-inspection-required"] },
+          "reason": {
+            "const": "boundary-state-indeterminate"
+          },
+          "requiredActions": {
+            "const": [
+              "manual-temporary-root-inspection-required"
+            ]
+          },
           "facts": {
             "type": "object",
             "properties": {
@@ -494,14 +593,24 @@
                     "type": "array",
                     "contains": {
                       "type": "object",
-                      "properties": { "status": { "const": "indeterminate" } },
-                      "required": ["status"]
+                      "properties": {
+                        "status": {
+                          "const": "indeterminate"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
                     },
                     "minContains": 1
                   },
                   "cleanup": {
                     "type": "object",
-                    "properties": { "pluginAbsent": { "const": false } }
+                    "properties": {
+                      "pluginAbsent": {
+                        "const": false
+                      }
+                    }
                   }
                 }
               }
@@ -514,34 +623,58 @@
       "if": {
         "type": "object",
         "properties": {
-          "goal": { "const": "native-lifecycle" },
-          "status": { "const": "observed" }
+          "goal": {
+            "const": "native-lifecycle"
+          },
+          "status": {
+            "const": "observed"
+          }
         },
-        "required": ["goal", "status"]
+        "required": [
+          "goal",
+          "status"
+        ]
       },
       "then": {
         "type": "object",
         "properties": {
           "facts": {
             "type": "object",
-            "required": ["lifecycle"],
+            "required": [
+              "lifecycle"
+            ],
             "properties": {
               "lifecycle": {
                 "type": "object",
-                "required": ["stages", "cleanup"],
+                "required": [
+                  "stages",
+                  "cleanup"
+                ],
                 "properties": {
                   "stages": {
                     "type": "array",
                     "items": {
                       "type": "object",
-                      "required": ["status"],
-                      "properties": { "status": { "const": "observed" } }
+                      "required": [
+                        "status"
+                      ],
+                      "properties": {
+                        "status": {
+                          "const": "observed"
+                        }
+                      }
                     }
                   },
                   "cleanup": {
                     "type": "object",
-                    "required": ["pluginAbsent"],
-                    "properties": { "pluginAbsent": { "const": true } }
+                    "required": [
+                      "pluginAbsent"
+                    ],
+                    "properties": {
+                      "pluginAbsent": {
+                        "const": true
+                      }
+                    }
                   }
                 }
               }
@@ -745,8 +878,29 @@
     {
       "if": {
         "allOf": [
-          { "properties": { "status": { "const": "failed" } }, "required": ["status"] },
-          { "properties": { "goal": { "enum": ["install-only", "install-and-invoke"] } }, "required": ["goal"] }
+          {
+            "properties": {
+              "status": {
+                "const": "failed"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          {
+            "properties": {
+              "goal": {
+                "enum": [
+                  "install-only",
+                  "install-and-invoke"
+                ]
+              }
+            },
+            "required": [
+              "goal"
+            ]
+          }
         ],
         "required": [
           "status",
@@ -1078,116 +1232,767 @@
     "lifecycle": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["scope", "stages", "cleanup"],
+      "required": [
+        "scope",
+        "stages",
+        "cleanup"
+      ],
       "properties": {
-        "scope": { "const": "local" },
+        "scope": {
+          "const": "local"
+        },
         "stages": {
           "type": "array",
           "minItems": 12,
           "maxItems": 12,
           "prefixItems": [
-            { "$ref": "#/$defs/stagePreflight" },
-            { "$ref": "#/$defs/stageValidateV1" },
-            { "$ref": "#/$defs/stageMarketplaceAdd" },
-            { "$ref": "#/$defs/stageInstallV1" },
-            { "$ref": "#/$defs/stageDiscoverV1" },
-            { "$ref": "#/$defs/stageInvokeV1" },
-            { "$ref": "#/$defs/stageDisable" },
-            { "$ref": "#/$defs/stageEnable" },
-            { "$ref": "#/$defs/stageUpdateV2" },
-            { "$ref": "#/$defs/stageInvokeV2" },
-            { "$ref": "#/$defs/stageUninstall" },
-            { "$ref": "#/$defs/stageAbsentAfterUninstall" }
+            {
+              "$ref": "#/$defs/stagePreflight"
+            },
+            {
+              "$ref": "#/$defs/stageValidateV1"
+            },
+            {
+              "$ref": "#/$defs/stageMarketplaceAdd"
+            },
+            {
+              "$ref": "#/$defs/stageInstallV1"
+            },
+            {
+              "$ref": "#/$defs/stageDiscoverV1"
+            },
+            {
+              "$ref": "#/$defs/stageInvokeV1"
+            },
+            {
+              "$ref": "#/$defs/stageDisable"
+            },
+            {
+              "$ref": "#/$defs/stageEnable"
+            },
+            {
+              "$ref": "#/$defs/stageUpdateV2"
+            },
+            {
+              "$ref": "#/$defs/stageInvokeV2"
+            },
+            {
+              "$ref": "#/$defs/stageUninstall"
+            },
+            {
+              "$ref": "#/$defs/stageAbsentAfterUninstall"
+            }
           ],
           "items": false
         },
         "cleanup": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["pluginAbsent"],
-          "properties": { "pluginAbsent": { "type": "boolean" } }
+          "required": [
+            "pluginAbsent"
+          ],
+          "properties": {
+            "pluginAbsent": {
+              "type": "boolean"
+            }
+          }
         }
       },
       "allOf": [
         {
-          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{ "$ref": "#/$defs/stageStopped" }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}], "items": false } } },
-          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, { "$ref": "#/$defs/stageNotPerformed" }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}], "items": false } } }
+          "if": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {
+                    "$ref": "#/$defs/stageStopped"
+                  },
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {
+                    "$ref": "#/$defs/stageNotPerformed"
+                  },
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          }
         },
         {
-          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, { "$ref": "#/$defs/stageStopped" }, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}], "items": false } } },
-          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, { "$ref": "#/$defs/stageNotPerformed" }, {}, {}, {}, {}, {}, {}, {}, {}, {}], "items": false } } }
+          "if": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {
+                    "$ref": "#/$defs/stageStopped"
+                  },
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageNotPerformed"
+                  },
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          }
         },
         {
-          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, { "$ref": "#/$defs/stageStopped" }, {}, {}, {}, {}, {}, {}, {}, {}, {}], "items": false } } },
-          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, { "$ref": "#/$defs/stageNotPerformed" }, {}, {}, {}, {}, {}, {}, {}, {}], "items": false } } }
+          "if": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageStopped"
+                  },
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageNotPerformed"
+                  },
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          }
         },
         {
-          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, { "$ref": "#/$defs/stageStopped" }, {}, {}, {}, {}, {}, {}, {}, {}], "items": false } } },
-          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, { "$ref": "#/$defs/stageNotPerformed" }, {}, {}, {}, {}, {}, {}, {}], "items": false } } }
+          "if": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageStopped"
+                  },
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageNotPerformed"
+                  },
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          }
         },
         {
-          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, { "$ref": "#/$defs/stageStopped" }, {}, {}, {}, {}, {}, {}, {}], "items": false } } },
-          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, { "$ref": "#/$defs/stageNotPerformed" }, {}, {}, {}, {}, {}, {}], "items": false } } }
+          "if": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageStopped"
+                  },
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageNotPerformed"
+                  },
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          }
         },
         {
-          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, { "$ref": "#/$defs/stageStopped" }, {}, {}, {}, {}, {}, {}], "items": false } } },
-          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageNotPerformed" }, {}, {}, {}, {}, {}], "items": false } } }
+          "if": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageStopped"
+                  },
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageNotPerformed"
+                  },
+                  {},
+                  {},
+                  {},
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          }
         },
         {
-          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageStopped" }, {}, {}, {}, {}, {}], "items": false } } },
-          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageNotPerformed" }, {}, {}, {}, {}], "items": false } } }
+          "if": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageStopped"
+                  },
+                  {},
+                  {},
+                  {},
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageNotPerformed"
+                  },
+                  {},
+                  {},
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          }
         },
         {
-          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageStopped" }, {}, {}, {}, {}], "items": false } } },
-          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageNotPerformed" }, {}, {}, {}], "items": false } } }
+          "if": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageStopped"
+                  },
+                  {},
+                  {},
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageNotPerformed"
+                  },
+                  {},
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          }
         },
         {
-          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageStopped" }, {}, {}, {}], "items": false } } },
-          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageNotPerformed" }, {}, {}], "items": false } } }
+          "if": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageStopped"
+                  },
+                  {},
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageNotPerformed"
+                  },
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          }
         },
         {
-          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageStopped" }, {}, {}], "items": false } } },
-          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageNotPerformed" }, {}], "items": false } } }
+          "if": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageStopped"
+                  },
+                  {},
+                  {}
+                ],
+                "items": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageNotPerformed"
+                  },
+                  {}
+                ],
+                "items": false
+              }
+            }
+          }
         },
         {
-          "if": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageStopped" }, {}], "items": false } } },
-          "then": { "properties": { "stages": { "type": "array", "minItems": 12, "maxItems": 12, "prefixItems": [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, { "$ref": "#/$defs/stageNotPerformed" }], "items": false } } }
+          "if": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageStopped"
+                  },
+                  {}
+                ],
+                "items": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "stages": {
+                "type": "array",
+                "minItems": 12,
+                "maxItems": 12,
+                "prefixItems": [
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {},
+                  {
+                    "$ref": "#/$defs/stageNotPerformed"
+                  }
+                ],
+                "items": false
+              }
+            }
+          }
         }
       ]
     },
     "stageStopped": {
       "type": "object",
-      "required": ["status"],
-      "properties": { "status": { "enum": ["failed", "indeterminate", "not-performed"] } }
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "failed",
+            "indeterminate",
+            "not-performed"
+          ]
+        }
+      }
     },
     "stageNotPerformed": {
       "type": "object",
-      "required": ["status"],
-      "properties": { "status": { "const": "not-performed" } }
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "const": "not-performed"
+        }
+      }
     },
     "stageBase": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "status", "commands", "trees"],
+      "required": [
+        "name",
+        "status",
+        "commands",
+        "trees"
+      ],
       "properties": {
         "name": {
           "enum": [
-            "preflight", "validate-v1", "marketplace-add", "install-v1",
-            "discover-v1", "invoke-v1", "disable", "enable", "update-v2",
-            "invoke-v2", "uninstall", "absent-after-uninstall"
+            "preflight",
+            "validate-v1",
+            "marketplace-add",
+            "install-v1",
+            "discover-v1",
+            "invoke-v1",
+            "disable",
+            "enable",
+            "update-v2",
+            "invoke-v2",
+            "uninstall",
+            "absent-after-uninstall"
           ]
         },
-        "status": { "enum": ["observed", "failed", "indeterminate", "not-performed"] },
-        "commands": { "type": "array", "maxItems": 3, "items": { "$ref": "#/$defs/commandObservation" } },
-        "trees": { "type": "array", "maxItems": 6, "uniqueItems": true, "items": { "$ref": "#/$defs/treeEvidence" } }
+        "status": {
+          "enum": [
+            "observed",
+            "failed",
+            "indeterminate",
+            "not-performed"
+          ]
+        },
+        "commands": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/commandObservation"
+          }
+        },
+        "trees": {
+          "type": "array",
+          "maxItems": 6,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/treeEvidence"
+          }
+        }
       },
       "allOf": [
         {
-          "if": { "properties": { "status": { "const": "not-performed" } }, "required": ["status"] },
+          "if": {
+            "properties": {
+              "status": {
+                "const": "not-performed"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
           "then": {
             "properties": {
-              "commands": { "type": "array", "maxItems": 0 },
-              "trees": { "type": "array", "maxItems": 0 }
+              "commands": {
+                "type": "array",
+                "maxItems": 0
+              },
+              "trees": {
+                "type": "array",
+                "maxItems": 0
+              }
             }
           }
         }
@@ -1195,90 +2000,246 @@
     },
     "stagePreflight": {
       "allOf": [
-        { "$ref": "#/$defs/stageBase" },
-        { "type": "object", "properties": { "name": { "const": "preflight" }, "trees": { "type": "array", "maxItems": 0 } } }
+        {
+          "$ref": "#/$defs/stageBase"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "preflight"
+            },
+            "trees": {
+              "type": "array",
+              "maxItems": 0
+            }
+          }
+        }
       ]
     },
     "stageValidateV1": {
       "allOf": [
-        { "$ref": "#/$defs/stageBase" },
-        { "type": "object", "properties": { "name": { "const": "validate-v1" } } }
+        {
+          "$ref": "#/$defs/stageBase"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "validate-v1"
+            }
+          }
+        }
       ]
     },
     "stageMarketplaceAdd": {
       "allOf": [
-        { "$ref": "#/$defs/stageBase" },
-        { "type": "object", "properties": { "name": { "const": "marketplace-add" } } }
+        {
+          "$ref": "#/$defs/stageBase"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "marketplace-add"
+            }
+          }
+        }
       ]
     },
     "stageInstallV1": {
       "allOf": [
-        { "$ref": "#/$defs/stageBase" },
-        { "type": "object", "properties": { "name": { "const": "install-v1" } } }
+        {
+          "$ref": "#/$defs/stageBase"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "install-v1"
+            }
+          }
+        }
       ]
     },
     "stageDiscoverV1": {
       "allOf": [
-        { "$ref": "#/$defs/stageBase" },
-        { "type": "object", "properties": { "name": { "const": "discover-v1" } } }
+        {
+          "$ref": "#/$defs/stageBase"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "discover-v1"
+            }
+          }
+        }
       ]
     },
     "stageInvokeV1": {
       "allOf": [
-        { "$ref": "#/$defs/stageBase" },
-        { "type": "object", "properties": { "name": { "const": "invoke-v1" } } }
+        {
+          "$ref": "#/$defs/stageBase"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "invoke-v1"
+            }
+          }
+        }
       ]
     },
     "stageDisable": {
       "allOf": [
-        { "$ref": "#/$defs/stageBase" },
-        { "type": "object", "properties": { "name": { "const": "disable" } } }
+        {
+          "$ref": "#/$defs/stageBase"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "disable"
+            }
+          }
+        }
       ]
     },
     "stageEnable": {
       "allOf": [
-        { "$ref": "#/$defs/stageBase" },
-        { "type": "object", "properties": { "name": { "const": "enable" } } }
+        {
+          "$ref": "#/$defs/stageBase"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "enable"
+            }
+          }
+        }
       ]
     },
     "stageUpdateV2": {
       "allOf": [
-        { "$ref": "#/$defs/stageBase" },
-        { "type": "object", "properties": { "name": { "const": "update-v2" } } }
+        {
+          "$ref": "#/$defs/stageBase"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "update-v2"
+            }
+          }
+        }
       ]
     },
     "stageInvokeV2": {
       "allOf": [
-        { "$ref": "#/$defs/stageBase" },
-        { "type": "object", "properties": { "name": { "const": "invoke-v2" } } }
+        {
+          "$ref": "#/$defs/stageBase"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "invoke-v2"
+            }
+          }
+        }
       ]
     },
     "stageUninstall": {
       "allOf": [
-        { "$ref": "#/$defs/stageBase" },
-        { "type": "object", "properties": { "name": { "const": "uninstall" } } }
+        {
+          "$ref": "#/$defs/stageBase"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "uninstall"
+            }
+          }
+        }
       ]
     },
     "stageAbsentAfterUninstall": {
       "allOf": [
-        { "$ref": "#/$defs/stageBase" },
-        { "type": "object", "properties": { "name": { "const": "absent-after-uninstall" } } }
+        {
+          "$ref": "#/$defs/stageBase"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "name": {
+              "const": "absent-after-uninstall"
+            }
+          }
+        }
       ]
     },
     "treeEvidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["role", "status"],
+      "required": [
+        "role",
+        "status"
+      ],
       "properties": {
-        "role": { "enum": ["source-v1", "source-v2", "installed", "cache", "config", "data"] },
-        "status": { "enum": ["observed", "absent", "not-applicable"] },
-        "observationDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        "role": {
+          "enum": [
+            "source-v1",
+            "source-v2",
+            "installed",
+            "cache",
+            "config",
+            "data"
+          ]
+        },
+        "status": {
+          "enum": [
+            "observed",
+            "absent",
+            "not-applicable"
+          ]
+        },
+        "observationDigest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
       },
       "allOf": [
         {
-          "if": { "type": "object", "properties": { "status": { "const": "observed" } }, "required": ["status"] },
-          "then": { "type": "object", "required": ["observationDigest"], "properties": { "observationDigest": {} } },
-          "else": { "type": "object", "properties": { "observationDigest": false } }
+          "if": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "const": "observed"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "type": "object",
+            "required": [
+              "observationDigest"
+            ],
+            "properties": {
+              "observationDigest": {}
+            }
+          },
+          "else": {
+            "type": "object",
+            "properties": {
+              "observationDigest": false
+            }
+          }
         }
       ]
     }

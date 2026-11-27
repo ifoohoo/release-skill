@@ -2,32 +2,56 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/adapter-source.json",
   "title": "Skill Family adapter source",
+  "description": "宿主适配器源声明：定义技能族向各宿主投影前的权威源路径与元数据。",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "kind", "skillFamilyId", "skills"],
+  "required": [
+    "schemaVersion",
+    "kind",
+    "skillFamilyId",
+    "skills"
+  ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "skill-family.adapter-source" },
-    "skillFamilyId": { "$ref": "#/$defs/id" },
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.adapter-source"
+    },
+    "skillFamilyId": {
+      "$ref": "#/$defs/id"
+    },
     "skills": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "files"],
+        "required": [
+          "id",
+          "files"
+        ],
         "properties": {
-          "id": { "$ref": "#/$defs/id" },
+          "id": {
+            "$ref": "#/$defs/id"
+          },
           "files": {
             "type": "array",
             "minItems": 1,
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["path", "content"],
+              "required": [
+                "path",
+                "content"
+              ],
               "properties": {
-                "path": { "$ref": "#/$defs/relativePath" },
-                "content": { "type": "string" }
+                "path": {
+                  "$ref": "#/$defs/relativePath"
+                },
+                "content": {
+                  "type": "string"
+                }
               }
             }
           }
@@ -36,7 +60,10 @@
     }
   },
   "$defs": {
-    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$" },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,63}$"
+    },
     "relativePath": {
       "type": "string",
       "minLength": 1,

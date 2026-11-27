@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.skill-family.example/v1/task-handoff-envelope.json",
+  "title": "TaskHandoffEnvelope",
+  "description": "跨技能族任务范围与制品交接信封：记录一次跨技能族协作请求的唯一交接标识、需求摘要与引用、选定与排除的方法集合、允许写入路径范围、上游制品摘要及期望下游执行的动作。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "handoffId",
+    "requestSummary",
+    "requirementRefs",
+    "selectedMethods",
+    "excludedMethods",
+    "allowedWriteSet",
+    "upstreamArtifacts",
+    "expectedDownstreamAction",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1,
+      "description": "结构版本号，固定为 1。"
+    },
+    "kind": {
+      "const": "skill-family.task-handoff-envelope",
+      "description": "文档类型标识，固定为跨技能族任务交接信封。"
+    },
+    "handoffId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$",
+      "description": "本次跨技能族任务交接的稳定唯一标识符。"
+    },
+    "requestSummary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "上游协作请求的目标与业务上下文摘要。"
+    },
+    "requirementRefs": {
+      "type": "array",
+      "uniqueItems": true,
+      "description": "本次任务关联的需求、用户故事、验收场景或设计制品引用列表。",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "selectedMethods": {
+      "type": "array",
+      "uniqueItems": true,
+      "description": "明确选定参与本次任务执行的技能族或方法标识列表。",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "excludedMethods": {
+      "type": "array",
+      "uniqueItems": true,
+      "description": "明确排除在本次任务范围之外的技能族或方法标识列表。",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "allowedWriteSet": {
+      "type": "array",
+      "uniqueItems": true,
+      "description": "授权下游技能族写入的项目内相对路径或通配范围列表（禁止绝对路径与父目录跳转）。",
+      "items": {
+        "$ref": "#/$defs/relativeWritePattern"
+      }
+    },
+    "upstreamArtifacts": {
+      "type": "array",
+      "description": "随交接信封传入的上游制品列表，每项绑定项目相对路径、SHA-256 摘要与职责角色。",
+      "items": {
+        "$ref": "#/$defs/upstreamArtifact"
+      }
+    },
+    "expectedDownstreamAction": {
+      "type": "string",
+      "minLength": 1,
+      "description": "期望下游技能族执行的具体动作与交付边界说明。"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "交接信封生成的 RFC 3339 时间戳。"
+    }
+  },
+  "$defs": {
+    "projectRelativePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*(?:^|/)\\.(?:/|$))(?!.*\\\\)(?!.*\\u0000)[^/\\\\\\u0000]+(?:/[^/\\\\\\u0000]+)*$",
+      "description": "相对于目标项目根目录的非空 POSIX 路径（不含绝对路径、空字节、反斜杠或父目录跳转）。"
+    },
+    "relativeWritePattern": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)(?!.*\\u0000)[^/\\\\\\u0000]+(?:/[^/\\\\\\u0000]+)*/?$",
+      "description": "受收容的项目相对写入路径或通配模式（禁止绝对路径、反斜杠与 .. 逃逸段）。"
+    },
+    "upstreamArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "role"
+      ],
+      "description": "单个上游输入制品的路径、内容摘要与角色绑定。",
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/projectRelativePath",
+          "description": "上游制品相对于工作区根目录的 POSIX 路径。"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "上游制品字节内容的 64 位小写十六进制 SHA-256 摘要。"
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1,
+          "description": "上游制品在本次交接中的角色说明（如 spec、input、draft、context 等）。"
+        }
+      }
+    }
+  }
+}

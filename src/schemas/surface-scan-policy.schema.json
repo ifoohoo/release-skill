@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/surface-scan-policy.json",
   "title": "SurfaceScanPolicy",
-  "description": "Declarative policy for the generic strategy-driven surface scanner. Consumers provide forbidden path patterns, forbidden content patterns and the list of intended uses; the scanner applies pathPatterns and contentPatterns only. Foundation does not interpret any private identity, path, or the meaning of allowedUses: every pattern hit fails closed, and the interpretation or exemption of allowed uses belongs to the consumer. Policy pattern strings are compiled as RegExp sources by the harness and a compile failure is a fail-closed scan-policy-invalid result. This schema is the consumer-facing policy of the generic surface scanner (scanSurface); the workspace-private leak-policy.json instance document is not a subset, not isomorphic and not a migration target of this schema — the two documents share rule vocabulary and fail-closed semantics by design, but their byte-level shapes are independent and must not be compared for compatibility. scanSurface is the execution-core generalization projection: the public, consumer-parameterized form of the same mechanism family, without any private identity, path, or approval-list interpretation of its own.",
+  "description": "通用策略驱动表面扫描器（scanSurface）的声明式策略契约：由消费方提供禁入路径正则（pathPatterns）、禁入内容正则（contentPatterns）及预期用途说明；任一模式命中或正则编译失败均按封闭失败拒绝。Foundation 不解释私有身份或豁免语义，与工作区私有 leak-policy.json 的字节结构彼此独立。",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -13,30 +13,60 @@
     "allowedUses"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "skill-family.surface-scan-policy" },
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.surface-scan-policy"
+    },
     "pathPatterns": {
       "type": "array",
       "maxItems": 200,
       "uniqueItems": true,
-      "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512
+      }
     },
     "contentPatterns": {
       "type": "array",
       "maxItems": 200,
       "uniqueItems": true,
-      "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 512
+      }
     },
     "allowedUses": {
       "type": "array",
       "minItems": 1,
       "maxItems": 200,
       "uniqueItems": true,
-      "items": { "type": "string", "minLength": 1, "maxLength": 200 }
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      }
     }
   },
   "anyOf": [
-    { "properties": { "pathPatterns": { "type": "array", "minItems": 1 } } },
-    { "properties": { "contentPatterns": { "type": "array", "minItems": 1 } } }
+    {
+      "properties": {
+        "pathPatterns": {
+          "type": "array",
+          "minItems": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "contentPatterns": {
+          "type": "array",
+          "minItems": 1
+        }
+      }
+    }
   ]
 }

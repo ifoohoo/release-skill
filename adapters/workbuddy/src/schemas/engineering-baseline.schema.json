@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/engineering-baseline.json",
   "title": "EngineeringBaseline",
-  "description": "Business-neutral identity for an engineering baseline. The contract carries the provider-owned baseline identity, canonical rule lineage references, and the Foundation reference implementation identity; it does not carry rule bodies, effects, equivalence, or exemption semantics.",
+  "description": "业务中立的工程基线身份契约：承载提供方拥有的基线标识、规范规则谱系引用及 Foundation 参考实现身份；不包含规则正文、效力裁决、等价判定或豁免语义。",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -16,61 +16,90 @@
     "referenceImplementation"
   ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "kind": { "const": "skill-family.engineering-baseline" },
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "skill-family.engineering-baseline"
+    },
     "provider": {
       "type": "string",
       "minLength": 1,
-      "description": "Provider that owns the baseline identity, for example an independent Audit implementation."
+      "description": "拥有该基线身份的提供方标识（例如独立审计实现）。"
     },
     "id": {
       "type": "string",
       "minLength": 1,
-      "description": "Provider-scoped stable baseline identifier."
+      "description": "提供方作用域内的稳定基线标识符。"
     },
     "version": {
       "type": "string",
       "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
-      "description": "Semantic version of the provider-owned baseline identity."
+      "description": "提供方基线身份的语义化版本号。"
     },
     "digest": {
       "type": "string",
       "pattern": "^[0-9a-f]{64}$",
-      "description": "SHA-256 digest of the canonical JSON of this document with digest omitted."
+      "description": "剔除 digest 字段后当前文档规范化 JSON 的 SHA-256 摘要。"
     },
     "canonicalRuleRefs": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/canonicalRuleRef" },
-      "description": "Sorted, unique references to provider-owned canonical rule lineages. Rule bodies and decisions remain outside this contract."
+      "items": {
+        "$ref": "#/$defs/canonicalRuleRef"
+      },
+      "description": "按谱系 ID 升序排列且不重复的提供方规范规则谱系引用；规则正文与裁决留在契约之外。"
     },
     "referenceImplementation": {
       "$ref": "#/$defs/referenceImplementation",
-      "description": "Identity of the Foundation reference implementation used by the baseline provider."
+      "description": "基线提供方所对齐的 Foundation 参考实现身份。"
     }
   },
   "$defs": {
     "canonicalRuleRef": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "revision", "revisionDigest"],
+      "required": [
+        "id",
+        "revision",
+        "revisionDigest"
+      ],
       "properties": {
-        "id": { "type": "string", "minLength": 1 },
-        "revision": { "type": "integer", "minimum": 1 },
-        "revisionDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "revisionDigest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
       }
     },
     "referenceImplementation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["foundationVersion", "profile", "skeletonDigest"],
+      "required": [
+        "foundationVersion",
+        "profile",
+        "skeletonDigest"
+      ],
       "properties": {
         "foundationVersion": {
           "type": "string",
           "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
         },
-        "profile": { "type": "string", "minLength": 1 },
-        "skeletonDigest": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+        "profile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "skeletonDigest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
       }
     }
   }

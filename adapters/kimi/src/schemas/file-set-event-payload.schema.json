@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.skill-family.example/v1/file-set-event-payload.json",
   "title": "File set event payload",
-  "description": "File recovery facts within the existing state-event envelope. Event order, request and path bindings are checked by Harness; no second sequence or hash chain is introduced.",
+  "description": "嵌入既有状态事件信封中的文件恢复事实载荷：事件顺序、请求与路径绑定由 Harness 核验，不另建平行序号或哈希链。",
   "type": "object",
   "additionalProperties": false,
   "required": [
