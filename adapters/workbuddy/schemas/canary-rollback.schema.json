@@ -1,0 +1,216 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://release-skill.dev/schemas/canary-rollback/v1",
+  "title": "Release Canary Rollout & One-Click Version Rollback Receipts",
+  "description": "金丝雀分阶段灰度放量收据与一键版本回滚治理收据契约（纯本地离线确定性生成，零未授权远端写入，零本机绝对路径）。",
+  "oneOf": [
+    { "$ref": "#/definitions/canaryReceipt" },
+    { "$ref": "#/definitions/rollbackReceipt" }
+  ],
+  "definitions": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "semverString": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\\+([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?$"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low"]
+    },
+    "channelStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["channelType", "identifier", "commandPreview", "purpose"],
+      "properties": {
+        "channelType": { "type": "string", "minLength": 1 },
+        "identifier": { "type": "string", "minLength": 1 },
+        "commandPreview": { "type": "string", "minLength": 1 },
+        "purpose": { "type": "string", "minLength": 1 }
+      }
+    },
+    "canaryReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "kind",
+        "stage",
+        "executionMode",
+        "remoteWritesPerformed",
+        "projectName",
+        "unitId",
+        "publicRepo",
+        "targetVersion",
+        "baselineVersion",
+        "channel",
+        "trafficPercent",
+        "guardrails",
+        "actor",
+        "createdAt",
+        "channelSteps",
+        "artifacts",
+        "canaryDigest"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kind": { "const": "release-skill/canary-rollout-receipt" },
+        "stage": { "type": "string", "enum": ["canary", "promote", "abort"] },
+        "executionMode": { "type": "string", "enum": ["offline", "dry-run"] },
+        "remoteWritesPerformed": { "const": false },
+        "projectName": { "type": "string", "minLength": 1 },
+        "unitId": {
+          "type": "string",
+          "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        "publicRepo": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$"
+        },
+        "targetVersion": { "$ref": "#/definitions/semverString" },
+        "baselineVersion": { "$ref": "#/definitions/semverString" },
+        "channel": { "type": "string", "enum": ["canary", "next", "latest"] },
+        "trafficPercent": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "reason": { "type": "string", "minLength": 1 },
+        "guardrails": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["observationWindowMinutes", "maxErrorRateBp", "autoRollbackTarget"],
+          "properties": {
+            "observationWindowMinutes": { "type": "integer", "minimum": 5, "maximum": 10080 },
+            "maxErrorRateBp": { "type": "integer", "minimum": 1, "maximum": 5000 },
+            "autoRollbackTarget": { "$ref": "#/definitions/semverString" }
+          }
+        },
+        "actor": { "type": "string", "minLength": 1 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "channelSteps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/channelStep" }
+        },
+        "artifacts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["receiptFile", "runbookFile"],
+          "properties": {
+            "receiptFile": { "type": "string", "minLength": 1 },
+            "runbookFile": { "type": "string", "minLength": 1 }
+          }
+        },
+        "canaryDigest": { "$ref": "#/definitions/sha256Hex" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "stage": { "const": "canary" } }, "required": ["stage"] },
+          "then": {
+            "properties": {
+              "channel": { "enum": ["canary", "next"] },
+              "trafficPercent": { "minimum": 1, "maximum": 99 }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "stage": { "const": "promote" } }, "required": ["stage"] },
+          "then": {
+            "properties": {
+              "channel": { "const": "latest" },
+              "trafficPercent": { "const": 100 }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "stage": { "const": "abort" } }, "required": ["stage"] },
+          "then": {
+            "properties": {
+              "channel": { "enum": ["canary", "next"] },
+              "trafficPercent": { "const": 0 }
+            }
+          }
+        }
+      ]
+    },
+    "rollbackReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "kind",
+        "executionMode",
+        "remoteWritesPerformed",
+        "projectName",
+        "unitId",
+        "publicRepo",
+        "targetVersion",
+        "fallbackVersion",
+        "severity",
+        "reason",
+        "actor",
+        "createdAt",
+        "fallbackProvenanceVerified",
+        "channelSteps",
+        "consumerActions",
+        "artifacts",
+        "rollbackDigest"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kind": { "const": "release-skill/version-rollback-receipt" },
+        "executionMode": { "type": "string", "enum": ["offline", "dry-run"] },
+        "remoteWritesPerformed": { "const": false },
+        "projectName": { "type": "string", "minLength": 1 },
+        "unitId": {
+          "type": "string",
+          "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        "publicRepo": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$"
+        },
+        "targetVersion": { "$ref": "#/definitions/semverString" },
+        "fallbackVersion": { "$ref": "#/definitions/semverString" },
+        "severity": { "$ref": "#/definitions/severity" },
+        "reason": { "type": "string", "minLength": 1 },
+        "actor": { "type": "string", "minLength": 1 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "fallbackProvenanceVerified": { "type": "boolean" },
+        "fallbackProvenanceDigestSha256": {
+          "anyOf": [{ "type": "null" }, { "$ref": "#/definitions/sha256Hex" }]
+        },
+        "channelSteps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/channelStep" }
+        },
+        "consumerActions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "consumerAction"],
+            "properties": {
+              "type": { "type": "string", "minLength": 1 },
+              "identifier": { "type": "string", "minLength": 1 },
+              "consumerAction": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "artifacts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["receiptFile", "runbookFile", "hubProposalFile", "hubProposalTargetPath"],
+          "properties": {
+            "receiptFile": { "type": "string", "minLength": 1 },
+            "runbookFile": { "type": "string", "minLength": 1 },
+            "hubProposalFile": { "type": "string", "minLength": 1 },
+            "hubProposalTargetPath": { "type": "string", "minLength": 1 }
+          }
+        },
+        "rollbackDigest": { "$ref": "#/definitions/sha256Hex" }
+      }
+    }
+  }
+}

@@ -3,6 +3,8 @@
 // @decision D-RS-004
 // @feature REL001
 // @feature REL006
+// @feature REL007
+// @scenario S-008
 
 import { readFile } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join, normalize, resolve } from 'node:path';
@@ -46,6 +48,7 @@ const COMMANDS = new Set([
   'verify', 'verify-records', 'read-proof', 'postverify', 'ship', 'post-release',
   'attest', 'hooks', 'artifacts', 'docs', 'distribute', 'route', 'lineage',
   'deprecate', 'retire', 'bundle-offline', 'verify-offline',
+  'sign-provenance', 'verify-provenance', 'canary', 'rollback',
 ]);
 
 function printHubManualTargets(targets = []) {
@@ -403,6 +406,26 @@ function getCapabilityMaturity() {
       mode: 'offline explicit-bundle verification',
       description: 'Verify an exported offline distribution bundle byte-for-byte for SHA-256 integrity, multi-manifest version consistency, zero external network dependencies, and zero credential or private-path leakage',
     },
+    signProvenance: {
+      available: true,
+      mode: 'offline Ed25519 provenance attestation / dry-run preview',
+      description: 'Sign canonical release provenance (planDigest, artifact SHA-256s, and optional Audit/Eval professional-conclusion digests) with Node crypto Ed25519 without persisting private keys or touching remotes',
+    },
+    verifyProvenance: {
+      available: true,
+      mode: 'offline cryptographic signature & digest verification',
+      description: 'Verify a supply-chain provenance attestation offline for schema conformance, canonical statement SHA-256, SPKI public-key fingerprint, Ed25519 signature, and optional frozen plan binding',
+    },
+    canary: {
+      available: true,
+      mode: 'offline progressive rollout receipts / dry-run preview',
+      description: 'Generate staged canary rollout, full promotion, or abort receipts and channel runbooks without unapproved remote writes',
+    },
+    rollback: {
+      available: true,
+      mode: 'offline one-click rollback receipts & Hub proposal / dry-run preview',
+      description: 'Generate version rollback receipts, npm/GitHub channel repoint runbooks, and skill-family-hub deprecation proposals (optionally verifying fallback provenance)',
+    },
   };
 }
 
@@ -439,6 +462,10 @@ Commands:
   retire     Generate offline unit retirement receipt, archive/replacement Markdown, and Hub proposal
   bundle-offline Export self-contained offline installable archive, SHA-256 manifest, local index, and OFFLINE-INSTALL.md
   verify-offline Verify an offline bundle byte-for-byte (integrity, version parity, zero network/credential leaks)
+  sign-provenance Sign canonical release provenance with Ed25519 (offline, zero private-key persistence)
+  verify-provenance Verify Ed25519 release provenance attestation, public-key fingerprint, and plan binding offline
+  canary     Generate staged canary rollout / promote / abort receipt and channel runbook offline
+  rollback   Generate one-click version rollback receipt, channel repoint runbook, and Hub proposal offline
 
 Options:
   --root <path>    Project root directory (default: cwd)
@@ -3055,6 +3082,259 @@ Options:
       }, null, 2));
     } else {
       console.error(`Error: ${err.message}`);
+    }
+    await exitAfterFlush(err.exitCode ?? 1);
+  }
+}
+
+// --- Supply-chain cryptographic provenance routing: sign-provenance & verify-provenance (CAP-P7-02) ---
+if (command === 'sign-provenance' || command === 'verify-provenance') {
+  if (args.includes('--help') || args.includes('-h')) {
+    const helpText = command === 'sign-provenance'
+      ? `release-skill sign-provenance - 使用原生 Ed25519 签发供应链密码学溯源证明（零私钥落盘、零远端写入）
+
+Usage:
+  release-skill sign-provenance [--root <path>] [--unit <id>] [--plan <path>] [--target-version <semver>] (--private-key-file <external-pem> | --ephemeral-self-test-key --dry-run) --actor <name> [--audit-proof <rel>] [--eval-proof <rel>] [--offline] [--dry-run] [--json]
+
+Options:
+  --root <path>                  受检项目根目录（默认当前目录）
+  --unit <id>                    目标发布单元 ID（单单元项目可省略）
+  --plan <path>                  关联冻结发布计划 JSON（推荐；自动绑定 planDigest 与冻结产物哈希）
+  --target-version <semver>      期望的目标 SemVer 版本号
+  --private-key-file <path>      位于受检仓库目录之外的 Ed25519 私钥 PEM 文件（或使用 RELEASE_SKILL_SIGNING_PRIVATE_KEY_PEM 环境变量）
+  --ephemeral-self-test-key      仅限 --dry-run 模式下使用一次性内存临时密钥完成预览自检
+  --key-id <id>                  自定义签名密钥标识（默认由公钥 SPKI 指纹派生）
+  --proof-root <path>            专业结论读取根目录（默认受检项目根）
+  --audit-proof <rel-path>       可选绑定的 skill-family-audit 专业结论相对路径
+  --audit-conclusion-sha256 <h>  可选强制核对的 64 位审计结论摘要
+  --eval-proof <rel-path>        可选绑定的 skill-family-eval 动态评测结论相对路径
+  --eval-conclusion-sha256 <h>   可选强制核对的 64 位动态评测结论摘要
+  --min-eval-grade <S|A|B|C>     动态评测最低准入等级（默认 B）
+  --actor <name>                 签发责任人标识（必填）
+  --output-dir <rel-path>        项目内相对输出目录（默认 .release-skill/provenance/<unit>-<ver>）
+  --offline                      纯本地离线签发（默认）
+  --dry-run                      仅在内存中签发校验并预览，不落盘
+  --json                         输出结构化 JSON
+  -h, --help                     显示帮助并退出`
+      : `release-skill verify-provenance - 纯离线核验供应链 Ed25519 溯源签名、公钥指纹与计划绑定
+
+Usage:
+  release-skill verify-provenance --attestation <path> [--public-key-file <pem>] [--expected-key-fingerprint <sha256>] [--plan <path>] [--unit <id>] [--target-version <semver>] [--require-audit-proof] [--require-eval-proof] [--json]
+
+Options:
+  --attestation <path>               待核验的 provenance-attestation.json 路径（必填）
+  --public-key-file <path>           外部受信任 Ed25519 公钥 PEM 文件（默认使用证明内嵌公钥并核对指纹）
+  --expected-key-fingerprint <hex>   期望匹配的 64 位 SPKI 公钥 SHA-256 指纹
+  --plan <path>                      可选交叉核对的冻结 release-plan.json 路径
+  --unit <id>                        期望匹配的发布单元 ID
+  --target-version <semver>          期望匹配的目标 SemVer 版本号
+  --require-audit-proof              要求证明必须包含已核验的 skill-family-audit 结论摘要
+  --require-eval-proof               要求证明必须包含已核验的 skill-family-eval 结论摘要
+  --json                             输出结构化 JSON
+  -h, --help                         显示帮助并退出`;
+
+    if (hasJson) {
+      console.log(JSON.stringify({
+        command,
+        status: 'HELP',
+        remoteWritesPerformed: false,
+        usage: helpText.split('\n')[2].trim(),
+      }, null, 2));
+    } else {
+      console.log(helpText);
+    }
+    await exitAfterFlush(0);
+  }
+
+  const value = (flag) => {
+    const idx = args.indexOf(flag);
+    return idx !== -1 && args[idx + 1] && !args[idx + 1].startsWith('--')
+      ? args[idx + 1]
+      : undefined;
+  };
+
+  try {
+    const { signReleaseProvenance, verifyReleaseProvenance } = await import('../src/commands/provenance.mjs');
+    const result = command === 'sign-provenance'
+      ? await signReleaseProvenance({
+        root: resolve(value('--root') ?? process.cwd()),
+        unitId: value('--unit'),
+        targetVersion: value('--target-version') ?? value('--version'),
+        planPath: value('--plan'),
+        privateKeyFile: value('--private-key-file'),
+        ephemeralSelfTestKey: args.includes('--ephemeral-self-test-key'),
+        keyId: value('--key-id'),
+        proofRoot: value('--proof-root'),
+        auditProofPath: value('--audit-proof'),
+        auditConclusionSha256: value('--audit-conclusion-sha256'),
+        evalProofPath: value('--eval-proof'),
+        evalConclusionSha256: value('--eval-conclusion-sha256'),
+        minEvalGrade: value('--min-eval-grade') ?? 'B',
+        actor: value('--actor'),
+        outputDir: value('--output-dir'),
+        dryRun: args.includes('--dry-run'),
+        online: args.includes('--online'),
+      })
+      : await verifyReleaseProvenance({
+        attestationPath: value('--attestation') ?? value('--input'),
+        publicKeyFile: value('--public-key-file'),
+        expectedKeyFingerprint: value('--expected-key-fingerprint'),
+        planPath: value('--plan'),
+        unitId: value('--unit'),
+        targetVersion: value('--target-version') ?? value('--version'),
+        requireAuditProof: args.includes('--require-audit-proof'),
+        requireEvalProof: args.includes('--require-eval-proof'),
+        online: args.includes('--online'),
+      });
+    if (hasJson) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log(result.summary);
+    }
+    await exitAfterFlush(0);
+  } catch (err) {
+    const safeMsg = redactSensitivePaths(String(err?.message ?? 'unknown error'));
+    const safeDetails = err?.details && typeof err.details === 'object'
+      ? JSON.parse(redactSensitivePaths(JSON.stringify(err.details)))
+      : {};
+    if (hasJson) {
+      console.log(JSON.stringify({
+        error: err.code ?? 'UNKNOWN_ERROR',
+        message: safeMsg,
+        details: safeDetails,
+        exitCode: err.exitCode ?? 1,
+      }, null, 2));
+    } else {
+      console.error(`Error: ${safeMsg}`);
+    }
+    await exitAfterFlush(err.exitCode ?? 1);
+  }
+}
+
+// --- Canary rollout & one-click version rollback routing: canary & rollback (CAP-P7-03) ---
+if (command === 'canary' || command === 'rollback') {
+  if (args.includes('--help') || args.includes('-h')) {
+    const helpText = command === 'canary'
+      ? `release-skill canary - 生成金丝雀分阶段灰度放量、全量转正或中止收据及渠道操作清单（离线零远端写入）
+
+Usage:
+  release-skill canary [--root <path>] [--unit <id>] --target-version <semver> --baseline-version <semver> [--stage <canary|promote|abort>] [--channel <canary|next|latest>] [--traffic-percent <0..100>] --actor <name> [--offline] [--dry-run] [--json]
+
+Options:
+  --root <path>                        受检项目根目录（默认当前目录）
+  --unit <id>                          目标发布单元 ID（单单元项目可省略）
+  --target-version <semver>            待灰度或转正的候选版本（必填）
+  --baseline-version <semver>          线上稳定基线版本（必填，不得与候选版本相同）
+  --stage <canary|promote|abort>       灰度阶段（默认 canary）
+  --channel <canary|next|latest>       目标分发标签渠道（canary 阶段禁止指定 latest）
+  --traffic-percent <int>              灰度目标流量比例（canary 默认 10，promote 固定 100，abort 固定 0）
+  --observation-window-minutes <int>   观察窗口分钟数（默认 60）
+  --max-error-rate-bp <int>            自动回滚错误率上限万分比（默认 50）
+  --reason <text>                      本次灰度阶段说明（可选）
+  --actor <name>                       签发责任人标识（必填）
+  --output-dir <rel-path>              自定义项目内相对输出目录
+  --offline                            纯本地离线生成（默认）
+  --dry-run                            仅在内存中预览校验，不落盘
+  --json                               输出结构化 JSON
+  -h, --help                           显示帮助并退出`
+      : `release-skill rollback - 生成一键版本回滚收据、渠道切换手册与 skill-family-hub 降级提案（离线零远端写入）
+
+Usage:
+  release-skill rollback [--root <path>] [--unit <id>] --target-version <bad-semver> --fallback-version <good-semver> [--severity <critical|high|medium|low>] --reason <text> --actor <name> [--fallback-provenance <path>] [--offline] [--dry-run] [--json]
+
+Options:
+  --root <path>                        受检项目根目录（默认当前目录）
+  --unit <id>                          目标发布单元 ID（单单元项目可省略）
+  --target-version <semver>            需紧急回滚下线的问题版本（必填）
+  --fallback-version <semver>          安全回退目标基线版本（必填，不得与问题版本相同）
+  --severity <critical|high|medium|low> 风险严重级别（默认 high）
+  --reason <text>                      回滚原因与影响范围说明（必填）
+  --actor <name>                       签发责任人标识（必填）
+  --fallback-provenance <path>         可选：安全回退版本的 provenance-attestation.json（签发前先离线验签）
+  --expected-key-fingerprint <hex>     可选：安全回退版本签名公钥的期望 SPKI SHA-256 指纹
+  --output-dir <rel-path>              自定义项目内相对输出目录
+  --offline                            纯本地离线生成（默认）
+  --dry-run                            仅在内存中预览校验，不落盘
+  --json                               输出结构化 JSON
+  -h, --help                           显示帮助并退出`;
+
+    if (hasJson) {
+      console.log(JSON.stringify({
+        command,
+        status: 'HELP',
+        remoteWritesPerformed: false,
+        usage: helpText.split('\n')[2].trim(),
+      }, null, 2));
+    } else {
+      console.log(helpText);
+    }
+    await exitAfterFlush(0);
+  }
+
+  const value = (flag) => {
+    const idx = args.indexOf(flag);
+    return idx !== -1 && args[idx + 1] && !args[idx + 1].startsWith('--')
+      ? args[idx + 1]
+      : undefined;
+  };
+
+  try {
+    const { planCanaryRollout, executeVersionRollback } = await import('../src/commands/canary-rollback.mjs');
+    const result = command === 'canary'
+      ? await planCanaryRollout({
+        root: resolve(value('--root') ?? process.cwd()),
+        unitId: value('--unit'),
+        stage: value('--stage') ?? 'canary',
+        channel: value('--channel'),
+        trafficPercent: value('--traffic-percent') !== undefined ? Number(value('--traffic-percent')) : undefined,
+        targetVersion: value('--target-version') ?? value('--version'),
+        baselineVersion: value('--baseline-version'),
+        observationWindowMinutes: value('--observation-window-minutes') !== undefined
+          ? Number(value('--observation-window-minutes'))
+          : 60,
+        maxErrorRateBp: value('--max-error-rate-bp') !== undefined
+          ? Number(value('--max-error-rate-bp'))
+          : 50,
+        reason: value('--reason'),
+        actor: value('--actor'),
+        outputDir: value('--output-dir'),
+        dryRun: args.includes('--dry-run'),
+        online: args.includes('--online'),
+      })
+      : await executeVersionRollback({
+        root: resolve(value('--root') ?? process.cwd()),
+        unitId: value('--unit'),
+        targetVersion: value('--target-version') ?? value('--version'),
+        fallbackVersion: value('--fallback-version'),
+        severity: value('--severity') ?? 'high',
+        reason: value('--reason'),
+        actor: value('--actor'),
+        fallbackProvenancePath: value('--fallback-provenance'),
+        expectedKeyFingerprint: value('--expected-key-fingerprint'),
+        outputDir: value('--output-dir'),
+        dryRun: args.includes('--dry-run'),
+        online: args.includes('--online'),
+      });
+    if (hasJson) {
+      console.log(JSON.stringify(result, null, 2));
+    } else {
+      console.log(result.summary);
+    }
+    await exitAfterFlush(0);
+  } catch (err) {
+    const safeMsg = redactSensitivePaths(String(err?.message ?? 'unknown error'));
+    const safeDetails = err?.details && typeof err.details === 'object'
+      ? JSON.parse(redactSensitivePaths(JSON.stringify(err.details)))
+      : {};
+    if (hasJson) {
+      console.log(JSON.stringify({
+        error: err.code ?? 'UNKNOWN_ERROR',
+        message: safeMsg,
+        details: safeDetails,
+        exitCode: err.exitCode ?? 1,
+      }, null, 2));
+    } else {
+      console.error(`Error: ${safeMsg}`);
     }
     await exitAfterFlush(err.exitCode ?? 1);
   }

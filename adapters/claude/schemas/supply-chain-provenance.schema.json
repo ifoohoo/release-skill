@@ -1,0 +1,156 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://release-skill.dev/schemas/supply-chain-provenance/v1",
+  "title": "Release Supply-Chain Cryptographic Provenance Attestation",
+  "description": "发布单元供应链密码学溯源签名证明契约（基于 Ed25519 与规范化 JSON 摘要，绑定冻结计划、公开快照与审计/评测专业结论，零私钥落盘、零本机绝对路径）。",
+  "$ref": "#/definitions/provenanceAttestation",
+  "definitions": {
+    "sha256Hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "64 位小写十六进制 SHA-256 摘要。"
+    },
+    "semverString": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\\+([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?$",
+      "description": "符合 SemVer 2.0.0 的语义化版本号。"
+    },
+    "subjectArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "label", "sha256"],
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["public-manifest", "git-snapshot-archive", "npm-tarball", "plan-document"],
+          "description": "受保护发布产物的角色类别。"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "不携带本机绝对路径的可移植产物标识（如 unit:release-skill@0.11.0 或 tarball 文件名）。"
+        },
+        "sha256": { "$ref": "#/definitions/sha256Hex" }
+      }
+    },
+    "auditBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["providerId", "providerVersion", "outcomeCode", "digestSha256"],
+      "properties": {
+        "providerId": { "const": "skill-family-audit" },
+        "providerVersion": { "type": "string", "minLength": 1 },
+        "outcomeCode": { "type": "string", "minLength": 1 },
+        "digestSha256": { "$ref": "#/definitions/sha256Hex" }
+      }
+    },
+    "evalBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["providerId", "providerVersion", "grade", "overallScoreBp", "scorecardDigestSha256", "digestSha256"],
+      "properties": {
+        "providerId": { "const": "skill-family-eval" },
+        "providerVersion": { "type": "string", "minLength": 1 },
+        "grade": { "type": "string", "enum": ["S", "A", "B", "C"] },
+        "overallScoreBp": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "scorecardDigestSha256": { "$ref": "#/definitions/sha256Hex" },
+        "digestSha256": { "$ref": "#/definitions/sha256Hex" }
+      }
+    },
+    "provenanceStatement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "statementType",
+        "projectName",
+        "unitId",
+        "publicRepo",
+        "version",
+        "planDigest",
+        "subjectArtifacts",
+        "qualityBindings",
+        "actor",
+        "signedAt"
+      ],
+      "properties": {
+        "statementType": { "const": "https://release-skill.dev/provenance/statement/v1" },
+        "projectName": { "type": "string", "minLength": 1 },
+        "unitId": {
+          "type": "string",
+          "pattern": "^(?!\\.{1,2}$)[A-Za-z0-9][A-Za-z0-9._-]*$"
+        },
+        "publicRepo": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+$"
+        },
+        "version": { "$ref": "#/definitions/semverString" },
+        "planDigest": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "关联冻结发布计划的 64 位 SHA-256 摘要；纯工作区快照预签名模式下可为 null。"
+        },
+        "subjectArtifacts": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/subjectArtifact" }
+        },
+        "qualityBindings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["auditConclusion", "evalConclusion"],
+          "properties": {
+            "auditConclusion": {
+              "anyOf": [{ "type": "null" }, { "$ref": "#/definitions/auditBinding" }]
+            },
+            "evalConclusion": {
+              "anyOf": [{ "type": "null" }, { "$ref": "#/definitions/evalBinding" }]
+            }
+          }
+        },
+        "actor": { "type": "string", "minLength": 1 },
+        "signedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "provenanceSignature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["algorithm", "keyId", "publicKeyFingerprintSha256", "publicKeyPem", "signatureBase64"],
+      "properties": {
+        "algorithm": { "const": "ed25519" },
+        "keyId": { "type": "string", "minLength": 1 },
+        "publicKeyFingerprintSha256": { "$ref": "#/definitions/sha256Hex" },
+        "publicKeyPem": {
+          "type": "string",
+          "pattern": "^-----BEGIN PUBLIC KEY-----[\\s\\S]+-----END PUBLIC KEY-----\\s*$"
+        },
+        "signatureBase64": {
+          "type": "string",
+          "minLength": 64,
+          "pattern": "^[A-Za-z0-9+/=]+$"
+        }
+      }
+    },
+    "provenanceAttestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "kind",
+        "executionMode",
+        "remoteWritesPerformed",
+        "statement",
+        "statementDigestSha256",
+        "signature"
+      ],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "kind": { "const": "release-skill/provenance-attestation" },
+        "executionMode": { "type": "string", "enum": ["offline", "dry-run"] },
+        "remoteWritesPerformed": { "const": false },
+        "statement": { "$ref": "#/definitions/provenanceStatement" },
+        "statementDigestSha256": { "$ref": "#/definitions/sha256Hex" },
+        "signature": { "$ref": "#/definitions/provenanceSignature" }
+      }
+    }
+  }
+}

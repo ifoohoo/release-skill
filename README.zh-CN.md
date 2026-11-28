@@ -2,7 +2,7 @@
 
 [English](README.md) · 安装指南：[中文](INSTALL.zh-CN.md) / [English](INSTALL.md)
 
-<!-- release-skill:release-version: 0.10.5 -->
+<!-- release-skill:release-version: 0.11.0 -->
 面向 Claude Code、CodeBuddy、WorkBuddy、Codex 和 Kimi Code 的发布准备工具，完整保留人工维护的文件内容。
 
 release-skill 帮助维护者回答三个问题：准备发布什么、还有哪些检查未通过、最终发布的内容是什么。它不重新生成、也不回写项目源文件。`prepare` 把每个配置的公开文件复制到隔离快照并验证字节——先冻结并供人工审阅，再从同一份冻结产物发布。`setup` 只显示确定性的 `compactSummary` 审阅视图，完整报告保留在临时会话目录中。
@@ -12,29 +12,26 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 发布单元是独立配置版本、公开文件和分发目标的发布对象。发布计划是供批准前审阅的记录，将目标版本、冻结产物和拟执行的外部动作关联起来；详见[人工审阅与批准步骤](#release-plan-review)。
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.10.5** (2026-11-27)
+**0.11.0** (2026-11-28)
 
-0.10.5 在 assess 与 prepare 中新增 skill-family-eval 动态评测专业结论单向摘要核验（--eval-conclusion 与 --eval-conclusion-sha256，支持配置 policy.minEvalGrade 默认 B 级准入），并将 Foundation 三包升级锁定至 0.39.2。本版本不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
+0.11.0 新增供应链 Ed25519 密码学溯源签名与纯离线验签命令（sign-provenance 与 verify-provenance），并新增金丝雀分阶段放量与一键版本回滚治理命令（canary 与 rollback，自动联动 Skill Family Hub 降级提案）；Foundation 三包保持锁定 0.39.2。本版本不代表已经发布、完成真实宿主验收、完成消费者安装验证或通过独立验收。
 
 **安全**
 
-- 对外部动态评测专业结论强制执行 64 位 SHA-256 摘要比对、硬闸通过态与计分卡摘要校验，保持零反向子进程调用；继续沿用 Skill Family Hub 统一市场机制，通过 GitHub Git Data API 执行比较后写入（compare-and-swap）绑定已观察分支头，部分发布不回滚、不覆盖。
+- 严格拦截位于受检仓库目录内或符号链接的签名私钥，确保私钥材料零落盘、零回显，并禁止未满全量流量的 `canary` 灰度阶段直接覆盖 `latest` 默认标签；继续沿用 Skill Family Hub 统一市场机制，通过 GitHub Git Data API 执行比较后写入（compare-and-swap）绑定已观察分支头，部分发布不回滚、不覆盖。
 
 **新增**
 
-- 在 `assess` 与 `prepare` 双入口新增 `skill-family-eval` 动态质量评测专业结论单向核验（`--eval-conclusion` 与 `--eval-conclusion-sha256`），支持 `policy.minEvalGrade`（默认 `B`）最低等级门禁与共享主体引用解析。
-
-**变更**
-
-- 将锁定的 Foundation 底座三包（`skill-family-contracts`、`skill-family-engineering-kit`、`skill-family-harness-node`）从 `0.39.0` 升级至 `0.39.2`。
+- 新增基于原生 `node:crypto` `Ed25519` 的供应链溯源签名与纯离线验签子命令（`sign-provenance` / `verify-provenance`），将冻结发布计划摘要、快照/包产物哈希及单向核验的 `skill-family-audit` 与 `skill-family-eval` 专业结论摘要统一锁入密码学签名载荷。
+- 新增金丝雀分阶段灰度放量（`canary`）与一键版本回滚（`rollback`）子命令，确定性产出闭世界收据、渠道标签切换执行手册及 `skill-family-hub` 降级回退提案。
 
 **升级说明**
 
-升级至 0.10.5 后，请用新版本重新运行 `prepare` 生成候选，并由测试验收职责方提供对应测试结果文件。原有候选、结果、批准及运行记录原样保留，不得手工改写 `writerVersion`。原独立的 `release-skill` 市场已弃用，统一市场为 ifoohoo/skill-family-hub，插件标识为 release-skill@skill-family-hub；统一市场不取代 GitHub Release 或 npm 发布渠道。
+升级至 0.11.0 后，请用新版本重新运行 `prepare` 生成候选，并由测试验收职责方提供对应测试结果文件。原有候选、结果、批准及运行记录原样保留，不得手工改写 `writerVersion`。原独立的 `release-skill` 市场已弃用，统一市场为 ifoohoo/skill-family-hub，插件标识为 release-skill@skill-family-hub；统一市场不取代 GitHub Release 或 npm 发布渠道。
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **当前边界：** v0.10.5 的能力范围与验证边界见本 README，具体版本的发布状态与消费者安装验证结果以对应发布记录为准。
+> **当前边界：** v0.11.0 的能力范围与验证边界见本 README，具体版本的发布状态与消费者安装验证结果以对应发布记录为准。
 > v0.4.1 是更早的已发布里程碑（v0.2.2 曾处于已发布状态，后因平台验证收敛修复而更新）。
 > v0.1.1 已完成 GitHub 与 npm 的真实生产发布，是首次生产验证的历史里程碑。
 > 该版本还从冻结 Git ref 完成精确 npm 安装及 Claude/Codex 消费者安装验证。
@@ -48,7 +45,7 @@ release-skill 帮助维护者回答三个问题：准备发布什么、还有哪
 > 远端唯一性检查在 `publish` 全局预检执行。
 
 <!-- release-skill:capability:safe-first-command -->
-> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.10.5 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
+> **生产路径自 v0.1.1 里程碑起已完成真实生产验证；v0.11.0 的发布、消费者安装验证和独立验收状态须由该版本的发布记录及验证结果确认。**
 > npm 安装的 CLI 是受支持的用户入口；源码 checkout 保留为开发/贡献者路径。
 >
 > **第一条命令：**

@@ -17,6 +17,10 @@
       "digest": "86c9cab024ebe9c7f8ec3358fcc12d05b8ed246ab59da2b0acc6a517f31274ea",
       "bytes": 2488
     },
+    "canary-rollback.schema.json": {
+      "digest": "aba432681d4cec90f1b897e3b4b62976be45f56e816879c4e3d5081502c374d5",
+      "bytes": 7895
+    },
     "evidence-event-v2.schema.json": {
       "digest": "b622feb6761eb35773a09d8259173f3bbdda1452c486858ccf4e037fba256372",
       "bytes": 6169
@@ -42,12 +46,16 @@
       "bytes": 69454
     },
     "release-project.schema.json": {
-      "digest": "d55aa047a8a469c892ba6a2857673f86149a741ae5971c32e44dd9ab2f096ee4",
-      "bytes": 77058
+      "digest": "c4a431fbff9f2a2b8d751c49bff81157ba46d76a627e778905d841d720d05c53",
+      "bytes": 77321
     },
     "release-run.schema.json": {
       "digest": "26c44ddf1ed42f266a2ddee7f6132cee94c59593e37f24359c9c48f12612ec22",
       "bytes": 21874
+    },
+    "supply-chain-provenance.schema.json": {
+      "digest": "52bf14c6e7860ceec420b59abcaac5f1af36b6fe3c8f55b8705d3db1bcf5ff5e",
+      "bytes": 6058
     },
     "test-intake.schema.json": {
       "digest": "679b6a0ab93ef7120622d4dcbe7ab4157d193f5846c7ced1b86eb31bc055a848",

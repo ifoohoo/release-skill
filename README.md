@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) · Installation: [English](INSTALL.md) / [简体中文](INSTALL.zh-CN.md)
 
-<!-- release-skill:release-version: 0.10.5 -->
+<!-- release-skill:release-version: 0.11.0 -->
 Release preparation for Claude Code, CodeBuddy, WorkBuddy, Codex, and Kimi Code, with human-edited files kept intact.
 
 release-skill helps a maintainer answer three questions: what will be released,
@@ -18,29 +18,26 @@ report stays in a temporary session directory.
 A release unit is a release object with independently configured version, public files, and distribution targets. A release plan is a record for review before approval, linking target versions, frozen artifacts, and proposed external actions; see the [human review and approval steps](#release-plan-review).
 
 <!-- release-skill:managed:start id=latest-release -->
-**0.10.5** (2026-11-27)
+**0.11.0** (2026-11-28)
 
-0.10.5 adds unidirectional dynamic evaluation professional-conclusion intake (--eval-conclusion and --eval-conclusion-sha256) with configurable policy.minEvalGrade (default B) across assess and prepare, and upgrades pinned Foundation dependencies to 0.39.2. This description is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+0.11.0 adds Ed25519 supply-chain provenance signing and offline verification (sign-provenance and verify-provenance) plus staged canary rollout and one-click version rollback commands (canary and rollback) with Skill Family Hub deprecation proposal integration. Foundation dependencies remain pinned to 0.39.2. This description is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
 
 **Security**
 
-- Enforced mandatory SHA-256 digest matching, hard-gate pass verification, and scorecard digest validation on external dynamic evaluation conclusions without reverse subprocess execution. The inherited Skill Family Hub remains the unified marketplace; GitHub Git Data API with compare-and-swap binds updates to the observed branch head, and partial publication is never rolled back or force-pushed.
+- Refused in-repository or symlink private keys during sign-provenance, enforced zero private-key persistence across receipts and error outputs, and blocked partial-traffic canary rollouts from targeting the latest channel. The inherited Skill Family Hub remains the unified marketplace; GitHub Git Data API with compare-and-swap binds updates to the observed branch head, and partial publication is never rolled back or force-pushed.
 
 **Added**
 
-- Added unidirectional skill-family-eval professional-conclusion verification (--eval-conclusion and --eval-conclusion-sha256) in assess and prepare with configurable policy.minEvalGrade (default B) and shared subject-reference resolution.
-
-**Changed**
-
-- Upgraded pinned Foundation dependencies (skill-family-contracts, skill-family-engineering-kit, skill-family-harness-node) from 0.39.0 to 0.39.2.
+- Added Ed25519 supply-chain cryptographic provenance signing and pure offline verification commands (sign-provenance and verify-provenance) binding frozen plan digests, snapshot/tarball SHA-256 hashes, and unidirectional skill-family-audit and skill-family-eval professional-conclusion digests.
+- Added staged canary rollout (canary) and one-click version rollback (rollback) commands producing closed-world receipts, channel repoint runbooks, and Skill Family Hub deprecation proposals.
 
 **Upgrade Notes**
 
-Run prepare with 0.10.5 to create a new candidate and provide a new test result file. Preserve previous candidates, results, approvals and run records; do not edit their writerVersion. The release-skill standalone marketplace is deprecated; use ifoohoo/skill-family-hub with plugin id release-skill@skill-family-hub instead. The unified marketplace does not replace GitHub Release or npm distribution.
+Run prepare with 0.11.0 to create a new candidate and provide a new test result file. Preserve previous candidates, results, approvals and run records; do not edit their writerVersion. The release-skill standalone marketplace is deprecated; use ifoohoo/skill-family-hub with plugin id release-skill@skill-family-hub instead. The unified marketplace does not replace GitHub Release or npm distribution.
 <!-- release-skill:managed:end id=latest-release -->
 
 <!-- release-skill:capability:external-write-boundary -->
-> **Current boundary:** v0.10.5: this README records capabilities and verification boundaries;
+> **Current boundary:** v0.11.0: this README records capabilities and verification boundaries;
 > it is not evidence of
 > publication, consumer-installation verification, or independent acceptance.
 > Release availability must be established from the corresponding release records
@@ -64,7 +61,7 @@ Run prepare with 0.10.5 to create a new candidate and provide a new test result 
 > publish global preflight.
 
 <!-- release-skill:capability:safe-first-command -->
-> **Production path verified since the v0.1.1 milestone; for v0.10.5,
+> **Production path verified since the v0.1.1 milestone; for v0.11.0,
 > publication, consumer-installation verification, and independent acceptance
 > require version-specific release records and verification results.**
 > The npm-installed CLI is the supported user entry. Source checkout

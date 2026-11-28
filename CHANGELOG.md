@@ -1,5 +1,25 @@
 # Changelog
 
+<!-- release-skill:changelog:start version=0.11.0 locale=en baseline=sha256:c10f46073c1181ec633a12ac5cf442f2adac750193fec47a1996af0b569fd58c -->
+## [0.11.0] - 2026-11-28
+
+0.11.0 adds Ed25519 supply-chain provenance signing and offline verification (sign-provenance and verify-provenance) plus staged canary rollout and one-click version rollback commands (canary and rollback) with Skill Family Hub deprecation proposal integration. Foundation dependencies remain pinned to 0.39.2. This description is not evidence of publication, real-host acceptance, consumer installation verification, or independent acceptance.
+
+### Security
+
+- Refused in-repository or symlink private keys during sign-provenance, enforced zero private-key persistence across receipts and error outputs, and blocked partial-traffic canary rollouts from targeting the latest channel. The inherited Skill Family Hub remains the unified marketplace; GitHub Git Data API with compare-and-swap binds updates to the observed branch head, and partial publication is never rolled back or force-pushed.
+
+### Added
+
+- Added Ed25519 supply-chain cryptographic provenance signing and pure offline verification commands (sign-provenance and verify-provenance) binding frozen plan digests, snapshot/tarball SHA-256 hashes, and unidirectional skill-family-audit and skill-family-eval professional-conclusion digests.
+- Added staged canary rollout (canary) and one-click version rollback (rollback) commands producing closed-world receipts, channel repoint runbooks, and Skill Family Hub deprecation proposals.
+
+### Upgrade Notes
+
+Run prepare with 0.11.0 to create a new candidate and provide a new test result file. Preserve previous candidates, results, approvals and run records; do not edit their writerVersion. The release-skill standalone marketplace is deprecated; use ifoohoo/skill-family-hub with plugin id release-skill@skill-family-hub instead. The unified marketplace does not replace GitHub Release or npm distribution.
+<!-- release-skill:changelog:end version=0.11.0 locale=en -->
+
+
 <!-- release-skill:changelog:start version=0.10.5 locale=en baseline=sha256:62ee5d0c2bef294aeec11807d5db5fd171459e382d940d14ce6e96961da5ad92 -->
 ## [0.10.5] - 2026-11-27
 
